@@ -1833,6 +1833,9 @@ class MaglevGraphBuilder {
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
       AllocationType allocation_type);
 
+  ReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
+                                                    ValueNode* receiver);
+
   ValueNode* BuildGenericConstruct(
       ValueNode* target, ValueNode* new_target, ValueNode* context,
       const CallArguments& args,

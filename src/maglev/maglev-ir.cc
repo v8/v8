@@ -21,9 +21,11 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/objects/fixed-array.h"
-#include "src/objects/js-array.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/instance-type.h"
+#include "src/objects/js-array.h"
+#include "src/objects/js-generator.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
@@ -569,6 +571,37 @@ CapturedObject CapturedObject::CreateRegExpLiteral(
   regexp.set(JSRegExp::kFlagsOffset, literal.flags());
   regexp.set(JSRegExp::kLastIndexOffset, JSRegExp::kInitialLastIndexValue);
   return regexp;
+}
+
+// static
+CapturedObject CapturedObject::CreateJSGeneratorObject(
+    Zone* zone, compiler::MapRef map, int instance_size, ValueNode* context,
+    ValueNode* closure, ValueNode* receiver, CapturedObject register_file) {
+  int slot_count = instance_size / kTaggedSize;
+  InstanceType instance_type = map.instance_type();
+  DCHECK(instance_type == JS_GENERATOR_OBJECT_TYPE ||
+         instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+  SBXCHECK_GE(slot_count, instance_type == JS_GENERATOR_OBJECT_TYPE ? 10 : 12);
+  CapturedObject object(zone, slot_count);
+  object.set(JSGeneratorObject::kMapOffset, map);
+  object.set(JSGeneratorObject::kPropertiesOrHashOffset,
+             RootIndex::kEmptyFixedArray);
+  object.set(JSGeneratorObject::kElementsOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSGeneratorObject::kContextOffset, context);
+  object.set(JSGeneratorObject::kFunctionOffset, closure);
+  object.set(JSGeneratorObject::kReceiverOffset, receiver);
+  object.set(JSGeneratorObject::kInputOrDebugPosOffset,
+             RootIndex::kUndefinedValue);
+  object.set(JSGeneratorObject::kResumeModeOffset, JSGeneratorObject::kNext);
+  object.set(JSGeneratorObject::kContinuationOffset,
+             JSGeneratorObject::kGeneratorExecuting);
+  object.set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
+  if (instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
+    object.set(JSAsyncGeneratorObject::kQueueOffset,
+               RootIndex::kUndefinedValue);
+    object.set(JSAsyncGeneratorObject::kIsAwaitingOffset, 0);
+  }
+  return object;
 }
 
 CapturedFixedDoubleArray::CapturedFixedDoubleArray(

@@ -902,6 +902,9 @@ class CapturedObject {
   static CapturedObject CreateRegExpLiteral(
       Zone* zone, compiler::JSHeapBroker* broker, compiler::MapRef map,
       compiler::RegExpBoilerplateDescriptionRef literal);
+  static CapturedObject CreateJSGeneratorObject(
+      Zone* zone, compiler::MapRef map, int instance_size, ValueNode* context,
+      ValueNode* closure, ValueNode* receiver, CapturedObject register_file);
 
   bool IsArgumentsObject() const {
     return base::IsInRange(tag_, kStrictArgumentsObject, kRestParameter);

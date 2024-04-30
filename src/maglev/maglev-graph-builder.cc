@@ -8336,8 +8336,12 @@ void MaglevGraphBuilder::VisitIntrinsicCreateAsyncFromSyncIterator(
 void MaglevGraphBuilder::VisitIntrinsicCreateJSGeneratorObject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
+  ValueNode* closure = current_interpreter_frame_.get(args[0]);
+  ValueNode* receiver = current_interpreter_frame_.get(args[1]);
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildAndAllocateJSGeneratorObject(closure, receiver), SetAccumulator);
   SetAccumulator(BuildCallBuiltin<Builtin::kCreateGeneratorObject>(
-      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+      {GetTaggedValue(closure), GetTaggedValue(receiver)}));
 }
 
 void MaglevGraphBuilder::VisitIntrinsicGeneratorGetResumeMode(
@@ -8453,6 +8457,55 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArray(
     array.set(map.GetInObjectPropertyOffset(i), RootIndex::kUndefinedValue);
   }
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  return allocation;
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
+    ValueNode* closure, ValueNode* receiver) {
+  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(closure);
+  if (!maybe_constant.has_value()) return ReduceResult::Fail();
+  if (!maybe_constant->IsJSFunction()) return ReduceResult::Fail();
+  compiler::JSFunctionRef function = maybe_constant->AsJSFunction();
+  if (!function.has_initial_map(broker())) return ReduceResult::Fail();
+
+  // Create the register file.
+  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+  DCHECK(shared.HasBytecodeArray());
+  compiler::BytecodeArrayRef bytecode_array = shared.GetBytecodeArray(broker());
+  int parameter_count_no_receiver = bytecode_array.parameter_count() - 1;
+  int length = parameter_count_no_receiver + bytecode_array.register_count();
+  if (FixedArray::SizeFor(length) > kMaxRegularHeapObjectSize) {
+    return ReduceResult::Fail();
+  }
+  CapturedObject register_file = CapturedObject::CreateFixedArray(
+      zone(), broker()->fixed_array_map(), length);
+  for (int i = 0; i < length; i++) {
+    register_file.set(FixedArray::OffsetOfElementAt(i),
+                      RootIndex::kUndefinedValue);
+  }
+
+  // Create the JS[Async]GeneratorObject instance.
+  compiler::SlackTrackingPrediction slack_tracking_prediction =
+      broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
+          function);
+  compiler::MapRef initial_map = function.initial_map(broker());
+  CapturedObject generator = CapturedObject::CreateJSGeneratorObject(
+      zone(), initial_map, slack_tracking_prediction.instance_size(),
+      GetContext(), GetTaggedValue(closure), GetTaggedValue(receiver),
+      register_file);
+
+  // Handle in-object properties.
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       i++) {
+    generator.set(initial_map.GetInObjectPropertyOffset(i),
+                  RootIndex::kUndefinedValue);
+  }
+
+  ValueNode* allocation =
+      BuildInlinedAllocation(generator, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
   // next side effect clear it.
   ClearCurrentAllocationBlock();
