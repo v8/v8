@@ -623,7 +623,7 @@ CapturedObject CapturedObject::CreateJSIteratorResult(Zone* zone,
 }
 
 // static
-CapturedObject CapturedObject::CreateJSStringOperator(Zone* zone,
+CapturedObject CapturedObject::CreateJSStringIterator(Zone* zone,
                                                       compiler::MapRef map,
                                                       ValueNode* string) {
   static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);

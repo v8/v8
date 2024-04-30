@@ -908,7 +908,7 @@ class CapturedObject {
   static CapturedObject CreateJSIteratorResult(Zone* zone, compiler::MapRef map,
                                                ValueNode* value,
                                                ValueNode* done);
-  static CapturedObject CreateJSStringOperator(Zone* zone, compiler::MapRef map,
+  static CapturedObject CreateJSStringIterator(Zone* zone, compiler::MapRef map,
                                                ValueNode* string);
 
   bool IsArgumentsObject() const {
