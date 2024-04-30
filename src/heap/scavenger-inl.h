@@ -488,6 +488,8 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
                                    Tagged<JSArrayBuffer> object);
   V8_INLINE int VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
+  V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
+                                      ExternalPointerSlot slot);
 
  private:
   template <typename TSlot>
@@ -553,6 +555,32 @@ int ScavengeVisitor::VisitJSApiObject(Tagged<Map> map,
   JSAPIObjectWithEmbedderSlots::BodyDescriptor::IterateBody(map, object, size,
                                                             this);
   return size;
+}
+
+void ScavengeVisitor::VisitExternalPointer(Tagged<HeapObject> host,
+                                           ExternalPointerSlot slot) {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(slot.tag()));
+  DCHECK(Heap::InYoungGeneration(host));
+
+  // If an incremental mark is in progress, there is already a whole-heap trace
+  // running that will mark live EPT entries, and the scavenger won't sweep the
+  // young EPT space.  So, leave the tracing and sweeping work to the impending
+  // major GC.
+  //
+  // The EPT entry may or may not be marked already by the incremental marker.
+  if (scavenger_->is_incremental_marking_) return;
+
+  // TODO(chromium:337580006): Remove when pointer compression always uses
+  // EPT.
+  if (!slot.HasExternalPointerHandle()) return;
+
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  Heap* heap = scavenger_->heap();
+  ExternalPointerTable& table = heap->isolate()->external_pointer_table();
+  table.Mark(heap->young_external_pointer_space(), handle, slot.address());
+#endif  // V8_COMPRESS_POINTERS
 }
 
 int ScavengeVisitor::VisitEphemeronHashTable(Tagged<Map> map,

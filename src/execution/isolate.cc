@@ -4259,7 +4259,9 @@ void Isolate::Deinit() {
   }
 
 #ifdef V8_COMPRESS_POINTERS
-  external_pointer_table().TearDownSpace(heap()->external_pointer_space());
+  external_pointer_table().TearDownSpace(
+      heap()->young_external_pointer_space());
+  external_pointer_table().TearDownSpace(heap()->old_external_pointer_space());
   external_pointer_table().DetachSpaceFromReadOnlySegment(
       heap()->read_only_external_pointer_space());
   external_pointer_table().TearDownSpace(
@@ -5028,7 +5030,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         heap()->read_only_external_pointer_space());
     external_pointer_table().AttachSpaceToReadOnlySegment(
         heap()->read_only_external_pointer_space());
-    external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+    external_pointer_table().InitializeSpace(
+        heap()->young_external_pointer_space());
+    external_pointer_table().InitializeSpace(
+        heap()->old_external_pointer_space());
     cpp_heap_pointer_table().Initialize();
     cpp_heap_pointer_table().InitializeSpace(heap()->cpp_heap_pointer_space());
 #endif  // V8_COMPRESS_POINTERS

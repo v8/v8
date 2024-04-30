@@ -79,6 +79,35 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
   }
 
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) override {
+#ifdef V8_COMPRESS_POINTERS
+    DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+    DCHECK(!IsSharedExternalPointerType(slot.tag()));
+    // TODO(chromium:337580006): Remove when pointer compression always uses
+    // EPT.
+    if (!slot.HasExternalPointerHandle()) return;
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    Heap* heap = scavenger_->heap();
+    ExternalPointerTable& table = heap->isolate()->external_pointer_table();
+
+    // For survivor objects, the scavenger marks their EPT entries when they are
+    // copied and then sweeps the young EPT space at the end of collection,
+    // reclaiming unmarked EPT entries.  (Exception: if an incremental mark is
+    // in progress, the scavenger neither marks nor sweeps, as it will be the
+    // major GC's responsibility.)
+    //
+    // However when promoting, we just evacuate the entry from new to old space.
+    // Usually the entry will be unmarked, unless an incremental mark is in
+    // progress, or the slot was initialized since the last GC (external pointer
+    // tags have the mark bit set), in which case it may be marked already.  In
+    // any case, transfer the color from new to old EPT space.
+    table.Evacuate(heap->young_external_pointer_space(),
+                   heap->old_external_pointer_space(), handle, slot.address(),
+                   ExternalPointerTable::EvacuateMarkMode::kTransferMark);
+#endif  // V8_COMPRESS_POINTERS
+  }
+
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation and thus cannot be found when iterating promoted objects.
   void VisitInstructionStreamPointer(Tagged<Code>,
@@ -439,6 +468,19 @@ void ScavengerCollector::CollectGarbage() {
         scavenger->Finalize();
       }
       scavengers.clear();
+
+#ifdef V8_COMPRESS_POINTERS
+      // Sweep the external pointer table, unless an incremental mark is in
+      // progress, in which case leave sweeping to the end of the
+      // already-scheduled major GC cycle.  (If we swept here we'd clear EPT
+      // marks that the major marker was using, which would be an error.)
+      DCHECK(heap_->concurrent_marking()->IsStopped());
+      if (!heap_->incremental_marking()->IsMajorMarking()) {
+        heap_->isolate()->external_pointer_table().Sweep(
+            heap_->young_external_pointer_space(),
+            heap_->isolate()->counters());
+      }
+#endif  // V8_COMPRESS_POINTERS
 
       HandleSurvivingNewLargeObjects();
 

@@ -41,6 +41,41 @@ uint32_t CompactibleExternalEntityTable<Entry, size>::AllocateEntry(
 }
 
 template <typename Entry, size_t size>
+typename CompactibleExternalEntityTable<Entry, size>::CompactionResult
+CompactibleExternalEntityTable<Entry, size>::FinishCompaction(
+    Space* space, Histogram* counter) {
+  DCHECK(space->BelongsTo(this));
+  DCHECK(!space->is_internal_read_only_space());
+
+  // When compacting, we can compute the number of unused segments at the end of
+  // the table and deallocate those after sweeping.
+  uint32_t start_of_evacuation_area =
+      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
+  bool evacuation_was_successful = false;
+  if (space->IsCompacting()) {
+    auto outcome = ExternalEntityTableCompactionOutcome::kAborted;
+    if (space->CompactingWasAborted()) {
+      // Compaction was aborted during marking because the freelist grew to
+      // short. In this case, it is not guaranteed that any segments will now be
+      // completely free.  Extract the original start_of_evacuation_area value.
+      start_of_evacuation_area &= ~Space::kCompactionAbortedMarker;
+    } else {
+      // Entry evacuation was successful so all segments inside the evacuation
+      // area are now guaranteed to be free and so can be deallocated.
+      evacuation_was_successful = true;
+      outcome = ExternalEntityTableCompactionOutcome::kSuccess;
+    }
+    DCHECK(IsAligned(start_of_evacuation_area,
+                     ExternalEntityTable<Entry, size>::kEntriesPerSegment));
+
+    space->StopCompacting();
+    counter->AddSample(static_cast<int>(outcome));
+  }
+
+  return {start_of_evacuation_area, evacuation_was_successful};
+}
+
+template <typename Entry, size_t size>
 void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
     Space* space, uint32_t index, Address handle_location) {
   // Check if the entry should be evacuated for table compaction.
