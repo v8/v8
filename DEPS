@@ -83,7 +83,7 @@ vars = {
   'siso_version': 'git_revision:70d9e16bcc9dff0264905018f5a5652b37ed0e10',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:239be4fd8499df782db6bddb0f55832bf4f01307',
+  'luci_go': 'git_revision:01d1863acbd3d4c41da2aa7407a0ea6a195c770f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4d18eaef4eca9fc45534a727f60f62738f92a848',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd6bd5c993c268e83710e2a434140427e52d551f1',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0f0285d02d788719edb53fa9dcec1584ff83875',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd980d879d21edf5266cd049ded6cd17cba49eb28',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '835aa3e871f28f6d2635f1ec58e414f39b4d4049',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2c87882a7bacebf523a3df6a76432d0bc47badf8',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8e13f27a01d79d8cf1174e5bd74002fc7df42d0e',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -324,7 +324,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'fbb52d987e3156b96da0809f5b61e1946eb26cdb',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '2b354c6ad0d0479dcff68dab23fb0d1143a482c2',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
