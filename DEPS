@@ -128,9 +128,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9e07175ba92c103d3f989f722788279571213a15',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4d18eaef4eca9fc45534a727f60f62738f92a848',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b915e95c06d86803eb3d2b0174e404a0ea7b15de',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd0f0285d02d788719edb53fa9dcec1584ff83875',
   'buildtools/linux64': {
     'packages': [
       {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '11804c96b19a76a59dd9e8f6074e6eeed5aa5228',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd980d879d21edf5266cd049ded6cd17cba49eb28',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4246ba023a156178852f44f6a253a7199e4eaa06',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2c87882a7bacebf523a3df6a76432d0bc47badf8',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -324,7 +324,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'b84e3ff189980a33d4a0c6fa1201aa0b3b8bab4a',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'fbb52d987e3156b96da0809f5b61e1946eb26cdb',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
