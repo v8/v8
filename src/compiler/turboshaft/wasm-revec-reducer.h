@@ -627,10 +627,10 @@ class WasmRevecReducer : public Next {
                 base::VectorOf({pending_phi -> first(),
                                 analyzer_.GetReduced(input_phi.input(1))}),
                 RegisterRepresentation::Simd256());
+            return;
           }
         }
       }
-      return;
     }
 
     return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
