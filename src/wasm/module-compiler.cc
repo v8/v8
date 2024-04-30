@@ -1480,12 +1480,12 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   // | ref, uninitialized      | Smi(0)                | Smi(0)            |
   // | ref, monomorphic        | WasmFuncRef(target)   | Smi(count>0)      |
   // | ref, polymorphic        | FixedArray            | Undefined         |
-  // | ref, megamoprhic        | MegamorphicSymbol     | Undefined         |
+  // | ref, megamorphic        | MegamorphicSymbol     | Undefined         |
   // +-------------------------+-----------------------+-------------------+
   // | indirect, uninitialized | Smi(0)                | Smi(0)            |
   // | indirect, monomorphic   | Smi(truncated_target) | Smi(count>0)      |
   // | indirect, polymorphic   | FixedArray            | Undefined         |
-  // | indirect, megamoprhic   | MegamorphicSymbol     | Undefined         |
+  // | indirect, megamorphic   | MegamorphicSymbol     | Undefined         |
   // +-------------------------+-----------------------+-------------------+
   // The FixedArray entries for the polymorphic cases look like the monomorphic
   // entries in the feedback vector itself.

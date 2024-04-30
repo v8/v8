@@ -2479,6 +2479,23 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
         if (!tree || !tree->is_inlined()) {
+          // TODO(42204618,mliedtke): In the case of a non-inlined but known
+          // callee (e.g., we have seen calls to the function but decided not
+          // to inline because of size or budget) in combination with deopt as
+          // the slow path implementation below, this becomes a deopt loop,
+          // i.e., this code will fall through until the `DeoptIfNot` below.
+          // We can either a) emit direct calls (+ a check before) instead of
+          // fallthrough for such non-inlined cases and keep the deopt slowpath,
+          // or b) use the regular slowpath instead of a deopt as soon as there
+          // was at least one known, but non-inlined callee.
+          // Option a) is better than b) if the feedback was monomorphic, since
+          // then we have only one check + direct call + deopt, which makes more
+          // information available statically and is probably smaller in terms
+          // of code size than the regular slowpath. However, with more
+          // non-inlined callees, b) might become more desirable, due to smaller
+          // code size and potentially less spilling/reloading.
+          // The exact same problem will apply for `call_indirect` above, once
+          // we have inlining and deopt support for that as well.
           __ Goto(case_blocks[i + 1]);
           continue;
         }
