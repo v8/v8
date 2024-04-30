@@ -2701,8 +2701,10 @@ class LiftoffCompiler {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    CallBuiltin(Builtin::kWasmRefFunc, MakeSig::Returns(kRef).Params(kI32),
-                {VarState{kI32, static_cast<int>(function_index), 0}},
+    CallBuiltin(Builtin::kWasmRefFunc,
+                MakeSig::Returns(kRef).Params(kI32, kI32),
+                {VarState{kI32, static_cast<int>(function_index), 0},
+                 VarState{kI32, 0, 0}},
                 decoder->position());
     __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
   }
@@ -3022,14 +3024,16 @@ class LiftoffCompiler {
 
     VarState value = __ PopVarState();
     VarState index = __ PopVarState();
+    VarState extract_shared_part{kI32, 0, 0};
 
     ValueType type = env_->module->tables[imm.index].type;
     bool is_funcref = IsSubtypeOf(type, kWasmFuncRef, env_->module);
     auto stub =
         is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
 
-    CallBuiltin(stub, MakeSig::Params(kI32, kI32, kRefNull),
-                {table_index, index, value}, decoder->position());
+    CallBuiltin(stub, MakeSig::Params(kI32, kI32, kI32, kRefNull),
+                {table_index, extract_shared_part, index, value},
+                decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -5992,9 +5996,9 @@ class LiftoffCompiler {
                  const Value* /* args */) {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
+
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-
     LoadSmi(table_index_reg, imm.table.index);
     VarState table_index{kSmiKind, table_index_reg, 0};
 
@@ -6003,14 +6007,20 @@ class LiftoffCompiler {
     LoadSmi(segment_index_reg, imm.element_segment.index);
     VarState segment_index{kSmiKind, segment_index_reg, 0};
 
+    LiftoffRegister extract_shared_data_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(extract_shared_data_reg, 0);
+    VarState extract_shared_data{kSmiKind, extract_shared_data_reg, 0};
+
     VarState size = __ PopVarState();
     VarState src = __ PopVarState();
     VarState dst = __ PopVarState();
 
-    CallBuiltin(Builtin::kWasmTableInit,
-                MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
-                {dst, src, size, table_index, segment_index},
-                decoder->position());
+    CallBuiltin(
+        Builtin::kWasmTableInit,
+        MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind, kSmiKind),
+        {dst, src, size, table_index, segment_index, extract_shared_data},
+        decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -6054,14 +6064,20 @@ class LiftoffCompiler {
     LoadSmi(table_src_index_reg, imm.table_src.index);
     VarState table_src_index{kSmiKind, table_src_index_reg, 0};
 
+    LiftoffRegister extract_shared_data_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(extract_shared_data_reg, 0);
+    VarState extract_shared_data{kSmiKind, extract_shared_data_reg, 0};
+
     VarState size = __ PopVarState();
     VarState src = __ PopVarState();
     VarState dst = __ PopVarState();
 
-    CallBuiltin(Builtin::kWasmTableCopy,
-                MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
-                {dst, src, size, table_dst_index, table_src_index},
-                decoder->position());
+    CallBuiltin(
+        Builtin::kWasmTableCopy,
+        MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind, kSmiKind),
+        {dst, src, size, table_dst_index, table_src_index, extract_shared_data},
+        decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -6078,10 +6094,12 @@ class LiftoffCompiler {
 
     VarState delta = __ PopVarState();
     VarState value = __ PopVarState();
+    VarState extract_shared_data(kI32, 0, 0);
 
-    CallBuiltin(Builtin::kWasmTableGrow,
-                MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kRefNull),
-                {table_index, delta, value}, decoder->position());
+    CallBuiltin(
+        Builtin::kWasmTableGrow,
+        MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kI32, kRefNull),
+        {table_index, delta, extract_shared_data, value}, decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ SmiToInt32(kReturnRegister0);
@@ -6122,14 +6140,16 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_index_reg, imm.index);
     VarState table_index(kSmiKind, table_index_reg, 0);
+    VarState extract_shared_data(kI32, 0, 0);
 
     VarState count = __ PopVarState();
     VarState value = __ PopVarState();
     VarState start = __ PopVarState();
 
     CallBuiltin(Builtin::kWasmTableFill,
-                MakeSig::Params(kSmiKind, kI32, kI32, kRefNull),
-                {table_index, start, count, value}, decoder->position());
+                MakeSig::Params(kI32, kI32, kI32, kSmiKind, kRefNull),
+                {start, count, extract_shared_data, table_index, value},
+                decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -6468,21 +6488,30 @@ class LiftoffCompiler {
                        const Value& /* offset */, const Value& /* length */,
                        Value* /* result */) {
     FUZZER_HEAVY_INSTRUCTION;
-    LiftoffRegister rtt = RttCanon(array_imm.index, {});
+    LiftoffRegList pinned;
+
+    LiftoffRegister rtt = pinned.set(RttCanon(array_imm.index, pinned));
+
     LiftoffRegister is_element_reg =
-        __ GetUnusedRegister(kGpReg, LiftoffRegList{rtt});
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(is_element_reg,
             array_imm.array_type->element_type().is_reference());
 
+    LiftoffRegister extract_shared_data_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(extract_shared_data_reg, 0);
+
     CallBuiltin(
         Builtin::kWasmArrayNewSegment,
-        MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kSmiKind, kRtt),
+        MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kSmiKind, kSmiKind,
+                                      kRtt),
         {
             VarState{kI32, static_cast<int>(segment_imm.index), 0},  // segment
             __ cache_state()->stack_state.end()[-2],                 // offset
             __ cache_state()->stack_state.end()[-1],                 // length
-            VarState{kSmiKind, is_element_reg, 0},  // is_element
-            VarState{kRtt, rtt, 0}                  // rtt
+            VarState{kSmiKind, is_element_reg, 0},           // is_element
+            VarState{kSmiKind, extract_shared_data_reg, 0},  // shared
+            VarState{kRtt, rtt, 0}                           // rtt
         },
         decoder->position());
 
@@ -6502,22 +6531,32 @@ class LiftoffCompiler {
                         const Value& /* segment_offset*/,
                         const Value& /* length */) {
     FUZZER_HEAVY_INSTRUCTION;
-    LiftoffRegister segment_index_reg = __ GetUnusedRegister(kGpReg, {});
+    LiftoffRegList pinned;
+
+    LiftoffRegister segment_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(segment_index_reg, static_cast<int32_t>(segment_imm.index));
+
     LiftoffRegister is_element_reg =
-        __ GetUnusedRegister(kGpReg, LiftoffRegList{segment_index_reg});
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(is_element_reg,
             array_imm.array_type->element_type().is_reference());
+
+    LiftoffRegister extract_shared_data_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(extract_shared_data_reg, 0);
 
     // Builtin parameter order: array_index, segment_offset, length,
     //                          segment_index, array.
     CallBuiltin(Builtin::kWasmArrayInitSegment,
-                MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind, kRefNull),
+                MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind, kSmiKind,
+                                kRefNull),
                 {__ cache_state()->stack_state.end()[-3],
                  __ cache_state()->stack_state.end()[-2],
                  __ cache_state()->stack_state.end()[-1],
                  VarState{kSmiKind, segment_index_reg, 0},
                  VarState{kSmiKind, is_element_reg, 0},
+                 VarState{kSmiKind, extract_shared_data_reg, 0},
                  __ cache_state()->stack_state.end()[-4]},
                 decoder->position());
     __ DropValues(4);

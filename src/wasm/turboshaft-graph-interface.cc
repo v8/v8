@@ -3549,9 +3549,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       GOTO(resolved, entry);
 
       BIND(call_runtime);
-      GOTO(resolved, CallBuiltinThroughJumptable<
-                         BuiltinCallDescriptor::WasmFunctionTableGet>(
-                         decoder, {__ IntPtrConstant(imm.index), index.op}));
+      bool extract_shared_data =
+          !shared_ && decoder->module_->tables[imm.index].shared;
+      GOTO(resolved,
+           CallBuiltinThroughJumptable<
+               BuiltinCallDescriptor::WasmFunctionTableGet>(
+               decoder, {__ IntPtrConstant(imm.index), index.op,
+                         __ Word32Constant(extract_shared_data ? 1 : 0)}));
 
       BIND(resolved, resolved_entry);
       result->op = resolved_entry;
@@ -3564,21 +3568,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
                 const IndexImmediate& imm) {
     const WasmTable* table = &decoder->module_->tables[imm.index];
+    bool extract_shared_data = !shared_ && table->shared;
 
     if (IsSubtypeOf(table->type, kWasmFuncRef, decoder->module_) ||
         IsSubtypeOf(table->type, ValueType::RefNull(HeapType::kFuncShared),
                     decoder->module_)) {
-      if (!shared_ && table->shared) {
-        CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmSharedTableSetFuncRefFromUnshared>(
-            decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
-      } else {
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
-            decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
-      }
+      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
+          decoder,
+          {__ IntPtrConstant(imm.index),
+           __ Word32Constant(extract_shared_data ? 1 : 0), index.op, value.op});
     } else {
       CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSet>(
-          decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
+          decoder,
+          {__ IntPtrConstant(imm.index),
+           __ Word32Constant(extract_shared_data ? 1 : 0), index.op, value.op});
     }
   }
 
@@ -3587,9 +3590,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Word32> dst = args[0].op;
     V<Word32> src = args[1].op;
     V<Word32> size = args[2].op;
+    bool table_is_shared = decoder->module_->tables[imm.table.index].shared;
+    DCHECK_EQ(
+        table_is_shared,
+        decoder->module_->elem_segments[imm.element_segment.index].shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableInit>(
-        decoder, {dst, src, size, __ NumberConstant(imm.table.index),
-                  __ NumberConstant(imm.element_segment.index)});
+        decoder, {
+                     dst,
+                     src,
+                     size,
+                     __ NumberConstant(imm.table.index),
+                     __ NumberConstant(imm.element_segment.index),
+                     __ NumberConstant((!shared_ && table_is_shared) ? 1 : 0),
+                 });
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
@@ -3597,23 +3610,34 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Word32> dst = args[0].op;
     V<Word32> src = args[1].op;
     V<Word32> size = args[2].op;
+    bool table_is_shared = decoder->module_->tables[imm.table_dst.index].shared;
+    // TODO(14616): Is this too restrictive?
+    DCHECK_EQ(table_is_shared,
+              decoder->module_->tables[imm.table_src.index].shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableCopy>(
         decoder, {dst, src, size, __ NumberConstant(imm.table_dst.index),
-                  __ NumberConstant(imm.table_src.index)});
+                  __ NumberConstant(imm.table_src.index),
+                  __ NumberConstant((!shared_ && table_is_shared) ? 1 : 0)});
   }
 
   void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& value, const Value& delta, Value* result) {
+    bool extract_shared_data =
+        !shared_ && decoder->module_->tables[imm.index].shared;
     V<Smi> result_smi =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableGrow>(
-            decoder, {__ NumberConstant(imm.index), delta.op, value.op});
+            decoder, {__ NumberConstant(imm.index), delta.op,
+                      __ Word32Constant(extract_shared_data), value.op});
     result->op = __ UntagSmi(result_smi);
   }
 
   void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
+    bool extract_shared_data =
+        !shared_ && decoder->module_->tables[imm.index].shared;
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableFill>(
-        decoder, {__ NumberConstant(imm.index), start.op, count.op, value.op});
+        decoder, {start.op, count.op, __ Word32Constant(extract_shared_data),
+                  __ NumberConstant(imm.index), value.op});
   }
 
   V<WasmTableObject> LoadTable(FullDecoder* decoder, uint32_t table_index) {
@@ -3853,13 +3877,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    bool shared = decoder->module_->types[array_imm.index].is_shared;
+    bool segment_is_shared =
+        is_element ? decoder->module_->elem_segments[segment_imm.index].shared
+                   : decoder->module_->data_segments[segment_imm.index].shared;
+    // TODO(14616): Add DCHECK that array sharedness is equal to `shared`?
     V<WasmArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayNewSegment>(
             decoder,
             {__ Word32Constant(segment_imm.index), offset.op, length.op,
              __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
-             __ RttCanon(managed_object_maps(shared), array_imm.index)});
+             __ SmiConstant(Smi::FromInt(!shared_ && segment_is_shared)),
+             __ RttCanon(managed_object_maps(segment_is_shared),
+                         array_imm.index)});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -3869,10 +3898,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
     bool is_element = array_imm.array_type->element_type().is_reference();
+    bool segment_is_shared =
+        is_element ? decoder->module_->elem_segments[segment_imm.index].shared
+                   : decoder->module_->data_segments[segment_imm.index].shared;
+    // TODO(14616): Is this too restrictive?
+    DCHECK_EQ(segment_is_shared,
+              decoder->module_->types[array_imm.index].is_shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayInitSegment>(
-        decoder, {array_index.op, segment_offset.op, length.op,
-                  __ SmiConstant(Smi::FromInt(segment_imm.index)),
-                  __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)), array.op});
+        decoder,
+        {array_index.op, segment_offset.op, length.op,
+         __ SmiConstant(Smi::FromInt(segment_imm.index)),
+         __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
+         __ SmiConstant(Smi::FromInt((!shared_ && segment_is_shared) ? 1 : 0)),
+         array.op});
   }
 
   void RefI31(FullDecoder* decoder, const Value& input, Value* result) {

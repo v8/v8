@@ -840,11 +840,15 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
       WasmTableObject::cast(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(
-      IsUndefined(table->instance())
-          ? table->type() == wasm::kWasmFuncRef
-          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                        WasmInstanceObject::cast(table->instance())->module()));
+  DCHECK(IsUndefined(table->instance())
+             ? table->type() == wasm::kWasmFuncRef
+             : (IsSubtypeOf(
+                    table->type(), wasm::kWasmFuncRef,
+                    WasmInstanceObject::cast(table->instance())->module()) ||
+                IsSubtypeOf(
+                    table->type(),
+                    wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
+                    WasmInstanceObject::cast(table->instance())->module())));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);

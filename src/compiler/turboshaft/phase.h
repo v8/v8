@@ -105,9 +105,13 @@ class V8_EXPORT_PRIVATE PipelineData
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig) {
+  bool wasm_shared() const { return wasm_shared_; }
+
+  void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig,
+                 bool shared) {
     wasm_module_ = module;
     wasm_sig_ = sig;
+    wasm_shared_ = shared;
     DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
            pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }
@@ -189,6 +193,7 @@ class V8_EXPORT_PRIVATE PipelineData
   // if we need many of them.
   const wasm::FunctionSig* wasm_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
+  bool wasm_shared_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

@@ -4745,10 +4745,12 @@ void LiftoffStackSlots::Construct(int param_slots) {
             LiftoffRegister reg =
                 slot.half_ == kLowWord ? src.reg().low() : src.reg().high();
             asm_->push(reg.gp());
-          } break;
+            break;
+          }
           case kI32:
           case kRef:
           case kRefNull:
+          case kRtt:
             asm_->push(src.reg().gp());
             break;
           case kF32:

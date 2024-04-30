@@ -425,7 +425,7 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   gasm_->Bind(&create_funcref);
   Node* function_from_builtin = gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmRefFunc, Operator::kNoThrow,
-      gasm_->Uint32Constant(function_index));
+      gasm_->Uint32Constant(function_index), gasm_->Int32Constant(0));
   gasm_->Goto(&done, function_from_builtin);
 
   gasm_->Bind(&done);
@@ -3563,8 +3563,9 @@ void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
   auto stub =
       is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
 
-  gasm_->CallBuiltinThroughJumptable(
-      stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index, val);
+  gasm_->CallBuiltinThroughJumptable(stub, Operator::kNoThrow,
+                                     gasm_->IntPtrConstant(table_index),
+                                     gasm_->Int32Constant(0), index, val);
 }
 
 // Insert code to bounds check a memory access if necessary. Return the
@@ -5369,10 +5370,10 @@ void WasmGraphBuilder::TableInit(uint32_t table_index,
                                  uint32_t elem_segment_index, Node* dst,
                                  Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
-  gasm_->CallBuiltinThroughJumptable(Builtin::kWasmTableInit,
-                                     Operator::kNoThrow, dst, src, size,
-                                     gasm_->NumberConstant(table_index),
-                                     gasm_->NumberConstant(elem_segment_index));
+  gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmTableInit, Operator::kNoThrow, dst, src, size,
+      gasm_->NumberConstant(table_index),
+      gasm_->NumberConstant(elem_segment_index), gasm_->Int32Constant(0));
 }
 
 void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
@@ -5392,17 +5393,18 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                  uint32_t table_src_index, Node* dst, Node* src,
                                  Node* size, wasm::WasmCodePosition position) {
-  gasm_->CallBuiltinThroughJumptable(Builtin::kWasmTableCopy,
-                                     Operator::kNoThrow, dst, src, size,
-                                     gasm_->NumberConstant(table_dst_index),
-                                     gasm_->NumberConstant(table_src_index));
+  gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmTableCopy, Operator::kNoThrow, dst, src, size,
+      gasm_->NumberConstant(table_dst_index),
+      gasm_->NumberConstant(table_src_index), gasm_->NumberConstant(0));
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
                                   Node* delta) {
   return gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableGrow, Operator::kNoThrow,
-      gasm_->NumberConstant(table_index), delta, value));
+      gasm_->NumberConstant(table_index), delta, gasm_->Int32Constant(0),
+      value));
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
@@ -5421,8 +5423,8 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
                                  Node* count) {
   gasm_->CallBuiltinThroughJumptable(
-      Builtin::kWasmTableFill, Operator::kNoThrow,
-      gasm_->NumberConstant(table_index), start, count, value);
+      Builtin::kWasmTableFill, Operator::kNoThrow, start, count,
+      gasm_->Int32Constant(false), gasm_->NumberConstant(table_index), value);
 }
 
 Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
@@ -5538,10 +5540,10 @@ Node* WasmGraphBuilder::ArrayNewSegment(uint32_t segment_index, Node* offset,
                                         wasm::WasmCodePosition position) {
   // This call cannot be marked as eliminatable because it performs an array
   // maximum size check.
-  Node* array =
-      gasm_->CallBuiltin(Builtin::kWasmArrayNewSegment, Operator::kNoProperties,
-                         gasm_->Uint32Constant(segment_index), offset, length,
-                         gasm_->SmiConstant(is_element ? 1 : 0), rtt);
+  Node* array = gasm_->CallBuiltin(
+      Builtin::kWasmArrayNewSegment, Operator::kNoProperties,
+      gasm_->Uint32Constant(segment_index), offset, length,
+      gasm_->SmiConstant(is_element ? 1 : 0), gasm_->SmiConstant(0), rtt);
   SetSourcePosition(array, position);
   return array;
 }
@@ -5560,10 +5562,10 @@ void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
                                         Node* array_index, Node* segment_offset,
                                         Node* length, bool is_element,
                                         wasm::WasmCodePosition position) {
-  gasm_->CallBuiltin(Builtin::kWasmArrayInitSegment, Operator::kNoProperties,
-                     array_index, segment_offset, length,
-                     gasm_->SmiConstant(segment_index),
-                     gasm_->SmiConstant(is_element ? 1 : 0), array);
+  gasm_->CallBuiltin(
+      Builtin::kWasmArrayInitSegment, Operator::kNoProperties, array_index,
+      segment_offset, length, gasm_->SmiConstant(segment_index),
+      gasm_->SmiConstant(is_element ? 1 : 0), gasm_->SmiConstant(0), array);
   SetSourcePosition(control(), position);
 }
 

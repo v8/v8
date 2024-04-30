@@ -2370,9 +2370,6 @@ class ModuleDecoderImpl : public Decoder {
       return {};
     }
 
-    // TODO(14616): What is the interaction between shared tables and non-shared
-    // elements?
-
     ValueType table_type =
         is_active ? module_->tables[table_index].type : kWasmBottom;
 
@@ -2420,6 +2417,15 @@ class ModuleDecoderImpl : public Decoder {
              "Element segment of type %s is not a subtype of referenced "
              "table %u (of type %s)",
              type.name().c_str(), table_index, table_type.name().c_str());
+      return {};
+    }
+
+    // TODO(14616): Is this too restrictive?
+    if (V8_UNLIKELY(is_active &&
+                    (is_shared != module_->tables[table_index].shared))) {
+      error(pos,
+            "Shared (resp. non-shared) element segments must refer to shared "
+            "(resp. non-shared) tables");
       return {};
     }
 

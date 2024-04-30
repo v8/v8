@@ -352,10 +352,13 @@ class WasmLoweringReducer : public Next {
 
     Label<WasmFuncRef> done(&Asm());
     IF (UNLIKELY(__ IsSmi(maybe_func_ref))) {
-      V<Word32> function_index_constant = __ Word32Constant(function_index);
+      bool extract_shared_data =
+          !shared_ && module_->function_is_shared(function_index);
 
       V<WasmFuncRef> from_builtin = __ template WasmCallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmRefFunc>({function_index_constant});
+          BuiltinCallDescriptor::WasmRefFunc>(
+          {__ Word32Constant(function_index),
+           __ Word32Constant(extract_shared_data ? 1 : 0)});
 
       GOTO(done, from_builtin);
     } ELSE {
@@ -977,6 +980,7 @@ class WasmLoweringReducer : public Next {
   }
 
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
+  const bool shared_ = PipelineData::Get().wasm_shared();
   const NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? NullCheckStrategy::kTrapHandler

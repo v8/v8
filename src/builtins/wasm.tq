@@ -126,6 +126,26 @@ macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstanceData(LoadInstanceDataFromFrame());
 }
 
+macro LoadMaybeSharedInstanceDataFromFrame(extractSharedData: bool):
+    WasmTrustedInstanceData {
+  const trustedData = LoadInstanceDataFromFrame();
+  if (extractSharedData) {
+    return LoadSharedPartFromInstanceData(trustedData);
+  } else {
+    return trustedData;
+  }
+}
+
+macro LoadMaybeSharedInstanceDataFromFrame(extractSharedData: Smi):
+    WasmTrustedInstanceData {
+  const trustedData = LoadInstanceDataFromFrame();
+  if (extractSharedData == SmiConstant(1)) {
+    return LoadSharedPartFromInstanceData(trustedData);
+  } else {
+    return trustedData;
+  }
+}
+
 builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
@@ -162,8 +182,9 @@ builtin WasmTaggedToFloat32(implicit context: Context)(val: JSAny): float32 {
 
 builtin WasmMemoryGrow(memIndex: int32, numPages: int32): int32 {
   dcheck(IsValidPositiveSmi(ChangeInt32ToIntPtr(memIndex)));
-  if (!IsValidPositiveSmi(ChangeInt32ToIntPtr(numPages)))
+  if (!IsValidPositiveSmi(ChangeInt32ToIntPtr(numPages))) {
     return Int32Constant(-1);
+  }
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   const context: NativeContext = LoadContextFromInstanceData(trustedData);
   const result: Smi = runtime::WasmMemoryGrow(
@@ -173,9 +194,10 @@ builtin WasmMemoryGrow(memIndex: int32, numPages: int32): int32 {
 
 builtin WasmTableInit(
     dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
-    segmentIndex: Smi): JSAny {
+    segmentIndex: Smi, extractSharedData: Smi): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+    const trustedData: WasmTrustedInstanceData =
+        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
     const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
     const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
     const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
@@ -189,9 +211,10 @@ builtin WasmTableInit(
 
 builtin WasmTableCopy(
     dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, dstTable: Smi,
-    srcTable: Smi): JSAny {
+    srcTable: Smi, extractSharedData: Smi): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+    const trustedData: WasmTrustedInstanceData =
+        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
     const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
     const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
     const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
@@ -204,9 +227,11 @@ builtin WasmTableCopy(
 }
 
 builtin WasmTableFill(
-    table: Smi, startRaw: uint32, countRaw: uint32, value: Object): JSAny {
+    startRaw: uint32, countRaw: uint32, extractSharedData: bool, table: Smi,
+    value: Object): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+    const trustedData: WasmTrustedInstanceData =
+        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
     const start: Smi =
         Convert<PositiveSmi>(startRaw) otherwise TableOutOfBounds;
     const count: Smi =
@@ -219,9 +244,11 @@ builtin WasmTableFill(
   }
 }
 
-builtin WasmTableGrow(table: Smi, deltaRaw: uint32, value: Object): Smi {
+builtin WasmTableGrow(
+    table: Smi, deltaRaw: uint32, extractSharedData: bool, value: Object): Smi {
   try {
-    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+    const trustedData: WasmTrustedInstanceData =
+        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
     const delta: Smi =
         Convert<PositiveSmi>(deltaRaw) otherwise TableOutOfBounds;
     tail runtime::WasmTableGrow(
@@ -252,9 +279,11 @@ builtin WasmTableGet(tableIndex: intptr, index: uint32): Object {
   }
 }
 
-builtin WasmTableSet(tableIndex: intptr, index: uint32, value: Object):
-    Object {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+builtin WasmTableSet(
+    tableIndex: intptr, extractSharedData: bool, index: uint32,
+    value: Object): Object {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
@@ -307,16 +336,20 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
 
 // Stub to wrap around the slow path (runtime call) of table.get for funcref
 // tables for which the reference is not yet initialized.
-builtin WasmFunctionTableGet(tableIndex: intptr, index: int32): Object {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+builtin WasmFunctionTableGet(
+    tableIndex: intptr, index: int32, extractSharedData: bool): Object {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   tail runtime::WasmFunctionTableGet(
       LoadContextFromInstanceData(trustedData), trustedData,
       SmiFromIntPtr(tableIndex), SmiFromInt32(index));
 }
 
-builtin WasmTableSetFuncRefImpl(
-    trustedData: WasmTrustedInstanceData, tableIndex: intptr, index: uint32,
+builtin WasmTableSetFuncRef(
+    tableIndex: intptr, extractSharedData: bool, index: uint32,
     value: WasmFuncRef): Object {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   dcheck(Is<WasmFuncRef>(value) || Is<WasmNull>(value));
   const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
@@ -337,22 +370,9 @@ builtin WasmTableSetFuncRefImpl(
   }
 }
 
-builtin WasmTableSetFuncRef(
-    tableIndex: intptr, index: uint32, value: WasmFuncRef): Object {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  tail WasmTableSetFuncRefImpl(trustedData, tableIndex, index, value);
-}
-
-builtin WasmSharedTableSetFuncRefFromUnshared(
-    tableIndex: intptr, index: uint32, value: WasmFuncRef): Object {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const sharedTrustedData: WasmTrustedInstanceData =
-      LoadSharedPartFromInstanceData(trustedData);
-  tail WasmTableSetFuncRefImpl(sharedTrustedData, tableIndex, index, value);
-}
-
-builtin WasmRefFunc(index: uint32): Object {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+builtin WasmRefFunc(index: uint32, extractSharedData: bool): Object {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   try {
     const funcRefs: FixedArray = LoadFuncRefsFromInstanceData(trustedData);
     const funcref: Object = funcRefs.objects[index];
@@ -460,8 +480,9 @@ builtin WasmAllocateArray_Uninitialized(
 
 builtin WasmArrayNewSegment(
     segmentIndex: uint32, offset: uint32, length: uint32, isElement: Smi,
-    rtt: Map): Object {
-  const trustedData = LoadInstanceDataFromFrame();
+    extractSharedData: Smi, rtt: Map): Object {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   try {
     const smiOffset = Convert<PositiveSmi>(offset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
@@ -482,8 +503,10 @@ builtin WasmArrayNewSegment(
 // {segmentIndex} has to be tagged as a possible stack parameter.
 builtin WasmArrayInitSegment(
     arrayIndex: uint32, segmentOffset: uint32, length: uint32,
-    segmentIndex: Smi, isElement: Smi, arrayRaw: HeapObject): JSAny {
-  const trustedData = LoadInstanceDataFromFrame();
+    segmentIndex: Smi, isElement: Smi, extractSharedData: Smi,
+    arrayRaw: HeapObject): JSAny {
+  const trustedData: WasmTrustedInstanceData =
+      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   if (arrayRaw == kWasmNull) {
     tail ThrowWasmTrapNullDereference();
   }

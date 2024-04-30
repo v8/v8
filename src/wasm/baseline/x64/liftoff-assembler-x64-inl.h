@@ -149,6 +149,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       assm->AllocateStackSpace(padding);
       assm->pushq(reg.gp());
       break;

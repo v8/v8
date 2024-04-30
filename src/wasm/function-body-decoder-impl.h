@@ -4815,6 +4815,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprArrayNewData: {
+        // TODO(14616): Add check that array sharedness == segment sharedness?
         NON_CONST_ONLY
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
@@ -4841,6 +4842,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + array_imm.length + data_segment.length;
       }
       case kExprArrayNewElem: {
+        // TODO(14616): Add check that array sharedness == segment sharedness?
         NON_CONST_ONLY
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
@@ -4880,6 +4882,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprArrayInitData: {
         NON_CONST_ONLY
+        // TODO(14616): Add check that array sharedness == segment sharedness?
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -4913,6 +4916,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprArrayInitElem: {
         NON_CONST_ONLY
+        // TODO(14616): Add check that array sharedness == segment sharedness?
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
