@@ -541,6 +541,8 @@ class SharedFunctionInfo
   CachedTieringDecision cached_tiering_decision();
   void set_cached_tiering_decision(CachedTieringDecision decision);
 
+  DECL_BOOLEAN_ACCESSORS(function_context_independent_compiled)
+
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 

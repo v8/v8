@@ -1056,6 +1056,7 @@ class OptimizedCodeCache : public AllStatic {
       return;
     }
 
+    function->shared()->set_function_context_independent_compiled(true);
     feedback_vector->SetOptimizedCode(isolate, code);
   }
 };

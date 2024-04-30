@@ -384,6 +384,10 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, sparkplug_compiled,
                     SharedFunctionInfo::SparkplugCompiledBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
+                    function_context_independent_compiled,
+                    SharedFunctionInfo::FunctionContextIndependentCompiledBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
 

@@ -74,6 +74,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
       specialize_to_function_context_(
           osr_offset == BytecodeOffset::None() &&
           v8_flags.maglev_function_context_specialization &&
+          !function->shared()->function_context_independent_compiled() &&
           function->raw_feedback_cell()->map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   if (owns_broker_) {
