@@ -1192,7 +1192,7 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
-  templ->SetAccessor(v8_str("y"), Return239Callback);
+  templ->SetNativeDataProperty(v8_str("y"), Return239Callback);
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("o"),
@@ -1227,7 +1227,7 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetAccessor(v8_str("y"), Return239Callback);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback);
 
   LocalContext context;
   context->Global()
@@ -1267,7 +1267,7 @@ THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
-  templ->SetAccessor(v8_str("y"), Return239Callback);
+  templ->SetNativeDataProperty(v8_str("y"), Return239Callback);
 
   LocalContext context;
   context->Global()
@@ -1301,7 +1301,7 @@ THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetAccessor(v8_str("y"), Return239Callback);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback);
 
   LocalContext context;
   context->Global()
@@ -1337,7 +1337,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetAccessor(v8_str("y"), Return239Callback, SetOnThis);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnThis);
 
   LocalContext context;
   context->Global()
@@ -1377,7 +1377,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetAccessor(v8_str("y"), Return239Callback, SetOnThis);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnThis);
 
   LocalContext context;
   context->Global()

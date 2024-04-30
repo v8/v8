@@ -68,7 +68,8 @@ THREADED_TEST(PropertyHandler) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
-  fun_templ->InstanceTemplate()->SetAccessor(v8_str("foo"), handle_property);
+  fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
+                                                       handle_property);
   Local<v8::FunctionTemplate> getter_templ =
       v8::FunctionTemplate::New(isolate, handle_property);
   getter_templ->SetLength(0);
@@ -166,13 +167,13 @@ THREADED_TEST(GlobalVariableAccess) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->InstanceTemplate()->SetAccessor(
+  templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("foo"), GetIntValue, SetIntValue,
       v8::External::New(isolate, &foo));
-  templ->InstanceTemplate()->SetAccessor(
+  templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("bar"), GetIntValue, SetIntValue,
       v8::External::New(isolate, &bar));
-  templ->InstanceTemplate()->SetAccessor(
+  templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("baz"), GetIntValue, SetIntValue,
       v8::External::New(isolate, &baz));
   LocalContext env(nullptr, templ->InstanceTemplate());
@@ -260,7 +261,7 @@ THREADED_TEST(AccessorIC) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("x0"), XGetter, XSetter);
+  obj->SetNativeDataProperty(v8_str("x0"), XGetter, XSetter);
   obj->SetAccessorProperty(v8_str("x1"),
                            v8::FunctionTemplate::New(isolate, XGetter),
                            v8::FunctionTemplate::New(isolate, XSetter));
@@ -321,8 +322,8 @@ THREADED_TEST(HandleScopePop) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("one"), HandleAllocatingGetter<1>);
-  obj->SetAccessor(v8_str("many"), HandleAllocatingGetter<1024>);
+  obj->SetNativeDataProperty(v8_str("one"), HandleAllocatingGetter<1>);
+  obj->SetNativeDataProperty(v8_str("many"), HandleAllocatingGetter<1024>);
   v8::Local<v8::Object> inst =
       obj->NewInstance(context.local()).ToLocalChecked();
   CHECK(
@@ -369,8 +370,8 @@ THREADED_TEST(DirectCall) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
-                   v8_str("data"));
+  obj->SetNativeDataProperty(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
+                             v8_str("data"));
   v8::Local<v8::Object> inst =
       obj->NewInstance(context.local()).ToLocalChecked();
   CHECK(
@@ -397,7 +398,8 @@ THREADED_TEST(EmptyResult) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), EmptyGetter, nullptr, v8_str("data"));
+  obj->SetNativeDataProperty(v8_str("xxx"), EmptyGetter, nullptr,
+                             v8_str("data"));
   v8::Local<v8::Object> inst =
       obj->NewInstance(context.local()).ToLocalChecked();
   CHECK(
@@ -418,7 +420,8 @@ THREADED_TEST(NoReuseRegress) {
   v8::HandleScope scope(isolate);
   {
     v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-    obj->SetAccessor(v8_str("xxx"), EmptyGetter, nullptr, v8_str("data"));
+    obj->SetNativeDataProperty(v8_str("xxx"), EmptyGetter, nullptr,
+                               v8_str("data"));
     LocalContext context;
     v8::Local<v8::Object> inst =
         obj->NewInstance(context.local()).ToLocalChecked();
@@ -434,8 +437,8 @@ THREADED_TEST(NoReuseRegress) {
   }
   {
     v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-    obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
-                     v8_str("data"));
+    obj->SetNativeDataProperty(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
+                               v8_str("data"));
     LocalContext context;
     v8::Local<v8::Object> inst =
         obj->NewInstance(context.local()).ToLocalChecked();
@@ -468,10 +471,8 @@ THREADED_TEST(Regress1054726) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("x"),
-                   ThrowingGetAccessor,
-                   ThrowingSetAccessor,
-                   Local<Value>());
+  obj->SetNativeDataProperty(v8_str("x"), ThrowingGetAccessor,
+                             ThrowingSetAccessor, Local<Value>());
 
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
@@ -514,7 +515,7 @@ THREADED_TEST(Gc) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), AllocGetter);
+  obj->SetNativeDataProperty(v8_str("xxx"), AllocGetter);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
@@ -550,7 +551,7 @@ THREADED_TEST(StackIteration) {
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   i::StringStream::ClearMentionedObjectCache(
       reinterpret_cast<i::Isolate*>(isolate));
-  obj->SetAccessor(v8_str("xxx"), StackCheck);
+  obj->SetNativeDataProperty(v8_str("xxx"), StackCheck);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
@@ -581,7 +582,7 @@ THREADED_TEST(HandleScopeSegment) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), AllocateHandles);
+  obj->SetNativeDataProperty(v8_str("xxx"), AllocateHandles);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())

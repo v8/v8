@@ -1047,8 +1047,9 @@ TEST(NativeAccessorUninitializedIC) {
 
   TestApiCallbacks accessors(100);
   v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
-  instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
-                                 &TestApiCallbacks::Setter, data);
+  instance_template->SetNativeDataProperty(v8_str("foo"),
+                                           &TestApiCallbacks::Getter,
+                                           &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Object> instance =
@@ -1086,8 +1087,9 @@ TEST(NativeAccessorMonomorphicIC) {
 
   TestApiCallbacks accessors(1);
   v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
-  instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
-                                 &TestApiCallbacks::Setter, data);
+  instance_template->SetNativeDataProperty(v8_str("foo"),
+                                           &TestApiCallbacks::Getter,
+                                           &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Object> instance =

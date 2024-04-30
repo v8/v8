@@ -3689,7 +3689,8 @@ v8::StartupData CreateSnapshotWithDefaultAndCustom() {
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
       v8::Local<v8::ObjectTemplate> object_template =
           v8::ObjectTemplate::New(isolate);
-      object_template->SetAccessor(v8_str("x"), AccessorForSerialization);
+      object_template->SetNativeDataProperty(v8_str("x"),
+                                             AccessorForSerialization);
       v8::Local<v8::Object> object =
           object_template->NewInstance(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
@@ -4840,7 +4841,8 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
       global_template->Set(isolate, "f", callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
-      global_template->SetAccessor(v8_str("y"), AccessorForSerialization);
+      global_template->SetNativeDataProperty(v8_str("y"),
+                                             AccessorForSerialization);
       v8::Local<v8::Private> priv =
           v8::Private::ForApi(isolate, v8_str("cached"));
       global_template->SetAccessorProperty(

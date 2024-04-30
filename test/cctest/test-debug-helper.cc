@@ -485,7 +485,7 @@ THREADED_TEST(GetFrameStack) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), FrameIterationCheck);
+  obj->SetNativeDataProperty(v8_str("xxx"), FrameIterationCheck);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())

@@ -561,18 +561,20 @@ Local<ObjectTemplate> JsHttpRequestProcessor::MakeRequestTemplate(
   result->SetInternalFieldCount(1);
 
   // Add accessors for each of the fields of the request.
-  result->SetAccessor(
+  result->SetNativeDataProperty(
       String::NewFromUtf8Literal(isolate, "path", NewStringType::kInternalized),
       GetPath);
-  result->SetAccessor(String::NewFromUtf8Literal(isolate, "referrer",
-                                                 NewStringType::kInternalized),
-                      GetReferrer);
-  result->SetAccessor(
+  result->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "referrer",
+                                 NewStringType::kInternalized),
+      GetReferrer);
+  result->SetNativeDataProperty(
       String::NewFromUtf8Literal(isolate, "host", NewStringType::kInternalized),
       GetHost);
-  result->SetAccessor(String::NewFromUtf8Literal(isolate, "userAgent",
-                                                 NewStringType::kInternalized),
-                      GetUserAgent);
+  result->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "userAgent",
+                                 NewStringType::kInternalized),
+      GetUserAgent);
 
   // Again, return the result through the current handle scope.
   return handle_scope.Escape(result);

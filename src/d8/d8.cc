@@ -3455,8 +3455,9 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
                       FunctionTemplate::New(isolate, RealmSwitch));
   realm_template->Set(isolate, "eval",
                       FunctionTemplate::New(isolate, RealmEval));
-  realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
-                              RealmSharedGet, RealmSharedSet);
+  realm_template->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "shared"), RealmSharedGet,
+      RealmSharedSet);
   return realm_template;
 }
 
