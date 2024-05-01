@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstddef>
 #include <functional>
+#include <list>
 #include <memory>
 #include <queue>
 #include <unordered_map>
@@ -186,6 +187,10 @@ namespace wasm {
 class WasmCodeLookupCache;
 class WasmOrphanedGlobalHandle;
 }
+
+namespace detail {
+class WaiterQueueNode;
+}  // namespace detail
 
 #define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
   do {                                               \
@@ -2242,6 +2247,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     battery_saver_mode_enabled_ = battery_saver_mode_enabled;
   }
 
+  std::list<std::unique_ptr<detail::WaiterQueueNode>>&
+  async_waiter_queue_nodes();
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
@@ -2693,6 +2701,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // table.
   ExternalBufferTable::Space* shared_external_buffer_space_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
+
+  // List to manage the lifetime of the WaiterQueueNodes used to track async
+  // waiters for JSSynchronizationPrimitives.
+  std::list<std::unique_ptr<detail::WaiterQueueNode>> async_waiter_queue_nodes_;
 
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.

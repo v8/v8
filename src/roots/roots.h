@@ -355,6 +355,12 @@ class RootVisitor;
     ArrayFromAsyncArrayLikeOnFulfilledSharedFun)                               \
   V(SharedFunctionInfo, array_from_async_array_like_on_rejected_shared_fun,    \
     ArrayFromAsyncArrayLikeOnRejectedSharedFun)                                \
+  V(SharedFunctionInfo, atomics_mutex_async_unlock_resolve_handler_sfi,        \
+    AtomicsMutexAsyncUnlockResolveHandlerSFI)                                  \
+  V(SharedFunctionInfo, atomics_mutex_async_unlock_reject_handler_sfi,         \
+    AtomicsMutexAsyncUnlockRejectHandlerSFI)                                   \
+  V(SharedFunctionInfo, atomics_condition_acquire_lock_sfi,                    \
+    AtomicsConditionAcquireLockSFI)                                            \
   TRUSTED_ROOT_LIST(V)
 
 // These root references can be updated by the mutator.
