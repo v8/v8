@@ -2261,6 +2261,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
 #undef AVX2_INSTRUCTION
 
+  // F16C Instructions.
+  void vcvtph2ps(XMMRegister dst, XMMRegister src);
+  void vcvtph2ps(YMMRegister dst, XMMRegister src);
+  void vcvtps2ph(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vcvtps2ph(XMMRegister dst, YMMRegister src, uint8_t imm8);
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);

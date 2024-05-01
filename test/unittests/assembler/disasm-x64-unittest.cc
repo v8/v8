@@ -155,6 +155,17 @@ TEST_F(DisasmX64Test, DisasmX64) {
     }
   }
 
+  // F16C instruction
+  {
+    if (CpuFeatures::IsSupported(F16C)) {
+      CpuFeatureScope scope(&assm, F16C);
+      __ vcvtph2ps(ymm0, xmm1);
+      __ vcvtph2ps(xmm2, xmm3);
+      __ vcvtps2ph(xmm4, ymm5, 0);
+      __ vcvtps2ph(xmm6, xmm7, 0);
+    }
+  }
+
   // BMI1 instructions
   {
     if (CpuFeatures::IsSupported(BMI1)) {
@@ -1432,6 +1443,23 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
   COMPARE("c5fa16ca             vmovshdup xmm1,xmm2", vmovshdup(xmm1, xmm2));
   COMPARE("c4e279188c8b10270000 vbroadcastss xmm1,[rbx+rcx*4+0x2710]",
           vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000)));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
+  if (!CpuFeatures::IsSupported(F16C)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, F16C);
+
+  COMPARE("c4e27d13c1           vcvtph2ps ymm0,xmm1", vcvtph2ps(ymm0, xmm1));
+  COMPARE("c4e27913d3           vcvtph2ps xmm2,xmm3", vcvtph2ps(xmm2, xmm3));
+  COMPARE("c4e37d1dec00         vcvtps2ph xmm4,ymm5,0x0",
+          vcvtps2ph(xmm4, ymm5, 0));
+  COMPARE("c4e3791dfe00         vcvtps2ph xmm6,xmm7,0x0",
+          vcvtps2ph(xmm6, xmm7, 0));
 }
 
 TEST_F(DisasmX64Test, DisasmX64YMMRegister) {

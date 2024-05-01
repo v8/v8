@@ -898,6 +898,10 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x13:
+        AppendToBuffer("vcvtph2ps %s,", NameOfAVXRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x18:
         AppendToBuffer("vbroadcastss %s,", NameOfAVXRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1046,6 +1050,11 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         break;
       case 0x19:
         AppendToBuffer("vextractf128 ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
+        break;
+      case 0x1D:
+        AppendToBuffer("vcvtps2ph ");
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
         break;

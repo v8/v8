@@ -3188,6 +3188,33 @@ TEST_F(AssemblerX64Test, AssemblerX64BinOp256bit) {
   }
 }
 
+TEST_F(AssemblerX64Test, F16C) {
+  if (!CpuFeatures::IsSupported(F16C)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, F16C);
+
+  __ vcvtph2ps(ymm0, xmm1);
+  __ vcvtph2ps(xmm2, xmm3);
+  __ vcvtps2ph(xmm4, ymm5, 0);
+  __ vcvtps2ph(xmm6, xmm7, 0);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  uint8_t expected[] = {// vcvtph2ps ymm0,xmm1,
+                        0xc4, 0xe2, 0x7d, 0x13, 0xc1,
+                        // vcvtph2ps xymm2,xmm3,
+                        0xc4, 0xe2, 0x79, 0x13, 0xd3,
+                        // vcvtps2ph xmm4,ymm5,0x0
+                        0xc4, 0xe3, 0x7d, 0x1d, 0xec, 0x00,
+                        // vcvtps2ph xmm6,xmm7,0x0
+                        0xc4, 0xe3, 0x79, 0x1d, 0xfe, 0x00};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

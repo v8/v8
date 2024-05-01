@@ -97,6 +97,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_sse41()) SetSupported(SSE4_1);
   if (cpu.has_ssse3()) SetSupported(SSSE3);
   if (cpu.has_sse3()) SetSupported(SSE3);
+  if (cpu.has_f16c()) SetSupported(F16C);
   if (cpu.has_avx() && cpu.has_osxsave() && OSHasAVXSupport()) {
     SetSupported(AVX);
     if (cpu.has_avx2()) SetSupported(AVX2);
@@ -4015,6 +4016,33 @@ VPD(XMMRegister, XMMRegister, L128)
 VPD(XMMRegister, YMMRegister, L256)
 VPD(YMMRegister, YMMRegister, L256)
 #undef VPD
+
+#define F16C(Dst, Src, Pref, Op, PP, Tmp)             \
+  DCHECK(IsEnabled(F16C));                            \
+  EnsureSpace ensure_space(this);                     \
+  emit_vex_prefix(Dst, Tmp, Src, PP, k66, Pref, kW0); \
+  emit(Op);                                           \
+  emit_sse_operand(Dst, Src);
+
+void Assembler::vcvtph2ps(XMMRegister dst, XMMRegister src) {
+  F16C(dst, src, k0F38, 0x13, kLIG, xmm0);
+}
+
+void Assembler::vcvtph2ps(YMMRegister dst, XMMRegister src) {
+  F16C(dst, src, k0F38, 0x13, kL256, ymm0);
+}
+
+void Assembler::vcvtps2ph(XMMRegister dst, YMMRegister src, uint8_t imm8) {
+  F16C(src, dst, k0F3A, 0x1D, kL256, xmm0);
+  emit(imm8);
+}
+
+void Assembler::vcvtps2ph(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+  F16C(src, dst, k0F3A, 0x1D, kLIG, ymm0);
+  emit(imm8);
+}
+
+#undef F16C
 
 void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
