@@ -23,8 +23,10 @@ IsolateForSandbox::IsolateForSandbox(IsolateT* isolate)
 #ifdef V8_ENABLE_SANDBOX
 ExternalPointerTable& IsolateForSandbox::GetExternalPointerTableFor(
     ExternalPointerTag tag) {
-  IsolateForPointerCompression isolate(isolate_);
-  return isolate.GetExternalPointerTableFor(tag);
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  return IsSharedExternalPointerType(tag)
+             ? isolate_->shared_external_pointer_table()
+             : isolate_->external_pointer_table();
 }
 
 ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
@@ -106,11 +108,7 @@ IsolateForPointerCompression::GetExternalPointerTableSpaceFor(
     return isolate_->heap()->read_only_external_pointer_space();
   }
 
-  if (MemoryChunk::FromAddress(host)->InYoungGeneration()) {
-    return isolate_->heap()->young_external_pointer_space();
-  }
-
-  return isolate_->heap()->old_external_pointer_space();
+  return isolate_->heap()->external_pointer_space();
 }
 
 ExternalPointerTable& IsolateForPointerCompression::GetCppHeapPointerTable() {

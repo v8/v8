@@ -39,8 +39,6 @@ class ReadOnlyArtifacts;
  *    algorithm overview for more details about these entries.
  */
 struct ExternalPointerTableEntry {
-  enum class EvacuateMarkMode { kTransferMark, kLeaveUnmarked, kClearMark };
-
   // Make this entry an external pointer entry containing the given pointer
   // tagged with the given tag.
   inline void MakeExternalPointerEntry(Address value, ExternalPointerTag tag);
@@ -93,10 +91,9 @@ struct ExternalPointerTableEntry {
   // Returns true if this entry contains an evacuation entry.
   inline bool HasEvacuationEntry() const;
 
-  // Move the content of this entry into the provided entry, possibly clearing
-  // the marking bit. Used during table compaction and during promotion.
-  // Invalidates the source entry.
-  inline void Evacuate(ExternalPointerTableEntry& dest, EvacuateMarkMode mode);
+  // Move the content of this entry into the provided entry.
+  // Used during table compaction. This invalidates the entry.
+  inline void MigrateInto(ExternalPointerTableEntry& other);
 
   // Mark this entry as alive during table garbage collection.
   inline void Mark();
@@ -254,22 +251,7 @@ static_assert(sizeof(ExternalPointerTableEntry) == 8);
  *    marking bit using an atomic CAS operation.
  *  - When marking is finished, SweepAndCompact() iterates over a Space once
  *    while the mutator is stopped and builds a freelist from all dead entries
- *    while also possibly clearing the marking bit from any live entry.
- *
- * Generational collection for tables:
- * -----------------------------------
- * Young-generation objects with external pointer slots allocate their
- * ExternalPointerTable entries in a spatially partitioned young external
- * pointer space.  There are two different mechanisms:
- *  - When using the semi-space nursery, promoting an object evacuates its EPT
- *    entries to the old external pointer space.
- *  - For the in-place MinorMS nursery, possibly-concurrent marking populates
- *    the SURVIVOR_TO_EXTERNAL_POINTER remembered sets.  In the pause, promoted
- *    objects use this remembered set to evacuate their EPT entries to the old
- *    external pointer space.  Survivors have their EPT entries are left in
- *    place.
- * In a full collection, segments from the young EPT space are eagerly promoted
- * during the pause, leaving the young generation empty.
+ *    while also removing the marking bit from any live entry.
  *
  * Table compaction:
  * -----------------
@@ -280,10 +262,6 @@ static_assert(sizeof(ExternalPointerTableEntry) == 8);
 class V8_EXPORT_PRIVATE ExternalPointerTable
     : public CompactibleExternalEntityTable<
           ExternalPointerTableEntry, kExternalPointerTableReservationSize> {
-  using Base =
-      CompactibleExternalEntityTable<ExternalPointerTableEntry,
-                                     kExternalPointerTableReservationSize>;
-
 #if defined(LEAK_SANITIZER)
   //  When LSan is active, we use "fat" entries, see above.
   static_assert(kMaxExternalPointers == kMaxCapacity * 2);
@@ -292,8 +270,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 #endif
 
  public:
-  using EvacuateMarkMode = ExternalPointerTableEntry::EvacuateMarkMode;
-
   // Size of an ExternalPointerTable, for layout computation in IsolateData.
   static int constexpr kSize = 2 * kSystemPointerSize;
 
@@ -303,7 +279,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
   // The Spaces used by an ExternalPointerTable also contain the state related
   // to compaction.
-  struct Space : public Base::Space {
+  using CompactibleSpace = CompactibleExternalEntityTable<
+      ExternalPointerTableEntry, kExternalPointerTableReservationSize>::Space;
+  struct Space : public CompactibleSpace {
    public:
     // During table compaction, we may record the addresses of fields
     // containing external pointer handles (if they are evacuation candidates).
@@ -316,9 +294,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // external pointer table which cannot be a candidate for evacuation.
     inline void NotifyExternalPointerFieldInvalidated(Address field_address,
                                                       ExternalPointerTag tag);
-
-    // Not atomic.  Mutators and concurrent marking must be paused.
-    void AssertEmpty() { CHECK(segments_.empty()); }
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.
@@ -371,35 +346,13 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   inline void Mark(Space* space, ExternalPointerHandle handle,
                    Address handle_location);
 
-  // Evacuate the specified entry from one space to another, updating the handle
-  // location in place.
-  //
-  // This method is not atomic and can be called only when the mutator is
-  // paused.
-  inline void Evacuate(Space* from_space, Space* to_space,
-                       ExternalPointerHandle handle, Address handle_location,
-                       EvacuateMarkMode mode);
-
-  // Evacuate all segments from from_space to to_space, leaving from_space empty
-  // with an empty free list.  Then free unmarked entries, finishing compaction
-  // if it was running, and collecting freed entries onto to_space's free list.
-  //
-  // The from_space will be left empty with an empty free list.
+  // Frees unmarked entries and finishes space compaction (if running).
   //
   // This method must only be called while mutator threads are stopped as it is
   // not safe to allocate table entries while the table is being swept.
   //
-  // SweepAndCompact is the same as EvacuateAndSweepAndCompact, except without
-  // the evacuation phase.
-  //
-  // Sweep is the same as SweepAndCompact, but assumes that compaction was not
-  // running.
-  //
   // Returns the number of live entries after sweeping.
-  uint32_t EvacuateAndSweepAndCompact(Space* to_space, Space* from_space,
-                                      Counters* counters);
   uint32_t SweepAndCompact(Space* space, Counters* counters);
-  uint32_t Sweep(Space* space, Counters* counters);
 
   // A resource outside of the V8 heap whose lifetime is tied to something
   // inside the V8 heap. This class makes that relationship explicit.
@@ -442,6 +395,16 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   void ResolveEvacuationEntryDuringSweeping(
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
+
+  // Outcome of external pointer table compaction to use for the
+  // ExternalPointerTableCompactionOutcome histogram.
+  enum class TableCompactionOutcome {
+    // Table compaction was successful.
+    kSuccess = 0,
+    // Outcome 1, partial success, is no longer supported.
+    // Table compaction was aborted because the freelist grew to short.
+    kAborted = 2,
+  };
 };
 
 static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);

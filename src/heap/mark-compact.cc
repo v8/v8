@@ -360,12 +360,6 @@ void MarkCompactCollector::StartMarking() {
     heap()->Unmark();
   }
 
-#ifdef V8_COMPRESS_POINTERS
-  heap_->young_external_pointer_space()->StartCompactingIfNeeded();
-  heap_->old_external_pointer_space()->StartCompactingIfNeeded();
-  heap_->cpp_heap_pointer_space()->StartCompactingIfNeeded();
-#endif  // V8_COMPRESS_POINTERS
-
   // CppHeap's marker must be initialized before the V8 marker to allow
   // exchanging of worklists.
   if (heap_->cpp_heap()) {
@@ -697,6 +691,10 @@ void MarkCompactCollector::Prepare() {
       // be set up.
       CppHeap::From(heap_->cpp_heap_)->StartMarking();
     }
+#ifdef V8_COMPRESS_POINTERS
+    heap_->external_pointer_space()->StartCompactingIfNeeded();
+    heap_->cpp_heap_pointer_space()->StartCompactingIfNeeded();
+#endif  // V8_COMPRESS_POINTERS
   }
 
   if (heap_->new_space()) {
@@ -2898,10 +2896,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Note we explicitly do NOT run SweepAndCompact on
     // read_only_external_pointer_space since these entries are all immortal by
     // definition.
-    isolate->external_pointer_table().EvacuateAndSweepAndCompact(
-        isolate->heap()->old_external_pointer_space(),
-        isolate->heap()->young_external_pointer_space(), isolate->counters());
-    isolate->heap()->young_external_pointer_space()->AssertEmpty();
+    isolate->external_pointer_table().SweepAndCompact(
+        isolate->heap()->external_pointer_space(), isolate->counters());
     if (isolate->owns_shareable_data()) {
       isolate->shared_external_pointer_table().SweepAndCompact(
           isolate->shared_external_pointer_space(), isolate->counters());

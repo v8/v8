@@ -15,15 +15,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class Histogram;
-
-// Outcome of external pointer table compaction to use for the
-// ExternalPointerTableCompactionOutcome histogram.
-enum class ExternalEntityTableCompactionOutcome {
-  kSuccess = 0,  // Compaction was successful.
-  // Outcome 1, partial success, is no longer supported.
-  kAborted = 2,  // Compaction was aborted because the freelist grew too short.
-};
+class Counters;
 
 /**
  * An intermediate table class that abstracts garbage collection mechanism
@@ -86,11 +78,6 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
   using Base = ExternalEntityTable<Entry, size>;
 
  public:
-  struct CompactionResult {
-    uint32_t start_of_evacuation_area;
-    bool success;
-  };
-
   CompactibleExternalEntityTable() = default;
   CompactibleExternalEntityTable(const CompactibleExternalEntityTable&) =
       delete;
@@ -132,7 +119,7 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
 
     // This value may be ORed into the start of evacuation area threshold
     // during the GC marking phase to indicate that compaction has been
-    // aborted because the freelist grew too short and so evacuation entry
+    // aborted because the freelist grew to short and so evacuation entry
     // allocation is no longer possible. This will prevent any further
     // evacuation attempts as entries will be evacuated if their index is at or
     // above the start of the evacuation area, which is now a huge value.
@@ -165,8 +152,6 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
   // segment to the space and allocate there.  If the space is compacting but
   // the new index is above the evacuation threshold, abort compaction.
   inline uint32_t AllocateEntry(Space* space);
-
-  CompactionResult FinishCompaction(Space* space, Histogram* counter);
 
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);

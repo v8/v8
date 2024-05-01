@@ -180,17 +180,12 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
   DCHECK_NE(slot.tag(), kExternalPointerNullTag);
   if (slot.HasExternalPointerHandle()) {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTable* table;
-    ExternalPointerTable::Space* space;
-    if (IsSharedExternalPointerType(slot.tag())) {
-      table = shared_external_pointer_table_;
-      space = shared_external_pointer_space_;
-    } else {
-      table = external_pointer_table_;
-      space = Heap::InYoungGeneration(host)
-                  ? heap_->young_external_pointer_space()
-                  : heap_->old_external_pointer_space();
-    }
+    ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
+                                      ? shared_external_pointer_table_
+                                      : external_pointer_table_;
+    ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
+                                             ? shared_external_pointer_space_
+                                             : heap_->external_pointer_space();
     table->Mark(space, handle, slot.address());
   }
 #endif  // V8_COMPRESS_POINTERS

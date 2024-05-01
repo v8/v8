@@ -425,19 +425,19 @@ FUNCTION_REFERENCE(delete_handle_scope_extensions,
 FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
                    Heap::EphemeronKeyWriteBarrierFromCode)
 
-ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
+ExternalPointerHandle AllocateAndInitializeExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {
 #ifdef V8_ENABLE_SANDBOX
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
-      isolate->heap()->young_external_pointer_space(), pointer,
+      isolate->heap()->external_pointer_space(), pointer,
       kExternalObjectValueTag);
 #else
   return 0;
 #endif  // V8_ENABLE_SANDBOX
 }
 
-FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
-                   AllocateAndInitializeYoungExternalPointerTableEntry)
+FUNCTION_REFERENCE(allocate_and_initialize_external_pointer_table_entry,
+                   AllocateAndInitializeExternalPointerTableEntry)
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 

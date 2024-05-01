@@ -4205,13 +4205,6 @@ void Heap::NotifyObjectLayoutChange(
       USE(num_invalidated_slots);
       DCHECK_GT(num_invalidated_slots, 0);
     }
-
-    // During concurrent marking for a minor GC, the heap also builds up a
-    // RememberedSet of external pointer field locations, and uses that set to
-    // evacuate external pointer table entries when promoting objects.  Here we
-    // would need to invalidate that set too; until we do, assert that
-    // NotifyObjectLayoutChange is never called on young objects.
-    CHECK(!InYoungGeneration(object));
 #endif
   }
 

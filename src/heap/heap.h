@@ -787,11 +787,8 @@ class Heap final {
   inline Space* space(int idx) const;
 
 #ifdef V8_COMPRESS_POINTERS
-  ExternalPointerTable::Space* young_external_pointer_space() {
-    return &young_external_pointer_space_;
-  }
-  ExternalPointerTable::Space* old_external_pointer_space() {
-    return &old_external_pointer_space_;
+  ExternalPointerTable::Space* external_pointer_space() {
+    return &external_pointer_space_;
   }
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
@@ -2161,10 +2158,9 @@ class Heap final {
   std::unique_ptr<Space> space_[LAST_SPACE + 1];
 
 #ifdef V8_COMPRESS_POINTERS
-  // The spaces in the ExternalPointerTable containing entries owned by objects
+  // The space in the ExternalPointerTable containing entries owned by objects
   // in this heap.
-  ExternalPointerTable::Space young_external_pointer_space_;
-  ExternalPointerTable::Space old_external_pointer_space_;
+  ExternalPointerTable::Space external_pointer_space_;
   // Likewise but for slots in host objects in ReadOnlySpace.
   ExternalPointerTable::Space read_only_external_pointer_space_;
   // Space in the ExternalPointerTable containing entries owned by objects in

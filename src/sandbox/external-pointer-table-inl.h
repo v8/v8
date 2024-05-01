@@ -122,31 +122,26 @@ bool ExternalPointerTableEntry::HasEvacuationEntry() const {
   return payload.ContainsEvacuationEntry();
 }
 
-void ExternalPointerTableEntry::Evacuate(ExternalPointerTableEntry& dest,
-                                         EvacuateMarkMode mode) {
+void ExternalPointerTableEntry::MigrateInto(ExternalPointerTableEntry& other) {
   auto payload = payload_.load(std::memory_order_relaxed);
-  // We expect to only evacuate entries containing external pointers.
+  // We expect to only migrate entries containing external pointers.
   DCHECK(payload.ContainsExternalPointer());
 
-  switch (mode) {
-    case EvacuateMarkMode::kTransferMark:
-      break;
-    case EvacuateMarkMode::kLeaveUnmarked:
-      DCHECK(!payload.HasMarkBitSet());
-      break;
-    case EvacuateMarkMode::kClearMark:
-      DCHECK(payload.HasMarkBitSet());
-      payload.ClearMarkBit();
-      break;
-  }
-
-  dest.payload_.store(payload, std::memory_order_relaxed);
+  other.payload_.store(payload, std::memory_order_relaxed);
 #if defined(LEAK_SANITIZER)
-  dest.raw_pointer_for_lsan_ = raw_pointer_for_lsan_;
+  other.raw_pointer_for_lsan_ = raw_pointer_for_lsan_;
 #endif  // LEAK_SANITIZER
 
-  // The destination entry takes ownership of the pointer.
-  MakeZappedEntry();
+#ifdef DEBUG
+  // In debug builds, we clobber this old entry so that any sharing of table
+  // entries is easily detected. Shared entries would require write barriers,
+  // so we'd like to avoid them. See the compaction algorithm explanation in
+  // external-pointer-table.h for more details.
+  constexpr Address kClobberedEntryMarker = static_cast<Address>(-1);
+  Payload clobbered(kClobberedEntryMarker, kExternalPointerNullTag);
+  DCHECK_NE(payload, clobbered);
+  payload_.store(clobbered, std::memory_order_relaxed);
+#endif  // DEBUG
 }
 
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
@@ -246,7 +241,7 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
          handle == current_handle);
 #endif
 
-  // If the handle is null, it doesn't have an EPT entry; no mark is needed.
+  // The null entry is immortal and immutable, so no need to mark it as alive.
   if (handle == kNullExternalPointerHandle) return;
 
   uint32_t index = HandleToIndex(handle);
@@ -259,42 +254,6 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   // Even if the entry is marked for evacuation, it still needs to be marked as
   // alive as it may be visited during sweeping before being evacuation.
   at(index).Mark();
-}
-
-void ExternalPointerTable::Evacuate(Space* from_space, Space* to_space,
-                                    ExternalPointerHandle handle,
-                                    Address handle_location,
-                                    EvacuateMarkMode mode) {
-  DCHECK(from_space->BelongsTo(this));
-  DCHECK(to_space->BelongsTo(this));
-
-  auto handle_ptr = reinterpret_cast<ExternalPointerHandle*>(handle_location);
-
-#ifdef DEBUG
-  // Unlike Mark(), we require that the mutator is stopped, so we can simply
-  // verify that the location stores the handle with a non-atomic load.
-  DCHECK_EQ(handle, *handle_ptr);
-#endif
-
-  // If the handle is null, it doesn't have an EPT entry; no evacuation is
-  // needed.
-  if (handle == kNullExternalPointerHandle) return;
-
-  uint32_t from_index = HandleToIndex(handle);
-  DCHECK(from_space->Contains(from_index));
-  uint32_t to_index = AllocateEntry(to_space);
-
-  at(from_index).Evacuate(at(to_index), mode);
-  ExternalPointerHandle new_handle = IndexToHandle(to_index);
-
-  if (Address addr = at(to_index).ExtractManagedResourceOrNull()) {
-    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
-    DCHECK_EQ(resource->ept_entry_, handle);
-    resource->ept_entry_ = new_handle;
-  }
-
-  // Update slot to point to new handle.
-  base::AsAtomic32::Relaxed_Store(handle_ptr, new_handle);
 }
 
 // static

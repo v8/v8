@@ -294,19 +294,6 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
   }
 }
 
-#ifdef DEBUG
-static bool ExternalPointerRememberedSetsEmpty(PagedNewSpace* space) {
-  PagedSpaceForNewSpace* p = space->paged_space();
-  for (auto it = p->begin(); it != p->end();) {
-    PageMetadata* p = *(it++);
-    if (p->slot_set<SURVIVOR_TO_EXTERNAL_POINTER>()) {
-      return false;
-    }
-  }
-  return true;
-}
-#endif
-
 void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -340,7 +327,6 @@ void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
   marking_worklists_ = std::make_unique<MarkingWorklists>();
   DCHECK_NULL(main_marking_visitor_);
   DCHECK_NULL(pretenuring_feedback_);
-  DCHECK(ExternalPointerRememberedSetsEmpty(heap_->paged_new_space()));
   pretenuring_feedback_ =
       std::make_unique<PretenuringHandler::PretenuringFeedbackMap>(
           PretenuringHandler::kInitialFeedbackCapacity);
@@ -823,32 +809,6 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
 
 }  // namespace
 
-void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
-    MutablePageMetadata* p) {
-#ifdef V8_COMPRESS_POINTERS
-  using BasicSlotSet = ::heap::base::BasicSlotSet<kTaggedSize>;
-  BasicSlotSet* slots = p->slot_set<SURVIVOR_TO_EXTERNAL_POINTER>();
-  if (!slots) return;
-  ExternalPointerTable& table = heap_->isolate()->external_pointer_table();
-  ExternalPointerTable::Space* young = heap_->young_external_pointer_space();
-  ExternalPointerTable::Space* old = heap_->old_external_pointer_space();
-  auto callback = [&table, young, old](Address handle_location) {
-    ExternalPointerHandle handle =
-        *reinterpret_cast<ExternalPointerHandle*>(handle_location);
-    table.Evacuate(young, old, handle, handle_location,
-                   ExternalPointerTable::EvacuateMarkMode::kClearMark);
-    return KEEP_SLOT;
-  };
-  auto slot_count = slots->Iterate<BasicSlotSet::AccessMode::NON_ATOMIC>(
-      p->ChunkAddress(), 0, p->buckets(), callback,
-      BasicSlotSet::EmptyBucketMode::FREE_EMPTY_BUCKETS);
-  DCHECK(slot_count);
-  USE(slot_count);
-  // SURVIVOR_TO_EXTERNAL_POINTER remembered set will be freed later by the
-  // sweeper.
-#endif
-}
-
 bool MinorMarkSweepCollector::StartSweepNewSpace() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP_NEW);
   PagedSpaceForNewSpace* paged_space = heap_->paged_new_space()->paged_space();
@@ -878,7 +838,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
     }
 
     if (ShouldMovePage(p, live_bytes_on_page, p->wasted_memory())) {
-      EvacuateExternalPointerReferences(p);
       heap_->new_space()->PromotePageToOldSpace(p);
       has_promoted_pages = true;
       sweeper()->AddPromotedPage(p);
@@ -888,13 +847,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
       will_be_swept++;
     }
   }
-
-#ifdef V8_COMPRESS_POINTERS
-  // Now that we have evacuated any external pointers, rebuild EPT free-lists
-  // for the new space.
-  heap_->isolate()->external_pointer_table().SweepAndCompact(
-      heap_->young_external_pointer_space(), heap_->isolate()->counters());
-#endif
 
   if (v8_flags.gc_verbose) {
     PrintIsolate(heap_->isolate(),
@@ -919,7 +871,6 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     LargePageMetadata* current = *it;
     MemoryChunk* chunk = current->Chunk();
     it++;
-
     Tagged<HeapObject> object = current->GetObject();
     if (!non_atomic_marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
@@ -931,7 +882,6 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
     current->ProgressBar().ResetIfEnabled();
-    EvacuateExternalPointerReferences(current);
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;
     sweeper()->AddPromotedPage(current);

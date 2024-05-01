@@ -12,7 +12,6 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
-#include "src/heap/remembered-set-inl.h"
 #include "src/heap/young-generation-marking-visitor.h"
 #include "src/objects/js-objects.h"
 
@@ -141,31 +140,6 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
   }
   return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);
 }
-
-#ifdef V8_COMPRESS_POINTERS
-template <YoungGenerationMarkingVisitationMode marking_mode>
-void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
-    Tagged<HeapObject> host, ExternalPointerSlot slot) {
-  DCHECK(Heap::InYoungGeneration(host));
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(slot.tag()));
-
-  // TODO(chromium:337580006): Remove when pointer compression always uses
-  // EPT.
-  if (!slot.HasExternalPointerHandle()) return;
-
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  ExternalPointerTable& table = isolate_->external_pointer_table();
-  auto* space = isolate_->heap()->young_external_pointer_space();
-  if (handle != kNullExternalPointerHandle) {
-    table.Mark(space, handle, slot.address());
-
-    auto slot_chunk = MutablePageMetadata::FromHeapObject(host);
-    RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
-        AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
-  }
-}
-#endif  // V8_COMPRESS_POINTERS
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename TSlot>

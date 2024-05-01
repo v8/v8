@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-class Counters;
-
 /**
  * The entries of an ExternalBufferTable.
  *
