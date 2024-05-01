@@ -2401,6 +2401,7 @@ void WebAssemblySuspendingImpl(
     thrower.TypeError("Argument 0 must be a function");
     return;
   }
+
   i::Handle<i::JSReceiver> callable =
       Utils::OpenHandle(*info[0].As<Function>());
 
@@ -3445,10 +3446,12 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     InstallTypeReflection(isolate, native_context, webassembly);
   }
 
-  // Create the Suspender object.
+  // Initialize and install JSPI feature.
   if (enabled_features.has_jspi()) {
+    CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
     isolate->WasmInitJSPIFeature();
     InstallJSPromiseIntegration(isolate, native_context, webassembly);
+    native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
   }
 }
 
@@ -3481,31 +3484,36 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   */
 
   // Install JSPI-related features.
-  if (isolate->IsWasmJSPIEnabled(context)) {
-    isolate->WasmInitJSPIFeature();
-    InstallJSPromiseIntegration(isolate, context, webassembly);
-    InstallTypeReflection(isolate, context, webassembly);
+  if (isolate->IsWasmJSPIRequested(context)) {
+    if (context->is_wasm_jspi_installed() == Smi::zero()) {
+      isolate->WasmInitJSPIFeature();
+      if (InstallJSPromiseIntegration(isolate, context, webassembly) &&
+          InstallTypeReflection(isolate, context, webassembly)) {
+        context->set_is_wasm_jspi_installed(Smi::FromInt(1));
+      }
+    }
   }
 }
 
 // static
-void WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
+// Return true if this call results in JSPI being installed.
+bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
                                          Handle<NativeContext> context,
                                          Handle<JSObject> webassembly) {
   Handle<String> suspender_string = v8_str(isolate, "Suspender");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
            .FromMaybe(true)) {
-    return;
+    return false;
   }
   Handle<String> suspending_string = v8_str(isolate, "Suspending");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, suspending_string)
            .FromMaybe(true)) {
-    return;
+    return false;
   }
   Handle<String> promising_string = v8_str(isolate, "promising");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, promising_string)
            .FromMaybe(true)) {
-    return;
+    return false;
   }
   Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspender", WebAssemblySuspender);
@@ -3519,10 +3527,12 @@ void WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
       isolate, suspending_constructor, WASM_SUSPENDING_OBJECT_TYPE,
       WasmSuspendingObject::kHeaderSize, "WebAssembly.Suspending");
   InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
+  return true;
 }
 
 // static
-void WasmJs::InstallTypeReflection(Isolate* isolate,
+// Return true only if this call resulted in installation of type reflection.
+bool WasmJs::InstallTypeReflection(Isolate* isolate,
                                    Handle<NativeContext> context,
                                    Handle<JSObject> webassembly) {
   // First check if any of the type reflection fields already exist. If so, bail
@@ -3530,7 +3540,7 @@ void WasmJs::InstallTypeReflection(Isolate* isolate,
   if (JSObject::HasRealNamedProperty(isolate, webassembly,
                                      isolate->factory()->Function_string())
           .FromMaybe(true)) {
-    return;
+    return false;
   }
 
   Handle<String> type_string = v8_str(isolate, "type");
@@ -3540,22 +3550,22 @@ void WasmJs::InstallTypeReflection(Isolate* isolate,
   if (JSObject::HasRealNamedProperty(
           isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), type_string)
           .FromMaybe(true)) {
-    return;
+    return false;
   }
   if (JSObject::HasRealNamedProperty(
           isolate, INSTANCE_PROTO_HANDLE(wasm_global_constructor), type_string)
           .FromMaybe(true)) {
-    return;
+    return false;
   }
   if (JSObject::HasRealNamedProperty(
           isolate, INSTANCE_PROTO_HANDLE(wasm_memory_constructor), type_string)
           .FromMaybe(true)) {
-    return;
+    return false;
   }
   if (JSObject::HasRealNamedProperty(
           isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), type_string)
           .FromMaybe(true)) {
-    return;
+    return false;
   }
 
   // Checks are done, start installing the new fields.
@@ -3602,6 +3612,7 @@ void WasmJs::InstallTypeReflection(Isolate* isolate,
                         Builtin::kWebAssemblyFunctionPrototypeBind, 1, false);
   // Make all exported functions an instance of {WebAssembly.Function}.
   context->set_wasm_exported_function_map(*function_map);
+  return true;
 }
 
 namespace wasm {

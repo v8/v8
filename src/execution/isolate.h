@@ -810,6 +810,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
+  // Has the JSPI flag been requested?
+  // Used only during initialization of contexts.
+  bool IsWasmJSPIRequested(Handle<NativeContext> context);
+  // Has JSPI been enabled successfully?
   bool IsWasmJSPIEnabled(Handle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 

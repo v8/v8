@@ -78,11 +78,11 @@ class WasmJs {
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
       Isolate* isolate, Handle<NativeContext> context);
 
-  V8_EXPORT_PRIVATE static void InstallTypeReflection(
+  V8_EXPORT_PRIVATE static bool InstallTypeReflection(
       Isolate* isolate, Handle<NativeContext> context,
       Handle<JSObject> webassembly);
 
-  V8_EXPORT_PRIVATE static void InstallJSPromiseIntegration(
+  V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, Handle<NativeContext> context,
       Handle<JSObject> webassembly);
 };

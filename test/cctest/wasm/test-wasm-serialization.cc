@@ -459,10 +459,12 @@ TEST(SerializationFailsOnChangedFeatures) {
   {
     HandleScope scope(CcTest::i_isolate());
 
-    CcTest::isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
+    CcTest::isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return true; });
     CHECK(test.Deserialize().is_null());
 
-    CcTest::isolate()->SetWasmJSPIEnabledCallback([](auto) { return false; });
+    CcTest::isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return false; });
     CHECK(!test.Deserialize().is_null());
   }
 }

@@ -3371,7 +3371,7 @@ bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
+bool Isolate::IsWasmJSPIRequested(Handle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
   if (jspi_callback) {
@@ -3381,6 +3381,15 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
 
   // Otherwise use the runtime flag.
   return v8_flags.experimental_wasm_jspi;
+#else
+  return false;
+#endif
+}
+
+bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  return IsWasmJSPIRequested(context) &&
+         context->is_wasm_jspi_installed() != Smi::zero();
 #else
   return false;
 #endif
