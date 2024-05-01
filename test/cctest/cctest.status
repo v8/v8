@@ -459,6 +459,8 @@
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
+  'turboshaft-test-compare-combine/CombineCompareWord64Logic1': [PASS, SLOW],
+  'turboshaft-test-compare-combine/CombineCompareTwoLogicInputs': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
 
