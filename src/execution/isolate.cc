@@ -86,6 +86,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -99,6 +100,7 @@
 #include "src/objects/source-text-module-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/visitors.h"
+#include "src/objects/waiter-queue-node.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
@@ -4118,6 +4120,11 @@ void Isolate::Deinit() {
   recorder_context_id_map_.clear();
 
   FutexEmulation::IsolateDeinit(this);
+  if (v8_flags.harmony_struct) {
+    JSSynchronizationPrimitive::IsolateDeinit(this);
+  } else {
+    DCHECK(async_waiter_queue_nodes_.empty());
+  }
 
   debug()->Unload();
 
@@ -6991,6 +6998,11 @@ Tagged<Object> Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
 
   CHECK(IsStringSet(maybe_value) || IsTheHole(maybe_value));
   return maybe_value;
+}
+
+std::list<std::unique_ptr<detail::WaiterQueueNode>>&
+Isolate::async_waiter_queue_nodes() {
+  return async_waiter_queue_nodes_;
 }
 
 void DefaultWasmAsyncResolvePromiseCallback(

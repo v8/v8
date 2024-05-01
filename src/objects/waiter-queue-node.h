@@ -16,24 +16,29 @@ class TimeDelta;
 
 namespace internal {
 
+class Context;
 class Isolate;
+template <typename T>
+class Tagged;
 
 namespace detail {
 
 // To manage waiting threads inside JSSynchronizationPrimitives, there is a
 // process-wide doubly-linked intrusive list per waiter (i.e. mutex or condition
 // variable). There is a per-thread node allocated on the stack when the thread
-// goes to sleep during waiting.
+// goes to sleep for synchronous locking and waiting, and a per-call node
+// allocated on the C++ heap for asynchronous locking and waiting.
 //
 // When compressing pointers (including when sandboxing), the access to the
-// on-stack node is indirected through the shared external pointer table.
+// node is indirected through the shared external pointer table.
 //
+// The WaiterQueueNode is an abstract class encapsulting the general queue
+// logic (enqueue, dequeue, etc...). Its extensions add the logic to handle
+// notifications and sync/async waiting.
 // TODO(v8:12547): Unittest this.
-class V8_NODISCARD WaiterQueueNode final {
+class V8_NODISCARD WaiterQueueNode {
  public:
-  explicit WaiterQueueNode(Isolate* requester);
-
-  ~WaiterQueueNode();
+  virtual ~WaiterQueueNode();
 
   // Enqueues {new_tail}, mutating {head} to be the new head.
   static void Enqueue(WaiterQueueNode** head, WaiterQueueNode* new_tail);
@@ -47,6 +52,9 @@ class V8_NODISCARD WaiterQueueNode final {
   static WaiterQueueNode* DequeueMatching(WaiterQueueNode** head,
                                           const DequeueMatcher& matcher);
 
+  static void DequeueAllMatchingForAsyncCleanup(WaiterQueueNode** head,
+                                                const DequeueMatcher& matcher);
+
   static WaiterQueueNode* Dequeue(WaiterQueueNode** head);
 
   // Splits at most {count} nodes of the waiter list of into its own list and
@@ -57,31 +65,30 @@ class V8_NODISCARD WaiterQueueNode final {
   // encoded lists can cause this method to infinitely loop.
   static int LengthFromHead(WaiterQueueNode* head);
 
-  void Wait();
-
-  // Returns false if timed out, true otherwise.
-  bool WaitFor(const base::TimeDelta& rel_time);
-
-  void Notify();
-
   uint32_t NotifyAllInList();
 
-  bool should_wait = false;
+  virtual void Notify() = 0;
 
- private:
-  void VerifyNotInList();
+  // Async cleanup functions.
+  virtual bool IsSameIsolateForAsyncCleanup(Isolate* isolate) = 0;
+  virtual void CleanupMatchingAsyncWaiters(const DequeueMatcher& matcher) = 0;
+
+ protected:
+  explicit WaiterQueueNode(Isolate* requester);
 
   void SetNotInListForVerification();
 
-  Isolate* requester_;
+  virtual void SetReadyForAsyncCleanup() = 0;
 
+  Isolate* requester_;
   // The queue wraps around, e.g. the head's prev is the tail, and the tail's
   // next is the head.
   WaiterQueueNode* next_ = nullptr;
   WaiterQueueNode* prev_ = nullptr;
 
-  base::Mutex wait_lock_;
-  base::ConditionVariable wait_cond_var_;
+ private:
+  void DequeueUnchecked(WaiterQueueNode** head);
+  void VerifyNotInList();
 };
 
 }  // namespace detail
