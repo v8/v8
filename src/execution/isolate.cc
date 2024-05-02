@@ -2454,10 +2454,9 @@ HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
 HandlerTable::CatchPrediction PredictExceptionFromBytecode(
     Tagged<BytecodeArray> bytecode, int code_offset) {
   HandlerTable table(bytecode);
-  HandlerTable::CatchPrediction prediction;
-  int index = table.LookupRange(code_offset, nullptr, &prediction);
-  if (index <= 0) return HandlerTable::UNCAUGHT;
-  return prediction;
+  int handler_index = table.LookupHandlerIndexForRange(code_offset);
+  if (handler_index < 0) return HandlerTable::UNCAUGHT;
+  return table.GetRangePrediction(handler_index);
 }
 
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,

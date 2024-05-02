@@ -721,6 +721,7 @@ class MergePointInterpreterFrameState {
     kDefault,
     kLoopHeader,
     kExceptionHandlerStart,
+    kUnusedExceptionHandlerStart,
   };
 
   static MergePointInterpreterFrameState* New(
@@ -737,7 +738,7 @@ class MergePointInterpreterFrameState {
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
-      interpreter::Register context_register, Graph* graph);
+      bool was_used, interpreter::Register context_register, Graph* graph);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -830,8 +831,14 @@ class MergePointInterpreterFrameState {
     return basic_block_type() == BasicBlockType::kLoopHeader;
   }
 
-  bool is_exception_handler() const {
+  bool exception_handler_was_used() const {
+    DCHECK(is_exception_handler());
     return basic_block_type() == BasicBlockType::kExceptionHandlerStart;
+  }
+
+  bool is_exception_handler() const {
+    return basic_block_type() == BasicBlockType::kExceptionHandlerStart ||
+           basic_block_type() == BasicBlockType::kUnusedExceptionHandlerStart;
   }
 
   bool is_unmerged_loop() const {

@@ -677,7 +677,7 @@ class MaglevGraphBuilder {
                   << "==" << std::endl;
       }
 
-      if (merge_state->is_exception_handler()) {
+      if (V8_UNLIKELY(merge_state->is_exception_handler())) {
         DCHECK_EQ(predecessors_[offset], 0);
         // If we have no reference to this block, then the exception handler is
         // dead.
@@ -686,6 +686,12 @@ class MaglevGraphBuilder {
           return;
         }
         ProcessMergePointAtExceptionHandlerStart(offset);
+        if (!merge_state->exception_handler_was_used()) {
+          DCHECK_EQ(merge_state->predecessor_count(), 0);
+          StartNewBlock(offset, /*predecessor*/ nullptr);
+          RETURN_VOID_ON_ABORT(
+              EmitUnconditionalDeopt(DeoptimizeReason::kUnoptimizedCatch));
+        }
       } else if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
                  merge_state->is_unreachable_loop()) {
         // We encoutered a loop header that is only reachable by the JumpLoop

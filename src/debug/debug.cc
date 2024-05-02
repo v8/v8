@@ -1347,9 +1347,8 @@ void Debug::PrepareStepOnThrow() {
           CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(isolate_));
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
-          HandlerTable::CatchPrediction prediction;
-          int index = table.LookupRange(code_offset, nullptr, &prediction);
-          if (index > 0) found_handler = true;
+          found_handler = table.LookupHandlerIndexForRange(code_offset) !=
+                          HandlerTable::kNoHandlerFound;
         } else {
           found_handler = true;
         }

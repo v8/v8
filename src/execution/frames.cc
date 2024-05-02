@@ -2918,7 +2918,14 @@ int UnoptimizedFrame::position() const {
 int UnoptimizedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
   HandlerTable table(GetBytecodeArray());
-  return table.LookupRange(GetBytecodeOffset(), context_register, prediction);
+  int handler_index = table.LookupHandlerIndexForRange(GetBytecodeOffset());
+  if (handler_index != HandlerTable::kNoHandlerFound) {
+    if (context_register) *context_register = table.GetRangeData(handler_index);
+    if (prediction) *prediction = table.GetRangePrediction(handler_index);
+    table.MarkHandlerUsed(handler_index);
+    return table.GetRangeHandler(handler_index);
+  }
+  return handler_index;
 }
 
 Tagged<BytecodeArray> UnoptimizedFrame::GetBytecodeArray() const {

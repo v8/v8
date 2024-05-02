@@ -71,6 +71,7 @@ namespace internal {
   V(StoreToConstant, "Storing to a constant field")                            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
   V(Unknown, "(unknown)")                                                      \
+  V(UnoptimizedCatch, "First use of catch block")                              \
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongCallTarget, "wrong call target")                                      \
   V(WrongEnumIndices, "wrong enum indices")                                    \

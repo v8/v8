@@ -908,6 +908,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
     HandlerTable table(*bytecode().object());
     for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
       const int offset = table.GetRangeHandler(i);
+      const bool was_used = table.HandlerWasUsed(i);
       const interpreter::Register context_reg(table.GetRangeData(i));
       const compiler::BytecodeLivenessState* liveness =
           GetInLivenessFor(offset);
@@ -915,10 +916,11 @@ void MaglevGraphBuilder::BuildMergeStates() {
       DCHECK_NULL(merge_states_[offset]);
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "- Creating exception merge state at @" << offset
-                  << ", context register r" << context_reg.index() << std::endl;
+                  << (was_used ? "" : " (never used)") << ", context register r"
+                  << context_reg.index() << std::endl;
       }
       merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
-          *compilation_unit_, liveness, offset, context_reg, graph_);
+          *compilation_unit_, liveness, offset, was_used, context_reg, graph_);
     }
   }
 }
@@ -10345,6 +10347,7 @@ void MaglevGraphBuilder::PeelLoop() {
       if (merge_state->is_exception_handler()) {
         merge_state = MergePointInterpreterFrameState::NewForCatchBlock(
             *compilation_unit_, merge_state->frame_state().liveness(), offset,
+            merge_state->exception_handler_was_used(),
             merge_state->catch_block_context_register(), graph_);
       } else {
         // We only peel innermost loops.

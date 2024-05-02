@@ -154,12 +154,14 @@ MergePointInterpreterFrameState*
 MergePointInterpreterFrameState::NewForCatchBlock(
     const MaglevCompilationUnit& unit,
     const compiler::BytecodeLivenessState* liveness, int handler_offset,
-    interpreter::Register context_register, Graph* graph) {
+    bool was_used, interpreter::Register context_register, Graph* graph) {
   Zone* const zone = unit.zone();
   MergePointInterpreterFrameState* state =
       zone->New<MergePointInterpreterFrameState>(
           unit, handler_offset, 0, 0, nullptr,
-          BasicBlockType::kExceptionHandlerStart, liveness);
+          was_used ? BasicBlockType::kExceptionHandlerStart
+                   : BasicBlockType::kUnusedExceptionHandlerStart,
+          liveness);
   auto& frame_state = state->frame_state_;
   // If the accumulator is live, the ExceptionPhi associated to it is the
   // first one in the block. That ensures it gets kReturnValue0 in the
