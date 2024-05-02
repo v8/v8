@@ -24,10 +24,72 @@ void ExternalPointerTable::SetUpFromReadOnlyArtifacts(
   }
 }
 
-uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
-                                               Counters* counters) {
+// An iterator over a set of sets of segments that returns a total ordering of
+// segments in highest to lowest address order.  This lets us easily build a
+// sorted singly-linked freelist.
+//
+// When given a single set of segments, it's the same as iterating over
+// std::set<Segment> in reverse order.
+//
+// With multiple segment sets, we still produce a total order.  Sets are
+// annotated so that we can associate some data with their segments.  This is
+// useful when evacuating the young ExternalPointerTable::Space into the old
+// generation in a major collection, as both spaces could have been compacting,
+// with different starts to the evacuation area.
+template <typename Segment, typename Data>
+class SegmentsIterator {
+  using iterator = typename std::set<Segment>::reverse_iterator;
+  using const_iterator = typename std::set<Segment>::const_reverse_iterator;
+
+ public:
+  SegmentsIterator() {}
+
+  void AddSegments(const std::set<Segment>& segments, Data data) {
+    streams_.emplace_back(segments.rbegin(), segments.rend(), data);
+  }
+
+  std::optional<std::pair<Segment, Data>> Next() {
+    int stream = -1;
+    int min_stream = -1;
+    std::optional<std::pair<Segment, Data>> result;
+    for (auto [iter, end, data] : streams_) {
+      stream++;
+      if (iter != end) {
+        Segment segment = *iter;
+        if (!result || result.value().first < segment) {
+          min_stream = stream;
+          result.emplace(segment, data);
+        }
+      }
+    }
+    if (result) {
+      streams_[min_stream].iter++;
+      return result;
+    }
+    return {};
+  }
+
+ private:
+  struct Stream {
+    iterator iter;
+    const_iterator end;
+    Data data;
+
+    Stream(iterator iter, const_iterator end, Data data)
+        : iter(iter), end(end), data(data) {}
+  };
+
+  std::vector<Stream> streams_;
+};
+
+uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
+                                                          Space* from_space,
+                                                          Counters* counters) {
   DCHECK(space->BelongsTo(this));
   DCHECK(!space->is_internal_read_only_space());
+
+  DCHECK_IMPLIES(from_space, from_space->BelongsTo(this));
+  DCHECK_IMPLIES(from_space, !from_space->is_internal_read_only_space());
 
   // Lock the space. Technically this is not necessary since no other thread can
   // allocate entries at this point, but some of the methods we call on the
@@ -42,33 +104,33 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   space->freelist_head_.store(kEntryAllocationIsForbiddenMarker,
                               std::memory_order_relaxed);
 
-  // When compacting, we can compute the number of unused segments at the end of
-  // the table and deallocate those after sweeping.
-  uint32_t start_of_evacuation_area =
-      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
-  bool evacuation_was_successful = false;
-  if (space->IsCompacting()) {
-    TableCompactionOutcome outcome;
-    if (space->CompactingWasAborted()) {
-      // Compaction was aborted during marking because the freelist grew to
-      // short. In this case, it is not guaranteed that any segments will now
-      // be completely free.
-      outcome = TableCompactionOutcome::kAborted;
-      // Extract the original start_of_evacuation_area value so that the
-      // DCHECKs below and in ResolveEvacuationEntryDuringSweeping work.
-      start_of_evacuation_area &= ~Space::kCompactionAbortedMarker;
-    } else {
-      // Entry evacuation was successful so all segments inside the evacuation
-      // area are now guaranteed to be free and so can be deallocated.
-      outcome = TableCompactionOutcome::kSuccess;
-      evacuation_was_successful = true;
-    }
-    DCHECK(IsAligned(start_of_evacuation_area, kEntriesPerSegment));
+  SegmentsIterator<Segment, CompactionResult> segments_iter;
+  Histogram* counter = counters->external_pointer_table_compaction_outcome();
+  CompactionResult space_compaction = FinishCompaction(space, counter);
+  segments_iter.AddSegments(space->segments_, space_compaction);
 
-    space->StopCompacting();
+  // If from_space is present, take its segments and add them to the sweep
+  // iterator.  Wait until after the sweep to actually give from_space's
+  // segments to the other space, to avoid invalidating the iterator.
+  std::set<Segment> from_space_segments;
+  if (from_space) {
+    base::MutexGuard from_space_guard(&from_space->mutex_);
+    base::MutexGuard from_space_invalidated_fields_guard(
+        &from_space->invalidated_fields_mutex_);
 
-    counters->external_pointer_table_compaction_outcome()->AddSample(
-        static_cast<int>(outcome));
+    std::swap(from_space->segments_, from_space_segments);
+    DCHECK(from_space->segments_.empty());
+
+    CompactionResult from_space_compaction =
+        FinishCompaction(from_space, counter);
+    segments_iter.AddSegments(from_space_segments, from_space_compaction);
+
+    FreelistHead empty_freelist;
+    from_space->freelist_head_.store(empty_freelist, std::memory_order_release);
+
+    for (Address field : from_space->invalidated_fields_)
+      space->invalidated_fields_.push_back(field);
+    from_space->ClearInvalidatedFields();
   }
 
   // Sweep top to bottom and rebuild the freelist from newly dead and
@@ -88,10 +150,13 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   };
 
   std::vector<Segment> segments_to_deallocate;
-  for (auto segment : base::Reversed(space->segments_)) {
+  while (auto current = segments_iter.Next()) {
+    Segment segment = current->first;
+    CompactionResult compaction = current->second;
+
     bool segment_will_be_evacuated =
-        evacuation_was_successful &&
-        segment.first_entry() >= start_of_evacuation_area;
+        compaction.success &&
+        segment.first_entry() >= compaction.start_of_evacuation_area;
 
     // Remember the state of the freelist before this segment in case this
     // segment turns out to be completely empty and we deallocate it.
@@ -136,7 +201,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
         // unless compaction was already aborted during marking.
         ResolveEvacuationEntryDuringSweeping(
             i, reinterpret_cast<ExternalPointerHandle*>(handle_location),
-            start_of_evacuation_area);
+            compaction.start_of_evacuation_area);
 
         // The entry must now contain an external pointer and be unmarked as
         // the entry that was evacuated must have been processed already (it
@@ -172,6 +237,8 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     }
   }
 
+  space->segments_.merge(from_space_segments);
+
   // We cannot deallocate the segments during the above loop, so do it now.
   for (auto segment : segments_to_deallocate) {
     FreeTableSegment(segment);
@@ -187,6 +254,16 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   uint32_t num_live_entries = space->capacity() - current_freelist_length;
   counters->external_pointers_count()->AddSample(num_live_entries);
   return num_live_entries;
+}
+
+uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
+                                               Counters* counters) {
+  return EvacuateAndSweepAndCompact(space, nullptr, counters);
+}
+
+uint32_t ExternalPointerTable::Sweep(Space* space, Counters* counters) {
+  DCHECK(!space->IsCompacting());
+  return SweepAndCompact(space, counters);
 }
 
 void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
@@ -206,7 +283,7 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   DCHECK_GE(old_index, start_of_evacuation_area);
   DCHECK_LT(new_index, start_of_evacuation_area);
   auto& new_entry = at(new_index);
-  at(old_index).MigrateInto(new_entry);
+  at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);
   *handle_location = new_handle;
 
   // If this entry references a managed resource, update the resource to

@@ -585,14 +585,14 @@ class FastApiCallLoweringReducer : public Next {
     builder.AddReturn(MachineType::Uint32());
     builder.AddParam(MachineType::Pointer());
     builder.AddParam(MachineType::Pointer());
-    OpIndex allocate_and_initialize_external_pointer_table_entry =
+    OpIndex allocate_and_initialize_young_external_pointer_table_entry =
         __ ExternalConstant(
             ExternalReference::
-                allocate_and_initialize_external_pointer_table_entry());
+                allocate_and_initialize_young_external_pointer_table_entry());
     auto call_descriptor =
         Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Build());
     OpIndex handle =
-        __ Call(allocate_and_initialize_external_pointer_table_entry,
+        __ Call(allocate_and_initialize_young_external_pointer_table_entry,
                 {isolate_ptr, pointer},
                 TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
                                          __ graph_zone()));

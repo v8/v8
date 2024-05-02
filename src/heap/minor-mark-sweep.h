@@ -195,6 +195,7 @@ class MinorMarkSweepCollector final {
       YoungGenerationRootMarkingVisitor& root_visitor);
   void MarkRootsFromConservativeStack(
       YoungGenerationRootMarkingVisitor& root_visitor);
+  void EvacuateExternalPointerReferences(MutablePageMetadata* p);
 
   void TraceFragmentation();
   void ClearNonLiveReferences();

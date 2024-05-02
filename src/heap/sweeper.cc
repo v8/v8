@@ -581,6 +581,7 @@ void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPage(
       // the given live object.
       PromotedPageRecordMigratedSlotVisitor record_visitor(page);
       record_visitor.Process(LargePageMetadata::cast(page)->GetObject());
+      page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
       if (!v8_flags.sticky_mark_bits) {
         page->ClearLiveness();
       }
@@ -1030,6 +1031,7 @@ void Sweeper::RawSweep(PageMetadata* p,
   }
 
   // Phase 3: Post process the page.
+  p->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
   CleanupTypedSlotsInFreeMemory(p, free_ranges_map, sweeping_mode);
   ClearMarkBitsAndHandleLivenessStatistics(p, live_bytes);
 
@@ -1344,6 +1346,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
 
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
+  page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
   page->Chunk()->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);

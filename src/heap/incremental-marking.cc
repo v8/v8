@@ -315,11 +315,6 @@ void IncrementalMarking::StartMarkingMajor() {
   is_compacting_ = major_collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
-#ifdef V8_COMPRESS_POINTERS
-  heap_->external_pointer_space()->StartCompactingIfNeeded();
-  heap_->cpp_heap_pointer_space()->StartCompactingIfNeeded();
-#endif  // V8_COMPRESS_POINTERS
-
   major_collector_->StartMarking();
   current_local_marking_worklists_ =
       major_collector_->local_marking_worklists();
