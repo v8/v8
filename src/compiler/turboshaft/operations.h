@@ -6064,9 +6064,9 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   // The outputs are produced by the `DidntThrow` operation.
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
-  // There are two inputs that are not parameters, the frame state and the data
-  // argument.
-  static constexpr int kNumNonParamInputs = 2;
+  // There are three inputs that are not parameters, the frame state, the data
+  // argument, and the context.
+  static constexpr int kNumNonParamInputs = 3;
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -6075,6 +6075,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     storage.resize(inputs().size());
     storage[0] = MaybeRegisterRepresentation::None();
     storage[1] = MaybeRegisterRepresentation::Tagged();
+    storage[2] = MaybeRegisterRepresentation::Tagged();
     for (unsigned i = 0; i < parameters->c_signature()->ArgumentCount(); ++i) {
       storage[i + kNumNonParamInputs] = argument_representation(i);
     }
@@ -6127,17 +6128,21 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   V<FrameState> frame_state() const { return input<FrameState>(0); }
 
   OpIndex data_argument() const { return input(1); }
+
+  V<Context> context() const { return input<Context>(2); }
+
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(kNumNonParamInputs, inputs().size());
   }
 
   FastApiCallOp(V<FrameState> frame_state, OpIndex data_argument,
-                base::Vector<const OpIndex> arguments,
+                V<Context> context, base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters)
       : Base(kNumNonParamInputs + arguments.size()), parameters(parameters) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = frame_state;
     inputs[1] = data_argument;
+    inputs[2] = context;
     inputs.SubVector(kNumNonParamInputs, kNumNonParamInputs + arguments.size())
         .OverwriteWith(arguments);
   }
@@ -6146,8 +6151,9 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     V<FrameState> mapped_frame_state = mapper.Map(frame_state());
     OpIndex mapped_data_argument = mapper.Map(data_argument());
+    V<Context> mapped_context = mapper.Map(context());
     auto mapped_arguments = mapper.template Map<8>(arguments());
-    return fn(mapped_frame_state, mapped_data_argument,
+    return fn(mapped_frame_state, mapped_data_argument, mapped_context,
               base::VectorOf(mapped_arguments), parameters);
   }
 
@@ -6156,10 +6162,11 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   static FastApiCallOp& New(Graph* graph, V<FrameState> frame_state,
                             OpIndex data_argument,
+                            V<Context> context,
                             base::Vector<const OpIndex> arguments,
                             const FastApiCallParameters* parameters) {
     return Base::New(graph, kNumNonParamInputs + arguments.size(), frame_state,
-                     data_argument, arguments, parameters);
+                     data_argument, context, arguments, parameters);
   }
 
   auto options() const { return std::tuple{parameters}; }

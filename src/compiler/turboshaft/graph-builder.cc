@@ -1977,13 +1977,19 @@ OpIndex GraphBuilder::Process(
       }
       OpIndex data_argument =
           Map(n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
+
+      // The last slow call argument is the frame state, the one before is the
+      // context.
+      V<Context> context =
+          Map(n.SlowCallArgument(n.SlowCallArgumentCount() - 2));
+
       const FastApiCallParameters* parameters = FastApiCallParameters::Create(
           c_functions, resolution_result, __ graph_zone());
 
       Label<Object> done(this);
 
       V<Tuple<Word32, Any>> fast_call_result =
-          __ FastApiCall(dominating_frame_state, data_argument,
+          __ FastApiCall(dominating_frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters);
 
       V<Word32> result_state = __ template Projection<0>(fast_call_result);

@@ -1212,7 +1212,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.
   Address isolate_root() const { return isolate_data()->isolate_root(); }
-  static size_t isolate_root_bias() {
+  constexpr static size_t isolate_root_bias() {
     return OFFSET_OF(Isolate, isolate_data_) + IsolateData::kIsolateRootBias;
   }
   static Isolate* FromRootAddress(Address isolate_root) {
@@ -1296,6 +1296,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         OFFSET_OF(Isolate, isolate_data_) +
         OFFSET_OF(IsolateData, thread_local_top_) +
         OFFSET_OF(ThreadLocalTop, thread_in_wasm_flag_address_) -
+        isolate_root_bias());
+  }
+
+  constexpr static uint32_t context_offset() {
+    return static_cast<uint32_t>(
+        OFFSET_OF(Isolate, isolate_data_) +
+        OFFSET_OF(IsolateData, thread_local_top_) +
+        OFFSET_OF(ThreadLocalTop, context_) -
         isolate_root_bias());
   }
 

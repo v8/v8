@@ -1038,10 +1038,11 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   }
 
   OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
+                              V<Context> context,
                               base::Vector<const OpIndex> arguments,
                               const FastApiCallParameters* parameters) {
     OpIndex raw_call = Base::ReduceFastApiCall(frame_state, data_argument,
-                                               arguments, parameters);
+                                               context, arguments, parameters);
     OpEffects effects = OpEffects().RequiredWhenUnused().CanCallAnything();
     bool has_catch_block = CatchIfInCatchScope(raw_call);
 
@@ -3920,10 +3921,10 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
-                      OpIndex data_argument,
+                      OpIndex data_argument, V<Context> context,
                       base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters) {
-    return ReduceIfReachableFastApiCall(frame_state, data_argument, arguments,
+    return ReduceIfReachableFastApiCall(frame_state, data_argument, context, arguments,
                                         parameters);
   }
 

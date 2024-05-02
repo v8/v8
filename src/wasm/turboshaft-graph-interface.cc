@@ -1935,9 +1935,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
         ExternalReference::FAST_C_CALL));
 
+    V<Context> native_context = instance_cache_.native_context();
+
+    __ Store(__ LoadRootRegister(),
+             __ BitcastHeapObjectToWordPtr(native_context),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+             compiler::kNoWriteBarrier, Isolate::context_offset());
     BuildModifyThreadInWasmFlag(__ graph_zone(), false);
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
+
+#if DEBUG
+    // Reset the context again after the call, to make sure nobody is using the
+    // leftover context in the isolate.
+    __ Store(__ LoadRootRegister(),
+             __ WordPtrConstant(Context::kInvalidContext),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+             compiler::kNoWriteBarrier, Isolate::context_offset());
+#endif
 
     V<Object> exception = __ Load(
         __ LoadRootRegister(), LoadOp::Kind::RawAligned(),

@@ -24,6 +24,7 @@ class FastApiCallLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
   OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
+                              V<Context> context,
                               base::Vector<const OpIndex> arguments,
                               const FastApiCallParameters* parameters) {
     const auto& c_functions = parameters->c_functions;
@@ -112,7 +113,7 @@ class FastApiCallLoweringReducer : public Next {
                                             CallDescriptor::kNeedsFrameState),
           CanThrow::kNo, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
-                                           base::VectorOf(args));
+                                           context, base::VectorOf(args));
 
       Label<> trigger_exception(this);
 
@@ -609,12 +610,18 @@ class FastApiCallLoweringReducer : public Next {
   }
 
   OpIndex WrapFastCall(const TSCallDescriptor* descriptor, OpIndex callee,
-                       V<FrameState> frame_state,
+                       V<FrameState> frame_state, V<Context> context,
                        base::Vector<const OpIndex> arguments) {
     // CPU profiler support.
     OpIndex target_address = __ ExternalConstant(
         ExternalReference::fast_api_call_target_address(isolate_));
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
+                    MemoryRepresentation::UintPtr());
+
+    OpIndex context_address = __ ExternalConstant(
+        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate_));
+
+    __ StoreOffHeap(context_address, __ BitcastHeapObjectToWordPtr(context),
                     MemoryRepresentation::UintPtr());
 
     // Create the fast call.
@@ -623,6 +630,14 @@ class FastApiCallLoweringReducer : public Next {
     // Reset the CPU profiler target address.
     __ StoreOffHeap(target_address, __ IntPtrConstant(0),
                     MemoryRepresentation::UintPtr());
+
+#if DEBUG
+    // Reset the context again after the call, to make sure nobody is using the
+    // leftover context in the isolate.
+    __ StoreOffHeap(context_address,
+                    __ WordPtrConstant(Context::kInvalidContext),
+                    MemoryRepresentation::UintPtr());
+#endif
 
     return result;
   }
