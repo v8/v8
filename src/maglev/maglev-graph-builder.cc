@@ -2550,7 +2550,20 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     }
     return cached_value;
   }
+  known_node_aspects().UpdateMayHaveAliasingContexts(context);
   return cached_value = AddNewNode<LoadTaggedField>({context}, offset);
+}
+
+bool MaglevGraphBuilder::ContextMayAlias(
+    ValueNode* context, compiler::OptionalScopeInfoRef scope_info) {
+  if (!scope_info.has_value()) {
+    return true;
+  }
+  auto other = graph()->TryGetScopeInfo(context, broker());
+  if (!other.has_value()) {
+    return true;
+  }
+  return scope_info->equals(*other);
 }
 
 void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
@@ -2565,6 +2578,29 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
     std::cout << "  * Recording context slot store "
               << PrintNodeLabel(graph_labeller(), context) << "[" << offset
               << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+  }
+  known_node_aspects().UpdateMayHaveAliasingContexts(context);
+  if (known_node_aspects().may_have_aliasing_contexts ==
+      KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
+    compiler::OptionalScopeInfoRef scope_info =
+        graph()->TryGetScopeInfo(context, broker());
+    for (auto& cache : known_node_aspects().loaded_context_slots) {
+      if (std::get<int>(cache.first) == offset &&
+          std::get<ValueNode*>(cache.first) != context) {
+        if (ContextMayAlias(std::get<ValueNode*>(cache.first), scope_info) &&
+            cache.second != value) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  * Clearing probably aliasing value "
+                      << PrintNodeLabel(graph_labeller(),
+                                        std::get<ValueNode*>(cache.first))
+                      << "[" << offset
+                      << "]: " << PrintNode(graph_labeller(), value)
+                      << std::endl;
+          }
+          cache.second = nullptr;
+        }
+      }
+    }
   }
   known_node_aspects().loaded_context_slots[{context, offset}] = value;
 }
@@ -7694,28 +7730,16 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   RETURN_IF_DONE(TryBuildCallKnownApiFunction(function, shared, args));
 
   ValueNode* closure = GetConstant(function);
-  ValueNode* context = GetConstant(function.context(broker()));
-  bool maybe_closed_over_osr_context =
-      graph()->is_osr() &&
-      graph()->maybe_closed_over_osr_context().count(shared);
-  // TODO(olivf): Ideally we would track exactly which static context can alias
-  // with the osr context. Practically it's probably not worth it and we just
-  // clear the information before and after inlining (see regress-41494766.js
-  // on how to construct examples of aliasing contexts).
-  if (maybe_closed_over_osr_context) {
-    known_node_aspects().loaded_context_slots.clear();
-  }
+  compiler::ContextRef context = function.context(broker());
+  ValueNode* context_node = GetConstant(context);
   ReduceResult res;
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
       !graph_->is_osr()) {
-    res = BuildCallSelf(context, closure, new_target, shared, args);
+    res = BuildCallSelf(context_node, closure, new_target, shared, args);
   } else {
-    res = TryBuildCallKnownJSFunction(context, closure, new_target, shared,
+    res = TryBuildCallKnownJSFunction(context_node, closure, new_target, shared,
                                       function.feedback_vector(broker()), args,
                                       feedback_source);
-  }
-  if (maybe_closed_over_osr_context) {
-    known_node_aspects().loaded_context_slots.clear();
   }
   return res;
 }
@@ -10141,12 +10165,17 @@ void MaglevGraphBuilder::VisitCreateBlockContext() {
   // We check if the scope info contains a bare minimum number of context slots
   // even if it got corrupted.
   SBXCHECK_GE(scope_info.ContextLength(), Context::MIN_CONTEXT_SLOTS);
+
+  auto done = [&](ValueNode* res) {
+    graph()->record_scope_info(res, scope_info);
+    SetAccumulator(res);
+  };
+
   PROCESS_AND_RETURN_IF_DONE(TryBuildInlinedAllocatedContext(
                                  map, scope_info, scope_info.ContextLength()),
-                             SetAccumulator);
+                             done);
   // Fallback.
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)}));
+  done(BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)}));
 }
 
 void MaglevGraphBuilder::VisitCreateCatchContext() {
@@ -10157,6 +10186,7 @@ void MaglevGraphBuilder::VisitCreateCatchContext() {
       zone(), broker()->target_native_context().catch_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
+  graph()->record_scope_info(GetRawAccumulator(), scope_info);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
   ClearCurrentAllocationBlock();
@@ -10167,13 +10197,19 @@ void MaglevGraphBuilder::VisitCreateFunctionContext() {
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
   compiler::MapRef map =
       broker()->target_native_context().function_context_map(broker());
+
+  auto done = [&](ValueNode* res) {
+    graph()->record_scope_info(res, info);
+    SetAccumulator(res);
+  };
+
   PROCESS_AND_RETURN_IF_DONE(
       TryBuildInlinedAllocatedContext(map, info,
                                       slot_count + Context::MIN_CONTEXT_SLOTS),
-      SetAccumulator);
+      done);
   // Fallback.
-  SetAccumulator(AddNewNode<CreateFunctionContext>(
-      {GetContext()}, info, slot_count, ScopeType::FUNCTION_SCOPE));
+  done(AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count,
+                                         ScopeType::FUNCTION_SCOPE));
 }
 
 void MaglevGraphBuilder::VisitCreateEvalContext() {
@@ -10181,17 +10217,22 @@ void MaglevGraphBuilder::VisitCreateEvalContext() {
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
   compiler::MapRef map =
       broker()->target_native_context().eval_context_map(broker());
+
+  auto done = [&](ValueNode* res) {
+    graph()->record_scope_info(res, info);
+    SetAccumulator(res);
+  };
+
   PROCESS_AND_RETURN_IF_DONE(
       TryBuildInlinedAllocatedContext(map, info,
                                       slot_count + Context::MIN_CONTEXT_SLOTS),
-      SetAccumulator);
+      done);
   if (slot_count <= static_cast<uint32_t>(
                         ConstructorBuiltins::MaximumFunctionContextSlots())) {
-    SetAccumulator(AddNewNode<CreateFunctionContext>(
-        {GetContext()}, info, slot_count, ScopeType::EVAL_SCOPE));
+    done(AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count,
+                                           ScopeType::EVAL_SCOPE));
   } else {
-    SetAccumulator(
-        BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)}));
+    done(BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)}));
   }
 }
 
@@ -10203,6 +10244,7 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
       zone(), broker()->target_native_context().with_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
+  graph()->record_scope_info(GetRawAccumulator(), scope_info);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
   ClearCurrentAllocationBlock();
@@ -10332,16 +10374,17 @@ void MaglevGraphBuilder::PeelLoop() {
 }
 
 void MaglevGraphBuilder::OsrAnalyzePrequel() {
-  // TODO(olivf) We might want to start collecting known_node_aspects_ here.
+  DCHECK_EQ(compilation_unit_->info()->toplevel_compilation_unit(),
+            compilation_unit_);
 
+  // TODO(olivf) We might want to start collecting known_node_aspects_ here.
   for (iterator_.SetOffset(0); iterator_.current_offset() != entrypoint_;
        iterator_.Advance()) {
     switch (iterator_.current_bytecode()) {
-      case interpreter::Bytecode::kCreateClosure: {
-        compiler::SharedFunctionInfoRef shared_function_info =
-            GetRefOperand<SharedFunctionInfo>(0);
-        graph()->maybe_closed_over_osr_context().insert(shared_function_info);
-        break;
+      case interpreter::Bytecode::kPushContext: {
+        graph()->record_scope_info(GetContext(), {});
+        // Nothing left to analyze...
+        return;
       }
       default:
         continue;

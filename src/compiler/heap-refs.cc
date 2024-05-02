@@ -1662,6 +1662,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, ScopeType, scope_type)
 

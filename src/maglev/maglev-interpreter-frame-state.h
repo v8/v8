@@ -419,6 +419,35 @@ struct KnownNodeAspects {
 
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
+  enum class ContextSlotLoadsAlias : uint8_t {
+    None,
+    OnlyLoadsRelativeToCurrentContext,
+    OnlyLoadsRelativeToConstant,
+    Yes,
+  };
+  ContextSlotLoadsAlias may_have_aliasing_contexts =
+      ContextSlotLoadsAlias::None;
+  void UpdateMayHaveAliasingContexts(ValueNode* context) {
+    if (context->Is<InitialValue>()) {
+      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts =
+            ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext;
+      } else if (may_have_aliasing_contexts !=
+                 ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext) {
+        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      }
+    } else if (context->Is<Constant>()) {
+      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts =
+            ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant;
+      } else if (may_have_aliasing_contexts !=
+                 ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant) {
+        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      }
+    } else if (!context->Is<LoadTaggedField>()) {
+      may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+    }
+  }
   // Flushed after side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 

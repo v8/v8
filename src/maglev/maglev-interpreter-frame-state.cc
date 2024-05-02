@@ -54,6 +54,14 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                          merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants,
                          other.loaded_context_constants);
+  if (may_have_aliasing_contexts != other.may_have_aliasing_contexts) {
+    if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
+      may_have_aliasing_contexts = other.may_have_aliasing_contexts;
+    } else if (other.may_have_aliasing_contexts !=
+               ContextSlotLoadsAlias::None) {
+      may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+    }
+  }
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
 }
 

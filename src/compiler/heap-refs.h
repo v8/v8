@@ -1036,6 +1036,7 @@ class ScopeInfoRef : public HeapObjectRef {
   Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool ClassScopeHasPrivateBrand() const;

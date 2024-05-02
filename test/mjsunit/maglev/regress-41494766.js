@@ -102,3 +102,39 @@ function issue5() {
 }
 %PrepareFunctionForOptimization(issue5);
 issue5();
+
+
+(function() {
+  let i = 0;
+  function inc() { i = i + 1; }
+  %PrepareFunctionForOptimization(inc);
+  while (i < 2) {
+    function aliasing() {
+      let prevI = i;
+      inc();
+      assertFalse(prevI == i);
+    }
+    %PrepareFunctionForOptimization(aliasing);
+    aliasing();
+    %OptimizeMaglevOnNextCall(aliasing);
+  }
+})();
+
+
+(function() {
+  let i = 0;
+  function inc() { i = i + 1; }
+  %PrepareFunctionForOptimization(inc);
+  while (i < 2) {
+    let asdf = 0;
+    function xxx() { return asdf; }
+    function aliasing() {
+      let prevI = i;
+      inc();
+      assertFalse(prevI == i);
+    }
+    %PrepareFunctionForOptimization(aliasing);
+    aliasing();
+    %OptimizeMaglevOnNextCall(aliasing);
+  }
+})();

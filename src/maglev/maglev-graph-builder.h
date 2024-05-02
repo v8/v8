@@ -220,6 +220,18 @@ class MaglevGraphBuilder {
     EndPrologue();
     in_prologue_ = false;
 
+    compiler::ScopeInfoRef scope_info =
+        compilation_unit_->shared_function_info().scope_info(broker());
+    while (!scope_info.HasContext() && scope_info.HasOuterScopeInfo()) {
+      scope_info = scope_info.OuterScopeInfo(broker());
+    }
+    if (scope_info.HasContext()) {
+      graph()->record_scope_info(GetContext(), scope_info);
+    }
+    if (compilation_unit_->is_osr()) {
+      OsrAnalyzePrequel();
+    }
+
     BuildBody();
   }
 
@@ -245,10 +257,6 @@ class MaglevGraphBuilder {
            source_position_iterator_.code_offset() < entrypoint_) {
       source_position_iterator_.Advance();
       UpdateSourceAndBytecodePosition(source_position_iterator_.code_offset());
-    }
-
-    if (compilation_unit_->is_osr()) {
-      OsrAnalyzePrequel();
     }
 
     for (iterator_.SetOffset(entrypoint_); !iterator_.done();
@@ -1002,6 +1010,8 @@ class MaglevGraphBuilder {
     return parent_catch_;
   }
 
+  bool ContextMayAlias(ValueNode* context,
+                       compiler::OptionalScopeInfoRef scope_info);
   enum ContextSlotMutability { kImmutable, kMutable };
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode** context, size_t* depth, int slot_index,
@@ -1574,6 +1584,8 @@ class MaglevGraphBuilder {
       // clear those.
       known_node_aspects().loaded_properties.clear();
       known_node_aspects().loaded_context_slots.clear();
+      known_node_aspects().may_have_aliasing_contexts =
+          KnownNodeAspects::ContextSlotLoadsAlias::None;
     }
 
     // All user-observable side effects need to clear state that is cached on
