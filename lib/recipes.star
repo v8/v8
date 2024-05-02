@@ -42,6 +42,7 @@ def define_all_recipes():
         "v8/canary_detector",
         "v8/compilator",
         "v8/flako",
+        "v8/mega_cq_launcher",
         "v8/node_integration_ng",
         "v8/orchestrator",
         "v8/pgo_builder",

@@ -352,3 +352,10 @@ try_builder(
     execution_timeout = 16200,
     schedule = "with 3h interval",
 )
+
+try_builder(
+    name = "v8_mega_cq_launcher",
+    bucket = "try",
+    executable = "recipe:v8/mega_cq_launcher",
+    execution_timeout = 16200,
+)
