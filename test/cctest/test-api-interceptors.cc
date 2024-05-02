@@ -79,10 +79,9 @@ v8::Intercepted EmptyInterceptorDefinerWithSideEffect(
   return v8::Intercepted::kNo;
 }
 
-void SimpleAccessorGetter(Local<Name> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Local<Object> self = info.This().As<Object>();
-  Local<String> name_str = name.As<String>();
+void SimpleGetterImpl(Local<String> name_str,
+                      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Local<Object> self = info.This();
   info.GetReturnValue().Set(
       self->Get(
               info.GetIsolate()->GetCurrentContext(),
@@ -90,32 +89,42 @@ void SimpleAccessorGetter(Local<Name> name,
           .ToLocalChecked());
 }
 
-void SimpleAccessorSetter(Local<Name> name, Local<Value> value,
-                          const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> self = info.This().As<Object>();
-  Local<String> name_str = name.As<String>();
+void SimpleSetterImpl(Local<String> name_str,
+                      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Local<Object> self = info.This();
+  Local<Value> value = info[0];
   self->Set(info.GetIsolate()->GetCurrentContext(),
             String::Concat(info.GetIsolate(), v8_str("accessor_"), name_str),
             value)
       .FromJust();
 }
 
-void SymbolAccessorGetter(Local<Name> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(name->IsSymbol());
-  v8::Isolate* isolate = info.GetIsolate();
-  Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description(isolate)->IsUndefined()) return;
-  SimpleAccessorGetter(sym->Description(isolate).As<String>(), info);
+void SimpleGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<String> name_str = args.Data().As<String>();
+  SimpleGetterImpl(name_str, args);
 }
 
-void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
-                          const v8::PropertyCallbackInfo<void>& info) {
+void SimpleSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Local<String> name_str = info.Data().As<String>();
+  SimpleSetterImpl(name_str, info);
+}
+
+void SymbolGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Local<Name> name = info.Data().As<Name>();
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description(isolate)->IsUndefined()) return;
-  SimpleAccessorSetter(sym->Description(isolate).As<String>(), value, info);
+  SimpleGetterImpl(sym->Description(isolate).As<String>(), info);
+}
+
+void SymbolSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Local<Name> name = info.Data().As<Name>();
+  CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<Symbol> sym = name.As<Symbol>();
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleSetterImpl(sym->Description(isolate).As<String>(), info);
 }
 
 v8::Intercepted InterceptorGetter(
@@ -209,10 +218,16 @@ v8::Intercepted GenericInterceptorSetter(
   return v8::Intercepted::kYes;
 }
 
-void AddAccessor(Local<FunctionTemplate> templ, Local<Name> name,
-                 v8::AccessorNameGetterCallback getter,
-                 v8::AccessorNameSetterCallback setter) {
-  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
+void AddAccessor(v8::Isolate* isolate, Local<FunctionTemplate> templ,
+                 Local<Name> name, v8::FunctionCallback getter,
+                 v8::FunctionCallback setter) {
+  Local<FunctionTemplate> getter_templ =
+      FunctionTemplate::New(isolate, getter, name);
+  Local<FunctionTemplate> setter_templ =
+      FunctionTemplate::New(isolate, setter, name);
+
+  templ->PrototypeTemplate()->SetAccessorProperty(name, getter_templ,
+                                                  setter_templ);
 }
 
 void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
@@ -1855,12 +1870,13 @@ THREADED_TEST(InterceptorShadowsReadOnlyProperty) {
 }
 
 THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
-  Local<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
   child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"), SimpleAccessorGetter,
-              SimpleAccessorSetter);
+  AddAccessor(isolate, parent, v8_str("age"), SimpleGetterCallback,
+              SimpleSetterCallback);
   AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
   LocalContext env;
   env->Global()
@@ -1916,7 +1932,7 @@ THREADED_TEST(LegacyInterceptorDoesNotSeeSymbols) {
   v8::Local<v8::Symbol> age = v8::Symbol::New(isolate, v8_str("age"));
 
   child->Inherit(parent);
-  AddAccessor(parent, age, SymbolAccessorGetter, SymbolAccessorSetter);
+  AddAccessor(isolate, parent, age, SymbolGetterCallback, SymbolSetterCallback);
   AddStringOnlyInterceptor(child, InterceptorGetter, InterceptorSetter);
 
   env->Global()
@@ -1943,7 +1959,7 @@ THREADED_TEST(GenericInterceptorDoesSeeSymbols) {
   v8::Local<v8::Symbol> anon = v8::Symbol::New(isolate);
 
   child->Inherit(parent);
-  AddAccessor(parent, age, SymbolAccessorGetter, SymbolAccessorSetter);
+  AddAccessor(isolate, parent, age, SymbolGetterCallback, SymbolSetterCallback);
   AddInterceptor(child, GenericInterceptorGetter, GenericInterceptorSetter);
 
   env->Global()
@@ -3024,9 +3040,11 @@ THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
 
 
 THREADED_TEST(SwitchFromInterceptorToAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
-  AddAccessor(templ, v8_str("age"), SimpleAccessorGetter, SimpleAccessorSetter);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
+  AddAccessor(isolate, templ, v8_str("age"), SimpleGetterCallback,
+              SimpleSetterCallback);
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3045,9 +3063,11 @@ THREADED_TEST(SwitchFromInterceptorToAccessor) {
 
 
 THREADED_TEST(SwitchFromAccessorToInterceptor) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
-  AddAccessor(templ, v8_str("age"), SimpleAccessorGetter, SimpleAccessorSetter);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
+  AddAccessor(isolate, templ, v8_str("age"), SimpleGetterCallback,
+              SimpleSetterCallback);
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3066,12 +3086,13 @@ THREADED_TEST(SwitchFromAccessorToInterceptor) {
 
 
 THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
-  Local<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
   child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"), SimpleAccessorGetter,
-              SimpleAccessorSetter);
+  AddAccessor(isolate, parent, v8_str("age"), SimpleGetterCallback,
+              SimpleSetterCallback);
   AddInterceptor(child, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
@@ -3090,12 +3111,13 @@ THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
 
 
 THREADED_TEST(SwitchFromAccessorToInterceptorWithInheritance) {
-  v8::HandleScope scope(CcTest::isolate());
-  Local<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
-  Local<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> child = FunctionTemplate::New(isolate);
   child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"), SimpleAccessorGetter,
-              SimpleAccessorSetter);
+  AddAccessor(isolate, parent, v8_str("age"), SimpleGetterCallback,
+              SimpleSetterCallback);
   AddInterceptor(child, InterceptorGetter, InterceptorSetter);
   LocalContext env;
   env->Global()
