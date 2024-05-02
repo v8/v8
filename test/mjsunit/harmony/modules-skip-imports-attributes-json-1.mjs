@@ -4,6 +4,5 @@
 
 // Flags: --harmony-import-attributes
 
-import {life} from 'modules-skip-imports-attributes-json-1.mjs';
-
-assertEquals(42, life());
+import json from "modules-skip-1.json" with { type: "json" };
+export function life() { return json.life; }
