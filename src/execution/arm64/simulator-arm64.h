@@ -924,6 +924,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 #define DECLARE(A) void Visit##A(Instruction* instr);
   VISITOR_LIST(DECLARE)
 #undef DECLARE
+  void VisitNEON3SameFP(NEON3SameOp op, VectorFormat vf, SimVRegister& rd,
+                        SimVRegister& rn, SimVRegister& rm);
 
   bool IsZeroRegister(unsigned code, Reg31Mode r31mode) const {
     return ((code == 31) && (r31mode == Reg31IsZeroRegister));
@@ -2223,8 +2225,12 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   double UFixedToDouble(uint64_t src, int fbits, FPRounding round_mode);
   float FixedToFloat(int64_t src, int fbits, FPRounding round_mode);
   float UFixedToFloat(uint64_t src, int fbits, FPRounding round_mode);
+  float16 FixedToFloat16(int64_t src, int fbits, FPRounding round_mode);
+  float16 UFixedToFloat16(uint64_t src, int fbits, FPRounding round_mode);
+  int16_t FPToInt16(double value, FPRounding rmode);
   int32_t FPToInt32(double value, FPRounding rmode);
   int64_t FPToInt64(double value, FPRounding rmode);
+  uint16_t FPToUInt16(double value, FPRounding rmode);
   uint32_t FPToUInt32(double value, FPRounding rmode);
   uint64_t FPToUInt64(double value, FPRounding rmode);
   int32_t FPToFixedJS(double value);
@@ -2565,6 +2571,11 @@ inline double Simulator::FPDefaultNaN<double>() {
 template <>
 inline float Simulator::FPDefaultNaN<float>() {
   return kFP32DefaultNaN;
+}
+
+template <>
+inline float16 Simulator::FPDefaultNaN<float16>() {
+  return kFP16DefaultNaN;
 }
 
 }  // namespace internal

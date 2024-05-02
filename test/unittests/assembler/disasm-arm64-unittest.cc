@@ -2241,6 +2241,8 @@ TEST_F(DisasmArm64Test, barriers) {
   V(V4S(), "4s")
 
 #define NEON_FORMAT_LIST_FP(V) \
+  V(V4H(), "4h")               \
+  V(V8H(), "8h")               \
   V(V2S(), "2s")               \
   V(V4S(), "4s")               \
   V(V2D(), "2d")

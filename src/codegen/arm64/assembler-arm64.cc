@@ -3100,6 +3100,10 @@ void Assembler::NEON3Same(const VRegister& vd, const VRegister& vn,
 void Assembler::NEONFP3Same(const VRegister& vd, const VRegister& vn,
                             const VRegister& vm, Instr op) {
   DCHECK(AreSameFormat(vd, vn, vm));
+  if (vd.Is4H() || vd.Is8H()) {
+    op |= NEON_sz;
+    op ^= NEON3SameHPMask;
+  }
   Emit(FPFormat(vd) | op | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
@@ -3155,6 +3159,8 @@ void Assembler::NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
   if (vd.IsScalar()) {
     DCHECK(vd.Is1S() || vd.Is1D());
     op |= NEON_Q | NEONScalar;
+  } else if (vd.Is4H() || vd.Is8H()) {
+    op |= NEON_sz | NEON2RegMiscHPFixed;
   } else {
     DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());
   }
@@ -3369,19 +3375,19 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
   V(fmaxnmp, NEON_FMAXNMP, 0)                   \
   V(fminnmp, NEON_FMINNMP, 0)
 
-#define DEFINE_ASM_FUNC(FN, VEC_OP, SCA_OP)                    \
-  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
-                     const VRegister& vm) {                    \
-    Instr op;                                                  \
-    if ((SCA_OP != 0) && vd.IsScalar()) {                      \
-      DCHECK(vd.Is1S() || vd.Is1D());                          \
-      op = SCA_OP;                                             \
-    } else {                                                   \
-      DCHECK(vd.IsVector());                                   \
-      DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());             \
-      op = VEC_OP;                                             \
-    }                                                          \
-    NEONFP3Same(vd, vn, vm, op);                               \
+#define DEFINE_ASM_FUNC(FN, VEC_OP, SCA_OP)                                  \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn,               \
+                     const VRegister& vm) {                                  \
+    Instr op;                                                                \
+    if ((SCA_OP != 0) && vd.IsScalar()) {                                    \
+      DCHECK(vd.Is1S() || vd.Is1D());                                        \
+      op = SCA_OP;                                                           \
+    } else {                                                                 \
+      DCHECK(vd.IsVector());                                                 \
+      DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S() || vd.Is4H() || vd.Is8H()); \
+      op = VEC_OP;                                                           \
+    }                                                                        \
+    NEONFP3Same(vd, vn, vm, op);                                             \
   }
 NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC

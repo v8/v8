@@ -4395,13 +4395,16 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         break;
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat fpf = nfd.GetVectorFormat(instr->Mask(NEON2RegMiscHPFixed) ==
+                                                   NEON2RegMiscHPFixed
+                                               ? nfd.FPHPFormatMap()
+                                               : nfd.FPFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
     bool inexact_exception = false;
 
     // These instructions all use a one bit size field, except XTN, SQXTUN,
     // SHLL, SQXTN and UQXTN, which use a two bit size field.
-    switch (instr->Mask(NEON2RegMiscFPMask)) {
+    switch (instr->Mask(NEON2RegMiscFPMask ^ NEON2RegMiscHPFixed)) {
       case NEON_FABS:
         fabs_(fpf, rd, rn);
         return;
@@ -4557,6 +4560,87 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEON3SameFP(NEON3SameOp op, VectorFormat vf,
+                                 SimVRegister& rd, SimVRegister& rn,
+                                 SimVRegister& rm) {
+  switch (op) {
+    case NEON_FADD:
+      fadd(vf, rd, rn, rm);
+      break;
+    case NEON_FSUB:
+      fsub(vf, rd, rn, rm);
+      break;
+    case NEON_FMUL:
+      fmul(vf, rd, rn, rm);
+      break;
+    case NEON_FDIV:
+      fdiv(vf, rd, rn, rm);
+      break;
+    case NEON_FMAX:
+      fmax(vf, rd, rn, rm);
+      break;
+    case NEON_FMIN:
+      fmin(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXNM:
+      fmaxnm(vf, rd, rn, rm);
+      break;
+    case NEON_FMINNM:
+      fminnm(vf, rd, rn, rm);
+      break;
+    case NEON_FMLA:
+      fmla(vf, rd, rn, rm);
+      break;
+    case NEON_FMLS:
+      fmls(vf, rd, rn, rm);
+      break;
+    case NEON_FMULX:
+      fmulx(vf, rd, rn, rm);
+      break;
+    case NEON_FACGE:
+      fabscmp(vf, rd, rn, rm, ge);
+      break;
+    case NEON_FACGT:
+      fabscmp(vf, rd, rn, rm, gt);
+      break;
+    case NEON_FCMEQ:
+      fcmp(vf, rd, rn, rm, eq);
+      break;
+    case NEON_FCMGE:
+      fcmp(vf, rd, rn, rm, ge);
+      break;
+    case NEON_FCMGT:
+      fcmp(vf, rd, rn, rm, gt);
+      break;
+    case NEON_FRECPS:
+      frecps(vf, rd, rn, rm);
+      break;
+    case NEON_FRSQRTS:
+      frsqrts(vf, rd, rn, rm);
+      break;
+    case NEON_FABD:
+      fabd(vf, rd, rn, rm);
+      break;
+    case NEON_FADDP:
+      faddp(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXP:
+      fmaxp(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXNMP:
+      fmaxnmp(vf, rd, rn, rm);
+      break;
+    case NEON_FMINP:
+      fminp(vf, rd, rn, rm);
+      break;
+    case NEON_FMINNMP:
+      fminnmp(vf, rd, rn, rm);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
 void Simulator::VisitNEON3Same(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   SimVRegister& rd = vreg(instr->Rd());
@@ -4595,82 +4679,7 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
     }
   } else if (instr->Mask(NEON3SameFPFMask) == NEON3SameFPFixed) {
     VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
-    switch (instr->Mask(NEON3SameFPMask)) {
-      case NEON_FADD:
-        fadd(vf, rd, rn, rm);
-        break;
-      case NEON_FSUB:
-        fsub(vf, rd, rn, rm);
-        break;
-      case NEON_FMUL:
-        fmul(vf, rd, rn, rm);
-        break;
-      case NEON_FDIV:
-        fdiv(vf, rd, rn, rm);
-        break;
-      case NEON_FMAX:
-        fmax(vf, rd, rn, rm);
-        break;
-      case NEON_FMIN:
-        fmin(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXNM:
-        fmaxnm(vf, rd, rn, rm);
-        break;
-      case NEON_FMINNM:
-        fminnm(vf, rd, rn, rm);
-        break;
-      case NEON_FMLA:
-        fmla(vf, rd, rn, rm);
-        break;
-      case NEON_FMLS:
-        fmls(vf, rd, rn, rm);
-        break;
-      case NEON_FMULX:
-        fmulx(vf, rd, rn, rm);
-        break;
-      case NEON_FACGE:
-        fabscmp(vf, rd, rn, rm, ge);
-        break;
-      case NEON_FACGT:
-        fabscmp(vf, rd, rn, rm, gt);
-        break;
-      case NEON_FCMEQ:
-        fcmp(vf, rd, rn, rm, eq);
-        break;
-      case NEON_FCMGE:
-        fcmp(vf, rd, rn, rm, ge);
-        break;
-      case NEON_FCMGT:
-        fcmp(vf, rd, rn, rm, gt);
-        break;
-      case NEON_FRECPS:
-        frecps(vf, rd, rn, rm);
-        break;
-      case NEON_FRSQRTS:
-        frsqrts(vf, rd, rn, rm);
-        break;
-      case NEON_FABD:
-        fabd(vf, rd, rn, rm);
-        break;
-      case NEON_FADDP:
-        faddp(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXP:
-        fmaxp(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXNMP:
-        fmaxnmp(vf, rd, rn, rm);
-        break;
-      case NEON_FMINP:
-        fminp(vf, rd, rn, rm);
-        break;
-      case NEON_FMINNMP:
-        fminnmp(vf, rd, rn, rm);
-        break;
-      default:
-        UNIMPLEMENTED();
-    }
+    VisitNEON3SameFP(instr->Mask(NEON3SameFPMask), vf, rd, rn, rm);
   } else {
     VectorFormat vf = nfd.GetVectorFormat();
     switch (instr->Mask(NEON3SameMask)) {
@@ -4813,6 +4822,16 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
         UNIMPLEMENTED();
     }
   }
+}
+
+void Simulator::VisitNEON3SameHP(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rn = vreg(instr->Rn());
+  SimVRegister& rm = vreg(instr->Rm());
+  VectorFormat vf = nfd.GetVectorFormat(nfd.FPHPFormatMap());
+  VisitNEON3SameFP(instr->Mask(NEON3SameFPMask) | NEON3SameHPMask, vf, rd, rn,
+                   rm);
 }
 
 void Simulator::VisitNEON3Different(Instruction* instr) {

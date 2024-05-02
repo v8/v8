@@ -8,8 +8,52 @@
 
 #include <cmath>
 
+#include "src/numbers/conversions-inl.h"
+#include "third_party/fp16/src/include/fp16.h"
+
 namespace v8 {
 namespace internal {
+
+class half {
+ public:
+  half() : bits_(0) {}
+  half(float f) : bits_(fp16_ieee_from_fp32_value(f)) {}
+  explicit half(double d) : bits_(DoubleToFloat16(d)) {}
+  explicit half(uint16_t b) : bits_(b) {}
+  operator float() const { return fp16_ieee_to_fp32_value(bits_); }
+
+  uint16_t bits() const { return bits_; }
+
+ private:
+  uint16_t bits_;
+};
+
+template <>
+half Simulator::FPDefaultNaN<half>() {
+  return half(kFP16DefaultNaN);
+}
+
+inline half ToQuietNaN(half num) {
+  return half(static_cast<uint16_t>(num.bits() | kHQuietNanMask));
+}
+
+template <typename T>
+bool isnormal(T f) {
+  return std::isnormal(f);
+}
+
+template <>
+bool isnormal(half f) {
+  return float16classify(f.bits()) == FP_NORMAL;
+}
+
+double copysign(double a, double f) { return std::copysign(a, f); }
+float copysign(double a, float f) { return std::copysign(a, f); }
+half copysign(double a, half f) {
+  return std::copysign(static_cast<float>(a), f);
+}
+
+static_assert(sizeof(half) == sizeof(uint16_t), "Half must be 16 bit");
 
 namespace {
 
@@ -86,6 +130,31 @@ float Simulator::UFixedToFloat(uint64_t src, int fbits, FPRounding round) {
   const int32_t exponent = highest_significant_bit - fbits;
 
   return FPRoundToFloat(0, exponent, src, round);
+}
+
+float16 Simulator::FixedToFloat16(int64_t src, int fbits, FPRounding round) {
+  if (src >= 0) {
+    return UFixedToFloat16(src, fbits, round);
+  } else if (src == INT64_MIN) {
+    return -UFixedToFloat16(src, fbits, round);
+  } else {
+    return -UFixedToFloat16(-src, fbits, round);
+  }
+}
+
+float16 Simulator::UFixedToFloat16(uint64_t src, int fbits, FPRounding round) {
+  // An input of 0 is a special case because the result is effectively
+  // subnormal: The exponent is encoded as 0 and there is no implicit 1 bit.
+  if (src == 0) {
+    return static_cast<float16>(0);
+  }
+
+  // Calculate the exponent. The highest significant bit will have the value
+  // 2^exponent.
+  const int highest_significant_bit = 63 - CountLeadingZeros(src, 64);
+  const int16_t exponent = highest_significant_bit - fbits;
+
+  return FPRoundToFloat16(0, exponent, src, round);
 }
 
 double Simulator::FPToDouble(float value) {
@@ -2965,7 +3034,7 @@ T Simulator::FPMulx(T op1, T op2) {
   if ((std::isinf(op1) && (op2 == 0.0)) || (std::isinf(op2) && (op1 == 0.0))) {
     // inf * 0.0 returns +/-2.0.
     T two = 2.0;
-    return std::copysign(1.0, op1) * std::copysign(1.0, op2) * two;
+    return copysign(1.0, op1) * copysign(1.0, op2) * two;
   }
   return FPMul(op1, op2);
 }
@@ -2974,8 +3043,8 @@ template <typename T>
 T Simulator::FPMulAdd(T a, T op1, T op2) {
   T result = FPProcessNaNs3(a, op1, op2);
 
-  T sign_a = std::copysign(1.0, a);
-  T sign_prod = std::copysign(1.0, op1) * std::copysign(1.0, op2);
+  T sign_a = copysign(1.0, a);
+  T sign_prod = copysign(1.0, op1) * copysign(1.0, op2);
   bool isinf_prod = std::isinf(op1) || std::isinf(op2);
   bool operation_generates_nan =
       (std::isinf(op1) && (op2 == 0.0)) ||                     // inf * 0.0
@@ -3010,7 +3079,7 @@ T Simulator::FPMulAdd(T a, T op1, T op2) {
   // Work around broken fma implementations for rounded zero results: If a is
   // 0.0, the sign of the result is the sign of op1 * op2 before rounding.
   if ((a == 0.0) && (result == 0.0)) {
-    return std::copysign(0.0, sign_prod);
+    return copysign(0.0, sign_prod);
   }
 
   return result;
@@ -3029,8 +3098,8 @@ T Simulator::FPDiv(T op1, T op2) {
     if (op2 == 0.0) {
       FPProcessException();
       if (!std::isnan(op1)) {
-        double op1_sign = std::copysign(1.0, op1);
-        double op2_sign = std::copysign(1.0, op2);
+        double op1_sign = copysign(1.0, op1);
+        double op2_sign = copysign(1.0, op2);
         return static_cast<T>(op1_sign * op2_sign * kFP64PositiveInfinity);
       }
     }
@@ -3057,8 +3126,7 @@ T Simulator::FPMax(T a, T b) {
   T result = FPProcessNaNs(a, b);
   if (std::isnan(result)) return result;
 
-  if ((a == 0.0) && (b == 0.0) &&
-      (std::copysign(1.0, a) != std::copysign(1.0, b))) {
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
     // a and b are zero, and the sign differs: return +0.0.
     return 0.0;
   } else {
@@ -3083,8 +3151,7 @@ T Simulator::FPMin(T a, T b) {
   T result = FPProcessNaNs(a, b);
   if (std::isnan(result)) return result;
 
-  if ((a == 0.0) && (b == 0.0) &&
-      (std::copysign(1.0, a) != std::copysign(1.0, b))) {
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
     // a and b are zero, and the sign differs: return -0.0.
     return -0.0;
   } else {
@@ -3135,9 +3202,9 @@ T Simulator::FPRSqrtStepFused(T op1, T op2) {
     // The multiply-add-halve operation must be fully fused, so avoid interim
     // rounding by checking which operand can be losslessly divided by two
     // before doing the multiply-add.
-    if (std::isnormal(op1 / two)) {
+    if (isnormal(op1 / two)) {
       return FusedMultiplyAdd(op1 / two, op2, one_point_five);
-    } else if (std::isnormal(op2 / two)) {
+    } else if (isnormal(op2 / two)) {
       return FusedMultiplyAdd(op1, op2 / two, one_point_five);
     } else {
       // Neither operand is normal after halving: the result is dominated by
@@ -3215,6 +3282,11 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
   return int_result;
 }
 
+int16_t Simulator::FPToInt16(double value, FPRounding rmode) {
+  value = FPRoundInt(value, rmode);
+  return base::saturated_cast<int16_t>(value);
+}
+
 int32_t Simulator::FPToInt32(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
   return base::saturated_cast<int32_t>(value);
@@ -3223,6 +3295,11 @@ int32_t Simulator::FPToInt32(double value, FPRounding rmode) {
 int64_t Simulator::FPToInt64(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
   return base::saturated_cast<int64_t>(value);
+}
+
+uint16_t Simulator::FPToUInt16(double value, FPRounding rmode) {
+  value = FPRoundInt(value, rmode);
+  return base::saturated_cast<uint16_t>(value);
 }
 
 uint32_t Simulator::FPToUInt32(double value, FPRounding rmode) {
@@ -3247,7 +3324,7 @@ uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
       T result;                                                        \
       if (PROCNAN) {                                                   \
         result = FPProcessNaNs(op1, op2);                              \
-        if (!std::isnan(result)) {                                     \
+        if (!isnan(result)) {                                          \
           result = OP(op1, op2);                                       \
         }                                                              \
       } else {                                                         \
@@ -3261,7 +3338,9 @@ uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
   LogicVRegister Simulator::FN(VectorFormat vform, LogicVRegister dst, \
                                const LogicVRegister& src1,             \
                                const LogicVRegister& src2) {           \
-    if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {               \
+    if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {               \
+      FN<half>(vform, dst, src1, src2);                                \
+    } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {        \
       FN<float>(vform, dst, src1, src2);                               \
     } else {                                                           \
       DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);          \
@@ -3289,7 +3368,7 @@ LogicVRegister Simulator::frecps(VectorFormat vform, LogicVRegister dst,
     T op1 = -src1.Float<T>(i);
     T op2 = src2.Float<T>(i);
     T result = FPProcessNaNs(op1, op2);
-    dst.SetFloat(i, std::isnan(result) ? result : FPRecipStepFused(op1, op2));
+    dst.SetFloat(i, isnan(result) ? result : FPRecipStepFused(op1, op2));
   }
   return dst;
 }
@@ -3297,7 +3376,9 @@ LogicVRegister Simulator::frecps(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::frecps(VectorFormat vform, LogicVRegister dst,
                                  const LogicVRegister& src1,
                                  const LogicVRegister& src2) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    frecps<half>(vform, dst, src1, src2);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     frecps<float>(vform, dst, src1, src2);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3382,7 +3463,9 @@ int32_t Simulator::FPToFixedJS(double value) {
 LogicVRegister Simulator::frsqrts(VectorFormat vform, LogicVRegister dst,
                                   const LogicVRegister& src1,
                                   const LogicVRegister& src2) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    frsqrts<half>(vform, dst, src1, src2);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     frsqrts<float>(vform, dst, src1, src2);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3430,7 +3513,9 @@ LogicVRegister Simulator::fcmp(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::fcmp(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src1,
                                const LogicVRegister& src2, Condition cond) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    fcmp<half>(vform, dst, src1, src2, cond);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     fcmp<float>(vform, dst, src1, src2, cond);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3442,14 +3527,15 @@ LogicVRegister Simulator::fcmp(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::fcmp_zero(VectorFormat vform, LogicVRegister dst,
                                     const LogicVRegister& src, Condition cond) {
   SimVRegister temp;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
-    LogicVRegister zero_reg =
-        dup_immediate(vform, temp, base::bit_cast<uint32_t>(0.0f));
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister zero_reg = dup_immediate(vform, temp, uint16_t{0});
+    fcmp<half>(vform, dst, src, zero_reg, cond);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+    LogicVRegister zero_reg = dup_immediate(vform, temp, uint32_t{0});
     fcmp<float>(vform, dst, src, zero_reg, cond);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
-    LogicVRegister zero_reg =
-        dup_immediate(vform, temp, base::bit_cast<uint64_t>(0.0));
+    LogicVRegister zero_reg = dup_immediate(vform, temp, uint64_t{0});
     fcmp<double>(vform, dst, src, zero_reg, cond);
   }
   return dst;
@@ -3459,7 +3545,11 @@ LogicVRegister Simulator::fabscmp(VectorFormat vform, LogicVRegister dst,
                                   const LogicVRegister& src1,
                                   const LogicVRegister& src2, Condition cond) {
   SimVRegister temp1, temp2;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister abs_src1 = fabs_<half>(vform, temp1, src1);
+    LogicVRegister abs_src2 = fabs_<half>(vform, temp2, src2);
+    fcmp<half>(vform, dst, abs_src1, abs_src2, cond);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister abs_src1 = fabs_<float>(vform, temp1, src1);
     LogicVRegister abs_src2 = fabs_<float>(vform, temp2, src2);
     fcmp<float>(vform, dst, abs_src1, abs_src2, cond);
@@ -3490,7 +3580,9 @@ LogicVRegister Simulator::fmla(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::fmla(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src1,
                                const LogicVRegister& src2) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    fmla<half>(vform, dst, src1, src2);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     fmla<float>(vform, dst, src1, src2);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3517,7 +3609,9 @@ LogicVRegister Simulator::fmls(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::fmls(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src1,
                                const LogicVRegister& src2) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    fmls<half>(vform, dst, src1, src2);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     fmls<float>(vform, dst, src1, src2);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3540,7 +3634,9 @@ LogicVRegister Simulator::fneg(VectorFormat vform, LogicVRegister dst,
 
 LogicVRegister Simulator::fneg(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    fneg<half>(vform, dst, src);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     fneg<float>(vform, dst, src);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3555,7 +3651,7 @@ LogicVRegister Simulator::fabs_(VectorFormat vform, LogicVRegister dst,
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     T op = src.Float<T>(i);
-    if (std::copysign(1.0, op) < 0.0) {
+    if (copysign(1.0, op) < 0.0) {
       op = -op;
     }
     dst.SetFloat(i, op);
@@ -3565,7 +3661,9 @@ LogicVRegister Simulator::fabs_(VectorFormat vform, LogicVRegister dst,
 
 LogicVRegister Simulator::fabs_(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src) {
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    fabs_<half>(vform, dst, src);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     fabs_<float>(vform, dst, src);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
@@ -3586,7 +3684,12 @@ LogicVRegister Simulator::fabd(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::fsqrt(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half result = FPSqrt(src.Float<half>(i));
+      dst.SetFloat(i, result);
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float result = FPSqrt(src.Float<float>(i));
       dst.SetFloat(i, result);
@@ -3665,7 +3768,10 @@ LogicVRegister Simulator::fmul(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src2, int index) {
   dst.ClearForWrite(vform);
   SimVRegister temp;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister index_reg = dup_element(kFormat8H, temp, src2, index);
+    fmul<half>(vform, dst, src1, index_reg);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister index_reg = dup_element(kFormat4S, temp, src2, index);
     fmul<float>(vform, dst, src1, index_reg);
   } else {
@@ -3681,7 +3787,10 @@ LogicVRegister Simulator::fmla(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src2, int index) {
   dst.ClearForWrite(vform);
   SimVRegister temp;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister index_reg = dup_element(kFormat8H, temp, src2, index);
+    fmla<half>(vform, dst, src1, index_reg);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister index_reg = dup_element(kFormat4S, temp, src2, index);
     fmla<float>(vform, dst, src1, index_reg);
   } else {
@@ -3697,7 +3806,10 @@ LogicVRegister Simulator::fmls(VectorFormat vform, LogicVRegister dst,
                                const LogicVRegister& src2, int index) {
   dst.ClearForWrite(vform);
   SimVRegister temp;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister index_reg = dup_element(kFormat8H, temp, src2, index);
+    fmls<half>(vform, dst, src1, index_reg);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister index_reg = dup_element(kFormat4S, temp, src2, index);
     fmls<float>(vform, dst, src1, index_reg);
   } else {
@@ -3713,10 +3825,12 @@ LogicVRegister Simulator::fmulx(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src2, int index) {
   dst.ClearForWrite(vform);
   SimVRegister temp;
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    LogicVRegister index_reg = dup_element(kFormat8H, temp, src2, index);
+    fmulx<half>(vform, dst, src1, index_reg);
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister index_reg = dup_element(kFormat4S, temp, src2, index);
     fmulx<float>(vform, dst, src1, index_reg);
-
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
     LogicVRegister index_reg = dup_element(kFormat2D, temp, src2, index);
@@ -3730,7 +3844,16 @@ LogicVRegister Simulator::frint(VectorFormat vform, LogicVRegister dst,
                                 FPRounding rounding_mode,
                                 bool inexact_exception) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half input = src.Float<half>(i);
+      half rounded = FPRoundInt(input, rounding_mode);
+      if (inexact_exception && !isnan(input) && (input != rounded)) {
+        FPProcessException();
+      }
+      dst.SetFloat<half>(i, rounded);
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float input = src.Float<float>(i);
       float rounded = FPRoundInt(input, rounding_mode);
@@ -3757,7 +3880,12 @@ LogicVRegister Simulator::fcvts(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src,
                                 FPRounding rounding_mode, int fbits) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half op = src.Float<half>(i) * std::pow(2, fbits);
+      dst.SetInt(vform, i, FPToInt16(op, rounding_mode));
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float op = src.Float<float>(i) * std::pow(2.0f, fbits);
       dst.SetInt(vform, i, FPToInt32(op, rounding_mode));
@@ -3776,7 +3904,12 @@ LogicVRegister Simulator::fcvtu(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src,
                                 FPRounding rounding_mode, int fbits) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half op = src.Float<half>(i) * std::pow(2.0f, fbits);
+      dst.SetUint(vform, i, FPToUInt16(op, rounding_mode));
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float op = src.Float<float>(i) * std::pow(2.0f, fbits);
       dst.SetUint(vform, i, FPToUInt32(op, rounding_mode));
@@ -3905,12 +4038,12 @@ T Simulator::FPRecipSqrtEstimate(T op) {
   if (std::isnan(op)) {
     return FPProcessNaN(op);
   } else if (op == 0.0) {
-    if (std::copysign(1.0, op) < 0.0) {
+    if (copysign(1.0, op) < 0.0) {
       return kFP64NegativeInfinity;
     } else {
       return kFP64PositiveInfinity;
     }
-  } else if (std::copysign(1.0, op) < 0.0) {
+  } else if (copysign(1.0, op) < 0.0) {
     FPProcessException();
     return FPDefaultNaN<T>();
   } else if (std::isinf(op)) {
@@ -3964,7 +4097,12 @@ T Simulator::FPRecipSqrtEstimate(T op) {
 LogicVRegister Simulator::frsqrte(VectorFormat vform, LogicVRegister dst,
                                   const LogicVRegister& src) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half input = src.Float<half>(i);
+      dst.SetFloat<half>(i, FPRecipSqrtEstimate<float>(input));
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float input = src.Float<float>(i);
       dst.SetFloat(i, FPRecipSqrtEstimate<float>(input));
@@ -4085,7 +4223,12 @@ T Simulator::FPRecipEstimate(T op, FPRounding rounding) {
 LogicVRegister Simulator::frecpe(VectorFormat vform, LogicVRegister dst,
                                  const LogicVRegister& src, FPRounding round) {
   dst.ClearForWrite(vform);
-  if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+  if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+    for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+      half input = src.Float<half>(i);
+      dst.SetFloat<half>(i, FPRecipEstimate<float>(input, round));
+    }
+  } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     for (int i = 0; i < LaneCountFromFormat(vform); i++) {
       float input = src.Float<float>(i);
       dst.SetFloat(i, FPRecipEstimate<float>(input, round));
@@ -4168,6 +4311,7 @@ LogicVRegister Simulator::frecpx(VectorFormat vform, LogicVRegister dst,
         exp = (exp == 0) ? (0xFF - 1) : static_cast<int>(Bits(~exp, 7, 0));
         result = float_pack(sign, exp, 0);
       } else {
+        DCHECK_EQ(sizeof(T), sizeof(double));
         sign = double_sign(op);
         exp = static_cast<int>(double_exp(op));
         exp = (exp == 0) ? (0x7FF - 1) : static_cast<int>(Bits(~exp, 10, 0));
@@ -4194,7 +4338,10 @@ LogicVRegister Simulator::scvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
-    if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+    if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+      float16 result = FixedToFloat16(src.Int(kFormatH, i), fbits, round);
+      dst.SetFloat<float16>(i, result);
+    } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
       float result = FixedToFloat(src.Int(kFormatS, i), fbits, round);
       dst.SetFloat<float>(i, result);
     } else {
@@ -4210,7 +4357,10 @@ LogicVRegister Simulator::ucvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
-    if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
+    if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
+      float16 result = UFixedToFloat16(src.Uint(kFormatH, i), fbits, round);
+      dst.SetFloat<float16>(i, result);
+    } else if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
       float result = UFixedToFloat(src.Uint(kFormatS, i), fbits, round);
       dst.SetFloat<float>(i, result);
     } else {

@@ -45,6 +45,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 #include "test/common/assembler-tester.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
@@ -16045,6 +16046,94 @@ TEST(neon_pmull) {
     CHECK_EQUAL_128(0x444044404440444, 0x444044404440444, q3);
   }
 }
+
+#define FP16_OP_LIST(V) \
+  V(fadd)               \
+  V(fsub)               \
+  V(fmul)               \
+  V(fdiv)               \
+  V(fmax)               \
+  V(fmin)
+
+namespace {
+
+float f16_round(float f) {
+  return fp16_ieee_to_fp32_value(fp16_ieee_from_fp32_value(f));
+}
+
+float fadd(float a, float b) { return a + b; }
+
+float fsub(float a, float b) { return a - b; }
+
+float fmul(float a, float b) { return a * b; }
+
+float fdiv(float a, float b) { return a / b; }
+
+float fmax(float a, float b) { return a > b ? a : b; }
+
+float fmin(float a, float b) { return a < b ? a : b; }
+}  // namespace
+
+#define TEST_FP16_OP(op)                                             \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float a = 42.15;                                                 \
+    float b = 13.31;                                                 \
+    __ Fmov(s0, a);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ Fmov(s1, b);                                                  \
+    __ Fcvt(s1.H(), s1.S());                                         \
+    __ Dup(v1.V8H(), v1.H(), 0);                                     \
+    __ op(v2.V8H(), v0.V8H(), v1.V8H());                             \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res =                                                 \
+          fp16_ieee_from_fp32_value(op(f16_round(a), f16_round(b))); \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v2);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
+
+#define FP16_OP_LIST(V) \
+  V(fabs, std::abs)     \
+  V(fsqrt, std::sqrt)   \
+  V(fneg, -)            \
+  V(frintp, ceilf)
+
+#define TEST_FP16_OP(op, cop)                                        \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float f = 42.15f16;                                              \
+    __ Fmov(s0, f);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ op(v1.V8H(), v0.V8H());                                       \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res = fp16_ieee_from_fp32_value(cop(f16_round(f)));   \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v1);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
 
 }  // namespace internal
 }  // namespace v8

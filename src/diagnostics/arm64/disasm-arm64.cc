@@ -1808,6 +1808,28 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
   Format(instr, mnemonic, nfd.Substitute(form));
 }
 
+void DisassemblingDecoder::VisitNEON3SameHP(Instruction* instr) {
+  const char* mnemonic = "unimplemented";
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";
+  NEONFormatDecoder nfd(instr, NEONFormatDecoder::FPHPFormatMap());
+
+  static const char* mnemonics[] = {
+      "fmaxnm", "fmaxnmp", "fminnm",  "fminnmp", "fmla",  "uqadd", "fmls",
+      "uqadd",  "fadd",    "faddp",   "fsub",    "fabd",  "fmulx", "fmul",
+      "fmul",   "fmul",    "fcmeq",   "fcmge",   "shsub", "fcmgt", "sqsub",
+      "facge",  "sqsub",   "facgt",   "fmax",    "fmaxp", "fmin",  "fminp",
+      "frecps", "fdiv",    "frsqrts", "fdiv"};
+
+  // Operation is determined by the opcode bits (13-11), the top bit of
+  // size (23) and the U bit (29).
+  unsigned index =
+      (instr->Bits(13, 11) << 2) | (instr->Bit(23) << 1) | instr->Bit(29);
+  DCHECK_LT(index, arraysize(mnemonics));
+  mnemonic = mnemonics[index];
+
+  Format(instr, mnemonic, nfd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
   const char* mnemonic = "unimplemented";
   const char* form = "'Vd.%s, 'Vn.%s";
@@ -1916,8 +1938,12 @@ void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
   } else {
     // These instructions all use a one bit size field, except XTN, SQXTUN,
     // SHLL, SQXTN and UQXTN, which use a two bit size field.
-    nfd.SetFormatMaps(nfd.FPFormatMap());
-    switch (instr->Mask(NEON2RegMiscFPMask)) {
+    if (instr->Mask(NEON2RegMiscHPFixed) == NEON2RegMiscHPFixed) {
+      nfd.SetFormatMaps(nfd.FPHPFormatMap());
+    } else {
+      nfd.SetFormatMaps(nfd.FPFormatMap());
+    }
+    switch (instr->Mask(NEON2RegMiscFPMask ^ NEON2RegMiscHPFixed)) {
       case NEON_FABS:
         mnemonic = "fabs";
         break;

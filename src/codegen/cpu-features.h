@@ -51,6 +51,8 @@ enum CpuFeature {
   LSE,
   // A form of PMULL{2} with a 128-bit (1Q) result.
   PMULL1Q,
+  // Half-precision NEON ops support.
+  FP16,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

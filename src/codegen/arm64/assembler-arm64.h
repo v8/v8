@@ -2875,9 +2875,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       return vd.Is128Bits() ? NEON_FP_2D : NEON_FP_2S;
     }
 
-    // Four lane floating point vector format.
-    DCHECK((vd.LaneCount() == 4) && vd.Is128Bits());
-    return NEON_FP_4S;
+    // Four lane floating point vector formats.
+    if (vd.LaneCount() == 4) {
+      DCHECK(vd.Is64Bits() || vd.Is128Bits());
+      return vd.Is128Bits() ? NEON_FP_4S : NEON_FP_4H;
+    }
+
+    // Eight lane floating point vector format.
+    DCHECK((vd.LaneCount() == 8) && vd.Is128Bits());
+    return NEON_FP_8H;
   }
 
   // Instruction bits for vector format in load and store operations.

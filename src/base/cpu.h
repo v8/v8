@@ -129,6 +129,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_lse() const { return has_lse_; }
   bool has_mte() const { return has_mte_; }
   bool has_pmull1q() const { return has_pmull1q_; }
+  bool has_fp16() const { return has_fp16_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
@@ -194,6 +195,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_lse_;
   bool has_mte_;
   bool has_pmull1q_;
+  bool has_fp16_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
   bool is_running_in_vm_;
