@@ -1079,26 +1079,52 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   return *Utils::OpenDirectHandle(*obj);
 }
 
-static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
+namespace {
+// Does globalThis[target_function_name](...args).
+void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
-  double v1 =
-      info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
-  double v2 =
-      info[1]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
-  info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), v1 - v2));
+  v8::Isolate* isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto global = context->Global();
+  auto target_function_name = info.Data().As<v8::String>();
+  v8::Local<v8::Function> target;
+  {
+    Local<Value> result;
+    if (!global->Get(context, target_function_name).ToLocal(&result)) {
+      return;
+    }
+    if (!result->IsFunction()) {
+      isolate->ThrowError("Target function is not callable");
+      return;
+    }
+    target = result.As<Function>();
+  }
+  int argc = info.Length();
+  v8::LocalVector<v8::Value> args(isolate, argc);
+  for (int i = 0; i < argc; i++) {
+    args[i] = info[i];
+  }
+  Local<Value> result;
+  if (!target->Call(context, info.This(), argc, args.data()).ToLocal(&result)) {
+    return;
+  }
+  info.GetReturnValue().Set(result);
 }
+}  // namespace
 
-// Returns a callable object. The object returns the difference of its two
-// parameters when it is called.
+// Returns a callable object which redirects [[Call]] requests to
+// globalThis[target_function_name] function.
 RUNTIME_FUNCTION(Runtime_GetCallable) {
   HandleScope scope(isolate);
-  if (args.length() != 0) {
+  if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
+  Handle<String> target_function_name = args.at<String>(0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(v8_isolate);
-  Local<ObjectTemplate> instance_template = t->InstanceTemplate();
-  instance_template->SetCallAsFunctionHandler(call_as_function);
+  Local<v8::ObjectTemplate> instance_template = t->InstanceTemplate();
+  instance_template->SetCallAsFunctionHandler(
+      call_as_function, v8::Utils::ToLocal(target_function_name));
   v8_isolate->GetCurrentContext();
   Local<v8::Object> instance =
       t->GetFunction(v8_isolate->GetCurrentContext())

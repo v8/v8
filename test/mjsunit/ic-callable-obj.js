@@ -6,21 +6,28 @@
 
 (function TestCallableObjectAsPropertyGetterOrSetter() {
   let log = [];
-  let document_all_property = 42;
+  const target_function_name = "callable_obj_target";
+  let property_storage = 42;
 
-  Object.defineProperty(
-      globalThis, "document_all_property",
-      {
-        get() { log.push("get"); return document_all_property; },
-        set(v) { log.push("set"); document_all_property = v; },
-        configurable: true
-      });
+  globalThis[target_function_name] = function(...args) {
+    if (args.length == 0) {
+      // get request
+      log.push("get");
+      return property_storage;
+    } else {
+      // set request
+      assertEquals(args.length, 1);
+      log.push("set");
+      property_storage = args[0];
+      return true;
+    }
+  }
 
-  let callable_obj = d8.dom.Document_all;
+  let callable_obj = %GetCallable(target_function_name);
   log.push(callable_obj());
-  document_all_property = 55;
+  property_storage = 55;
   log.push(callable_obj(153));
-  assertEquals(document_all_property, 153);
+  assertEquals(property_storage, 153);
 
   assertEquals(["get", 42, "set", true], log);
 
@@ -41,7 +48,7 @@
   }
   %PrepareFunctionForOptimization(f);
   for (let i = 0; i < 5; i++) {
-    log.push(document_all_property);
+    log.push(property_storage);
     log.push(f(p, i));
   }
   %OptimizeFunctionOnNextCall(f);
@@ -69,7 +76,7 @@
 
   %PrepareFunctionForOptimization(f);
   for (let i = 0; i < 5; i++) {
-    log.push(document_all_property);
+    log.push(property_storage);
     log.push(f(o, i));
   }
   %OptimizeFunctionOnNextCall(f);
