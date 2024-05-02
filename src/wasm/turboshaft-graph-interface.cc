@@ -4918,10 +4918,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint32_t phi_count() const { return phi_count_; }
 
     ValueType phi_type(size_t phi_i) const { return phi_types_[phi_i]; }
+
     base::Vector<const OpIndex> phi_inputs(size_t phi_i) const {
-#ifdef DEBUG
-      EnsureAllPhisHaveSameInputCount();
-#endif
       size_t phi_inputs_start = phi_i * input_capacity_per_phi_;
       return base::VectorOf(&phi_inputs_[phi_inputs_start], inputs_per_phi_);
     }
@@ -4933,6 +4931,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     base::Vector<const OpIndex> incoming_exceptions() const {
       return base::VectorOf(incoming_exceptions_);
     }
+
+#if DEBUG
+    void DcheckConsistency() { EnsureAllPhisHaveSameInputCount(); }
+#endif
 
    private:
     // Invariants:
@@ -4990,7 +4992,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     V8_NOINLINE V8_PRESERVE_MOST void GrowInputsVector() {
       // We should have always initialized some storage, see
-      // `kInititalInputCapacityPerPhi`.
+      // `kInitialInputCapacityPerPhi`.
       DCHECK_NOT_NULL(phi_inputs_);
       DCHECK_NE(phi_inputs_capacity_total_, 0);
 
@@ -5005,10 +5007,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // This is essentially a strided copy, where we expand the storage by
       // "inserting" unitialized elements in between contiguous stretches of
       // inputs belonging to the same phi.
-      for (size_t phi_i = 0; phi_i < phi_count(); ++phi_i) {
 #ifdef DEBUG
-        EnsureAllPhisHaveSameInputCount();
+      EnsureAllPhisHaveSameInputCount();
 #endif
+      for (size_t phi_i = 0; phi_i < phi_count(); ++phi_i) {
         const OpIndex* old_begin =
             &old_phi_inputs[phi_i * old_input_capacity_per_phi];
         const OpIndex* old_end = old_begin + inputs_per_phi_;
@@ -5107,6 +5109,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
     DCHECK_EQ(decoder->num_locals() + merge_arity + cached_fields,
               block_phis.phi_count());
+
+#ifdef DEBUG
+    // Check consistency of Phi storage. We do this here rather than inside
+    // {block_phis.phi_inputs()} to avoid overall O(n²) complexity.
+    block_phis.DcheckConsistency();
+#endif
 
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
       ssa_env_[i] = MaybePhi(block_phis.phi_inputs(i), block_phis.phi_type(i));

@@ -719,7 +719,11 @@ class MjsunitImmediatesPrinter {
 
   void PrintSignature(uint32_t sig_index) {
     out_ << " ";
-    names()->PrintSigType(out_, sig_index);
+    if (owner_->module_->has_signature(sig_index)) {
+      names()->PrintSigType(out_, sig_index);
+    } else {
+      out_ << sig_index << " /* invalid signature */";
+    }
     out_ << ",";
   }
 
