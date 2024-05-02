@@ -279,6 +279,7 @@ class V8_EXPORT Isolate {
     /**
      * Termination is postponed when there is no active SafeForTerminationScope.
      */
+    V8_DEPRECATED("All code should be safe for termination")
     bool only_terminate_in_safe_scope = false;
 
     /**
@@ -395,7 +396,7 @@ class V8_EXPORT Isolate {
    */
   class V8_EXPORT V8_NODISCARD SafeForTerminationScope {
    public:
-    V8_DEPRECATE_SOON("All code should be safe for termination")
+    V8_DEPRECATED("All code should be safe for termination")
     explicit SafeForTerminationScope(v8::Isolate* v8_isolate) {}
     ~SafeForTerminationScope() {}
 
