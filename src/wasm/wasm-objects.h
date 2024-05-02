@@ -1277,7 +1277,9 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
   static constexpr int kSize = kTaggedSize;
 #endif
 
-  using BodyDescriptor = FixedBodyDescriptorFor<WasmNull>;
+  // WasmNull cannot use `FixedBodyDescriptorFor()` as its map is variable size
+  // (not fixed size) as kSize is too large for a fixed-size map.
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmNull)
 };

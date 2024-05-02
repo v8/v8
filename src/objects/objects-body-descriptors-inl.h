@@ -944,6 +944,19 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     return WasmStruct::GcSafeSize(map);
   }
 };
+
+class WasmNull::BodyDescriptor : public DataOnlyBodyDescriptor {
+ public:
+  static_assert(WasmNull::kStartOfStrongFieldsOffset ==
+                WasmNull::kEndOfStrongFieldsOffset);
+
+  static constexpr int kSize = WasmNull::kSize;
+
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
