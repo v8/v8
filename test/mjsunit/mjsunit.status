@@ -1724,6 +1724,7 @@
   'regress/wasm/regress-326156493': [SKIP],
   'regress/wasm/regress-326894018': [SKIP],
   'regress/wasm/regress-329032153': [SKIP],
+  'regress/wasm/regress-337870524': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
