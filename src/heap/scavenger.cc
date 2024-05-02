@@ -237,11 +237,9 @@ ScavengerCollector::JobTask::JobTask(
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
-  Isolate* isolate = outer_->heap_->isolate();
-
   // In case multi-cage pointer compression mode is enabled ensure that
   // current thread's cage base values are properly initialized.
-  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(outer_->heap_->isolate());
 
   outer_->estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
 
@@ -250,10 +248,6 @@ void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
     TRACE_GC_WITH_FLOW(outer_->heap_->tracer(),
                        GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL, trace_id_,
                        TRACE_EVENT_FLAG_FLOW_IN);
-    RootScavengeVisitor root_scavenge_visitor(scavenger);
-    isolate->traced_handles()->ComputeWeaknessForYoungObjects();
-    isolate->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
-
     ProcessItems(delegate, scavenger);
   } else {
     TRACE_GC_EPOCH_WITH_FLOW(
@@ -404,6 +398,13 @@ void ScavengerCollector::CollectGarbage() {
     RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId].get());
 
     {
+      // Identify weak unmodified handles. Requires an unmodified graph.
+      TRACE_GC(
+          heap_->tracer(),
+          GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
+      isolate_->traced_handles()->ComputeWeaknessForYoungObjects();
+    }
+    {
       // Copy roots.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
       // Scavenger treats all weak roots except for global handles as strong.
@@ -419,6 +420,7 @@ void ScavengerCollector::CollectGarbage() {
       heap_->IterateRoots(&root_scavenge_visitor, options);
       isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
           &root_scavenge_visitor);
+      isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
       scavengers[kMainThreadId]->Publish();
     }
     {

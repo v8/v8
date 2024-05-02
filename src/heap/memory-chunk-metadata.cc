@@ -44,16 +44,12 @@ bool MemoryChunkMetadata::InLargeObjectSpace() const {
 
 bool MemoryChunkMetadata::InSharedSpace() const {
   return owner()->identity() == SHARED_SPACE ||
-         owner()->identity() == SHARED_LO_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_LO_SPACE;
+         owner()->identity() == SHARED_LO_SPACE;
 }
 
 bool MemoryChunkMetadata::InTrustedSpace() const {
   return owner()->identity() == TRUSTED_SPACE ||
-         owner()->identity() == TRUSTED_LO_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_LO_SPACE;
+         owner()->identity() == TRUSTED_LO_SPACE;
 }
 
 #ifdef THREAD_SANITIZER

@@ -4612,8 +4612,6 @@ bool Heap::SharedHeapContains(Tagged<HeapObject> value) const {
   if (shared_allocation_space_) {
     if (shared_allocation_space_->Contains(value)) return true;
     if (shared_lo_allocation_space_->Contains(value)) return true;
-    if (shared_trusted_allocation_space_->Contains(value)) return true;
-    if (shared_trusted_lo_allocation_space_->Contains(value)) return true;
   }
 
   return false;
@@ -4649,8 +4647,6 @@ bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
       return shared_space_->Contains(value);
     case TRUSTED_SPACE:
       return trusted_space_->Contains(value);
-    case SHARED_TRUSTED_SPACE:
-      return shared_trusted_space_->Contains(value);
     case LO_SPACE:
       return lo_space_->Contains(value);
     case CODE_LO_SPACE:
@@ -4659,8 +4655,6 @@ bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
       return new_lo_space_->Contains(value);
     case SHARED_LO_SPACE:
       return shared_lo_space_->Contains(value);
-    case SHARED_TRUSTED_LO_SPACE:
-      return shared_trusted_lo_space_->Contains(value);
     case TRUSTED_LO_SPACE:
       return trusted_lo_space_->Contains(value);
     case RO_SPACE:
@@ -4687,8 +4681,6 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
       return shared_space_->ContainsSlow(addr);
     case TRUSTED_SPACE:
       return trusted_space_->ContainsSlow(addr);
-    case SHARED_TRUSTED_SPACE:
-      return shared_trusted_space_->ContainsSlow(addr);
     case LO_SPACE:
       return lo_space_->ContainsSlow(addr);
     case CODE_LO_SPACE:
@@ -4697,8 +4689,6 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
       return new_lo_space_->ContainsSlow(addr);
     case SHARED_LO_SPACE:
       return shared_lo_space_->ContainsSlow(addr);
-    case SHARED_TRUSTED_LO_SPACE:
-      return shared_trusted_lo_space_->ContainsSlow(addr);
     case TRUSTED_LO_SPACE:
       return trusted_lo_space_->ContainsSlow(addr);
     case RO_SPACE:
@@ -4718,9 +4708,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
     case CODE_LO_SPACE:
     case SHARED_LO_SPACE:
     case TRUSTED_SPACE:
-    case SHARED_TRUSTED_SPACE:
     case TRUSTED_LO_SPACE:
-    case SHARED_TRUSTED_LO_SPACE:
     case RO_SPACE:
       return true;
     default:
@@ -5993,36 +5981,24 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   code_lo_space_ =
       static_cast<CodeLargeObjectSpace*>(space_[CODE_LO_SPACE].get());
 
-  space_[TRUSTED_SPACE] = std::make_unique<TrustedSpace>(this);
-  trusted_space_ = static_cast<TrustedSpace*>(space_[TRUSTED_SPACE].get());
-
-  space_[TRUSTED_LO_SPACE] = std::make_unique<TrustedLargeObjectSpace>(this);
-  trusted_lo_space_ =
-      static_cast<TrustedLargeObjectSpace*>(space_[TRUSTED_LO_SPACE].get());
-
   if (isolate()->is_shared_space_isolate()) {
     space_[SHARED_LO_SPACE] = std::make_unique<SharedLargeObjectSpace>(this);
     shared_lo_space_ =
         static_cast<SharedLargeObjectSpace*>(space_[SHARED_LO_SPACE].get());
-
-    space_[SHARED_TRUSTED_SPACE] = std::make_unique<SharedTrustedSpace>(this);
-    shared_trusted_space_ =
-        static_cast<SharedTrustedSpace*>(space_[SHARED_TRUSTED_SPACE].get());
-
-    space_[SHARED_TRUSTED_LO_SPACE] =
-        std::make_unique<SharedTrustedLargeObjectSpace>(this);
-    shared_trusted_lo_space_ = static_cast<SharedTrustedLargeObjectSpace*>(
-        space_[SHARED_TRUSTED_LO_SPACE].get());
   }
 
   if (isolate()->has_shared_space()) {
     Heap* heap = isolate()->shared_space_isolate()->heap();
     shared_allocation_space_ = heap->shared_space_;
     shared_lo_allocation_space_ = heap->shared_lo_space_;
-
-    shared_trusted_allocation_space_ = heap->shared_trusted_space_;
-    shared_trusted_lo_allocation_space_ = heap->shared_trusted_lo_space_;
   }
+
+  space_[TRUSTED_SPACE] = std::make_unique<TrustedSpace>(this);
+  trusted_space_ = static_cast<TrustedSpace*>(space_[TRUSTED_SPACE].get());
+
+  space_[TRUSTED_LO_SPACE] = std::make_unique<TrustedLargeObjectSpace>(this);
+  trusted_lo_space_ =
+      static_cast<TrustedLargeObjectSpace*>(space_[TRUSTED_LO_SPACE].get());
 
   main_thread_local_heap()->SetUpMainThread(new_allocation_info,
                                             old_allocation_info);
@@ -7238,14 +7214,11 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> obj,
       return dst == SHARED_SPACE;
     case TRUSTED_SPACE:
       return dst == TRUSTED_SPACE;
-    case SHARED_TRUSTED_SPACE:
-      return dst == SHARED_TRUSTED_SPACE;
     case LO_SPACE:
     case CODE_LO_SPACE:
     case NEW_LO_SPACE:
     case SHARED_LO_SPACE:
     case TRUSTED_LO_SPACE:
-    case SHARED_TRUSTED_LO_SPACE:
     case RO_SPACE:
       return false;
   }

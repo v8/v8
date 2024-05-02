@@ -168,12 +168,6 @@ class TrustedLargeObjectSpace : public OldLargeObjectSpace {
   explicit TrustedLargeObjectSpace(Heap* heap);
 };
 
-// Similar to the TrustedLargeObjectSpace, but for shared objects.
-class SharedTrustedLargeObjectSpace : public OldLargeObjectSpace {
- public:
-  explicit SharedTrustedLargeObjectSpace(Heap* heap);
-};
-
 class NewLargeObjectSpace : public LargeObjectSpace {
  public:
   NewLargeObjectSpace(Heap* heap, size_t capacity);

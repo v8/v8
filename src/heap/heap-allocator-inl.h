@@ -60,10 +60,6 @@ OldLargeObjectSpace* HeapAllocator::trusted_lo_space() const {
   return static_cast<OldLargeObjectSpace*>(spaces_[TRUSTED_LO_SPACE]);
 }
 
-OldLargeObjectSpace* HeapAllocator::shared_trusted_lo_space() const {
-  return shared_trusted_lo_space_;
-}
-
 bool HeapAllocator::CanAllocateInReadOnlySpace() const {
   return read_only_space()->writable();
 }
@@ -147,10 +143,6 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation = trusted_space_allocator_->AllocateRaw(size_in_bytes,
                                                              alignment, origin);
           break;
-        case AllocationType::kSharedTrusted:
-          allocation = shared_trusted_space_allocator_->AllocateRaw(
-              size_in_bytes, alignment, origin);
-          break;
       }
     }
   }
@@ -200,9 +192,6 @@ AllocationResult HeapAllocator::AllocateRaw(int size_in_bytes,
     case AllocationType::kTrusted:
       return AllocateRaw<AllocationType::kTrusted>(size_in_bytes, origin,
                                                    alignment);
-    case AllocationType::kSharedTrusted:
-      return AllocateRaw<AllocationType::kSharedTrusted>(size_in_bytes, origin,
-                                                         alignment);
   }
   UNREACHABLE();
 }
@@ -224,7 +213,6 @@ AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
     case AllocationType::kTrusted:
-    case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();
