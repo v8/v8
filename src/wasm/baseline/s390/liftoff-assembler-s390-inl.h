@@ -2301,6 +2301,10 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   b(condition, target);  // branch if SMI
 }
 
+void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
+  LoadU32(dst, dst);
+}
+
 #define SIMD_BINOP_RR_LIST(V)                        \
   V(f64x2_add, F64x2Add)                             \
   V(f64x2_sub, F64x2Sub)                             \

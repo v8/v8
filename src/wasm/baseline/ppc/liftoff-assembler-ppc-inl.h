@@ -1887,6 +1887,10 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   return false;
 }
 
+void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
+  ZeroExtWord32(dst, dst);
+}
+
 #define SIMD_BINOP_LIST(V)                           \
   V(f64x2_add, F64x2Add)                             \
   V(f64x2_sub, F64x2Sub)                             \
