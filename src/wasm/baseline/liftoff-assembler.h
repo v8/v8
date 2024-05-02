@@ -866,6 +866,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline bool emit_i64_popcnt(LiftoffRegister dst, LiftoffRegister src);
 
   inline void emit_u32_to_uintptr(Register dst, Register src);
+  // For security hardening: unconditionally clear {dst}'s high word.
+  inline void emit_u32_to_uintptr_unconditional(Register dst);
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
   inline void emit_ptrsize_sub(Register dst, Register lhs, Register rhs);

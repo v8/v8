@@ -6312,6 +6312,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // TODO(jkummerow): This should reuse MemoryIndexToUintPtrOrOOBTrap.
     V<WordPtr> converted_index = index;
     if (!memory->is_memory64) {
+      // Note: this doesn't just satisfy the compiler's internal consistency
+      // checks, it's also load-bearing to prevent escaping from a compromised
+      // sandbox (where in-sandbox corruption can cause the high word of
+      // what's supposed to be an i32 to be non-zero).
       converted_index = __ ChangeUint32ToUintPtr(index);
     } else if (kSystemPointerSize == kInt32Size) {
       // Truncate index to 32-bit.
@@ -6953,6 +6957,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   V<WordPtr> MemoryIndexToUintPtrOrOOBTrap(bool memory_is_64, OpIndex index) {
+    // Note: this {ChangeUint32ToUintPtr} doesn't just satisfy the compiler's
+    // consistency checks, it's also load-bearing to prevent escaping from a
+    // compromised sandbox (where in-sandbox corruption can cause the high
+    // word of what's supposed to be an i32 to be non-zero).
     if (!memory_is_64) return __ ChangeUint32ToUintPtr(index);
     if (kSystemPointerSize == kInt64Size) return index;
     __ TrapIf(__ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32)),

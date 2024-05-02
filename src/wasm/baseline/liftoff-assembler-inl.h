@@ -300,6 +300,10 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   if (dst != src) Move(dst, src, kI32);
 }
 
+void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
+  UNREACHABLE();
+}
+
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // End of the partially platform-independent implementations of the

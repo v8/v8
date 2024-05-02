@@ -1428,6 +1428,10 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   Dext(dst, src, 0, 32);
 }
 
+void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
+  Dext(dst, dst, 0, 32);
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   MacroAssembler::Neg_s(dst, src);
 }

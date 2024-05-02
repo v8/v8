@@ -756,6 +756,17 @@ class LiftoffCompiler {
       input_idx_ = kFirstInputIdx;
       while (NextParam()) {
         LiftoffRegister reg = LoadToReg(param_regs_);
+#if V8_ENABLE_SANDBOX
+        // In-sandbox corruption can replace one function's code with another's.
+        // That's mostly safe, but certain signature mismatches can violate
+        // security-relevant invariants later. To maintain such invariants,
+        // explicitly clear the high word of any i32 parameters in 64-bit
+        // registers.
+        static_assert(kSystemPointerSize == 8);
+        if (kind_ == kI32 && location_.IsRegister()) {
+          compiler_->asm_.emit_u32_to_uintptr_unconditional(reg.gp());
+        }
+#endif
         if (needs_gp_pair_) {
           NextLocation();
           LiftoffRegister reg2 = LoadToReg(param_regs_ | LiftoffRegList{reg});

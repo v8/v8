@@ -461,6 +461,8 @@
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
 
+  'sandbox/regress/regress-334120897': [SKIP],
+
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],
 
