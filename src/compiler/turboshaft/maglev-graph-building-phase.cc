@@ -1043,6 +1043,11 @@ class GraphBuilder {
                                          node->formal_parameter_count()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::RestLength* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ RestLength(node->formal_parameter_count()));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
