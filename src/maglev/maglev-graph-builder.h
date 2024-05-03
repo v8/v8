@@ -222,11 +222,14 @@ class MaglevGraphBuilder {
 
     compiler::ScopeInfoRef scope_info =
         compilation_unit_->shared_function_info().scope_info(broker());
-    while (!scope_info.HasContext() && scope_info.HasOuterScopeInfo()) {
+    if (scope_info.HasOuterScopeInfo()) {
       scope_info = scope_info.OuterScopeInfo(broker());
-    }
-    if (scope_info.HasContext()) {
-      graph()->record_scope_info(GetContext(), scope_info);
+      while (!scope_info.HasContext() && scope_info.HasOuterScopeInfo()) {
+        scope_info = scope_info.OuterScopeInfo(broker());
+      }
+      if (scope_info.HasContext()) {
+        graph()->record_scope_info(GetContext(), scope_info);
+      }
     }
     if (compilation_unit_->is_osr()) {
       OsrAnalyzePrequel();
