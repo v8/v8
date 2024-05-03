@@ -143,18 +143,26 @@ class Graph final : public ZoneObject {
     if (auto context_const = context->TryCast<Constant>()) {
       res = context_const->object().AsContext().scope_info(broker);
       DCHECK(res->HasContext());
-    } else if (auto outer = context->TryCast<LoadTaggedField>()) {
-      DCHECK_EQ(outer->offset(),
-                Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+    } else if (auto load = context->TryCast<LoadTaggedField>()) {
       compiler::OptionalScopeInfoRef cur =
-          TryGetScopeInfo(outer->input(0).node(), broker);
-      if (cur.has_value()) {
-        cur = (*cur).OuterScopeInfo(broker);
-        while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
-          cur = cur->OuterScopeInfo(broker);
-        }
-        if (cur->HasContext()) {
-          res = cur;
+          TryGetScopeInfo(load->input(0).node(), broker);
+      DCHECK(load->offset() ==
+                 Context::OffsetOfElementAt(Context::EXTENSION_INDEX) ||
+             load->offset() ==
+                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+      if (load->offset() ==
+          Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
+        res = cur;
+      } else if (load->offset() ==
+                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX)) {
+        if (cur.has_value()) {
+          cur = (*cur).OuterScopeInfo(broker);
+          while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
+            cur = cur->OuterScopeInfo(broker);
+          }
+          if (cur->HasContext()) {
+            res = cur;
+          }
         }
       }
     } else if (context->Is<InitialValue>()) {
@@ -165,8 +173,11 @@ class Graph final : public ZoneObject {
     } else {
       // Any context created within a function must be registered in
       // graph()->scope_infos(). Initial contexts must be registered before
-      // BuildBody.
-      DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>());
+      // BuildBody. We don't track context in generators (yet) and around eval
+      // the bytecode compiler creates contexts by calling
+      // Runtime::kNewFunctionInfo directly.
+      DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
+             context->Is<RegisterInput>() || context->Is<CallRuntime>());
     }
     return scope_infos_[context] = res;
   }
