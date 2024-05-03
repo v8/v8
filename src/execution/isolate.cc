@@ -3579,14 +3579,9 @@ void Isolate::UpdateCentralStackInfo() {
           WasmContinuationObject::cast(current)->stack())
           ->get()
           .get();
-  // On platforms where we switch to the central stack for foreign calls
-  // (runtime/JS), we don't need to scan secondary stacks conservatively. They
-  // only contain frames that use precise scanning.
-  // Otherwise register the active secondary stack start and the bounds of the
-  // inactive stacks in the Stack object.
   current = WasmContinuationObject::cast(current)->parent();
   thread_local_top()->is_on_central_stack_flag_ =
-      IsOnCentralStack(wasm_stack->base());
+      IsOnCentralStack(wasm_stack->jmpbuf()->sp);
   // Update the central stack info on switch. Only consider the innermost stack
   bool updated_central_stack = false;
   // We don't need to add all inactive stacks. Only the ones in the active chain
