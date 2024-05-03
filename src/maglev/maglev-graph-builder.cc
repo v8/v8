@@ -6090,11 +6090,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     TRACE_CANNOT_INLINE("use unsupported NewTargetOrGenerator register");
     return false;
   }
-  // TODO(victorgomes): Support exception handler inside inlined functions.
-  if (bytecode.handler_table_size() > 0) {
-    TRACE_CANNOT_INLINE("use unsupported expection handlers");
-    return false;
-  }
   if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
                         << call_frequency << ") < minimum threshold ("
@@ -6170,6 +6165,12 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
 
   // Propagate catch block.
   inner_graph_builder.parent_catch_ = GetCurrentTryCatchBlock();
+  if (catch_block_stack_.size() == 0) {
+    inner_graph_builder.parent_catch_deopt_frame_distance_ =
+        parent_catch_deopt_frame_distance_ + 1;
+  } else {
+    inner_graph_builder.parent_catch_deopt_frame_distance_ = 1;
+  }
 
   // Set the inner graph builder to build in the current block.
   inner_graph_builder.current_block_ = current_block_;

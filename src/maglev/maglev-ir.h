@@ -1777,10 +1777,10 @@ class ExceptionHandlerInfo {
   const int kNoExceptionHandlerPCOffsetMarker = 0xdeadbeef;
 
   ExceptionHandlerInfo()
-      : catch_block(), pc_offset(kNoExceptionHandlerPCOffsetMarker) {}
+      : catch_block(), depth(0), pc_offset(kNoExceptionHandlerPCOffsetMarker) {}
 
-  explicit ExceptionHandlerInfo(BasicBlockRef* catch_block_ref)
-      : catch_block(catch_block_ref), pc_offset(-1) {}
+  explicit ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
+      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
 
   bool HasExceptionHandler() const {
     return pc_offset != kNoExceptionHandlerPCOffsetMarker;
@@ -1788,6 +1788,7 @@ class ExceptionHandlerInfo {
 
   BasicBlockRef catch_block;
   Label trampoline_entry;
+  int depth;
   int pc_offset;
 };
 

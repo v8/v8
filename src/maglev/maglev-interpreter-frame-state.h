@@ -758,11 +758,11 @@ class MergePointInterpreterFrameState {
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
 
-  // Merges an unmerged framestate with a possibly merged framestate into |this|
-  // framestate.
-  void MergeThrow(MaglevGraphBuilder* builder,
+  // Merges an unmerged framestate into a possibly merged framestate at the
+  // start of the target catchblock.
+  void MergeThrow(const MaglevGraphBuilder* handler_builder,
                   const MaglevCompilationUnit* handler_unit,
-                  InterpreterFrameState& unmerged);
+                  const KnownNodeAspects& known_node_aspects);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
@@ -917,7 +917,7 @@ class MergePointInterpreterFrameState {
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness);
 
-  ValueNode* MergeValue(MaglevGraphBuilder* graph_builder,
+  ValueNode* MergeValue(const MaglevGraphBuilder* graph_builder,
                         interpreter::Register owner,
                         const KnownNodeAspects& unmerged_aspects,
                         ValueNode* merged, ValueNode* unmerged,
