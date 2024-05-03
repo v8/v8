@@ -223,9 +223,7 @@ class MemoryAllocator {
       case CODE_LO_SPACE:
         return code_page_allocator_;
       case TRUSTED_SPACE:
-      case SHARED_TRUSTED_SPACE:
       case TRUSTED_LO_SPACE:
-      case SHARED_TRUSTED_LO_SPACE:
         return trusted_page_allocator_;
       default:
         return data_page_allocator_;

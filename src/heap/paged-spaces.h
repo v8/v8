@@ -545,21 +545,6 @@ class TrustedSpace final : public PagedSpace {
   }
 };
 
-class SharedTrustedSpace final : public PagedSpace {
- public:
-  // Creates a trusted space object. The constructor does not allocate pages
-  // from OS.
-  explicit SharedTrustedSpace(Heap* heap)
-      : PagedSpace(heap, SHARED_TRUSTED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
-    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
-};
-
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
 class OldGenerationMemoryChunkIterator {
