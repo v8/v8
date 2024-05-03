@@ -61,7 +61,7 @@ class ScriptOriginOptions {
  */
 class V8_EXPORT ScriptOrigin {
  public:
-  V8_DEPRECATE_SOON("Use constructor without the isolate.")
+  V8_DEPRECATED("Use constructor without the isolate.")
   V8_INLINE ScriptOrigin(Isolate* isolate, Local<Value> resource_name,
                          int resource_line_offset = 0,
                          int resource_column_offset = 0,
