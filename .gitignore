@@ -90,6 +90,7 @@
 /tools/luci-go
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
+/tools/protoc_wrapper
 /tools/turbolizer/build
 /tools/turbolizer/.rpt2_cache
 /tools/turbolizer/deploy
