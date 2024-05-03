@@ -30,7 +30,8 @@ struct PerContextData {
   std::map<WrapperTypeInfo*, v8::Global<v8::ObjectTemplate>> object_templates;
 };
 
-class WrappableBase : public cppgc::GarbageCollected<WrappableBase> {
+class ManagedWrappableBase
+    : public cppgc::GarbageCollected<ManagedWrappableBase> {
  public:
   virtual WrapperTypeInfo* GetWrapperTypeInfo() = 0;
 
@@ -44,35 +45,88 @@ class WrappableBase : public cppgc::GarbageCollected<WrappableBase> {
   v8::TracedReference<v8::Value> wrapper_;
 };
 
-class WrappableValue : public WrappableBase {
+class ManagedWrappableValue : public ManagedWrappableBase {
  public:
   static WrapperTypeInfo wrapper_type_info;
 
   WrapperTypeInfo* GetWrapperTypeInfo() override { return &wrapper_type_info; }
 };
-WrapperTypeInfo WrappableValue::wrapper_type_info{
+WrapperTypeInfo ManagedWrappableValue::wrapper_type_info{
     v8::benchmarking::kEmbedderId};
 
-class GlobalWrappable : public WrappableBase {
+class ManagedGlobalWrappable : public ManagedWrappableBase {
  public:
   static WrapperTypeInfo wrapper_type_info;
 
   WrapperTypeInfo* GetWrapperTypeInfo() override { return &wrapper_type_info; }
 
-  WrappableValue* GetWrappableValue(
+  ManagedWrappableValue* GetWrappableValue(
       cppgc::AllocationHandle& allocation_Handle) {
-    return cppgc::MakeGarbageCollected<WrappableValue>(allocation_Handle);
+    return cppgc::MakeGarbageCollected<ManagedWrappableValue>(
+        allocation_Handle);
   }
 
   uint16_t GetSmiNumber() { return 17; }
 };
-WrapperTypeInfo GlobalWrappable::wrapper_type_info{
+WrapperTypeInfo ManagedGlobalWrappable::wrapper_type_info{
     v8::benchmarking::kEmbedderId};
 
+class UnmanagedWrappableBase {
+ public:
+  virtual ~UnmanagedWrappableBase() = default;
+  virtual WrapperTypeInfo* GetWrapperTypeInfo() = 0;
+
+  void SetWrapper(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+    wrapper_.Reset(isolate, value);
+    wrapper_.SetWeak(this, FirstWeakCallback, v8::WeakCallbackType::kParameter);
+  }
+
+ private:
+  static void FirstWeakCallback(
+      const v8::WeakCallbackInfo<UnmanagedWrappableBase>& data) {
+    UnmanagedWrappableBase* wrappable = data.GetParameter();
+    wrappable->wrapper_.Reset();
+    data.SetSecondPassCallback(SecondWeakCallback);
+  }
+  static void SecondWeakCallback(
+      const v8::WeakCallbackInfo<UnmanagedWrappableBase>& data) {
+    UnmanagedWrappableBase* wrappable = data.GetParameter();
+    delete wrappable;
+  }
+
+  v8::Global<v8::Value> wrapper_;
+};
+
+class UnmanagedWrappableValue : public UnmanagedWrappableBase {
+ public:
+  static WrapperTypeInfo wrapper_type_info;
+
+  WrapperTypeInfo* GetWrapperTypeInfo() override { return &wrapper_type_info; }
+};
+WrapperTypeInfo UnmanagedWrappableValue::wrapper_type_info{
+    v8::benchmarking::kEmbedderId};
+
+class UnmanagedGlobalWrappable : public UnmanagedWrappableBase {
+ public:
+  static WrapperTypeInfo wrapper_type_info;
+
+  WrapperTypeInfo* GetWrapperTypeInfo() override { return &wrapper_type_info; }
+
+  UnmanagedWrappableValue* GetWrappableValue() {
+    return new UnmanagedWrappableValue;
+  }
+
+  uint16_t GetSmiNumber() { return 17; }
+};
+WrapperTypeInfo UnmanagedGlobalWrappable::wrapper_type_info{
+    v8::benchmarking::kEmbedderId};
+
+template <typename WrappableValueType>
 v8::Local<v8::ObjectTemplate> GetInstanceTemplateForContext(
     v8::Isolate* isolate, PerContextData* data,
     WrapperTypeInfo* wrapper_type_info, int number_of_internal_fields) {
-  auto it = data->object_templates.find((&WrappableValue::wrapper_type_info));
+  auto it =
+      data->object_templates.find((&WrappableValueType::wrapper_type_info));
   v8::Local<v8::ObjectTemplate> instance_tpl;
   if (it == data->object_templates.end()) {
     v8::Local<v8::FunctionTemplate> function_template =
@@ -80,7 +134,7 @@ v8::Local<v8::ObjectTemplate> GetInstanceTemplateForContext(
     auto object_template = function_template->InstanceTemplate();
     object_template->SetInternalFieldCount(number_of_internal_fields);
     data->object_templates.emplace(
-        &WrappableValue::wrapper_type_info,
+        &WrappableValueType::wrapper_type_info,
         v8::Global<v8::ObjectTemplate>(isolate, object_template));
     instance_tpl = object_template;
   } else {
@@ -101,15 +155,16 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
         ctx->GetAlignedPointerFromEmbedderData(v8::benchmarking::kEmbedderId));
 
     // Unwrap: Get the C++ instance pointer.
-    GlobalWrappable* receiver =
-        ConcreteBindings::template Unwrap<GlobalWrappable>(isolate,
-                                                           info.This());
+    typename ConcreteBindings::GlobalWrappable* receiver =
+        ConcreteBindings::template Unwrap<
+            typename ConcreteBindings::GlobalWrappable>(isolate, info.This());
     // Invoke the actual operation.
-    WrappableValue* return_value =
-        receiver->GetWrappableValue(data->allocation_handle);
+    typename ConcreteBindings::WrappableValue* return_value =
+        ConcreteBindings::GetWrappableValue(data, receiver);
     // Wrap the C++ value with a JS value.
     auto v8_wrapper = ConcreteBindings::Wrap(
-        isolate, ctx, data, return_value, &WrappableValue::wrapper_type_info);
+        isolate, ctx, data, return_value,
+        &ConcreteBindings::WrappableValue::wrapper_type_info);
     // Return the JS value back to V8.
     info.GetReturnValue().SetNonEmpty(v8_wrapper);
   }
@@ -120,9 +175,9 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
     auto* isolate = info.GetIsolate();
 
     // Unwrap: Get the C++ instance pointer.
-    GlobalWrappable* receiver =
-        ConcreteBindings::template Unwrap<GlobalWrappable>(isolate,
-                                                           info.This());
+    typename ConcreteBindings::GlobalWrappable* receiver =
+        ConcreteBindings::template Unwrap<
+            typename ConcreteBindings::GlobalWrappable>(isolate, info.This());
     // Invoke the actual operation.
     uint16_t return_value = receiver->GetSmiNumber();
 
@@ -148,16 +203,18 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
     v8::Local<v8::Context> context =
         v8::Context::New(isolate, nullptr, object_template);
 
-    context->SetAlignedPointerInEmbedderData(
-        0, new PerContextData{allocation_handle(), {}});
+    auto* per_context_data = new PerContextData{allocation_handle(), {}};
+
+    context->SetAlignedPointerInEmbedderData(0, per_context_data);
 
     auto* global_wrappable =
-        cppgc::MakeGarbageCollected<GlobalWrappable>(allocation_handle());
+        ConcreteBindings::CreateGlobalWrappable(per_context_data);
     CHECK(context->Global()->IsApiWrapper());
 
-    ConcreteBindings::AssociateWithWrapper(isolate, context->Global(),
-                                           &GlobalWrappable::wrapper_type_info,
-                                           global_wrappable);
+    ConcreteBindings::AssociateWithWrapper(
+        isolate, context->Global(),
+        &ConcreteBindings::GlobalWrappable::wrapper_type_info,
+        global_wrappable);
     context_.Reset(isolate, context);
     context->Enter();
   }
@@ -188,8 +245,21 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
   v8::Global<v8::Context> context_;
 };
 
-class OldBindings : public BindingsBenchmarkBase<OldBindings> {
+class UnmanagedBindings : public BindingsBenchmarkBase<UnmanagedBindings> {
  public:
+  using WrappableBase = UnmanagedWrappableBase;
+  using WrappableValue = UnmanagedWrappableValue;
+  using GlobalWrappable = UnmanagedGlobalWrappable;
+
+  static V8_INLINE WrappableValue* GetWrappableValue(
+      PerContextData* data, GlobalWrappable* receiver) {
+    return receiver->GetWrappableValue();
+  }
+
+  static V8_INLINE GlobalWrappable* CreateGlobalWrappable(PerContextData*) {
+    return new GlobalWrappable;
+  }
+
   static V8_INLINE v8::Local<v8::Object> Wrap(v8::Isolate* isolate,
                                               v8::Local<v8::Context>& context,
                                               PerContextData* data,
@@ -197,8 +267,8 @@ class OldBindings : public BindingsBenchmarkBase<OldBindings> {
                                               WrapperTypeInfo* info) {
     // Allocate a new JS wrapper.
     v8::Local<v8::ObjectTemplate> wrapper_instance_tpl =
-        GetInstanceTemplateForContext(isolate, data,
-                                      &WrappableValue::wrapper_type_info, 2);
+        GetInstanceTemplateForContext<WrappableValue>(
+            isolate, data, &WrappableValue::wrapper_type_info, 2);
     auto v8_wrapper =
         wrapper_instance_tpl->NewInstance(context).ToLocalChecked();
     AssociateWithWrapper(isolate, v8_wrapper, info, wrappable);
@@ -230,8 +300,23 @@ class OldBindings : public BindingsBenchmarkBase<OldBindings> {
   }
 };
 
-class NewBindings : public BindingsBenchmarkBase<NewBindings> {
+class ManagedBindings : public BindingsBenchmarkBase<ManagedBindings> {
  public:
+  using WrappableBase = ManagedWrappableBase;
+  using WrappableValue = ManagedWrappableValue;
+  using GlobalWrappable = ManagedGlobalWrappable;
+
+  static V8_INLINE WrappableValue* GetWrappableValue(
+      PerContextData* data, GlobalWrappable* receiver) {
+    return receiver->GetWrappableValue(data->allocation_handle);
+  }
+
+  static V8_INLINE GlobalWrappable* CreateGlobalWrappable(
+      PerContextData* per_context_data) {
+    return cppgc::MakeGarbageCollected<GlobalWrappable>(
+        per_context_data->allocation_handle);
+  }
+
   static V8_INLINE v8::Local<v8::Object> Wrap(v8::Isolate* isolate,
                                               v8::Local<v8::Context>& context,
                                               PerContextData* data,
@@ -239,8 +324,8 @@ class NewBindings : public BindingsBenchmarkBase<NewBindings> {
                                               WrapperTypeInfo* info) {
     // Allocate a new JS wrapper.
     v8::Local<v8::ObjectTemplate> wrapper_instance_tpl =
-        GetInstanceTemplateForContext(isolate, data,
-                                      &WrappableValue::wrapper_type_info, 0);
+        GetInstanceTemplateForContext<WrappableValue>(
+            isolate, data, &WrappableValue::wrapper_type_info, 0);
     auto v8_wrapper =
         wrapper_instance_tpl->NewInstance(context).ToLocalChecked();
     AssociateWithWrapper(isolate, v8_wrapper, info, wrappable);
@@ -274,7 +359,7 @@ const char* kScriptInvocingAccessorReturingWrapper =
     "function invoke() { globalThis.accessorReturningWrapper; }"
     "for (var i =0; i < 1_000; i++) invoke();";
 
-BENCHMARK_F(OldBindings, AccessorReturningWrapper)(benchmark::State& st) {
+BENCHMARK_F(UnmanagedBindings, AccessorReturningWrapper)(benchmark::State& st) {
   v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
   v8::Local<v8::Script> script =
@@ -287,7 +372,7 @@ BENCHMARK_F(OldBindings, AccessorReturningWrapper)(benchmark::State& st) {
   }
 }
 
-BENCHMARK_F(NewBindings, AccessorReturningWrapper)(benchmark::State& st) {
+BENCHMARK_F(ManagedBindings, AccessorReturningWrapper)(benchmark::State& st) {
   v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
   v8::Local<v8::Script> script =
@@ -304,7 +389,7 @@ const char* kScriptInvocingAccessorReturingSmi =
     "function invoke() { globalThis.accessorReturningSmi; }"
     "for (var i =0; i < 1_000; i++) invoke();";
 
-BENCHMARK_F(OldBindings, AccessorReturningSmi)(benchmark::State& st) {
+BENCHMARK_F(UnmanagedBindings, AccessorReturningSmi)(benchmark::State& st) {
   v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
   v8::Local<v8::Script> script =
@@ -317,7 +402,7 @@ BENCHMARK_F(OldBindings, AccessorReturningSmi)(benchmark::State& st) {
   }
 }
 
-BENCHMARK_F(NewBindings, AccessorReturningSmi)(benchmark::State& st) {
+BENCHMARK_F(ManagedBindings, AccessorReturningSmi)(benchmark::State& st) {
   v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
   v8::Local<v8::Script> script =

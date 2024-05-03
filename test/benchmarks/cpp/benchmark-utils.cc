@@ -27,12 +27,7 @@ void BenchmarkWithIsolate::InitializeProcess() {
   v8::V8::Initialize();
   cppgc::InitializeProcess(platform_->GetPageAllocator());
   v8_ab_allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  START_ALLOW_USE_DEPRECATED()
-  auto heap = v8::CppHeap::Create(
-      platform_, v8::CppHeapCreateParams(
-                     {}, v8::WrapperDescriptor(kTypeOffset, kInstanceOffset,
-                                               kEmbedderId)));
-  END_ALLOW_USE_DEPRECATED()
+  auto heap = v8::CppHeap::Create(platform_, v8::CppHeapCreateParams({}));
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = v8_ab_allocator_;
   create_params.cpp_heap = heap.release();
