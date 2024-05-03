@@ -902,12 +902,6 @@ SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
       case TRUSTED_SPACE:
       case TRUSTED_LO_SPACE:
         return SnapshotSpace::kTrusted;
-      // Shared objects are currently encoded as 'trusteds' snapshot objects.
-      // This basically duplicates shared trusted heap objects for each isolate
-      // again.
-      case SHARED_TRUSTED_SPACE:
-      case SHARED_TRUSTED_LO_SPACE:
-        return SnapshotSpace::kTrusted;
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
