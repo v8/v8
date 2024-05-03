@@ -859,6 +859,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
     // before invoking an AllocationObserver. This allocation had no way to
     // escape and get marked though.
     local_marking_worklists()->MergeOnHold();
+
+    heap()->mark_compact_collector()->MaybeEnableBackgroundThreadsInCycle();
   }
   if (step_origin == StepOrigin::kTask) {
     // We cannot publish the pending allocations for V8 step origin because the

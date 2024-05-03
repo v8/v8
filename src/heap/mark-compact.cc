@@ -412,10 +412,22 @@ void MarkCompactCollector::StartMarking() {
 #endif  // VERIFY_HEAP
 }
 
+void MarkCompactCollector::MaybeEnableBackgroundThreadsInCycle() {
+  if (v8_flags.concurrent_marking && !use_background_threads_in_cycle_) {
+    use_background_threads_in_cycle_ = heap()->ShouldUseBackgroundThreads();
+    if (use_background_threads_in_cycle_) {
+      heap_->concurrent_marking()->RescheduleJobIfNeeded(
+          GarbageCollector::MARK_COMPACTOR);
+    }
+  }
+}
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
   DCHECK(state_ == PREPARE_GC);
+
+  MaybeEnableBackgroundThreadsInCycle();
 
   MarkLiveObjects();
   // This will walk dead object graphs and so requires that all references are
