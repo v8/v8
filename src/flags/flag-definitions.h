@@ -242,8 +242,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
-  V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_import_assertions, "harmony import assertions (deprecated)")
+  V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)                       \
   V(js_explicit_resource_management, "explicit resource management") \
@@ -284,6 +283,7 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                      \
+  V(harmony_import_assertions, "harmony import assertions")           \
   V(harmony_rab_gsab,                                                 \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")       \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")        \
