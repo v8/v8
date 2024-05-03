@@ -64,14 +64,16 @@ void SetupOptimizedAndNonOptimizedHandle(v8::Isolate* isolate,
                                          T* non_optimized_handle) {
   v8::HandleScope scope(isolate);
 
-  v8::Local<v8::Object> optimized_object = WrapperHelper::CreateWrapper(
-      isolate->GetCurrentContext(), optimized_handle, nullptr);
+  v8::Local<v8::Object> optimized_object =
+      DeprecatedWrapperHelper::CreateWrapper(isolate->GetCurrentContext(),
+                                             optimized_handle, nullptr);
   EXPECT_TRUE(optimized_handle->IsEmpty());
   *optimized_handle = T(isolate, optimized_object);
   EXPECT_FALSE(optimized_handle->IsEmpty());
 
-  v8::Local<v8::Object> non_optimized_object = WrapperHelper::CreateWrapper(
-      isolate->GetCurrentContext(), nullptr, nullptr);
+  v8::Local<v8::Object> non_optimized_object =
+      DeprecatedWrapperHelper::CreateWrapper(isolate->GetCurrentContext(),
+                                             nullptr, nullptr);
   EXPECT_TRUE(non_optimized_handle->IsEmpty());
   *non_optimized_handle = T(isolate, non_optimized_object);
   EXPECT_FALSE(non_optimized_handle->IsEmpty());
@@ -125,7 +127,7 @@ void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
                           T* global) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::Object> object =
-      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+      DeprecatedWrapperHelper::CreateWrapper(context, nullptr, nullptr);
   EXPECT_FALSE(object.IsEmpty());
   *global = T(isolate, object);
   EXPECT_FALSE(global->IsEmpty());

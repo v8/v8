@@ -46,8 +46,8 @@ class UnifiedHeapTest : public TestWithHeapInternalsAndContext {
   std::unique_ptr<v8::CppHeap> cpp_heap_;
 };
 
-// Helpers for the traditional-style wrappers using embedder fields.
-class WrapperHelper {
+// Helpers for the deprecated traditional-style wrappers using embedder fields.
+class DeprecatedWrapperHelper {
  public:
   static constexpr size_t kWrappableTypeEmbedderIndex = 0;
   static constexpr size_t kWrappableInstanceEmbedderIndex = 1;
@@ -86,8 +86,8 @@ class WrapperHelper {
   }
 };
 
-// Helpers for new-style wrappers using a single header field.
-class NewWrapperHelper {
+// Helpers for managed wrappers using a single header field.
+class WrapperHelper {
  public:
   // Sets up a V8 API object so that it points back to a C++ object. The setup
   // used is recognized by the GC and references will be followed for liveness

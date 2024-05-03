@@ -173,7 +173,7 @@ TEST_F(YoungUnifiedHeapTest, OnlyGC) { CollectYoungGarbageWithEmbedderStack(); }
 TEST_F(YoungUnifiedHeapTest, CollectUnreachableCppGCObject) {
   cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
   v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context(), nullptr, nullptr);
+      DeprecatedWrapperHelper::CreateWrapper(context(), nullptr, nullptr);
   EXPECT_FALSE(api_object.IsEmpty());
 
   Wrappable::destructor_callcount = 0;
@@ -182,10 +182,10 @@ TEST_F(YoungUnifiedHeapTest, CollectUnreachableCppGCObject) {
 }
 
 TEST_F(YoungUnifiedHeapTest, FindingV8ToCppGCReference) {
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
+  uint16_t wrappable_type = DeprecatedWrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
+  v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
       context(), &wrappable_type, wrappable_object);
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
@@ -195,7 +195,7 @@ TEST_F(YoungUnifiedHeapTest, FindingV8ToCppGCReference) {
   CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
 
-  WrapperHelper::ResetWrappableConnection(
+  DeprecatedWrapperHelper::ResetWrappableConnection(
       v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
@@ -223,7 +223,7 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierV8ToCppGCReference) {
   FlagScope<bool> no_incremental_marking(&v8_flags.incremental_marking, false);
 
   v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context(), nullptr, nullptr);
+      DeprecatedWrapperHelper::CreateWrapper(context(), nullptr, nullptr);
   // With direct locals, api_object may be invalid after a stackless GC.
   auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
 
@@ -233,9 +233,9 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierV8ToCppGCReference) {
   EXPECT_FALSE(Heap::InYoungGeneration(*handle_api_object));
 
   auto* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  uint16_t type_info = WrapperHelper::kTracedEmbedderId;
-  WrapperHelper::SetWrappableConnection(v8::Utils::ToLocal(handle_api_object),
-                                        &type_info, wrappable);
+  uint16_t type_info = DeprecatedWrapperHelper::kTracedEmbedderId;
+  DeprecatedWrapperHelper::SetWrappableConnection(
+      v8::Utils::ToLocal(handle_api_object), &type_info, wrappable);
 
   Wrappable::destructor_callcount = 0;
   CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);

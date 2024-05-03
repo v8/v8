@@ -58,11 +58,11 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
-TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
+TEST_F(UnifiedHeapTest, Deprecated_FindingV8ToCppReference) {
+  uint16_t wrappable_type = DeprecatedWrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
+  v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
       v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
@@ -71,16 +71,16 @@ TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  WrapperHelper::ResetWrappableConnection(
+  DeprecatedWrapperHelper::ResetWrappableConnection(
       v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
 
-TEST_F(UnifiedHeapTest, NewWrapper_FindingV8ToCppReference) {
+TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = NewWrapperHelper::CreateWrapper(
+  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
       v8_isolate()->GetCurrentContext(), wrappable_object);
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
@@ -89,37 +89,37 @@ TEST_F(UnifiedHeapTest, NewWrapper_FindingV8ToCppReference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  NewWrapperHelper::ResetWrappableConnection(
+  WrapperHelper::ResetWrappableConnection(
       v8_isolate(), v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, Deprectated_WriteBarrierV8ToCppReference) {
+  if (!v8_flags.incremental_marking) return;
+
+  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
+      v8_isolate()->GetCurrentContext(), nullptr, nullptr);
+  EXPECT_FALSE(api_object.IsEmpty());
+  // With direct locals, api_object may be invalid after a stackless GC.
+  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
+  Wrappable::destructor_callcount = 0;
+  DeprecatedWrapperHelper::ResetWrappableConnection(api_object);
+  SimulateIncrementalMarking();
+  uint16_t type_info = DeprecatedWrapperHelper::kTracedEmbedderId;
+  DeprecatedWrapperHelper::SetWrappableConnection(
+      v8::Utils::ToLocal(handle_api_object), &type_info, wrappable);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }
 
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   if (!v8_flags.incremental_marking) return;
 
   void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), nullptr, nullptr);
-  EXPECT_FALSE(api_object.IsEmpty());
-  // With direct locals, api_object may be invalid after a stackless GC.
-  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-  Wrappable::destructor_callcount = 0;
-  WrapperHelper::ResetWrappableConnection(api_object);
-  SimulateIncrementalMarking();
-  uint16_t type_info = WrapperHelper::kTracedEmbedderId;
-  WrapperHelper::SetWrappableConnection(v8::Utils::ToLocal(handle_api_object),
-                                        &type_info, wrappable);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-}
-
-TEST_F(UnifiedHeapTest, NewWrapper_WriteBarrierV8ToCppReference) {
-  if (!v8_flags.incremental_marking) return;
-
-  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = NewWrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), nullptr);
+  v8::Local<v8::Object> api_object =
+      WrapperHelper::CreateWrapper(v8_isolate()->GetCurrentContext(), nullptr);
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
   auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
@@ -127,9 +127,9 @@ TEST_F(UnifiedHeapTest, NewWrapper_WriteBarrierV8ToCppReference) {
   // as root.
   Global<v8::Object> global(v8_isolate(), api_object);
   Wrappable::destructor_callcount = 0;
-  NewWrapperHelper::ResetWrappableConnection(v8_isolate(), api_object);
+  WrapperHelper::ResetWrappableConnection(v8_isolate(), api_object);
   SimulateIncrementalMarking();
-  NewWrapperHelper::SetWrappableConnection(
+  WrapperHelper::SetWrappableConnection(
       v8_isolate(), v8::Utils::ToLocal(handle_api_object), wrappable);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
@@ -450,7 +450,7 @@ TEST_F(UnifiedHeapTest, OnStackReferencesAreTemporary) {
   {
     v8::TracedReference<v8::Value> stack_ref;
     v8::HandleScope scope(v8_isolate());
-    v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate()->GetCurrentContext(), nullptr, nullptr);
     stack_ref.Reset(v8_isolate(), api_object);
     observer.Reset(v8_isolate(), api_object);
@@ -473,7 +473,7 @@ TEST_F(UnifiedHeapTest, TracedReferenceOnStack) {
   v8::TracedReference<v8::Value> stack_ref;
   {
     v8::HandleScope scope(v8_isolate());
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate()->GetCurrentContext(), nullptr, nullptr);
     stack_ref.Reset(v8_isolate(), object);
     observer.Reset(v8_isolate(), object);
@@ -528,7 +528,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
           cpp_heap->GetAllocationHandle());
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> to_object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     EXPECT_TRUE(IsNewObjectInCorrectGeneration(
         *v8::Utils::OpenDirectHandle(*to_object)));
@@ -542,7 +542,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     stack_handle.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
@@ -576,7 +576,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
           cpp_heap->GetAllocationHandle());
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> to_object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     EXPECT_TRUE(IsNewObjectInCorrectGeneration(
         *v8::Utils::OpenDirectHandle(*to_object)));
@@ -590,7 +590,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     cpp_heap_obj->heap_handle.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
@@ -621,7 +621,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
   v8::TracedReference<v8::Value> stack_handle2;
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> to_object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     EXPECT_TRUE(IsNewObjectInCorrectGeneration(
         *v8::Utils::OpenDirectHandle(*to_object)));
@@ -635,7 +635,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> object = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
     stack_handle1.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
@@ -708,7 +708,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
   // Tests that wrappers that are part of ephemerons are traced.
   ManualGCScope manual_gc(i_isolate());
 
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
+  uint16_t wrappable_type = DeprecatedWrapperHelper::kTracedEmbedderId;
   Wrappable::destructor_callcount = 0;
 
   v8::Local<v8::Object> key =
@@ -719,7 +719,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     // C++ object that should be traced through ephemeron value.
     auto* wrappable_object =
         cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-    v8::Local<v8::Object> value = WrapperHelper::CreateWrapper(
+    v8::Local<v8::Object> value = DeprecatedWrapperHelper::CreateWrapper(
         v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
     EXPECT_FALSE(value.IsEmpty());
     Handle<JSObject> js_key =
