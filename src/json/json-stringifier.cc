@@ -272,22 +272,21 @@ class JsonStringifier {
   // type. This cache is cleared on GC, since the GC could move those strings.
   // Using Handles for the cache has been tried, but is too expensive to set up
   // when JSON.stringify is called for tiny inputs.
-  class SimplePropertyKeyCache : public Isolate::ToDestroyBeforeSuddenShutdown {
+  class SimplePropertyKeyCache {
    public:
-    explicit SimplePropertyKeyCache(Isolate* isolate)
-        : Isolate::ToDestroyBeforeSuddenShutdown(isolate) {
+    explicit SimplePropertyKeyCache(Isolate* isolate) : isolate_(isolate) {
       Clear();
       isolate->main_thread_local_heap()->AddGCEpilogueCallback(
           UpdatePointersCallback, this);
     }
 
     ~SimplePropertyKeyCache() {
-      isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+      isolate_->main_thread_local_heap()->RemoveGCEpilogueCallback(
           UpdatePointersCallback, this);
     }
 
     void TryInsert(Tagged<String> string) {
-      ReadOnlyRoots roots(isolate());
+      ReadOnlyRoots roots(isolate_);
       if (string->map() == roots.internalized_one_byte_string_map()) {
         keys_[GetIndex(string)] = MaybeCompress(string);
       }
@@ -320,6 +319,7 @@ class JsonStringifier {
     static constexpr size_t kSize = 1 << kSizeBits;
     static constexpr size_t kIndexMask = kSize - 1;
 
+    Isolate* isolate_;
     Tagged_t keys_[kSize];
   };
 
