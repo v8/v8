@@ -3262,8 +3262,12 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
                ? FastCloneObjectMode::kEmptyObject
                : FastCloneObjectMode::kNotSupported;
   }
-  if (!IsSmiOrObjectElementsKind(map->elements_kind()) ||
-      !map->OnlyHasSimpleProperties()) {
+  ElementsKind elements_kind = map->elements_kind();
+  if (!IsSmiOrObjectElementsKind(elements_kind) &&
+      !IsAnyNonextensibleElementsKind(elements_kind)) {
+    return FastCloneObjectMode::kNotSupported;
+  }
+  if (!map->OnlyHasSimpleProperties()) {
     return FastCloneObjectMode::kNotSupported;
   }
 
@@ -3273,6 +3277,7 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
   // directly use it as the target map.
   FastCloneObjectMode mode =
       map->instance_type() == JS_OBJECT_TYPE &&
+              !IsAnyNonextensibleElementsKind(elements_kind) &&
               map->GetConstructor() == *isolate->object_function() &&
               map->prototype() == *isolate->object_function_prototype() &&
               !map->is_prototype_map()
@@ -3306,17 +3311,21 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
                                          Handle<Map> target_map,
                                          Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  DCHECK(source_map->OnlyHasSimpleProperties());
   // Ensure source and target have identical binary represenation of properties
   // and elements as the IC relies on copying the raw bytes. This also excludes
   // cases with non-enumerable properties or accessors on the source object.
   if (source_map->instance_type() != JS_OBJECT_TYPE ||
       target_map->instance_type() != JS_OBJECT_TYPE ||
-      !source_map->OnlyHasSimpleProperties() ||
       !target_map->OnlyHasSimpleProperties() ||
-      source_map->elements_kind() != target_map->elements_kind() ||
-      !source_map->has_fast_elements()) {
+      !target_map->has_fast_elements()) {
     return false;
   }
+  DCHECK(IsSmiOrObjectElementsKind(source_map->elements_kind()) ||
+         IsAnyNonextensibleElementsKind(source_map->elements_kind()));
+  DCHECK(IsSmiOrObjectElementsKind(target_map->elements_kind()));
+  DCHECK_IMPLIES(IsHoleyElementsKindForRead(source_map->elements_kind()),
+                 IsHoleyElementsKind(target_map->elements_kind()));
   // Check that the source inobject properties are big enough to initialize all
   // target slots, but not too big to fit.
   // TODO(olivf): This restriction (and the same restriction on the backing
