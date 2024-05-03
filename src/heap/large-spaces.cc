@@ -457,6 +457,8 @@ void CodeLargeObjectSpace::RemovePage(LargePageMetadata* page) {
 SharedLargeObjectSpace::SharedLargeObjectSpace(Heap* heap)
     : OldLargeObjectSpace(heap, SHARED_LO_SPACE) {}
 
+SharedTrustedLargeObjectSpace::SharedTrustedLargeObjectSpace(Heap* heap)
+    : OldLargeObjectSpace(heap, SHARED_TRUSTED_LO_SPACE) {}
 
 TrustedLargeObjectSpace::TrustedLargeObjectSpace(Heap* heap)
     : OldLargeObjectSpace(heap, TRUSTED_LO_SPACE) {}

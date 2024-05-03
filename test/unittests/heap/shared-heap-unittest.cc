@@ -93,6 +93,51 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
 }
 
 namespace {
+class SharedTrustedSpaceAllocationThread final : public ParkingThread {
+ public:
+  SharedTrustedSpaceAllocationThread()
+      : ParkingThread(
+            base::Thread::Options("SharedTrustedSpaceAllocationThread")) {}
+
+  void Run() override {
+    constexpr int kNumIterations = 2000;
+
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+
+          for (int i = 0; i < kNumIterations; i++) {
+            i_client_isolate->factory()->NewFixedArray(
+                10, AllocationType::kSharedTrusted);
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedSpace) {
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedTrustedSpaceAllocationThread>>
+            threads;
+        const int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedTrustedSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
 class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
  public:
   SharedLargeOldSpaceAllocationThread()
@@ -132,6 +177,57 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedLargeOldSpace) {
 
         for (int i = 0; i < kThreads; i++) {
           auto thread = std::make_unique<SharedLargeOldSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
+
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
+}
+
+namespace {
+class SharedTrustedLargeObjectSpaceAllocationThread final
+    : public ParkingThread {
+ public:
+  SharedTrustedLargeObjectSpaceAllocationThread()
+      : ParkingThread(base::Thread::Options(
+            "SharedTrustedLargeObjectSpaceAllocationThread")) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback(
+        [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+          HandleScope scope(i_client_isolate);
+          constexpr int kNumIterations = 50;
+
+          for (int i = 0; i < kNumIterations; i++) {
+            HandleScope scope(i_client_isolate);
+            Handle<FixedArray> fixed_array =
+                i_client_isolate->factory()->NewFixedArray(
+                    kMaxRegularHeapObjectSize / kTaggedSize,
+                    AllocationType::kSharedTrusted);
+            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
+          }
+
+          InvokeMajorGC(i_client_isolate);
+
+          v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                        client_isolate);
+        });
+  }
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedLargeObjectSpace) {
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<
+            std::unique_ptr<SharedTrustedLargeObjectSpaceAllocationThread>>
+            threads;
+        constexpr int kThreads = 4;
+
+        for (int i = 0; i < kThreads; i++) {
+          auto thread =
+              std::make_unique<SharedTrustedLargeObjectSpaceAllocationThread>();
           CHECK(thread->Start());
           threads.push_back(std::move(thread));
         }
