@@ -126,6 +126,8 @@ class SemiSpaceNewSpace;
 class SharedLargeObjectSpace;
 class SharedReadOnlySpace;
 class SharedSpace;
+class SharedTrustedLargeObjectSpace;
+class SharedTrustedSpace;
 class Space;
 class StickySpace;
 class StressScavengeObserver;
@@ -781,6 +783,12 @@ class Heap final {
   }
   OldLargeObjectSpace* shared_lo_allocation_space() const {
     return shared_lo_allocation_space_;
+  }
+  SharedTrustedSpace* shared_trusted_allocation_space() const {
+    return shared_trusted_allocation_space_;
+  }
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_allocation_space() const {
+    return shared_trusted_lo_allocation_space_;
   }
 
   inline PagedSpace* paged_space(int idx) const;
@@ -2150,12 +2158,16 @@ class Heap final {
   SharedLargeObjectSpace* shared_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
   TrustedSpace* trusted_space_ = nullptr;
+  SharedTrustedSpace* shared_trusted_space_ = nullptr;
   TrustedLargeObjectSpace* trusted_lo_space_ = nullptr;
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space_ = nullptr;
 
   // Either pointer to owned shared spaces or pointer to unowned shared spaces
   // in another isolate.
   PagedSpace* shared_allocation_space_ = nullptr;
   OldLargeObjectSpace* shared_lo_allocation_space_ = nullptr;
+  SharedTrustedSpace* shared_trusted_allocation_space_ = nullptr;
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_allocation_space_ = nullptr;
 
   // Map from the space id to the space.
   std::unique_ptr<Space> space_[LAST_SPACE + 1];
