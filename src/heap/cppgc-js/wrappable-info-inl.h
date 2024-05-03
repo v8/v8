@@ -36,8 +36,8 @@ base::Optional<WrappableInfo> WrappableInfo::From(
   void* instance;
   if (type_slot.ToAlignedPointer(isolate, &type) && type &&
       instance_slot.ToAlignedPointer(isolate, &instance) && instance &&
-      (wrapper_descriptor.embedder_id_for_garbage_collected ==
-           WrapperDescriptor::kUnknownEmbedderId ||
+      (wrapper_descriptor.embedder_id_for_garbage_collected !=
+           WrapperDescriptor::kUnknownEmbedderId &&
        (*static_cast<uint16_t*>(type) ==
         wrapper_descriptor.embedder_id_for_garbage_collected))) {
     return base::Optional<WrappableInfo>(base::in_place, type, instance);

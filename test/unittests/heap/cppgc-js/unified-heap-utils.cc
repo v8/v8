@@ -20,6 +20,7 @@ namespace internal {
 UnifiedHeapTest::UnifiedHeapTest()
     : UnifiedHeapTest(std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>()) {}
 
+START_ALLOW_USE_DEPRECATED()
 UnifiedHeapTest::UnifiedHeapTest(
     std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
     : cpp_heap_(v8::CppHeap::Create(
@@ -31,6 +32,7 @@ UnifiedHeapTest::UnifiedHeapTest(
   InvokeAtomicMajorGC();
   isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
+END_ALLOW_USE_DEPRECATED()
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
     cppgc::Heap::SweepingType sweeping_type) {

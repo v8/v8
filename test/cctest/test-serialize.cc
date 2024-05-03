@@ -4383,6 +4383,8 @@ static void DeserializeAPIWrapperCallback(Local<v8::Object> holder,
   }
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 UNINITIALIZED_TEST(SerializeApiWrapperData) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
@@ -4478,6 +4480,8 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 MaybeLocal<v8::Module> ResolveCallback(Local<v8::Context> context,
                                        Local<v8::String> specifier,

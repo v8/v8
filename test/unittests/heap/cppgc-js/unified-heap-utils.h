@@ -55,9 +55,11 @@ class WrapperHelper {
   static constexpr uint16_t kTracedEmbedderId = uint16_t{0xA50F};
 
   static constexpr WrapperDescriptor DefaultWrapperDescriptor() {
+    START_ALLOW_USE_DEPRECATED()
     return WrapperDescriptor(kWrappableTypeEmbedderIndex,
                              kWrappableInstanceEmbedderIndex,
                              kTracedEmbedderId);
+    END_ALLOW_USE_DEPRECATED()
   }
 
   // Sets up a V8 API object so that it points back to a C++ object. The setup

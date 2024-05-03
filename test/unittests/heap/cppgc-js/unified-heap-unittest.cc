@@ -183,9 +183,8 @@ TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
 }
 
 TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
-  auto heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   auto* object =
       cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
   cppgc::WeakPersistent<Wrappable> weak_holder{object};
@@ -213,9 +212,8 @@ TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
   // Test ensures that stand-alone C++ GC are possible when using CppHeap. This
   // works even in the presence of wrappables using TracedReference as long
   // as the reference is empty.
-  auto heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   auto* object =
       cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
   cppgc::WeakPersistent<Wrappable> weak_holder{object};
@@ -235,9 +233,8 @@ TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
 
 TEST_F(UnifiedHeapDetachedTest, StandaloneTestingHeap) {
   // Perform garbage collection through the StandaloneTestingHeap API.
-  auto cpp_heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto cpp_heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   cpp_heap->EnableDetachedGarbageCollectionsForTesting();
   cppgc::testing::StandaloneTestingHeap heap(cpp_heap->GetHeapHandle());
   heap.StartGarbageCollection();
