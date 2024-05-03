@@ -5195,39 +5195,77 @@ Local<v8::Object> v8::Object::Clone() {
   return Utils::ToLocal(result);
 }
 
-MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
-  auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate = self->GetIsolate();
+namespace {
+V8_INLINE MaybeLocal<v8::Context> GetCreationContextImpl(
+    i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate) {
   i::Handle<i::NativeContext> context;
-  if (self->GetCreationContext(i_isolate).ToHandle(&context)) {
+  if (object->GetCreationContext(i_isolate).ToHandle(&context)) {
     return Utils::ToLocal(context);
   }
   return MaybeLocal<v8::Context>();
 }
+}  // namespace
 
-void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
+MaybeLocal<v8::Context> v8::Object::GetCreationContext(v8::Isolate* isolate) {
+  auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return GetCreationContextImpl(self, i_isolate);
+}
+
+MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
+  auto self = Utils::OpenDirectHandle(this);
+  return GetCreationContextImpl(self, self->GetIsolate());
+}
+
+namespace {
+V8_INLINE Local<v8::Context> GetCreationContextCheckedImpl(
+    i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate) {
+  i::Handle<i::NativeContext> context;
+  Utils::ApiCheck(object->GetCreationContext(i_isolate).ToHandle(&context),
+                  "v8::Object::GetCreationContextChecked",
+                  "No creation context available");
+  return Utils::ToLocal(context);
+}
+}  // namespace
+
+Local<v8::Context> v8::Object::GetCreationContextChecked(v8::Isolate* isolate) {
+  auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return GetCreationContextCheckedImpl(self, i_isolate);
+}
+
+Local<v8::Context> v8::Object::GetCreationContextChecked() {
+  auto self = Utils::OpenDirectHandle(this);
+  return GetCreationContextCheckedImpl(self, self->GetIsolate());
+}
+
+namespace {
+V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
+    i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate_for_sandbox,
     int index) {
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
-  auto maybe_context = Utils::OpenDirectHandle(this)->GetCreationContext();
+  auto maybe_context = object->GetCreationContext();
   if (!maybe_context.has_value()) return nullptr;
 
   // The code below mostly mimics Context::GetAlignedPointerFromEmbedderData()
   // but it doesn't try to expand the EmbedderDataArray instance.
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::NativeContext> native_context = maybe_context.value();
-  i::Isolate* i_isolate = native_context->GetIsolate();
 
-  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  // This macro requires a real Isolate while |i_isolate_for_sandbox| might be
+  // nullptr if the V8 sandbox is not enabled.
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(native_context->GetIsolate());
+
   // TODO(ishell): remove cast once embedder_data slot has a proper type.
   i::Tagged<i::EmbedderDataArray> data =
       i::EmbedderDataArray::cast(native_context->embedder_data());
   if (V8_LIKELY(static_cast<unsigned>(index) <
                 static_cast<unsigned>(data->length()))) {
     void* result;
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(data, index).ToAlignedPointer(i_isolate, &result),
-        location, "Pointer is not aligned");
+    Utils::ApiCheck(i::EmbedderDataSlot(data, index)
+                        .ToAlignedPointer(i_isolate_for_sandbox, &result),
+                    location, "Pointer is not aligned");
     return result;
   }
   // Bad index, report an API error.
@@ -5236,13 +5274,23 @@ void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
                   "Index too large");
   return nullptr;
 }
+}  // namespace
 
-Local<v8::Context> v8::Object::GetCreationContextChecked() {
-  Local<Context> context;
-  Utils::ApiCheck(GetCreationContext().ToLocal(&context),
-                  "v8::Object::GetCreationContextChecked",
-                  "No creation context available");
-  return context;
+void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
+    v8::Isolate* isolate, int index) {
+  auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, i_isolate,
+                                                                index);
+}
+
+void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
+    int index) {
+  auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate_for_sandbox =
+      reinterpret_cast<i::Isolate*>(GetIsolateForSandbox(*self));
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(
+      self, i_isolate_for_sandbox, index);
 }
 
 int v8::Object::GetIdentityHash() {

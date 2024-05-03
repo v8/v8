@@ -682,12 +682,16 @@ class V8_EXPORT Object : public Value {
 
   /**
    * Returns the context in which the object was created.
+   * Prefer using version with Isolate parameter.
    */
+  MaybeLocal<Context> GetCreationContext(v8::Isolate* isolate);
   MaybeLocal<Context> GetCreationContext();
 
   /**
-   * Shortcut for GetCreationContext().ToLocalChecked().
+   * Shortcut for GetCreationContext(...).ToLocalChecked().
+   * Prefer using version with Isolate parameter.
    **/
+  Local<Context> GetCreationContextChecked(v8::Isolate* isolate);
   Local<Context> GetCreationContextChecked();
 
   /** Same as above, but works for Persistents */
@@ -706,7 +710,12 @@ class V8_EXPORT Object : public Value {
    * try to expand the embedder data attached to the context.
    * In case the Local<Context> is already available because of other reasons,
    * it's fine to keep using Context::GetAlignedPointerFromEmbedderData().
+   *
+   * Prefer using version with Isolate parameter if you have an Isolate,
+   * otherwise use the other one.
    */
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
+                                                           int index);
   void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
 
   /**
