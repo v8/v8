@@ -71,8 +71,6 @@ class MemoryChunkMetadata {
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
 
-  bool InOldSpace() const;
-  V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
   bool InSharedSpace() const;
   bool InTrustedSpace() const;
 

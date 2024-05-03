@@ -34,26 +34,12 @@ MemoryChunkMetadata::~MemoryChunkMetadata() {
 #endif
 }
 
-bool MemoryChunkMetadata::InOldSpace() const {
-  return owner()->identity() == OLD_SPACE;
-}
-
-bool MemoryChunkMetadata::InLargeObjectSpace() const {
-  return owner()->identity() == LO_SPACE;
-}
-
 bool MemoryChunkMetadata::InSharedSpace() const {
-  return owner()->identity() == SHARED_SPACE ||
-         owner()->identity() == SHARED_LO_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_LO_SPACE;
+  return IsAnySharedSpace(owner()->identity());
 }
 
 bool MemoryChunkMetadata::InTrustedSpace() const {
-  return owner()->identity() == TRUSTED_SPACE ||
-         owner()->identity() == TRUSTED_LO_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_SPACE ||
-         owner()->identity() == SHARED_TRUSTED_LO_SPACE;
+  return IsAnyTrustedSpace(owner()->identity());
 }
 
 #ifdef THREAD_SANITIZER
