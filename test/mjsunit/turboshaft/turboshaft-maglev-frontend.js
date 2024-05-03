@@ -1533,3 +1533,19 @@ let glob_b = 3.35;
   assertEquals(17, load_const_key("b"));
   assertUnoptimized(load_const_key);
 }
+
+// Testing StoreGlobal.
+{
+  function store_glob() {
+    glob_a = 42;
+  }
+
+  %PrepareFunctionForOptimization(store_glob);
+  store_glob();
+  assertEquals(glob_a, 42);
+  glob_a = 25;
+  %OptimizeFunctionOnNextCall(store_glob);
+  store_glob();
+  assertEquals(glob_a, 42);
+  assertOptimized(store_glob);
+}

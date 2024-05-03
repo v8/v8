@@ -758,6 +758,20 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::StoreGlobal* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        __ HeapConstant(node->name().object()), Map(node->value()),
+        __ TaggedIndexConstant(node->feedback().index()),
+        __ HeapConstant(node->feedback().vector), Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kStoreGlobalIC, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckSmi* node,
                                 const maglev::ProcessingState& state) {
     __ DeoptimizeIfNot(__ ObjectIsSmi(Map(node->receiver_input())),
