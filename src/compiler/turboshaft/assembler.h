@@ -4112,12 +4112,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Ternary(first, second, third, kind);
   }
 
-  OpIndex Simd128ExtractLane(V<Simd128> input, Simd128ExtractLaneOp::Kind kind,
-                             uint8_t lane) {
+  V<Any> Simd128ExtractLane(V<Simd128> input, Simd128ExtractLaneOp::Kind kind,
+                            uint8_t lane) {
     return ReduceIfReachableSimd128ExtractLane(input, kind, lane);
   }
 
-  V<Simd128> Simd128ReplaceLane(V<Simd128> into, OpIndex new_lane,
+  V<Simd128> Simd128ReplaceLane(V<Simd128> into, V<Any> new_lane,
                                 Simd128ReplaceLaneOp::Kind kind, uint8_t lane) {
     return ReduceIfReachableSimd128ReplaceLane(into, new_lane, kind, lane);
   }
@@ -4131,7 +4131,7 @@ class TurboshaftAssemblerOpInterface
                                               lane_kind, lane, offset);
   }
 
-  OpIndex Simd128LoadTransform(
+  V<Simd128> Simd128LoadTransform(
       V<WordPtr> base, V<WordPtr> index,
       Simd128LoadTransformOp::LoadKind load_kind,
       Simd128LoadTransformOp::TransformKind transform_kind, int offset) {

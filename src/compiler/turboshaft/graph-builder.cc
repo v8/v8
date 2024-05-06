@@ -2308,7 +2308,7 @@ OpIndex GraphBuilder::Process(
 
 #define SIMD128_EXTRACT_LANE(name, suffix)                                    \
   case IrOpcode::k##name##ExtractLane##suffix:                                \
-    return __ Simd128ExtractLane(Map(node->InputAt(0)),                       \
+    return __ Simd128ExtractLane(Map<Simd128>(node->InputAt(0)),              \
                                  Simd128ExtractLaneOp::Kind::k##name##suffix, \
                                  OpParameter<int32_t>(node->op()));
       SIMD128_EXTRACT_LANE(I8x16, S)
@@ -2321,10 +2321,11 @@ OpIndex GraphBuilder::Process(
       SIMD128_EXTRACT_LANE(F64x2, )
 #undef SIMD128_LANE
 
-#define SIMD128_REPLACE_LANE(name)                                             \
-  case IrOpcode::k##name##ReplaceLane:                                         \
-    return __ Simd128ReplaceLane(Map(node->InputAt(0)), Map(node->InputAt(1)), \
-                                 Simd128ReplaceLaneOp::Kind::k##name,          \
+#define SIMD128_REPLACE_LANE(name)                                    \
+  case IrOpcode::k##name##ReplaceLane:                                \
+    return __ Simd128ReplaceLane(Map<Simd128>(node->InputAt(0)),      \
+                                 Map<Any>(node->InputAt(1)),          \
+                                 Simd128ReplaceLaneOp::Kind::k##name, \
                                  OpParameter<int32_t>(node->op()));
       SIMD128_REPLACE_LANE(I8x16)
       SIMD128_REPLACE_LANE(I16x8)

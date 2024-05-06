@@ -1333,7 +1333,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
-    OpIndex load = __ Simd128LoadTransform(
+    V<compiler::turboshaft::Simd128> load = __ Simd128LoadTransform(
         __ WordPtrAdd(MemStart(imm.mem_index), imm.offset), final_index,
         load_kind, transform_kind, 0);
 
@@ -2817,67 +2817,69 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   base::Vector<const Value> inputs, Value* result) {
     using compiler::turboshaft::Simd128ExtractLaneOp;
     using compiler::turboshaft::Simd128ReplaceLaneOp;
+    using Simd128 = compiler::turboshaft::Simd128;
+    V<Simd128> input_val = V<Simd128>::Cast(inputs[0].op);
     switch (opcode) {
       case kExprI8x16ExtractLaneS:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16S, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI8x16S, imm.lane);
         break;
       case kExprI8x16ExtractLaneU:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16U, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI8x16U, imm.lane);
         break;
       case kExprI16x8ExtractLaneS:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
         break;
       case kExprI16x8ExtractLaneU:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8U, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI16x8U, imm.lane);
         break;
       case kExprI32x4ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI32x4, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI32x4, imm.lane);
         break;
       case kExprI64x2ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
         break;
       case kExprF32x4ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
         break;
       case kExprF64x2ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kF64x2, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kF64x2, imm.lane);
         break;
       case kExprI8x16ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI8x16, imm.lane);
         break;
       case kExprI16x8ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Simd128>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI16x8, imm.lane);
         break;
       case kExprI32x4ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI32x4, imm.lane);
         break;
       case kExprI64x2ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI64x2, imm.lane);
         break;
       case kExprF32x4ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kF32x4, imm.lane);
         break;
       case kExprF64x2ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kF64x2, imm.lane);
         break;
       default:
@@ -2947,22 +2949,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           index++;
           break;
         case kS128: {
+          using Simd128 = compiler::turboshaft::Simd128;
+          V<Simd128> value_s128 = V<Simd128>::Cast(value);
           using Kind = compiler::turboshaft::Simd128ExtractLaneOp::Kind;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 0));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 0)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 1));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 1)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 2));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 2)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 3));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 3)));
           index += 2;
           break;
         }
@@ -7090,23 +7094,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           index += 4;
           break;
         case kS128: {
-          value.op = __ Simd128Splat(
+          V<compiler::turboshaft::Simd128> value_s128;
+          value_s128 = __ Simd128Splat(
               BuildDecodeException32BitValue(exception_values_array, index),
               compiler::turboshaft::Simd128SplatOp::Kind::kI32x4);
           index += 2;
           using Kind = compiler::turboshaft::Simd128ReplaceLaneOp::Kind;
-          value.op = __ Simd128ReplaceLane(
-              value.op,
+          value_s128 = __ Simd128ReplaceLane(
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 1);
           index += 2;
-          value.op = __ Simd128ReplaceLane(
-              value.op,
+          value_s128 = __ Simd128ReplaceLane(
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 2);
           index += 2;
           value.op = __ Simd128ReplaceLane(
-              value.op,
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 3);
           index += 2;

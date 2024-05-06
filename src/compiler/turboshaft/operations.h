@@ -7568,10 +7568,10 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
     return MaybeRepVector<RegisterRepresentation::Simd128()>();
   }
 
-  Simd128ExtractLaneOp(OpIndex input, Kind kind, uint8_t lane)
+  Simd128ExtractLaneOp(V<Simd128> input, Kind kind, uint8_t lane)
       : Base(input), kind(kind), lane(lane) {}
 
-  OpIndex input() const { return Base::input(0); }
+  V<Simd128> input() const { return Base::input<Simd128>(0); }
 
   void Validate(const Graph& graph) const {
 #if DEBUG
@@ -7626,11 +7626,12 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
                         {RegisterRepresentation::Simd128(), new_lane_rep()});
   }
 
-  Simd128ReplaceLaneOp(OpIndex into, OpIndex new_lane, Kind kind, uint8_t lane)
+  Simd128ReplaceLaneOp(V<Simd128> into, V<Any> new_lane, Kind kind,
+                       uint8_t lane)
       : Base(into, new_lane), kind(kind), lane(lane) {}
 
-  OpIndex into() const { return Base::input(0); }
-  OpIndex new_lane() const { return Base::input(1); }
+  V<Simd128> into() const { return input<Simd128>(0); }
+  V<Any> new_lane() const { return input<Any>(1); }
 
   void Validate(const Graph& graph) const {
 #if DEBUG
@@ -7808,15 +7809,15 @@ struct Simd128LoadTransformOp
                           RegisterRepresentation::WordPtr()>();
   }
 
-  Simd128LoadTransformOp(OpIndex base, OpIndex index, LoadKind load_kind,
+  Simd128LoadTransformOp(V<WordPtr> base, V<WordPtr> index, LoadKind load_kind,
                          TransformKind transform_kind, int offset)
       : Base(base, index),
         load_kind(load_kind),
         transform_kind(transform_kind),
         offset(offset) {}
 
-  OpIndex base() const { return input(0); }
-  OpIndex index() const { return input(1); }
+  V<WordPtr> base() const { return input<WordPtr>(0); }
+  V<WordPtr> index() const { return input<WordPtr>(1); }
 
   void Validate(const Graph& graph) { DCHECK(!load_kind.tagged_base); }
 
