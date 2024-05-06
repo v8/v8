@@ -5188,11 +5188,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   const Value args[]) {
     CHECK(v8_flags.wasm_deopt);
     compiler::turboshaft::FrameStateData::Builder builder;
-    // The first input is the closure for JS; Wasm adds the
-    // WasmTrustedInstanceData as a dummy value instead. (The code generator
-    // will just skip this input as the liftoff frame doesn't have a closure.)
-    // TODO(14616): Fix sharedness.
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
+    // The first input is the closure for JS. (The instruction selector will
+    // just skip this input as the liftoff frame doesn't have a closure.)
+    builder.AddInput(MachineType::AnyTagged(), __ SmiConstant(0));
     // Add the parameters.
     size_t param_count = decoder->sig_->parameter_count();
     for (size_t i = 0; i < param_count; ++i) {
@@ -5200,8 +5198,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // Add the context. Wasm doesn't have a JS context, so this is another
     // value skipped by the instruction selector.
-    // TODO(14616): Fix sharedness.
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
+    builder.AddInput(MachineType::AnyTagged(), __ SmiConstant(0));
 
     // Add the wasm locals.
     for (size_t i = param_count; i < ssa_env_.size(); ++i) {
