@@ -636,20 +636,18 @@ class WasmRevecReducer : public Next {
     return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Unary)(OpIndex ig_index,
-                                           const Simd128UnaryOp& unary) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Unary)(V<Simd128> ig_index,
+                                              const Simd128UnaryOp& unary) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
-        auto input = analyzer_.GetReduced(unary.input());
+        V<Simd256> input = analyzer_.GetReduced(unary.input());
         if (!input.valid()) {
-          input = __ MapToNewGraph(unary.input());
-          og_index = __ Simd256Unary(V<Simd128>::Cast(input),
-                                     GetSimd256UnaryKind(unary.kind));
+          V<Simd128> input = __ MapToNewGraph(unary.input());
+          og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
         } else {
-          og_index = __ Simd256Unary(V<Simd256>::Cast(input),
-                                     GetSimd256UnaryKind(unary.kind));
+          og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
         }
         pnode->SetRevectorizedNode(og_index);
       }
@@ -702,10 +700,10 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Shift(ig_index, op);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Ternary)(OpIndex ig_index,
-                                             const Simd128TernaryOp& ternary) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Ternary)(
+      V<Simd128> ig_index, const Simd128TernaryOp& ternary) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
         V<Simd256> first = analyzer_.GetReduced(ternary.first());
@@ -723,10 +721,10 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Ternary(ig_index, ternary);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Splat)(OpIndex ig_index,
-                                           const Simd128SplatOp& op) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Splat)(V<Simd128> ig_index,
+                                              const Simd128SplatOp& op) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
         og_index = __ Simd256Splat(__ MapToNewGraph(op.input()),

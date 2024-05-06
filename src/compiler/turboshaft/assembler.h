@@ -4103,12 +4103,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Test(input, kind);
   }
 
-  V<Simd128> Simd128Splat(OpIndex input, Simd128SplatOp::Kind kind) {
+  V<Simd128> Simd128Splat(V<Any> input, Simd128SplatOp::Kind kind) {
     return ReduceIfReachableSimd128Splat(input, kind);
   }
 
-  V<Simd128> Simd128Ternary(OpIndex first, OpIndex second, OpIndex third,
-                            Simd128TernaryOp::Kind kind) {
+  V<Simd128> Simd128Ternary(V<Simd128> first, V<Simd128> second,
+                            V<Simd128> third, Simd128TernaryOp::Kind kind) {
     return ReduceIfReachableSimd128Ternary(first, second, third, kind);
   }
 

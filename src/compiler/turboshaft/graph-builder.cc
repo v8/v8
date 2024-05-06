@@ -2269,9 +2269,9 @@ OpIndex GraphBuilder::Process(
                                  : Simd128BinopOp::Kind::kI8x16Swizzle);
     }
 
-#define SIMD128_UNOP(name)                        \
-  case IrOpcode::k##name:                         \
-    return __ Simd128Unary(Map(node->InputAt(0)), \
+#define SIMD128_UNOP(name)                                 \
+  case IrOpcode::k##name:                                  \
+    return __ Simd128Unary(Map<Simd128>(node->InputAt(0)), \
                            Simd128UnaryOp::Kind::k##name);
       FOREACH_SIMD_128_UNARY_OPCODE(SIMD128_UNOP)
 #undef SIMD128_UNOP
@@ -2284,15 +2284,16 @@ OpIndex GraphBuilder::Process(
       FOREACH_SIMD_128_SHIFT_OPCODE(SIMD128_SHIFT)
 #undef SIMD128_UNOP
 
-#define SIMD128_TEST(name) \
-  case IrOpcode::k##name:  \
-    return __ Simd128Test(Map(node->InputAt(0)), Simd128TestOp::Kind::k##name);
+#define SIMD128_TEST(name)                                \
+  case IrOpcode::k##name:                                 \
+    return __ Simd128Test(Map<Simd128>(node->InputAt(0)), \
+                          Simd128TestOp::Kind::k##name);
       FOREACH_SIMD_128_TEST_OPCODE(SIMD128_TEST)
 #undef SIMD128_UNOP
 
-#define SIMD128_SPLAT(name)                       \
-  case IrOpcode::k##name##Splat:                  \
-    return __ Simd128Splat(Map(node->InputAt(0)), \
+#define SIMD128_SPLAT(name)                            \
+  case IrOpcode::k##name##Splat:                       \
+    return __ Simd128Splat(Map<Any>(node->InputAt(0)), \
                            Simd128SplatOp::Kind::k##name);
       FOREACH_SIMD_128_SPLAT_OPCODE(SIMD128_SPLAT)
 #undef SIMD128_SPLAT

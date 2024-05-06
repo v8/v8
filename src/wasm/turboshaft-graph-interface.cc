@@ -1048,13 +1048,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (ReverseBytesSupported(value_size_in_bytes)) {
       switch (value_size_in_bytes) {
         case 4:
-          result = __ Word32ReverseBytes(value);
+          result = __ Word32ReverseBytes(V<Word32>::Cast(value));
           break;
         case 8:
-          result = __ Word64ReverseBytes(value);
+          result = __ Word64ReverseBytes(V<Word64>::Cast(value));
           break;
         case 16:
-          result = __ Simd128ReverseBytes(value);
+          result = __ Simd128ReverseBytes(
+              V<compiler::turboshaft::Simd128>::Cast(value));
           break;
         default:
           UNREACHABLE();
@@ -2717,25 +2718,27 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
 #undef HANDLE_INVERSE_COMPARISON
 
-#define HANDLE_UNARY_NON_OPTIONAL_OPCODE(kind)                            \
-  case kExpr##kind:                                                       \
-    result->op = __ Simd128Unary(                                         \
-        args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
+#define HANDLE_UNARY_NON_OPTIONAL_OPCODE(kind)                                \
+  case kExpr##kind:                                                           \
+    result->op =                                                              \
+        __ Simd128Unary(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(
           HANDLE_UNARY_NON_OPTIONAL_OPCODE)
 #undef HANDLE_UNARY_NON_OPTIONAL_OPCODE
 
-#define HANDLE_UNARY_OPTIONAL_OPCODE(kind, feature, external_ref)           \
-  case kExpr##kind:                                                         \
-    if (SupportedOperations::feature()) {                                   \
-      result->op = __ Simd128Unary(                                         \
-          args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
-    } else {                                                                \
-      result->op = CallCStackSlotToStackSlot(                               \
-          args[0].op, ExternalReference::external_ref(),                    \
-          MemoryRepresentation::Simd128());                                 \
-    }                                                                       \
+#define HANDLE_UNARY_OPTIONAL_OPCODE(kind, feature, external_ref) \
+  case kExpr##kind:                                               \
+    if (SupportedOperations::feature()) {                         \
+      result->op = __ Simd128Unary(                               \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+          compiler::turboshaft::Simd128UnaryOp::Kind::k##kind);   \
+    } else {                                                      \
+      result->op = CallCStackSlotToStackSlot(                     \
+          args[0].op, ExternalReference::external_ref(),          \
+          MemoryRepresentation::Simd128());                       \
+    }                                                             \
     break;
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Ceil, float32_round_up, wasm_f32x4_ceil)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Floor, float32_round_down,
@@ -2763,18 +2766,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       FOREACH_SIMD_128_SHIFT_OPCODE(HANDLE_SHIFT_OPCODE)
 #undef HANDLE_SHIFT_OPCODE
 
-#define HANDLE_TEST_OPCODE(kind)                                         \
-  case kExpr##kind:                                                      \
-    result->op = __ Simd128Test(                                         \
-        args[0].op, compiler::turboshaft::Simd128TestOp::Kind::k##kind); \
+#define HANDLE_TEST_OPCODE(kind)                                            \
+  case kExpr##kind:                                                         \
+    result->op =                                                            \
+        __ Simd128Test(V<compiler::turboshaft::Simd128>::Cast(args[0].op),  \
+                       compiler::turboshaft::Simd128TestOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TEST_OPCODE(HANDLE_TEST_OPCODE)
 #undef HANDLE_TEST_OPCODE
 
-#define HANDLE_SPLAT_OPCODE(kind)                                         \
-  case kExpr##kind##Splat:                                                \
-    result->op = __ Simd128Splat(                                         \
-        args[0].op, compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
+#define HANDLE_SPLAT_OPCODE(kind)                                             \
+  case kExpr##kind##Splat:                                                    \
+    result->op =                                                              \
+        __ Simd128Splat(V<Any>::Cast(args[0].op),                             \
+                        compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_SPLAT_OPCODE(HANDLE_SPLAT_OPCODE)
 #undef HANDLE_SPLAT_OPCODE
@@ -2783,7 +2788,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #define HANDLE_TERNARY_MASK_OPCODE(kind)                        \
   case kExpr##kind:                                             \
     result->op = __ Simd128Ternary(                             \
-        args[2].op, args[0].op, args[1].op,                     \
+        V<compiler::turboshaft::Simd128>::Cast(args[2].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),     \
         compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TERNARY_MASK_OPCODE(HANDLE_TERNARY_MASK_OPCODE)
@@ -2792,7 +2799,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #define HANDLE_TERNARY_OTHER_OPCODE(kind)                       \
   case kExpr##kind:                                             \
     result->op = __ Simd128Ternary(                             \
-        args[0].op, args[1].op, args[2].op,                     \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[2].op),     \
         compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)

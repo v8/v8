@@ -434,12 +434,12 @@ class Int64LoweringReducer : public Next {
     return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
   }
 
-  OpIndex REDUCE(Simd128Splat)(OpIndex input, Simd128SplatOp::Kind kind) {
+  V<Simd128> REDUCE(Simd128Splat)(V<Any> input, Simd128SplatOp::Kind kind) {
     // TODO(14108): Introduce I32-pair splat for better codegen.
     if (kind != Simd128SplatOp::Kind::kI64x2) {
       return Next::ReduceSimd128Splat(input, kind);
     }
-    auto [low, high] = Unpack(input);
+    auto [low, high] = Unpack(V<Word64>::Cast(input));
     V<Simd128> base = __ Simd128Splat(low, Simd128SplatOp::Kind::kI32x4);
     V<Simd128> first_replaced = __ Simd128ReplaceLane(
         base, high, Simd128ReplaceLaneOp::Kind::kI32x4, 1);

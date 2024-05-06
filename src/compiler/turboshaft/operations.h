@@ -7323,9 +7323,9 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
     return MaybeRepVector<RegisterRepresentation::Simd128()>();
   }
 
-  Simd128UnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+  Simd128UnaryOp(V<Simd128> input, Kind kind) : Base(input), kind(kind) {}
 
-  OpIndex input() const { return Base::input(0); }
+  V<Simd128> input() const { return Base::input<Simd128>(0); }
 
   void Validate(const Graph& graph) const {}
 
@@ -7413,9 +7413,9 @@ struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
     return MaybeRepVector<RegisterRepresentation::Simd128()>();
   }
 
-  Simd128TestOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+  Simd128TestOp(V<Simd128> input, Kind kind) : Base(input), kind(kind) {}
 
-  OpIndex input() const { return Base::input(0); }
+  V<Simd128> input() const { return Base::input<Simd128>(0); }
 
   void Validate(const Graph& graph) const {}
 
@@ -7463,9 +7463,9 @@ struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
     }
   }
 
-  Simd128SplatOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+  Simd128SplatOp(V<Any> input, Kind kind) : Base(input), kind(kind) {}
 
-  OpIndex input() const { return Base::input(0); }
+  V<Any> input() const { return Base::input<Any>(0); }
 
   void Validate(const Graph& graph) const {}
 
@@ -7514,12 +7514,13 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
                           RegisterRepresentation::Simd128()>();
   }
 
-  Simd128TernaryOp(OpIndex first, OpIndex second, OpIndex third, Kind kind)
+  Simd128TernaryOp(V<Simd128> first, V<Simd128> second, V<Simd128> third,
+                   Kind kind)
       : Base(first, second, third), kind(kind) {}
 
-  OpIndex first() const { return input(0); }
-  OpIndex second() const { return input(1); }
-  OpIndex third() const { return input(2); }
+  V<Simd128> first() const { return input<Simd128>(0); }
+  V<Simd128> second() const { return input<Simd128>(1); }
+  V<Simd128> third() const { return input<Simd128>(2); }
 
   void Validate(const Graph& graph) const {}
 

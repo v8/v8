@@ -387,7 +387,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 #undef DECL_SIMD128_BINOP
 
 #define DECL_SIMD128_UNOP(Name)                                \
-  V<Simd128> Name(OpIndex input) {                             \
+  V<Simd128> Name(V<Simd128> input) {                          \
     return Simd128Unary(input, Simd128UnaryOp::Kind::k##Name); \
   }
     FOREACH_SIMD_128_UNARY_OPCODE(DECL_SIMD128_UNOP)
