@@ -8067,7 +8067,11 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     if (compiler::OptionalHeapObjectRef maybe_constant =
             TryGetConstant(target_node)) {
       if (maybe_constant->IsJSFunction()) {
-        target_type = Call::TargetType::kJSFunction;
+        compiler::SharedFunctionInfoRef shared =
+            maybe_constant->AsJSFunction().shared(broker());
+        if (!IsClassConstructor(shared.kind())) {
+          target_type = Call::TargetType::kJSFunction;
+        }
       }
     }
     int start_index = 0;
