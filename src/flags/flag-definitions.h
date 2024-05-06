@@ -2053,6 +2053,8 @@ DEFINE_BOOL(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_BOOL(enable_avx, true, "enable use of AVX instructions if available")
 DEFINE_BOOL(enable_avx2, true, "enable use of AVX2 instructions if available")
+DEFINE_BOOL(enable_avx_vnni, true,
+            "enable use of AVX-VNNI instructions if available")
 DEFINE_BOOL(enable_fma3, true, "enable use of FMA3 instructions if available")
 DEFINE_BOOL(enable_bmi1, true, "enable use of BMI1 instructions if available")
 DEFINE_BOOL(enable_bmi2, true, "enable use of BMI2 instructions if available")

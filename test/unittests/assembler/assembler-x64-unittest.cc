@@ -3218,6 +3218,8 @@ TEST_F(AssemblerX64Test, F16C) {
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX_VNNI),
+                CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX),
                 CpuFeatures::IsSupported(SSE4_2));
@@ -3240,6 +3242,8 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 !CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
                 !CpuFeatures::IsSupported(AVX2));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
+                !CpuFeatures::IsSupported(AVX_VNNI));
   CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
                 !CpuFeatures::IsSupported(FMA3));
 }

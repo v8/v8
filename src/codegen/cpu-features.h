@@ -21,6 +21,7 @@ enum CpuFeature {
   SAHF,
   AVX,
   AVX2,
+  AVX_VNNI,
   FMA3,
   BMI1,
   BMI2,

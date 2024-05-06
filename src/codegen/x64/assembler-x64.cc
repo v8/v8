@@ -101,6 +101,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_avx() && cpu.has_osxsave() && OSHasAVXSupport()) {
     SetSupported(AVX);
     if (cpu.has_avx2()) SetSupported(AVX2);
+    if (cpu.has_avx_vnni()) SetSupported(AVX_VNNI);
     if (cpu.has_fma3()) SetSupported(FMA3);
   }
 
@@ -128,6 +129,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (!v8_flags.enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
   if (!v8_flags.enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
   if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
+  if (!v8_flags.enable_avx_vnni || !IsSupported(AVX)) SetUnsupported(AVX_VNNI);
   if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
 
   // Set a static value on whether Simd is supported.
@@ -145,7 +147,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf(
-      "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d FMA3=%d "
+      "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d AVX_VNNI=%d "
+      "FMA3=%d "
       "BMI1=%d "
       "BMI2=%d "
       "LZCNT=%d "
@@ -153,10 +156,10 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
       CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
-      CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(FMA3),
-      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
-      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX_VNNI),
+      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(BMI1),
+      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
+      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------

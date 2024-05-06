@@ -95,6 +95,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_osxsave() const { return has_osxsave_; }
   bool has_avx() const { return has_avx_; }
   bool has_avx2() const { return has_avx2_; }
+  bool has_avx_vnni() const { return has_avx_vnni_; }
   bool has_fma3() const { return has_fma3_; }
   bool has_f16c() const { return has_f16c_; }
   bool has_bmi1() const { return has_bmi1_; }
@@ -178,6 +179,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_osxsave_;
   bool has_avx_;
   bool has_avx2_;
+  bool has_avx_vnni_;
   bool has_fma3_;
   bool has_f16c_;
   bool has_bmi1_;

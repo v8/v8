@@ -87,6 +87,30 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #endif  // defined(__i386__) && defined(__pic__)
 }
 
+static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
+                                int sub_info_type) {
+// Gather additional information about the processor.
+// Set the value of the ECX register to sub_info_type before it generates the
+// cpuid instruction, align with __cpuidex() of MSVC:
+// https://msdn.microsoft.com/en-us/library/hskdteyh.aspx
+#if defined(__i386__) && defined(__pic__)
+  // Make sure to preserve ebx, which contains the pointer
+  // to the GOT in case we're generating PIC.
+  __asm__ volatile(
+      "mov %%ebx, %%edi\n\t"
+      "cpuid\n\t"
+      "xchg %%edi, %%ebx\n\t"
+      : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]),
+        "=d"(cpu_info[3])
+      : "a"(info_type), "c"(sub_info_type));
+#else
+  __asm__ volatile("cpuid \n\t"
+                   : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]),
+                     "=d"(cpu_info[3])
+                   : "a"(info_type), "c"(sub_info_type));
+#endif  // defined(__i386__) && defined(__pic__)
+}
+
 #endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS64 || \
@@ -359,6 +383,7 @@ bool CPU::StarboardDetectCPU() {
       has_sahf_ = features.x86.has_sahf;
       has_avx_ = features.x86.has_avx;
       has_avx2_ = features.x86.has_avx2;
+      // TODO: Support AVX-VNNI on Starboard
       has_fma3_ = features.x86.has_fma3;
       has_bmi1_ = features.x86.has_bmi1;
       has_bmi2_ = features.x86.has_bmi2;
@@ -404,6 +429,7 @@ CPU::CPU()
       has_osxsave_(false),
       has_avx_(false),
       has_avx2_(false),
+      has_avx_vnni_(false),
       has_fma3_(false),
       has_f16c_(false),
       has_bmi1_(false),
@@ -456,9 +482,14 @@ CPU::CPU()
   if (num_ids > 0) {
     __cpuid(cpu_info, 1);
 
-    int cpu_info7[4] = {0};
+    int cpu_info70[4] = {0};
+    int cpu_info71[4] = {0};
     if (num_ids >= 7) {
-      __cpuid(cpu_info7, 7);
+      __cpuid(cpu_info70, 7);
+      // Check the maximum input value for supported leaf 7 sub-leaves
+      if (cpu_info70[0] >= 1) {
+        __cpuidex(cpu_info71, 7, 1);
+      }
     }
 
     stepping_ = cpu_info[0] & 0xF;
@@ -479,12 +510,13 @@ CPU::CPU()
     has_popcnt_ = (cpu_info[2] & 0x00800000) != 0;
     has_osxsave_ = (cpu_info[2] & 0x08000000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
-    has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
+    has_avx2_ = (cpu_info70[1] & 0x00000020) != 0;
+    has_avx_vnni_ = (cpu_info71[0] & 0x00000010) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
     has_f16c_ = (cpu_info[2] & 0x20000000) != 0;
     // CET shadow stack feature flag. See
     // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
-    has_cetss_ = (cpu_info7[2] & 0x00000080) != 0;
+    has_cetss_ = (cpu_info70[2] & 0x00000080) != 0;
     // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
     // See https://lwn.net/Articles/301888/
     // This is checking for any hypervisor. Hypervisors may choose not to
