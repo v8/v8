@@ -837,6 +837,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 #else
   CHECK(v8_flags.wasm_deopt);
   {
+    base::ElapsedTimer timer;
     // Lookup the deopt info for the input frame.
     // TODO(mliedtke): Should we store this in the Deoptimizer instead of
     // looking it up again?
@@ -847,6 +848,21 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     wasm::WasmDeoptView deopt_view(code->deopt_data());
     wasm::WasmDeoptEntry deopt_entry =
         deopt_view.GetDeoptEntry(deopt_exit_index_);
+
+    if (tracing_enabled()) {
+      timer.Start();
+      FILE* file = trace_scope()->file();
+      PrintF(file,
+             "[bailout (kind: %s, reason: %s, type: Wasm): begin. deoptimizing "
+             "%s, bytecode offset %d, deopt exit %d, FP to SP delta %d, "
+             "pc " V8PRIxPTR_FMT "]\n",
+             MessageFor(deopt_kind_),
+             DeoptimizeReasonToString(DeoptimizeReason::kWrongCallTarget),
+             code->DebugName().c_str(), deopt_entry.bytecode_offset.ToInt(),
+             deopt_entry.translation_index, fp_to_sp_delta_,
+             PointerAuthentication::StripPAC(from_));
+    }
+
     base::Vector<const uint8_t> off_heap_translations =
         deopt_view.GetTranslationsArray();
 
@@ -1052,6 +1068,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     output_frame->SetRegister(kPtrComprCageBaseRegister.code(),
                               isolate()->cage_base());
 #endif
+    if (verbose_tracing_enabled()) {
+      TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
+    }
   }
 #endif
 }
