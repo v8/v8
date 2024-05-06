@@ -443,6 +443,7 @@ CapturedObject CapturedObject::CreateJSObject(Zone* zone,
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_GE(slot_count, 3);
   CapturedObject object(zone, slot_count);
   object.set(JSObject::kMapOffset, map);
   object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
