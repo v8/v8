@@ -6387,9 +6387,12 @@ struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
   const wasm::WasmGlobal* global;
   static constexpr OpEffects effects = OpEffects().CanReadMemory();
 
-  OpIndex instance() const { return Base::input(0); }
+  V<WasmTrustedInstanceData> instance() const {
+    return input<WasmTrustedInstanceData>(0);
+  }
 
-  GlobalGetOp(OpIndex instance, const wasm::WasmGlobal* global)
+  GlobalGetOp(V<WasmTrustedInstanceData> instance,
+              const wasm::WasmGlobal* global)
       : Base(instance), global(global) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6412,10 +6415,12 @@ struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {
   const wasm::WasmGlobal* global;
   static constexpr OpEffects effects = OpEffects().CanWriteMemory();
 
-  OpIndex instance() const { return Base::input(0); }
-  OpIndex value() const { return Base::input(1); }
+  V<WasmTrustedInstanceData> instance() const {
+    return input<WasmTrustedInstanceData>(0);
+  }
+  V<Any> value() const { return input<Any>(1); }
 
-  explicit GlobalSetOp(OpIndex instance, OpIndex value,
+  explicit GlobalSetOp(V<WasmTrustedInstanceData> instance, V<Any> value,
                        const wasm::WasmGlobal* global)
       : Base(instance, value), global(global) {}
 

@@ -30,12 +30,13 @@ class WasmLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmLowering)
 
-  OpIndex REDUCE(GlobalGet)(OpIndex instance, const wasm::WasmGlobal* global) {
+  V<Any> REDUCE(GlobalGet)(V<WasmTrustedInstanceData> instance,
+                           const wasm::WasmGlobal* global) {
     return LowerGlobalSetOrGet(instance, OpIndex::Invalid(), global,
                                GlobalMode::kLoad);
   }
 
-  OpIndex REDUCE(GlobalSet)(OpIndex instance, OpIndex value,
+  OpIndex REDUCE(GlobalSet)(V<WasmTrustedInstanceData> instance, V<Any> value,
                             const wasm::WasmGlobal* global) {
     return LowerGlobalSetOrGet(instance, value, global, GlobalMode::kStore);
   }
@@ -837,23 +838,23 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex LowerGlobalSetOrGet(OpIndex instance, OpIndex value,
+  OpIndex LowerGlobalSetOrGet(V<WasmTrustedInstanceData> instance, V<Any> value,
                               const wasm::WasmGlobal* global, GlobalMode mode) {
     bool is_mutable = global->mutability;
     DCHECK_IMPLIES(!is_mutable, mode == GlobalMode::kLoad);
     if (is_mutable && global->imported) {
-      OpIndex imported_mutable_globals =
+      V<FixedAddressArray> imported_mutable_globals =
           LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobals,
                                         MemoryRepresentation::TaggedPointer());
       int field_offset =
           FixedAddressArray::kHeaderSize + global->index * kSystemPointerSize;
       if (global->type.is_reference()) {
-        OpIndex buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        V<FixedArray> buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
             instance, ImportedMutableGlobalsBuffers,
             MemoryRepresentation::TaggedPointer());
         int offset_in_buffers =
             FixedArray::kHeaderSize + global->offset * kTaggedSize;
-        OpIndex base =
+        V<HeapObject> base =
             __ Load(buffers, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::AnyTagged(), offset_in_buffers);
         V<Word32> index = __ Load(imported_mutable_globals, OpIndex::Invalid(),
@@ -887,7 +888,7 @@ class WasmLoweringReducer : public Next {
         }
       }
     } else if (global->type.is_reference()) {
-      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
+      V<HeapObject> base = LOAD_IMMUTABLE_INSTANCE_FIELD(
           instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
       int offset = FixedArray::kHeaderSize + global->offset * kTaggedSize;
       if (mode == GlobalMode::kLoad) {

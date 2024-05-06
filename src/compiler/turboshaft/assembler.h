@@ -3976,13 +3976,13 @@ class TurboshaftAssemblerOpInterface
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  OpIndex GlobalGet(V<WasmTrustedInstanceData> trusted_instance_data,
-                    const wasm::WasmGlobal* global) {
+  V<Any> GlobalGet(V<WasmTrustedInstanceData> trusted_instance_data,
+                   const wasm::WasmGlobal* global) {
     return ReduceIfReachableGlobalGet(trusted_instance_data, global);
   }
 
   OpIndex GlobalSet(V<WasmTrustedInstanceData> trusted_instance_data,
-                    OpIndex value, const wasm::WasmGlobal* global) {
+                    V<Any> value, const wasm::WasmGlobal* global) {
     return ReduceIfReachableGlobalSet(trusted_instance_data, value, global);
   }
 
