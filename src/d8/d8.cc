@@ -1812,7 +1812,11 @@ void SendPerfControlCommand(const char* command) {
     CHECK_EQ(ret, command_len);
 
     char ack[5];
-    CHECK_EQ(read(Shell::options.perf_ack_fd, ack, 5), 5);
+    ret = read(Shell::options.perf_ack_fd, ack, 5);
+    if (ret == -1) {
+      fprintf(stderr, "perf_ack read error: %s\n", strerror(errno));
+    }
+    CHECK_EQ(ret, 5);
     CHECK_EQ(strcmp(ack, "ack\n"), 0);
   }
 }

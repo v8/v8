@@ -182,7 +182,7 @@ def main():
       ]
       pass_fds = [perf_ctl_fd, perf_ack_fd]
     else:
-      pass_fds = None
+      pass_fds = []
 
     cmd += args
     log("D8 CMD: ", shlex.join(cmd))
@@ -225,8 +225,8 @@ def main():
         subprocess.check_call(cmd, pass_fds=pass_fds)
         log("Waiting for linux-perf to flush all perf data")
         time.sleep(1)
-      except:
-        log("ERROR running perf record")
+      except Exception as e:
+        log("ERROR running perf record: ", e)
     else:
       process = subprocess.Popen(cmd, pass_fds=pass_fds)
       if not wait_for_process_timeout(process):
