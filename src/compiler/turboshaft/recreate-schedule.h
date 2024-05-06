@@ -19,13 +19,15 @@ class CallDescriptor;
 }  // namespace v8::internal::compiler
 namespace v8::internal::compiler::turboshaft {
 class Graph;
+class PipelineData;
 
 struct RecreateScheduleResult {
   compiler::Graph* graph;
   Schedule* schedule;
 };
 
-RecreateScheduleResult RecreateSchedule(CallDescriptor* call_descriptor,
+RecreateScheduleResult RecreateSchedule(PipelineData* data,
+                                        CallDescriptor* call_descriptor,
                                         Zone* phase_zone);
 
 }  // namespace v8::internal::compiler::turboshaft

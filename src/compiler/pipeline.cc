@@ -167,7 +167,7 @@ class PipelineImpl final {
   explicit PipelineImpl(PipelineData* data) : data_(data) {}
 
   // Helpers for executing pipeline phases.
-  template <typename Phase, typename... Args>
+  template <CONCEPT(turboshaft::CompilerPhase) Phase, typename... Args>
   auto Run(Args&&... args);
 
   // Step A.1. Initialize the heap broker.
@@ -181,7 +181,7 @@ class PipelineImpl final {
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
-  turboshaft::PipelineData GetTurboshaftPipelineData(
+  turboshaft::PipelineData& GetTurboshaftPipelineData(
       turboshaft::TurboshaftPipelineKind kind,
       turboshaft::Graph* graph = nullptr);
 
@@ -772,7 +772,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-template <typename Phase, typename... Args>
+template <CONCEPT(turboshaft::CompilerPhase) Phase, typename... Args>
 auto PipelineImpl::Run(Args&&... args) {
 #ifdef V8_RUNTIME_CALL_STATS
   PipelineRunScope scope(this->data_, Phase::phase_name(),
@@ -784,27 +784,30 @@ auto PipelineImpl::Run(Args&&... args) {
   if constexpr (Phase::kKind == PhaseKind::kTurbofan) {
     return phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
   } else if constexpr (Phase::kKind == PhaseKind::kTurboshaft) {
+    turboshaft::PipelineData* data = this->data_->turboshaft_data();
+    STATIC_ASSERT_IF_CONCEPTS(turboshaft::TurboshaftPhase<Phase>);
+    DCHECK_NOT_NULL(data);
     using result_t =
-        decltype(phase.Run(scope.zone(), std::forward<Args>(args)...));
+        decltype(phase.Run(data, scope.zone(), std::forward<Args>(args)...));
     CodeTracer* code_tracer = nullptr;
     USE(code_tracer);
-    if (turboshaft::PipelineData::Get().info()->trace_turbo_graph()) {
+    if (data->info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
       // because it may not yet be initialized then and doing so from the
       // background thread is not threadsafe.
       code_tracer = this->data_->GetCodeTracer();
     }
     if constexpr (std::is_same_v<result_t, void>) {
-      phase.Run(scope.zone(), std::forward<Args>(args)...);
+      phase.Run(data, scope.zone(), std::forward<Args>(args)...);
       if constexpr (turboshaft::produces_printable_graph<Phase>::value) {
-        turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
+        turboshaft::PrintTurboshaftGraph(data, scope.zone(), code_tracer,
                                          Phase::phase_name());
       }
       return;
     } else {
-      auto result = phase.Run(scope.zone(), std::forward<Args>(args)...);
+      auto result = phase.Run(data, scope.zone(), std::forward<Args>(args)...);
       if constexpr (turboshaft::produces_printable_graph<Phase>::value) {
-        turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
+        turboshaft::PrintTurboshaftGraph(data, scope.zone(), code_tracer,
                                          Phase::phase_name());
       }
       return result;
@@ -2230,17 +2233,16 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   TraceWrapperCompilation("Turboshaft", &info_, &data_);
   Linkage linkage(call_descriptor_);
 
-  base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
+  turboshaft::PipelineData& turboshaft_pipeline =
       pipeline_.GetTurboshaftPipelineData(
           wrapper_info_.code_kind == CodeKind::JS_TO_WASM_FUNCTION
               ? turboshaft::TurboshaftPipelineKind::kJSToWasm
-              : turboshaft::TurboshaftPipelineKind::kWasm));
-  auto& turboshaft_pipeline = turboshaft_scope.value();
-  turboshaft_pipeline.Value().SetIsWasm(module_, sig_, false);
+              : turboshaft::TurboshaftPipelineKind::kWasm);
+  turboshaft_pipeline.SetIsWasm(module_, sig_, false);
 
   AccountingAllocator allocator;
-  BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig_,
-                   wrapper_info_, module_);
+  BuildWasmWrapper(&turboshaft_pipeline, &allocator,
+                   turboshaft_pipeline.graph(), sig_, wrapper_info_, module_);
   CodeTracer* code_tracer = nullptr;
   if (info_.trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -2249,8 +2251,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     code_tracer = data_.GetCodeTracer();
   }
   Zone printing_zone(&allocator, ZONE_NAME);
-  turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
-                                   "Graph generation");
+  turboshaft::PrintTurboshaftGraph(&turboshaft_pipeline, &printing_zone,
+                                   code_tracer, "Graph generation");
 
   // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
   // wrappers.
@@ -2287,7 +2289,6 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
   if (use_turboshaft_instruction_selection) {
     CHECK(pipeline_.SelectInstructionsTurboshaft(&linkage));
-    turboshaft_scope.reset();
     data_.DeleteGraphZone();
     pipeline_.AllocateRegisters(linkage.GetIncomingDescriptor(), false);
   } else {
@@ -2300,7 +2301,6 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     TraceSchedule(data_.info(), &data_, data_.schedule(),
                   turboshaft::RecreateSchedulePhase::phase_name());
 
-    turboshaft_scope.reset();
     CHECK(pipeline_.SelectInstructions(&linkage));
   }
 
@@ -2363,9 +2363,8 @@ bool PipelineImpl::CreateGraph() {
   data->BeginPhaseKind("V8.TFGraphCreation");
 
   if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data->GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kJS));
+    // Initialize Turboshaft data.
+    data->GetTurboshaftPipelineData(turboshaft::TurboshaftPipelineKind::kJS);
 
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
@@ -2505,8 +2504,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       data->broker(),
       v8_flags.turboshaft_trace_reduction || v8_flags.turboshaft_trace_emitted);
 
-  base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-      data->GetTurboshaftPipelineData(turboshaft::TurboshaftPipelineKind::kJS));
+  data->GetTurboshaftPipelineData(turboshaft::TurboshaftPipelineKind::kJS);
   turboshaft::Tracing::Scope tracing_scope(data->info());
 
   if (!v8_flags.turboshaft_from_maglev) {
@@ -2579,7 +2577,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       return false;
     }
 
-    turboshaft_pipeline.reset();
     data->DeleteGraphZone();
     return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
   }
@@ -2789,12 +2786,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
-  base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline;
+  turboshaft::PipelineData* turboshaft_pipeline = nullptr;
   if (v8_flags.turboshaft_csa) {
     UnparkedScopeIfNeeded scope(data.broker(),
                                 v8_flags.turboshaft_trace_reduction);
-    turboshaft_pipeline.emplace(data.GetTurboshaftPipelineData(
-        turboshaft::TurboshaftPipelineKind::kCSA));
+    turboshaft_pipeline = &data.GetTurboshaftPipelineData(
+        turboshaft::TurboshaftPipelineKind::kCSA);
     turboshaft::Tracing::Scope tracing_scope(data.info());
 
     Linkage linkage(call_descriptor);
@@ -2837,12 +2834,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                                 isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(v8_flags.verify_csa);
   PipelineImpl second_pipeline(&second_data);
-  base::Optional<turboshaft::PipelineData::Scope> second_turboshaft_pipeline;
+  turboshaft::PipelineData* second_turboshaft_pipeline = nullptr;
+  USE(second_turboshaft_pipeline);
   if (build_with_turboshaft_instruction_selection) {
-    second_turboshaft_pipeline.emplace(
-        second_pipeline.GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kCSA,
-            &turboshaft_pipeline->Value().graph()));
+    second_turboshaft_pipeline = &second_pipeline.GetTurboshaftPipelineData(
+        turboshaft::TurboshaftPipelineKind::kCSA,
+        &turboshaft_pipeline->graph());
   }
   second_pipeline.SelectInstructionsAndAssemble(
       call_descriptor, build_with_turboshaft_instruction_selection);
@@ -2854,9 +2851,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
     if (build_with_turboshaft_instruction_selection) {
-      DCHECK(second_turboshaft_pipeline->Value().graph_has_special_rpo());
-      second_turboshaft_pipeline.reset();
-      turboshaft_pipeline->Value().set_graph_has_special_rpo();
+      DCHECK(second_turboshaft_pipeline->graph_has_special_rpo());
+      second_turboshaft_pipeline = nullptr;
+      turboshaft_pipeline->set_graph_has_special_rpo();
     }
     return pipeline.GenerateCode(call_descriptor,
                                  build_with_turboshaft_instruction_selection);
@@ -3015,14 +3012,13 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
   PipelineImpl pipeline(&data);
 
   {
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
+    turboshaft::PipelineData& turboshaft_pipeline =
         pipeline.GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kWasm));
-    auto& turboshaft_pipeline = turboshaft_scope.value();
-    turboshaft_pipeline.Value().SetIsWasm(module, sig, false);
+            turboshaft::TurboshaftPipelineKind::kWasm);
+    turboshaft_pipeline.SetIsWasm(module, sig, false);
     AccountingAllocator allocator;
-    BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig,
-                     wrapper_info, module);
+    BuildWasmWrapper(&turboshaft_pipeline, &allocator,
+                     turboshaft_pipeline.graph(), sig, wrapper_info, module);
     CodeTracer* code_tracer = nullptr;
     if (info.trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -3031,8 +3027,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       code_tracer = data.GetCodeTracer();
     }
     Zone printing_zone(&allocator, ZONE_NAME);
-    turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
-                                     "Graph generation");
+    turboshaft::PrintTurboshaftGraph(&turboshaft_pipeline, &printing_zone,
+                                     code_tracer, "Graph generation");
 
     // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
     // wrappers.
@@ -3070,7 +3066,6 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     if (use_turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       CHECK(pipeline.SelectInstructionsTurboshaft(&linkage));
-      turboshaft_scope.reset();
       data.DeleteGraphZone();
       pipeline.AllocateRegisters(linkage.GetIncomingDescriptor(), false);
     } else {
@@ -3083,7 +3078,6 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       TraceSchedule(data.info(), &data, data.schedule(),
                     turboshaft::RecreateSchedulePhase::phase_name());
 
-      turboshaft_scope.reset();
       CHECK(pipeline.SelectInstructions(&linkage));
     }
   }
@@ -3383,33 +3377,31 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   ZoneVector<WasmInliningPosition> inlining_positions(&inlining_positions_zone);
 
   {
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
+    turboshaft::PipelineData& turboshaft_pipeline =
         pipeline.GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kWasm));
-    auto& turboshaft_pipeline = turboshaft_scope.value();
-    turboshaft_pipeline.Value().SetIsWasm(env->module,
-                                          compilation_data.func_body.sig,
-                                          compilation_data.func_body.is_shared);
-    DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
+            turboshaft::TurboshaftPipelineKind::kWasm);
+    turboshaft_pipeline.SetIsWasm(env->module, compilation_data.func_body.sig,
+                                  compilation_data.func_body.is_shared);
+    DCHECK_NOT_NULL(turboshaft_pipeline.wasm_module());
 
     AccountingAllocator allocator;
     if (!wasm::BuildTSGraph(
-            &allocator, env, detected, turboshaft_pipeline.Value().graph(),
-            compilation_data.func_body, compilation_data.wire_bytes_storage,
-            compilation_data.assumptions, &inlining_positions,
-            compilation_data.func_index)) {
+            &turboshaft_pipeline, &allocator, env, detected,
+            turboshaft_pipeline.graph(), compilation_data.func_body,
+            compilation_data.wire_bytes_storage, compilation_data.assumptions,
+            &inlining_positions, compilation_data.func_index)) {
       return false;
     }
     CodeTracer* code_tracer = nullptr;
-    if (turboshaft::PipelineData::Get().info()->trace_turbo_graph()) {
+    if (turboshaft_pipeline.info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
       // because it may not yet be initialized then and doing so from the
       // background thread is not threadsafe.
       code_tracer = data.GetCodeTracer();
     }
     Zone printing_zone(&allocator, ZONE_NAME);
-    turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
-                                     "Graph generation");
+    turboshaft::PrintTurboshaftGraph(&turboshaft_pipeline, &printing_zone,
+                                     code_tracer, "Graph generation");
 
     data.BeginPhaseKind("V8.WasmOptimization");
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
@@ -3488,7 +3480,6 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
         return false;
       }
 
-      turboshaft_scope.reset();
       data.DeleteGraphZone();
       pipeline.AllocateRegisters(linkage.GetIncomingDescriptor(), false);
     } else {
@@ -3499,7 +3490,6 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       TraceSchedule(data.info(), &data, data.schedule(),
                     turboshaft::RecreateSchedulePhase::phase_name());
 
-      turboshaft_scope.reset();
       CHECK(pipeline.SelectInstructions(&linkage));
     }
   }
@@ -3738,7 +3728,7 @@ void PipelineImpl::ComputeScheduledGraph() {
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
 }
 
-turboshaft::PipelineData PipelineImpl::GetTurboshaftPipelineData(
+turboshaft::PipelineData& PipelineImpl::GetTurboshaftPipelineData(
     turboshaft::TurboshaftPipelineKind kind, turboshaft::Graph* graph) {
   return data_->GetTurboshaftPipelineData(kind, graph);
 }

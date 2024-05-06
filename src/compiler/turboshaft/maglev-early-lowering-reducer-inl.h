@@ -222,8 +222,8 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
-  LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  LocalIsolate* isolate_ = __ data() -> isolate()->AsLocalIsolate();
+  JSHeapBroker* broker_ = __ data() -> broker();
   LocalFactory* factory_ = isolate_->factory();
 };
 

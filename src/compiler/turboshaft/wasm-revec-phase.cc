@@ -10,15 +10,15 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void WasmRevecPhase::Run(Zone* temp_zone) {
-  WasmRevecAnalyzer analyzer(temp_zone, PipelineData::Get().graph());
+void WasmRevecPhase::Run(PipelineData* data, Zone* temp_zone) {
+  WasmRevecAnalyzer analyzer(data, temp_zone, data->graph());
 
   if (analyzer.ShouldReduce()) {
-    PipelineData::Get().set_wasm_revec_analyzer(&analyzer);
-    UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
+    data->set_wasm_revec_analyzer(&analyzer);
+    UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
-    CopyingPhase<WasmRevecReducer>::Run(temp_zone);
-    PipelineData::Get().clear_wasm_revec_analyzer();
+    CopyingPhase<WasmRevecReducer>::Run(data, temp_zone);
+    data->clear_wasm_revec_analyzer();
   }
 }
 

@@ -3471,9 +3471,9 @@ class MachineLoweringReducer : public Next {
     return *undetectable_objects_protector_;
   }
 
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = __ data() -> isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  JSHeapBroker* broker_ = __ data() -> broker();
   base::Optional<bool> undetectable_objects_protector_ = {};
 };
 

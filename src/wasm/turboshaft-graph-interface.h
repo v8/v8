@@ -28,6 +28,7 @@ namespace compiler {
 class NodeOriginTable;
 namespace turboshaft {
 class Graph;
+class PipelineData;
 }
 }  // namespace compiler
 
@@ -41,12 +42,14 @@ class TurboshaftGraphBuildingInterface;
 struct CompilationEnv;
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, CompilationEnv* env, WasmFeatures* detected,
+    compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
+    CompilationEnv* env, WasmFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
 
-void BuildWasmWrapper(AccountingAllocator* allocator,
+void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
+                      AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
                       const wasm::FunctionSig* sig, WrapperCompilationInfo,
                       const WasmModule* module);

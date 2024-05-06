@@ -3674,7 +3674,7 @@ class TurboshaftAssemblerOpInterface
     // necessary.
     static constexpr size_t kMaxAssertCommentLength = 256;
     base::Vector<char> buffer =
-        PipelineData::Get().shared_zone()->AllocateVector<char>(
+        Asm().data()->shared_zone()->template AllocateVector<char>(
             kMaxAssertCommentLength);
     int result = base::SNPrintF(buffer, "Assert: %s    [%s:%d]",
                                 condition_string, file, line);
@@ -4349,10 +4349,13 @@ class TurboshaftAssemblerOpInterface
 struct AssemblerData {
   // TODO(dmercadier): consider removing input_graph from this, and only having
   // it in GraphVisitor for Stacks that have it.
-  AssemblerData(Graph& input_graph, Graph& output_graph, Zone* phase_zone)
-      : phase_zone(phase_zone),
+  AssemblerData(PipelineData* data, Graph& input_graph, Graph& output_graph,
+                Zone* phase_zone)
+      : data(data),
+        phase_zone(phase_zone),
         input_graph(input_graph),
         output_graph(output_graph) {}
+  PipelineData* data;
   Zone* phase_zone;
   Graph& input_graph;
   Graph& output_graph;
@@ -4365,13 +4368,15 @@ class Assembler : public AssemblerData,
   using node_t = typename Stack::node_t;
 
  public:
-  explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone)
-      : AssemblerData(input_graph, output_graph, phase_zone), Stack() {
+  explicit Assembler(PipelineData* data, Graph& input_graph,
+                     Graph& output_graph, Zone* phase_zone)
+      : AssemblerData(data, input_graph, output_graph, phase_zone), Stack() {
     SupportedOperations::Initialize();
   }
 
   using Stack::Asm;
 
+  PipelineData* data() const { return AssemblerData::data; }
   Zone* phase_zone() { return AssemblerData::phase_zone; }
   const Graph& input_graph() const { return AssemblerData::input_graph; }
   Graph& output_graph() const { return AssemblerData::output_graph; }

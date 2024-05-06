@@ -29,10 +29,10 @@ class Int64LoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(Int64Lowering)
 
   Int64LoweringReducer() {
-    PipelineData& data = PipelineData::Get();
-    wasm::CallOrigin origin =
-        data.is_js_to_wasm() ? wasm::kCalledFromJS : wasm::kCalledFromWasm;
-    sig_ = CreateMachineSignature(zone_, data.wasm_sig(), origin);
+    wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
+                                  ? wasm::kCalledFromJS
+                                  : wasm::kCalledFromWasm;
+    sig_ = CreateMachineSignature(zone_, __ data()->wasm_sig(), origin);
 
     InitializeIndexMaps();
   }
@@ -784,7 +784,7 @@ class Int64LoweringReducer : public Next {
   }
 
   const Signature<MachineRepresentation>* sig_;
-  Zone* zone_ = PipelineData::Get().graph_zone();
+  Zone* zone_ = __ graph_zone();
   ZoneVector<int32_t> param_index_map_{__ phase_zone()};
   bool returns_i64_ = false;  // Returns at least one i64.
   const OperationMatcher& matcher_{__ matcher()};

@@ -116,14 +116,15 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
   ~TurboshaftInstructionSelectorTest() override;
 
   void SetUp() override {
-    pipeline_data_.emplace(TurboshaftPipelineKind::kJS, info_, schedule_,
-                           graph_zone_, this->zone(), broker_, isolate_,
-                           source_positions_, node_origins_, sequence_, frame_,
-                           assembler_options_, &max_unoptimized_frame_height_,
-                           &max_pushed_argument_count_, instruction_zone_);
+    pipeline_data_ = std::make_unique<PipelineData>(
+        TurboshaftPipelineKind::kJS, info_, schedule_, graph_zone_,
+        this->zone(), broker_, isolate_, source_positions_, node_origins_,
+        sequence_, frame_, assembler_options_, &max_unoptimized_frame_height_,
+        &max_pushed_argument_count_, instruction_zone_);
   }
   void TearDown() override { pipeline_data_.reset(); }
 
+  PipelineData* data() { return pipeline_data_.get(); }
   base::RandomNumberGenerator* rng() { return &rng_; }
 
   class Stream;
@@ -138,7 +139,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
    public:
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type)
-        : BaseAssembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(test->zone(), return_type)) {
       Init();
@@ -146,7 +148,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type)
-        : BaseAssembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
           test_(test),
           call_descriptor_(
               MakeCallDescriptor(test->zone(), return_type, parameter0_type)) {
@@ -156,7 +159,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type,
                   MachineType parameter1_type)
-        : BaseAssembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(
               test->zone(), return_type, parameter0_type, parameter1_type)) {
@@ -166,7 +170,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type,
                   MachineType parameter1_type, MachineType parameter2_type)
-        : BaseAssembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(test->zone(), return_type,
                                               parameter0_type, parameter1_type,
@@ -541,7 +546,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
   base::RandomNumberGenerator rng_;
 
-  Graph& graph() { return PipelineData::Get().graph(); }
+  Graph& graph() { return pipeline_data_->graph(); }
 
   // We use some dummy data to initialize the PipelineData::Scope.
   // TODO(nicohartmann@): Clean this up once PipelineData is reorganized.
@@ -559,7 +564,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
   size_t max_pushed_argument_count_ = 0;
   Zone* instruction_zone_ = this->zone();
 
-  base::Optional<turboshaft::PipelineData::Scope> pipeline_data_;
+  std::unique_ptr<turboshaft::PipelineData> pipeline_data_;
 };
 
 template <typename T>

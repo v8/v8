@@ -1377,13 +1377,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   StubCallMode stub_mode_;
 };
 
-void BuildWasmWrapper(AccountingAllocator* allocator,
+void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
+                      AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
                       const wasm::FunctionSig* sig,
                       WrapperCompilationInfo wrapper_info,
                       const WasmModule* module) {
   Zone zone(allocator, ZONE_NAME);
-  WasmGraphBuilderBase::Assembler assembler(graph, graph, &zone);
+  WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);
   WasmWrapperTSGraphBuilder builder(&zone, assembler, module, sig,
                                     wrapper_info.stub_mode);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {

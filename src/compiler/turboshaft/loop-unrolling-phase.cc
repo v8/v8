@@ -14,14 +14,15 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void LoopUnrollingPhase::Run(Zone* temp_zone) {
-  LoopUnrollingAnalyzer analyzer(temp_zone, &PipelineData::Get().graph());
+void LoopUnrollingPhase::Run(PipelineData* data, Zone* temp_zone) {
+  LoopUnrollingAnalyzer analyzer(temp_zone, &data->graph(), data->is_wasm());
   if (analyzer.CanUnrollAtLeastOneLoop()) {
-    PipelineData::Get().set_loop_unrolling_analyzer(&analyzer);
+    data->set_loop_unrolling_analyzer(&analyzer);
     turboshaft::CopyingPhase<turboshaft::LoopUnrollingReducer,
                              turboshaft::MachineOptimizationReducer,
-                             turboshaft::ValueNumberingReducer>::Run(temp_zone);
-    PipelineData::Get().clear_loop_unrolling_analyzer();
+                             turboshaft::ValueNumberingReducer>::Run(data,
+                                                                     temp_zone);
+    data->clear_loop_unrolling_analyzer();
   }
 }
 

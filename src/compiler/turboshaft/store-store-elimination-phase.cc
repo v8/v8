@@ -16,12 +16,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void StoreStoreEliminationPhase::Run(Zone* temp_zone) {
+void StoreStoreEliminationPhase::Run(PipelineData* data, Zone* temp_zone) {
   turboshaft::CopyingPhase<turboshaft::StoreStoreEliminationReducer,
                            turboshaft::LateLoadEliminationReducer,
                            turboshaft::MachineOptimizationReducer,
                            turboshaft::BranchEliminationReducer,
-                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
+                           turboshaft::ValueNumberingReducer>::Run(data,
+                                                                   temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

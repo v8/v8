@@ -980,8 +980,8 @@ class WasmLoweringReducer : public Next {
     return WasmStruct::kHeaderSize + type->field_offset(field_index);
   }
 
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  const bool shared_ = PipelineData::Get().wasm_shared();
+  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  const bool shared_ = __ data() -> wasm_shared();
   const NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? NullCheckStrategy::kTrapHandler

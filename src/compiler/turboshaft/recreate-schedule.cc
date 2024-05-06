@@ -39,15 +39,15 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct ScheduleBuilder {
+  PipelineData* data;
   CallDescriptor* call_descriptor;
   Zone* phase_zone;
 
-  const Graph& input_graph = PipelineData::Get().graph();
-  JSHeapBroker* broker = PipelineData::Get().broker();
-  Zone* graph_zone = PipelineData::Get().graph_zone();
-  SourcePositionTable* source_positions =
-      PipelineData::Get().source_positions();
-  NodeOriginTable* origins = PipelineData::Get().node_origins();
+  const Graph& input_graph = data->graph();
+  JSHeapBroker* broker = data->broker();
+  Zone* graph_zone = data->graph_zone();
+  SourcePositionTable* source_positions = data->source_positions();
+  NodeOriginTable* origins = data->node_origins();
   const size_t node_count_estimate =
       static_cast<size_t>(1.1 * input_graph.op_id_count());
   Schedule* const schedule =
@@ -1929,9 +1929,10 @@ Node* ScheduleBuilder::ProcessOperation(const SetStackPointerOp& op) {
 
 }  // namespace
 
-RecreateScheduleResult RecreateSchedule(CallDescriptor* call_descriptor,
+RecreateScheduleResult RecreateSchedule(PipelineData* data,
+                                        CallDescriptor* call_descriptor,
                                         Zone* phase_zone) {
-  ScheduleBuilder builder{call_descriptor, phase_zone};
+  ScheduleBuilder builder{data, call_descriptor, phase_zone};
   return builder.Run();
 }
 

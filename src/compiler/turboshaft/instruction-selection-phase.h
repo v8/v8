@@ -108,7 +108,7 @@ V8_EXPORT_PRIVATE void PropagateDeferred(Graph& graph);
 struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
 
-  base::Optional<BailoutReason> Run(Zone* temp_zone,
+  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
                                     const CallDescriptor* call_descriptor,
                                     Linkage* linkage, CodeTracer* code_tracer);
 };

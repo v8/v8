@@ -185,7 +185,7 @@ class LoadStoreSimplificationReducer : public Next,
     }
   }
 
-  bool is_wasm_ = PipelineData::Get().is_wasm();
+  bool is_wasm_ = __ data() -> is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \

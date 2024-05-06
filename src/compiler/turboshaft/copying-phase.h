@@ -138,7 +138,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
     // Updating the operation origins.
-    NodeOriginTable* origins = PipelineData::Get().node_origins();
+    NodeOriginTable* origins = Asm().data()->node_origins();
     if (origins) {
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
@@ -1022,10 +1022,10 @@ class TSAssembler;
 template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
-  static void Run(Graph& input_graph, Zone* phase_zone,
+  static void Run(PipelineData* data, Graph& input_graph, Zone* phase_zone,
                   bool trace_reductions = false) {
     TSAssembler<GraphVisitor, Reducers...> phase(
-        input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
+        data, input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {
       phase.template VisitGraph<true>();
@@ -1041,11 +1041,11 @@ class CopyingPhaseImpl {
 template <template <typename> typename... Reducers>
 class CopyingPhase {
  public:
-  static void Run(Zone* phase_zone) {
-    PipelineData& data = PipelineData::Get();
-    Graph& input_graph = data.graph();
+  static void Run(PipelineData* data, Zone* phase_zone) {
+    Graph& input_graph = data->graph();
     CopyingPhaseImpl<Reducers...>::Run(
-        input_graph, phase_zone, data.info()->turboshaft_trace_reduction());
+        data, input_graph, phase_zone,
+        data->info()->turboshaft_trace_reduction());
   }
 };
 

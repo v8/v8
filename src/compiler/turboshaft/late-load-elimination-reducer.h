@@ -639,10 +639,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
     kMaybeInnerPointer,
   };
 
-  LateLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone,
-                              JSHeapBroker* broker,
+  LateLoadEliminationAnalyzer(PipelineData* data, Graph& graph,
+                              Zone* phase_zone, JSHeapBroker* broker,
                               RawBaseAssumption raw_base_assumption)
-      : graph_(graph),
+      : data_(data),
+        graph_(graph),
         phase_zone_(phase_zone),
         broker_(broker),
         raw_base_assumption_(raw_base_assumption),
@@ -653,7 +654,9 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {}
+        predecessor_memory_snapshots_(phase_zone) {
+    USE(data_);
+  }
 
   void Run();
 
@@ -690,13 +693,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
 
+  PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
   JSHeapBroker* broker_;
   RawBaseAssumption raw_base_assumption_;
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_ = PipelineData::Get().is_wasm();
+  bool is_wasm_ = data_->is_wasm();
 #endif
 
   FixedOpIndexSidetable<Replacement> replacements_;
@@ -813,15 +817,15 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
  private:
-  const bool is_wasm_ = PipelineData::Get().is_wasm();
+  const bool is_wasm_ = __ data() -> is_wasm();
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
-      PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA
+      __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA
           ? RawBaseAssumption::kMaybeInnerPointer
           : RawBaseAssumption::kNoInnerPointer;
-  LateLoadEliminationAnalyzer analyzer_{
-      Asm().modifiable_input_graph(), Asm().phase_zone(),
-      PipelineData::Get().broker(), raw_base_assumption_};
+  LateLoadEliminationAnalyzer analyzer_{__ data(), __ modifiable_input_graph(),
+                                        __ phase_zone(), __ data()->broker(),
+                                        raw_base_assumption_};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -156,7 +156,7 @@ class LoopPeelingReducer : public Next {
   const Block* current_loop_header_ = nullptr;
 
   LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  JSHeapBroker* broker_ = __ data() -> broker();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

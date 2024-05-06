@@ -107,12 +107,13 @@ class LoopUnrollingAnalyzer {
   // Loops that don't have statically-known bounds could still be partially
   // unrolled if they are small enough.
  public:
-  LoopUnrollingAnalyzer(Zone* phase_zone, Graph* input_graph)
+  LoopUnrollingAnalyzer(Zone* phase_zone, Graph* input_graph, bool is_wasm)
       : input_graph_(input_graph),
         matcher_(*input_graph),
         loop_finder_(phase_zone, input_graph),
         loop_iteration_count_(phase_zone),
-        canonical_loop_matcher_(matcher_, kPartialUnrollingCount) {
+        canonical_loop_matcher_(matcher_, kPartialUnrollingCount),
+        is_wasm_(is_wasm) {
     DetectUnrollableLoops();
   }
 
@@ -176,9 +177,10 @@ class LoopUnrollingAnalyzer {
   // iterations.
   ZoneUnorderedMap<const Block*, int> loop_iteration_count_;
   const StaticCanonicalForLoopMatcher canonical_loop_matcher_;
+  const bool is_wasm_;
   const size_t kMaxLoopSizeForPartialUnrolling =
-      PipelineData::Get().is_wasm() ? kWasmMaxLoopSizeForPartialUnrolling
-                                    : kJSMaxLoopSizeForPartialUnrolling;
+      is_wasm_ ? kWasmMaxLoopSizeForPartialUnrolling
+               : kJSMaxLoopSizeForPartialUnrolling;
   bool can_unroll_at_least_one_loop_ = false;
 };
 
@@ -330,8 +332,8 @@ class LoopUnrollingReducer : public Next {
   void PartiallyUnrollLoop(const Block* header);
   void FixLoopPhis(const Block* input_graph_loop, Block* output_graph_loop,
                    const Block* backedge_block);
-  bool IsRunningBuiltinPipeline() const {
-    return PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA;
+  bool IsRunningBuiltinPipeline() {
+    return __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA;
   }
   bool StopUnrollingIfUnreachable(
       base::Optional<Block*> output_graph_header = base::nullopt) {
@@ -355,12 +357,11 @@ class LoopUnrollingReducer : public Next {
 
   // The analysis should be ran ahead of time so that the LoopUnrollingPhase
   // doesn't trigger the CopyingPhase if there are no loops to unroll.
-  LoopUnrollingAnalyzer& analyzer_ =
-      *PipelineData::Get().loop_unrolling_analyzer();
+  LoopUnrollingAnalyzer& analyzer_ = *__ data() -> loop_unrolling_analyzer();
   // {unrolling_} is true if a loop is currently being unrolled.
   UnrollingStatus unrolling_ = UnrollingStatus::kNotUnrolling;
   const Block* current_loop_header_ = nullptr;
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  JSHeapBroker* broker_ = __ data() -> broker();
 };
 
 template <class Next>

@@ -94,7 +94,7 @@ class StackCheckLoweringReducer : public Next {
 
  private:
   Isolate* isolate() {
-    if (!isolate_) isolate_ = PipelineData::Get().isolate();
+    if (!isolate_) isolate_ = __ data() -> isolate();
     return isolate_;
   }
 

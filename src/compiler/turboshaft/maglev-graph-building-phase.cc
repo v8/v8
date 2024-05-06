@@ -94,10 +94,11 @@ class GraphBuilder {
                   VariableReducer, RequiredOptimizationReducer,
                   ValueNumberingReducer>;
 
-  GraphBuilder(Graph& graph, Zone* temp_zone,
+  GraphBuilder(PipelineData* data, Graph& graph, Zone* temp_zone,
                maglev::MaglevCompilationUnit* maglev_compilation_unit)
-      : temp_zone_(temp_zone),
-        assembler_(graph, graph, temp_zone),
+      : data_(data),
+        temp_zone_(temp_zone),
+        assembler_(data, graph, graph, temp_zone),
         maglev_compilation_unit_(maglev_compilation_unit),
         node_mapping_(temp_zone),
         block_mapping_(temp_zone),
@@ -2654,9 +2655,10 @@ class GraphBuilder {
     return native_context_;
   }
 
+  PipelineData* data_;
   Zone* temp_zone_;
-  LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  LocalIsolate* isolate_ = data_->isolate()->AsLocalIsolate();
+  JSHeapBroker* broker_ = data_->broker();
   LocalFactory* factory_ = isolate_->factory();
   AssemblerT assembler_;
   maglev::MaglevCompilationUnit* maglev_compilation_unit_;
@@ -2723,25 +2725,24 @@ void PrintMaglevGraph(PipelineData& data,
 }
 }  // namespace
 
-void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
-  PipelineData& data = PipelineData::Get();
-  JSHeapBroker* broker = data.broker();
+void MaglevGraphBuildingPhase::Run(PipelineData* data, Zone* temp_zone) {
+  JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
   auto compilation_info = maglev::MaglevCompilationInfo::New(
-      data.isolate(), broker, data.info()->closure(),
-      data.info()->osr_offset());
+      data->isolate(), broker, data->info()->closure(),
+      data->info()->osr_offset());
 
-  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
-    PrintBytecode(data, compilation_info.get());
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintBytecode(*data, compilation_info.get());
   }
 
   LocalIsolate* local_isolate = broker->local_isolate()
                                     ? broker->local_isolate()
                                     : broker->isolate()->AsLocalIsolate();
   maglev::Graph* maglev_graph =
-      maglev::Graph::New(temp_zone, data.info()->is_osr());
-  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
+      maglev::Graph::New(temp_zone, data->info()->is_osr());
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
     compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
   }
   maglev::MaglevGraphBuilder maglev_graph_builder(
@@ -2755,12 +2756,13 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
       representation_selector(&maglev_graph_builder);
   representation_selector.ProcessGraph(maglev_graph);
 
-  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
-    PrintMaglevGraph(data, compilation_info.get(), maglev_graph);
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintMaglevGraph(*data, compilation_info.get(), maglev_graph);
   }
 
   maglev::GraphProcessor<GraphBuilder, true> builder(
-      data.graph(), temp_zone, compilation_info->toplevel_compilation_unit());
+      data, data->graph(), temp_zone,
+      compilation_info->toplevel_compilation_unit());
   builder.ProcessGraph(maglev_graph);
 }
 

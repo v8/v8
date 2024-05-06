@@ -5232,7 +5232,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          decoder->stack_size() + wasm_local_count -
                          callee_sig->return_count();
     Handle<SharedFunctionInfo> shared_info;
-    Zone* zone = compiler::turboshaft::PipelineData::Get().shared_zone();
+    Zone* zone = Asm().data()->shared_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
         static_cast<int>(param_count), static_cast<int>(local_count),
@@ -7749,12 +7749,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, CompilationEnv* env, WasmFeatures* detected,
-    Graph& graph, const FunctionBody& func_body,
-    const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
+    compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
+    CompilationEnv* env, WasmFeatures* detected, Graph& graph,
+    const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
+    AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
   Zone zone(allocator, ZONE_NAME);
-  WasmGraphBuilderBase::Assembler assembler(graph, graph, &zone);
+  WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,

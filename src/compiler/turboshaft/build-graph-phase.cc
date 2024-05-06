@@ -10,15 +10,17 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-base::Optional<BailoutReason> BuildGraphPhase::Run(Zone* temp_zone,
+base::Optional<BailoutReason> BuildGraphPhase::Run(PipelineData* data,
+                                                   Zone* temp_zone,
                                                    Linkage* linkage) {
-  Schedule* schedule = PipelineData::Get().schedule();
-  PipelineData::Get().reset_schedule();
+  Schedule* schedule = data->schedule();
+  data->reset_schedule();
   DCHECK_NOT_NULL(schedule);
 
-  UnparkedScopeIfNeeded scope(PipelineData::Get().broker());
+  UnparkedScopeIfNeeded scope(data->broker());
 
-  if (auto bailout = turboshaft::BuildGraph(schedule, temp_zone, linkage)) {
+  if (auto bailout =
+          turboshaft::BuildGraph(data, schedule, temp_zone, linkage)) {
     return bailout;
   }
   return {};

@@ -103,11 +103,13 @@ class WasmMemoryContentTable
   using MemoryAddress = WasmMemoryAddress;
 
   explicit WasmMemoryContentTable(
-      Zone* zone, SparseOpIndexSnapshotTable<bool>& non_aliasing_objects,
+      PipelineData* data, Zone* zone,
+      SparseOpIndexSnapshotTable<bool>& non_aliasing_objects,
       FixedOpIndexSidetable<OpIndex>& replacements, Graph& graph)
       : ChangeTrackingSnapshotTable(zone),
         non_aliasing_objects_(non_aliasing_objects),
         replacements_(replacements),
+        data_(data),
         graph_(graph),
         all_keys_(zone),
         base_keys_(zone),
@@ -348,9 +350,10 @@ class WasmMemoryContentTable
   SparseOpIndexSnapshotTable<bool>& non_aliasing_objects_;
   FixedOpIndexSidetable<OpIndex>& replacements_;
 
+  PipelineData* data_;
   Graph& graph_;
 
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
+  const wasm::WasmModule* module_ = data_->wasm_module();
 
   // TODO(dmercadier): consider using a faster datastructure than
   // ZoneUnorderedMap for {all_keys_}, {base_keys_} and {offset_keys_}.
@@ -376,12 +379,13 @@ class WasmLoadEliminationAnalyzer {
   using MemoryKey = wle::WasmMemoryContentTable::Key;
   using MemorySnapshot = wle::WasmMemoryContentTable::Snapshot;
 
-  WasmLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone)
+  WasmLoadEliminationAnalyzer(PipelineData* data, Graph& graph,
+                              Zone* phase_zone)
       : graph_(graph),
         phase_zone_(phase_zone),
         replacements_(graph.op_id_count(), phase_zone, &graph),
         non_aliasing_objects_(phase_zone),
-        memory_(phase_zone, non_aliasing_objects_, replacements_, graph_),
+        memory_(data, phase_zone, non_aliasing_objects_, replacements_, graph_),
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_memory_snapshots_(phase_zone) {}
@@ -544,8 +548,8 @@ class WasmLoadEliminationReducer : public Next {
   }
 
  private:
-  WasmLoadEliminationAnalyzer analyzer_{Asm().modifiable_input_graph(),
-                                        Asm().phase_zone()};
+  WasmLoadEliminationAnalyzer analyzer_{
+      Asm().data(), Asm().modifiable_input_graph(), Asm().phase_zone()};
 };
 
 void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,

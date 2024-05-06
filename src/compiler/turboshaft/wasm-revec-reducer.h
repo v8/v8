@@ -383,8 +383,9 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
 class WasmRevecAnalyzer {
  public:
-  WasmRevecAnalyzer(Zone* zone, Graph& graph)
-      : graph_(graph),
+  WasmRevecAnalyzer(PipelineData* data, Zone* zone, Graph& graph)
+      : data_(data),
+        graph_(graph),
         phase_zone_(zone),
         store_seeds_(zone),
         slp_tree_(nullptr),
@@ -431,11 +432,12 @@ class WasmRevecAnalyzer {
   void ProcessBlock(const Block& block);
   bool DecideVectorize();
 
+  PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
   ZoneVector<std::pair<const StoreOp*, const StoreOp*>> store_seeds_;
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  const wasm::FunctionSig* signature_ = PipelineData::Get().wasm_sig();
+  const wasm::WasmModule* module_ = data_->wasm_module();
+  const wasm::FunctionSig* signature_ = data_->wasm_sig();
   SLPTree* slp_tree_;
   ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_;
   bool should_reduce_;
@@ -913,8 +915,8 @@ class WasmRevecReducer : public Next {
     }
   }
 
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  WasmRevecAnalyzer analyzer_ = *PipelineData::Get().wasm_revec_analyzer();
+  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  WasmRevecAnalyzer analyzer_ = *__ data() -> wasm_revec_analyzer();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

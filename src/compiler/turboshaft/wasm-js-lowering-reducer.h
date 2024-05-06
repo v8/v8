@@ -78,9 +78,8 @@ class WasmJSLoweringReducer : public Next {
                          new_data);
   }
 
-  Isolate* isolate_ = PipelineData::Get().isolate();
-  SourcePositionTable* source_positions_ =
-      PipelineData::Get().source_positions();
+  Isolate* isolate_ = __ data() -> isolate();
+  SourcePositionTable* source_positions_ = __ data() -> source_positions();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

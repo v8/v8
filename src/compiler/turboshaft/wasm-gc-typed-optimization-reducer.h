@@ -42,8 +42,8 @@ namespace v8::internal::compiler::turboshaft {
 
 class WasmGCTypeAnalyzer {
  public:
-  WasmGCTypeAnalyzer(Graph& graph, Zone* zone)
-      : graph_(graph), phase_zone_(zone) {}
+  WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone)
+      : data_(data), graph_(graph), phase_zone_(zone) {}
 
   void Run();
 
@@ -95,10 +95,11 @@ class WasmGCTypeAnalyzer {
 
   bool IsReachable(const Block& block) const;
 
+  PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  const wasm::FunctionSig* signature_ = PipelineData::Get().wasm_sig();
+  const wasm::WasmModule* module_ = data_->wasm_module();
+  const wasm::FunctionSig* signature_ = data_->wasm_sig();
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge
@@ -342,8 +343,8 @@ class WasmGCTypedOptimizationReducer : public Next {
 
  private:
   Graph& graph_ = __ modifiable_input_graph();
-  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  WasmGCTypeAnalyzer analyzer_{graph_, __ phase_zone()};
+  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

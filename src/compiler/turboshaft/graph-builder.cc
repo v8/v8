@@ -53,16 +53,27 @@ struct GraphBuilder {
   Schedule& schedule;
   Linkage* linkage;
 
-  Isolate* isolate = PipelineData::Get().isolate();
-  JSHeapBroker* broker = PipelineData::Get().broker();
-  Zone* graph_zone = PipelineData::Get().graph_zone();
+  Isolate* isolate;
+  JSHeapBroker* broker;
+  Zone* graph_zone;
   using AssemblerT = TSAssembler<ExplicitTruncationReducer>;
-  AssemblerT assembler{PipelineData::Get().graph(), PipelineData::Get().graph(),
-                       phase_zone};
-  SourcePositionTable* source_positions =
-      PipelineData::Get().source_positions();
-  NodeOriginTable* origins = PipelineData::Get().node_origins();
-  TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
+  AssemblerT assembler;
+  SourcePositionTable* source_positions;
+  NodeOriginTable* origins;
+  TurboshaftPipelineKind pipeline_kind;
+
+  GraphBuilder(PipelineData* data, Zone* phase_zone, Schedule& schedule,
+               Linkage* linkage)
+      : phase_zone(phase_zone),
+        schedule(schedule),
+        linkage(linkage),
+        isolate(data->isolate()),
+        broker(data->broker()),
+        graph_zone(data->graph_zone()),
+        assembler(data, data->graph(), data->graph(), phase_zone),
+        source_positions(data->source_positions()),
+        origins(data->node_origins()),
+        pipeline_kind(data->pipeline_kind()) {}
 
   struct BlockData {
     Block* block;
@@ -2398,11 +2409,11 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* phase_zone,
-                                         Linkage* linkage) {
-  GraphBuilder builder{phase_zone, *schedule, linkage};
+base::Optional<BailoutReason> BuildGraph(PipelineData* data, Schedule* schedule,
+                                         Zone* phase_zone, Linkage* linkage) {
+  GraphBuilder builder{data, phase_zone, *schedule, linkage};
 #if DEBUG
-  PipelineData::Get().graph().SetCreatedFromTurbofan();
+  data->graph().SetCreatedFromTurbofan();
 #endif
   return builder.Run();
 }

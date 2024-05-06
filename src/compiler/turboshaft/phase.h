@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/base/contextual.h"
+#include "src/base/template-meta-programming/functional.h"
 #include "src/codegen/assembler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -16,16 +17,56 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/sidetable.h"
 
-#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name)                  \
-  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Turboshaft##Name,       \
-                                       PhaseKind::kTurboshaft, \
-                                       RuntimeCallStats::kThreadSpecific)
+#ifdef __cpp_concepts
+#define STATIC_ASSERT_IF_CONCEPTS(cond) static_assert(cond)
+#else
+#define STATIC_ASSERT_IF_CONCEPTS(cond)
+#endif  // __cpp_concepts
+
+#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name)                             \
+  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Turboshaft##Name,                  \
+                                       PhaseKind::kTurboshaft,            \
+                                       RuntimeCallStats::kThreadSpecific) \
+  static void AssertTurboshaftPhase() {                                   \
+    STATIC_ASSERT_IF_CONCEPTS(TurboshaftPhase<Name##Phase>);              \
+  }
 
 namespace v8::internal::compiler {
 class Schedule;
 }  // namespace v8::internal::compiler
 
 namespace v8::internal::compiler::turboshaft {
+
+class PipelineData;
+
+#ifdef __cpp_concepts
+template <typename Phase>
+struct HasProperRunMethod {
+  using parameters = base::tmp::call_parameters_t<decltype(&Phase::Run)>;
+  static_assert(
+      base::tmp::length_v<parameters> >= 2,
+      "Phase::Run needs at least two parameters (PipelineData* and Zone*)");
+  using parameter0 = base::tmp::element_t<parameters, 0>;
+  using parameter1 = base::tmp::element_t<parameters, 1>;
+  static constexpr bool value = std::is_same_v<parameter0, PipelineData*> &&
+                                std::is_same_v<parameter1, Zone*>;
+};
+
+template <typename Phase, typename... Args>
+concept TurboshaftPhase =
+    HasProperRunMethod<Phase>::value &&
+    requires(Phase p) { p.kKind == PhaseKind::kTurboshaft; };
+
+template <typename Phase>
+concept TurbofanPhase = requires(Phase p) { p.kKind == PhaseKind::kTurbofan; };
+
+template <typename Phase>
+concept CompilerPhase = TurboshaftPhase<Phase> || TurbofanPhase<Phase>;
+
+#define CONCEPT(name) name
+#else  // __cpp_concepts
+#define CONCEPT(name) typename
+#endif  // __cpp_concepts
 
 template <typename P>
 struct produces_printable_graph : public std::true_type {};
@@ -35,8 +76,7 @@ enum class TurboshaftPipelineKind { kJS, kWasm, kCSA, kJSToWasm };
 class LoopUnrollingAnalyzer;
 class WasmRevecAnalyzer;
 
-class V8_EXPORT_PRIVATE PipelineData
-    : public base::ContextualClass<PipelineData> {
+class V8_EXPORT_PRIVATE PipelineData {
  public:
   explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
                         OptimizedCompilationInfo* const& info,
@@ -207,8 +247,8 @@ class V8_EXPORT_PRIVATE PipelineData
   turboshaft::Graph* graph_;
 };
 
-void PrintTurboshaftGraph(Zone* temp_zone, CodeTracer* code_tracer,
-                          const char* phase_name);
+void PrintTurboshaftGraph(PipelineData* data, Zone* temp_zone,
+                          CodeTracer* code_tracer, const char* phase_name);
 void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
                                        const Graph& graph,
                                        const char* phase_name,

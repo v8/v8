@@ -642,7 +642,7 @@ class FastApiCallLoweringReducer : public Next {
     return result;
   }
 
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = __ data() -> isolate();
   Factory* factory_ = isolate_->factory();
 };
 
