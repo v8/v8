@@ -420,6 +420,10 @@ void MarkCompactCollector::MaybeEnableBackgroundThreadsInCycle() {
     if (use_background_threads_in_cycle_) {
       heap_->concurrent_marking()->RescheduleJobIfNeeded(
           GarbageCollector::MARK_COMPACTOR);
+
+      if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
+        cpp_heap->ReEnableConcurrentMarking();
+      }
     }
   }
 }
