@@ -1081,6 +1081,10 @@
   # at a time.
   'wasm/log-code-after-post-message': [SKIP],
 
+  # The tests assert that something is not optimized after deopting. As wasm
+  # code objects are shared, multiple isolates interfere with these test cases.
+  'wasm/deopt/*': [SKIP],
+
   # The test explicitly deserializes a wasm module and expects the resulting
   # wasm module to match the serialized one. With multiple isolate the resulting
   # wasm module can however, come from the native module cache, and therefore
