@@ -2435,13 +2435,21 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(2);
 
-  Label fast_shallow_clone(this), call_runtime(this, Label::kDeferred);
-  // No feedback, so handle it as a slow case.
+  Label fast_shallow_clone(this), slow_clone(this, Label::kDeferred),
+      call_runtime(this, Label::kDeferred);
+
+  TNode<UintPtrT> flags_raw =
+      DecodeWordFromWord32<CreateArrayLiteralFlags::FlagsBits>(bytecode_flags);
+  TNode<Smi> flags = SmiTag(Signed(flags_raw));
+  TNode<Object> array_boilerplate_description =
+      LoadConstantPoolEntryAtOperandIndex(0);
+
+  //  No feedback, so handle it as a slow case.
   GotoIf(IsUndefined(feedback_vector), &call_runtime);
 
   Branch(IsSetWord32<CreateArrayLiteralFlags::FastCloneSupportedBit>(
              bytecode_flags),
-         &fast_shallow_clone, &call_runtime);
+         &fast_shallow_clone, &slow_clone);
 
   BIND(&fast_shallow_clone);
   {
@@ -2453,16 +2461,21 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
     Dispatch();
   }
 
+  BIND(&slow_clone);
+  {
+    TNode<JSArray> result = CAST(CallBuiltin(
+        Builtin::kCreateArrayFromSlowBoilerplate, context, feedback_vector,
+        slot, array_boilerplate_description, flags));
+
+    SetAccumulator(result);
+    Dispatch();
+  }
+
   BIND(&call_runtime);
   {
-    TNode<UintPtrT> flags_raw =
-        DecodeWordFromWord32<CreateArrayLiteralFlags::FlagsBits>(
-            bytecode_flags);
-    TNode<Smi> flags = SmiTag(Signed(flags_raw));
-    TNode<Object> constant_elements = LoadConstantPoolEntryAtOperandIndex(0);
     TNode<Object> result =
         CallRuntime(Runtime::kCreateArrayLiteral, context, feedback_vector,
-                    slot, constant_elements, flags);
+                    slot, array_boilerplate_description, flags);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2520,40 +2533,48 @@ IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
 // CreateObjectLiteralFlags <flags> and constant elements in <element_idx>.
 IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
   TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(2);
 
-  Label if_fast_clone(this), if_not_fast_clone(this, Label::kDeferred);
+  TNode<ObjectBoilerplateDescription> object_boilerplate_description =
+      CAST(LoadConstantPoolEntryAtOperandIndex(0));
+  TNode<UintPtrT> flags_raw =
+      DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(bytecode_flags);
+  TNode<Smi> flags = SmiTag(Signed(flags_raw));
+
+  Label fast_shallow_clone(this), Slow_clone(this, Label::kDeferred),
+      call_runtime(this, Label::kDeferred);
   // No feedback, so handle it as a slow case.
-  GotoIf(IsUndefined(feedback_vector), &if_not_fast_clone);
+
+  GotoIf(IsUndefined(feedback_vector), &call_runtime);
 
   // Check if we can do a fast clone or have to call the runtime.
   Branch(IsSetWord32<CreateObjectLiteralFlags::FastCloneSupportedBit>(
              bytecode_flags),
-         &if_fast_clone, &if_not_fast_clone);
+         &fast_shallow_clone, &Slow_clone);
 
-  BIND(&if_fast_clone);
+  BIND(&fast_shallow_clone);
   {
     // If we can do a fast clone do the fast-path in CreateShallowObjectLiteral.
     ConstructorBuiltinsAssembler constructor_assembler(state());
     TNode<HeapObject> result = constructor_assembler.CreateShallowObjectLiteral(
-        CAST(feedback_vector), slot, &if_not_fast_clone);
+        CAST(feedback_vector), slot, &call_runtime);
     SetAccumulator(result);
     Dispatch();
   }
 
-  BIND(&if_not_fast_clone);
+  BIND(&Slow_clone);
   {
-    // If we can't do a fast clone, call into the runtime.
-    TNode<ObjectBoilerplateDescription> object_boilerplate_description =
-        CAST(LoadConstantPoolEntryAtOperandIndex(0));
-    TNode<Context> context = GetContext();
+    TNode<JSObject> result = CAST(CallBuiltin(
+        Builtin::kCreateObjectFromSlowBoilerplate, context, feedback_vector,
+        slot, object_boilerplate_description, flags));
+    SetAccumulator(result);
+    Dispatch();
+  }
 
-    TNode<UintPtrT> flags_raw =
-        DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(
-            bytecode_flags);
-    TNode<Smi> flags = SmiTag(Signed(flags_raw));
-
+  BIND(&call_runtime);
+  {
     TNode<Object> result =
         CallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
                     slot, object_boilerplate_description, flags);

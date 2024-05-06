@@ -429,6 +429,12 @@ namespace internal {
   TFS(CloneFastJSArray, NeedsContext::kYes, kSource)                           \
   TFS(CloneFastJSArrayFillingHoles, NeedsContext::kYes, kSource)               \
   TFS(ExtractFastJSArray, NeedsContext::kYes, kSource, kBegin, kCount)         \
+  TFS(CreateArrayFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,     \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFS(CreateObjectFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,    \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFC(CreateArrayFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)   \
+  TFC(CreateObjectFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)  \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                  \
   /* ES6 #sec-array.prototype.keys */                                          \

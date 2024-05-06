@@ -535,6 +535,7 @@ namespace internal {
   F(GetUndetectable, 0, 1)                    \
   F(GetWeakCollectionSize, 1, 1)              \
   F(GlobalPrint, -1, 1)                       \
+  F(HasCowElements, 1, 1)                     \
   F(HasDictionaryElements, 1, 1)              \
   F(HasDoubleElements, 1, 1)                  \
   F(HasElementsInALargeObjectSpace, 1, 1)     \

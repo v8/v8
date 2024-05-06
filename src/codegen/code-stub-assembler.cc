@@ -13351,6 +13351,11 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
   return elements_kind;
 }
 
+TNode<Object> CodeStubAssembler::LoadNestedAllocationSite(
+    TNode<AllocationSite> allocation_site) {
+  return LoadObjectField(allocation_site, AllocationSite::kNestedSiteOffset);
+}
+
 template <typename TIndex>
 TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     const VariableList& vars, TVariable<TIndex>& var_index,

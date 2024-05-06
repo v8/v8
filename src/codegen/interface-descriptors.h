@@ -80,6 +80,7 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedProperties)        \
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
+  V(CreateFromSlowBoilerplateHelper)                 \
   V(DefineKeyedOwn)                                  \
   V(DefineKeyedOwnBaseline)                          \
   V(DefineKeyedOwnWithVector)                        \
@@ -2074,6 +2075,20 @@ class CppBuiltinAdaptorDescriptor
   DEFINE_JS_PARAMETERS(kCFunction)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor)
+};
+
+class CreateFromSlowBoilerplateHelperDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CreateFromSlowBoilerplateHelperDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  DEFINE_RESULT_AND_PARAMETERS(2, kAllocationSite, kBoilerplate)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::AnyTagged(),  // result 1 (object)
+      MachineType::AnyTagged(),  // result 2 (allocation site)
+      MachineType::AnyTagged(),  // kAllocationSite
+      MachineType::AnyTagged())  // kBoilerplate
+  DECLARE_DESCRIPTOR(CreateFromSlowBoilerplateHelperDescriptor)
 };
 
 class CEntry1ArgvOnStackDescriptor
