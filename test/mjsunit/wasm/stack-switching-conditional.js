@@ -12,7 +12,6 @@
 // Enable the JSPI flag conditionally (as in a Chrome Origin Trial),
 // then run existing stack-switching tests.
 d8.test.enableJSPI();
-d8.test.installConditionalFeatures();
 d8.file.execute("test/mjsunit/wasm/stack-switching.js");
 
 // Test that nothing blows up if we call this multiple times.

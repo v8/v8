@@ -9,4 +9,3 @@ var x = WebAssembly;
 WebAssembly = {};
 
 d8.test.enableJSPI();
-d8.test.installConditionalFeatures();

@@ -15,4 +15,3 @@ delete WebAssembly.Tag.prototype.type;
 WebAssembly.Tag.prototype.type = {};
 
 d8.test.enableJSPI();
-d8.test.installConditionalFeatures();

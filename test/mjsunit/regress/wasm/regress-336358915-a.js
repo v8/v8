@@ -9,7 +9,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 WebAssembly.Suspender = 'foo';
 
 d8.test.enableJSPI();
-d8.test.installConditionalFeatures();
 let v0 = new WasmModuleBuilder();
 let v1 = v0.addType(kSig_r_r);
 let v2 = v0.addImport("mod", "func", kSig_r_v);

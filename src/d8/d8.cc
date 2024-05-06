@@ -2390,6 +2390,7 @@ void Shell::InstallConditionalFeatures(
 void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   isolate->SetWasmJSPIEnabledCallback([](auto) { return true; });
+  isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
 // async_hooks.createHook() registers functions to be called for different
