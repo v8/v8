@@ -4884,204 +4884,216 @@ void PreProcessUnicodeFilenameArg(char* argv[], int i) {
 
 #endif
 
+namespace {
+
+bool FlagMatches(const char* flag, char** arg, bool keep_flag = false) {
+  if (strcmp(*arg, flag) == 0) {
+    if (!keep_flag) {
+      *arg = nullptr;
+    }
+    return true;
+  }
+  return false;
+}
+
+template <size_t N>
+bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
+                        char* argv[], int* i) {
+  char* current_arg = argv[*i];
+
+  // Compare the flag up to the last character of the flag name (not including
+  // the null terminator).
+  if (strncmp(current_arg, flag, N - 1) == 0) {
+    // Match against --flag=value
+    if (current_arg[N - 1] == '=') {
+      *flag_value = argv[*i] + N;
+      argv[*i] = nullptr;
+      return true;
+    }
+    // Match against --flag value
+    if (current_arg[N - 1] == '\0') {
+      CHECK_LT(*i, argc - 1);
+      argv[*i] = nullptr;
+      (*i)++;
+      *flag_value = argv[*i];
+      argv[*i] = nullptr;
+      return true;
+    }
+  }
+
+  flag_value = nullptr;
+  return false;
+}
+
+}  // namespace
+
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
   options.d8_path = argv[0];
   for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "--") == 0) {
-      argv[i] = nullptr;
-      for (int j = i + 1; j < argc; j++) {
-        options.arguments.push_back(argv[j]);
-        argv[j] = nullptr;
+    char* flag_value = nullptr;
+    if (FlagMatches("--", &argv[i])) {
+      i++;
+      for (; i < argc; i++) {
+        options.arguments.push_back(argv[i]);
+        argv[i] = nullptr;
       }
       break;
-    } else if (strcmp(argv[i], "--no-arguments") == 0) {
+    } else if (FlagMatches("--no-arguments", &argv[i])) {
       options.include_arguments = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--simulate-errors") == 0) {
+    } else if (FlagMatches("--simulate-errors", &argv[i])) {
       options.simulate_errors = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--fuzzing") == 0 ||
-               strcmp(argv[i], "--no-abort-on-contradictory-flags") == 0 ||
-               strcmp(argv[i], "--noabort-on-contradictory-flags") == 0) {
+    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true) ||
+               FlagMatches("--no-abort-on-contradictory-flags", &argv[i],
+                           /*keep_flag=*/true) ||
+               FlagMatches("--noabort-on-contradictory-flags", &argv[i],
+                           /*keep_flag=*/true)) {
       check_d8_flag_contradictions = false;
-    } else if (strcmp(argv[i], "--abort-on-contradictory-flags") == 0) {
+    } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
+                           /*keep_flag=*/true)) {
       check_d8_flag_contradictions = true;
-    } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
+    } else if (FlagMatches("--logfile-per-isolate", &argv[i])) {
       logfile_per_isolate = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--shell") == 0) {
+    } else if (FlagMatches("--shell", &argv[i])) {
       options.interactive_shell = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--test") == 0) {
+    } else if (FlagMatches("--test", &argv[i])) {
       options.test_shell = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--notest") == 0 ||
-               strcmp(argv[i], "--no-test") == 0) {
+    } else if (FlagMatches("--notest", &argv[i]) ||
+               FlagMatches("--no-test", &argv[i])) {
       options.test_shell = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
+    } else if (FlagMatches("--send-idle-notification", &argv[i])) {
       options.send_idle_notification = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--invoke-weak-callbacks") == 0) {
+    } else if (FlagMatches("--invoke-weak-callbacks", &argv[i])) {
       options.invoke_weak_callbacks = true;
       // TODO(v8:3351): Invoking weak callbacks does not always collect all
       // available garbage.
       options.send_idle_notification = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--omit-quit") == 0) {
+    } else if (FlagMatches("--omit-quit", &argv[i])) {
       options.omit_quit = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--no-wait-for-background-tasks") == 0) {
+    } else if (FlagMatches("--no-wait-for-background-tasks", &argv[i])) {
       // TODO(herhut) Remove this flag once wasm compilation is fully
       // isolate-independent.
       options.wait_for_background_tasks = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "-f") == 0) {
+    } else if (FlagMatches("-f", &argv[i], /*keep_flag=*/true)) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
       continue;
-    } else if (strcmp(argv[i], "--ignore-unhandled-promises") == 0) {
+    } else if (FlagMatches("--ignore-unhandled-promises", &argv[i])) {
       options.ignore_unhandled_promises = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--isolate") == 0) {
+    } else if (FlagMatches("--isolate", &argv[i], /*keep_flag=*/true)) {
       options.num_isolates++;
-    } else if (strcmp(argv[i], "--throws") == 0) {
+    } else if (FlagMatches("--throws", &argv[i])) {
       options.expected_to_throw = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--no-fail") == 0) {
+    } else if (FlagMatches("--no-fail", &argv[i])) {
       options.no_fail = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--dump-counters") == 0) {
+    } else if (FlagMatches("--dump-counters", &argv[i])) {
       i::v8_flags.slow_histograms = true;
       options.dump_counters = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--dump-counters-nvp") == 0) {
+    } else if (FlagMatches("--dump-counters-nvp", &argv[i])) {
       i::v8_flags.slow_histograms = true;
       options.dump_counters_nvp = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--dump-system-memory-stats") == 0) {
+    } else if (FlagMatches("--dump-system-memory-stats", &argv[i])) {
       options.dump_system_memory_stats = true;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
-      options.icu_data_file = argv[i] + 16;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--icu-locale=", 13) == 0) {
-      options.icu_locale = argv[i] + 13;
-      argv[i] = nullptr;
+    } else if (FlagWithArgMatches("--icu-data-file", &flag_value, argc, argv,
+                                  &i)) {
+      options.icu_data_file = flag_value;
+    } else if (FlagWithArgMatches("--icu-locale", &flag_value, argc, argv,
+                                  &i)) {
+      options.icu_locale = flag_value;
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-    } else if (strncmp(argv[i], "--snapshot_blob=", 16) == 0) {
-      options.snapshot_blob = argv[i] + 16;
-      argv[i] = nullptr;
+    } else if (FlagWithArgMatches("--snapshot_blob", &flag_value, argc, argv,
+                                  &i)) {
+      options.snapshot_blob = flag_value;
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
-    } else if (strcmp(argv[i], "--cache") == 0 ||
-               strncmp(argv[i], "--cache=", 8) == 0) {
-      const char* value = argv[i] + 7;
-      if (!*value || strncmp(value, "=code", 6) == 0) {
+    } else if (FlagMatches("--cache", &argv[i]) ||
+               FlagWithArgMatches("--cache", &flag_value, argc, argv, &i)) {
+      if (!flag_value || strcmp(flag_value, "code") == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCache;
-      } else if (strncmp(value, "=none", 6) == 0) {
+      } else if (strcmp(flag_value, "none") == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options = ShellOptions::kNoProduceCache;
-      } else if (strncmp(value, "=after-execute", 15) == 0) {
+      } else if (strcmp(flag_value, "after-execute") == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute;
-      } else if (strncmp(value, "=full-code-cache", 17) == 0) {
+      } else if (strcmp(flag_value, "full-code-cache") == 0) {
         options.compile_options = v8::ScriptCompiler::kEagerCompile;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCache;
       } else {
-        printf("Unknown option to --cache.\n");
+        fprintf(stderr, "Unknown option to --cache.\n");
         return false;
       }
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--streaming-compile") == 0) {
+    } else if (FlagMatches("--streaming-compile", &argv[i])) {
       options.streaming_compile = true;
-      argv[i] = nullptr;
-    } else if ((strcmp(argv[i], "--no-streaming-compile") == 0) ||
-               (strcmp(argv[i], "--nostreaming-compile") == 0)) {
+    } else if ((FlagMatches("--no-streaming-compile", &argv[i])) ||
+               (FlagMatches("--nostreaming-compile", &argv[i]))) {
       options.streaming_compile = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--enable-tracing") == 0) {
+    } else if (FlagMatches("--enable-tracing", &argv[i])) {
       options.trace_enabled = true;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--trace-path=", 13) == 0) {
-      options.trace_path = argv[i] + 13;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--trace-config=", 15) == 0) {
-      options.trace_config = argv[i] + 15;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--enable-inspector") == 0) {
+    } else if (FlagWithArgMatches("--trace-path", &flag_value, argc, argv,
+                                  &i)) {
+      options.trace_path = flag_value;
+    } else if (FlagWithArgMatches("--trace-config", &flag_value, argc, argv,
+                                  &i)) {
+      options.trace_config = flag_value;
+    } else if (FlagMatches("--enable-inspector", &argv[i])) {
       options.enable_inspector = true;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
-      options.lcov_file = argv[i] + 7;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
+    } else if (FlagWithArgMatches("--lcov", &flag_value, argc, argv, &i)) {
+      options.lcov_file = flag_value;
+    } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
-      argv[i] = nullptr;
 #ifdef V8_OS_POSIX
-    } else if (strncmp(argv[i], "--read-from-tcp-port=", 21) == 0) {
-      options.read_from_tcp_port = atoi(argv[i] + 21);
-      argv[i] = nullptr;
+    } else if (FlagWithArgMatches("--read-from-tcp-port", &flag_value, argc,
+                                  argv, &i)) {
+      options.read_from_tcp_port = atoi(flag_value);
 #endif  // V8_OS_POSIX
-    } else if (strcmp(argv[i], "--enable-os-system") == 0) {
+    } else if (FlagMatches("--enable-os-system", &argv[i])) {
       options.enable_os_system = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--no-apply-priority") == 0) {
+    } else if (FlagMatches("--no-apply-priority", &argv[i])) {
       options.apply_priority = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--quiet-load") == 0) {
+    } else if (FlagMatches("--quiet-load", &argv[i])) {
       options.quiet_load = true;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
-      options.thread_pool_size = atoi(argv[i] + 19);
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-delay-tasks") == 0) {
+    } else if (FlagWithArgMatches("--thread-pool-size", &flag_value, argc, argv,
+                                  &i)) {
+      options.thread_pool_size = atoi(flag_value);
+    } else if (FlagMatches("--stress-delay-tasks", &argv[i])) {
       // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
       options.stress_delay_tasks = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--cpu-profiler") == 0) {
+    } else if (FlagMatches("--cpu-profiler", &argv[i])) {
       options.cpu_profiler = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
+    } else if (FlagMatches("--cpu-profiler-print", &argv[i])) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-deserialize") == 0) {
+    } else if (FlagMatches("--stress-deserialize", &argv[i])) {
       options.stress_deserialize = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--compile-only") == 0) {
+    } else if (FlagMatches("--compile-only", &argv[i])) {
       options.compile_only = true;
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--repeat-compile=", 17) == 0) {
-      options.repeat_compile = atoi(argv[i] + 17);
-      argv[i] = nullptr;
-    } else if (strncmp(argv[i], "--max-serializer-memory=", 24) == 0) {
+    } else if (FlagWithArgMatches("--repeat-compile", &flag_value, argc, argv,
+                                  &i)) {
+      options.repeat_compile = atoi(flag_value);
+    } else if (FlagWithArgMatches("--max-serializer-memory", &flag_value, argc,
+                                  argv, &i)) {
       // Value is expressed in MB.
-      options.max_serializer_memory = atoi(argv[i] + 24) * i::MB;
-      argv[i] = nullptr;
+      options.max_serializer_memory = atoi(flag_value) * i::MB;
 #ifdef V8_FUZZILLI
-    } else if (strcmp(argv[i], "--fuzzilli-enable-builtins-coverage") == 0) {
+    } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--fuzzilli-coverage-statistics") == 0) {
+    } else if (FlagMatches("--fuzzilli-coverage-statistics", &argv[i])) {
       options.fuzzilli_coverage_statistics = true;
-      argv[i] = nullptr;
 #endif
-    } else if (strcmp(argv[i], "--no-fuzzy-module-file-extensions") == 0) {
+    } else if (FlagMatches("--no-fuzzy-module-file-extensions", &argv[i])) {
       DCHECK(options.fuzzy_module_file_extensions);
       options.fuzzy_module_file_extensions = false;
-      argv[i] = nullptr;
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
-    } else if (strcmp(argv[i], "--enable-etw-stack-walking") == 0) {
+    } else if (FlagMatches("--enable-etw-stack-walking", &argv[i])) {
       options.enable_etw_stack_walking = true;
       // This needs to be manually triggered for JIT ETW events to work.
       i::v8_flags.enable_etw_stack_walking = true;
 #if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
+    } else if (FlagMatches("--enable-system-instrumentation", &argv[i])) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;
 #endif
@@ -5090,19 +5102,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // by macos
       i::v8_flags.interpreted_frames_native_stack = true;
 #endif
-      argv[i] = nullptr;
 #endif
 #if V8_ENABLE_WEBASSEMBLY
-    } else if (strcmp(argv[i], "--wasm-trap-handler") == 0) {
+    } else if (FlagMatches("--wasm-trap-handler", &argv[i])) {
       options.wasm_trap_handler = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--no-wasm-trap-handler") == 0) {
+    } else if (FlagMatches("--no-wasm-trap-handler", &argv[i])) {
       options.wasm_trap_handler = false;
-      argv[i] = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
+    } else if (FlagMatches("--expose-fast-api", &argv[i])) {
       options.expose_fast_api = true;
-      argv[i] = nullptr;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
