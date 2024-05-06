@@ -115,14 +115,17 @@ class DeoptimizationLiteral {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmDouble);
     return number_;
   }
+
   float GetFloat() const {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat);
     return float_;
   }
+
   int64_t GetInt64() const {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt64);
     return int64_;
   }
+
   int32_t GetInt32() const {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt32);
     return static_cast<int32_t>(int64_);

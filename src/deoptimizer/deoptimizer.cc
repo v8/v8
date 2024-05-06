@@ -581,14 +581,22 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                               deopt_data.deopt_exit_start_offset -
                               kEagerDeoptExitSize) /
         kEagerDeoptExitSize;
-    // TODO(mliedtke): We need to support parameter stack slots. Note that in
-    // wasm the first x parameters (depending on architecture) are passed in
-    // registers and are therefore not part of the "parameters" of these
-    // FrameDescriptions.
-    const int parameter_count = 0;
-    unsigned input_frame_size = fp_to_sp_delta;
+
+    // Note: The parameter stack slots are not really part of the frame.
+    // However, the deoptimizer needs access to the incoming parameter values
+    // and therefore they need to be included in the FrameDescription. Between
+    // the parameters and the actual frame there are 2 pointers (the caller's pc
+    // and saved stack pointer) that therefore also need to be included. Both
+    // pointers as well as the incoming parameter stack slots are going to be
+    // copied into the outgoing FrameDescription which will "push" them back
+    // onto the stack. (This is consistent with how JS handles this.)
+    const int parameter_slots = code->first_tagged_parameter_slot() +
+                                code->num_tagged_parameter_slots();
+    unsigned input_frame_size = fp_to_sp_delta +
+                                parameter_slots * kSystemPointerSize +
+                                CommonFrameConstants::kFixedFrameSizeAboveFp;
     input_ =
-        FrameDescription::Create(input_frame_size, parameter_count, isolate_);
+        FrameDescription::Create(input_frame_size, parameter_slots, isolate_);
     return;
   }
 #endif
@@ -853,9 +861,6 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
     Register fp_reg = JavaScriptFrame::fp_register();
     stack_fp_ = input_->GetRegister(fp_reg.code());
-    // TODO(mliedtke): This will probably need to be adapted in case of
-    // parameters being passed on the stack.
-    caller_frame_top_ = stack_fp_;
     Address fp_address = input_->GetFramePointerAddress();
     caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
@@ -903,29 +908,45 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     DCHECK_NE(found, frame_descriptions.end());
     const wasm::LiftoffFrameDescription& liftoff_description = *found;
 
+    const uint32_t parameter_stack_slots =
+        wasm_code->first_tagged_parameter_slot() +
+        wasm_code->num_tagged_parameter_slots();
+
     // Allocate and populate the FrameDescription describing the output frame.
     const uint32_t output_frame_size =
         result.liftoff_frame_descriptions->total_frame_size;
-    // TODO(mliedtke): Same as for the input frame, the output frame may also
-    // have parameter stack slots.
-    const uint32_t parameter_stack_slots = 0;
+    const uint32_t total_output_frame_size =
+        output_frame_size + parameter_stack_slots * kSystemPointerSize +
+        CommonFrameConstants::kFixedFrameSizeAboveFp;
     FrameDescription* output_frame = FrameDescription::Create(
-        output_frame_size, parameter_stack_slots, isolate());
+        total_output_frame_size, parameter_stack_slots, isolate());
+
+    // Copy the parameter stack slots, the return address and the caller's stack
+    // pointer.
+    static_assert(CommonFrameConstants::kFixedFrameSizeAboveFp ==
+                  2 * kSystemPointerSize);
+    for (uint32_t i = 1; i <= parameter_stack_slots + 2; ++i) {
+      uint32_t input_offset = input_->GetFrameSize() - i * kSystemPointerSize;
+      intptr_t value = input_->GetFrameSlot(input_offset);
+      uint32_t output_offset = total_output_frame_size - i * kSystemPointerSize;
+      output_frame->SetFrameSlot(output_offset, value);
+    }
+
+    int base_offset = output_frame_size;
 
     Tagged<WasmTrustedInstanceData> wasm_trusted_instance;
     DCHECK_EQ(translated_state_.frames().size(), 1);
     TranslatedFrame& translated_frame = *translated_state_.begin();
     auto liftoff_iter = liftoff_description.var_state.begin();
 
-    int base_offset = output_frame_size;
     for (TranslatedValue value : translated_frame) {
       if (liftoff_iter == liftoff_description.var_state.end()) {
         // The trusted instance.
         wasm_trusted_instance =
             WasmTrustedInstanceData::cast(value.GetRawValue());
-        output_frame->SetFrameSlot(
-            base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset,
-            wasm_trusted_instance.ptr());
+        uint32_t offset =
+            base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset;
+        output_frame->SetFrameSlot(offset, wasm_trusted_instance.ptr());
         if (liftoff_description.trusted_instance != no_reg) {
           DCHECK_EQ(liftoff_description.trusted_instance,
                     kWasmInstanceRegister);
@@ -994,15 +1015,16 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     }
 
     // Store frame kind.
-    output_frame->SetFrameSlot(
-        base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset,
-        StackFrame::WASM);
+    uint32_t frame_type_offset =
+        base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
+    output_frame->SetFrameSlot(frame_type_offset, StackFrame::WASM);
     // Store feedback vector in stack slot.
     Tagged<FixedArray> module_feedback =
         wasm_trusted_instance->feedback_vectors();
-    output_frame->SetFrameSlot(
-        base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset,
-        module_feedback->get(code->index()).ptr());
+    uint32_t feedback_offset =
+        base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
+    output_frame->SetFrameSlot(feedback_offset,
+                               module_feedback->get(code->index()).ptr());
 
     output_frame->SetPc(wasm_code->instruction_start() +
                         liftoff_description.pc_offset);
@@ -1014,10 +1036,11 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     // Set caller pc.
     output_frame->SetCallerPc(0, caller_pc_);
 
-    Address top = caller_frame_top_ - output_frame_size;
+    caller_frame_top_ = stack_fp_ +
+                        CommonFrameConstants::kFixedFrameSizeAboveFp +
+                        parameter_stack_slots * kSystemPointerSize;
+    Address top = caller_frame_top_ - total_output_frame_size;
     output_frame->SetTop(top);
-    // TODO(mliedtke): This will probably need to be adapted for parameter stack
-    // slots.
     const intptr_t fp_value = stack_fp_;
     output_frame->SetFp(fp_value);
     output_frame->SetRegister(fp_reg.code(), fp_value);
