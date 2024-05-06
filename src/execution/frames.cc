@@ -2804,8 +2804,18 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // When the return pc has been replaced by a trampoline there won't be
   // a handler for this trampoline. Thus we need to use the return pc that
   // _used to be_ on the stack to get the right ExceptionHandler.
-  if (CodeKindCanDeoptimize(code->kind()) &&
-      code->marked_for_deoptimization()) {
+  if (CodeKindCanDeoptimize(code->kind())) {
+    if (!code->marked_for_deoptimization()) {
+      // Lazy deoptimize the function in case the handler table entry flags that
+      // it wants to be lazily deoptimized on throw. This allows the optimizing
+      // compiler to omit catch blocks that were never reached in practice.
+      int optimized_exception_handler = table.LookupReturn(pc_offset);
+      if (optimized_exception_handler != HandlerTable::kLazyDeopt) {
+        return optimized_exception_handler;
+      }
+      Deoptimizer::DeoptimizeFunction(function(), code);
+    }
+    DCHECK(code->marked_for_deoptimization());
     pc_offset = FindReturnPCForTrampoline(code, pc_offset);
   }
   return table.LookupReturn(pc_offset);

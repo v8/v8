@@ -538,6 +538,7 @@ class ExceptionHandlerTrampolineBuilder {
     DCHECK(node->properties().can_throw());
 
     ExceptionHandlerInfo* const handler_info = node->exception_handler_info();
+    if (handler_info->ShouldLazyDeopt()) return;
     DCHECK(handler_info->HasExceptionHandler());
     BasicBlock* const catch_block = handler_info->catch_block.block_ptr();
     LazyDeoptInfo* const deopt_info = node->lazy_deopt_info();
@@ -1777,8 +1778,10 @@ void MaglevCodeGenerator::EmitMetadata() {
   handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
   for (NodeBase* node : code_gen_state_.handlers()) {
     ExceptionHandlerInfo* info = node->exception_handler_info();
-    HandlerTable::EmitReturnEntry(masm(), info->pc_offset,
-                                  info->trampoline_entry.pos());
+    DCHECK_IMPLIES(info->ShouldLazyDeopt(), !info->trampoline_entry.is_bound());
+    int pos = info->ShouldLazyDeopt() ? HandlerTable::kLazyDeopt
+                                      : info->trampoline_entry.pos();
+    HandlerTable::EmitReturnEntry(masm(), info->pc_offset, pos);
   }
 }
 

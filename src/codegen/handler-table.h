@@ -149,6 +149,9 @@ class V8_EXPORT_PRIVATE HandlerTable {
   using HandlerPredictionField = base::BitField<CatchPrediction, 0, 3>;
   using HandlerWasUsedField = HandlerPredictionField::Next<bool, 1>;
   using HandlerOffsetField = HandlerWasUsedField::Next<int, 28>;
+
+ public:
+  static const int kLazyDeopt = HandlerOffsetField::kMax;
 };
 
 }  // namespace internal

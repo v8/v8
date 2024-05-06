@@ -684,17 +684,12 @@ class MaglevGraphBuilder {
         DCHECK_EQ(predecessors_[offset], 0);
         // If we have no reference to this block, then the exception handler is
         // dead.
-        if (!jump_targets_[offset].has_ref()) {
+        if (!jump_targets_[offset].has_ref() ||
+            !merge_state->exception_handler_was_used()) {
           MarkBytecodeDead();
           return;
         }
         ProcessMergePointAtExceptionHandlerStart(offset);
-        if (!merge_state->exception_handler_was_used()) {
-          DCHECK_EQ(merge_state->predecessor_count(), 0);
-          StartNewBlock(offset, /*predecessor*/ nullptr);
-          RETURN_VOID_ON_ABORT(
-              EmitUnconditionalDeopt(DeoptimizeReason::kUnoptimizedCatch));
-        }
       } else if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
                  merge_state->is_unreachable_loop()) {
         // We encoutered a loop header that is only reachable by the JumpLoop
@@ -987,6 +982,15 @@ class MaglevGraphBuilder {
     if constexpr (NodeT::kProperties.can_throw()) {
       CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
       if (catch_block.ref) {
+        if (!catch_block.state->exception_handler_was_used()) {
+          // Attach an empty live exception handler to mark that there's a
+          // matching catch but we'll lazy deopt if we ever throw.
+          new (node->exception_handler_info()) ExceptionHandlerInfo(
+              catch_block.ref, ExceptionHandlerInfo::kLazyDeopt);
+          DCHECK(node->exception_handler_info()->HasExceptionHandler());
+          DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
+          return;
+        }
         const MaglevGraphBuilder* builder = this;
         int depth = 0;
         if (catch_block_stack_.size() == 0) {
@@ -996,6 +1000,8 @@ class MaglevGraphBuilder {
         }
         new (node->exception_handler_info())
             ExceptionHandlerInfo(catch_block.ref, depth);
+        DCHECK(node->exception_handler_info()->HasExceptionHandler());
+        DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
         // Merge the current state into the handler state.
         DCHECK_NOT_NULL(catch_block.state);
@@ -1007,6 +1013,7 @@ class MaglevGraphBuilder {
         // TODO(victorgomes): Avoid allocating exception handler data in this
         // case.
         new (node->exception_handler_info()) ExceptionHandlerInfo();
+        DCHECK(!node->exception_handler_info()->HasExceptionHandler());
       }
     }
   }

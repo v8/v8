@@ -1774,17 +1774,20 @@ class LazyDeoptInfo : public DeoptInfo {
 
 class ExceptionHandlerInfo {
  public:
-  const int kNoExceptionHandlerPCOffsetMarker = 0xdeadbeef;
+  static const int kNoExceptionHandlerPCOffsetMarker = 0xdeadbeef;
+  static const int kLazyDeopt = -1;
 
   ExceptionHandlerInfo()
       : catch_block(), depth(0), pc_offset(kNoExceptionHandlerPCOffsetMarker) {}
 
-  explicit ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
+  ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
       : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
 
   bool HasExceptionHandler() const {
     return pc_offset != kNoExceptionHandlerPCOffsetMarker;
   }
+
+  bool ShouldLazyDeopt() const { return depth == kLazyDeopt; }
 
   BasicBlockRef catch_block;
   Label trampoline_entry;
