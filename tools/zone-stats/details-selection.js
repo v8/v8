@@ -5,6 +5,7 @@
 'use strict';
 
 import {CATEGORIES, CATEGORY_NAMES, categoryByZoneName} from './categories.js';
+import DOMPurify from 'dompurify';
 
 export const VIEW_TOTALS = 'by-totals';
 export const VIEW_BY_ZONE_NAME = 'by-zone-name';
@@ -106,7 +107,7 @@ defineCustomElement('details-selection', (templateText) =>
     div.appendChild(ul);
     const name_li = document.createElement('li');
     ul.appendChild(name_li);
-    name_li.innerHTML = CATEGORY_NAMES.get(name);
+    name_li.innerHTML = DOMPurify.sanitize(CATEGORY_NAMES.get(name));
     const percent_li = document.createElement('li');
     ul.appendChild(percent_li);
     percent_li.innerHTML = '0%';
