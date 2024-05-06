@@ -179,9 +179,8 @@ void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
       module_->stringref_literals[imm.index];
   const base::Vector<const uint8_t> module_bytes =
       trusted_instance_data_->module_object()->native_module()->wire_bytes();
-  const base::Vector<const uint8_t> string_bytes =
-      module_bytes.SubVector(literal.source.offset(),
-                             literal.source.offset() + literal.source.length());
+  const base::Vector<const uint8_t> string_bytes = module_bytes.SubVector(
+      literal.source.offset(), literal.source.end_offset());
   Handle<String> string =
       isolate_->factory()
           ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)
