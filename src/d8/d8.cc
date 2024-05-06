@@ -1801,6 +1801,23 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
   return internal_value;
 }
 
+#ifdef V8_OS_LINUX
+void SendPerfControlCommand(const char* command) {
+  if (Shell::options.perf_ctl_fd != -1 && Shell::options.perf_ack_fd != -1) {
+    size_t command_len = strlen(command);
+    ssize_t ret = write(Shell::options.perf_ctl_fd, command, command_len);
+    if (ret == -1) {
+      fprintf(stderr, "perf_ctl write error: %s\n", strerror(errno));
+    }
+    CHECK_EQ(ret, command_len);
+
+    char ack[5];
+    CHECK_EQ(read(Shell::options.perf_ack_fd, ack, 5), 5);
+    CHECK_EQ(strcmp(ack, "ack\n"), 0);
+  }
+}
+#endif
+
 // performance.now() returns GetTimestamp().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -1844,6 +1861,12 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
       .Check();
 
   info.GetReturnValue().Set(performance_entry);
+
+#ifdef V8_OS_LINUX
+  if (options.scope_linux_perf_to_mark_measure) {
+    SendPerfControlCommand("enable");
+  }
+#endif
 }
 
 // performance.measure() records and returns a PerformanceEntry with a duration
@@ -1862,6 +1885,12 @@ void Shell::PerformanceMeasure(
 
   double start_timestamp = 0;
   if (info.Length() >= 2) {
+#ifdef V8_OS_LINUX
+    if (options.scope_linux_perf_to_mark_measure) {
+      SendPerfControlCommand("disable");
+    }
+#endif
+
     Local<Value> start_mark = info[1].As<Value>();
     if (!start_mark->IsObject()) {
       ThrowError(info.GetIsolate(),
@@ -5043,6 +5072,16 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.enable_inspector = true;
     } else if (FlagWithArgMatches("--lcov", &flag_value, argc, argv, &i)) {
       options.lcov_file = flag_value;
+#ifdef V8_OS_LINUX
+    } else if (FlagMatches("--scope-linux-perf-to-mark-measure", &argv[i])) {
+      options.scope_linux_perf_to_mark_measure = true;
+    } else if (FlagWithArgMatches("--perf-ctl-fd", &flag_value, argc, argv,
+                                  &i)) {
+      options.perf_ctl_fd = atoi(flag_value);
+    } else if (FlagWithArgMatches("--perf-ack-fd", &flag_value, argc, argv,
+                                  &i)) {
+      options.perf_ack_fd = atoi(flag_value);
+#endif
     } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
 #ifdef V8_OS_POSIX
@@ -5117,6 +5156,18 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif
     }
   }
+
+#ifdef V8_OS_LINUX
+  if (options.scope_linux_perf_to_mark_measure) {
+    if (options.perf_ctl_fd == -1 || options.perf_ack_fd == -1) {
+      fprintf(stderr,
+              "Flag --scope-linux-perf-to-mark-measure requires both "
+              "--perf-ctl-fd and --perf-ack-fd\n");
+      return false;
+    }
+    SendPerfControlCommand("disable");
+  }
+#endif
 
   const char* usage =
       "Synopsis:\n"
