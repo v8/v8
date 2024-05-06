@@ -2276,9 +2276,10 @@ OpIndex GraphBuilder::Process(
       FOREACH_SIMD_128_UNARY_OPCODE(SIMD128_UNOP)
 #undef SIMD128_UNOP
 
-#define SIMD128_SHIFT(name)                                              \
-  case IrOpcode::k##name:                                                \
-    return __ Simd128Shift(Map(node->InputAt(0)), Map(node->InputAt(1)), \
+#define SIMD128_SHIFT(name)                                \
+  case IrOpcode::k##name:                                  \
+    return __ Simd128Shift(Map<Simd128>(node->InputAt(0)), \
+                           Map<Word32>(node->InputAt(1)),  \
                            Simd128ShiftOp::Kind::k##name);
       FOREACH_SIMD_128_SHIFT_OPCODE(SIMD128_SHIFT)
 #undef SIMD128_UNOP

@@ -7222,11 +7222,11 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
                           RegisterRepresentation::Simd128()>();
   }
 
-  Simd128BinopOp(OpIndex left, OpIndex right, Kind kind)
+  Simd128BinopOp(V<Simd128> left, V<Simd128> right, Kind kind)
       : Base(left, right), kind(kind) {}
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  V<Simd128> left() const { return input<Simd128>(0); }
+  V<Simd128> right() const { return input<Simd128>(1); }
 
   void Validate(const Graph& graph) const {}
 
@@ -7369,11 +7369,11 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
                           RegisterRepresentation::Word32()>();
   }
 
-  Simd128ShiftOp(OpIndex input, OpIndex shift, Kind kind)
+  Simd128ShiftOp(V<Simd128> input, V<Word32> shift, Kind kind)
       : Base(input, shift), kind(kind) {}
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex shift() const { return Base::input(1); }
+  V<Simd128> input() const { return Base::input<Simd128>(0); }
+  V<Word32> shift() const { return Base::input<Word32>(1); }
 
   void Validate(const Graph& graph) const {}
 
@@ -7841,14 +7841,14 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
                           RegisterRepresentation::Simd128()>();
   }
 
-  Simd128ShuffleOp(OpIndex left, OpIndex right,
+  Simd128ShuffleOp(V<Simd128> left, V<Simd128> right,
                    const uint8_t incoming_shuffle[kSimd128Size])
       : Base(left, right) {
     std::copy(incoming_shuffle, incoming_shuffle + kSimd128Size, shuffle);
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  V<Simd128> left() const { return input<Simd128>(0); }
+  V<Simd128> right() const { return input<Simd128>(1); }
 
   void Validate(const Graph& graph) {
 #if DEBUG

@@ -380,7 +380,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 #undef DECL_SPLAT
 
 #define DECL_SIMD128_BINOP(Name)                                     \
-  V<Simd128> Name(OpIndex left, OpIndex right) {                     \
+  V<Simd128> Name(V<Simd128> left, V<Simd128> right) {               \
     return Simd128Binop(left, right, Simd128BinopOp::Kind::k##Name); \
   }
     FOREACH_SIMD_128_BINARY_OPCODE(DECL_SIMD128_BINOP)

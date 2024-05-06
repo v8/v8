@@ -233,14 +233,14 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
     return nodes_ == node_group;
   }
   bool IsSame(const PackNode& other) const { return nodes_ == other.nodes_; }
-  OpIndex RevectorizedNode() const { return revectorized_node_; }
-  void SetRevectorizedNode(OpIndex node) { revectorized_node_ = node; }
+  V<Simd256> RevectorizedNode() const { return revectorized_node_; }
+  void SetRevectorizedNode(V<Simd256> node) { revectorized_node_ = node; }
 
   void Print(Graph* graph) const;
 
  private:
   NodeGroup nodes_;
-  OpIndex revectorized_node_;
+  V<Simd256> revectorized_node_;
 };
 
 class ShufflePackNode : public PackNode {
@@ -658,24 +658,20 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Unary(ig_index, unary);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Binop)(OpIndex ig_index,
-                                           const Simd128BinopOp& op) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Binop)(V<Simd128> ig_index,
+                                              const Simd128BinopOp& op) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
-        auto left = analyzer_.GetReduced(op.left());
-        auto right = analyzer_.GetReduced(op.right());
+        V<Simd256> left = analyzer_.GetReduced(op.left());
+        V<Simd256> right = analyzer_.GetReduced(op.right());
         if (!left.valid() || !right.valid()) {
-          left = __ MapToNewGraph(op.left());
-          right = __ MapToNewGraph(op.right());
-          og_index =
-              __ Simd256Binop(V<Simd128>::Cast(left), V<Simd128>::Cast(right),
-                              GetSimd256BinOpKind(op.kind));
+          V<Simd128> left = __ MapToNewGraph(op.left());
+          V<Simd128> right = __ MapToNewGraph(op.right());
+          og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
         } else {
-          og_index =
-              __ Simd256Binop(V<Simd256>::Cast(left), V<Simd256>::Cast(right),
-                              GetSimd256BinOpKind(op.kind));
+          og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
         }
         pnode->SetRevectorizedNode(og_index);
       }
@@ -686,10 +682,10 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Binop(ig_index, op);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Shift)(OpIndex ig_index,
-                                           const Simd128ShiftOp& op) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Shift)(V<Simd128> ig_index,
+                                              const Simd128ShiftOp& op) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
         V<Simd256> input = analyzer_.GetReduced(op.input());
@@ -744,11 +740,11 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Splat(ig_index, op);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Simd128Shuffle)(V<Simd128> ig_index,
-                                             const Simd128ShuffleOp& op) {
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Shuffle)(V<Simd128> ig_index,
+                                                const Simd128ShuffleOp& op) {
     if (ShufflePackNode* pnode =
             static_cast<ShufflePackNode*>(analyzer_.GetPackNode(ig_index))) {
-      OpIndex og_index = pnode->RevectorizedNode();
+      V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
         const ShufflePackNode::SpecificInfo::Kind kind = pnode->info().kind();

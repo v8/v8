@@ -2677,7 +2677,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #define HANDLE_BINARY_OPCODE(kind)                                            \
   case kExpr##kind:                                                           \
     result->op =                                                              \
-        __ Simd128Binop(args[0].op, args[1].op,                               \
+        __ Simd128Binop(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        V<compiler::turboshaft::Simd128>::Cast(args[1].op),   \
                         compiler::turboshaft::Simd128BinopOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_BINARY_OPCODE(HANDLE_BINARY_OPCODE)
@@ -2686,7 +2687,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #define HANDLE_INVERSE_COMPARISON(wasm_kind, ts_kind)            \
   case kExpr##wasm_kind:                                         \
     result->op = __ Simd128Binop(                                \
-        args[1].op, args[0].op,                                  \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),      \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),      \
         compiler::turboshaft::Simd128BinopOp::Kind::k##ts_kind); \
     break;
 
@@ -2754,7 +2756,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #define HANDLE_SHIFT_OPCODE(kind)                                             \
   case kExpr##kind:                                                           \
     result->op =                                                              \
-        __ Simd128Shift(args[0].op, args[1].op,                               \
+        __ Simd128Shift(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        V<Word32>::Cast(args[1].op),                          \
                         compiler::turboshaft::Simd128ShiftOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_SHIFT_OPCODE(HANDLE_SHIFT_OPCODE)
@@ -2876,7 +2879,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    result->op = __ Simd128Shuffle(input0.op, input1.op, imm.value);
+    result->op = __ Simd128Shuffle(
+        V<compiler::turboshaft::Simd128>::Cast(input0.op),
+        V<compiler::turboshaft::Simd128>::Cast(input1.op), imm.value);
   }
 
   void Try(FullDecoder* decoder, Control* block) {
