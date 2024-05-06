@@ -2363,8 +2363,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(
-    Instruction* instr, FlagsCondition compare_condition) {
+void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
   UNREACHABLE();
 }
 
