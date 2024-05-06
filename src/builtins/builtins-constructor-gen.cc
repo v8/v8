@@ -506,9 +506,6 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
     TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     TNode<Context> context, AllocationSiteMode allocation_site_mode,
     Label* call_runtime) {
-  Label zero_capacity(this), cow_elements(this), fast_elements(this),
-      return_result(this);
-
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(maybe_allocation_site), call_runtime);
@@ -580,6 +577,12 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
+  return CreateShallowObjectLiteral(allocation_site, boilerplate, call_runtime);
+}
+
+TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
+    TNode<AllocationSite> allocation_site, TNode<JSObject> boilerplate,
+    Label* call_runtime, bool bailout_if_dictionary_properties) {
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_DCHECK(this, IsJSObjectMap(boilerplate_map));
 
@@ -593,20 +596,25 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
-      Comment("Copy dictionary properties");
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        var_properties =
-            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      if (bailout_if_dictionary_properties) {
+        Goto(call_runtime);
       } else {
-        var_properties = CopyNameDictionary(
-            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+        Comment("Copy dictionary properties");
+        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          var_properties =
+              CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+        } else {
+          var_properties = CopyNameDictionary(
+              CAST(LoadSlowProperties(boilerplate)), call_runtime);
+        }
+        // Slow objects have no in-object properties.
+        Goto(&done);
       }
-      // Slow objects have no in-object properties.
-      Goto(&done);
     }
     BIND(&if_fast);
     {
       // TODO(cbruni): support copying out-of-object properties.
+      // (CreateObjectFromSlowBoilerplate needs to handle them, too.)
       TNode<HeapObject> boilerplate_properties =
           LoadFastProperties(boilerplate);
       GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);
