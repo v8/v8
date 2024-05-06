@@ -762,7 +762,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
       p.length() < ConstructorBuiltins::kMaximumClonedShallowArrayElements) {
     ReplaceWithBuiltinCall(node, Builtin::kCreateShallowArrayLiteral);
   } else {
-    ReplaceWithBuiltinCall(node, Builtin::kCreateArrayFromSlowBoilerplate);
+    ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
   }
 }
 

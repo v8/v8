@@ -1653,16 +1653,6 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
       isolate->heap()->lo_space()->Contains(elements));
 }
 
-RUNTIME_FUNCTION(Runtime_HasCowElements) {
-  SealHandleScope shs(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto array = JSArray::cast(args[0]);
-  Tagged<FixedArrayBase> elements = array->elements();
-  return isolate->heap()->ToBoolean(elements->IsCowArray());
-}
-
 RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   SealHandleScope shs(isolate);
   if (args.length() != 1) {

@@ -1848,11 +1848,11 @@ void BaselineCompiler::VisitCreateArrayLiteral() {
         Constant<HeapObject>(0),   // constant elements
         Smi::FromInt(flags_raw));  // flags
   } else {
-    CallBuiltin<Builtin::kCreateArrayFromSlowBoilerplate>(
-        FeedbackVector(),          // feedback vector
-        IndexAsTagged(1),          // slot
-        Constant<HeapObject>(0),   // constant elements
-        Smi::FromInt(flags_raw));  // flags
+    CallRuntime(Runtime::kCreateArrayLiteral,
+                FeedbackVector(),          // feedback vector
+                IndexAsTagged(1),          // slot
+                Constant<HeapObject>(0),   // constant elements
+                Smi::FromInt(flags_raw));  // flags
   }
 }
 
