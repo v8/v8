@@ -5,6 +5,7 @@
 #ifndef V8_DEOPTIMIZER_FRAME_DESCRIPTION_H_
 #define V8_DEOPTIMIZER_FRAME_DESCRIPTION_H_
 
+#include "src/base/memory.h"
 #include "src/base/platform/memory.h"
 #include "src/codegen/register.h"
 #include "src/execution/frame-constants.h"
@@ -37,8 +38,13 @@ class RegisterValues {
   }
 
   void SetRegister(unsigned n, intptr_t value) {
-    DCHECK(n < arraysize(registers_));
+    V8_ASSUME(n < arraysize(registers_));
     registers_[n] = value;
+  }
+
+  void SetDoubleRegister(unsigned n, Float64 value) {
+    V8_ASSUME(n < arraysize(double_registers_));
+    double_registers_[n] = value;
   }
 
   intptr_t registers_[Register::kNumRegisters];
@@ -128,6 +134,20 @@ class FrameDescription {
     *GetFrameSlotPointer(offset) = value;
   }
 
+  // Same as SetFrameSlot but only writes 32 bits. This is needed as liftoff
+  // has 32 bit frame slots.
+  void SetLiftoffFrameSlot32(unsigned offset, int32_t value) {
+    base::WriteUnalignedValue(
+        reinterpret_cast<char*>(GetFrameSlotPointer(offset)), value);
+  }
+
+  // Same as SetFrameSlot but also supports the offset to be unaligned (4 Byte
+  // aligned) as liftoff doesn't align frame slots if they aren't references.
+  void SetLiftoffFrameSlot64(unsigned offset, intptr_t value) {
+    base::WriteUnalignedValue(
+        reinterpret_cast<char*>(GetFrameSlotPointer(offset)), value);
+  }
+
   void SetCallerPc(unsigned offset, intptr_t value);
 
   void SetCallerFp(unsigned offset, intptr_t value);
@@ -144,6 +164,10 @@ class FrameDescription {
 
   void SetRegister(unsigned n, intptr_t value) {
     register_values_.SetRegister(n, value);
+  }
+
+  void SetDoubleRegister(unsigned n, Float64 value) {
+    register_values_.SetDoubleRegister(n, value);
   }
 
   intptr_t GetTop() const { return top_; }

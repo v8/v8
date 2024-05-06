@@ -1368,6 +1368,37 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     InstructionOperandConverter converter(this, instr);
     Constant constant = converter.ToConstant(op);
     DeoptimizationLiteral literal;
+
+#if V8_ENABLE_WEBASSEMBLY
+    if (info_->IsWasm() && v8_flags.wasm_deopt) {
+      switch (type.representation()) {
+        case MachineRepresentation::kWord32:
+          literal = DeoptimizationLiteral(constant.ToInt32());
+          break;
+        case MachineRepresentation::kWord64:
+          literal = DeoptimizationLiteral(constant.ToInt64());
+          break;
+        case MachineRepresentation::kFloat32:
+          literal = DeoptimizationLiteral(constant.ToFloat32());
+          break;
+        case MachineRepresentation::kFloat64:
+          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+          break;
+        case MachineRepresentation::kTagged: {
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt32()));
+          DCHECK(IsSmi(smi));
+          literal = DeoptimizationLiteral(smi);
+          break;
+        }
+        default:
+          UNIMPLEMENTED();
+      }
+      int literal_id = DefineDeoptimizationLiteral(literal);
+      translations_.StoreLiteral(literal_id);
+      return;
+    }
+#endif
+
     switch (constant.type()) {
       case Constant::kInt32:
         if (type.representation() == MachineRepresentation::kTagged) {
@@ -1430,7 +1461,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
                type.representation() == MachineRepresentation::kTagged);
-        literal = DeoptimizationLiteral(constant.ToFloat32());
+        literal =
+            DeoptimizationLiteral(static_cast<double>(constant.ToFloat32()));
         break;
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
@@ -1471,28 +1503,6 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 }
 
 OutOfLineCode::~OutOfLineCode() = default;
-
-Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
-  Validate();
-  switch (kind_) {
-    case DeoptimizationLiteralKind::kObject: {
-      return object_;
-    }
-    case DeoptimizationLiteralKind::kNumber: {
-      return isolate->factory()->NewNumber(number_);
-    }
-    case DeoptimizationLiteralKind::kSignedBigInt64: {
-      return BigInt::FromInt64(isolate, signed_bigint64_);
-    }
-    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
-      return BigInt::FromUint64(isolate, unsigned_bigint64_);
-    }
-    case DeoptimizationLiteralKind::kInvalid: {
-      UNREACHABLE();
-    }
-  }
-  UNREACHABLE();
-}
 
 }  // namespace compiler
 }  // namespace internal

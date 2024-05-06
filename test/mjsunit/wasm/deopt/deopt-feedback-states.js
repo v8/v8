@@ -37,11 +37,20 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let mainSig = makeSig([kWasmI32, kWasmI32, wasmRefType(funcRefT)], [kWasmI32]);
   builder.addFunction("main", mainSig)
+    .addLocals(kWasmI32, 1)
     .addBody([
+      // Set the local to some value.
+      kExprI32Const, 1,
+      kExprLocalSet, 3,
+
       kExprLocalGet, 0,
       kExprLocalGet, 1,
       kExprLocalGet, 2,
       kExprCallRef, funcRefT,
+
+      // Use the local after the deopt point.
+      kExprLocalGet, 3,
+      kExprI32Mul,
   ]).exportFunc();
 
   let wasm = builder.instantiate().exports;

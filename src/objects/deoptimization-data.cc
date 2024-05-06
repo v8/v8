@@ -19,6 +19,31 @@
 namespace v8 {
 namespace internal {
 
+Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  Validate();
+  switch (kind_) {
+    case DeoptimizationLiteralKind::kObject: {
+      return object_;
+    }
+    case DeoptimizationLiteralKind::kNumber: {
+      return isolate->factory()->NewNumber(number_);
+    }
+    case DeoptimizationLiteralKind::kSignedBigInt64: {
+      return BigInt::FromInt64(isolate, int64_);
+    }
+    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
+      return BigInt::FromUint64(isolate, uint64_);
+    }
+    case DeoptimizationLiteralKind::kWasmI31Ref:
+    case DeoptimizationLiteralKind::kWasmInt32:
+    case DeoptimizationLiteralKind::kWasmFloat:
+    case DeoptimizationLiteralKind::kInvalid: {
+      UNREACHABLE();
+    }
+  }
+  UNREACHABLE();
+}
+
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count) {
   return Handle<DeoptimizationData>::cast(

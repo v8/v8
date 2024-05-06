@@ -13,7 +13,7 @@
 #include "src/wasm/baseline/liftoff-varstate.h"
 #include "src/zone/zone-containers.h"
 
-namespace v8::internal::compiler {
+namespace v8::internal {
 class DeoptimizationLiteral;
 }
 
@@ -76,8 +76,7 @@ class WasmDeoptView {
         begin + sizeof(WasmDeoptEntry) * deopt_index));
   }
 
-  std::vector<compiler::DeoptimizationLiteral>
-  BuildDeoptimizationLiteralArray();
+  std::vector<DeoptimizationLiteral> BuildDeoptimizationLiteralArray();
 
  private:
   base::Vector<const uint8_t> deopt_data_;
@@ -90,7 +89,7 @@ class WasmDeoptDataProcessor {
       int deopt_exit_start_offset, int eager_deopt_count,
       base::Vector<const uint8_t> translation_array,
       base::Vector<wasm::WasmDeoptEntry> deopt_entries,
-      const ZoneDeque<compiler::DeoptimizationLiteral>& deopt_literals);
+      const ZoneDeque<DeoptimizationLiteral>& deopt_literals);
 };
 
 // The frame "layout" of a liftoff function for a single deopt point.

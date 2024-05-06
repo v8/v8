@@ -38,6 +38,123 @@ class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
   OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, TrustedWeakFixedArray);
 };
 
+enum class DeoptimizationLiteralKind {
+  kObject,
+  kNumber,
+  kSignedBigInt64,
+  kUnsignedBigInt64,
+  kInvalid,
+
+  // These kinds are used by wasm only (as unoptimized JS doesn't have these
+  // types).
+  // TODO(mliedtke): Add support for S128 / SIMD.
+  kWasmI31Ref,
+  kWasmInt32,
+  kWasmFloat,
+  kWasmDouble = kNumber,
+  kWasmInt64 = kSignedBigInt64,
+};
+
+// A deoptimization literal during code generation. For JS this is transformed
+// into a heap object after code generation. For wasm the DeoptimizationLiteral
+// is directly used by the deoptimizer.
+class DeoptimizationLiteral {
+ public:
+  DeoptimizationLiteral()
+      : kind_(DeoptimizationLiteralKind::kInvalid), object_() {}
+  explicit DeoptimizationLiteral(Handle<Object> object)
+      : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
+    CHECK(!object_.is_null());
+  }
+  explicit DeoptimizationLiteral(float number)
+      : kind_(DeoptimizationLiteralKind::kWasmFloat), float_(number) {}
+  explicit DeoptimizationLiteral(double number)
+      : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
+  explicit DeoptimizationLiteral(int64_t signed_bigint64)
+      : kind_(DeoptimizationLiteralKind::kSignedBigInt64),
+        int64_(signed_bigint64) {}
+  explicit DeoptimizationLiteral(uint64_t unsigned_bigint64)
+      : kind_(DeoptimizationLiteralKind::kUnsignedBigInt64),
+        uint64_(unsigned_bigint64) {}
+  explicit DeoptimizationLiteral(int32_t int32)
+      : kind_(DeoptimizationLiteralKind::kWasmInt32), int64_(int32) {}
+  explicit DeoptimizationLiteral(Tagged<Smi> smi)
+      : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int64_(smi.value()) {}
+
+  Handle<Object> object() const { return object_; }
+
+  bool operator==(const DeoptimizationLiteral& other) const {
+    if (kind_ != other.kind_) {
+      return false;
+    }
+    switch (kind_) {
+      case DeoptimizationLiteralKind::kObject:
+        return object_.equals(other.object_);
+      case DeoptimizationLiteralKind::kNumber:
+        return base::bit_cast<uint64_t>(number_) ==
+               base::bit_cast<uint64_t>(other.number_);
+      case DeoptimizationLiteralKind::kWasmI31Ref:
+      case DeoptimizationLiteralKind::kWasmInt32:
+      case DeoptimizationLiteralKind::kSignedBigInt64:
+        return int64_ == other.int64_;
+      case DeoptimizationLiteralKind::kUnsignedBigInt64:
+        return uint64_ == other.uint64_;
+      case DeoptimizationLiteralKind::kInvalid:
+        return true;
+      case DeoptimizationLiteralKind::kWasmFloat:
+        return base::bit_cast<uint32_t>(float_) ==
+               base::bit_cast<uint32_t>(other.float_);
+    }
+    UNREACHABLE();
+  }
+
+  Handle<Object> Reify(Isolate* isolate) const;
+
+#if V8_ENABLE_WEBASSEMBLY
+  double GetDouble() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmDouble);
+    return number_;
+  }
+  float GetFloat() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat);
+    return float_;
+  }
+  int64_t GetInt64() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt64);
+    return int64_;
+  }
+  int32_t GetInt32() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt32);
+    return static_cast<int32_t>(int64_);
+  }
+
+  Tagged<Smi> GetSmi() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmI31Ref);
+    return Smi::FromInt(static_cast<int>(int64_));
+  }
+#endif
+
+  void Validate() const {
+    CHECK_NE(kind_, DeoptimizationLiteralKind::kInvalid);
+  }
+
+  DeoptimizationLiteralKind kind() const {
+    Validate();
+    return kind_;
+  }
+
+ private:
+  DeoptimizationLiteralKind kind_;
+
+  union {
+    Handle<Object> object_;
+    double number_;
+    float float_;
+    int64_t int64_;
+    uint64_t uint64_;
+  };
+};
+
 // The DeoptimizationFrameTranslation is the on-heap representation of
 // translations created during code generation in a (zone-allocated)
 // DeoptimizationFrameTranslationBuilder. The translation specifies how to

@@ -21,6 +21,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -847,6 +848,8 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     int parameter_count = static_cast<int>(native_module->module()
                                                ->functions[code->index()]
                                                .sig->parameter_count());
+    DeoptimizationLiteralProvider literals(
+        deopt_view.BuildDeoptimizationLiteralArray());
 
     Register fp_reg = JavaScriptFrame::fp_register();
     stack_fp_ = input_->GetRegister(fp_reg.code());
@@ -860,10 +863,10 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
     FILE* trace_file =
         verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
-    translated_state_.Init(
-        isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
-        Tagged<DeoptimizationLiteralArray>(), input_->GetRegisterValues(),
-        trace_file, parameter_count, parameter_count);
+    translated_state_.Init(isolate_, input_->GetFramePointerAddress(),
+                           stack_fp_, &state_iterator, literals,
+                           input_->GetRegisterValues(), trace_file,
+                           parameter_count, parameter_count);
 
     // Recompile the liftoff (unoptimized) wasm code for the input frame.
     // TODO(mliedtke): Move this into separate function?
@@ -938,14 +941,53 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
           if (liftoff_iter->is_gp_reg()) {
             output_frame->SetRegister(liftoff_iter->reg().gp().code(),
                                       value.int64_value_);
+          } else if (liftoff_iter->is_fp_reg()) {
+            // TODO(mliedtke): These cases don't cover the cases where a double
+            // might be a word64 in Turboshaft due to optimizations etc.
+            Float64 double_value(0.0);
+            switch (value.kind()) {
+              case TranslatedValue::Kind::kDouble:
+                double_value = value.double_value();
+                break;
+              case TranslatedValue::Kind::kFloat: {
+                // Note: We want to write the "float register" here, however the
+                // deoptimizer implements float registers as the first half of a
+                // double register (which is what most architectures will do as
+                // well).
+                // TODO(mliedtke): We shouldn't do this here but instead expose
+                // a SetFloatRegister (similar to GetFloatRegister) in the arch-
+                // specific Deoptimizer code.
+                double_value =
+                    Float64::FromBits(value.float_value().get_bits());
+                break;
+              }
+              default:
+                UNIMPLEMENTED();
+            }
+            output_frame->SetDoubleRegister(liftoff_iter->reg().fp().code(),
+                                            double_value);
           } else {
             // Register pairs, floating point registers and potentially others.
             UNIMPLEMENTED();
           }
           break;
         case wasm::LiftoffVarState::kStack:
-          output_frame->SetFrameSlot(base_offset - liftoff_iter->offset(),
-                                     value.int64_value_);
+          switch (wasm::value_kind_size(liftoff_iter->kind())) {
+            case 4:
+              // TODO(mliedtke): The source might be 64 bits?
+              // TODO(mliedtke): This is also UB if we didn't write int32_value_
+              // but e.g. float_value_.
+              output_frame->SetLiftoffFrameSlot32(
+                  base_offset - liftoff_iter->offset(), value.int32_value_);
+              break;
+            case 8:
+              // TODO(mliedtke): The source might be 32 bits?
+              output_frame->SetLiftoffFrameSlot64(
+                  base_offset - liftoff_iter->offset(), value.int64_value_);
+              break;
+            default:
+              UNIMPLEMENTED();
+          }
           break;
       }
       ++liftoff_iter;
@@ -1054,9 +1096,10 @@ void Deoptimizer::DoComputeOutputFrames() {
       verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
   DeoptimizationFrameTranslation::Iterator state_iterator(translations,
                                                           translation_index);
+  DeoptimizationLiteralProvider literals(input_data->LiteralArray());
   translated_state_.Init(
       isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
-      input_data->LiteralArray(), input_->GetRegisterValues(), trace_file,
+      literals, input_->GetRegisterValues(), trace_file,
       IsHeapObject(function_)
           ? function_->shared()
                 ->internal_formal_parameter_count_without_receiver()

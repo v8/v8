@@ -18,6 +18,7 @@
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
+#include "src/objects/deoptimization-data.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -49,76 +50,6 @@ class InstructionOperandIterator {
  private:
   Instruction* instr_;
   size_t pos_;
-};
-
-enum class DeoptimizationLiteralKind {
-  kObject,
-  kNumber,
-  kSignedBigInt64,
-  kUnsignedBigInt64,
-  kInvalid
-};
-
-// A non-null Handle<Object>, a double, an int64_t, or a uint64_t.
-class DeoptimizationLiteral {
- public:
-  DeoptimizationLiteral()
-      : kind_(DeoptimizationLiteralKind::kInvalid), object_() {}
-  explicit DeoptimizationLiteral(Handle<Object> object)
-      : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
-    CHECK(!object_.is_null());
-  }
-  explicit DeoptimizationLiteral(double number)
-      : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
-  explicit DeoptimizationLiteral(int64_t signed_bigint64)
-      : kind_(DeoptimizationLiteralKind::kSignedBigInt64),
-        signed_bigint64_(signed_bigint64) {}
-  explicit DeoptimizationLiteral(uint64_t unsigned_bigint64)
-      : kind_(DeoptimizationLiteralKind::kUnsignedBigInt64),
-        unsigned_bigint64_(unsigned_bigint64) {}
-
-  Handle<Object> object() const { return object_; }
-
-  bool operator==(const DeoptimizationLiteral& other) const {
-    if (kind_ != other.kind_) {
-      return false;
-    }
-    switch (kind_) {
-      case DeoptimizationLiteralKind::kObject:
-        return object_.equals(other.object_);
-      case DeoptimizationLiteralKind::kNumber:
-        return base::bit_cast<uint64_t>(number_) ==
-               base::bit_cast<uint64_t>(other.number_);
-      case DeoptimizationLiteralKind::kSignedBigInt64:
-        return signed_bigint64_ == other.signed_bigint64_;
-      case DeoptimizationLiteralKind::kUnsignedBigInt64:
-        return unsigned_bigint64_ == other.unsigned_bigint64_;
-      case DeoptimizationLiteralKind::kInvalid:
-        return true;
-    }
-    UNREACHABLE();
-  }
-
-  Handle<Object> Reify(Isolate* isolate) const;
-
-  void Validate() const {
-    CHECK_NE(kind_, DeoptimizationLiteralKind::kInvalid);
-  }
-
-  DeoptimizationLiteralKind kind() const {
-    Validate();
-    return kind_;
-  }
-
- private:
-  DeoptimizationLiteralKind kind_;
-
-  union {
-    Handle<Object> object_;
-    double number_;
-    int64_t signed_bigint64_;
-    uint64_t unsigned_bigint64_;
-  };
 };
 
 // These structs hold pc offsets for generated instructions and is only used

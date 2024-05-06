@@ -4,16 +4,15 @@
 
 #include "src/wasm/wasm-deopt-data.h"
 
-#include "src/compiler/backend/code-generator.h"
+#include "src/objects/deoptimization-data.h"
 
 namespace v8::internal::wasm {
 
-std::vector<compiler::DeoptimizationLiteral>
+std::vector<DeoptimizationLiteral>
 WasmDeoptView::BuildDeoptimizationLiteralArray() {
   DCHECK(HasDeoptData());
-  static_assert(
-      std::is_trivially_copy_assignable_v<compiler::DeoptimizationLiteral>);
-  std::vector<compiler::DeoptimizationLiteral> deopt_literals(
+  static_assert(std::is_trivially_copy_assignable_v<DeoptimizationLiteral>);
+  std::vector<DeoptimizationLiteral> deopt_literals(
       base_data_.deopt_literals_size);
   const uint8_t* data = deopt_data_.begin() + sizeof(base_data_) +
                         base_data_.translation_array_size +
@@ -29,7 +28,7 @@ base::OwnedVector<uint8_t> WasmDeoptDataProcessor::Serialize(
     int deopt_exit_start_offset, int eager_deopt_count,
     base::Vector<const uint8_t> translation_array,
     base::Vector<wasm::WasmDeoptEntry> deopt_entries,
-    const ZoneDeque<compiler::DeoptimizationLiteral>& deopt_literals) {
+    const ZoneDeque<DeoptimizationLiteral>& deopt_literals) {
   wasm::WasmDeoptData data;
   data.entry_count = eager_deopt_count;
   data.deopt_exit_start_offset = deopt_exit_start_offset;
@@ -60,7 +59,7 @@ base::OwnedVector<uint8_t> WasmDeoptDataProcessor::Serialize(
   for (const auto& literal : deopt_literals) {
     // We can't serialize objects. Wasm should never contain object literals as
     // it is isolate-independent.
-    CHECK_NE(literal.kind(), compiler::DeoptimizationLiteralKind::kObject);
+    CHECK_NE(literal.kind(), DeoptimizationLiteralKind::kObject);
     std::memcpy(result_iter, &literal, sizeof(literal));
     result_iter += sizeof(literal);
   }
