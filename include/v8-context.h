@@ -302,6 +302,8 @@ class V8_EXPORT Context : public Data {
    * SetAlignedPointerInEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
+                                                    int index);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index);
 
   /**
@@ -453,6 +455,24 @@ Local<Value> Context::GetEmbedderData(int index) {
   return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);
+#endif
+}
+
+void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
+#if !defined(V8_ENABLE_CHECKS)
+  using A = internal::Address;
+  using I = internal::Internals;
+  A ctx = internal::ValueHelper::ValueAsAddress(this);
+  A embedder_data =
+      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +
+                     (I::kEmbedderDataSlotSize * index) +
+                     I::kEmbedderDataSlotExternalPointerOffset;
+  return reinterpret_cast<void*>(
+      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+          isolate, embedder_data, value_offset));
+#else
+  return SlowGetAlignedPointerFromEmbedderData(index);
 #endif
 }
 
