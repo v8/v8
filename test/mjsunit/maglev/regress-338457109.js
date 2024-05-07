@@ -5,14 +5,11 @@
 // Flags: --allow-natives-syntax --maglev
 
 function probe(arg) {
-  console.log(arg);
   var retThis = function () {
     return this;
   };
   let a = retThis.call(arg);
   let b = retThis.call(arg);
-  %DebugPrint(a);
-  %DebugPrint(b);
   assertFalse(a===b);
 }
 var args = [ Symbol.for(), Symbol.iterator];
