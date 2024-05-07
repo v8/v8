@@ -2760,6 +2760,16 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
     SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
     return;
   }
+  if (lhs->Is<SmiConstant>()) {
+    if (rhs->Is<SmiConstant>()) {
+      // Smi constants are canonicalized, so equal smi constants should have
+      // been handled above.
+      DCHECK_NE(lhs->Cast<SmiConstant>()->value(),
+                rhs->Cast<SmiConstant>()->value());
+      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+      return;
+    }
+  }
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
 }
 
