@@ -569,6 +569,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/state-values-utils-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
+      "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
       "compiler/turboshaft/opmask-unittest.cc",
       "compiler/turboshaft/reducer-test.h",
       "compiler/turboshaft/simplified-lowering-reducer-unittest.cc",

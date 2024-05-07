@@ -27,6 +27,8 @@ namespace v8::internal::compiler::turboshaft {
 template <class Reducers>
 class Assembler;
 
+class LoopUnrollingAnalyzer;
+
 // `OperationBuffer` is a growable, Zone-allocated buffer to store Turboshaft
 // operations. It is part of a `Graph`.
 // The buffer can be seen as an array of 8-byte `OperationStorageSlot` values.
@@ -557,12 +559,11 @@ class Graph {
         graph_zone_(graph_zone),
         source_positions_(graph_zone, this),
         operation_origins_(graph_zone, this),
-        operation_types_(graph_zone, this)
+        operation_types_(graph_zone, this),
 #ifdef DEBUG
-        ,
-        block_type_refinement_(graph_zone)
+        block_type_refinement_(graph_zone),
 #endif
-  {
+        stack_checks_to_remove_(graph_zone) {
   }
 
   // Reset the graph to recycle its memory.
@@ -1044,6 +1045,9 @@ class Graph {
     DCHECK_EQ(generation_ + 1, companion.generation_);
     generation_ = companion.generation_++;
 #endif  // DEBUG
+    // Reseting phase-specific fields.
+    loop_unrolling_analyzer_ = nullptr;
+    stack_checks_to_remove_.clear();
   }
 
 #ifdef DEBUG
@@ -1057,6 +1061,30 @@ class Graph {
   void SetCreatedFromTurbofan() { graph_created_from_turbofan_ = true; }
   bool IsCreatedFromTurbofan() const { return graph_created_from_turbofan_; }
 #endif  // DEBUG
+
+  void set_loop_unrolling_analyzer(
+      LoopUnrollingAnalyzer* loop_unrolling_analyzer) {
+    DCHECK_NULL(loop_unrolling_analyzer_);
+    loop_unrolling_analyzer_ = loop_unrolling_analyzer;
+  }
+  void clear_loop_unrolling_analyzer() { loop_unrolling_analyzer_ = nullptr; }
+  LoopUnrollingAnalyzer* loop_unrolling_analyzer() const {
+    DCHECK_NOT_NULL(loop_unrolling_analyzer_);
+    return loop_unrolling_analyzer_;
+  }
+#ifdef DEBUG
+  bool has_loop_unrolling_analyzer() const {
+    return loop_unrolling_analyzer_ != nullptr;
+  }
+#endif
+
+  void clear_stack_checks_to_remove() { stack_checks_to_remove_.clear(); }
+  ZoneAbslFlatHashSet<uint32_t>& stack_checks_to_remove() {
+    return stack_checks_to_remove_;
+  }
+  const ZoneAbslFlatHashSet<uint32_t>& stack_checks_to_remove() const {
+    return stack_checks_to_remove_;
+  }
 
  private:
   bool InputsValid(const Operation& op) const {
@@ -1144,6 +1172,23 @@ class Graph {
 #ifdef DEBUG
   size_t generation_ = 1;
 #endif  // DEBUG
+
+  // Phase specific data.
+  // For some reducers/phases, we use the graph to pass data around. These data
+  // should always be invalidated at the end of the graph copy.
+
+  LoopUnrollingAnalyzer* loop_unrolling_analyzer_ = nullptr;
+
+  // {stack_checks_to_remove_} contains the BlockIndex of loop headers whose
+  // stack checks should be removed.
+  // TODO(dmercadier): using the Zone for a resizable structure is not great
+  // (because it tends to waste memory), but using a newed/malloced structure in
+  // the Graph means that we have to remember to delete/free it, which isn't
+  // convenient, because Zone memory typically isn't manually deleted (and the
+  // Graph thus isn't). Still, it's probably not a big deal, because
+  // {stack_checks_to_remove_} should never contain more than a handful of
+  // items, and thus shouldn't waste too much memory.
+  ZoneAbslFlatHashSet<uint32_t> stack_checks_to_remove_;
 };
 
 V8_INLINE OperationStorageSlot* AllocateOpStorage(Graph* graph,

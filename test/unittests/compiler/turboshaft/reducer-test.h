@@ -8,13 +8,14 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 class TestInstance {
  public:
-  using Assembler = TSAssembler<>;
+  using Assembler = TSAssembler<VariableReducer>;
 
   struct CapturedOperation {
     TestInstance* instance;
@@ -75,6 +76,7 @@ class TestInstance {
   Assembler& Asm() { return assembler_; }
   Graph& graph() { return *graph_; }
   Factory& factory() { return *isolate_->factory(); }
+  Zone* zone() { return zone_; }
 
   Assembler& operator()() { return Asm(); }
 
@@ -198,7 +200,7 @@ class TestInstance {
         zone_(zone) {}
 
   PipelineData* data_;
-  TSAssembler<> assembler_;
+  Assembler assembler_;
   std::unique_ptr<Graph> graph_;
   std::unique_ptr<std::ofstream> stream_;
   Isolate* isolate_;
