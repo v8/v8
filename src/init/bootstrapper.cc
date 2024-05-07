@@ -5797,6 +5797,17 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   js_disposable_stack_map->SetConstructor(native_context()->object_function());
   native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
   LOG(isolate(), MapDetails(*js_disposable_stack_map));
+
+  Handle<JSFunction> disposable_stack_function =
+      InstallFunction(isolate(), global, "DisposableStack", JS_OBJECT_TYPE,
+                      JSObject::kHeaderSize, 0, disposable_stack_prototype,
+                      Builtin::kDisposableStackConstructor);
+  disposable_stack_function->shared()->DontAdaptArguments();
+  disposable_stack_function->shared()->set_length(0);
+  SimpleInstallFunction(isolate(), disposable_stack_prototype, "use",
+                        Builtin::kDisposableStackPrototypeUse, 1, true);
+  SimpleInstallFunction(isolate(), disposable_stack_prototype, "dispose",
+                        Builtin::kDisposableStackPrototypeDispose, 0, true);
 }
 
 void Genesis::InitializeGlobal_js_float16array() {

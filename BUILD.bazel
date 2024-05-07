@@ -1288,6 +1288,7 @@ filegroup(
         "src/builtins/builtins-date.cc",
         "src/builtins/builtins-definitions.h",
         "src/builtins/builtins-descriptors.h",
+        "src/builtins/builtins-disposable-stack.cc",
         "src/builtins/builtins-error.cc",
         "src/builtins/builtins-function.cc",
         "src/builtins/builtins-global.cc",

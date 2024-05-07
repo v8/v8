@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-grouping
+// Flags: --harmony-array-grouping --js-explicit-resource-management
 
 Debug = debug.Debug
 
@@ -244,6 +244,9 @@ function listener(event, exec_state, event_data, data) {
 
     // Test some Map functions
     success('[1]', `JSON.stringify(Map.groupBy([1,2], x => x).get(1))`);
+
+    // Test DisposableStack functions.
+    success({}, `new DisposableStack()`);
   } catch (e) {
     exception = e;
     print(e, e.stack);

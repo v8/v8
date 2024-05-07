@@ -43,6 +43,45 @@ inline void JSDisposableStack::Add(Isolate* isolate,
   disposable_stack->set_stack(*array);
 }
 
+// part of
+// https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-createdisposableresource
+inline MaybeHandle<Object> JSDisposableStack::CheckValueAndGetDisposeMethod(
+    Isolate* isolate, Handle<Object> value) {
+  // 1. If method is not present, then
+  //   a. If V is either null or undefined, then
+  //    i. Set V to undefined.
+  //    ii. Set method to undefined.
+  // We has already returned from the caller if V is null or undefined.
+  DCHECK(!IsNullOrUndefined(*value));
+
+  //   b. Else,
+  //    i. If V is not an Object, throw a TypeError exception.
+  if (!IsJSReceiver(*value)) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kExpectAnObjectWithUsing),
+                    Object);
+  }
+
+  //   ii. Set method to ? GetDisposeMethod(V, hint).
+  Handle<Object> method;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, method,
+      Object::GetProperty(isolate, value, isolate->factory()->dispose_symbol()),
+      Object);
+  //   (GetMethod)3. If IsCallable(func) is false, throw a TypeError exception.
+  if (!IsJSFunction(*method)) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kNotCallable,
+                                 isolate->factory()->dispose_symbol()),
+                    Object);
+  }
+
+  //   iii. If method is undefined, throw a TypeError exception.
+  //   It is already checked in step ii.
+
+  return method;
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -597,6 +597,11 @@ namespace internal {
   CPP(DatePrototypeToJson)                                                     \
   CPP(DateUTC)                                                                 \
                                                                                \
+  /* DisposabeStack*/                                                          \
+  CPP(DisposableStackConstructor)                                              \
+  CPP(DisposableStackPrototypeUse)                                             \
+  CPP(DisposableStackPrototypeDispose)                                         \
+                                                                               \
   /* Error */                                                                  \
   CPP(ErrorConstructor)                                                        \
   CPP(ErrorCaptureStackTrace)                                                  \

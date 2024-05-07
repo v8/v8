@@ -692,6 +692,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDatePrototypeToJson:
     case Builtin::kDatePrototypeToPrimitive:
     case Builtin::kDatePrototypeValueOf:
+    // DisposableStack builtins.
+    case Builtin::kDisposableStackConstructor:
     // Map builtins.
     case Builtin::kMapConstructor:
     case Builtin::kMapGroupBy:
@@ -984,6 +986,9 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDatePrototypeSetUTCMonth:
     case Builtin::kDatePrototypeSetUTCSeconds:
     case Builtin::kDatePrototypeSetYear:
+    // DisposableStack builtins.
+    case Builtin::kDisposableStackPrototypeUse:
+    case Builtin::kDisposableStackPrototypeDispose:
     // RegExp builtins.
     case Builtin::kRegExpPrototypeTest:
     case Builtin::kRegExpPrototypeExec:

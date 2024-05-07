@@ -253,33 +253,16 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   Handle<JSDisposableStack> stack = args.at<JSDisposableStack>(0);
   Handle<Object> value = args.at<Object>(1);
 
-  Handle<Object> dispose_method;
-
-  // i. If V is not an Object, throw a TypeError exception.
-  if (!IsJSReceiver(*value)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
+  // a. If V is either null or undefined and hint is sync-dispose, return
+  // unused.
+  if (IsNullOrUndefined(*value)) {
+    return *value;
   }
 
-  // ii. Set method to ? GetDisposeMethod(V, hint).
+  Handle<Object> dispose_method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, dispose_method,
-      Object::GetProperty(isolate, value,
-                          isolate->factory()->dispose_symbol()));
-
-  // iii. If method is undefined, throw a TypeError exception.
-  if (IsUndefined(*dispose_method)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
-                              isolate->factory()->dispose_symbol()));
-  }
-
-  // a. If IsCallable(method) is false, throw a TypeError exception.
-  if (!IsJSFunction(*dispose_method)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotCallable,
-                              isolate->factory()->dispose_symbol()));
-  }
+      JSDisposableStack::CheckValueAndGetDisposeMethod(isolate, value));
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.

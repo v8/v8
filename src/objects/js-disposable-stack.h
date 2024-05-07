@@ -36,7 +36,8 @@ class JSDisposableStack
   static void Initialize(Isolate* isolate, Handle<JSDisposableStack> stack);
   static void Add(Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
                   Handle<Object> value, Handle<Object> method);
-
+  static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
+      Isolate* isolate, Handle<Object> value);
   static Maybe<bool> DisposeResources(
       Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
       MaybeHandle<Object> maybe_error);

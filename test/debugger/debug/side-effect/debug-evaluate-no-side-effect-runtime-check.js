@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --js-explicit-resource-management
+
 Debug = debug.Debug;
 
 // StaCurrentContextSlot
@@ -189,6 +191,37 @@ var regExp = /a/;
 success(true, `/a/.test('a')`);
 fail(`/a/.test({toString: () => {map.clear(); return 'a';}})`)
 fail(`regExp.test('a')`);
+
+// DisposableStack use().
+let disposable_stack = new DisposableStack();
+fail(`(() => {
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  disposable_stack.use(disposable);
+})()`);
+success(42, `(() => {
+  let stack = new DisposableStack();
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  stack.use(disposable);
+  return 42;
+})()`)
+
+// DisposableStack dispose().
+fail(`disposable_stack.dispose()`);
+success(42, `(() => {
+  let stack = new DisposableStack();
+  stack.dispose();
+  return 42;
+})()`);
 
 function success(expectation, source) {
   const result = Debug.evaluateGlobal(source, true).value();
