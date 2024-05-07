@@ -72,7 +72,13 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["saelo@google.com", "msarm@google.com"],
+        notify_owners = ["saelo@google.com"],
+        notifies = ["blamelist"],
+    ),
+    experiment_builder(
+        name = "V8 Linux64 - sandbox testing",
+        parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
+        notify_owners = ["saelo@google.com"],
         notifies = ["blamelist"],
     ),
 )

@@ -207,15 +207,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_linux64_sandbox_testing_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-    properties = {"default_targets": ["v8_clusterfuzz"]},
-)
-
-try_builder(
     name = "v8_linux64_shared_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
