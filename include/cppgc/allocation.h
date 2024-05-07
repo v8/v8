@@ -47,9 +47,9 @@ namespace internal {
 // Similar to C++17 std::align_val_t;
 enum class AlignVal : size_t {};
 
-class V8_EXPORT MakeGarbageCollectedTraitInternal {
+class MakeGarbageCollectedTraitInternal {
  protected:
-  static inline void MarkObjectAsFullyConstructed(const void* payload) {
+  V8_INLINE static void MarkObjectAsFullyConstructed(const void* payload) {
     // See api_constants for an explanation of the constants.
     std::atomic<uint16_t>* atomic_mutable_bitfield =
         reinterpret_cast<std::atomic<uint16_t>*>(
@@ -71,7 +71,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   // alignment.
   template <typename GCInfoType, typename CustomSpace, size_t alignment>
   struct AllocationDispatcher final {
-    static void* Invoke(AllocationHandle& handle, size_t size) {
+    V8_INLINE static void* Invoke(AllocationHandle& handle, size_t size) {
       static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
                     "Custom space must inherit from CustomSpaceBase.");
       static_assert(
@@ -90,7 +90,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   struct AllocationDispatcher<GCInfoType, void,
                               api_constants::kDefaultAlignment>
       final {
-    static void* Invoke(AllocationHandle& handle, size_t size) {
+    V8_INLINE static void* Invoke(AllocationHandle& handle, size_t size) {
       return MakeGarbageCollectedTraitInternal::Allocate(
           handle, size, internal::GCInfoTrait<GCInfoType>::Index());
     }
@@ -99,7 +99,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   // Default space with >`kDefaultAlignment` byte alignment.
   template <typename GCInfoType, size_t alignment>
   struct AllocationDispatcher<GCInfoType, void, alignment> final {
-    static void* Invoke(AllocationHandle& handle, size_t size) {
+    V8_INLINE static void* Invoke(AllocationHandle& handle, size_t size) {
       return MakeGarbageCollectedTraitInternal::Allocate(
           handle, size, static_cast<AlignVal>(alignment),
           internal::GCInfoTrait<GCInfoType>::Index());
@@ -111,7 +111,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   struct AllocationDispatcher<GCInfoType, CustomSpace,
                               api_constants::kDefaultAlignment>
       final {
-    static void* Invoke(AllocationHandle& handle, size_t size) {
+    V8_INLINE static void* Invoke(AllocationHandle& handle, size_t size) {
       static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
                     "Custom space must inherit from CustomSpaceBase.");
       return MakeGarbageCollectedTraitInternal::Allocate(
@@ -121,16 +121,15 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   };
 
  private:
-  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
-                                              GCInfoIndex);
-  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
-                                                  size_t, AlignVal,
-                                                  GCInfoIndex);
-  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
-                                              GCInfoIndex, CustomSpaceIndex);
-  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
-                                                  size_t, AlignVal, GCInfoIndex,
-                                                  CustomSpaceIndex);
+  V8_EXPORT static void* CPPGC_DEFAULT_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, GCInfoIndex);
+  V8_EXPORT static void* CPPGC_DOUBLE_WORD_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, AlignVal, GCInfoIndex);
+  V8_EXPORT static void* CPPGC_DEFAULT_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, GCInfoIndex, CustomSpaceIndex);
+  V8_EXPORT static void* CPPGC_DOUBLE_WORD_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, AlignVal, GCInfoIndex,
+           CustomSpaceIndex);
 
   friend class HeapObjectHeader;
 };
@@ -236,7 +235,7 @@ template <typename T>
 class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  public:
   template <typename... Args>
-  static T* Call(AllocationHandle& handle, Args&&... args) {
+  V8_INLINE static T* Call(AllocationHandle& handle, Args&&... args) {
     void* memory =
         MakeGarbageCollectedTraitBase<T>::Allocate(handle, sizeof(T));
     T* object = ::new (memory) T(std::forward<Args>(args)...);
@@ -245,8 +244,8 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
   }
 
   template <typename... Args>
-  static T* Call(AllocationHandle& handle, AdditionalBytes additional_bytes,
-                 Args&&... args) {
+  V8_INLINE static T* Call(AllocationHandle& handle,
+                           AdditionalBytes additional_bytes, Args&&... args) {
     void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(
         handle, sizeof(T) + additional_bytes.value);
     T* object = ::new (memory) T(std::forward<Args>(args)...);
