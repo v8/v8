@@ -6418,8 +6418,12 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
   X64OperandGeneratorT<TurbofanAdapter> g(this);
   int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64ExtractF128, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+  if (lane == 0) {
+    EmitIdentity(node);
+  } else {
+    Emit(kX64ExtractF128, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+  }
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -6428,8 +6432,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
   const turboshaft::Simd256Extract128LaneOp& op =
       this->Get(node).template Cast<turboshaft::Simd256Extract128LaneOp>();
-  Emit(kX64ExtractF128, g.DefineAsRegister(node), g.UseRegister(op.input()),
-       g.UseImmediate(op.lane));
+  if (op.lane == 0) {
+    EmitIdentity(node);
+  } else {
+    Emit(kX64ExtractF128, g.DefineAsRegister(node), g.UseRegister(op.input()),
+         g.UseImmediate(op.lane));
+  }
 }
 
 template <>

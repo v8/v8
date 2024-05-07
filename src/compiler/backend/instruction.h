@@ -543,6 +543,12 @@ class LocationOperand : public InstructionOperand {
   }
 
 #if defined(V8_TARGET_ARCH_X64)
+  // On x64, Simd256 and Simd128 share the identical register.
+  Simd128Register GetSimd256RegisterAsSimd128() const {
+    DCHECK(IsSimd256Register());
+    return Simd128Register::from_code(register_code());
+  }
+
   Simd256Register GetSimd256Register() const {
     DCHECK(IsSimd256Register());
     return Simd256Register::from_code(register_code());
