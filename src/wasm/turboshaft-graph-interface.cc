@@ -2476,8 +2476,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           inlining_decisions_->function_calls()[feedback_slot_];
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
       base::SmallVector<TSBlock*, 5> case_blocks;
-      const bool use_deopt = v8_flags.wasm_deopt;
-      size_t case_count = feedback_cases.size() + (use_deopt ? 0 : 1);
+      bool use_deopt_slowpath = v8_flags.wasm_deopt;
+      size_t case_count = feedback_cases.size() + 1;
       for (size_t i = 0; i < case_count; i++) {
         case_blocks.push_back(__ NewBlock());
       }
@@ -2495,23 +2495,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
         if (!tree || !tree->is_inlined()) {
-          // TODO(42204618,mliedtke): In the case of a non-inlined but known
-          // callee (e.g., we have seen calls to the function but decided not
-          // to inline because of size or budget) in combination with deopt as
-          // the slow path implementation below, this becomes a deopt loop,
-          // i.e., this code will fall through until the `DeoptIfNot` below.
-          // We can either a) emit direct calls (+ a check before) instead of
-          // fallthrough for such non-inlined cases and keep the deopt slowpath,
-          // or b) use the regular slowpath instead of a deopt as soon as there
-          // was at least one known, but non-inlined callee.
-          // Option a) is better than b) if the feedback was monomorphic, since
-          // then we have only one check + direct call + deopt, which makes more
-          // information available statically and is probably smaller in terms
-          // of code size than the regular slowpath. However, with more
-          // non-inlined callees, b) might become more desirable, due to smaller
-          // code size and potentially less spilling/reloading.
-          // The exact same problem will apply for `call_indirect` above, once
-          // we have inlining and deopt support for that as well.
+          use_deopt_slowpath = false;
           __ Goto(case_blocks[i + 1]);
           continue;
         }
@@ -2521,11 +2505,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         bool shared = decoder->module_->types[sig_index].is_shared;
         V<Object> inlined_func_ref = __ LoadFixedArrayElement(
             shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
-        bool is_last_case = (i == case_count - 1);
-        if (use_deopt && is_last_case) {
+        bool is_last_call_target_block = i == case_count - 2;
+        if (use_deopt_slowpath && is_last_call_target_block) {
+          // Do not use the deopt slowpath if we decided to not inline (at
+          // least) one call target. Otherwise, this could lead to a deopt loop.
+          // TODO(42204618): In case of only one known target it might make
+          // sense to still emit a `DeoptIfNot` and have a direct call for the
+          // non-inlined known call target. Evaluate the performance
+          // characteristics of this.
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
                      sig, func_ref, args);
         } else {
+          bool is_last_case = (i == case_count - 1);
           TSBlock* inline_block = __ NewBlock();
           BranchHint hint =
               is_last_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -2560,7 +2551,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
       }
 
-      if (!use_deopt) {
+      if (!use_deopt_slowpath) {
         TSBlock* no_inline_block = case_blocks[case_count - 1];
         __ Bind(no_inline_block);
         instance_cache_.RestoreFromSnapshot(saved_cache);
