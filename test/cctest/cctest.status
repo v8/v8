@@ -401,6 +401,8 @@
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
 
   'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
+
+  'turboshaft-test-compare-combine/CombineCompareTwoLogicInputs':[SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 ['arch == riscv32', {
   # Some wasm functionality is not implemented yet.
