@@ -21,6 +21,7 @@ Running test: testConsoleLogBeforeEnable
         }
     ]
     executionContextId : <executionContextId>
+    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {
@@ -46,6 +47,7 @@ Test with max size 0.
         }
     ]
     executionContextId : <executionContextId>
+    executionContextUniqueId : <executionContextUniqueId>
     timestamp : <timestamp>
     type : trace
 }
@@ -58,6 +60,7 @@ Test with max size 1.
         }
     ]
     executionContextId : <executionContextId>
+    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {
@@ -93,6 +96,7 @@ Test with max size 2.
         }
     ]
     executionContextId : <executionContextId>
+    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {

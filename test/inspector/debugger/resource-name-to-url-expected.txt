@@ -14,7 +14,7 @@ Check script with url:
         length : 16
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : prefix://url
@@ -35,7 +35,7 @@ Check script with sourceURL comment:
         length : 37
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : foo.js
@@ -55,7 +55,7 @@ Check script failed to parse:
         length : 15
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : prefix://url
@@ -75,7 +75,7 @@ Check script failed to parse with sourceURL comment:
         length : 36
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL :
+        sourceMapURL : 
         startColumn : 0
         startLine : 0
         url : foo.js
@@ -93,6 +93,7 @@ Test runtime stack trace:
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -111,7 +112,7 @@ Test runtime stack trace:
                 }
                 [2] : {
                     columnNumber : 4
-                    functionName :
+                    functionName : 
                     lineNumber : 4
                     scriptId : <scriptId>
                     url : prefix://url
@@ -124,7 +125,7 @@ Test runtime stack trace:
 }
 Test debugger stack trace:
 [
-    [0] :
-    [1] :
-    [2] :
+    [0] : 
+    [1] : 
+    [2] : 
 ]

@@ -101,6 +101,7 @@ Running test: testConsoleLog
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

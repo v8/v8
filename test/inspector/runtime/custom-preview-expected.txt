@@ -306,6 +306,7 @@ Try to break custom preview..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         timestamp : <timestamp>
         type : error
     }
@@ -320,6 +321,7 @@ Try to break custom preview..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         timestamp : <timestamp>
         type : error
     }
@@ -334,6 +336,7 @@ Try to break custom preview..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         timestamp : <timestamp>
         type : error
     }
@@ -348,6 +351,7 @@ Try to break custom preview..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         timestamp : <timestamp>
         type : error
     }
@@ -362,6 +366,7 @@ Try to break custom preview..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         timestamp : <timestamp>
         type : error
     }

@@ -870,13 +870,19 @@ protocol::DictionaryValue* getOrCreateDictionary(
 }
 }  // namespace
 
-Response V8RuntimeAgentImpl::addBinding(const String16& name,
-                                        Maybe<int> executionContextId,
-                                        Maybe<String16> executionContextName) {
+Response V8RuntimeAgentImpl::addBinding(
+    const String16& name, Maybe<int> executionContextId,
+    Maybe<String16> executionContextName,
+    Maybe<String16> executionContextUniqueId) {
   if (executionContextId.has_value()) {
     if (executionContextName.has_value()) {
       return Response::InvalidParams(
           "executionContextName is mutually exclusive with executionContextId");
+    }
+    if (executionContextUniqueId.has_value()) {
+      return Response::InvalidParams(
+          "executionContextUniqueId is mutually exclusive with "
+          "executionContextId");
     }
     int contextId = executionContextId.value();
     InspectedContext* context =
@@ -884,6 +890,24 @@ Response V8RuntimeAgentImpl::addBinding(const String16& name,
     if (!context) {
       return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
+    }
+    addBinding(context, name);
+    return Response::Success();
+  }
+
+  if (executionContextUniqueId.has_value()) {
+    if (executionContextName.has_value()) {
+      return Response::InvalidParams(
+          "executionContextName is mutually exclusive with "
+          "executionContextUniqueId");
+    }
+    internal::V8DebuggerId uniqueId(executionContextUniqueId.value());
+    int contextId = m_inspector->resolveUniqueContextId(uniqueId);
+    InspectedContext* context =
+        m_inspector->getContext(m_session->contextGroupId(), contextId);
+    if (!context) {
+      return Response::InvalidParams(
+          "Cannot find execution context with given executionContextUniqueId");
     }
     addBinding(context, name);
     return Response::Success();
@@ -936,7 +960,11 @@ void V8RuntimeAgentImpl::bindingCallback(
   inspector->forEachSession(
       contextGroupId,
       [&name, &payload, &contextId](V8InspectorSessionImpl* session) {
-        session->runtimeAgent()->bindingCalled(name, payload, contextId);
+        InspectedContext* context = session->inspector()->getContext(
+            session->contextGroupId(), contextId);
+        DCHECK(context);
+        session->runtimeAgent()->bindingCalled(name, payload, contextId,
+                                               context->uniqueId().toString());
       });
 }
 
@@ -1009,11 +1037,12 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
   return Response::Success();
 }
 
-void V8RuntimeAgentImpl::bindingCalled(const String16& name,
-                                       const String16& payload,
-                                       int executionContextId) {
+void V8RuntimeAgentImpl::bindingCalled(
+    const String16& name, const String16& payload, int executionContextId,
+    const String16& executionContextUniqueId) {
   if (!m_activeBindings.count(name)) return;
-  m_frontend.bindingCalled(name, payload, executionContextId);
+  m_frontend.bindingCalled(name, payload, executionContextId,
+                           executionContextUniqueId);
   m_frontend.flush();
 }
 

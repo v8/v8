@@ -9,6 +9,7 @@ Checks that console.assert works and points to correct call frame.
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -42,6 +43,7 @@ Checks that console.assert works and points to correct call frame.
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -80,6 +82,7 @@ Checks that console.assert works and points to correct call frame.
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -112,6 +115,7 @@ Checks that console.assert works and points to correct call frame.
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

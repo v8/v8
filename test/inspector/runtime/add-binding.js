@@ -87,6 +87,28 @@ InspectorTest.runAsyncTestSuite([
     await session.Protocol.Runtime.evaluate({expression, contextId: contextId3});
   },
 
+  async function testAddBindingToContextByUniqueId() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    const contextId1 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.uniqueId;
+
+    contextGroup.createContext();
+    const contextId2 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.uniqueId;
+
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextUniqueId: contextId2});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should NOT be exposed)');
+    await session.Protocol.Runtime.evaluate({expression});
+
+    InspectorTest.log('Call binding in target context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, uniqueContextId: contextId2});
+
+    InspectorTest.log('Call binding in newly created context (binding should NOT be exposed)');
+    contextGroup.createContext();
+    const contextId3 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.uniqueId;
+    await session.Protocol.Runtime.evaluate({expression, uniqueContextId: contextId3});
+  },
+
   async function testAddBindingToMultipleContextsById() {
     const {contextGroup, sessions: [session]} = setupSessions(1);
     const contextId1 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
@@ -103,6 +125,24 @@ InspectorTest.runAsyncTestSuite([
 
     InspectorTest.log('Call binding in target context (binding should be exposed)');
     await session.Protocol.Runtime.evaluate({expression, contextId: contextId2});
+  },
+
+  async function testAddBindingToMultipleContextsByUniqueId() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    const contextId1 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.uniqueId;
+
+    contextGroup.createContext();
+    const contextId2 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.uniqueId;
+
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', uniqueContextId: contextId1});
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', uniqueContextId: contextId2});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression});
+
+    InspectorTest.log('Call binding in target context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, uniqueContextId: contextId2});
   },
 
   async function testAddBindingToMultipleContextsInDifferentContextGroups() {

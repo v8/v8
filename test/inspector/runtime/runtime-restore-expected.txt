@@ -43,6 +43,7 @@ will reconnect..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -90,6 +91,7 @@ will reconnect..
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

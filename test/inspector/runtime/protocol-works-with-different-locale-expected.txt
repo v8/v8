@@ -12,14 +12,15 @@ Running test: consoleLogWithDefaultLocale
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }
@@ -40,14 +41,15 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }
@@ -69,14 +71,15 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }
@@ -98,14 +101,15 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }
@@ -123,14 +127,15 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             }
         ]
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
         }

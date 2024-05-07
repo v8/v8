@@ -380,9 +380,13 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
           break;
       }
     }
+    InspectedContext* context =
+        inspector->getContext(contextGroupId, m_contextId);
+    DCHECK(context);
     frontend->consoleAPICalled(
         consoleAPITypeValue(m_type), std::move(arguments), m_contextId,
-        m_timestamp, std::move(stackTrace), std::move(consoleContext));
+        context->uniqueId().toString(), m_timestamp, std::move(stackTrace),
+        std::move(consoleContext));
     return;
   }
   UNREACHABLE();
