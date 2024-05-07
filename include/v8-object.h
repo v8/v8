@@ -343,7 +343,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
                                            uint32_t index);
 
-  V8_DEPRECATE_SOON("Use SetNativeDataProperty instead")
+  V8_DEPRECATED("Use SetNativeDataProperty instead")
   V8_WARN_UNUSED_RESULT Maybe<bool> SetAccessor(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,

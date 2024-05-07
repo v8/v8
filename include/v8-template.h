@@ -474,8 +474,8 @@ enum class ConstructorBehavior { kThrow, kAllow };
  *    proto_t->Set(isolate, "proto_const", v8::Number::New(isolate, 2));
  *
  *    v8::Local<v8::ObjectTemplate> instance_t = t->InstanceTemplate();
- *    instance_t->SetAccessor(
-          String::NewFromUtf8Literal(isolate, "instance_accessor"),
+ *    instance_t->SetNativeDataProperty(
+ *        String::NewFromUtf8Literal(isolate, "instance_accessor"),
  *        InstanceAccessorCallback);
  *    instance_t->SetHandler(
  *        NamedPropertyHandlerConfiguration(PropertyHandlerCallback));
@@ -1042,6 +1042,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
+  V8_DEPRECATE_SOON("Use SetNativeDataProperty instead")
   void SetAccessor(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
