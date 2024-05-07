@@ -6552,6 +6552,12 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     return inference.NoChange();
   }
 
+  if (IsFloat16TypedArrayElementsKind(elements_kind)) {
+    // TODO(v8:14212): Allow optimizing Float16 typed arrays here, once they are
+    // supported in the rest of the compiler.
+    return inference.NoChange();
+  }
+
   // Since the map inference was done relative to {iterator_effect} rather than
   // {effect}, we need to guard the use of the map(s) even when the inference
   // was reliable.

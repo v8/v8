@@ -2234,9 +2234,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // for Float16 operations, it's not clear whether optimizing further would be
   // really useful.
   for (const ElementAccessInfo& access_info : access_infos) {
-    if (access_info.elements_kind() == ElementsKind::FLOAT16_ELEMENTS ||
-        access_info.elements_kind() ==
-            ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
+    if (IsFloat16TypedArrayElementsKind(access_info.elements_kind())) {
       return NoChange();
     }
   }
