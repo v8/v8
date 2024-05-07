@@ -1278,8 +1278,16 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
         *map == object->map(cage_base)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDetails(*map, details);
-      property = JSObject::FastPropertyAt(
-          isolate_, object, details.representation(), field_index);
+      if (replacer_function_.is_null()) {
+        // If there's no replacer function, read the raw property to avoid
+        // reboxing doubles in mutable boxes.
+        property = handle(object->RawFastPropertyAt(field_index), isolate_);
+      } else {
+        // Rebox the value if there is a replacer function since it could change
+        // the value in the box.
+        property = JSObject::FastPropertyAt(
+            isolate_, object, details.representation(), field_index);
+      }
     } else {
       if (!need_stack_) {
         need_stack_ = true;
