@@ -1308,6 +1308,17 @@
 }],  # 'verify_predictable'
 
 ##############################################################################
+['arch in [ppc64, s390x] and pointer_compression', {
+
+  # Needs sandbox enabled.
+  'shared-memory/condition-async-wait-timeout' :[SKIP],
+  'shared-memory/condition-async-wait-realm-disposed' :[SKIP],
+  'shared-memory/mutex-async-lock-workers-timeout' :[SKIP],
+  'shared-memory/mutex-async-lock-realm-disposed' :[SKIP],
+
+}],  # arch in [ppc64, s390x] and pointer_compression'
+
+##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
   # Slow tests
