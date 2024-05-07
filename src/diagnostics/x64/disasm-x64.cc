@@ -916,6 +916,11 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",%s", NameOfCPURegister(vvvv));
         break;
+      case 0x50:
+        AppendToBuffer("vpdpbusd %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        break;
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, \
                                  opcode)                                    \
   case 0x##opcode: {                                                        \

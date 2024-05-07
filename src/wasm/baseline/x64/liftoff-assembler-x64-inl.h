@@ -3345,13 +3345,18 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
-  static constexpr RegClass tmp_rc = reg_class_for(kS128);
-  LiftoffRegister tmp1 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc});
-  LiftoffRegister tmp2 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc, tmp1});
-  I32x4DotI8x16I7x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(), tmp1.fp(),
-                         tmp2.fp());
+  if (CpuFeatures::IsSupported(AVX_VNNI)) {
+    I32x4DotI8x16I7x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(),
+                           kScratchDoubleReg, kScratchDoubleReg);
+  } else {
+    static constexpr RegClass tmp_rc = reg_class_for(kS128);
+    LiftoffRegister tmp1 =
+        GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc});
+    LiftoffRegister tmp2 =
+        GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc, tmp1});
+    I32x4DotI8x16I7x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(), tmp1.fp(),
+                           tmp2.fp());
+  }
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,

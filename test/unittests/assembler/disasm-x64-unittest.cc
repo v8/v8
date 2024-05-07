@@ -1445,6 +1445,17 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
           vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
+TEST_F(DisasmX64Test, DisasmX64CheckOutputVNNI) {
+  if (!CpuFeatures::IsSupported(AVX_VNNI)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  CpuFeatureScope scope(&t.assm_, AVX_VNNI);
+  COMPARE("c4e26950cb           vpdpbusd xmm1,xmm2,xmm3",
+          vpdpbusd(xmm1, xmm2, xmm3));
+}
+
 TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
   if (!CpuFeatures::IsSupported(F16C)) {
     return;

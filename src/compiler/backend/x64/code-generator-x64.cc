@@ -5444,10 +5444,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4DotI8x16I7x16AddS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
+      // If AVX_VNNI supported, pass kScratchDoubleReg twice as unused
+      // arguments.
+      XMMRegister tmp = kScratchDoubleReg;
+      if (!CpuFeatures::IsSupported(AVX_VNNI)) {
+        tmp = i.TempSimd128Register(0);
+      }
       __ I32x4DotI8x16I7x16AddS(
           i.OutputSimd128Register(), i.InputSimd128Register(0),
           i.InputSimd128Register(1), i.InputSimd128Register(2),
-          kScratchDoubleReg, i.TempSimd128Register(0));
+          kScratchDoubleReg, tmp);
       break;
     }
     case kX64I32x4ExtAddPairwiseI16x8S: {

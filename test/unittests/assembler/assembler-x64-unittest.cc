@@ -3215,6 +3215,30 @@ TEST_F(AssemblerX64Test, F16C) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AssemblerX64AVXVNNI) {
+  if (!CpuFeatures::IsSupported(AVX_VNNI)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX_VNNI);
+
+  __ vpdpbusd(xmm1, xmm2, xmm3);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {// vpdpbusd xmm1, xmm2, xmm3
+                        0xc4, 0xe2, 0x69, 0x50, 0xcb};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

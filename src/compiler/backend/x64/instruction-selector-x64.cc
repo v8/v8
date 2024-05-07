@@ -7217,11 +7217,18 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 3);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)),
-       g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+  if (CpuFeatures::IsSupported(AVX_VNNI)) {
+    Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)),
+         g.UseRegister(this->input_at(node, 2)));
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
+         g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseUniqueRegister(this->input_at(node, 1)),
+         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+  }
 }
 
 template <typename Adapter>

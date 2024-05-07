@@ -3891,7 +3891,7 @@ void Assembler::vinstr(uint8_t op, XMMRegister dst, XMMRegister src1,
                        XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
   DCHECK(IsEnabled(feature));
-  DCHECK(feature == AVX || feature == AVX2);
+  DCHECK(feature == AVX || feature == AVX2 || feature == AVX_VNNI);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);
