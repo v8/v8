@@ -5547,6 +5547,48 @@ TEST(RunWasmTurbofan_Phi) {
   }
 }
 
+TEST(RunWasmTurbofan_RevecReduce) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int64_t, int32_t> r(TestExecutionTier::kTurbofan);
+  uint32_t count = 8;
+  int64_t* memory = r.builder().AddMemoryElems<int64_t>(count);
+  // Build fn perform sum up 128 bit vectors a, return the result:
+  // int64_t sum(simd128* a) {
+  //   simd128 sum128 = a[0] + a[1] + a[2] + a[3];
+  //   return LANE(sum128, 0) + LANE(sum128, 1);
+  // }
+  uint8_t param1 = 0;
+  uint8_t sum1 = r.AllocateLocal(kWasmS128);
+  uint8_t sum2 = r.AllocateLocal(kWasmS128);
+  uint8_t sum = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           sum1,
+           WASM_SIMD_BINOP(
+               kExprI64x2Add, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+               WASM_SIMD_LOAD_MEM_OFFSET(offset * 2, WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(
+           sum2,
+           WASM_SIMD_BINOP(
+               kExprI64x2Add,
+               WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+               WASM_SIMD_LOAD_MEM_OFFSET(offset * 3, WASM_LOCAL_GET(param1)))),
+       WASM_LOCAL_SET(sum, WASM_SIMD_BINOP(kExprI64x2Add, WASM_LOCAL_GET(sum1),
+                                           WASM_LOCAL_GET(sum2))),
+       WASM_I64_ADD(WASM_SIMD_I64x2_EXTRACT_LANE(0, WASM_LOCAL_GET(sum)),
+                    WASM_SIMD_I64x2_EXTRACT_LANE(1, WASM_LOCAL_GET(sum)))});
+
+  for (int64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
+    for (uint32_t i = 0; i < count; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    int64_t expected = count * x;
+    CHECK_EQ(r.Call(0), expected);
+  }
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S

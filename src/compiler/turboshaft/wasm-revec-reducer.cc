@@ -794,6 +794,19 @@ bool WasmRevecAnalyzer::CanMergeSLPTrees() {
   return true;
 }
 
+bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
+  if (!op.Is<Simd128BinopOp>()) {
+    return false;
+  }
+  switch (op.Cast<Simd128BinopOp>().kind) {
+#define CASE(op_128) case Simd128BinopOp::Kind::k##op_128:
+    REDUCE_SEED_KIND(CASE) { return true; }
+    default:
+      return false;
+  }
+#undef CASE
+}
+
 void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
   StoreInfoSet simd128_stores(phase_zone_);
   for (const Operation& op : base::Reversed(graph_.operations(block))) {
@@ -803,6 +816,19 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
         if (info.IsValid()) {
           simd128_stores.insert(info);
         }
+      }
+    }
+    // Try to find reduce op which can be used as revec seeds.
+    if (IsSupportedReduceSeed(op)) {
+      const Simd128BinopOp& binop = op.Cast<Simd128BinopOp>();
+      V<Simd128> left_index = binop.left();
+      V<Simd128> right_index = binop.right();
+      const Operation& left_op = graph_.Get(left_index);
+      const Operation& right_op = graph_.Get(right_index);
+
+      if (left_index != right_index && left_op.opcode == right_op.opcode &&
+          IsSameOpAndKind(left_op, right_op)) {
+        reduce_seeds_.push_back({left_index, right_index});
       }
     }
   }
@@ -819,7 +845,8 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
         const int value = diff.value();
         DCHECK_GE(value, 0);
         if (value == kSimd128Size) {
-          store_seeds_.push_back({info0.op(), info1.op()});
+          store_seeds_.push_back(
+              {graph_.Index(*info0.op()), graph_.Index(*info1.op())});
           if (std::distance(it, end) < 2) {
             break;
           }
@@ -837,7 +864,7 @@ void WasmRevecAnalyzer::Run() {
     ProcessBlock(block);
   }
 
-  if (store_seeds_.empty()) {
+  if (store_seeds_.empty() && reduce_seeds_.empty()) {
     TRACE("Empty seed\n");
     return;
   }
@@ -846,17 +873,29 @@ void WasmRevecAnalyzer::Run() {
     PrintF("store seeds:\n");
     for (auto pair : store_seeds_) {
       PrintF("{\n");
-      PrintF("#%u ", graph_.Index(*pair.first).id());
-      Print(*pair.first);
-      PrintF("#%u ", graph_.Index(*pair.second).id());
-      Print(*pair.second);
+      PrintF("#%u ", pair.first.id());
+      Print(graph_.Get(pair.first));
+      PrintF("#%u ", pair.second.id());
+      Print(graph_.Get(pair.second));
+      PrintF("}\n");
+    }
+
+    PrintF("reduce seeds:\n");
+    for (auto pair : reduce_seeds_) {
+      PrintF("{ ");
+      PrintF("#%u, ", pair.first.id());
+      PrintF("#%u ", pair.second.id());
       PrintF("}\n");
     }
   }
   slp_tree_ = phase_zone_->New<SLPTree>(graph_, phase_zone_);
 
-  for (auto pair : store_seeds_) {
-    NodeGroup roots(graph_.Index(*pair.first), graph_.Index(*pair.second));
+  ZoneVector<std::pair<OpIndex, OpIndex>> all_seeds(
+      store_seeds_.begin(), store_seeds_.end(), phase_zone_);
+  all_seeds.insert(all_seeds.end(), reduce_seeds_.begin(), reduce_seeds_.end());
+
+  for (auto pair : all_seeds) {
+    NodeGroup roots(pair.first, pair.second);
 
     slp_tree_->DeleteTree();
     PackNode* root = slp_tree_->BuildTree(roots);

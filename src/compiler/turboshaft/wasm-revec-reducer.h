@@ -185,6 +185,19 @@ namespace v8::internal::compiler::turboshaft {
   V(F32x4, F32x8)           \
   V(F64x2, F64x4)
 
+#define REDUCE_SEED_KIND(V) \
+  V(I64x2Add)               \
+  V(I32x4Add)               \
+  V(I8x16Add)               \
+  V(I16x8AddSatS)           \
+  V(I16x8AddSatU)           \
+  V(I8x16AddSatS)           \
+  V(I8x16AddSatU)           \
+  V(I16x8SConvertI32x4)     \
+  V(I16x8UConvertI32x4)     \
+  V(I8x16SConvertI16x8)     \
+  V(I8x16UConvertI16x8)
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 class NodeGroup {
@@ -388,6 +401,7 @@ class WasmRevecAnalyzer {
         graph_(graph),
         phase_zone_(zone),
         store_seeds_(zone),
+        reduce_seeds_(zone),
         slp_tree_(nullptr),
         revectorizable_node_(zone),
         should_reduce_(false),
@@ -429,13 +443,15 @@ class WasmRevecAnalyzer {
   }
 
  private:
+  bool IsSupportedReduceSeed(const Operation& op);
   void ProcessBlock(const Block& block);
   bool DecideVectorize();
 
   PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
-  ZoneVector<std::pair<const StoreOp*, const StoreOp*>> store_seeds_;
+  ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_;
+  ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_;
   const wasm::WasmModule* module_ = data_->wasm_module();
   const wasm::FunctionSig* signature_ = data_->wasm_sig();
   SLPTree* slp_tree_;
