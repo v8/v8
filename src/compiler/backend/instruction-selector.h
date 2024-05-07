@@ -1120,6 +1120,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitSimd256Shufd(node_t node);
   void VisitSimd256Shufps(node_t node);
   void VisitSimd256Unpack(node_t node);
+  void VisitSimdPack128To256(node_t node);
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

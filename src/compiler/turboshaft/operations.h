@@ -143,7 +143,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd256Binop)                                   \
   V(Simd256Shift)                                   \
   V(Simd256Ternary)                                 \
-  V(Simd256Splat)
+  V(Simd256Splat)                                   \
+  V(SimdPack128To256)
 
 #if V8_TARGET_ARCH_X64
 #define TURBOSHAFT_SIMD256_X64_OPERATION_LIST(V) \
@@ -8331,6 +8332,26 @@ struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind);
+
+struct SimdPack128To256Op : FixedArityOperationT<2, SimdPack128To256Op> {
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128(),
+                          RegisterRepresentation::Simd128()>();
+  }
+
+  SimdPack128To256Op(V<Simd128> left, V<Simd128> right) : Base(left, right) {}
+  V<Simd128> left() const { return Base::input<Simd128>(0); }
+  V<Simd128> right() const { return Base::input<Simd128>(1); }
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
 
 #ifdef V8_TARGET_ARCH_X64
 struct Simd256ShufdOp : FixedArityOperationT<1, Simd256ShufdOp> {

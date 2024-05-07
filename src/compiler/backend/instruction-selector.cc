@@ -5572,6 +5572,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       MarkAsSimd256(node);
       return VisitSimd256Unpack(node);
     }
+    case Opcode::kSimdPack128To256: {
+      MarkAsSimd256(node);
+      return VisitSimdPack128To256(node);
+    }
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

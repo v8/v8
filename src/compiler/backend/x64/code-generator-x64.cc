@@ -6826,6 +6826,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       lane);
       break;
     }
+    case kX64InsertI128: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      uint8_t imm = i.InputInt8(2);
+      InstructionOperand* input0 = instr->InputAt(0);
+      if (input0->IsSimd128Register()) {
+        __ vinserti128(i.OutputSimd256Register(),
+                       YMMRegister::from_xmm(i.InputSimd128Register(0)),
+                       i.InputSimd128Register(1), imm);
+      } else {
+        DCHECK(instr->InputAt(0)->IsSimd256Register());
+        __ vinserti128(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                       i.InputSimd128Register(1), imm);
+      }
+      break;
+    }
   }
   return kSuccess;
 }  // NOLadability/fn_size)

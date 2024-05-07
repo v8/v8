@@ -40,6 +40,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 template <typename Next>
 class ReducerBaseForwarder;
+template <typename Next>
+class WasmRevecReducer;
 
 template <typename Derived, typename Base>
 class OutputGraphAssembler : public Base {
@@ -84,6 +86,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                                                  VariableReducer<AfterNext>> {
   template <typename N>
   friend class ReducerBaseForwarder;
+  template <typename N>
+  friend class WasmRevecReducer;
 
  public:
   using Next = VariableReducer<AfterNext>;

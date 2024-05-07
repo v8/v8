@@ -1904,6 +1904,10 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256SplatOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const SimdPack128To256Op& op) {
+  UNREACHABLE();
+}
+
 #ifdef V8_TARGET_ARCH_X64
 Node* ScheduleBuilder::ProcessOperation(const Simd256ShufdOp& op) {
   UNIMPLEMENTED();

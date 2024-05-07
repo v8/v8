@@ -188,9 +188,45 @@ PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
   Operation& op = graph_.Get(node_group[0]);
   TRACE("PackNode %s(#%d, #%d)\n", GetSimdOpcodeName(op).c_str(),
         node_group[0].id(), node_group[1].id());
-  PackNode* pnode = phase_zone_->New<PackNode>(node_group);
+  PackNode* pnode = phase_zone_->New<PackNode>(phase_zone_, node_group);
   for (OpIndex node : node_group) {
     node_to_packnode_[node] = pnode;
+  }
+  return pnode;
+}
+
+PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
+                                    PackNode::ForcePackType type,
+                                    const Graph& graph) {
+  PackNode* pnode = NewPackNode(node_group);
+  pnode->set_force_pack_type(type);
+  if (type == PackNode::ForcePackType::kGeneral) {
+    // Collect all the operations on right node's input tree, whose OpIndex is
+    // bigger than the left node. The traversal should be done in a BFS manner
+    // to make sure all inputs are emitted before the use.
+    DCHECK(pnode->force_pack_right_inputs().empty());
+    ZoneVector<OpIndex> idx_vec(phase_zone_);
+    const Operation& right_op = graph.Get(node_group[1]);
+    for (OpIndex input : right_op.inputs()) {
+      DCHECK_NE(input, node_group[0]);
+      DCHECK_LT(input, node_group[1]);
+      if (input > node_group[0]) {
+        idx_vec.push_back(input);
+      }
+    }
+    size_t idx = 0;
+    while (idx < idx_vec.size()) {
+      const Operation& op = graph.Get(idx_vec[idx]);
+      for (OpIndex input : op.inputs()) {
+        DCHECK_NE(input, node_group[0]);
+        DCHECK_LT(input, node_group[1]);
+        if (input > node_group[0]) {
+          idx_vec.push_back(input);
+        }
+      }
+      idx++;
+    }
+    pnode->force_pack_right_inputs().insert(idx_vec.begin(), idx_vec.end());
   }
   return pnode;
 }
@@ -216,7 +252,8 @@ ShufflePackNode* SLPTree::NewShufflePackNode(
   Operation& op = graph_.Get(node_group[0]);
   TRACE("PackNode %s(#%d:, #%d)\n", GetSimdOpcodeName(op).c_str(),
         node_group[0].id(), node_group[1].id());
-  ShufflePackNode* pnode = phase_zone_->New<ShufflePackNode>(node_group, kind);
+  ShufflePackNode* pnode =
+      phase_zone_->New<ShufflePackNode>(phase_zone_, node_group, kind);
   for (OpIndex node : node_group) {
     node_to_packnode_[node] = pnode;
   }
@@ -566,19 +603,31 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
 
     case Opcode::kLoad: {
       TRACE("Load leaf node\n");
-      if (op0.Cast<LoadOp>().loaded_rep != MemoryRepresentation::Simd128() ||
-          op1.Cast<LoadOp>().loaded_rep != MemoryRepresentation::Simd128()) {
+      const LoadOp& load0 = op0.Cast<LoadOp>();
+      const LoadOp& load1 = op1.Cast<LoadOp>();
+      if (load0.loaded_rep != MemoryRepresentation::Simd128() ||
+          load1.loaded_rep != MemoryRepresentation::Simd128()) {
         TRACE("Failed due to non-simd load representation!\n");
         return nullptr;
       }
-      if (!LoadStrideEqualTo<LoadOp, StoreLoadInfo<LoadOp>>(graph_, node_group,
-                                                            kSimd128Size)) {
-        TRACE("Wrong Access stride\n");
-        return nullptr;
+      StoreLoadInfo<LoadOp> info0(&graph_, &load0);
+      StoreLoadInfo<LoadOp> info1(&graph_, &load1);
+      auto stride = info1 - info0;
+      if (stride.has_value()) {
+        const int value = stride.value();
+        if (value == kSimd128Size) {
+          // TODO(jiepan) Sort load
+          PackNode* p = NewPackNode(node_group);
+          return p;
+        } else if (value == 0) {
+          TRACE("Force pack splat load");
+          return NewForcePackNode(node_group, PackNode::ForcePackType::kSplat,
+                                  graph_);
+        }
       }
-      // TODO(jiepan): Sort load
-      PackNode* p = NewPackNode(node_group);
-      return p;
+      TRACE("Force pack incontinuous load\n");
+      return NewForcePackNode(node_group, PackNode::ForcePackType::kGeneral,
+                              graph_);
     }
     case Opcode::kStore: {
       TRACE("Added a vector of stores.\n");
@@ -933,6 +982,11 @@ bool WasmRevecAnalyzer::DecideVectorize() {
         // Splat nodes will not cause a saving as it simply extends itself.
         if (!IsSplat(nodes)) {
           save++;
+        }
+
+        if (pnode->is_force_pack()) {
+          cost += 2;
+          return;
         }
 
         for (int i = 0; i < static_cast<int>(nodes.size()); i++) {

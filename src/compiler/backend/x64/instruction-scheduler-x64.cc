@@ -319,6 +319,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Blendvps:
     case kX64Pblendvb:
     case kX64ExtractF128:
+    case kX64InsertI128:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;

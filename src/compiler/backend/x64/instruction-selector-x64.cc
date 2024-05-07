@@ -1501,6 +1501,10 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitSimd256Unpack(Node* node) {
   UNIMPLEMENTED();
 }
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSimdPack128To256(Node* node) {
+  UNIMPLEMENTED();
+}
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256Shufd(node_t node) {
@@ -1550,6 +1554,27 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256Unpack(node_t node) {
   Emit(code, 1, &dst, 2, inputs);
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSimdPack128To256(
+    node_t node) {
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+
+  const turboshaft::SimdPack128To256Op& op =
+      Get(node).Cast<turboshaft::SimdPack128To256Op>();
+
+  turboshaft::OpIndex input0 = op.input(0);
+  turboshaft::OpIndex input1 = op.input(1);
+  constexpr int kHighLaneIndex = 1;
+
+  InstructionOperand dst = g.DefineAsRegister(node);
+  InstructionOperand src0 = g.UseUniqueRegister(input0);
+  InstructionOperand src1 = g.UseUniqueRegister(input1);
+  InstructionOperand imm = g.UseImmediate(kHighLaneIndex);
+
+  InstructionOperand inputs[] = {src0, src1, imm};
+
+  Emit(kX64InsertI128, 1, &dst, 3, inputs);
+}
 #endif  // V8_TARGET_ARCH_X64
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

@@ -4196,6 +4196,10 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd256Splat(input, kind);
   }
 
+  V<Simd256> SimdPack128To256(V<Simd128> left, V<Simd128> right) {
+    return ReduceIfReachableSimdPack128To256(left, right);
+  }
+
 #ifdef V8_TARGET_ARCH_X64
   V<Simd256> Simd256Shufd(V<Simd256> input, const uint8_t control) {
     return ReduceIfReachableSimd256Shufd(input, control);

@@ -5547,6 +5547,129 @@ TEST(RunWasmTurbofan_Phi) {
   }
 }
 
+TEST(RunWasmTurbofan_GatherIdenticalLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged) {
+    // This pattern is only implemented for turboshaft_wasm and
+    // turboshaft_wasm_instruction_selection
+    return;
+  }
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+
+  // Load from [0:15], the two loads are indentical.
+  r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+           WASM_LOCAL_SET(
+               temp1, WASM_SIMD_UNOP(
+                          kExprI32x4Abs,
+                          WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp3)))),
+           WASM_LOCAL_SET(
+               temp2, WASM_SIMD_UNOP(
+                          kExprI32x4Abs,
+                          WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp3)))),
+
+           WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+           WASM_ONE});
+
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[5]);
+    CHECK_EQ(expected, memory[9]);
+  }
+}
+
+TEST(RunWasmTurbofan_GatherLoadsAtSameAddr) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged) {
+    // This pattern is only implemented for turboshaft_wasm and
+    // turboshaft_wasm_instruction_selection
+    return;
+  }
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  // Load from [0:15], the two loads are indentical.
+  r.Build({WASM_LOCAL_SET(
+               temp1,
+               WASM_SIMD_UNOP(kExprI32x4Abs,
+                              WASM_SIMD_UNOP(kExprS128Not,
+                                             WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+           WASM_LOCAL_SET(
+               temp2,
+               WASM_SIMD_UNOP(kExprI32x4Abs,
+                              WASM_SIMD_UNOP(kExprS128Not,
+                                             WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+
+           WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+           WASM_ONE});
+
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[5]);
+    CHECK_EQ(expected, memory[9]);
+  }
+}
+
+TEST(RunWasmTurbofan_GatherInContinuousLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged) {
+    // This pattern is only implemented for turboshaft_wasm and
+    // turboshaft_wasm_instruction_selection
+    return;
+  }
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  // Load from [0:15] and [48:63], they are not continuous.
+  r.Build({WASM_LOCAL_SET(
+               temp1,
+               WASM_SIMD_UNOP(kExprI32x4Abs,
+                              WASM_SIMD_UNOP(kExprS128Not,
+                                             WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+           WASM_LOCAL_SET(
+               temp2, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                     WASM_SIMD_UNOP(kExprS128Not,
+                                                    WASM_SIMD_LOAD_MEM_OFFSET(
+                                                        48, WASM_ZERO)))),
+
+           WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+           WASM_ONE});
+
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[5]);
+    CHECK_EQ(expected, memory[9]);
+  }
+}
+
 TEST(RunWasmTurbofan_RevecReduce) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
