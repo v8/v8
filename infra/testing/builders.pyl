@@ -649,6 +649,15 @@
       {'name': 'v8testing', 'variant': 'default'},
     ],
   },
+  'v8_linux64_sandbox_testing_rel': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
+    ],
+  },
   'v8_linux64_single_generation_dbg': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1697,6 +1706,15 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'V8 Linux64 - sandbox testing': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
     ],
   },
   'V8 Linux64 - shared': {
