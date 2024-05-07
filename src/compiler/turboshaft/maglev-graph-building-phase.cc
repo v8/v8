@@ -2092,6 +2092,76 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  static constexpr int kMinClampedUint8 = 0;
+  static constexpr int kMaxClampedUint8 = 255;
+  V<Word32> Int32ToUint8Clamped(V<Word32> value) {
+    ScopedVariable<Word32, AssemblerT> result(this);
+    IF (__ Int32LessThan(value, kMinClampedUint8)) {
+      result = __ Word32Constant(kMinClampedUint8);
+    } ELSE IF (__ Int32LessThan(value, kMaxClampedUint8)) {
+      result = value;
+    } ELSE {
+      result = __ Word32Constant(kMaxClampedUint8);
+    }
+    return result;
+  }
+  V<Word32> Float64ToUint8Clamped(V<Float64> value) {
+    ScopedVariable<Word32, AssemblerT> result(this);
+    IF (__ Float64LessThan(value, kMinClampedUint8)) {
+      result = __ Word32Constant(kMinClampedUint8);
+    } ELSE IF (__ Float64LessThan(kMaxClampedUint8, value)) {
+      result = __ Word32Constant(kMaxClampedUint8);
+    } ELSE {
+      // Note that this case handles values that are in range of Clamped Uint8
+      // and NaN. The order of the IF/ELSE-IF/ELSE in this function is so that
+      // we do indeed end up here for NaN.
+      result = __ JSTruncateFloat64ToWord32(__ Float64RoundTiesEven(value));
+    }
+    return result;
+  }
+
+  maglev::ProcessResult Process(maglev::Int32ToUint8Clamped* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, Int32ToUint8Clamped(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Uint32ToUint8Clamped* node,
+                                const maglev::ProcessingState& state) {
+    ScopedVariable<Word32, AssemblerT> result(this);
+    V<Word32> value = Map(node->input());
+    IF (__ Uint32LessThan(value, kMaxClampedUint8)) {
+      result = value;
+    } ELSE {
+      result = __ Word32Constant(kMaxClampedUint8);
+    }
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64ToUint8Clamped* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, Float64ToUint8Clamped(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedNumberToUint8Clamped* node,
+                                const maglev::ProcessingState& state) {
+    ScopedVariable<Word32, AssemblerT> result(this);
+    V<Object> value = Map(node->input());
+    IF (__ IsSmi(value)) {
+      result = Int32ToUint8Clamped(__ UntagSmi(V<Smi>::Cast(value)));
+    } ELSE {
+      V<i::Map> map = __ LoadMapField(value);
+      __ DeoptimizeIfNot(
+          __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+          BuildFrameState(node->eager_deopt_info()),
+          DeoptimizeReason::kNotAHeapNumber,
+          node->eager_deopt_info()->feedback_to_update());
+      result = Float64ToUint8Clamped(
+          __ LoadField<Float64>(value, AccessBuilder::ForHeapNumberValue()));
+    }
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ToObject* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ConvertJSPrimitiveToObject(
