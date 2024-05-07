@@ -271,8 +271,11 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
-      code_flush_mode, heap_->cpp_heap(), should_keep_ages_unchanged,
-      heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
+      code_flush_mode,
+      cpp_heap && local_marking_worklists.cpp_marking_state()
+                      ->SupportsWrappableExtraction(),
+      should_keep_ages_unchanged, heap_->tracer()->CodeFlushingIncrease(),
+      &task_state->memory_chunk_data);
   NativeContextInferrer native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;

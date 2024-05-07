@@ -9,6 +9,7 @@
 #include "src/heap/cppgc-js/wrappable-info.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
+#include "v8-cppgc.h"
 
 namespace v8::internal {
 
@@ -17,7 +18,9 @@ base::Optional<WrappableInfo> WrappableInfo::From(
     Isolate* isolate, Tagged<JSObject> wrapper,
     const WrapperDescriptor& wrapper_descriptor) {
   DCHECK(wrapper->MayHaveEmbedderFields());
-  return wrapper->GetEmbedderFieldCount() < 2
+  return wrapper_descriptor.embedder_id_for_garbage_collected !=
+                     WrapperDescriptor::kUnknownEmbedderId ||
+                 wrapper->GetEmbedderFieldCount() < 2
              ? base::Optional<WrappableInfo>()
              : From(isolate,
                     EmbedderDataSlot(wrapper,

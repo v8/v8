@@ -517,9 +517,9 @@ inline int MarkingVisitorBase<ConcreteVisitor>::
   if (size == 0) {
     return 0;
   }
-  if (!local_marking_worklists_->SupportsExtractWrapper()) {
-    return size;
-  }
+
+  DCHECK(local_marking_worklists_->SupportsExtractWrapper());
+
   // Process embedder fields
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   if (local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot)) {
@@ -533,7 +533,7 @@ template <typename T, typename TBodyDescriptor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitEmbedderTracingSubclass(
     Tagged<Map> map, Tagged<T> object) {
   DCHECK(object->MayHaveEmbedderFields());
-  if (V8_LIKELY(trace_embedder_fields_)) {
+  if (V8_UNLIKELY(trace_embedder_fields_)) {
     return VisitEmbedderTracingSubClassWithEmbedderTracing<T, TBodyDescriptor>(
         map, object);
   }
