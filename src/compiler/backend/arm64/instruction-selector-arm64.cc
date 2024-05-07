@@ -2052,8 +2052,8 @@ class CompareSequence {
                              OpIndex ccmp_rhs) {
     InstructionCode code = GetOpcode(rep);
     ccmps_.at(num_ccmps_) =
-        FlagsContinuationT<TurboshaftAdapter>::ConditionalCompare(
-            code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs);
+        FlagsContinuationT<TurboshaftAdapter>::ConditionalCompare{
+            code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs};
     ++num_ccmps_;
   }
 
