@@ -35,13 +35,11 @@ MemoryChunkMetadata::~MemoryChunkMetadata() {
 }
 
 bool MemoryChunkMetadata::InSharedSpace() const {
-  return owner()->identity() == SHARED_SPACE ||
-         owner()->identity() == SHARED_LO_SPACE;
+  return IsAnySharedSpace(owner()->identity());
 }
 
 bool MemoryChunkMetadata::InTrustedSpace() const {
-  return owner()->identity() == TRUSTED_SPACE ||
-         owner()->identity() == TRUSTED_LO_SPACE;
+  return IsAnyTrustedSpace(owner()->identity());
 }
 
 #ifdef THREAD_SANITIZER

@@ -49,6 +49,11 @@ void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
                                     heap_->shared_allocation_space(),
                                     MainAllocator::IsNewGeneration::kNo);
     shared_lo_space_ = heap_->shared_lo_allocation_space();
+
+    shared_trusted_space_allocator_.emplace(
+        local_heap_, heap_->shared_trusted_allocation_space(),
+        MainAllocator::IsNewGeneration::kNo);
+    shared_trusted_lo_space_ = heap_->shared_trusted_lo_allocation_space();
   }
 }
 
@@ -71,6 +76,8 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
       return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kTrusted:
       return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+    case AllocationType::kSharedTrusted:
+      return shared_trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -93,6 +100,7 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
 }
@@ -168,6 +176,10 @@ void HeapAllocator::MakeLinearAllocationAreasIterable() {
   if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();
   }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
 }
 
 #if DEBUG
@@ -181,6 +193,10 @@ void HeapAllocator::VerifyLinearAllocationAreas() const {
 
   if (shared_space_allocator_) {
     shared_space_allocator_->Verify();
+  }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->Verify();
   }
 }
 #endif  // DEBUG
@@ -201,11 +217,17 @@ void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   if (shared_space_allocator_) {
     shared_space_allocator_->MarkLinearAllocationAreaBlack();
   }
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
 }
 
 void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
   if (shared_space_allocator_) {
     shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->UnmarkLinearAllocationArea();
   }
 }
 
@@ -219,6 +241,10 @@ void HeapAllocator::FreeLinearAllocationAreas() {
 
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
+  }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->FreeLinearAllocationArea();
   }
 }
 
