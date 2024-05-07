@@ -264,7 +264,7 @@ template Handle<Object> Object::WrapForRead<AllocationType::kOld>(
     Representation representation);
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
-                                             Handle<Object> object,
+                                             DirectHandle<Object> object,
                                              const char* method_name) {
   DCHECK(!IsJSReceiver(*object));  // Use ToObject() for fast path.
   Handle<Context> native_context = isolate->native_context();
@@ -272,8 +272,9 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
   if (IsSmi(*object)) {
     constructor = handle(native_context->number_function(), isolate);
   } else {
-    int constructor_function_index =
-        Handle<HeapObject>::cast(object)->map()->GetConstructorFunctionIndex();
+    int constructor_function_index = DirectHandle<HeapObject>::cast(object)
+                                         ->map()
+                                         ->GetConstructorFunctionIndex();
     if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
       if (method_name != nullptr) {
         THROW_NEW_ERROR(
@@ -457,8 +458,8 @@ Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
                            : isolate->factory()->empty_string();
 }
 
-Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
-                                          Handle<JSReceiver> error) {
+DirectHandle<String> NoSideEffectsErrorToString(Isolate* isolate,
+                                                Handle<JSReceiver> error) {
   Handle<Name> name_key = isolate->factory()->name_string();
   Handle<Object> name = JSReceiver::GetDataProperty(isolate, error, name_key);
   Handle<String> name_str = AsStringOrEmpty(isolate, name);
@@ -493,39 +494,41 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
     }
   }
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 }  // namespace
 
 // static
-MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
-                                                       Handle<Object> input) {
+MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
+    Isolate* isolate, DirectHandle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
   if (IsString(*input) || IsNumber(*input) || IsOddball(*input)) {
     return Object::ToString(isolate, input).ToHandleChecked();
   } else if (IsJSProxy(*input)) {
-    Handle<Object> currInput = input;
+    DirectHandle<Object> currInput = input;
     do {
       Tagged<HeapObject> target =
-          Handle<JSProxy>::cast(currInput)->target(isolate);
-      currInput = Handle<Object>(target, isolate);
+          DirectHandle<JSProxy>::cast(currInput)->target(isolate);
+      currInput = direct_handle(target, isolate);
     } while (IsJSProxy(*currInput));
     return NoSideEffectsToString(isolate, currInput);
   } else if (IsBigInt(*input)) {
-    return BigInt::NoSideEffectsToString(isolate, Handle<BigInt>::cast(input));
+    return BigInt::NoSideEffectsToString(isolate,
+                                         DirectHandle<BigInt>::cast(input));
   } else if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*input)) {
     // -- F u n c t i o n
     Handle<String> fun_str;
     if (IsJSBoundFunction(*input)) {
-      fun_str = JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(input));
-    } else if (IsJSWrappedFunction(*input)) {
       fun_str =
-          JSWrappedFunction::ToString(Handle<JSWrappedFunction>::cast(input));
+          JSBoundFunction::ToString(DirectHandle<JSBoundFunction>::cast(input));
+    } else if (IsJSWrappedFunction(*input)) {
+      fun_str = JSWrappedFunction::ToString(
+          DirectHandle<JSWrappedFunction>::cast(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(Handle<JSFunction>::cast(input));
+      fun_str = JSFunction::ToString(DirectHandle<JSFunction>::cast(input));
     }
 
     if (fun_str->length() > 128) {
@@ -535,15 +538,15 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
       builder.AppendString(isolate->factory()->NewSubString(
           fun_str, fun_str->length() - 2, fun_str->length()));
 
-      return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+      return builder.Finish().ToHandleChecked();
     }
     return fun_str;
   } else if (IsSymbol(*input)) {
     // -- S y m b o l
-    Handle<Symbol> symbol = Handle<Symbol>::cast(input);
+    DirectHandle<Symbol> symbol = DirectHandle<Symbol>::cast(input);
 
     if (symbol->is_private_name()) {
-      return Handle<String>(String::cast(symbol->description()), isolate);
+      return DirectHandle<String>(String::cast(symbol->description()), isolate);
     }
 
     IncrementalStringBuilder builder(isolate);
@@ -563,25 +566,25 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     }
     builder.AppendCharacter(')');
 
-    return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+    return builder.Finish().ToHandleChecked();
   } else if (IsJSReceiver(*input)) {
     // -- J S R e c e i v e r
-    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
+    Handle<Object> indirect_input = indirect_handle(input, isolate);
+    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(indirect_input);
     Handle<Object> to_string = JSReceiver::GetDataProperty(
         isolate, receiver, isolate->factory()->toString_string());
 
-    if (IsErrorObject(isolate, input) ||
+    if (IsErrorObject(isolate, indirect_input) ||
         *to_string == *isolate->error_to_string()) {
       // When internally formatting error objects, use a side-effects-free
       // version of Error.prototype.toString independent of the actually
       // installed toString method.
-      return NoSideEffectsErrorToString(isolate,
-                                        Handle<JSReceiver>::cast(input));
+      return NoSideEffectsErrorToString(isolate, receiver);
     } else if (*to_string == *isolate->object_to_string()) {
       Handle<Object> ctor = JSReceiver::GetDataProperty(
           isolate, receiver, isolate->factory()->constructor_string());
       if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*ctor)) {
-        Handle<String> ctor_name;
+        DirectHandle<String> ctor_name;
         if (IsJSBoundFunction(*ctor)) {
           ctor_name = JSBoundFunction::GetName(
                           isolate, Handle<JSBoundFunction>::cast(ctor))
@@ -597,22 +600,23 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
           builder.AppendString(ctor_name);
           builder.AppendCharacter('>');
 
-          return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+          return builder.Finish().ToHandleChecked();
         }
       }
     }
   }
-  return MaybeHandle<String>(kNullMaybeHandle);
+  return {};
 }
 
 // static
-Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
-                                             Handle<Object> input) {
+DirectHandle<String> Object::NoSideEffectsToString(Isolate* isolate,
+                                                   DirectHandle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
   // Try to convert input to a meaningful string.
-  MaybeHandle<String> maybe_string = NoSideEffectsToMaybeString(isolate, input);
-  Handle<String> string_handle;
+  MaybeDirectHandle<String> maybe_string =
+      NoSideEffectsToMaybeString(isolate, input);
+  DirectHandle<String> string_handle;
   if (maybe_string.ToHandle(&string_handle)) {
     return string_handle;
   }
@@ -621,12 +625,13 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   Handle<JSReceiver> receiver;
   if (IsJSReceiver(*input)) {
-    receiver = Handle<JSReceiver>::cast(input);
+    receiver = indirect_handle(DirectHandle<JSReceiver>::cast(input), isolate);
   } else {
     // This is the only case where Object::ToObject throws.
     DCHECK(!IsSmi(*input));
-    int constructor_function_index =
-        Handle<HeapObject>::cast(input)->map()->GetConstructorFunctionIndex();
+    int constructor_function_index = DirectHandle<HeapObject>::cast(input)
+                                         ->map()
+                                         ->GetConstructorFunctionIndex();
     if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
       return isolate->factory()->NewStringFromAsciiChecked("[object Unknown]");
     }
@@ -634,18 +639,19 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
     receiver = Object::ToObjectImpl(isolate, input).ToHandleChecked();
   }
 
-  Handle<String> builtin_tag = handle(receiver->class_name(), isolate);
-  Handle<Object> tag_obj = JSReceiver::GetDataProperty(
+  DirectHandle<String> builtin_tag =
+      direct_handle(receiver->class_name(), isolate);
+  DirectHandle<Object> tag_obj = JSReceiver::GetDataProperty(
       isolate, receiver, isolate->factory()->to_string_tag_symbol());
-  Handle<String> tag =
-      IsString(*tag_obj) ? Handle<String>::cast(tag_obj) : builtin_tag;
+  DirectHandle<String> tag =
+      IsString(*tag_obj) ? DirectHandle<String>::cast(tag_obj) : builtin_tag;
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("[object ");
   builder.AppendString(tag);
   builder.AppendCharacter(']');
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // static

@@ -106,7 +106,7 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
   int message_id_smi = args.smi_value_at(0);
 
   constexpr int kMaxMessageArgs = 3;
-  Handle<Object> message_args[kMaxMessageArgs];
+  DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
   while (num_message_args < kMaxMessageArgs &&
          args.length() > num_message_args + 1) {

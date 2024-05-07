@@ -179,7 +179,7 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
   int message_template_index = args.smi_value_at(0);
 
   constexpr int kMaxMessageArgs = 3;
-  Handle<Object> message_args[kMaxMessageArgs];
+  DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
 
   while (num_message_args < kMaxMessageArgs &&
@@ -190,7 +190,7 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
   Handle<Object> options =
       args.length() >= 5 ? args.at(4) : isolate->factory()->undefined_value();
 
-  Handle<Object> message_string =
+  DirectHandle<Object> message_string =
       MessageFormatter::Format(isolate, MessageTemplate(message_template_index),
                                base::VectorOf(message_args, num_message_args));
 

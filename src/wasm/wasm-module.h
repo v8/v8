@@ -919,8 +919,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<NativeContext> context);
-V8_EXPORT_PRIVATE Handle<String> ErrorStringForCodegen(Isolate* isolate,
-                                                       Handle<Context> context);
+V8_EXPORT_PRIVATE DirectHandle<String> ErrorStringForCodegen(
+    Isolate* isolate, DirectHandle<Context> context);
 
 Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
                                     bool for_exception = false);

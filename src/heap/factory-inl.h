@@ -36,6 +36,8 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 
 template <typename T, typename>
 Handle<String> Factory::InternalizeString(Handle<T> string) {
+  // T should be a subtype of String, which is enforced by the second template
+  // argument.
   if (IsInternalizedString(*string)) return string;
   return indirect_handle(
       isolate()->string_table()->LookupString(isolate(), string), isolate());
@@ -43,6 +45,8 @@ Handle<String> Factory::InternalizeString(Handle<T> string) {
 
 template <typename T, typename>
 Handle<Name> Factory::InternalizeName(Handle<T> name) {
+  // T should be a subtype of Name, which is enforced by the second template
+  // argument.
   if (IsUniqueName(*name)) return name;
   return indirect_handle(isolate()->string_table()->LookupString(
                              isolate(), DirectHandle<String>::cast(name)),
@@ -52,12 +56,16 @@ Handle<Name> Factory::InternalizeName(Handle<T> name) {
 #ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T, typename>
 DirectHandle<String> Factory::InternalizeString(DirectHandle<T> string) {
+  // T should be a subtype of String, which is enforced by the second template
+  // argument.
   if (IsInternalizedString(*string)) return string;
   return isolate()->string_table()->LookupString(isolate(), string);
 }
 
 template <typename T, typename>
 DirectHandle<Name> Factory::InternalizeName(DirectHandle<T> name) {
+  // T should be a subtype of Name, which is enforced by the second template
+  // argument.
   if (IsUniqueName(*name)) return name;
   return isolate()->string_table()->LookupString(
       isolate(), DirectHandle<String>::cast(name));

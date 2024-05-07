@@ -609,7 +609,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::Handle<i::String> error =
+    i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
     thrower.CompileError("%s", error->ToCString().get());
   }
@@ -700,7 +700,7 @@ void WebAssemblyCompileStreaming(
 
   i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::Handle<i::String> error =
+    i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
     thrower.CompileError("%s", error->ToCString().get());
     resolver->OnCompilationFailed(thrower.Reify());
@@ -831,7 +831,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::Handle<i::String> error =
+    i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
     thrower.CompileError("%s", error->ToCString().get());
     return;
@@ -1033,7 +1033,7 @@ void WebAssemblyInstantiateStreaming(
 
   i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::Handle<i::String> error =
+    i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
     thrower.CompileError("%s", error->ToCString().get());
     resolver->OnInstantiationFailed(thrower.Reify());
@@ -1174,7 +1174,7 @@ void WebAssemblyInstantiateImpl(
   // to compile it.
   i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::Handle<i::String> error =
+    i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
     thrower.CompileError("%s", error->ToCString().get());
     compilation_resolver->OnCompilationFailed(thrower.Reify());

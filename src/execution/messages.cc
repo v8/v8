@@ -58,16 +58,16 @@ MessageLocation::MessageLocation()
 // by default.
 void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           const MessageLocation* loc,
-                                          Handle<Object> message_obj) {
+                                          DirectHandle<Object> message_obj) {
   std::unique_ptr<char[]> str = GetLocalizedMessage(isolate, message_obj);
   if (loc == nullptr) {
     PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
-    Handle<Object> data(loc->script()->name(), isolate);
+    DirectHandle<Object> data(loc->script()->name(), isolate);
     std::unique_ptr<char[]> data_str;
     if (IsString(*data))
-      data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
+      data_str = DirectHandle<String>::cast(data)->ToCString(DISALLOW_NULLS);
     PrintF("%s:%i: %s\n", data_str ? data_str.get() : "<unknown>",
            loc->start_pos(), str.get());
   }
@@ -75,14 +75,14 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Isolate* isolate, MessageTemplate message, const MessageLocation* location,
-    Handle<Object> argument, Handle<FixedArray> stack_frames) {
+    DirectHandle<Object> argument, DirectHandle<FixedArray> stack_frames) {
   Factory* factory = isolate->factory();
 
   int start = -1;
   int end = -1;
   int bytecode_offset = -1;
-  Handle<Script> script_handle = isolate->factory()->empty_script();
-  Handle<SharedFunctionInfo> shared_info;
+  DirectHandle<Script> script_handle = isolate->factory()->empty_script();
+  DirectHandle<SharedFunctionInfo> shared_info;
   if (location != nullptr && !v8_flags.correctness_fuzzer_suppressions) {
     start = location->start_pos();
     end = location->end_pos();
@@ -91,9 +91,10 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     shared_info = location->shared();
   }
 
-  Handle<Object> stack_frames_handle =
-      stack_frames.is_null() ? Handle<Object>::cast(factory->undefined_value())
-                             : Handle<Object>::cast(stack_frames);
+  DirectHandle<Object> stack_frames_handle =
+      stack_frames.is_null()
+          ? DirectHandle<Object>::cast(factory->undefined_value())
+          : DirectHandle<Object>::cast(stack_frames);
 
   Handle<JSMessageObject> message_obj = factory->NewJSMessageObject(
       message, argument, start, end, shared_info, bytecode_offset,
@@ -103,8 +104,9 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 }
 
 void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
-                                   Handle<JSMessageObject> message) {
-  v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
+                                   DirectHandle<JSMessageObject> message) {
+  v8::Local<v8::Message> api_message_obj =
+      v8::Utils::MessageToLocal(message, isolate);
 
   if (api_message_obj->ErrorLevel() != v8::Isolate::kMessageError) {
     ReportMessageNoExceptions(isolate, loc, message, v8::Local<v8::Value>());
@@ -127,10 +129,10 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
   // Turn the exception on the message into a string if it is an object.
   if (IsJSObject(message->argument())) {
     HandleScope scope(isolate);
-    Handle<Object> argument(message->argument(), isolate);
+    DirectHandle<Object> argument(message->argument(), isolate);
 
-    MaybeHandle<Object> maybe_stringified;
-    Handle<Object> stringified;
+    MaybeDirectHandle<Object> maybe_stringified;
+    DirectHandle<Object> stringified;
     // Make sure we don't leak uncaught internally generated Error objects.
     if (IsJSError(*argument)) {
       maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
@@ -154,12 +156,14 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
 }
 
 void MessageHandler::ReportMessageNoExceptions(
-    Isolate* isolate, const MessageLocation* loc, Handle<Object> message,
+    Isolate* isolate, const MessageLocation* loc, DirectHandle<Object> message,
     v8::Local<v8::Value> api_exception_obj) {
-  v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
+  v8::Local<v8::Message> api_message_obj =
+      v8::Utils::MessageToLocal(message, isolate);
   int error_level = api_message_obj->ErrorLevel();
 
-  Handle<ArrayList> global_listeners = isolate->factory()->message_listeners();
+  DirectHandle<ArrayList> global_listeners =
+      isolate->factory()->message_listeners();
   int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
@@ -176,29 +180,31 @@ void MessageHandler::ReportMessageNoExceptions(
       }
       v8::MessageCallback callback = FUNCTION_CAST<v8::MessageCallback>(
           callback_obj->foreign_address<kGenericForeignTag>());
-      Handle<Object> callback_data(listener->get(1), isolate);
+      DirectHandle<Object> callback_data(listener->get(1), isolate);
       {
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-        callback(api_message_obj, IsUndefined(*callback_data, isolate)
-                                      ? api_exception_obj
-                                      : v8::Utils::ToLocal(callback_data));
+        callback(api_message_obj,
+                 IsUndefined(*callback_data, isolate)
+                     ? api_exception_obj
+                     : v8::Utils::ToLocal(callback_data, isolate));
       }
     }
   }
 }
 
 Handle<String> MessageHandler::GetMessage(Isolate* isolate,
-                                          Handle<Object> data) {
-  Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
-  Handle<Object> arg{message->argument(), isolate};
+                                          DirectHandle<Object> data) {
+  DirectHandle<JSMessageObject> message =
+      DirectHandle<JSMessageObject>::cast(data);
+  DirectHandle<Object> arg{message->argument(), isolate};
   return MessageFormatter::Format(isolate, message->type(),
                                   base::VectorOf({arg}));
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
-    Isolate* isolate, Handle<Object> data) {
+    Isolate* isolate, DirectHandle<Object> data) {
   HandleScope scope(isolate);
   return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
 }
@@ -404,9 +410,9 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
 Handle<String> MessageFormatter::Format(
     Isolate* isolate, MessageTemplate index,
-    base::Vector<const Handle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args) {
   constexpr size_t kMaxArgs = 3;
-  Handle<String> arg_strings[kMaxArgs];
+  DirectHandle<String> arg_strings[kMaxArgs];
   DCHECK_LE(args.size(), kMaxArgs);
   for (size_t i = 0; i < args.size(); ++i) {
     DCHECK(!args[i].is_null());
@@ -445,7 +451,7 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
 
 MaybeHandle<String> MessageFormatter::TryFormat(
     Isolate* isolate, MessageTemplate index,
-    base::Vector<const Handle<String>> args) {
+    base::Vector<const DirectHandle<String>> args) {
   const char* template_string = TemplateString(index);
 
   IncrementalStringBuilder builder(isolate);
@@ -496,7 +502,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kUnexpectedTokenIdentifier,
       MessageTemplate::kWeakRefsCleanupMustBeCallable};
 
-  base::Vector<const Handle<String>> remaining_args = args;
+  base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
       // %% results in verbatim %.
@@ -514,7 +520,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
                   template_string);
           }
         } else {
-          Handle<String> arg = remaining_args[0];
+          DirectHandle<String> arg = remaining_args[0];
           remaining_args += 1;
           builder.AppendString(arg);
         }
@@ -536,7 +542,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
 MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
                                             Handle<JSFunction> target,
                                             Handle<Object> new_target,
-                                            Handle<Object> message,
+                                            DirectHandle<Object> message,
                                             Handle<Object> options) {
   FrameSkipMode mode = SKIP_FIRST;
   Handle<Object> caller;
@@ -556,7 +562,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
 
 MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
+    DirectHandle<Object> message, Handle<Object> options, FrameSkipMode mode,
     Handle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (v8_flags.correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
@@ -592,8 +598,9 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   // 4. Return O.
   if (!IsUndefined(*message, isolate)) {
     Handle<String> msg_string;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
-                               Object::ToString(isolate, message), JSObject);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, msg_string,
+        indirect_handle(Object::ToString(isolate, message), isolate), JSObject);
     RETURN_ON_EXCEPTION(
         isolate,
         JSObject::SetOwnPropertyIgnoreAttributes(
@@ -748,7 +755,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
 // static
 Handle<JSObject> ErrorUtils::MakeGenericError(
     Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-    base::Vector<const Handle<Object>> args, FrameSkipMode mode) {
+    base::Vector<const DirectHandle<Object>> args, FrameSkipMode mode) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
     // clears any exceptions - so whenever we'd call this from C++,
@@ -756,7 +763,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     isolate->clear_exception();
     isolate->clear_pending_message();
   }
-  Handle<String> msg = MessageFormatter::Format(isolate, index, args);
+  DirectHandle<String> msg = MessageFormatter::Format(isolate, index, args);
   Handle<Object> options = isolate->factory()->undefined_value();
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
@@ -945,16 +952,16 @@ Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
 }
 
 Tagged<Object> ErrorUtils::ThrowLoadFromNullOrUndefined(
-    Isolate* isolate, Handle<Object> object, MaybeHandle<Object> key) {
+    Isolate* isolate, Handle<Object> object, MaybeDirectHandle<Object> key) {
   DCHECK(IsNullOrUndefined(*object));
 
-  MaybeHandle<String> maybe_property_name;
+  MaybeDirectHandle<String> maybe_property_name;
 
   // Try to extract the property name from the given key, if any.
-  Handle<Object> key_handle;
+  DirectHandle<Object> key_handle;
   if (key.ToHandle(&key_handle)) {
     if (IsString(*key_handle)) {
-      maybe_property_name = Handle<String>::cast(key_handle);
+      maybe_property_name = DirectHandle<String>::cast(key_handle);
     } else {
       maybe_property_name =
           Object::NoSideEffectsToMaybeString(isolate, key_handle);
@@ -963,7 +970,7 @@ Tagged<Object> ErrorUtils::ThrowLoadFromNullOrUndefined(
 
   Handle<String> callsite;
 
-  // Inline the RenderCallSite logic here so that we can additonally access the
+  // Inline the RenderCallSite logic here so that we can additionally access the
   // destructuring property.
   bool location_computed = false;
   bool is_destructuring = false;
@@ -1021,7 +1028,7 @@ Tagged<Object> ErrorUtils::ThrowLoadFromNullOrUndefined(
   }
 
   Handle<JSObject> error;
-  Handle<String> property_name;
+  DirectHandle<String> property_name;
   if (is_destructuring) {
     if (maybe_property_name.ToHandle(&property_name)) {
       error = isolate->factory()->NewTypeError(

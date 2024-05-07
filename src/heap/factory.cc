@@ -2609,9 +2609,9 @@ Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
   return NewHeapNumber<AllocationType::kOld>(value);
 }
 
-Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
-                                   MessageTemplate template_index,
-                                   base::Vector<const Handle<Object>> args) {
+Handle<JSObject> Factory::NewError(
+    Handle<JSFunction> constructor, MessageTemplate template_index,
+    base::Vector<const DirectHandle<Object>> args) {
   HandleScope scope(isolate());
 
   return scope.CloseAndEscape(ErrorUtils::MakeGenericError(
@@ -2619,7 +2619,7 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
-                                   Handle<String> message,
+                                   DirectHandle<String> message,
                                    Handle<Object> options) {
   // Construct a new error object. If an exception is thrown, use the exception
   // as the result.
@@ -2662,7 +2662,7 @@ Handle<JSObject> Factory::NewSuppressedErrorAtDisposal(
 #define DEFINE_ERROR(NAME, name)                                         \
   Handle<JSObject> Factory::New##NAME(                                   \
       MessageTemplate template_index,                                    \
-      base::Vector<const Handle<Object>> args) {                         \
+      base::Vector<const DirectHandle<Object>> args) {                   \
     return NewError(isolate()->name##_function(), template_index, args); \
   }
 DEFINE_ERROR(Error, error)

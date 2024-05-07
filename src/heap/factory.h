@@ -215,6 +215,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                    bool convert_encoding = false);
 
   // Internalized strings are created in the old generation (data space).
+  // TODO(b/42203211): InternalizeString and InternalizeName are templatized so
+  // that passing a Handle<T> is not ambiguous when T is a subtype of String or
+  // Name (it could be implicitly converted both to Handle<String> and to
+  // DirectHandle<String>). Here, T should be a subtype of String, which is
+  // enforced by the second template argument and the similar restriction on
+  // Handle's constructor. When the migration to DirectHandle is complete,
+  // these functions can accept simply a DirectHandle<String> or
+  // DirectHandle<Name>.
   template <typename T, typename = std::enable_if_t<
                             std::is_convertible_v<Handle<T>, Handle<String>>>>
   inline Handle<String> InternalizeString(Handle<T> string);
@@ -865,7 +873,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Interface for creating error objects.
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
-                            Handle<String> message,
+                            DirectHandle<String> message,
                             Handle<Object> options = {});
 
   Handle<Object> NewInvalidStringLengthError();
@@ -874,30 +882,30 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index,
-                            base::Vector<const Handle<Object>> args);
+                            base::Vector<const DirectHandle<Object>> args);
 
   Handle<JSObject> NewSuppressedErrorAtDisposal(
       Isolate* isolate, Handle<Object> error, Handle<Object> suppressed_error);
 
   template <typename... Args,
             typename = std::enable_if_t<std::conjunction_v<
-                std::is_convertible<Args, Handle<Object>>...>>>
+                std::is_convertible<Args, DirectHandle<Object>>...>>>
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index, Args... args) {
     return NewError(constructor, template_index,
-                    base::VectorOf<Handle<Object>>({args...}));
+                    base::VectorOf<DirectHandle<Object>>({args...}));
   }
 
 #define DECLARE_ERROR(NAME)                                                  \
   Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
-                             base::Vector<const Handle<Object>> args);       \
+                             base::Vector<const DirectHandle<Object>> args); \
                                                                              \
   template <typename... Args,                                                \
             typename = std::enable_if_t<std::conjunction_v<                  \
-                std::is_convertible<Args, Handle<Object>>...>>>              \
+                std::is_convertible<Args, DirectHandle<Object>>...>>>        \
   Handle<JSObject> New##NAME(MessageTemplate template_index, Args... args) { \
     return New##NAME(template_index,                                         \
-                     base::VectorOf<Handle<Object>>({args...}));             \
+                     base::VectorOf<DirectHandle<Object>>({args...}));       \
   }
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)

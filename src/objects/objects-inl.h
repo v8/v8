@@ -717,10 +717,22 @@ MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
 }
 
 // static
-MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
+template <typename T, typename>
+MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<T> input) {
+  // T should be a subtype of Object, which is enforced by the second template
+  // argument.
   if (IsString(*input)) return Handle<String>::cast(input);
   return ConvertToString(isolate, input);
 }
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T, typename>
+MaybeDirectHandle<String> Object::ToString(Isolate* isolate,
+                                           DirectHandle<T> input) {
+  if (IsString(*input)) return DirectHandle<String>::cast(input);
+  return ConvertToString(isolate, indirect_handle(input, isolate));
+}
+#endif
 
 // static
 MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {

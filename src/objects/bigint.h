@@ -281,7 +281,7 @@ V8_OBJECT class BigInt : public BigIntBase {
   // doesn't care about termination requests, and returns a default string
   // for inputs beyond a relatively low upper bound.
   static Handle<String> NoSideEffectsToString(Isolate* isolate,
-                                              Handle<BigInt> bigint);
+                                              DirectHandle<BigInt> bigint);
 
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type

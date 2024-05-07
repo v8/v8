@@ -370,9 +370,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
     Handle<Object> value, StoreOrigin store_origin,
     Maybe<ShouldThrow> should_throw) {
   if (IsNullOrUndefined(*object, isolate)) {
-    MaybeHandle<String> maybe_property =
+    MaybeDirectHandle<String> maybe_property =
         Object::NoSideEffectsToMaybeString(isolate, key);
-    Handle<String> property_name;
+    DirectHandle<String> property_name;
     if (maybe_property.ToHandle(&property_name)) {
       THROW_NEW_ERROR(
           isolate,

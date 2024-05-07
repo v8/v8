@@ -1013,7 +1013,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
 }
 
 Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
-                                             Handle<BigInt> bigint) {
+                                             DirectHandle<BigInt> bigint) {
   if (bigint->is_zero()) {
     return isolate->factory()->zero_string();
   }

@@ -3806,7 +3806,8 @@ MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
   }
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return Utils::ToLocal(i::Object::NoSideEffectsToString(i_isolate, obj));
+  return Utils::ToLocal(i::Object::NoSideEffectsToString(i_isolate, obj),
+                        i_isolate);
 }
 
 MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
@@ -10785,7 +10786,8 @@ Local<StackTrace> Exception::GetStackTrace(Local<Value> exception) {
   return Utils::StackTraceToLocal(i_isolate->GetDetailedStackTrace(js_obj));
 }
 
-Maybe<bool> Exception::CaptureStackTrace(Local<Context> context, Local<Object> object) {
+Maybe<bool> Exception::CaptureStackTrace(Local<Context> context,
+                                         Local<Object> object) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8_NO_SCRIPT(i_isolate, context, Exception, CaptureStackTrace,
                      i::HandleScope);

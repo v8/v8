@@ -78,10 +78,10 @@ namespace {
 Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
                                         Handle<Object> constructor,
                                         Handle<JSFunction> function) {
-  Handle<String> super_name;
+  DirectHandle<String> super_name;
   if (IsJSFunction(*constructor)) {
-    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->Name(),
-                        isolate);
+    super_name = direct_handle(
+        Handle<JSFunction>::cast(constructor)->shared()->Name(), isolate);
   } else if (IsOddball(*constructor)) {
     DCHECK(IsNull(*constructor, isolate));
     super_name = isolate->factory()->null_string();

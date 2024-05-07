@@ -56,7 +56,7 @@ class JSBoundFunction
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
+  static Handle<String> ToString(DirectHandle<JSBoundFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
@@ -81,7 +81,7 @@ class JSWrappedFunction
 
   // The wrapped function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSWrappedFunction> function);
+  static Handle<String> ToString(DirectHandle<JSWrappedFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
 };
@@ -359,7 +359,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSFunction> function);
+  static Handle<String> ToString(DirectHandle<JSFunction> function);
 
   class BodyDescriptor;
 
