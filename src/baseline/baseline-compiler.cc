@@ -1878,11 +1878,11 @@ void BaselineCompiler::VisitCreateObjectLiteral() {
         Constant<ObjectBoilerplateDescription>(0),  // boilerplate
         Smi::FromInt(flags_raw));                   // flags
   } else {
-    CallRuntime(Runtime::kCreateObjectLiteral,
-                FeedbackVector(),                           // feedback vector
-                IndexAsTagged(1),                           // slot
-                Constant<ObjectBoilerplateDescription>(0),  // boilerplate
-                Smi::FromInt(flags_raw));                   // flags
+    CallBuiltin<Builtin::kCreateObjectFromSlowBoilerplate>(
+        FeedbackVector(),                           // feedback vector
+        IndexAsTagged(1),                           // slot
+        Constant<ObjectBoilerplateDescription>(0),  // boilerplate
+        Smi::FromInt(flags_raw));                   // flags
   }
 }
 
