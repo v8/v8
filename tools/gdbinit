@@ -127,11 +127,20 @@ end
 
 # Print TransitionTree.
 define jtt
-call (void) _v8_internal_Print_TransitionTree((void*)($arg0))
+call (void) _v8_internal_Print_TransitionTree((void*)($arg0), false)
 end
 document jtt
-Print the complete transition tree of the given v8 Map.
+Print the complete transition tree starting at the given v8 map.
 Usage: jtt tagged_ptr
+end
+
+# Print TransitionTree starting from the root map.
+define jttr
+call (void) _v8_internal_Print_TransitionTree((void*)($arg0), true)
+end
+document jttr
+Print the complete transition tree starting at the root map of the given v8 map.
+Usage: jttr tagged_ptr
 end
 
 # Print JavaScript stack trace.
