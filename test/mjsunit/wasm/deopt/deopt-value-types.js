@@ -24,6 +24,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmF32, 1)
     .addLocals(kWasmF64, 1)
     .addLocals(kWasmI31Ref, 2)
+    .addLocals(kWasmS128, 1)
     .addBody([
       // Initialize the locals with non-default literal values.
       ...wasmI32Const(32),
@@ -39,6 +40,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalSet, 5,
       kExprRefNull, kI31RefCode,
       kExprLocalSet, 6,
+      ...wasmS128Const(127, 129),
+      kExprLocalSet, 7,
 
       // Perform the call_ref.
       kExprLocalGet, 0,
@@ -58,6 +61,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalGet, 6,
       kExprRefIsNull,
       kExprF64SConvertI32,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 0,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 1,
+      kExprF64Add,
+      kExprF64Add,
       kExprF64Add,
       kExprF64Add,
       kExprF64Add,
@@ -66,7 +75,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]).exportFunc();
 
   let wasm = builder.instantiate().exports;
-  let expected = 32 + 64 + 3.2 + 6.4 + 31 + 1;
+  let expected = 32 + 64 + 3.2 + 6.4 + 31 + 1 + 127 + 129;
   let delta = 1e-4;
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
@@ -92,6 +101,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmF32, 1)
     .addLocals(kWasmF64, 1)
     .addLocals(kWasmI31Ref, 2)
+    .addLocals(kWasmS128, 1)
     .addBody([
       ...wasmI32Const(32),
       ...wasmI64Const(64),
@@ -100,12 +110,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       ...wasmI32Const(31),
       kGCPrefix, kExprRefI31,
       kExprRefNull, kI31RefCode,
+      ...wasmS128Const(127, 129),
 
       // Perform the call_ref.
       kExprLocalGet, 0,
       kExprCallRef, funcRefT,
 
       // Use the values.
+      kExprLocalSet, 7,
       kExprLocalSet, 6,
       kExprLocalSet, 5,
       kExprLocalSet, 4,
@@ -123,6 +135,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalGet, 6,
       kExprRefIsNull,
       kExprF64SConvertI32,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 0,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 1,
+      kExprF64Add,
+      kExprF64Add,
       kExprF64Add,
       kExprF64Add,
       kExprF64Add,
@@ -131,7 +149,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]).exportFunc();
 
   let wasm = builder.instantiate().exports;
-  let expected = 32 + 64 + 3.2 + 6.4 + 31 + 1;
+  let expected = 32 + 64 + 3.2 + 6.4 + 31 + 1 + 127 + 129;
   let delta = 1e-4;
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
@@ -157,6 +175,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmF32, 1)
     .addLocals(kWasmF64, 1)
     .addLocals(kWasmI31Ref, 1)
+    .addLocals(kWasmS128, 1)
     .addBody([
       // Initialize the locals with non-default non-literal values.
       kExprLocalGet, 0,
@@ -170,6 +189,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalGet, 0,
       kGCPrefix, kExprRefI31,
       kExprLocalSet, 6,
+      kExprLocalGet, 0,
+      kExprF64SConvertI32,
+      kSimdPrefix, kExprF64x2Splat,
+      kExprLocalSet, 7,
 
       // Perform the call_ref.
       kExprLocalGet, 1,
@@ -186,6 +209,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalGet, 6,
       kGCPrefix, kExprI31GetS,
       kExprF64SConvertI32,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 0,
+      kExprLocalGet, 7,
+      kSimdPrefix, kExprF64x2ExtractLane, 1,
+      kExprF64Add,
+      kExprF64Add,
       kExprF64Add,
       kExprF64Add,
       kExprF64Add,
@@ -194,11 +223,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let wasm = builder.instantiate().exports;
   let delta = 1e-4;
-  assertEqualsDelta(42 * 5, wasm.locals(42, wasm.nop1), delta);
+  assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
   %WasmTierUpFunction(wasm.locals);
-  assertEqualsDelta(42 * 5, wasm.locals(42, wasm.nop1), delta);
+  assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
   assertTrue(%IsTurboFanFunction(wasm.locals));
   // Deopt happened, the result should still be the same.
-  assertEqualsDelta(42 * 5, wasm.locals(42, wasm.nop2), delta);
+  assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop2), delta);
   assertFalse(%IsTurboFanFunction(wasm.locals));
 })();

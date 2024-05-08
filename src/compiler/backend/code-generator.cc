@@ -1324,11 +1324,18 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreStackSlot(LocationOperand::cast(op)->index());
     }
   } else if (op->IsFPStackSlot()) {
-    if (type.representation() == MachineRepresentation::kFloat64) {
-      translations_.StoreDoubleStackSlot(LocationOperand::cast(op)->index());
-    } else {
-      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
-      translations_.StoreFloatStackSlot(LocationOperand::cast(op)->index());
+    switch (type.representation()) {
+      case MachineRepresentation::kFloat64:
+        translations_.StoreDoubleStackSlot(LocationOperand::cast(op)->index());
+        break;
+      case MachineRepresentation::kFloat32:
+        translations_.StoreFloatStackSlot(LocationOperand::cast(op)->index());
+        break;
+      case MachineRepresentation::kSimd128:
+        translations_.StoreSimd128StackSlot(LocationOperand::cast(op)->index());
+        break;
+      default:
+        UNREACHABLE();
     }
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
@@ -1357,11 +1364,18 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     }
   } else if (op->IsFPRegister()) {
     InstructionOperandConverter converter(this, instr);
-    if (type.representation() == MachineRepresentation::kFloat64) {
-      translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
-    } else {
-      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
-      translations_.StoreFloatRegister(converter.ToFloatRegister(op));
+    switch (type.representation()) {
+      case MachineRepresentation::kFloat32:
+        translations_.StoreFloatRegister(converter.ToFloatRegister(op));
+        break;
+      case MachineRepresentation::kFloat64:
+        translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
+        break;
+      case MachineRepresentation::kSimd128:
+        translations_.StoreSimd128Register(converter.ToSimd128Register(op));
+        break;
+      default:
+        UNREACHABLE();
     }
   } else {
     CHECK(op->IsImmediate());

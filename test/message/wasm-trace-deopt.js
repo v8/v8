@@ -29,6 +29,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       ...wasmI64Const(64),
       ...wasmF32Const(3.2),
       ...wasmF64Const(6.4),
+      ...wasmI64Const(0x5128), kSimdPrefix, kExprI64x2Splat,
       kExprRefNull, kAnyRefCode,
       kExprLocalGet, 0,
       kExprLocalGet, 1,

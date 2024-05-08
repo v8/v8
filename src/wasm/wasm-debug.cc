@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "src/common/assert-scope.h"
+#include "src/common/simd128.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"

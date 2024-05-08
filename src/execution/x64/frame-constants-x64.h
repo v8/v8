@@ -48,9 +48,9 @@ class EntryFrameConstants : public AllStatic {
   // On other OS, the callee-saved registers are (in push order):
   // r12, r13, r14, r15, rbx
 
+  static constexpr int kXMMRegisterSize = 16;
 #ifdef V8_TARGET_OS_WIN
   static constexpr int kCalleeSaveXMMRegisters = 10;
-  static constexpr int kXMMRegisterSize = 16;
   static constexpr int kXMMRegistersBlockSize =
       kXMMRegisterSize * kCalleeSaveXMMRegisters;
 

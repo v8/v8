@@ -4713,18 +4713,21 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
                                   DeoptimizeKind deopt_kind) {
   Isolate* isolate = masm->isolate();
 
-  // Save all double registers, they will later be copied to the deoptimizer's
-  // FrameDescription.
-  static constexpr int kDoubleRegsSize =
-      kDoubleSize * XMMRegister::kNumRegisters;
-  __ AllocateStackSpace(kDoubleRegsSize);
+  // Save all xmm (simd / double) registers, they will later be copied to the
+  // deoptimizer's FrameDescription.
+  static constexpr int kXmmRegsSize = kSimd128Size * XMMRegister::kNumRegisters;
+  __ AllocateStackSpace(kXmmRegsSize);
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
+  DCHECK_GE(XMMRegister::kNumRegisters,
+            config->num_allocatable_simd128_registers());
+  DCHECK_EQ(config->num_allocatable_simd128_registers(),
+            config->num_allocatable_double_registers());
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int offset = code * kDoubleSize;
-    __ Movsd(Operand(rsp, offset), xmm_reg);
+    int offset = code * kSimd128Size;
+    __ movdqu(Operand(rsp, offset), xmm_reg);
   }
 
   // Save all general purpose registers, they will later be copied to the
@@ -4735,7 +4738,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   }
 
   static constexpr int kSavedRegistersAreaSize =
-      kNumberOfRegisters * kSystemPointerSize + kDoubleRegsSize;
+      kNumberOfRegisters * kSystemPointerSize + kXmmRegsSize;
   static constexpr int kCurrentOffsetToReturnAddress = kSavedRegistersAreaSize;
   static constexpr int kCurrentOffsetToParentSP =
       kCurrentOffsetToReturnAddress + kPCOnStackSize;
@@ -4790,12 +4793,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ PopQuad(Operand(rbx, offset));
   }
 
-  // Fill in the double input registers.
-  int double_regs_offset = FrameDescription::double_registers_offset();
+  // Fill in the xmm (simd / double) input registers.
+  int simd128_regs_offset = FrameDescription::simd128_registers_offset();
   for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    __ popq(Operand(rbx, dst_offset));
+    int dst_offset = i * kSimd128Size + simd128_regs_offset;
+    __ movdqu(kScratchDoubleReg, Operand(rsp, i * kSimd128Size));
+    __ movdqu(Operand(rbx, dst_offset), kScratchDoubleReg);
   }
+  __ addq(rsp, Immediate(kXmmRegsSize));
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
   // walk the stack without the return address.
@@ -4874,12 +4879,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ testq(rax, rax);
   __ j(zero, &push_other_registers);
   __ Push(rax);
-  // JS: Just set the double registers.
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
+  // JS: Just set the xmm (simd / double) registers.
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int src_offset = code * kDoubleSize + double_regs_offset;
-    __ Movsd(xmm_reg, Operand(rbx, src_offset));
+    int src_offset = code * kSimd128Size + simd128_regs_offset;
+    __ movdqu(xmm_reg, Operand(rbx, src_offset));
   }
 
   __ bind(&push_other_registers);
@@ -4901,11 +4906,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   Label pop_registers;
   __ testq(rax, rax);
   __ j(not_zero, &pop_registers);
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    int src_offset = code * kDoubleSize + double_regs_offset;
-    __ PushQuad(Operand(rbx, src_offset));
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int src_offset = i * kSimd128Size + simd128_regs_offset;
+    __ movdqu(kScratchDoubleReg, Operand(rbx, src_offset));
+    int dst_offset = (i + 1) * -kSimd128Size;
+    __ movdqu(Operand(rsp, dst_offset), kScratchDoubleReg);
   }
+  __ subq(rsp, Immediate(kSimd128Size *
+                         config->num_allocatable_simd128_registers()));
   {
     __ pushq(rax);
     __ PrepareCallCFunction(1);
@@ -4914,13 +4922,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ CallCFunction(ExternalReference::wasm_delete_deoptimizer(), 1);
     __ popq(rax);
   }
-  // Restore the double registers from the stack.
-  for (int i = config->num_allocatable_double_registers() - 1; i >= 0; --i) {
-    int code = config->GetAllocatableDoubleCode(i);
+  // Restore the xmm registers from the stack.
+  int offset = 0;
+  for (int i = config->num_allocatable_simd128_registers() - 1; i >= 0; --i) {
+    int code = config->GetAllocatableSimd128Code(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
-    __ popq(rax);
-    __ Movq(xmm_reg, rax);
+    __ movdqu(xmm_reg, Operand(rsp, offset));
+    offset += kSimd128Size;
   }
+  __ addq(rsp, Immediate(kSimd128Size *
+                         config->num_allocatable_simd128_registers()));
   __ bind(&pop_registers);
 #endif
 

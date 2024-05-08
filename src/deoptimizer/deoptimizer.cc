@@ -981,28 +981,26 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
           } else if (liftoff_iter->is_fp_reg()) {
             // TODO(mliedtke): These cases don't cover the cases where a double
             // might be a word64 in Turboshaft due to optimizations etc.
-            Float64 double_value(0.0);
+            Simd128 simd_value;
             switch (value.kind()) {
-              case TranslatedValue::Kind::kDouble:
-                double_value = value.double_value();
-                break;
-              case TranslatedValue::Kind::kFloat: {
-                // Note: We want to write the "float register" here, however the
-                // deoptimizer implements float registers as the first half of a
-                // double register (which is what most architectures will do as
-                // well).
-                // TODO(mliedtke): We shouldn't do this here but instead expose
-                // a SetFloatRegister (similar to GetFloatRegister) in the arch-
-                // specific Deoptimizer code.
-                double_value =
-                    Float64::FromBits(value.float_value().get_bits());
+              case TranslatedValue::Kind::kDouble: {
+                Float64 double_value = value.double_value();
+                std::memcpy(&simd_value, &double_value, sizeof(double_value));
                 break;
               }
+              case TranslatedValue::Kind::kFloat: {
+                Float32 float_value = value.float_value();
+                std::memcpy(&simd_value, &float_value, sizeof(float_value));
+                break;
+              }
+              case TranslatedValue::Kind::kSimd128:
+                simd_value = value.simd_value();
+                break;
               default:
                 UNIMPLEMENTED();
             }
-            output_frame->SetDoubleRegister(liftoff_iter->reg().fp().code(),
-                                            double_value);
+            output_frame->SetSimd128Register(liftoff_iter->reg().fp().code(),
+                                             simd_value);
           } else {
             // Register pairs, floating point registers and potentially others.
             UNIMPLEMENTED();
@@ -1022,6 +1020,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
               output_frame->SetLiftoffFrameSlot64(
                   base_offset - liftoff_iter->offset(), value.int64_value_);
               break;
+            case 16: {
+              int2 values = value.simd128_value_.to_i64x2();
+              const int offset = base_offset - liftoff_iter->offset();
+              output_frame->SetLiftoffFrameSlot64(offset, values.val[0]);
+              output_frame->SetLiftoffFrameSlot64(offset + sizeof(int64_t),
+                                                  values.val[1]);
+              break;
+            }
             default:
               UNIMPLEMENTED();
           }

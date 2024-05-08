@@ -1710,7 +1710,6 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
                            global.type);
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(global));
-  using wasm::Simd128;
   switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
@@ -1726,7 +1725,6 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
   wasm::ValueType field_type = type()->field(index);
   int field_offset = WasmStruct::kHeaderSize + type()->field_offset(index);
   Address field_address = GetFieldAddress(field_offset);
-  using wasm::Simd128;
   switch (field_type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
@@ -1753,7 +1751,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   int element_offset =
       WasmArray::kHeaderSize + index * element_type.value_kind_size();
   Address element_address = GetFieldAddress(element_offset);
-  using wasm::Simd128;
   switch (element_type.kind()) {
 #define CASE_TYPE(value_type, ctype) \
   case wasm::value_type:             \

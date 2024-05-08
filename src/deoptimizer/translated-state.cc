@@ -226,6 +226,13 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       break;
     }
 
+    case TranslationOpcode::SIMD128_REGISTER: {
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+      int reg_code = iterator.NextOperandUnsigned();
+      os << "{input=" << Simd128Register::from_code(reg_code) << " (Simd128)}";
+      break;
+    }
+
     case TranslationOpcode::TAGGED_STACK_SLOT: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
       int input_slot_index = iterator.NextOperand();
@@ -276,7 +283,8 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     }
 
     case TranslationOpcode::FLOAT_STACK_SLOT:
-    case TranslationOpcode::DOUBLE_STACK_SLOT: {
+    case TranslationOpcode::DOUBLE_STACK_SLOT:
+    case TranslationOpcode::SIMD128_STACK_SLOT: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
       int input_slot_index = iterator.NextOperand();
       os << "{input=" << input_slot_index << "}";
@@ -391,6 +399,14 @@ TranslatedValue TranslatedValue::NewHoleyDouble(TranslatedState* container,
 }
 
 // static
+TranslatedValue TranslatedValue::NewSimd128(TranslatedState* container,
+                                            Simd128 value) {
+  TranslatedValue slot(container, kSimd128);
+  slot.simd128_value_ = value;
+  return slot;
+}
+
+// static
 TranslatedValue TranslatedValue::NewInt32(TranslatedState* container,
                                           int32_t value) {
   TranslatedValue slot(container, kInt32);
@@ -493,6 +509,11 @@ Float32 TranslatedValue::float_value() const {
 Float64 TranslatedValue::double_value() const {
   DCHECK(kDouble == kind() || kHoleyDouble == kind());
   return double_value_;
+}
+
+Simd128 TranslatedValue::simd_value() const {
+  DCHECK_EQ(kind(), kSimd128);
+  return simd128_value_;
 }
 
 int TranslatedValue::object_length() const {
@@ -778,6 +799,10 @@ Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
 
 Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
   return Float64::FromBits(GetUInt64Slot(fp, slot_offset));
+}
+
+Simd128 TranslatedState::getSimd128Slot(Address fp, int slot_offset) {
+  return base::ReadUnalignedValue<Simd128>(fp + slot_offset);
 }
 
 void TranslatedValue::Handlify() {
@@ -1156,6 +1181,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::FLOAT_REGISTER:
     case TranslationOpcode::DOUBLE_REGISTER:
     case TranslationOpcode::HOLEY_DOUBLE_REGISTER:
+    case TranslationOpcode::SIMD128_REGISTER:
     case TranslationOpcode::TAGGED_STACK_SLOT:
     case TranslationOpcode::INT32_STACK_SLOT:
     case TranslationOpcode::INT64_STACK_SLOT:
@@ -1165,6 +1191,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::BOOL_STACK_SLOT:
     case TranslationOpcode::FLOAT_STACK_SLOT:
     case TranslationOpcode::DOUBLE_STACK_SLOT:
+    case TranslationOpcode::SIMD128_STACK_SLOT:
     case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT:
     case TranslationOpcode::LITERAL:
     case TranslationOpcode::OPTIMIZED_OUT:
@@ -1523,6 +1550,30 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::SIMD128_REGISTER: {
+      int input_reg = iterator->NextOperandUnsigned();
+      if (registers == nullptr) {
+        TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
+        frame.Add(translated_value);
+        return translated_value.GetChildrenCount();
+      }
+      Simd128 value = registers->GetSimd128Register(input_reg);
+      if (trace_file != nullptr) {
+        int16 val = value.to_i8x16();
+        PrintF(trace_file,
+               "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+               "%02x %02x %02x %02x ; %s (Simd128)",
+               val.val[0], val.val[1], val.val[2], val.val[3], val.val[4],
+               val.val[5], val.val[6], val.val[7], val.val[8], val.val[9],
+               val.val[10], val.val[11], val.val[12], val.val[13], val.val[14],
+               val.val[15], RegisterName(DoubleRegister::from_code(input_reg)));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewSimd128(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::TAGGED_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
@@ -1648,6 +1699,26 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       TranslatedValue translated_value =
           TranslatedValue::NewDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::SIMD128_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
+      Simd128 value = getSimd128Slot(fp, slot_offset);
+      if (trace_file != nullptr) {
+        int16 val = value.to_i8x16();
+        PrintF(trace_file,
+               "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+               "%02x %02x %02x %02x ; (Simd128) [fp %c %d]",
+               val.val[0], val.val[1], val.val[2], val.val[3], val.val[4],
+               val.val[5], val.val[6], val.val[7], val.val[8], val.val[9],
+               val.val[10], val.val[11], val.val[12], val.val[13], val.val[14],
+               val.val[15], slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewSimd128(this, value);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }

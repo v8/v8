@@ -436,6 +436,12 @@ void FrameTranslationBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
   Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
+void FrameTranslationBuilder::StoreSimd128Register(Simd128Register reg) {
+  static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
+  auto opcode = TranslationOpcode::SIMD128_REGISTER;
+  Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
+}
+
 void FrameTranslationBuilder::StoreStackSlot(int index) {
   auto opcode = TranslationOpcode::TAGGED_STACK_SLOT;
   Add(opcode, SignedOperand(index));
@@ -478,6 +484,11 @@ void FrameTranslationBuilder::StoreFloatStackSlot(int index) {
 
 void FrameTranslationBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
+  Add(opcode, SignedOperand(index));
+}
+
+void FrameTranslationBuilder::StoreSimd128StackSlot(int index) {
+  auto opcode = TranslationOpcode::SIMD128_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 

@@ -8,6 +8,7 @@
 #include "src/base/memory.h"
 #include "src/base/platform/memory.h"
 #include "src/codegen/register.h"
+#include "src/common/simd128.h"
 #include "src/execution/frame-constants.h"
 #include "src/utils/boxed-float.h"
 
@@ -31,10 +32,11 @@ class RegisterValues {
   }
 
   Float32 GetFloatRegister(unsigned n) const;
+  Float64 GetDoubleRegister(unsigned n) const;
 
-  Float64 GetDoubleRegister(unsigned n) const {
-    V8_ASSUME(n < arraysize(double_registers_));
-    return double_registers_[n];
+  Simd128 GetSimd128Register(unsigned n) const {
+    V8_ASSUME(n < arraysize(simd128_registers_));
+    return simd128_registers_[n];
   }
 
   void SetRegister(unsigned n, intptr_t value) {
@@ -43,15 +45,22 @@ class RegisterValues {
   }
 
   void SetDoubleRegister(unsigned n, Float64 value) {
-    V8_ASSUME(n < arraysize(double_registers_));
-    double_registers_[n] = value;
+    V8_ASSUME(n < arraysize(simd128_registers_));
+    base::WriteUnalignedValue(reinterpret_cast<Address>(simd128_registers_ + n),
+                              value);
+  }
+
+  void SetSimd128Register(unsigned n, Simd128 value) {
+    V8_ASSUME(n < arraysize(simd128_registers_));
+    simd128_registers_[n] = value;
   }
 
   intptr_t registers_[Register::kNumRegisters];
   // Generated code writes directly into the following array, make sure the
   // element size matches what the machine instructions expect.
-  static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
-  Float64 double_registers_[DoubleRegister::kNumRegisters];
+  static_assert(sizeof(Simd128) == kSimd128Size, "size mismatch");
+
+  Simd128 simd128_registers_[DoubleRegister::kNumRegisters];
 };
 
 class FrameDescription {
@@ -134,6 +143,10 @@ class FrameDescription {
     register_values_.SetDoubleRegister(n, value);
   }
 
+  void SetSimd128Register(unsigned n, Simd128 value) {
+    register_values_.SetSimd128Register(n, value);
+  }
+
   intptr_t GetTop() const { return top_; }
   void SetTop(intptr_t top) { top_ = top; }
 
@@ -157,8 +170,8 @@ class FrameDescription {
     return offsetof(FrameDescription, register_values_.registers_);
   }
 
-  static constexpr int double_registers_offset() {
-    return offsetof(FrameDescription, register_values_.double_registers_);
+  static constexpr int simd128_registers_offset() {
+    return offsetof(FrameDescription, register_values_.simd128_registers_);
   }
 
   static int frame_size_offset() {

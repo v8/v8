@@ -4732,9 +4732,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ str(r2, MemOperand(r1, offset));
   }
 
-  // Copy double registers to double_registers_.
-  static constexpr int kDoubleRegsOffset =
-      FrameDescription::double_registers_offset();
+  // Copy simd128 / double registers to the FrameDescription.
+  static constexpr int kSimd128RegsOffset =
+      FrameDescription::simd128_registers_offset();
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
@@ -4743,7 +4743,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ RestoreFPRegs(src_location, scratch);
 
     Register dst_location = r4;
-    __ add(dst_location, r1, Operand(kDoubleRegsOffset));
+    __ add(dst_location, r1, Operand(kSimd128RegsOffset));
     __ SaveFPRegsToHeap(dst_location, scratch);
   }
 
@@ -4831,7 +4831,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register src_location = r6;
-    __ add(src_location, r1, Operand(kDoubleRegsOffset));
+    __ add(src_location, r1, Operand(kSimd128RegsOffset));
     __ RestoreFPRegsFromHeap(src_location, scratch);
   }
 
