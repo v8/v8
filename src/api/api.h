@@ -164,6 +164,7 @@ class RegisteredExtension {
   V(UnboundScript, SharedFunctionInfo)          \
   V(Module, Module)                             \
   V(Function, JSReceiver)                       \
+  V(CompileHintsCollector, Script)              \
   V(Message, JSMessageObject)                   \
   V(Context, NativeContext)                     \
   V(External, Object)                           \

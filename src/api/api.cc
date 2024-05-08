@@ -2171,6 +2171,36 @@ std::vector<int> Script::GetProducedCompileHints() const {
   return result;
 }
 
+Local<CompileHintsCollector> Script::GetCompileHintsCollector() const {
+  i::DisallowGarbageCollection no_gc;
+  auto func = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = func->GetIsolate();
+  i::Tagged<i::SharedFunctionInfo> sfi = func->shared();
+  CHECK(IsScript(sfi->script()));
+  i::Handle<i::Script> script(i::Script::cast(sfi->script()), i_isolate);
+  return ToApiHandle<CompileHintsCollector>(script);
+}
+
+std::vector<int> CompileHintsCollector::GetCompileHints(
+    Isolate* v8_isolate) const {
+  i::DisallowGarbageCollection no_gc;
+  auto script = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::Tagged<i::Object> maybe_array_list =
+      script->compiled_lazy_function_positions();
+  std::vector<int> result;
+  if (!IsUndefined(maybe_array_list, i_isolate)) {
+    i::Tagged<i::ArrayList> array_list = i::ArrayList::cast(maybe_array_list);
+    result.reserve(array_list->length());
+    for (int i = 0; i < array_list->length(); ++i) {
+      i::Tagged<i::Object> item = array_list->get(i);
+      CHECK(IsSmi(item));
+      result.push_back(i::Smi::ToInt(item));
+    }
+  }
+  return result;
+}
+
 // static
 Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

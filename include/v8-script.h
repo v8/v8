@@ -322,6 +322,14 @@ class V8_EXPORT Module : public Data {
   static void CheckCast(Data* obj);
 };
 
+class V8_EXPORT CompileHintsCollector : public Data {
+ public:
+  /**
+   * Returns the positions of lazy functions which were compiled and executed.
+   */
+  std::vector<int> GetCompileHints(Isolate* isolate) const;
+};
+
 /**
  * A compiled JavaScript script, tied to a Context which was active when the
  * script was compiled.
@@ -359,7 +367,15 @@ class V8_EXPORT Script : public Data {
    * If the script was compiled, returns the positions of lazy functions which
    * were eventually compiled and executed.
    */
+  V8_DEPRECATE_SOON("Use GetCompileHintsCollector instead")
   std::vector<int> GetProducedCompileHints() const;
+
+  /**
+   * Get a compile hints collector object which we can use later for retrieving
+   * compile hints (= positions of lazy functions which were compiled and
+   * executed).
+   */
+  Local<CompileHintsCollector> GetCompileHintsCollector() const;
 };
 
 enum class ScriptType { kClassic, kModule };
