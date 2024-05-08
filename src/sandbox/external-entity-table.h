@@ -179,7 +179,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
 #ifdef DEBUG
     // Check whether this space belongs to the given external entity table.
-    bool BelongsTo(void* table) { return owning_table_ == table; }
+    bool BelongsTo(const void* table) const { return owning_table_ == table; }
 #endif  // DEBUG
 
    protected:

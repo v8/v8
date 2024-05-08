@@ -401,6 +401,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   uint32_t SweepAndCompact(Space* space, Counters* counters);
   uint32_t Sweep(Space* space, Counters* counters);
 
+  inline bool Contains(Space* space, ExternalPointerHandle handle) const;
+
   // A resource outside of the V8 heap whose lifetime is tied to something
   // inside the V8 heap. This class makes that relationship explicit.
   //

@@ -220,7 +220,10 @@ void DeactivateSpace(Space* space) {
 void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
   ActivateSpace(heap->old_space(), marking_mode);
   ActivateSpace(heap->lo_space(), marking_mode);
-  ActivateSpace(heap->new_space(), marking_mode);
+  if (heap->new_space()) {
+    DCHECK(!v8_flags.sticky_mark_bits);
+    ActivateSpace(heap->new_space(), marking_mode);
+  }
   ActivateSpace(heap->new_lo_space(), marking_mode);
   {
     RwxMemoryWriteScope scope("For writing flags.");
@@ -244,7 +247,10 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
 void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
   DeactivateSpace(heap->old_space());
   DeactivateSpace(heap->lo_space());
-  DeactivateSpace(heap->new_space());
+  if (heap->new_space()) {
+    DCHECK(!v8_flags.sticky_mark_bits);
+    DeactivateSpace(heap->new_space());
+  }
   DeactivateSpace(heap->new_lo_space());
   {
     RwxMemoryWriteScope scope("For writing flags.");

@@ -334,6 +334,12 @@ ExternalPointerHandle ExternalPointerTable::IndexToHandle(uint32_t index) {
   return handle;
 }
 
+bool ExternalPointerTable::Contains(Space* space,
+                                    ExternalPointerHandle handle) const {
+  DCHECK(space->BelongsTo(this));
+  return space->Contains(HandleToIndex(handle));
+}
+
 void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
     Address field_address, ExternalPointerTag tag) {
   // We do not currently support invalidating fields containing managed

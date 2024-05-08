@@ -717,7 +717,7 @@ void MarkCompactCollector::Prepare() {
     }
   }
 
-  if (heap_->new_space()) {
+  if (heap_->use_new_space()) {
     DCHECK_EQ(
         heap_->allocator()->new_space_allocator()->top(),
         heap_->allocator()->new_space_allocator()->original_top_acquire());
@@ -3792,7 +3792,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
   // word which we update while loading the map word for updating the slot
   // on another page.
   slot.Relaxed_Store(target);
-  DCHECK(!Heap::InFromPage(target));
+  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits, !Heap::InFromPage(target));
   DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
 }
 
@@ -4783,10 +4783,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (!(*slot).GetHeapObject(&heap_object)) return;
     if (!Heap::InYoungGeneration(heap_object)) return;
 
-    DCHECK_IMPLIES(v8_flags.minor_ms && !Heap::IsLargeObject(heap_object),
-                   Heap::InToPage(heap_object));
-    DCHECK_IMPLIES(!v8_flags.minor_ms || Heap::IsLargeObject(heap_object),
-                   Heap::InFromPage(heap_object));
+    if (!v8_flags.sticky_mark_bits) {
+      DCHECK_IMPLIES(v8_flags.minor_ms && !Heap::IsLargeObject(heap_object),
+                     Heap::InToPage(heap_object));
+      DCHECK_IMPLIES(!v8_flags.minor_ms || Heap::IsLargeObject(heap_object),
+                     Heap::InFromPage(heap_object));
+    }
 
     // OLD_TO_NEW slots are recorded in dead memory, so they might point to
     // dead objects.

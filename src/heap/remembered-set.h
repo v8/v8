@@ -133,6 +133,10 @@ class RememberedSet : public AllStatic {
     delete &other_typed_slot_set;
   }
 
+  static void DeleteTyped(TypedSlotSet&& other_typed_slot_set) {
+    delete &other_typed_slot_set;
+  }
+
   // Given a page and a slot in that page, this function returns true if
   // the remembered set contains the slot.
   static bool Contains(MutablePageMetadata* chunk, Address slot_addr) {
