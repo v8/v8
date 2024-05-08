@@ -2222,6 +2222,35 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return enable_ro_allocation_for_snapshot_;
   }
 
+  // If script calls quit(), then it is possible that the Isolate is disposed
+  // without giving on-stack objects any chance to clean up after themselves. By
+  // inheriting from this class, a class ensures that its destructor will be
+  // called before Isolate::Dispose.
+  class ToDestroyBeforeSuddenShutdown {
+   public:
+    explicit ToDestroyBeforeSuddenShutdown(Isolate* isolate);
+    virtual ~ToDestroyBeforeSuddenShutdown();
+
+    // This class only supports being allocated on the stack.
+    void* operator new(size_t) = delete;
+    void* operator new(size_t, void*) = delete;
+
+    // Copying is not allowed.
+    ToDestroyBeforeSuddenShutdown(const ToDestroyBeforeSuddenShutdown& other) =
+        delete;
+    ToDestroyBeforeSuddenShutdown& operator=(
+        const ToDestroyBeforeSuddenShutdown& other) = delete;
+
+    Isolate* isolate() const { return isolate_; }
+
+   private:
+    Isolate* isolate_;
+  };
+
+  // Called by d8 right before Dispose, if the shell is quitting with a dirty
+  // stack.
+  void PrepareForSuddenShutdown();
+
   void set_battery_saver_mode_enabled(bool battery_saver_mode_enabled) {
     battery_saver_mode_enabled_ = battery_saver_mode_enabled;
   }
@@ -2710,6 +2739,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // predefined set of data as crash keys to be used in postmortem debugging
   // in case of a crash.
   AddCrashKeyCallback add_crash_key_callback_ = nullptr;
+
+  std::vector<ToDestroyBeforeSuddenShutdown*>
+      to_destroy_before_sudden_shutdown_;
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
