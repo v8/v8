@@ -5958,34 +5958,31 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
                        LinearAllocationArea& old_allocation_info) {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
-  if (!v8_flags.single_generation && !v8_flags.sticky_mark_bits) {
-    if (v8_flags.minor_ms) {
-      space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
-          this, initial_semispace_size_, max_semi_space_size_);
-    } else {
-      space_[NEW_SPACE] = std::make_unique<SemiSpaceNewSpace>(
-          this, initial_semispace_size_, max_semi_space_size_);
-    }
-    new_space_ = static_cast<NewSpace*>(space_[NEW_SPACE].get());
-
-    space_[NEW_LO_SPACE] =
-        std::make_unique<NewLargeObjectSpace>(this, NewSpaceCapacity());
-    new_lo_space_ =
-        static_cast<NewLargeObjectSpace*>(space_[NEW_LO_SPACE].get());
-  }
 
   if (v8_flags.sticky_mark_bits) {
-    // Initialize first the sticky space and then the new large space.
     space_[OLD_SPACE] = std::make_unique<StickySpace>(this);
     old_space_ = static_cast<OldSpace*>(space_[OLD_SPACE].get());
-
-    space_[NEW_LO_SPACE] =
-        std::make_unique<NewLargeObjectSpace>(this, NewSpaceCapacity());
-    new_lo_space_ =
-        static_cast<NewLargeObjectSpace*>(space_[NEW_LO_SPACE].get());
   } else {
     space_[OLD_SPACE] = std::make_unique<OldSpace>(this);
     old_space_ = static_cast<OldSpace*>(space_[OLD_SPACE].get());
+  }
+
+  if (!v8_flags.single_generation) {
+    if (!v8_flags.sticky_mark_bits) {
+      if (v8_flags.minor_ms) {
+        space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
+            this, initial_semispace_size_, max_semi_space_size_);
+      } else {
+        space_[NEW_SPACE] = std::make_unique<SemiSpaceNewSpace>(
+            this, initial_semispace_size_, max_semi_space_size_);
+      }
+      new_space_ = static_cast<NewSpace*>(space_[NEW_SPACE].get());
+    }
+
+    space_[NEW_LO_SPACE] =
+        std::make_unique<NewLargeObjectSpace>(this, NewSpaceCapacity());
+    new_lo_space_ =
+        static_cast<NewLargeObjectSpace*>(space_[NEW_LO_SPACE].get());
   }
 
   space_[CODE_SPACE] = std::make_unique<CodeSpace>(this);
