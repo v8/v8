@@ -1887,7 +1887,7 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   return false;
 }
 
-void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
+void LiftoffAssembler::clear_i32_upper_half(Register dst) {
   ZeroExtWord32(dst, dst);
 }
 

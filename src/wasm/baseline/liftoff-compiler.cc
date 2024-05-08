@@ -762,9 +762,12 @@ class LiftoffCompiler {
         // security-relevant invariants later. To maintain such invariants,
         // explicitly clear the high word of any i32 parameters in 64-bit
         // registers.
+        // 'clear_i32_upper_half' is empty on LoongArch64, MIPS64 and riscv64,
+        // because they will explicitly zero-extend their lower halves before
+        // using them for memory accesses anyway.
         static_assert(kSystemPointerSize == 8);
         if (kind_ == kI32 && location_.IsRegister()) {
-          compiler_->asm_.emit_u32_to_uintptr_unconditional(reg.gp());
+          compiler_->asm_.clear_i32_upper_half(reg.gp());
         }
 #endif
         if (needs_gp_pair_) {
