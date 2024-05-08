@@ -5819,7 +5819,6 @@ void MaglevGraphBuilder::VisitLogicalNot() {
 
 void MaglevGraphBuilder::VisitTypeOf() {
   ValueNode* value = GetAccumulatorTagged();
-  // TODO(victorgomes): Add a JSFunction type to Maglev.
   if (CheckType(value, NodeType::kBoolean)) {
     SetAccumulator(GetRootConstant(RootIndex::kboolean_string));
   } else if (CheckType(value, NodeType::kNumber)) {
@@ -5828,6 +5827,11 @@ void MaglevGraphBuilder::VisitTypeOf() {
     SetAccumulator(GetRootConstant(RootIndex::kstring_string));
   } else if (CheckType(value, NodeType::kSymbol)) {
     SetAccumulator(GetRootConstant(RootIndex::ksymbol_string));
+  } else if (CheckType(value, NodeType::kCallable)) {
+    SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
+  } else if (CheckType(value, NodeType::kJSArray)) {
+    // TODO(victorgomes): Track JSReceiver, non-callable types in Maglev.
+    SetAccumulator(GetRootConstant(RootIndex::kobject_string));
   } else if (IsUndefinedValue(value)) {
     SetAccumulator(GetRootConstant(RootIndex::kundefined_string));
   } else {
