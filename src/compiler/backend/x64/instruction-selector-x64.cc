@@ -7231,6 +7231,28 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x16DotI8x32I7x32S(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  Emit(kX64I16x16DotI8x32I7x32S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8DotI8x32I7x32AddS(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 3);
+  InstructionOperand temps[] = {g.TempSimd256Register()};
+  Emit(kX64I32x8DotI8x32I7x32AddS, g.DefineSameAsInput(node, 2),
+       g.UseUniqueRegister(this->input_at(node, 0)),
+       g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+}
+#endif
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);

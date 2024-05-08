@@ -7985,6 +7985,14 @@ struct Simd256LoadTransformOp
   void PrintOptions(std::ostream& os) const;
 };
 
+#define FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V) \
+  V(I16x16SConvertI8x16)                                \
+  V(I16x16UConvertI8x16)                                \
+  V(I32x8SConvertI16x8)                                 \
+  V(I32x8UConvertI16x8)                                 \
+  V(I64x4SConvertI32x4)                                 \
+  V(I64x4UConvertI32x4)
+
 #define FOREACH_SIMD_256_UNARY_OPCODE(V) \
   V(S256Not)                             \
   V(I8x32Abs)                            \
@@ -8005,12 +8013,7 @@ struct Simd256LoadTransformOp
   V(I32x8SConvertF32x8)                  \
   V(F32x8UConvertI32x8)                  \
   V(F32x8SConvertI32x8)                  \
-  V(I16x16SConvertI8x16)                 \
-  V(I16x16UConvertI8x16)                 \
-  V(I32x8SConvertI16x8)                  \
-  V(I32x8UConvertI16x8)                  \
-  V(I64x4SConvertI32x4)                  \
-  V(I64x4UConvertI32x4)
+  FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
   // clang-format off
@@ -8048,6 +8051,14 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
+
+#define FOREACH_SIMD_256_BINARY_SIGN_EXTENSION_OPCODE(V) \
+  V(I64x4ExtMulI32x4S)                                   \
+  V(I64x4ExtMulI32x4U)                                   \
+  V(I32x8ExtMulI16x8S)                                   \
+  V(I32x8ExtMulI16x8U)                                   \
+  V(I16x16ExtMulI8x16S)                                  \
+  V(I16x16ExtMulI8x16U)
 
 #define FOREACH_SIMD_256_BINARY_OPCODE(V) \
   V(I8x32Eq)                              \
@@ -8138,12 +8149,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
   V(F64x4Max)                             \
   V(F64x4Pmin)                            \
   V(F64x4Pmax)                            \
-  V(I64x4ExtMulI32x4S)                    \
-  V(I64x4ExtMulI32x4U)                    \
-  V(I32x8ExtMulI16x8S)                    \
-  V(I32x8ExtMulI16x8U)                    \
-  V(I16x16ExtMulI8x16S)                   \
-  V(I16x16ExtMulI8x16U)
+  V(I16x16DotI8x32I7x32S)                 \
+  FOREACH_SIMD_256_BINARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
   // clang-format off
@@ -8242,7 +8249,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(F32x8Qfma)                                   \
   V(F32x8Qfms)                                   \
   V(F64x4Qfma)                                   \
-  V(F64x4Qfms)
+  V(F64x4Qfms)                                   \
+  V(I32x8DotI8x32I7x32AddS)
 
 #define FOREACH_SIMD_256_TERNARY_OPCODE(V) \
   FOREACH_SIMD_256_TERNARY_MASK_OPCODE(V)  \

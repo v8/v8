@@ -4496,6 +4496,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16RelaxedLaneSelect(node);
     case IrOpcode::kI8x32RelaxedLaneSelect:
       return MarkAsSimd256(node), VisitI8x32RelaxedLaneSelect(node);
+    case IrOpcode::kI32x8DotI8x32I7x32AddS:
+      return MarkAsSimd256(node), VisitI32x8DotI8x32I7x32AddS(node);
+    case IrOpcode::kI16x16DotI8x32I7x32S:
+      return MarkAsSimd256(node), VisitI16x16DotI8x32I7x32S(node);
 #endif  // V8_TARGET_ARCH_X64 && V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

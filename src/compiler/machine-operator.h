@@ -1175,6 +1175,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8RelaxedLaneSelect();
   const Operator* I16x16RelaxedLaneSelect();
   const Operator* I8x32RelaxedLaneSelect();
+  const Operator* I32x8DotI8x32I7x32AddS();
+  const Operator* I16x16DotI8x32I7x32S();
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);

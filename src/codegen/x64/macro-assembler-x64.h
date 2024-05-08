@@ -283,6 +283,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void F64x4Qfms(YMMRegister dst, YMMRegister src1, YMMRegister src2,
                  YMMRegister src3, YMMRegister tmp);
 
+  void I32x8DotI8x32I7x32AddS(YMMRegister dst, YMMRegister src1,
+                              YMMRegister src2, YMMRegister src3,
+                              YMMRegister scratch, YMMRegister splat_reg);
+
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 

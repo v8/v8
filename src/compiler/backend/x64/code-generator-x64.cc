@@ -5456,6 +5456,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           kScratchDoubleReg, tmp);
       break;
     }
+    case kX64I32x8DotI8x32I7x32AddS: {
+      DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(2));
+      __ I32x8DotI8x32I7x32AddS(
+          i.OutputSimd256Register(), i.InputSimd256Register(0),
+          i.InputSimd256Register(1), i.InputSimd256Register(2),
+          kScratchSimd256Reg, i.TempSimd256Register(0));
+      break;
+    }
     case kX64I32x4ExtAddPairwiseI16x8S: {
       __ I32x4ExtAddPairwiseI16x8S(i.OutputSimd128Register(),
                                    i.InputSimd128Register(0), kScratchRegister);
@@ -5844,6 +5852,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I16x8DotI8x16I7x16S(i.OutputSimd128Register(),
                              i.InputSimd128Register(0),
                              i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x16DotI8x32I7x32S: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      __ vpmaddubsw(i.OutputSimd256Register(), i.InputSimd256Register(1),
+                    i.InputSimd256Register(0));
       break;
     }
     case kX64Pextrb: {

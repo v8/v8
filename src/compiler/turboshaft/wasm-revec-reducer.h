@@ -146,7 +146,8 @@ namespace v8::internal::compiler::turboshaft {
   V(F64x2Min, F64x4Min)                            \
   V(F64x2Max, F64x4Max)                            \
   V(F64x2Pmin, F64x4Pmin)                          \
-  V(F64x2Pmax, F64x4Pmax)
+  V(F64x2Pmax, F64x4Pmax)                          \
+  V(I16x8DotI8x16I7x16S, I16x16DotI8x32I7x32S)
 
 #define SIMD256_BINOP_SIGN_EXTENSION_OP(V)                           \
   V(I16x8ExtMulLowI8x16S, I16x16ExtMulI8x16S, I16x8ExtMulHighI8x16S) \
@@ -175,7 +176,8 @@ namespace v8::internal::compiler::turboshaft {
   V(I8x16RelaxedLaneSelect, I8x32RelaxedLaneSelect)  \
   V(I16x8RelaxedLaneSelect, I16x16RelaxedLaneSelect) \
   V(I32x4RelaxedLaneSelect, I32x8RelaxedLaneSelect)  \
-  V(I64x2RelaxedLaneSelect, I64x4RelaxedLaneSelect)
+  V(I64x2RelaxedLaneSelect, I64x4RelaxedLaneSelect)  \
+  V(I32x4DotI8x16I7x16AddS, I32x8DotI8x32I7x32AddS)
 
 #define SIMD256_SPLAT_OP(V) \
   V(I8x16, I8x32)           \

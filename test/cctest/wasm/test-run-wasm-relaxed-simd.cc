@@ -756,6 +756,72 @@ TEST(RunWasm_I8x32RelaxedLaneSelect) {
   RelaxedLaneSelectRevecTest<uint8_t, kElems>(l1, l2, r1, r2, s1, s2, expected,
                                               kExprI8x16RelaxedLaneSelect);
 }
+
+TEST(RunWasm_I32x8DotI8x32I7x32AddS) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int8_t, int8_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  r.Build({WASM_SIMD_STORE_MEM(
+               WASM_ZERO,
+               WASM_SIMD_TERNOP(kExprI32x4DotI8x16I7x16AddS,
+                                WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+           WASM_SIMD_STORE_MEM_OFFSET(
+               16, WASM_ZERO,
+               WASM_SIMD_TERNOP(kExprI32x4DotI8x16I7x16AddS,
+                                WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+           WASM_ONE});
+  for (int8_t x : compiler::ValueHelper::GetVector<int8_t>()) {
+    for (int8_t y : compiler::ValueHelper::GetVector<int8_t>()) {
+      for (int32_t z : compiler::ValueHelper::GetVector<int32_t>()) {
+        int32_t expected = base::AddWithWraparound(
+            base::MulWithWraparound(x * (y & 0x7F), 4), z);
+        r.Call(x, y & 0x7F, z);
+        for (auto i = 0; i < 4; i++) {
+          CHECK_EQ(expected, memory[i]);
+          CHECK_EQ(expected, memory[4 + i]);
+        }
+      }
+    }
+  }
+}
+
+TEST(RunWasm_I16x16DotI8x32I7x32S) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int8_t, int8_t> r(TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(16);
+  uint8_t param1 = 0, param2 = 1;
+
+  r.Build({WASM_SIMD_STORE_MEM(
+               WASM_ZERO,
+               WASM_SIMD_BINOP(kExprI16x8DotI8x16I7x16S,
+                               WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)),
+                               WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param2)))),
+           WASM_SIMD_STORE_MEM_OFFSET(
+               16, WASM_ZERO,
+               WASM_SIMD_BINOP(kExprI16x8DotI8x16I7x16S,
+                               WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)),
+                               WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param2)))),
+           WASM_ONE});
+
+  for (int8_t x : compiler::ValueHelper::GetVector<int8_t>()) {
+    for (int8_t y : compiler::ValueHelper::GetVector<int8_t>()) {
+      r.Call(x, y & 0x7F);
+      // * 2 because we of (x*y) + (x*y) = 2*x*y
+      int16_t expected = base::MulWithWraparound(x * (y & 0x7F), 2);
+      CHECK_EQ(expected, memory[0]);
+      CHECK_EQ(expected, memory[8]);
+    }
+  }
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace v8::internal::wasm
