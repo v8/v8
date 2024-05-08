@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/vector.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/turboshaft-codegen-tester.h"
@@ -35,6 +36,25 @@ constexpr InvertPattern kInvertPatterns[] = {kNoInvert, kInvertCompare,
                                              kInvertLogic};
 constexpr BranchPattern kBranchPatterns[] = {kNone, kDirect, kEqualZero,
                                              kNotEqualZero};
+
+// These are shorter versions of ValueHelper::uint32_vector() and
+// ValueHelper::uint64_vector() (which are used by FOR_UINT32_INPUTS and
+// FOR_UINT64_INPUTS).
+static constexpr uint32_t uint32_test_array[] = {
+    0x00000000, 0x00000001, 0xFFFFFFFF, 0x1B09788B, 0x00000005,
+    0x00000008, 0x273A798E, 0x56123761, 0xFFFFFFFD, 0x001FFFFF,
+    0x0007FFFF, 0x7FC00000, 0x7F876543};
+static constexpr auto uint32_test_vector = base::VectorOf(uint32_test_array);
+#ifdef V8_TARGET_ARCH_64_BIT
+static constexpr uint64_t uint64_test_array[] = {
+    0x00000000,         0x00000001,         0xFFFFFFFF,
+    0x1B09788B,         0x00000008,         0xFFFFFFFFFFFFFFFF,
+    0xFFFFFFFFFFFFFFFE, 0x0000000100000000, 0x1B09788B00000000,
+    0x273A798E187937A3, 0xECE3AF835495A16B, 0x80000000EEEEEEEE,
+    0x007FFFFFDDDDDDDD, 0x8000000000000000, 0x7FF8000000000000,
+    0x7FF7654321FEDCBA};
+static constexpr auto uint64_test_vector = base::VectorOf(uint64_test_array);
+#endif
 
 // kBalanced - kNoInvert
 // a       b    c       d    a        b   c       d
@@ -139,7 +159,7 @@ class CombineCompares {
         logic_ops_(logic_ops),
         compare_ops_(compare_ops) {}
 
-  void GenerateReturn(OpIndex combine) {
+  void GenerateReturn(V<Word32> combine) {
     if (branch_pattern() == kNone) {
       m().Return(combine);
     } else {
@@ -162,18 +182,18 @@ class CombineCompares {
     }
   }
 
-  OpIndex MakeBinop(TurboshaftBinop op, OpIndex lhs, OpIndex rhs) {
+  V<Word32> MakeBinop(TurboshaftBinop op, V<Word32> lhs, V<Word32> rhs) {
     switch (op) {
-      default:
-        UNREACHABLE();
       case TurboshaftBinop::kWord32BitwiseAnd:
         return m().Word32BitwiseAnd(lhs, rhs);
       case TurboshaftBinop::kWord32BitwiseOr:
         return m().Word32BitwiseOr(lhs, rhs);
+      default:
+        UNREACHABLE();
     }
   }
 
-  OpIndex MakeCompare(TurboshaftComparison op, OpIndex lhs, OpIndex rhs) {
+  V<Word32> MakeCompare(TurboshaftComparison op, OpIndex lhs, OpIndex rhs) {
     switch (op) {
       default:
         UNREACHABLE();
@@ -200,17 +220,17 @@ class CombineCompares {
     }
   }
 
-  OpIndex MakeNot(OpIndex node) {
+  V<Word32> MakeNot(V<Word32> node) {
     return m().Word32Equal(node, m().Word32Constant(0));
   }
 
   void BuildGraph(std::array<OpIndex, NumInputs>& inputs) {
-    std::array<OpIndex, NumCompares> compares;
+    std::array<V<Word32>, NumCompares> compares;
 
     for (unsigned i = 0; i < NumCompares; ++i) {
       OpIndex a = inputs.at((2 * i) % NumInputs);
       OpIndex b = inputs.at((2 * i + 1) % NumInputs);
-      OpIndex cmp = MakeCompare(CompareOpcode(i), a, b);
+      V<Word32> cmp = MakeCompare(CompareOpcode(i), a, b);
       // When invert_pattern == kInvertCompare, invert every other compare,
       // starting with the first.
       if (invert_pattern() == kInvertCompare && (i % 1)) {
@@ -220,13 +240,14 @@ class CombineCompares {
       }
     }
 
-    OpIndex first_combine = MakeBinop(LogicOpcode(0), compares[0], compares[1]);
+    V<Word32> first_combine =
+        MakeBinop(LogicOpcode(0), compares[0], compares[1]);
     if (NumLogic == 1) {
       return GenerateReturn(first_combine);
     }
 
     if (graph_shape() == kUnbalanced) {
-      OpIndex combine = first_combine;
+      V<Word32> combine = first_combine;
       for (unsigned i = 1; i < NumLogic; ++i) {
         // When invert_pattern == kInvertLogic, invert every other logic
         // operation, beginning with the first.
@@ -238,19 +259,20 @@ class CombineCompares {
       return GenerateReturn(combine);
     } else {
       constexpr uint32_t NumFirstLayerLogic = NumCompares / 2;
-      std::array<OpIndex, NumFirstLayerLogic> first_layer_logic{first_combine};
+      std::array<V<Word32>, NumFirstLayerLogic> first_layer_logic{
+          first_combine};
       for (unsigned i = 1; i < NumFirstLayerLogic; ++i) {
         first_layer_logic[i] = MakeBinop(LogicOpcode(i), compares.at(2 * i),
                                          compares.at(2 * i + 1));
       }
-      OpIndex combine = first_combine;
+      V<Word32> combine = first_combine;
       // When invert_pattern == kInvertLogic, invert every other first layer
       // logic operation, beginning with the first.
       if (invert_pattern() == kInvertLogic) {
         combine = MakeNot(combine);
       }
       for (unsigned i = 1; i < NumFirstLayerLogic; ++i) {
-        OpIndex logic_node = first_layer_logic.at(i);
+        V<Word32> logic_node = first_layer_logic.at(i);
         if (invert_pattern() == kInvertLogic && !(i % 2)) {
           logic_node = MakeNot(logic_node);
         }
@@ -437,12 +459,12 @@ void CombineCompareLogic1(
 }
 TEST(CombineCompareWord32Logic1) {
   CombineCompareLogic1<CombineCompareWord32<1>, uint32_t>(
-      kInt32CmpOpcodes, MachineType::Uint32, ValueHelper::uint32_vector());
+      kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic1) {
   CombineCompareLogic1<CombineCompareWord64<1>, uint64_t>(
-      kInt64CmpOpcodes, MachineType::Uint64, ValueHelper::uint64_vector());
+      kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
@@ -487,12 +509,12 @@ void CombineCompareLogic2(
 }
 TEST(CombineCompareWord32Logic2) {
   CombineCompareLogic2<CombineCompareWord32<2>, uint32_t>(
-      kInt32CmpOpcodes, MachineType::Uint32, ValueHelper::uint32_vector());
+      kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic2) {
   CombineCompareLogic2<CombineCompareWord64<2>, uint64_t>(
-      kInt64CmpOpcodes, MachineType::Uint64, ValueHelper::uint64_vector());
+      kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
@@ -541,12 +563,12 @@ void CombineCompareLogic3Zero(
 }
 TEST(CombineCompareWord32Logic3Zero) {
   CombineCompareLogic3Zero<CombineCompareWord32<3>, uint32_t>(
-      kInt32CmpOpcodes, MachineType::Uint32, ValueHelper::uint32_vector());
+      kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3Zero) {
   CombineCompareLogic3Zero<CombineCompareWord64<3>, uint64_t>(
-      kInt64CmpOpcodes, MachineType::Uint64, ValueHelper::uint64_vector());
+      kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
@@ -595,12 +617,12 @@ void CombineCompareLogic3One(
 }
 TEST(CombineCompareWord32Logic3One) {
   CombineCompareLogic3One<CombineCompareWord32<3>, uint32_t>(
-      kInt32CmpOpcodes, MachineType::Uint32, ValueHelper::uint32_vector());
+      kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3One) {
   CombineCompareLogic3One<CombineCompareWord64<3>, uint64_t>(
-      kInt64CmpOpcodes, MachineType::Uint64, ValueHelper::uint64_vector());
+      kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
@@ -649,12 +671,12 @@ void CombineCompareLogic3ThirtyTwo(
 }
 TEST(CombineCompareWord32Logic3ThirtyTwo) {
   CombineCompareLogic3ThirtyTwo<CombineCompareWord32<3>, uint32_t>(
-      kInt32CmpOpcodes, MachineType::Uint32, ValueHelper::uint32_vector());
+      kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3ThirtyTwo) {
   CombineCompareLogic3ThirtyTwo<CombineCompareWord64<3>, uint64_t>(
-      kInt64CmpOpcodes, MachineType::Uint64, ValueHelper::uint64_vector());
+      kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
@@ -811,25 +833,27 @@ TEST(CombineCompareTwoLogicInputs) {
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
       MachineType::Uint32());
 
-  OpIndex cmp1 = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
-  OpIndex cmp2 = m.Int32LessThanOrEqual(m.Parameter(0), m.Word32Constant(1024));
-  OpIndex cmp3 = m.Int32LessThan(m.Parameter(2), m.Parameter(3));
-  OpIndex cmp4 = m.Int32LessThanOrEqual(m.Parameter(2), m.Word32Constant(4096));
-  OpIndex cmp5 = m.Uint32LessThan(m.Parameter(0), m.Parameter(3));
-  OpIndex cmp6 = m.Uint32LessThanOrEqual(m.Parameter(1), m.Parameter(2));
+  V<Word32> cmp1 = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
+  V<Word32> cmp2 =
+      m.Int32LessThanOrEqual(m.Parameter(0), m.Word32Constant(1024));
+  V<Word32> cmp3 = m.Int32LessThan(m.Parameter(2), m.Parameter(3));
+  V<Word32> cmp4 =
+      m.Int32LessThanOrEqual(m.Parameter(2), m.Word32Constant(4096));
+  V<Word32> cmp5 = m.Uint32LessThan(m.Parameter(0), m.Parameter(3));
+  V<Word32> cmp6 = m.Uint32LessThanOrEqual(m.Parameter(1), m.Parameter(2));
 
-  OpIndex logic1 = m.Word32BitwiseAnd(cmp1, cmp2);
-  OpIndex logic2 = m.Word32BitwiseOr(cmp3, cmp4);
-  OpIndex logic3 = m.Word32BitwiseAnd(cmp5, cmp6);
+  V<Word32> logic1 = m.Word32BitwiseAnd(cmp1, cmp2);
+  V<Word32> logic2 = m.Word32BitwiseOr(cmp3, cmp4);
+  V<Word32> logic3 = m.Word32BitwiseAnd(cmp5, cmp6);
 
-  OpIndex cmp7 = m.Word32Equal(logic1, logic2);
+  V<Word32> cmp7 = m.Word32Equal(logic1, logic2);
 
   m.Return(m.Word32BitwiseOr(cmp7, logic3));
 
-  FOR_UINT32_INPUTS(a) {
-    FOR_UINT32_INPUTS(b) {
-      FOR_UINT32_INPUTS(c) {
-        FOR_UINT32_INPUTS(d) {
+  for (uint32_t a : uint32_test_vector) {
+    for (uint32_t b : uint32_test_vector) {
+      for (uint32_t c : uint32_test_vector) {
+        for (uint32_t d : uint32_test_vector) {
           uint32_t result = m.Call(a, b, c, d);
           uint32_t expected = run(a, b, c, d);
           CHECK_EQ(result, expected);
