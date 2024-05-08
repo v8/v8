@@ -86,6 +86,15 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
+  template <typename Callback, typename ProtoCallback>
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
+                         ProtoCallback proto_transition_callback);
+
+  template <typename Callback>
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback) {
+    ForEachTransition(no_gc, callback, callback);
+  }
+
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveReferences would leak memory while
@@ -126,11 +135,12 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps they transition to.
   // PutPrototypeTransition can trigger GC.
-  static void PutPrototypeTransition(Isolate* isolate, Handle<Map>,
+  static bool PutPrototypeTransition(Isolate* isolate, Handle<Map>,
                                      Handle<Object> prototype,
                                      Handle<Map> target_map);
-  static Handle<Map> GetPrototypeTransition(Isolate* isolate, Handle<Map> map,
-                                            Handle<Object> prototype);
+  static base::Optional<Tagged<Map>> GetPrototypeTransition(
+      Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype);
+  bool HasPrototypeTransitions();
 
   // During the first-time Map::Update and Map::TryUpdate, the migration target
   // map could be cached in the raw_transitions slot of the old map that is
@@ -202,7 +212,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   static void SetPrototypeTransitions(Isolate* isolate, Handle<Map> map,
                                       Handle<WeakFixedArray> proto_transitions);
   static Tagged<WeakFixedArray> GetPrototypeTransitions(Isolate* isolate,
-                                                        Handle<Map> map);
+                                                        Tagged<Map> map);
 
   static inline void ReplaceTransitions(Isolate* isolate, Handle<Map> map,
                                         Tagged<MaybeObject> new_transitions);

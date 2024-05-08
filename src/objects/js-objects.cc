@@ -3773,8 +3773,9 @@ void JSObject::NormalizeProperties(Isolate* isolate, Handle<JSObject> object,
   if (!object->HasFastProperties()) return;
 
   Handle<Map> map(object->map(), isolate);
-  Handle<Map> new_map = Map::Normalize(isolate, map, map->elements_kind(), mode,
-                                       use_cache, reason);
+  Handle<Map> new_map =
+      Map::Normalize(isolate, map, map->elements_kind(), Handle<HeapObject>(),
+                     mode, use_cache, reason);
 
   JSObject::MigrateToMap(isolate, object, new_map,
                          expected_additional_properties);
@@ -5244,12 +5245,20 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   isolate->UpdateProtectorsOnSetPrototype(real_receiver, value);
 
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+  Handle<Map> new_map =
+      MapUpdater(isolate, map)
+          .ApplyPrototypeTransition(Handle<HeapObject>::cast(value));
+#else
   Handle<Map> new_map = Map::TransitionToUpdatePrototype(
       isolate, map, Handle<HeapObject>::cast(value));
+#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);
 
-  DCHECK(size == object->Size());
+  DCHECK_IMPLIES(!new_map->is_dictionary_map() && !map->is_deprecated(),
+                 size == object->Size());
   return Just(true);
 }
 

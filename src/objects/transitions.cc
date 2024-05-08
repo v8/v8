@@ -42,6 +42,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
                                  Handle<Name> name, Handle<Map> target,
                                  TransitionKindFlag flag) {
+  DCHECK_NE(flag, PROTOTYPE_TRANSITION);
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
   target->SetBackPointer(*map);
@@ -385,19 +386,26 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
 }
 
 // static
-void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
+bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  Handle<Map> map,
                                                  Handle<Object> prototype,
                                                  Handle<Map> target_map) {
+  DCHECK_IMPLIES(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL,
+                 IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(HeapObject::cast(*prototype)->map()));
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
-  if (map->is_prototype_map()) return;
-  if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions) return;
+  if (map->is_prototype_map()) return false;
+  if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions)
+    return false;
+
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+  target_map->SetBackPointer(*map);
+#endif
 
   const int header = TransitionArray::kProtoTransitionHeaderSize;
 
-  Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, map), isolate);
+  Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map), isolate);
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
@@ -414,7 +422,8 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
     // Grow the array if compacting it doesn't free space.
     if (!TransitionArray::CompactPrototypeTransitionArray(isolate, *cache)) {
       transition_array_mutex->UnlockExclusive();
-      if (capacity == TransitionArray::kMaxCachedPrototypeTransitions) return;
+      if (capacity == TransitionArray::kMaxCachedPrototypeTransitions)
+        return false;
 
       // GrowPrototypeTransitionArray can allocate, so it shouldn't hold the
       // exclusive lock on {full_transition_array_access} mutex, since
@@ -440,13 +449,13 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
 
   transition_array_mutex->UnlockExclusive();
+  return true;
 }
 
 // static
-Handle<Map> TransitionsAccessor::GetPrototypeTransition(
-    Isolate* isolate, Handle<Map> map, Handle<Object> prototype_handle) {
+base::Optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
+    Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
   DisallowGarbageCollection no_gc;
-  Tagged<Object> prototype = *prototype_handle;
   Tagged<WeakFixedArray> cache = GetPrototypeTransitions(isolate, map);
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
@@ -457,16 +466,16 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
     if (target.GetHeapObjectIfWeak(&heap_object)) {
       Tagged<Map> target_map = Map::cast(heap_object);
       if (target_map->prototype() == prototype) {
-        return handle(target_map, isolate);
+        return target_map;
       }
     }
   }
-  return Handle<Map>();
+  return {};
 }
 
 // static
 Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions(
-    Isolate* isolate, Handle<Map> map) {
+    Isolate* isolate, Tagged<Map> map) {
   Tagged<MaybeObject> raw_transitions =
       map->raw_transitions(isolate, kAcquireLoad);
   if (GetEncoding(isolate, raw_transitions) != kFullTransitionArray) {
@@ -498,6 +507,19 @@ int TransitionsAccessor::NumberOfTransitions() {
       return 1;
     case kFullTransitionArray:
       return transitions()->number_of_transitions();
+  }
+  UNREACHABLE();
+}
+
+bool TransitionsAccessor::HasPrototypeTransitions() {
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+    case kMigrationTarget:
+    case kWeakRef:
+      return false;
+    case kFullTransitionArray:
+      return transitions()->HasPrototypeTransitions();
   }
   UNREACHABLE();
 }

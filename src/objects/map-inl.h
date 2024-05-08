@@ -186,13 +186,14 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            PropertyNormalizationMode mode, const char* reason) {
   const bool kUseCache = true;
-  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode,
-                   kUseCache, reason);
+  return Normalize(isolate, fast_map, fast_map->elements_kind(),
+                   Handle<HeapObject>(), mode, kUseCache, reason);
 }
 
 bool Map::EquivalentToForNormalization(const Tagged<Map> other,
                                        PropertyNormalizationMode mode) const {
-  return EquivalentToForNormalization(other, elements_kind(), mode);
+  return EquivalentToForNormalization(other, elements_kind(), prototype(),
+                                      mode);
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
@@ -1016,8 +1017,10 @@ OBJECT_CONSTRUCTORS_IMPL(NormalizedMapCache, WeakFixedArray)
 CAST_ACCESSOR(NormalizedMapCache)
 NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
-int NormalizedMapCache::GetIndex(Handle<Map> map) {
-  return map->Hash() % NormalizedMapCache::kEntries;
+int NormalizedMapCache::GetIndex(Tagged<Map> map,
+                                 Tagged<HeapObject> prototype) {
+  DisallowGarbageCollection no_gc;
+  return map->Hash(prototype) % NormalizedMapCache::kEntries;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
