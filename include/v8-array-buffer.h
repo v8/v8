@@ -182,7 +182,7 @@ class V8_EXPORT ArrayBuffer : public Object {
      *
      * The default implementation allocates a new block and copies data.
      */
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "Reallocate is unsafe, please do not use. Please allocate new memory "
         "and copy instead.")
     virtual void* Reallocate(void* data, size_t old_length, size_t new_length);
