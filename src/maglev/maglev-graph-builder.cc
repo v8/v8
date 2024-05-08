@@ -2285,10 +2285,8 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       right->properties().value_representation() !=
           ValueRepresentation::kTagged) {
     SetAccumulator(GetBooleanConstant(false));
-  } else if (left == right) {
-    SetAccumulator(GetBooleanConstant(true));
   } else {
-    SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+    SetAccumulator(BuildTaggedEqual(left, right));
   }
   return true;
 }
@@ -2365,11 +2363,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       left = GetInternalizedString(iterator_.GetRegisterOperand(0));
       right =
           GetInternalizedString(interpreter::Register::virtual_accumulator());
-      if (left == right) {
-        SetAccumulator(GetBooleanConstant(true));
-        return;
-      }
-      SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+      SetAccumulator(BuildTaggedEqual(left, right));
       return;
     }
     case CompareOperationHint::kSymbol: {
@@ -2380,11 +2374,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* right = GetAccumulatorTagged();
       BuildCheckSymbol(left);
       BuildCheckSymbol(right);
-      if (left == right) {
-        SetAccumulator(GetBooleanConstant(true));
-        return;
-      }
-      SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+      SetAccumulator(BuildTaggedEqual(left, right));
       return;
     }
     case CompareOperationHint::kString: {
@@ -2445,11 +2435,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* right = GetAccumulatorTagged();
       BuildCheckJSReceiver(left);
       BuildCheckJSReceiver(right);
-      if (left == right) {
-        SetAccumulator(GetBooleanConstant(true));
-        return;
-      }
-      SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+      SetAccumulator(BuildTaggedEqual(left, right));
       return;
     }
   }
@@ -2753,24 +2739,36 @@ void MaglevGraphBuilder::VisitPopContext() {
   SetContext(LoadRegisterTagged(0));
 }
 
+ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
+                                                ValueNode* rhs) {
+  DCHECK(lhs->is_tagged());
+  DCHECK(rhs->is_tagged());
+  if (lhs == rhs) {
+    return GetBooleanConstant(true);
+  }
+  if (HaveDifferentTypes(lhs, rhs)) {
+    return GetBooleanConstant(false);
+  }
+  // TODO(victorgomes): We could retrieve the HeapObjectRef in Constant and
+  // compare them.
+  if (IsConstantNode(lhs->opcode()) && !lhs->Is<Constant>() &&
+      lhs->opcode() == rhs->opcode()) {
+    // Constants nodes are canonicalized, except for the node holding
+    // HeapObjectRef, so equal constants should have been handled above.
+    return GetBooleanConstant(false);
+  }
+  return AddNewNode<TaggedEqual>({lhs, rhs});
+}
+
+ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
+                                                RootIndex rhs_index) {
+  return BuildTaggedEqual(lhs, GetRootConstant(rhs_index));
+}
+
 void MaglevGraphBuilder::VisitTestReferenceEqual() {
   ValueNode* lhs = LoadRegisterTagged(0);
   ValueNode* rhs = GetAccumulatorTagged();
-  if (lhs == rhs) {
-    SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
-    return;
-  }
-  if (lhs->Is<SmiConstant>()) {
-    if (rhs->Is<SmiConstant>()) {
-      // Smi constants are canonicalized, so equal smi constants should have
-      // been handled above.
-      DCHECK_NE(lhs->Cast<SmiConstant>()->value(),
-                rhs->Cast<SmiConstant>()->value());
-      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
-      return;
-    }
-  }
-  SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
+  SetAccumulator(BuildTaggedEqual(lhs, rhs));
 }
 
 void MaglevGraphBuilder::VisitTestUndetectable() {
@@ -2796,22 +2794,12 @@ void MaglevGraphBuilder::VisitTestUndetectable() {
 
 void MaglevGraphBuilder::VisitTestNull() {
   ValueNode* value = GetAccumulatorTagged();
-  if (IsConstantNode(value->opcode())) {
-    SetAccumulator(GetBooleanConstant(IsNullValue(value)));
-    return;
-  }
-  ValueNode* null_constant = GetRootConstant(RootIndex::kNullValue);
-  SetAccumulator(AddNewNode<TaggedEqual>({value, null_constant}));
+  SetAccumulator(BuildTaggedEqual(value, RootIndex::kNullValue));
 }
 
 void MaglevGraphBuilder::VisitTestUndefined() {
   ValueNode* value = GetAccumulatorTagged();
-  if (IsConstantNode(value->opcode())) {
-    SetAccumulator(GetBooleanConstant(IsUndefinedValue(value)));
-    return;
-  }
-  ValueNode* undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
-  SetAccumulator(AddNewNode<TaggedEqual>({value, undefined_constant}));
+  SetAccumulator(BuildTaggedEqual(value, RootIndex::kUndefinedValue));
 }
 
 void MaglevGraphBuilder::VisitTestTypeOf() {
@@ -3305,6 +3293,23 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
   if (!known_node_aspects().IsValid(it)) return false;
   if (current_type) *current_type = it->second.type();
   return NodeTypeIs(it->second.type(), type);
+}
+
+NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
+  auto it = known_node_aspects().FindInfo(node);
+  if (!known_node_aspects().IsValid(it)) {
+    return StaticTypeForNode(broker(), local_isolate(), node);
+  }
+  return it->second.type();
+}
+
+bool MaglevGraphBuilder::HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs) {
+  NodeType lhs_type = GetType(lhs);
+  NodeType rhs_type = GetType(rhs);
+  if (lhs_type == NodeType::kUnknown || rhs_type == NodeType::kUnknown) {
+    return false;
+  }
+  return IntersectType(lhs_type, rhs_type) == NodeType::kUnknown;
 }
 
 bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
@@ -10602,6 +10607,17 @@ BasicBlock* MaglevGraphBuilder::BuildBranchIfReferenceEqual(
                                              false_target);
 }
 
+void MaglevGraphBuilder::MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken) {
+  int jump_offset = iterator_.GetJumpTargetOffset();
+  if (is_jump_taken) {
+    BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
+    MergeDeadIntoFrameState(next_offset());
+    MergeIntoFrameState(block, jump_offset);
+  } else {
+    MergeDeadIntoFrameState(jump_offset);
+  }
+}
+
 void MaglevGraphBuilder::BuildBranchIfRootConstant(
     ValueNode* node, JumpType jump_type, RootIndex root_index,
     BranchSpecializationMode mode) {
@@ -10620,20 +10636,6 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
     false_target = &jump_targets_[jump_offset];
   }
 
-  if (root_index != RootIndex::kTrueValue &&
-      root_index != RootIndex::kFalseValue &&
-      CheckType(node, NodeType::kBoolean)) {
-    bool is_jump_taken = jump_type == kJumpIfFalse;
-    if (is_jump_taken) {
-      BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
-      MergeDeadIntoFrameState(fallthrough_offset);
-      MergeIntoFrameState(block, jump_offset);
-    } else {
-      MergeDeadIntoFrameState(jump_offset);
-    }
-    return;
-  }
-
   while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
     // Bypassing logical not(s) on the input and swapping true/false
     // destinations.
@@ -10642,16 +10644,17 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
     jump_type = NegateJumpType(jump_type);
   }
 
+  if (root_index != RootIndex::kTrueValue &&
+      root_index != RootIndex::kFalseValue &&
+      CheckType(node, NodeType::kBoolean)) {
+    MarkBranchDeadAndJumpIfNeeded(jump_type == kJumpIfFalse);
+    return;
+  }
+
   if (RootConstant* c = node->TryCast<RootConstant>()) {
     bool constant_is_match = c->index() == root_index;
-    bool is_jump_taken = constant_is_match == (jump_type == kJumpIfTrue);
-    if (is_jump_taken) {
-      BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
-      MergeDeadIntoFrameState(fallthrough_offset);
-      MergeIntoFrameState(block, jump_offset);
-    } else {
-      MergeDeadIntoFrameState(jump_offset);
-    }
+    MarkBranchDeadAndJumpIfNeeded(constant_is_match ==
+                                  (jump_type == kJumpIfTrue));
     return;
   }
 

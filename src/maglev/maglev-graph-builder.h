@@ -432,6 +432,11 @@ class MaglevGraphBuilder {
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  NodeType GetType(ValueNode* node);
+
+  // Returns true if we statically know that {lhs} and {rhs} have different
+  // types.
+  bool HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs);
 
   template <typename Function>
   bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);
@@ -2186,6 +2191,9 @@ class MaglevGraphBuilder {
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
 
+  ValueNode* BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
+  ValueNode* BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
+
   BasicBlock* BuildBranchIfReferenceEqual(ValueNode* lhs, ValueNode* rhs,
                                           BasicBlockRef* true_target,
                                           BasicBlockRef* false_target);
@@ -2193,6 +2201,7 @@ class MaglevGraphBuilder {
   enum JumpType { kJumpIfTrue, kJumpIfFalse };
   enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
   JumpType NegateJumpType(JumpType jump_type);
+  void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
   void BuildBranchIfRootConstant(
       ValueNode* node, JumpType jump_type, RootIndex root_index,
       BranchSpecializationMode mode = BranchSpecializationMode::kDefault);
