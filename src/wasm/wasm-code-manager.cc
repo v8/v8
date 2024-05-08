@@ -2222,6 +2222,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
+    GetWasmEngine()->FlushCode();
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
     size_t committed = total_committed_code_space_.load();
@@ -2444,6 +2445,19 @@ void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
       filter == RemoveFilter::kRemoveTurbofanCode) {
     compilation_state_->AllowAnotherTopTierJobForAllFunctions();
   }
+}
+
+size_t NativeModule::SumLiftoffCodeSize() {
+  const uint32_t num_functions = module_->num_declared_functions;
+  size_t codesize_liftoff = 0;
+  for (uint32_t i = 0; i < num_functions; i++) {
+    WasmCode* code = code_table_[i];
+    if (code && code->is_liftoff()) {
+      codesize_liftoff +=
+          code->instructions_size() + code->EstimateCurrentMemoryConsumption();
+    }
+  }
+  return codesize_liftoff;
 }
 
 void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {

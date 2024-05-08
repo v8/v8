@@ -26859,6 +26859,21 @@ TEST(AtomicsWaitCallback) {
 #if V8_ENABLE_WEBASSEMBLY
 namespace v8::internal::wasm {
 
+TEST(WasmCodeFlushingOnMemoryPressure) {
+  i::v8_flags.flush_liftoff_code = true;
+  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
+  r.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(44))});
+  CHECK_EQ(55, r.Call());
+
+  // We should have some Liftoff code compiled.
+  CHECK_NE(GetWasmEngine()->GetLiftoffCodeSize(), 0);
+
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical);
+  // When there is memory pressure, flush all Liftoff code.
+  CHECK_EQ(GetWasmEngine()->GetLiftoffCodeSize(), 0);
+}
+
 TEST(WasmI32AtomicWaitCallback) {
   WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);

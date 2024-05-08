@@ -126,6 +126,10 @@
 #include "src/heap/conservative-stack-visitor.h"
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -1651,7 +1655,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     }
   }
 
-  EagerlyFreeExternalMemory();
+  EagerlyFreeExternalMemoryAndWasmCode();
 
   if (v8_flags.trace_duplicate_threshold_kb) {
     std::map<int, std::vector<Tagged<HeapObject>>> objects_by_size;
@@ -4406,7 +4410,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
   CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
                     GarbageCollectionReason::kMemoryPressure,
                     kGCCallbackFlagCollectAllAvailableGarbage);
-  EagerlyFreeExternalMemory();
+  EagerlyFreeExternalMemoryAndWasmCode();
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
@@ -4453,7 +4457,13 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
   }
 }
 
-void Heap::EagerlyFreeExternalMemory() {
+void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
+  // Flush all Liftoff code.
+#if V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.flush_liftoff_code) {
+    wasm::GetWasmEngine()->FlushCode();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   CompleteArrayBufferSweeping(this);
 }
 

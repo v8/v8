@@ -1107,6 +1107,15 @@ void WasmEngine::FlushCode() {
   }
 }
 
+size_t WasmEngine::GetLiftoffCodeSize() {
+  size_t codesize_liftoff = 0;
+  for (auto& entry : native_modules_) {
+    NativeModule* native_module = entry.first;
+    codesize_liftoff += native_module->SumLiftoffCodeSize();
+  }
+  return codesize_liftoff;
+}
+
 std::shared_ptr<CompilationStatistics>
 WasmEngine::GetOrCreateTurboStatistics() {
   base::MutexGuard guard(&mutex_);

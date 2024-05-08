@@ -1835,7 +1835,7 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void EagerlyFreeExternalMemory();
+  void EagerlyFreeExternalMemoryAndWasmCode();
 
   bool InvokeNearHeapLimitCallback();
 
