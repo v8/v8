@@ -574,7 +574,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
                                 int max_node_id) {
   // If no handler info, then we cannot throw.
   ExceptionHandlerInfo* info = node->exception_handler_info();
-  if (!info->HasExceptionHandler()) return;
+  if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
 
   BasicBlock* block = info->catch_block.block_ptr();
   DCHECK(block->is_exception_handler_block());

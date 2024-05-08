@@ -2647,7 +2647,7 @@ class GraphBuilder {
       DCHECK(throwing_node->properties().can_throw());
       const maglev::ExceptionHandlerInfo* info =
           throwing_node->exception_handler_info();
-      if (!info->HasExceptionHandler()) return;
+      if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
 
       maglev::BasicBlock* block = info->catch_block.block_ptr();
       auto* liveness = block->state()->frame_state().liveness();
