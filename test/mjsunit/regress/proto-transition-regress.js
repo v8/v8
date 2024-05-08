@@ -16,8 +16,7 @@
   x2.__proto__ = p;
   x2.a = 1;
 
-  // TODO(olivf): re-enable with v8_move_prototype_transitions_first
-  // assertTrue(%HaveSameMap(x1, x2));
+  assertTrue(%HaveSameMap(x1, x2));
 })();
 
 // Check proto transitions can be undone
@@ -30,8 +29,7 @@
   x2.__proto__ = {};
   x2.__proto__ = x1.__proto__;
 
-  // TODO(olivf): re-enable with v8_move_prototype_transitions_first
-  // assertTrue(%HaveSameMap(x1, x2));
+  assertTrue(%HaveSameMap(x1, x2));
 })();
 
 
@@ -51,8 +49,7 @@
   var a = test();
   gc();gc();gc();
   var b = test();
-  // TODO(olivf): re-enable with v8_move_prototype_transitions_first
-  // assertTrue(%HaveSameMap(a,b));
+  assertTrue(%HaveSameMap(a,b));
 })();
 
 // Checks if slack tracking on derived maps updates actual root map
