@@ -3869,14 +3869,13 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     worker->EnterTerminatedState();
   }
 
-  if (!dispose) {
-    // If the `dispose` flag is false, then that means script called quit(), so
-    // there may be stack-allocated things that need cleaning up before we can
-    // dispose the Isolate.
-    reinterpret_cast<i::Isolate*>(isolate)->PrepareForSuddenShutdown();
+  if (dispose) {
+    isolate->Dispose();
+  } else {
+    // Normally, Dispose() prints counters. Benchmarks expect counters to be
+    // printed on process exit, so do so manually if not disposing.
+    isolate->DumpAndResetStats();
   }
-
-  isolate->Dispose();
 
   // Simulate errors before disposing V8, as that resets flags (via
   // FlagList::ResetAllFlags()), but error simulation reads the random seed.
