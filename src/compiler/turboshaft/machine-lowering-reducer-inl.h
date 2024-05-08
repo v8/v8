@@ -58,41 +58,46 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(ChangeOrDeopt)(OpIndex input, V<FrameState> frame_state,
-                                ChangeOrDeoptOp::Kind kind,
-                                CheckForMinusZeroMode minus_zero_mode,
-                                const FeedbackSource& feedback) {
+  V<Untagged> REDUCE(ChangeOrDeopt)(V<Untagged> input,
+                                    V<FrameState> frame_state,
+                                    ChangeOrDeoptOp::Kind kind,
+                                    CheckForMinusZeroMode minus_zero_mode,
+                                    const FeedbackSource& feedback) {
     switch (kind) {
       case ChangeOrDeoptOp::Kind::kUint32ToInt32: {
-        __ DeoptimizeIf(__ Int32LessThan(input, 0), frame_state,
-                        DeoptimizeReason::kLostPrecision, feedback);
+        __ DeoptimizeIf(__ Int32LessThan(V<Word32>::Cast(input), 0),
+                        frame_state, DeoptimizeReason::kLostPrecision,
+                        feedback);
         return input;
       }
       case ChangeOrDeoptOp::Kind::kInt64ToInt32: {
-        V<Word32> i32 = __ TruncateWord64ToWord32(input);
-        __ DeoptimizeIfNot(__ Word64Equal(__ ChangeInt32ToInt64(i32), input),
-                           frame_state, DeoptimizeReason::kLostPrecision,
-                           feedback);
+        V<Word64> i64_input = V<Word64>::Cast(input);
+        V<Word32> i32 = __ TruncateWord64ToWord32(i64_input);
+        __ DeoptimizeIfNot(
+            __ Word64Equal(__ ChangeInt32ToInt64(i32), i64_input), frame_state,
+            DeoptimizeReason::kLostPrecision, feedback);
         return i32;
       }
       case ChangeOrDeoptOp::Kind::kUint64ToInt32: {
+        V<Word64> i64_input = V<Word64>::Cast(input);
         __ DeoptimizeIfNot(
-            __ Uint64LessThanOrEqual(input, static_cast<uint64_t>(kMaxInt)),
+            __ Uint64LessThanOrEqual(i64_input, static_cast<uint64_t>(kMaxInt)),
             frame_state, DeoptimizeReason::kLostPrecision, feedback);
-        return __ TruncateWord64ToWord32(input);
+        return __ TruncateWord64ToWord32(i64_input);
       }
       case ChangeOrDeoptOp::Kind::kUint64ToInt64: {
-        __ DeoptimizeIfNot(__ Uint64LessThanOrEqual(
-                               input, std::numeric_limits<int64_t>::max()),
-                           frame_state, DeoptimizeReason::kLostPrecision,
-                           feedback);
+        __ DeoptimizeIfNot(
+            __ Uint64LessThanOrEqual(V<Word64>::Cast(input),
+                                     std::numeric_limits<int64_t>::max()),
+            frame_state, DeoptimizeReason::kLostPrecision, feedback);
         return input;
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt32: {
-        V<Word32> i32 = __ TruncateFloat64ToInt32OverflowUndefined(input);
-        __ DeoptimizeIfNot(__ Float64Equal(__ ChangeInt32ToFloat64(i32), input),
-                           frame_state, DeoptimizeReason::kLostPrecisionOrNaN,
-                           feedback);
+        V<Float64> f64_input = V<Float64>::Cast(input);
+        V<Word32> i32 = __ TruncateFloat64ToInt32OverflowUndefined(f64_input);
+        __ DeoptimizeIfNot(
+            __ Float64Equal(__ ChangeInt32ToFloat64(i32), f64_input),
+            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
 
         if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
           // Check if {value} is -0.
@@ -100,7 +105,7 @@ class MachineLoweringReducer : public Next {
             // In case of 0, we need to check the high bits for the IEEE -0
             // pattern.
             V<Word32> check_negative =
-                __ Int32LessThan(__ Float64ExtractHighWord32(input), 0);
+                __ Int32LessThan(__ Float64ExtractHighWord32(f64_input), 0);
             __ DeoptimizeIf(check_negative, frame_state,
                             DeoptimizeReason::kMinusZero, feedback);
           }
@@ -109,10 +114,11 @@ class MachineLoweringReducer : public Next {
         return i32;
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt64: {
-        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(input);
-        __ DeoptimizeIfNot(__ Float64Equal(__ ChangeInt64ToFloat64(i64), input),
-                           frame_state, DeoptimizeReason::kLostPrecisionOrNaN,
-                           feedback);
+        V<Float64> f64_input = V<Float64>::Cast(input);
+        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(f64_input);
+        __ DeoptimizeIfNot(
+            __ Float64Equal(__ ChangeInt64ToFloat64(i64), f64_input),
+            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
 
         if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
           // Check if {value} is -0.
@@ -120,7 +126,7 @@ class MachineLoweringReducer : public Next {
             // In case of 0, we need to check the high bits for the IEEE -0
             // pattern.
             V<Word32> check_negative =
-                __ Int32LessThan(__ Float64ExtractHighWord32(input), 0);
+                __ Int32LessThan(__ Float64ExtractHighWord32(f64_input), 0);
             __ DeoptimizeIf(check_negative, frame_state,
                             DeoptimizeReason::kMinusZero, feedback);
           }
@@ -129,11 +135,12 @@ class MachineLoweringReducer : public Next {
         return i64;
       }
       case ChangeOrDeoptOp::Kind::kFloat64NotHole: {
+        V<Float64> f64_input = V<Float64>::Cast(input);
         // First check whether {value} is a NaN at all...
-        IF_NOT (LIKELY(__ Float64Equal(input, input))) {
+        IF_NOT (LIKELY(__ Float64Equal(f64_input, f64_input))) {
           // ...and only if {value} is a NaN, perform the expensive bit
           // check. See http://crbug.com/v8/8264 for details.
-          __ DeoptimizeIf(__ Word32Equal(__ Float64ExtractHighWord32(input),
+          __ DeoptimizeIf(__ Word32Equal(__ Float64ExtractHighWord32(f64_input),
                                          kHoleNanUpper32),
                           frame_state, DeoptimizeReason::kHole, feedback);
         }

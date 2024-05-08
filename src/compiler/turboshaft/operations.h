@@ -2074,9 +2074,9 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     return InputsRepFactory::SingleRep(from);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Untagged> input() const { return Base::input<Untagged>(0); }
 
-  ChangeOp(OpIndex input, Kind kind, Assumption assumption,
+  ChangeOp(V<Untagged> input, Kind kind, Assumption assumption,
            RegisterRepresentation from, RegisterRepresentation to)
       : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
 
@@ -2143,10 +2143,10 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     }
   }
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  ChangeOrDeoptOp(OpIndex input, OpIndex frame_state, Kind kind,
+  ChangeOrDeoptOp(V<Untagged> input, V<FrameState> frame_state, Kind kind,
                   CheckForMinusZeroMode minus_zero_mode,
                   const FeedbackSource& feedback)
       : Base(input, frame_state),

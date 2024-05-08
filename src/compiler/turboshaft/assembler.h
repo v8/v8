@@ -2059,7 +2059,7 @@ class TurboshaftAssemblerOpInterface
                 Float64, Word32)
   DECL_CHANGE_V(TruncateWord64ToWord32, kTruncate, kNoAssumption, Word64,
                 Word32)
-  OpIndex ZeroExtendWord32ToRep(V<Word32> value, WordRepresentation rep) {
+  V<Word> ZeroExtendWord32ToRep(V<Word32> value, WordRepresentation rep) {
     if (rep == WordRepresentation::Word32()) return value;
     DCHECK_EQ(rep, WordRepresentation::Word64());
     return ChangeUint32ToUint64(value);
@@ -2171,10 +2171,11 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_CHANGE_V
 #undef DECL_TRY_CHANGE_V
 
-  OpIndex ChangeOrDeopt(OpIndex input, V<turboshaft::FrameState> frame_state,
-                        ChangeOrDeoptOp::Kind kind,
-                        CheckForMinusZeroMode minus_zero_mode,
-                        const FeedbackSource& feedback) {
+  V<Untagged> ChangeOrDeopt(V<Untagged> input,
+                            V<turboshaft::FrameState> frame_state,
+                            ChangeOrDeoptOp::Kind kind,
+                            CheckForMinusZeroMode minus_zero_mode,
+                            const FeedbackSource& feedback) {
     return ReduceIfReachableChangeOrDeopt(input, frame_state, kind,
                                           minus_zero_mode, feedback);
   }
@@ -2183,17 +2184,17 @@ class TurboshaftAssemblerOpInterface
                                         V<turboshaft::FrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
-    return ChangeOrDeopt(input, frame_state,
-                         ChangeOrDeoptOp::Kind::kFloat64ToInt32,
-                         minus_zero_mode, feedback);
+    return V<Word32>::Cast(ChangeOrDeopt(input, frame_state,
+                                         ChangeOrDeoptOp::Kind::kFloat64ToInt32,
+                                         minus_zero_mode, feedback));
   }
   V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input,
                                         V<turboshaft::FrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
-    return ChangeOrDeopt(input, frame_state,
-                         ChangeOrDeoptOp::Kind::kFloat64ToInt64,
-                         minus_zero_mode, feedback);
+    return V<Word64>::Cast(ChangeOrDeopt(input, frame_state,
+                                         ChangeOrDeoptOp::Kind::kFloat64ToInt64,
+                                         minus_zero_mode, feedback));
   }
 
   V<Smi> TagSmi(ConstOrV<Word32> input) {

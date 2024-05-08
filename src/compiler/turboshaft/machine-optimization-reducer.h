@@ -2300,7 +2300,7 @@ class MachineOptimizationReducer : public Next {
   V<Word32> UndoWord32ToWord64Conversion(V<Word> value) {
     DCHECK(IsWord32ConvertedToWord64(value));
     if (const ChangeOp* op = matcher.TryCast<ChangeOp>(value)) {
-      return op->input();
+      return V<Word32>::Cast(op->input());
     }
     return __ Word32Constant(matcher.Cast<ConstantOp>(value).word32());
   }
@@ -2311,7 +2311,7 @@ class MachineOptimizationReducer : public Next {
           op->to == WordRepresentation::Word64() &&
           op->kind == any_of(ChangeOp::Kind::kZeroExtend,
                              ChangeOp::Kind::kSignExtend)) {
-        return op->input();
+        return V<Word32>::Cast(op->input());
       }
     }
     return value;
