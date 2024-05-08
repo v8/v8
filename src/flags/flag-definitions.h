@@ -3053,6 +3053,8 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, cppheap_concurrent_marking)
 
 DEFINE_BOOL(single_threaded_gc_in_background, false,
             "disable the use of background gc tasks when in background")
+DEFINE_BOOL(parallel_pause_for_gc_in_background, false,
+            "Use parallel threads in the atomic pause for background GCs")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

@@ -414,9 +414,17 @@ void MarkCompactCollector::StartMarking() {
 #endif  // VERIFY_HEAP
 }
 
-void MarkCompactCollector::MaybeEnableBackgroundThreadsInCycle() {
+void MarkCompactCollector::MaybeEnableBackgroundThreadsInCycle(
+    CallOrigin origin) {
   if (v8_flags.concurrent_marking && !use_background_threads_in_cycle_) {
-    use_background_threads_in_cycle_ = heap()->ShouldUseBackgroundThreads();
+    // With --parallel_pause_for_gc_in_background we force background threads in
+    // the atomic pause.
+    const bool force_background_threads =
+        v8_flags.parallel_pause_for_gc_in_background &&
+        origin == CallOrigin::kAtomicGC;
+    use_background_threads_in_cycle_ =
+        force_background_threads || heap()->ShouldUseBackgroundThreads();
+
     if (use_background_threads_in_cycle_) {
       heap_->concurrent_marking()->RescheduleJobIfNeeded(
           GarbageCollector::MARK_COMPACTOR);
@@ -433,7 +441,7 @@ void MarkCompactCollector::CollectGarbage() {
   // update the state as they proceed.
   DCHECK(state_ == PREPARE_GC);
 
-  MaybeEnableBackgroundThreadsInCycle();
+  MaybeEnableBackgroundThreadsInCycle(CallOrigin::kAtomicGC);
 
   MarkLiveObjects();
   // This will walk dead object graphs and so requires that all references are

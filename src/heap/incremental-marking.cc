@@ -860,7 +860,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
     // escape and get marked though.
     local_marking_worklists()->MergeOnHold();
 
-    heap()->mark_compact_collector()->MaybeEnableBackgroundThreadsInCycle();
+    heap()->mark_compact_collector()->MaybeEnableBackgroundThreadsInCycle(
+        MarkCompactCollector::CallOrigin::kIncrementalMarkingStep);
   }
   if (step_origin == StepOrigin::kTask) {
     // We cannot publish the pending allocations for V8 step origin because the
