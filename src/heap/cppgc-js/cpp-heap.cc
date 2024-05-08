@@ -856,6 +856,10 @@ void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
   DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
 
   const auto descriptor = wrapper_descriptor();
+  if (descriptor.embedder_id_for_garbage_collected ==
+      WrapperDescriptor::kUnknownEmbedderId) {
+    return;
+  }
   const auto min_field_count =
       1 + std::max(descriptor.wrappable_type_index,
                    descriptor.wrappable_instance_index);
