@@ -591,8 +591,8 @@ def build_config_content(cpu, icu):
 
 # TODO(victorgomes): Create a rule (instead of a macro), that can
 # dynamically populate the build config.
-def v8_build_config(name):
-    cpu = _quote("x64")
+def v8_build_config(name, arch):
+    cpu = '"' + arch + '"'
     native.genrule(
         name = "noicu/" + name,
         outs = ["noicu/" + name + ".json"],

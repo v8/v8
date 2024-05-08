@@ -4381,6 +4381,11 @@ alias(
 
 v8_build_config(
     name = "v8_build_config",
+    arch = select({
+        "//third_party/v8/v12_4/google3/config:v8_target_arm64": "arm64",
+        "//third_party/v8/v12_4/google3/config:v8_target_x64": "x64",
+        "//conditions:default": "x64",
+    }),
 )
 
 # Runs mjsunit with d8.
@@ -4398,6 +4403,15 @@ py_test(
         "--variant=google3_noicu",
         "--outdir noicu",
         "--verbose",
+    ] + select({
+        "//third_party/v8/v12_4/google3/config:v8_target_arm64": [
+            "--arch=arm64",
+        ],
+        "//third_party/v8/v12_4/google3/config:v8_target_x64": [
+            "--arch=x64",
+        ],
+        "//conditions:default": [],
+    }) + [
         "mjsunit",
     ],
     data = [
@@ -4428,6 +4442,15 @@ py_test(
         "--variant=google3_icu",
         "--outdir icu",
         "--verbose",
+    ] + select({
+        "//third_party/v8/v12_4/google3/config:v8_target_arm64": [
+            "--arch=arm64",
+        ],
+        "//third_party/v8/v12_4/google3/config:v8_target_x64": [
+            "--arch=x64",
+        ],
+        "//conditions:default": [],
+    }) + [
         "mjsunit",
     ],
     data = [
