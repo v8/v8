@@ -529,16 +529,14 @@ CapturedObject CapturedObject::CreateArgumentsObject(
   DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_EQ(slot_count, callee.has_value() ? 5 : 4);
   CapturedObject arguments(zone, slot_count, argument_type);
   arguments.set(JSArray::kMapOffset, map);
   arguments.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
   arguments.set(JSArray::kElementsOffset, elements);
   arguments.set(JSArray::kLengthOffset, length);
   if (callee.has_value()) {
-    SBXCHECK_EQ(slot_count, 5);
     arguments.set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
-  } else {
-    SBXCHECK_EQ(slot_count, 4);
   }
   DCHECK(arguments.IsArgumentsObject());
   return arguments;
