@@ -330,6 +330,11 @@ size_t PagedSpaceBase::Available() const {
   return free_list_->Available();
 }
 
+size_t PagedSpaceBase::Waste() const {
+  ConcurrentAllocationMutex guard(this);
+  return free_list_->wasted_bytes();
+}
+
 void PagedSpaceBase::ReleasePage(PageMetadata* page) {
   ReleasePageImpl(page, MemoryAllocator::FreeMode::kImmediately);
 }

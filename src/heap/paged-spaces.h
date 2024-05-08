@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
-  virtual size_t Waste() const { return free_list_->wasted_bytes(); }
+  size_t Waste() const;
 
   // Allocate the requested number of bytes in the space from a background
   // thread.

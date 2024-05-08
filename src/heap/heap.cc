@@ -2720,7 +2720,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
   double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
 
-  size_t old_gen_size = OldGenerationSizeOfObjects();
+  size_t old_gen_size = OldGenerationConsumedBytes();
+  size_t global_size = GlobalConsumedBytes();
   size_t new_space_capacity = NewSpaceTargetCapacity();
   HeapGrowingMode mode = CurrentHeapGrowingMode();
 
@@ -2735,9 +2736,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     DCHECK_GT(global_growing_factor, 0);
     size_t new_global_allocation_limit =
         MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-            this, GlobalSizeOfObjects(), min_global_memory_size_,
-            max_global_memory_size_, new_space_capacity, global_growing_factor,
-            mode);
+            this, global_size, min_global_memory_size_, max_global_memory_size_,
+            new_space_capacity, global_growing_factor, mode);
 
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
@@ -2764,9 +2764,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     DCHECK_GT(global_growing_factor, 0);
     size_t new_global_allocation_limit =
         MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-            this, GlobalSizeOfObjects(), min_global_memory_size_,
-            max_global_memory_size_, new_space_capacity, global_growing_factor,
-            mode);
+            this, global_size, min_global_memory_size_, max_global_memory_size_,
+            new_space_capacity, global_growing_factor, mode);
     new_global_allocation_limit =
         std::min(new_global_allocation_limit, global_allocation_limit());
     SetOldGenerationAndGlobalAllocationLimit(
@@ -2832,7 +2831,8 @@ void Heap::MarkCompact() {
   old_generation_allocation_counter_at_last_gc_ +=
       static_cast<size_t>(promoted_objects_size_);
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
-  global_memory_at_last_gc_ = GlobalSizeOfObjects();
+  old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
+  global_consumed_memory_at_last_gc_ = GlobalConsumedBytes();
 }
 
 void Heap::MinorMarkSweep() {
@@ -3347,14 +3347,14 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
     size_t new_old_generation_allocation_limit =
-        std::max(OldGenerationSizeOfObjects() + minimum_growing_step,
+        std::max(OldGenerationConsumedBytes() + minimum_growing_step,
                  static_cast<size_t>(
                      static_cast<double>(old_generation_allocation_limit()) *
                      (tracer()->AverageSurvivalRatio() / 100)));
     new_old_generation_allocation_limit = std::min(
         new_old_generation_allocation_limit, old_generation_allocation_limit());
     size_t new_global_allocation_limit = std::max(
-        GlobalSizeOfObjects() + minimum_growing_step,
+        GlobalConsumedBytes() + minimum_growing_step,
         static_cast<size_t>(static_cast<double>(global_allocation_limit()) *
                             (tracer()->AverageSurvivalRatio() / 100)));
     new_global_allocation_limit =
@@ -5415,6 +5415,20 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   return total;
 }
 
+size_t Heap::OldGenerationWastedBytes() const {
+  PagedSpaceIterator spaces(this);
+  size_t total = 0;
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    total += space->Waste();
+  }
+  return total;
+}
+
+size_t Heap::OldGenerationConsumedBytes() const {
+  return OldGenerationSizeOfObjects() + OldGenerationWastedBytes();
+}
+
 size_t Heap::YoungGenerationSizeOfObjects() const {
   if (v8_flags.sticky_mark_bits) {
     DCHECK_NOT_NULL(new_lo_space());
@@ -5422,8 +5436,19 @@ size_t Heap::YoungGenerationSizeOfObjects() const {
            new_lo_space()->SizeOfObjects();
   }
   if (!new_space()) return 0;
+  DCHECK(v8_flags.minor_ms);
   DCHECK_NOT_NULL(new_lo_space());
   return new_space()->SizeOfObjects() + new_lo_space()->SizeOfObjects();
+}
+
+size_t Heap::YoungGenerationWastedBytes() const {
+  if (!new_space()) return 0;
+  DCHECK(v8_flags.minor_ms);
+  return paged_new_space()->paged_space()->Waste();
+}
+
+size_t Heap::YoungGenerationConsumedBytes() const {
+  return YoungGenerationSizeOfObjects() + YoungGenerationWastedBytes();
 }
 
 size_t Heap::EmbedderSizeOfObjects() const {
@@ -5432,6 +5457,12 @@ size_t Heap::EmbedderSizeOfObjects() const {
 
 size_t Heap::GlobalSizeOfObjects() const {
   return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects();
+}
+
+size_t Heap::GlobalWastedBytes() const { return OldGenerationWastedBytes(); }
+
+size_t Heap::GlobalConsumedBytes() const {
+  return GlobalSizeOfObjects() + GlobalWastedBytes();
 }
 
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
@@ -5444,16 +5475,16 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
 
   uint64_t size_now =
-      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+      OldGenerationConsumedBytes() + AllocatedExternalMemorySinceMarkCompact();
   if (v8_flags.minor_ms && incremental_marking()->IsMajorMarking()) {
-    size_now += YoungGenerationSizeOfObjects();
+    size_now += YoungGenerationConsumedBytes();
   }
 
   const size_t v8_overshoot = old_generation_allocation_limit() < size_now
                                   ? size_now - old_generation_allocation_limit()
                                   : 0;
   const size_t global_limit = global_allocation_limit();
-  const size_t global_size = GlobalSizeOfObjects();
+  const size_t global_size = GlobalConsumedBytes();
   const size_t global_overshoot =
       global_limit < global_size ? global_size - global_limit : 0;
 
@@ -5585,8 +5616,8 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
   return Heap::HeapGrowingMode::kDefault;
 }
 
-base::Optional<size_t> Heap::GlobalMemoryAvailable() {
-  size_t global_size = GlobalSizeOfObjects();
+size_t Heap::GlobalMemoryAvailable() {
+  size_t global_size = GlobalConsumedBytes();
   size_t global_limit = global_allocation_limit();
 
   if (global_size < global_limit) {
@@ -5614,14 +5645,14 @@ double PercentToLimit(size_t size_at_gc, size_t size_now, size_t limit) {
 }  // namespace
 
 double Heap::PercentToOldGenerationLimit() const {
-  return PercentToLimit(old_generation_size_at_last_gc_,
-                        OldGenerationSizeOfObjects(),
-                        old_generation_allocation_limit());
+  return PercentToLimit(
+      old_generation_size_at_last_gc_ + old_generation_wasted_at_last_gc_,
+      OldGenerationConsumedBytes(), old_generation_allocation_limit());
 }
 
 double Heap::PercentToGlobalMemoryLimit() const {
-  return PercentToLimit(global_memory_at_last_gc_, GlobalSizeOfObjects(),
-                        global_allocation_limit());
+  return PercentToLimit(global_consumed_memory_at_last_gc_,
+                        GlobalConsumedBytes(), global_allocation_limit());
 }
 
 // - kNoLimit means that either incremental marking is disabled or it is too
@@ -5693,12 +5724,10 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   }
 
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const base::Optional<size_t> global_memory_available =
-      GlobalMemoryAvailable();
+  size_t global_memory_available = GlobalMemoryAvailable();
 
   if (old_generation_space_available > NewSpaceTargetCapacity() &&
-      (!global_memory_available ||
-       global_memory_available > NewSpaceTargetCapacity())) {
+      (global_memory_available > NewSpaceTargetCapacity())) {
     if (cpp_heap() && gc_count_ == 0 &&
         !old_generation_allocation_limit_configured()) {
       // At this point the embedder memory is above the activation
@@ -5719,7 +5748,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
-  if (global_memory_available && *global_memory_available == 0) {
+  if (global_memory_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;

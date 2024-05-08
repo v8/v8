@@ -138,20 +138,27 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const size_t old_generation_size_mb =
         heap()->OldGenerationSizeOfObjects() / MB;
+    const size_t old_generation_waste_mb =
+        heap()->OldGenerationWastedBytes() / MB;
     const size_t old_generation_limit_mb =
         heap()->old_generation_allocation_limit() / MB;
     const size_t global_size_mb = heap()->GlobalSizeOfObjects() / MB;
+    const size_t global_waste_mb = heap()->GlobalWastedBytes() / MB;
     const size_t global_limit_mb = heap()->global_allocation_limit() / MB;
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Start (%s): (size/limit/slack) v8: %zuMB / %zuMB "
-        "/ %zuMB global: %zuMB / %zuMB / %zuMB\n",
-        ToString(gc_reason), old_generation_size_mb, old_generation_limit_mb,
-        old_generation_size_mb > old_generation_limit_mb
+        "[IncrementalMarking] Start (%s): (size/waste/limit/slack) v8: %zuMB / "
+        "%zuMB / %zuMB "
+        "/ %zuMB global: %zuMB / %zuMB / %zuMB / %zuMB\n",
+        ToString(gc_reason), old_generation_size_mb, old_generation_waste_mb,
+        old_generation_limit_mb,
+        old_generation_size_mb + old_generation_waste_mb >
+                old_generation_limit_mb
             ? 0
             : old_generation_limit_mb - old_generation_size_mb,
-        global_size_mb, global_limit_mb,
-        global_size_mb > global_limit_mb ? 0
-                                         : global_limit_mb - global_size_mb);
+        global_size_mb, global_waste_mb, global_limit_mb,
+        global_size_mb + global_waste_mb > global_limit_mb
+            ? 0
+            : global_limit_mb - global_size_mb);
   }
 
   Counters* counters = isolate()->counters();
@@ -562,13 +569,18 @@ bool IncrementalMarking::Stop() {
   if (v8_flags.trace_incremental_marking) {
     int old_generation_size_mb =
         static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
+    int old_generation_waste_mb =
+        static_cast<int>(heap()->OldGenerationWastedBytes() / MB);
     int old_generation_limit_mb =
         static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Stopping: old generation %dMB, limit %dMB, "
+        "[IncrementalMarking] Stopping: old generation size %dMB, waste %dMB, "
+        "limit %dMB, "
         "overshoot %dMB\n",
-        old_generation_size_mb, old_generation_limit_mb,
-        std::max(0, old_generation_size_mb - old_generation_limit_mb));
+        old_generation_size_mb, old_generation_waste_mb,
+        old_generation_limit_mb,
+        std::max(0, old_generation_size_mb + old_generation_waste_mb -
+                        old_generation_limit_mb));
   }
 
   if (IsMajorMarking()) {
