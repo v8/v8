@@ -1381,8 +1381,10 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   bstrpick_d(dst, src, 31, 0);
 }
 
-void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
-  bstrpick_d(dst, dst, 31, 0);
+void LiftoffAssembler::clear_i32_upper_half(Register dst) {
+  // Don't need to clear the upper halves of i32 values for sandbox on
+  // LoongArch64, because we'll explicitly zero-extend their lower halves before
+  // using them for memory accesses anyway.
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {

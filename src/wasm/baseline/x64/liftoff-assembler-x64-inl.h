@@ -1562,9 +1562,7 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   if (dst != src) movl(dst, src);
 }
 
-void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
-  movl(dst, dst);
-}
+void LiftoffAssembler::clear_i32_upper_half(Register dst) { movl(dst, dst); }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {

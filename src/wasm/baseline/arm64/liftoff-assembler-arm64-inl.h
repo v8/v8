@@ -1790,9 +1790,7 @@ void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   Uxtw(dst, src);
 }
 
-void LiftoffAssembler::emit_u32_to_uintptr_unconditional(Register dst) {
-  Uxtw(dst, dst);
-}
+void LiftoffAssembler::clear_i32_upper_half(Register dst) { Uxtw(dst, dst); }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
