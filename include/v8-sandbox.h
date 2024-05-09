@@ -47,10 +47,9 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   }
   const uint32_t index = handle >> kExternalPointerIndexShift;
   const Address* table = GetCppHeapPointerTableBase(isolate);
-  // CppHeapPointer entries are always written from the same thread and can thus
-  // use non-atomic loads on the API. The GC uses separate paths to load
-  // atomically.
-  const Address entry = table[index];
+  const std::atomic<Address>* ptr =
+      reinterpret_cast<const std::atomic<Address>*>(&table[index]);
+  Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
   return reinterpret_cast<T*>(entry & ~static_cast<uint64_t>(tag));
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(
