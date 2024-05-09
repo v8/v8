@@ -510,7 +510,14 @@ void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
-  _exit(-1);
+  // In sandbox fuzzing mode, we want to exit with a non-zero status to
+  // indicate to the fuzzer that the sample "failed" (ran into an unrecoverable
+  // error) and should probably not be mutated further. Otherwise, we exit with
+  // zero, which is for example needed for regression tests to make them "pass"
+  // when no sandbox violation is detected.
+  int status =
+      SandboxTesting::mode() == SandboxTesting::Mode::kForFuzzing ? -1 : 0;
+  _exit(status);
 }
 
 // Signal handler checking whether a memory access violation happened inside or
