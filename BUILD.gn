@@ -7195,7 +7195,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
     } else if (is_apple && !use_lld) {
       ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
-    } else if (use_gold || use_lld) {
+    } else if (use_lld) {
       ldflags = [ "-Wl,--icf=none" ]
     }
   }
