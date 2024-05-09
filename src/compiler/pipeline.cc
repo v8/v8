@@ -3414,7 +3414,15 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 #endif
       if (v8_flags.experimental_wasm_revectorize && cpu_feature_support &&
           detected->has_simd() && !env->enabled_features.has_memory64()) {
+        if (v8_flags.trace_wasm_revectorize) {
+          std::cout << "Begin revec function "
+                    << data.info()->GetDebugName().get() << std::endl;
+        }
         pipeline.Run<turboshaft::WasmRevecPhase>();
+        if (v8_flags.trace_wasm_revectorize) {
+          std::cout << "Finished revec function "
+                    << data.info()->GetDebugName().get() << std::endl;
+        }
       }
     }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
