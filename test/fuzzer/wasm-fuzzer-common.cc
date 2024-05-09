@@ -269,8 +269,10 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
 
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       // Enable non-staged experimental features that we also want to fuzz.
-      // <currently none>
+      v8_flags.wasm_memory64_trap_handling = true;
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       // Note: If you add something here, you will also have to add the
       // respective flag(s) to the mjsunit/wasm/generate-random-module test.
 
