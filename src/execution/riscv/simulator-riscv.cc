@@ -2418,6 +2418,9 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
 
   last_debugger_input_ = nullptr;
 #ifdef CAN_USE_RVV_INSTRUCTIONS
+  for (int i = 0; i < kNumVRegisters; ++i) {
+    Vregister_[i] = 0;
+  }
   vxrm_ = 0;
   vstart_ = 0;
   vxsat_ = 0;
