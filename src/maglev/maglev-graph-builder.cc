@@ -10648,19 +10648,19 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
     false_target = &jump_targets_[jump_offset];
   }
 
-  if (root_index != RootIndex::kTrueValue &&
-      root_index != RootIndex::kFalseValue &&
-      CheckType(node, NodeType::kBoolean)) {
-    MarkBranchDeadAndJumpIfNeeded(jump_type == kJumpIfFalse);
-    return;
-  }
-
   while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
     // Bypassing logical not(s) on the input and swapping true/false
     // destinations.
     node = logical_not->value().node();
     std::swap(true_target, false_target);
     jump_type = NegateJumpType(jump_type);
+  }
+
+  if (root_index != RootIndex::kTrueValue &&
+      root_index != RootIndex::kFalseValue &&
+      CheckType(node, NodeType::kBoolean)) {
+    MarkBranchDeadAndJumpIfNeeded(jump_type == kJumpIfFalse);
+    return;
   }
 
   if (RootConstant* c = node->TryCast<RootConstant>()) {
