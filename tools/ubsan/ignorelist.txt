@@ -20,6 +20,3 @@ fun:*v8*internal*UnsafeDirectApiCall*
 fun:*v8*internal*UnsafeDirectGetterCall*
 fun:*v8*internal*UnsafeGenericFunctionCall*
 fun:*v8*internal*UnsafeProfilingApiCall*
-
-# https://unicode-org.atlassian.net/browse/ICU-22752
-src:*/third_party/icu/source/common/ucmndata.cpp
