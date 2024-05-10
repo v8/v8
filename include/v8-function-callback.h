@@ -38,7 +38,7 @@ class ReturnValue {
   V8_INLINE ReturnValue(const ReturnValue<S>& that) : value_(that.value_) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
-  // Local setters
+  // Handle-based setters.
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
@@ -51,12 +51,15 @@ class ReturnValue {
   V8_INLINE void Set(const Local<S> handle);
   template <typename S>
   V8_INLINE void SetNonEmpty(const Local<S> handle);
-  // Fast primitive setters
+  // Fast primitive number setters.
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
+  V8_INLINE void Set(int16_t i);
   V8_INLINE void Set(int32_t i);
+  V8_INLINE void Set(int64_t i);
+  V8_INLINE void Set(uint16_t i);
   V8_INLINE void Set(uint32_t i);
-  V8_INLINE void Set(uint16_t);
+  V8_INLINE void Set(uint64_t i);
   // Fast JS primitive setters
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
@@ -398,6 +401,15 @@ void ReturnValue<T>::Set(double i) {
 }
 
 template <typename T>
+void ReturnValue<T>::Set(int16_t i) {
+  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  using I = internal::Internals;
+  static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::min()));
+  static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::max()));
+  SetInternal(I::IntToSmi(i));
+}
+
+template <typename T>
 void ReturnValue<T>::Set(int32_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
   using I = internal::Internals;
@@ -409,15 +421,14 @@ void ReturnValue<T>::Set(int32_t i) {
 }
 
 template <typename T>
-void ReturnValue<T>::Set(uint32_t i) {
+void ReturnValue<T>::Set(int64_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
-  // Can't simply use INT32_MAX here for whatever reason.
-  bool fits_into_int32_t = (i & (1U << 31)) == 0;
-  if (V8_LIKELY(fits_into_int32_t)) {
-    Set(static_cast<int32_t>(i));
+  using I = internal::Internals;
+  if (V8_LIKELY(I::IsValidSmi(i))) {
+    SetInternal(I::IntToSmi(i));
     return;
   }
-  SetNonEmpty(Integer::NewFromUnsigned(GetIsolate(), i));
+  SetNonEmpty(Number::New(GetIsolate(), static_cast<double>(i)));
 }
 
 template <typename T>
@@ -427,6 +438,28 @@ void ReturnValue<T>::Set(uint16_t i) {
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::max()));
   SetInternal(I::IntToSmi(i));
+}
+
+template <typename T>
+void ReturnValue<T>::Set(uint32_t i) {
+  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(internal::kSmiMaxValue <= std::numeric_limits<uint32_t>::max());
+  if (V8_LIKELY(i <= static_cast<uint32_t>(internal::kSmiMaxValue))) {
+    SetInternal(internal::IntToSmi(i));
+    return;
+  }
+  SetNonEmpty(Integer::NewFromUnsigned(GetIsolate(), i));
+}
+
+template <typename T>
+void ReturnValue<T>::Set(uint64_t i) {
+  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(internal::kSmiMaxValue <= std::numeric_limits<uint64_t>::max());
+  if (V8_LIKELY(i <= static_cast<uint64_t>(internal::kSmiMaxValue))) {
+    SetInternal(internal::IntToSmi(i));
+    return;
+  }
+  SetNonEmpty(Number::New(GetIsolate(), static_cast<double>(i)));
 }
 
 template <typename T>
