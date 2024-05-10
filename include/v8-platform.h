@@ -395,7 +395,7 @@ class TracingController {
 
   /**
    * Adds a trace event to the platform tracing system. These function calls are
-   * usually the result of a TRACE_* macro from trace_event_common.h when
+   * usually the result of a TRACE_* macro from trace-event-no-perfetto.h when
    * tracing and the category of the particular trace are enabled. It is not
    * advisable to call these functions on their own; they are really only meant
    * to be used by the trace macros. The returned handle can be used by
