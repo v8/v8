@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax --stress-concurrent-inlining-attach-code
 // Flags: --stress-concurrent-inlining --no-maglev-overwrite-budget
+// Flags: --no-assert-types
 
 function foo(__v_56, v) {
   var bla = {
