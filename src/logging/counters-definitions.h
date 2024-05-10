@@ -62,6 +62,10 @@ namespace internal {
   /* Number of code GCs triggered per native module, collected on code GC. */  \
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
+  /* The amount of Liftoff code flushed on emergency GCs for allocations and   \
+   * on memory pressure. */                                                    \
+  HR(wasm_flushed_liftoff_code_size_bytes, V8.WasmFlushedLiftoffCodeSizeBytes, \
+     0, GB, 101)                                                               \
   /* Number of code spaces reserved per wasm module. */                        \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
   /* Number of live modules per isolate. */                                    \
