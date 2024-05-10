@@ -1742,12 +1742,16 @@ class LazyDeoptInfo : public DeoptInfo {
         return false;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         // Normally if the function is going to be deoptimized then the top
-        // frame should be an interpreted one. The only exception is the case
-        // when the lazy deopt point was added only for the sake of recoring
-        // an inlined Api function instance in the deopt info for exception
-        // stack trace reconstruction.
-        return top_frame().as_builtin_continuation().builtin_id() ==
-               Builtin::kGenericLazyDeoptContinuation;
+        // frame should be an interpreted one, except for LazyDeoptContinuation
+        // builtin.
+        switch (top_frame().as_builtin_continuation().builtin_id()) {
+          case Builtin::kGenericLazyDeoptContinuation:
+          case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
+          case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
+            return true;
+          default:
+            return false;
+        }
     }
   }
 #endif  // DEBUG
