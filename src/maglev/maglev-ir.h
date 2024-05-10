@@ -8978,6 +8978,13 @@ class TransitionElementsKindOrCheckMap
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
+  const ZoneVector<compiler::MapRef>& transition_sources() const {
+    return transition_sources_;
+  }
+  const compiler::MapRef transition_target() const {
+    return transition_target_;
+  }
+
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 

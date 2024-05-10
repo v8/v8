@@ -956,6 +956,25 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::TransitionElementsKindOrCheckMap* node,
+                                const maglev::ProcessingState& state) {
+    bool check_heap_object;
+    switch (node->check_type()) {
+      case maglev::CheckType::kCheckHeapObject:
+        check_heap_object = true;
+        break;
+      case maglev::CheckType::kOmitHeapObjectCheck:
+        check_heap_object = false;
+        break;
+    }
+    __ TransitionElementsKindOrCheckMap(
+        Map(node->object_input()), BuildFrameState(node->eager_deopt_info()),
+        check_heap_object, node->transition_sources(),
+        node->transition_target(),
+        node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::UpdateJSArrayLength* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ UpdateJSArrayLength(Map(node->length_input()),

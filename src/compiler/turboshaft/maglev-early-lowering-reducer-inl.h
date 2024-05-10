@@ -111,9 +111,9 @@ class MaglevEarlyLoweringReducer : public Next {
       V<Boolean> is_same_string_bool =
           __ StringEqual(V<String>::Cast(object),
                          __ template HeapConstant<String>(value.object()));
-      __ DeoptimizeIf(
-          __ RootEqual(is_same_string_bool, RootIndex::kFalseValue, isolate_),
-          frame_state, DeoptimizeReason::kWrongValue, feedback);
+      __ DeoptimizeIf(__ RootEqual(is_same_string_bool, RootIndex::kFalseValue,
+                                   local_isolate_),
+                      frame_state, DeoptimizeReason::kWrongValue, feedback);
     }
   }
 
@@ -124,9 +124,9 @@ class MaglevEarlyLoweringReducer : public Next {
     // section 13.2.2-7 on page 74.
     Label<Object> done(this);
 
-    GOTO_IF(
-        __ RootEqual(construct_result, RootIndex::kUndefinedValue, isolate_),
-        done, implicit_receiver);
+    GOTO_IF(__ RootEqual(construct_result, RootIndex::kUndefinedValue,
+                         local_isolate_),
+            done, implicit_receiver);
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
     GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);
@@ -191,6 +191,52 @@ class MaglevEarlyLoweringReducer : public Next {
     return length_tagged;
   }
 
+  void TransitionElementsKindOrCheckMap(
+      V<Object> object, V<FrameState> frame_state, bool check_heap_object,
+      const ZoneVector<compiler::MapRef>& transition_sources,
+      const MapRef transition_target, const FeedbackSource& feedback) {
+    if (check_heap_object) {
+      __ DeoptimizeIf(__ ObjectIsSmi(object), frame_state,
+                      DeoptimizeReason::kWrongMap, feedback);
+    }
+
+    Label<> end(this);
+
+    // Turboshaft's TransitionElementsKind operation loads the map everytime, so
+    // we don't call it to have a single map load (in practice,
+    // LateLoadElimination should probably eliminate the subsequent map loads,
+    // but let's not risk it).
+    V<Map> map = __ LoadMapField(object);
+    V<Map> target_map = __ HeapConstant(transition_target.object());
+
+    // TODO(dmercadier): Turboshaft's TransitionElementsKind reload the map
+    // everytime, which is a bit wasteful. Maglev only loads it a single time,
+    // and then manually does the transition. For simplicity, we're nevertheless
+    // calling TransitionElementsKind here and relying on Load Elimination to
+    // get rid of the reloads, but we should check that this works as expected.
+    for (const compiler::MapRef transition_source : transition_sources) {
+      bool is_simple = IsSimpleMapChangeTransition(
+          transition_source.elements_kind(), transition_target.elements_kind());
+
+      IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
+        if (is_simple) {
+          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+        } else {
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), V<HeapObject>::Cast(object),
+              target_map);
+        }
+        GOTO(end);
+      }
+    }
+
+    __ DeoptimizeIfNot(__ TaggedEqual(map, target_map), frame_state,
+                       DeoptimizeReason::kWrongMap, feedback);
+
+    GOTO(end);
+    BIND(end);
+  }
+
  private:
   V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);
@@ -222,9 +268,10 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
-  LocalIsolate* isolate_ = __ data() -> isolate()->AsLocalIsolate();
+  Isolate* isolate_ = __ data() -> isolate();
+  LocalIsolate* local_isolate_ = isolate_->AsLocalIsolate();
   JSHeapBroker* broker_ = __ data() -> broker();
-  LocalFactory* factory_ = isolate_->factory();
+  LocalFactory* factory_ = local_isolate_->factory();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
