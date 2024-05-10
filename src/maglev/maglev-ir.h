@@ -884,6 +884,9 @@ class CapturedObject {
   static CapturedObject CreateJSObject(Zone* zone, compiler::MapRef map);
   static CapturedObject CreateJSArray(Zone* zone, compiler::MapRef map,
                                       int instance_size, ValueNode* length);
+  static CapturedObject CreateJSArrayIterator(Zone* zone, compiler::MapRef map,
+                                              ValueNode* iterated_object,
+                                              IterationKind kind);
   static CapturedObject CreateJSConstructor(
       Zone* zone, compiler::JSHeapBroker* broker,
       compiler::JSFunctionRef constructor);

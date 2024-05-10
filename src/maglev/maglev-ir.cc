@@ -453,6 +453,24 @@ CapturedObject CapturedObject::CreateJSObject(Zone* zone,
 }
 
 // static
+CapturedObject CapturedObject::CreateJSArrayIterator(Zone* zone,
+                                                     compiler::MapRef map,
+                                                     ValueNode* iterated_object,
+                                                     IterationKind kind) {
+  int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_EQ(slot_count, 6);
+  CapturedObject object(zone, slot_count);
+  object.set(JSArrayIterator::kMapOffset, map);
+  object.set(JSArrayIterator::kPropertiesOrHashOffset,
+             RootIndex::kEmptyFixedArray);
+  object.set(JSArrayIterator::kElementsOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
+  object.set(JSArrayIterator::kNextIndexOffset, 0);
+  object.set(JSArrayIterator::kKindOffset, static_cast<int>(kind));
+  return object;
+}
+
+// static
 CapturedObject CapturedObject::CreateJSConstructor(
     Zone* zone, compiler::JSHeapBroker* broker,
     compiler::JSFunctionRef constructor) {
