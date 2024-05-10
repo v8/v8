@@ -676,7 +676,7 @@ V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
 
-V8_INLINE bool IsJSApiWrapperObject(Tagged<JSObject> obj);
+V8_INLINE bool IsJSApiWrapperObject(Tagged<HeapObject> obj);
 V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map);
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \

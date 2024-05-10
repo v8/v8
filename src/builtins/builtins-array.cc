@@ -1074,6 +1074,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
+    // Casting to JSObject is safe because we ran {HasOnlySimpleElements} on
+    // the receiver before, which checks the prototype chain.
     CollectElementIndices(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), range, indices);
   }
