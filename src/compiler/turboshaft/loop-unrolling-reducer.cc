@@ -343,6 +343,19 @@ bool Cmp(Int val, Int max, CmpOp cmp_op) {
   }
 }
 
+template <class Int>
+bool SubWillOverflow(Int lhs, Int rhs) {
+  if constexpr (std::is_same_v<Int, int32_t> || std::is_same_v<Int, uint32_t>) {
+    int32_t unused;
+    return base::bits::SignedSubOverflow32(lhs, rhs, &unused);
+  } else {
+    static_assert(std::is_same_v<Int, int64_t> ||
+                  std::is_same_v<Int, uint64_t>);
+    int64_t unused;
+    return base::bits::SignedSubOverflow64(lhs, rhs, &unused);
+  }
+}
+
 }  // namespace
 
 // Returns true if the loop `for (i = init, i cmp_op max; i = i binop_cst
@@ -393,7 +406,7 @@ IterationCount StaticCanonicalForLoopMatcher::CountIterationsImpl(
     if (cmp_op ==
             any_of(CmpOp::kUnsignedLessThan, CmpOp::kUnsignedLessThanOrEqual,
                    CmpOp::kSignedLessThan, CmpOp::kSignedLessThanOrEqual) &&
-        init < max && loop_if_cond_is) {
+        init < max && !SubWillOverflow(max, init) && loop_if_cond_is) {
       // eg, for (int i = 0; i < 42; i += 2)
       if (binop_cst < 0) {
         // Will either loop forever or rely on underflow wrap-around to
@@ -408,7 +421,7 @@ IterationCount StaticCanonicalForLoopMatcher::CountIterationsImpl(
                          CmpOp::kUnsignedGreaterThanOrEqual,
                          CmpOp::kSignedGreaterThan,
                          CmpOp::kSignedGreaterThanOrEqual) &&
-        init > max && loop_if_cond_is) {
+        init > max && !SubWillOverflow(max, init) && loop_if_cond_is) {
       // eg, for (int i = 42; i > 0; i += -2)
       if (binop_cst > 0) {
         // Will either loop forever or rely on overflow wrap-around to
@@ -419,7 +432,8 @@ IterationCount StaticCanonicalForLoopMatcher::CountIterationsImpl(
       DCHECK_GE(quotient, 0);
       return IterationCount::Approx(quotient);
     }
-    if (cmp_op == CmpOp::kEqual && !loop_if_cond_is) {
+    if (cmp_op == CmpOp::kEqual && !SubWillOverflow(max, init) &&
+        !loop_if_cond_is) {
       // eg, for (int i = 0;  i != 42; i += 2)
       // or, for (int i = 42; i != 0;  i += -2)
       if (init < max && binop_cst < 0) {
