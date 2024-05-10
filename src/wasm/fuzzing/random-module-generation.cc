@@ -3265,6 +3265,7 @@ class BodyGen {
   std::vector<ValueType> GenerateTypes(DataRange* data) {
     std::vector<ValueType> types;
     int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
+    types.reserve(num_params);
     for (int i = 0; i < num_params; ++i) {
       types.push_back(GetValueType<options>(
           data, static_cast<uint32_t>(functions_.size() + structs_.size() +
