@@ -917,7 +917,7 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
   DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
   resize_new_space_ = heap_->ShouldResizeNewSpace();
   if (resize_new_space_ == Heap::ResizeNewSpaceMode::kShrink) {
-    static_cast<PagedSpaceForNewSpace*>(paged_space)->StartShrinking();
+    paged_space->StartShrinking();
   }
 
   for (auto it = paged_space->begin(); it != paged_space->end();) {
