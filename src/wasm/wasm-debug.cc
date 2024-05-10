@@ -724,8 +724,7 @@ class DebugInfoImpl {
   bool IsAtReturn(WasmFrame* frame) {
     DisallowGarbageCollection no_gc;
     int position = frame->position();
-    NativeModule* native_module =
-        frame->wasm_instance()->module_object()->native_module();
+    NativeModule* native_module = frame->native_module();
     uint8_t opcode = native_module->wire_bytes()[position];
     if (opcode == kExprReturn) return true;
     // Another implicit return is at the last kExprEnd in the function body.

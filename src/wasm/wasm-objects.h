@@ -370,6 +370,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(memory0_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
+  DECL_PRIMITIVE_ACCESSORS(native_module, wasm::NativeModule*)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
@@ -417,6 +418,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
+  V(kNativeModuleOffset, kSystemPointerSize)                              \
   V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
@@ -509,8 +511,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
                 "every tagged field offset needs a name");
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
-
-  const wasm::WasmModule* module();
 
   static void EnsureMinimumDispatchTableSize(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,

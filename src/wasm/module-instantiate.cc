@@ -423,8 +423,7 @@ WellKnownImport CheckForWellKnownImport(
       IsSupportedWasmFastApiFunction(isolate, sig, sfi,
                                      ReceiverKind::kFirstParamIsReceiver)) {
     Tagged<FunctionTemplateInfo> func_data = sfi->api_func_data();
-    NativeModule* native_module =
-        trusted_instance_data->module_object()->native_module();
+    NativeModule* native_module = trusted_instance_data->native_module();
     if (!native_module->TrySetFastApiCallTarget(func_index,
                                                 func_data->GetCFunction(0))) {
       return kGeneric;
@@ -1932,8 +1931,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
     }
     case ImportCallKind::kWasmToCapi: {
-      NativeModule* native_module =
-          trusted_instance_data->module_object()->native_module();
+      NativeModule* native_module = trusted_instance_data->native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
       // TODO(jkummerow): Consider precompiling CapiCallWrappers in parallel,
@@ -1965,8 +1963,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
     }
     case ImportCallKind::kWasmToJSFastApi: {
-      NativeModule* native_module =
-          trusted_instance_data->module_object()->native_module();
+      NativeModule* native_module = trusted_instance_data->native_module();
       DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
@@ -1994,8 +1991,7 @@ bool InstanceBuilder::ProcessImportedFunction(
             shared->internal_formal_parameter_count_without_receiver();
       }
 
-      NativeModule* native_module =
-          trusted_instance_data->module_object()->native_module();
+      NativeModule* native_module = trusted_instance_data->native_module();
       uint32_t canonical_type_index =
           module_->isorecursive_canonical_type_ids
               [module_->functions[func_index].sig_index];
@@ -2330,8 +2326,7 @@ void InstanceBuilder::CompileImportWrappers(
   int num_imports = static_cast<int>(module_->import_table.size());
   TRACE_EVENT1("v8.wasm", "wasm.CompileImportWrappers", "num_imports",
                num_imports);
-  NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   WasmImportWrapperCache::ModificationScope cache_scope(
       native_module->import_wrapper_cache());
   const WellKnownImportsList& preknown_imports =
@@ -3014,7 +3009,7 @@ base::Optional<MessageTemplate> InitializeElementSegment(
       shared ? shared_trusted_instance_data : trusted_instance_data;
   if (!IsUndefined(data->element_segments()->get(segment_index))) return {};
 
-  const NativeModule* native_module = data->module_object()->native_module();
+  const NativeModule* native_module = data->native_module();
   const WasmModule* module = native_module->module();
   const WasmElemSegment& elem_segment = module->elem_segments[segment_index];
 
@@ -3073,7 +3068,7 @@ void InstanceBuilder::LoadTableSegments(
     }
 
     base::Vector<const uint8_t> module_bytes =
-        trusted_instance_data->module_object()->native_module()->wire_bytes();
+        trusted_instance_data->native_module()->wire_bytes();
     Decoder decoder(module_bytes);
     decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
 

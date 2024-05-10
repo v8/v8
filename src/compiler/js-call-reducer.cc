@@ -3811,11 +3811,12 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 
   wasm::NativeModule* native_module = nullptr;
   if (shared.object()->HasWasmExportedFunctionData()) {
-    native_module = shared.object()
-                        ->wasm_exported_function_data()
-                        ->instance()
-                        ->module_object()
-                        ->native_module();
+    // TODO(jkummerow): Introduce a pointer from WasmExportedFunctionData
+    // to WasmTrustedInstanceData.
+    Tagged<ExposedTrustedObject> ref =
+        shared.object()->wasm_exported_function_data()->internal()->ref();
+    if (!IsWasmTrustedInstanceData(ref)) return NoChange();
+    native_module = WasmTrustedInstanceData::cast(ref)->native_module();
   }
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some

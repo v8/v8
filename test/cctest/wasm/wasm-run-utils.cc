@@ -480,7 +480,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
                      static_cast<uint32_t>(bytes.size())};
 
   NativeModule* native_module =
-      builder_->instance_object()->module_object()->native_module();
+      builder_->trusted_instance_data()->native_module();
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   CompilationEnv env = CompilationEnv::ForModule(native_module);

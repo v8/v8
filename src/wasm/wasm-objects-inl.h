@@ -175,6 +175,11 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
                     kMemory0StartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
                     kMemory0SizeOffset)
+// Sandbox-safe alternative to going through the chain
+// instance_object()->module_object()->native_module(), i.e. doesn't rely on
+// potentially-corrupted heap objects.
+PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, native_module, wasm::NativeModule*,
+                    kNativeModuleOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
                     Address*, kNewAllocationLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_top_address,
@@ -284,7 +289,7 @@ Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
 }
 
 const wasm::WasmModule* WasmTrustedInstanceData::module() const {
-  return module_object()->module();
+  return native_module()->module();
 }
 
 // WasmInstanceObject
@@ -292,6 +297,9 @@ TRUSTED_POINTER_ACCESSORS(WasmInstanceObject, trusted_data,
                           WasmTrustedInstanceData, kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
 
+// Note: in case of existing in-sandbox corruption, this could return an
+// incorrect WasmModule! For security-relevant code, prefer going via
+// WasmTrustedInstanceData::native_module().
 const wasm::WasmModule* WasmInstanceObject::module() const {
   return module_object()->module();
 }

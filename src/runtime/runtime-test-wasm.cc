@@ -495,17 +495,17 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   Handle<JSObject> argument = args.at<JSObject>(0);
-  Handle<WasmModuleObject> module;
+  wasm::NativeModule* native_module;
   if (IsWasmInstanceObject(*argument)) {
-    module = handle(Handle<WasmInstanceObject>::cast(argument)
+    native_module = WasmInstanceObject::cast(*argument)
                         ->trusted_data(isolate)
-                        ->module_object(),
-                    isolate);
+                        ->native_module();
   } else if (IsWasmModuleObject(*argument)) {
-    module = Handle<WasmModuleObject>::cast(argument);
+    native_module = WasmModuleObject::cast(*argument)->native_module();
+  } else {
+    UNREACHABLE();
   }
-  size_t num_spaces =
-      module->native_module()->GetNumberOfCodeSpacesForTesting();
+  size_t num_spaces = native_module->GetNumberOfCodeSpacesForTesting();
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 

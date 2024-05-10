@@ -408,8 +408,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
     wasm::ThrowLazyCompilationError(
-        isolate, trusted_instance_data->module_object()->native_module(),
-        func_index);
+        isolate, trusted_instance_data->native_module(), func_index);
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
@@ -427,10 +426,10 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   int declared_func_index = args.smi_value_at(1);
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  wasm::NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
+  const wasm::WasmModule* module = native_module->module();
   DCHECK(native_module->enabled_features().has_inlining() ||
-         native_module->module()->is_wasm_gc);
+         module->is_wasm_gc);
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
   *native_module_stack_slot = native_module;
@@ -438,12 +437,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(trusted_instance_data->native_context());
 
-  const wasm::WasmModule* module = native_module->module();
   int func_index = declared_func_index + module->num_imported_functions;
-  int num_slots = (native_module->enabled_features().has_inlining() ||
-                   native_module->module()->is_wasm_gc)
-                      ? NumFeedbackSlots(module, func_index)
-                      : 0;
+  int num_slots = NumFeedbackSlots(module, func_index);
   Handle<FixedArray> vector =
       isolate->factory()->NewFixedArrayWithZeroes(num_slots);
   DCHECK_EQ(trusted_instance_data->feedback_vectors()->get(declared_func_index),
@@ -615,8 +610,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::Suspend suspend = static_cast<wasm::Suspend>(ref->suspend());
   wasm::WasmCodeRefScope code_ref_scope;
 
-  wasm::NativeModule* native_module =
-      trusted_data->module_object()->native_module();
+  wasm::NativeModule* native_module = trusted_data->native_module();
 
   wasm::WasmImportData resolved({}, -1, callable, &sig, canonical_sig_index,
                                 wasm::WellKnownImport::kUninstantiated);
@@ -704,7 +698,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
     if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
-      if (!trusted_data->module_object()->native_module()->HasCodeWithTier(
+      if (!trusted_data->native_module()->HasCodeWithTier(
               func_index, wasm::ExecutionTier::kTurbofan)) {
         wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
       }
@@ -999,8 +993,7 @@ bool ExecuteWasmDebugBreaks(
     WasmFrame* frame) {
   Handle<Script> script{trusted_instance_data->module_object()->script(),
                         isolate};
-  auto* debug_info =
-      trusted_instance_data->module_object()->native_module()->GetDebugInfo();
+  auto* debug_info = trusted_instance_data->native_module()->GetDebugInfo();
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
@@ -1075,8 +1068,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     // We did not hit a breakpoint. If we are in stepping code, but the user did
     // not request stepping, clear this (to save further calls into this runtime
     // function).
-    auto* debug_info =
-        trusted_data->module_object()->native_module()->GetDebugInfo();
+    auto* debug_info = trusted_data->native_module()->GetDebugInfo();
     debug_info->ClearStepping(frame);
   }
 
@@ -1508,10 +1500,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   const wasm::WasmStringRefLiteral& literal =
       trusted_instance_data->module()->stringref_literals[index];
   const base::Vector<const uint8_t> module_bytes =
-      trusted_instance_data->module_object()->native_module()->wire_bytes();
-  const base::Vector<const uint8_t> string_bytes =
-      module_bytes.SubVector(literal.source.offset(),
-                             literal.source.offset() + literal.source.length());
+      trusted_instance_data->native_module()->wire_bytes();
+  const base::Vector<const uint8_t> string_bytes = module_bytes.SubVector(
+      literal.source.offset(), literal.source.end_offset());
   // TODO(12868): No need to re-validate WTF-8.  Also, result should be cached.
   return *isolate->factory()
               ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)

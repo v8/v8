@@ -247,8 +247,7 @@ class WasmGCTester {
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
-    NativeModule* native_module =
-        instance_object_->module_object()->native_module();
+    NativeModule* native_module = trusted_instance_data_->native_module();
     Address wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     Handle<Object> object_ref = instance_object_;

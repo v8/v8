@@ -521,8 +521,7 @@ void WasmTableObject::UpdateDispatchTables(
         WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate);
-    wasm::NativeModule* native_module =
-        trusted_instance_data->module_object()->native_module();
+    wasm::NativeModule* native_module = trusted_instance_data->native_module();
     wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
     auto kind = wasm::ImportCallKind::kWasmToCapi;
     uint32_t canonical_type_index =
@@ -652,6 +651,10 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   CHECK_IMPLIES(is_wasm_module, backing_store->is_wasm_memory());
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
+  // Note: This CHECK can fail when in-sandbox corruption modified a
+  // WasmMemoryObject. We currently believe that this would at worst
+  // corrupt the contents of other Wasm memories or ArrayBuffers, but having
+  // this CHECK in release mode is nice as an additional layer of defense.
   CHECK_IMPLIES(use_trap_handler, backing_store->has_guard_regions());
 
   trusted_instance_data->SetRawMemory(
@@ -1131,10 +1134,6 @@ void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
   }
 }
 
-const WasmModule* WasmTrustedInstanceData::module() {
-  return module_object()->module();
-}
-
 Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
   // Do first allocate all objects that will be stored in instance fields,
@@ -1201,6 +1200,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_data_segment_starts(*data_segment_starts);
     trusted_data->set_data_segment_sizes(*data_segment_sizes);
     trusted_data->set_element_segments(empty_fixed_array);
+    trusted_data->set_native_module(module_object->native_module());
     trusted_data->set_new_allocation_limit_address(
         isolate->heap()->NewSpaceAllocationLimitAddress());
     trusted_data->set_new_allocation_top_address(
@@ -1294,7 +1294,7 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
 }
 
 Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
-  wasm::NativeModule* native_module = module_object()->native_module();
+  wasm::NativeModule* native_module = this->native_module();
   SBXCHECK_LT(func_index, native_module->num_functions());
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);
@@ -1409,9 +1409,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     return handle(existing_func_ref, isolate);
   }
 
-  const wasm::NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
-  const WasmModule* module = native_module->module();
+  const WasmModule* module = trusted_instance_data->module();
   Handle<ExposedTrustedObject> ref =
       function_index >= static_cast<int>(module->num_imported_functions)
           ? trusted_instance_data
@@ -1445,8 +1443,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
 
   if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
-    const wasm::FunctionSig* sig =
-        module->signature(module->functions[function_index].sig_index);
+    const wasm::FunctionSig* sig = module->signature(sig_index);
     Address wrapper_entry;
     if (wasm::IsJSCompatibleSignature(sig)) {
       DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
@@ -1625,8 +1622,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     return;
   }
 
-  wasm::NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
   wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index,
                                 wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();

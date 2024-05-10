@@ -2536,8 +2536,7 @@ FrameSummary::WasmInlinedFrameSummary::WasmInlinedFrameSummary(
 
 Handle<WasmTrustedInstanceData>
 FrameSummary::WasmInlinedFrameSummary::wasm_trusted_instance_data() const {
-  Isolate* isolate = wasm_instance_->GetIsolate();
-  return handle(wasm_instance_->trusted_data(isolate), isolate);
+  return handle(wasm_instance_->trusted_data(isolate()), isolate());
 }
 
 Handle<Object> FrameSummary::WasmInlinedFrameSummary::receiver() const {
@@ -2554,8 +2553,7 @@ int FrameSummary::WasmInlinedFrameSummary::SourcePosition() const {
 }
 
 Handle<Script> FrameSummary::WasmInlinedFrameSummary::script() const {
-  return handle(wasm_instance()->module_object()->script(),
-                wasm_instance()->GetIsolate());
+  return handle(wasm_instance()->module_object()->script(), isolate());
 }
 
 Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
@@ -3080,7 +3078,7 @@ Tagged<WasmTrustedInstanceData> WasmFrame::trusted_instance_data() const {
 }
 
 wasm::NativeModule* WasmFrame::native_module() const {
-  return module_object()->native_module();
+  return trusted_instance_data()->native_module();
 }
 
 Tagged<WasmModuleObject> WasmFrame::module_object() const {

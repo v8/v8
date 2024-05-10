@@ -178,7 +178,7 @@ void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
   const wasm::WasmStringRefLiteral& literal =
       module_->stringref_literals[imm.index];
   const base::Vector<const uint8_t> module_bytes =
-      trusted_instance_data_->module_object()->native_module()->wire_bytes();
+      trusted_instance_data_->native_module()->wire_bytes();
   const base::Vector<const uint8_t> string_bytes = module_bytes.SubVector(
       literal.source.offset(), literal.source.end_offset());
   Handle<String> string =

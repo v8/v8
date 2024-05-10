@@ -1187,9 +1187,7 @@ bool CompileLazy(Isolate* isolate,
                  Tagged<WasmTrustedInstanceData> trusted_instance_data,
                  int func_index) {
   DisallowGarbageCollection no_gc;
-  Tagged<WasmModuleObject> module_object =
-      trusted_instance_data->module_object();
-  NativeModule* native_module = module_object->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   Counters* counters = isolate->counters();
 
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
@@ -1380,8 +1378,7 @@ class FeedbackMaker {
     // from the `WasmDispatchTable`, whose entries are always targets pointing
     // into the main jump table, so we only need to check against that.
 
-    Address jt_start =
-        instance_data_->module_object()->native_module()->jump_table_start();
+    Address jt_start = instance_data_->native_module()->jump_table_start();
     uint32_t jt_size = JumpTableAssembler::SizeForNumberOfSlots(
         instance_data_->module()->num_declared_functions);
     Address jt_end = jt_start + jt_size;
@@ -1561,8 +1558,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 void TriggerTierUp(Isolate* isolate,
                    Tagged<WasmTrustedInstanceData> trusted_instance_data,
                    int func_index) {
-  NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
@@ -1573,8 +1569,7 @@ void TriggerTierUp(Isolate* isolate,
   {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         &module->type_feedback.mutex);
-    int array_index = wasm::declared_function_index(
-        trusted_instance_data->module(), func_index);
+    int array_index = wasm::declared_function_index(module, func_index);
     trusted_instance_data->tiering_budget_array()[array_index] =
         v8_flags.wasm_tiering_budget;
     int& stored_priority =
@@ -1588,10 +1583,9 @@ void TriggerTierUp(Isolate* isolate,
   // increased at least to four, and is a power of two.
   if (priority == 2 || !base::bits::IsPowerOfTwo(priority)) return;
 
-  // Before adding the tier-up unit or increasing priority, do process type
+  // Before adding the tier-up unit or increasing priority, process type
   // feedback for best code generation.
-  if (native_module->enabled_features().has_inlining() ||
-      native_module->module()->is_wasm_gc) {
+  if (native_module->enabled_features().has_inlining() || module->is_wasm_gc) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
@@ -1605,8 +1599,7 @@ void TriggerTierUp(Isolate* isolate,
 void TierUpNowForTesting(Isolate* isolate,
                          Tagged<WasmTrustedInstanceData> trusted_instance_data,
                          int func_index) {
-  NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   if (native_module->enabled_features().has_inlining() ||
       native_module->module()->is_wasm_gc) {
     TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
@@ -1620,9 +1613,8 @@ void TierUpNowForTesting(Isolate* isolate,
 
 void TierUpAllForTesting(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data) {
-  const WasmModule* mod = trusted_instance_data->module();
-  NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
+  const WasmModule* mod = native_module->module();
   WasmCodeRefScope code_ref_scope;
 
   uint32_t start = mod->num_imported_functions;
