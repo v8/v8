@@ -1904,7 +1904,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // present. We can also skip this for private names since they are not
   // bound by configurability or extensibility checks, and errors would've
   // been thrown if the private field already exists in the object.
-  if (IsAnyDefineOwn() && !name->IsPrivateName() && !IsJSProxy(*object) &&
+  if (IsAnyDefineOwn() && !name->IsPrivateName() && IsJSObject(*object) &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -2621,14 +2621,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = IsJSArgumentsObject(*receiver);
-    bool is_proxy = IsJSProxy(*receiver);
+    bool is_jsobject = IsJSObject(*receiver);
     size_t index;
     key_is_valid_index = IntPtrKeyToSize(maybe_index, receiver, &index);
-    if (!is_arguments && !is_proxy) {
-      if (key_is_valid_index) {
-        Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
-        store_mode = GetStoreMode(receiver_object, index);
-      }
+    if (is_jsobject && !is_arguments && key_is_valid_index) {
+      Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
+      store_mode = GetStoreMode(receiver_object, index);
     }
   }
 

@@ -932,6 +932,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
           return SerializeJSProxy(Handle<JSProxy>::cast(object), key);
         }
+        // WASM_{STRUCT,ARRAY}_TYPE are handled in `case:` blocks above.
+        DCHECK(IsJSObject(*object));
         return SerializeJSObject(Handle<JSObject>::cast(object), key);
       }
   }

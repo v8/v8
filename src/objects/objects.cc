@@ -1801,7 +1801,7 @@ bool Object::IterationHasObservableEffects(Tagged<Object> obj) {
   if (!IsJSObject(array_proto)) return true;
   Tagged<NativeContext> native_context = array->GetCreationContext().value();
   auto initial_array_prototype = native_context->initial_array_prototype();
-  if (initial_array_prototype != JSObject::cast(array_proto)) return true;
+  if (initial_array_prototype != array_proto) return true;
 
   Isolate* isolate = array->GetIsolate();
   // Check that the ArrayPrototype hasn't been modified in a way that would

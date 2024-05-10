@@ -4433,14 +4433,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
 
   i::PropertyKey lookup_key(i_isolate, key_obj);
-  if (i::IsJSProxy(*self)) {
-    ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
-    Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-        i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
-    has_exception = result.IsNothing();
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-    return result;
-  } else {
+  if (i::IsJSObject(*self)) {
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, CreateDataProperty,
                        i::HandleScope);
     Maybe<bool> result = i::JSObject::CreateDataProperty(
@@ -4450,6 +4443,13 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   }
+  // JSProxy or WasmObject or other non-JSObject.
+  ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
+  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
+      i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
+  has_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
@@ -4460,14 +4460,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
 
   i::PropertyKey lookup_key(i_isolate, index);
-  if (i::IsJSProxy(*self)) {
-    ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
-    Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-        i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
-    has_exception = result.IsNothing();
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-    return result;
-  } else {
+  if (i::IsJSObject(*self)) {
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, CreateDataProperty,
                        i::HandleScope);
     Maybe<bool> result = i::JSObject::CreateDataProperty(
@@ -4477,6 +4470,13 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   }
+  // JSProxy or WasmObject or other non-JSObject.
+  ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
+  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
+      i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
+  has_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
 }
 
 struct v8::PropertyDescriptor::PrivateData {
@@ -4587,15 +4587,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_configurable(!(attributes & v8::DontDelete));
   desc.set_value(value_obj);
 
-  if (i::IsJSProxy(*self)) {
-    ENTER_V8(i_isolate, context, Object, DefineOwnProperty, i::HandleScope);
-    Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-        i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
-    // Even though we said kDontThrow, there might be accessors that do throw.
-    has_exception = success.IsNothing();
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-    return success;
-  } else {
+  if (i::IsJSObject(*self)) {
     // If it's not a JSProxy, i::JSReceiver::DefineOwnProperty should never run
     // a script.
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, DefineOwnProperty,
@@ -4606,6 +4598,14 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return success;
   }
+  // JSProxy or WasmObject or other non-JSObject.
+  ENTER_V8(i_isolate, context, Object, DefineOwnProperty, i::HandleScope);
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
+  // Even though we said kDontThrow, there might be accessors that do throw.
+  has_exception = success.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return success;
 }
 
 Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
@@ -4631,6 +4631,15 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(reinterpret_cast<Name*>(*key));
   auto value_obj = Utils::OpenHandle(*value);
+  if (i::IsJSObject(*self)) {
+    auto js_object = i::Handle<i::JSObject>::cast(self);
+    i::LookupIterator it(i_isolate, js_object, key_obj, js_object);
+    has_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
+                        &it, value_obj, i::DONT_ENUM)
+                        .is_null();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return Just(true);
+  }
   if (i::IsJSProxy(*self)) {
     i::PropertyDescriptor desc;
     desc.set_writable(true);
@@ -4641,13 +4650,8 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
         i_isolate, i::Handle<i::JSProxy>::cast(self),
         i::Handle<i::Symbol>::cast(key_obj), &desc, Just(i::kDontThrow));
   }
-  auto js_object = i::Handle<i::JSObject>::cast(self);
-  i::LookupIterator it(i_isolate, js_object, key_obj, js_object);
-  has_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value_obj,
-                                                                 i::DONT_ENUM)
-                      .is_null();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(true);
+  // Wasm object, or other kind of special object not supported here.
+  return Just(false);
 }
 
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
@@ -4743,6 +4747,17 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
   // TODO(333672197): turn this to DCHECK once it's no longer possible
   // to get JSGlobalObject via API.
   CHECK_IMPLIES(from_javascript, !i::IsJSGlobalObject(*value_obj));
+  if (i::IsJSObject(*self)) {
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    // TODO(333672197): turn this to DCHECK once it's no longer possible
+    // to get JSGlobalObject via API.
+    CHECK_IMPLIES(from_javascript, !i::IsJSGlobalObject(*self));
+    auto result =
+        i::JSObject::SetPrototype(i_isolate, i::Handle<i::JSObject>::cast(self),
+                                  value_obj, from_javascript, i::kDontThrow);
+    if (!result.FromJust()) return Nothing<bool>();
+    return Just(true);
+  }
   if (i::IsJSProxy(*self)) {
     ENTER_V8(i_isolate, context, Object, SetPrototype, i::HandleScope);
     // We do not allow exceptions thrown while setting the prototype
@@ -4753,17 +4768,10 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
                                  value_obj, from_javascript, i::kThrowOnError);
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  } else {
-    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-    // TODO(333672197): turn this to DCHECK once it's no longer possible
-    // to get JSGlobalObject via API.
-    CHECK_IMPLIES(from_javascript, !i::IsJSGlobalObject(*self));
-    auto result =
-        i::JSObject::SetPrototype(i_isolate, i::Handle<i::JSObject>::cast(self),
-                                  value_obj, from_javascript, i::kDontThrow);
-    if (!result.FromJust()) return Nothing<bool>();
+    return Just(true);
   }
-  return Just(true);
+  // Wasm object or other kind of special object not supported here.
+  return Nothing<bool>();
 }
 
 }  // namespace
@@ -4893,6 +4901,7 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   } else {
     // If it's not a JSProxy, i::Runtime::DeleteObjectProperty should never run
     // a script.
+    DCHECK(i::IsJSObject(*self) || i::IsWasmObject(*self));
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, Delete, i::HandleScope);
     Maybe<bool> result = i::Runtime::DeleteObjectProperty(
         i_isolate, self, key_obj, i::LanguageMode::kSloppy);
@@ -5342,7 +5351,7 @@ bool v8::Object::IsConstructor() const {
 }
 
 bool v8::Object::IsApiWrapper() const {
-  auto self = i::DirectHandle<i::JSObject>::cast(Utils::OpenDirectHandle(this));
+  auto self = Utils::OpenDirectHandle(this);
   // This checks whether an object of a given instance type can serve as API
   // object. It does not check whether the JS object is wrapped via embedder
   // fields or Wrap()/Unwrap() API.
@@ -5350,7 +5359,7 @@ bool v8::Object::IsApiWrapper() const {
 }
 
 bool v8::Object::IsUndetectable() const {
-  auto self = i::DirectHandle<i::JSObject>::cast(Utils::OpenDirectHandle(this));
+  auto self = Utils::OpenDirectHandle(this);
   return i::IsUndetectable(*self);
 }
 
@@ -6333,7 +6342,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                                                    void* values[]) {
   auto obj = Utils::OpenDirectHandle(this);
-
+  if (!IsJSObject(*obj)) return;
   i::DisallowGarbageCollection no_gc;
   const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
   auto js_obj = i::JSObject::cast(*obj);
@@ -8817,8 +8826,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
       i::wasm::GetWasmEngine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
           base::VectorOf(compiled_module.source_url()));
-  return Local<WasmModuleObject>::Cast(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
+  return Utils::ToLocal(module_object);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8833,7 +8841,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmModuleObject>();
   }
-  i::MaybeHandle<i::JSObject> maybe_compiled;
+  i::MaybeHandle<i::WasmModuleObject> maybe_compiled;
   {
     i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
@@ -8846,8 +8854,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
   if (maybe_compiled.is_null()) {
     return MaybeLocal<WasmModuleObject>();
   }
-  return Local<WasmModuleObject>::Cast(
-      Utils::ToLocal(maybe_compiled.ToHandleChecked()));
+  return Utils::ToLocal(maybe_compiled.ToHandleChecked());
 #else
   Utils::ApiCheck(false, "WasmModuleObject::Compile",
                   "WebAssembly support is not enabled");
