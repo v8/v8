@@ -125,6 +125,8 @@ vars = {
 }
 
 deps = {
+  'base/trace_event/common':
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '7796c50af5b192c01d7c92f930de2093a8507097',
   'buildtools':

@@ -3202,6 +3202,7 @@ v8_header_set("v8_internal_headers") {
   sources = [
     ### gcmole(all) ###
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+    "//base/trace_event/common/trace_event_common.h",
     "include/cppgc/common.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
@@ -4144,7 +4145,6 @@ v8_header_set("v8_internal_headers") {
     "src/third_party/utf8-decoder/utf8-decoder.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event.h",
-    "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/traced-value.h",
     "src/tracing/tracing-category-observer.h",
     "src/utils/address-map.h",
@@ -4186,7 +4186,7 @@ v8_header_set("v8_internal_headers") {
   }
 
   if (v8_use_perfetto) {
-    sources -= [ "src/tracing/trace-event-no-perfetto.h" ]
+    sources -= [ "//base/trace_event/common/trace_event_common.h" ]
     sources += [
       "src/tracing/code-data-source.h",
       "src/tracing/code-trace-context.h",
@@ -6639,6 +6639,7 @@ if (v8_use_libm_trig_functions) {
 
 v8_component("v8_libplatform") {
   sources = [
+    "//base/trace_event/common/trace_event_common.h",
     "include/libplatform/libplatform-export.h",
     "include/libplatform/libplatform.h",
     "include/libplatform/v8-tracing.h",
@@ -6665,7 +6666,6 @@ v8_component("v8_libplatform") {
     "src/libplatform/tracing/tracing-controller.cc",
     "src/libplatform/worker-thread.cc",
     "src/libplatform/worker-thread.h",
-    "src/tracing/trace-event-no-perfetto.h",
   ]
 
   configs = [ ":internal_config_base" ]
@@ -6686,12 +6686,12 @@ v8_component("v8_libplatform") {
 
   if (v8_use_perfetto) {
     sources -= [
+      "//base/trace_event/common/trace_event_common.h",
       "src/libplatform/tracing/trace-buffer.cc",
       "src/libplatform/tracing/trace-buffer.h",
       "src/libplatform/tracing/trace-object.cc",
       "src/libplatform/tracing/trace-writer.cc",
       "src/libplatform/tracing/trace-writer.h",
-      "src/tracing/trace-event-no-perfetto.h",
     ]
     sources += [ "src/libplatform/tracing/trace-event-listener.h" ]
   }
@@ -7014,7 +7014,7 @@ v8_source_set("cppgc_base") {
   ]
 
   if (cppgc_is_standalone && !v8_use_perfetto) {
-    sources += [ "src/tracing/trace-event-no-perfetto.h" ]
+    sources += [ "//base/trace_event/common/trace_event_common.h" ]
   } else {
     public_deps += [ ":v8_tracing" ]
   }

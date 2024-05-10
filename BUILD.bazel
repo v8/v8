@@ -2408,7 +2408,6 @@ filegroup(
         "src/torque/runtime-macro-shims.h",
         "src/tracing/trace-event.cc",
         "src/tracing/trace-event.h",
-        "src/tracing/trace-event-no-perfetto.h",
         "src/tracing/traced-value.cc",
         "src/tracing/traced-value.h",
         "src/tracing/tracing-category-observer.cc",
@@ -4199,6 +4198,7 @@ v8_library(
     deps = [
         ":lib_fp16",
         ":v8_libbase",
+        "//external:base_trace_event_common",
         "//external:absl_btree",
         "//external:absl_flat_hash_map",
         "//external:absl_flat_hash_set",
