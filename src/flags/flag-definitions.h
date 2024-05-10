@@ -1326,7 +1326,7 @@ DEFINE_BOOL(turboshaft_instruction_selection, true,
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
-DEFINE_BOOL(turboshaft_loop_unrolling, false,
+DEFINE_BOOL(turboshaft_loop_unrolling, true,
             "enable Turboshaft's loop unrolling")
 
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
@@ -1350,7 +1350,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turboshaft_future, turboshaft)
-DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)
 #if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64 or V8_TARGET_ARCH_ARM or \
