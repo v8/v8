@@ -24,7 +24,7 @@ namespace {
 // TODO(v8:12547): Move this logic into a static method JSPromise::PerformThen
 // so that other callsites like this one can use it.
 // Set fulfill/reject handlers for a JSPromise object.
-Handle<JSPromise> PerformPromiseThen(
+MaybeHandle<JSPromise> PerformPromiseThen(
     Isolate* isolate, Handle<JSPromise> promise,
     Handle<JSFunction> fulfill_handler,
     MaybeHandle<JSFunction> reject_handler = MaybeHandle<JSFunction>()) {
@@ -34,16 +34,22 @@ Handle<JSPromise> PerformPromiseThen(
     reject_handler_handle = reject_handler.ToHandleChecked();
   }
   Handle<Object> argv[] = {fulfill_handler, reject_handler_handle};
-  MaybeHandle<Object> then_result = Execution::CallBuiltin(
-      isolate, isolate->promise_then(), promise, arraysize(argv), argv);
 
-  return Handle<JSPromise>::cast(then_result.ToHandleChecked());
+  Handle<Object> then_result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, then_result,
+      Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
+                             arraysize(argv), argv),
+      JSPromise);
+
+  return Handle<JSPromise>::cast(then_result);
 }
 
-void SetAsyncUnlockHandlers(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
-                            Handle<JSPromise> waiting_for_callback_promise,
-                            Handle<JSPromise> unlocked_promise,
-                            detail::WaiterQueueNode* async_locked_waiter) {
+Maybe<bool> SetAsyncUnlockHandlers(
+    Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+    Handle<JSPromise> waiting_for_callback_promise,
+    Handle<JSPromise> unlocked_promise,
+    detail::WaiterQueueNode* async_locked_waiter) {
   Handle<Context> handlers_context = isolate->factory()->NewBuiltinContext(
       isolate->native_context(), JSAtomicsMutex::kAsyncContextLength);
   handlers_context->set(JSAtomicsMutex::kMutexAsyncContextSlot, *mutex);
@@ -77,8 +83,10 @@ void SetAsyncUnlockHandlers(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
           .set_allocation_type(AllocationType::kYoung)
           .Build();
 
-  PerformPromiseThen(isolate, waiting_for_callback_promise, resolver_callback,
-                     reject_callback);
+  MaybeHandle<JSPromise> then_result =
+      PerformPromiseThen(isolate, waiting_for_callback_promise,
+                         resolver_callback, reject_callback);
+  return then_result.is_null() ? Nothing<bool>() : Just(true);
 }
 
 void AddPromiseToNativeContext(Isolate* isolate, Handle<JSPromise> promise) {
@@ -813,13 +821,17 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
 // 3. `unlocked_promise`, a promise that settles when the mutex is unlocked,
 //    either explicitly or by timeout. Returned by lockAsync.
 // static
-Handle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
+MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     Isolate* requester, Handle<JSAtomicsMutex> mutex, Handle<Object> callback,
     base::Optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_locked_promise =
       requester->factory()->NewJSPromise();
-  Handle<JSPromise> waiting_for_callback_promise = PerformPromiseThen(
-      requester, internal_locked_promise, Handle<JSFunction>::cast(callback));
+  Handle<JSPromise> waiting_for_callback_promise;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      requester, waiting_for_callback_promise,
+      PerformPromiseThen(requester, internal_locked_promise,
+                         Handle<JSFunction>::cast(callback)),
+      JSPromise);
   Handle<JSPromise> unlocked_promise = requester->factory()->NewJSPromise();
   LockAsyncWaiterQueueNode* waiter_node = nullptr;
   bool locked = LockAsync(requester, mutex, internal_locked_promise,
@@ -833,8 +845,20 @@ Handle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   }
   // Set `waiting_for_callback_promise` resolve and reject handlers. Resposible
   // for unlocking the mutex and resolving or rejecting the `unlocked_promise`.
-  SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,
-                         unlocked_promise, waiter_node);
+  // The operation can fail if the inner call to `promise_then` is not
+  // successful. In that case, the asyncLock builtin call will fail, so cleanup
+  // before returning.
+  if (SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,
+                             unlocked_promise, waiter_node)
+          .IsNothing()) {
+    if (locked) {
+      mutex->Unlock(requester);
+    } else {
+      RemovePromiseFromNativeContext(requester, internal_locked_promise);
+    }
+    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter_node);
+    return MaybeHandle<JSPromise>();
+  }
   return unlocked_promise;
 }
 
@@ -1240,7 +1264,7 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
 // 2. `lock_promise`, which will be resolved when the lock is acquired after
 //    waiting.
 // static
-Handle<JSPromise> JSAtomicsCondition::WaitAsync(
+MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
     Isolate* requester, Handle<JSAtomicsCondition> cv,
     Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_waiting_promise =
@@ -1257,8 +1281,12 @@ Handle<JSPromise> JSAtomicsCondition::WaitAsync(
           .set_map(requester->strict_function_without_prototype_map())
           .Build();
 
-  Handle<JSPromise> lock_promise =
-      PerformPromiseThen(requester, internal_waiting_promise, lock_function);
+  Handle<JSPromise> lock_promise;
+
+  ASSIGN_RETURN_ON_EXCEPTION(
+      requester, lock_promise,
+      PerformPromiseThen(requester, internal_waiting_promise, lock_function),
+      JSPromise);
 
   // Create a new async waiter node in the C++ heap. Its lifetime is managed by
   // the requester's `async_waiter_queue_nodes` list.

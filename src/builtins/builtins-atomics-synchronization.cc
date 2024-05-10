@@ -217,8 +217,11 @@ BUILTIN(AtomicsMutexLockAsync) {
     timeout = GetTimeoutDelta(timeout_obj);
   }
 
-  Handle<JSPromise> result_promise = JSAtomicsMutex::LockOrEnqueuePromise(
-      isolate, js_mutex, run_under_lock, timeout);
+  Handle<JSPromise> result_promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_promise,
+      JSAtomicsMutex::LockOrEnqueuePromise(isolate, js_mutex, run_under_lock,
+                                           timeout));
 
   return *result_promise;
 }
@@ -375,8 +378,10 @@ BUILTIN(AtomicsConditionWaitAsync) {
         NewTypeError(MessageTemplate::kAtomicsMutexNotOwnedByCurrentThread));
   }
 
-  Handle<JSPromise> result_promise =
-      JSAtomicsCondition::WaitAsync(isolate, js_condition, js_mutex, timeout);
+  Handle<JSPromise> result_promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_promise,
+      JSAtomicsCondition::WaitAsync(isolate, js_condition, js_mutex, timeout));
   return *result_promise;
 }
 

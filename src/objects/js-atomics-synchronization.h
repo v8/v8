@@ -248,7 +248,7 @@ class JSAtomicsMutex
   // Try to take the lock and set up the promise logic to asynchronously run
   // the callback under the lock. Always returns a promise that settles when the
   // promise is unlocked or times out.
-  static Handle<JSPromise> LockOrEnqueuePromise(
+  static MaybeHandle<JSPromise> LockOrEnqueuePromise(
       Isolate* isolate, Handle<JSAtomicsMutex> mutex, Handle<Object> callback,
       base::Optional<base::TimeDelta> timeout);
 
@@ -410,7 +410,7 @@ class JSAtomicsCondition
       Isolate* requester, Handle<JSAtomicsCondition> cv,
       Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
 
-  V8_EXPORT_PRIVATE static Handle<JSPromise> WaitAsync(
+  V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> WaitAsync(
       Isolate* requester, Handle<JSAtomicsCondition> cv,
       Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
 
