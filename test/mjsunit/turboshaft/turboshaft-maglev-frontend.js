@@ -1637,7 +1637,7 @@ let glob_b = 3.35;
   %PrepareFunctionForOptimization(transition_arr);
   transition_arr(smi_arr);
   transition_arr(holey_smi_arr);
-  // Reseting the arrays to collect feedback one more time.
+  // Resetting the arrays to collect feedback one more time.
   smi_arr = [1, 2, 3, 4];
   holey_smi_arr = [1, 2, 3, /* hole */, 4];
   transition_arr(smi_arr);
@@ -1664,4 +1664,37 @@ let glob_b = 3.35;
   let double_arr = [1.5, 3.32, 6.28];
   transition_arr(double_arr);
   assertEquals([{}, 3.32, 6.28], double_arr);
+}
+
+// Testing map migration.
+{
+  function A() { this.x = 1 }
+  function B() { this.x = 1 }
+
+  function migrate_and_load(o) {
+    return o.x;
+  }
+
+  let old_b1 = new B();
+  let old_b2 = new B();
+
+  old_b1.x = 42;
+  old_b2.x = 186;
+
+  %PrepareFunctionForOptimization(migrate_and_load);
+  assertEquals(1, migrate_and_load(new A()));
+  (new A()).x = 4.25; // Deprecate map already in feedback
+  (new B()).x = 4.25; // Deprecate old_b1/old_b2 map
+  assertEquals(42, migrate_and_load(old_b1));
+
+  %OptimizeFunctionOnNextCall(migrate_and_load);
+  assertEquals(42, migrate_and_load(old_b1));
+  assertOptimized(migrate_and_load);
+  // Calling function with deprecated map
+  assertEquals(186, migrate_and_load(old_b2));
+  assertOptimized(migrate_and_load);
+
+  // Triggering deopt
+  assertEquals("abc", (migrate_and_load({a: 42, x : "abc"})));
+  assertUnoptimized(migrate_and_load);
 }

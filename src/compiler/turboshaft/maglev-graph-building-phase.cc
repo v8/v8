@@ -789,28 +789,58 @@ class GraphBuilder {
                     node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckMaps* node,
-                                const maglev::ProcessingState& state) {
+  void CheckMaps(V<Object> receiver_input, V<FrameState> frame_state,
+                 const FeedbackSource& feedback,
+                 const compiler::ZoneRefSet<Map>& maps, bool check_heap_object,
+                 bool try_migrate) {
     Label<> done(this);
-    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
-    if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
-      OpIndex is_smi = __ IsSmi(Map(node->receiver_input()));
-      if (AnyMapIsHeapNumber(node->maps())) {
+    if (check_heap_object) {
+      OpIndex is_smi = __ IsSmi(receiver_input);
+      if (AnyMapIsHeapNumber(maps)) {
         // Smis count as matching the HeapNumber map, so we're done.
         GOTO_IF(is_smi, done);
       } else {
         __ DeoptimizeIf(is_smi, frame_state, DeoptimizeReason::kWrongMap,
-                        node->eager_deopt_info()->feedback_to_update());
+                        feedback);
       }
     }
-    __ CheckMaps(Map(node->receiver_input()), frame_state, node->maps(),
-                 CheckMapsFlag::kNone,
-                 node->eager_deopt_info()->feedback_to_update());
+
+    bool has_migration_targets = false;
+    if (try_migrate) {
+      for (MapRef map : maps) {
+        if (map.object()->is_migration_target()) {
+          has_migration_targets = true;
+          break;
+        }
+      }
+    }
+
+    __ CheckMaps(V<HeapObject>::Cast(receiver_input), frame_state, maps,
+                 has_migration_targets ? CheckMapsFlag::kTryMigrateInstance
+                                       : CheckMapsFlag::kNone,
+                 feedback);
 
     if (done.has_incoming_jump()) {
       GOTO(done);
       BIND(done);
     }
+  }
+  maglev::ProcessResult Process(maglev::CheckMaps* node,
+                                const maglev::ProcessingState& state) {
+    CheckMaps(Map(node->receiver_input()),
+              BuildFrameState(node->eager_deopt_info()),
+              node->eager_deopt_info()->feedback_to_update(), node->maps(),
+              node->check_type() == maglev::CheckType::kCheckHeapObject,
+              /* try_migrate */ false);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckMapsWithMigration* node,
+                                const maglev::ProcessingState& state) {
+    CheckMaps(Map(node->receiver_input()),
+              BuildFrameState(node->eager_deopt_info()),
+              node->eager_deopt_info()->feedback_to_update(), node->maps(),
+              node->check_type() == maglev::CheckType::kCheckHeapObject,
+              /* try_migrate */ true);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckValue* node,
