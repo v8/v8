@@ -378,7 +378,7 @@ std::optional<CapturedObject> CapturedValue::GetObjectFromAllocation() const {
   return allocation.object;
 }
 
-void CapturedObject::set(int index, ValueNode* value) {
+void CapturedObject::set(unsigned int index, ValueNode* value) {
   // We unwrap any constant or special ValueNodes.
   switch (value->opcode()) {
     case Opcode::kConstant:
