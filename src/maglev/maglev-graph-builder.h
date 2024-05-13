@@ -1123,9 +1123,17 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
-  CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
+  constexpr bool RuntimeFunctionCanThrow(Runtime::FunctionId function_id) {
+#define BAILOUT(name, ...) \
+  if (function_id == Runtime::k##name) return true;
+    FOR_EACH_THROWING_INTRINSIC(BAILOUT)
+#undef BAILOUT
+    return false;
+  }
+
+  ReduceResult BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
-    return AddNewNode<CallRuntime>(
+    CallRuntime* result = AddNewNode<CallRuntime>(
         inputs.size() + CallRuntime::kFixedInputCount,
         [&](CallRuntime* call_runtime) {
           int arg_index = 0;
@@ -1134,13 +1142,18 @@ class MaglevGraphBuilder {
           }
         },
         function_id, GetContext());
+
+    if (RuntimeFunctionCanThrow(function_id)) {
+      return BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+    }
+    return result;
   }
 
-  void BuildAbort(AbortReason reason) {
+  ReduceResult BuildAbort(AbortReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
     FinishBlock<Abort>({}, reason);
-    MarkBytecodeDead();
+    return ReduceResult::DoneWithAbort();
   }
 
   void Print(const char* str) {
@@ -1149,11 +1162,11 @@ class MaglevGraphBuilder {
             str, AllocationType::kOld);
     ValueNode* string_node = GetConstant(MakeRefAssumeMemoryFence(
         broker(), broker()->CanonicalPersistentHandle(string_handle)));
-    BuildCallRuntime(Runtime::kGlobalPrint, {string_node});
+    CHECK(BuildCallRuntime(Runtime::kGlobalPrint, {string_node}).IsDone());
   }
 
   void Print(ValueNode* value) {
-    BuildCallRuntime(Runtime::kDebugPrint, {value});
+    CHECK(BuildCallRuntime(Runtime::kDebugPrint, {value}).IsDone());
   }
 
   void Print(const char* str, ValueNode* value) {

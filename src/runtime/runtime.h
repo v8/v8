@@ -85,18 +85,21 @@ namespace internal {
   F(ToBigInt, 1, 1)                     \
   F(ToBigIntConvertNumber, 1, 1)
 
+#define FOR_EACH_THROWING_INTRINSIC_CLASSES(F, I) \
+  F(ThrowConstructorNonCallableError, 1, 1)       \
+  F(ThrowNotSuperConstructor, 2, 1)               \
+  F(ThrowStaticPrototypeError, 0, 1)              \
+  F(ThrowSuperAlreadyCalledError, 0, 1)           \
+  F(ThrowSuperNotCalled, 0, 1)                    \
+  F(ThrowUnsupportedSuperError, 0, 1)
+
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
+  FOR_EACH_THROWING_INTRINSIC_CLASSES(F, I) \
   F(DefineClass, -1 /* >= 3 */, 1)          \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreKeyedToSuper, 4, 1)                \
-  F(StoreToSuper, 4, 1)                     \
-  F(ThrowConstructorNonCallableError, 1, 1) \
-  F(ThrowNotSuperConstructor, 2, 1)         \
-  F(ThrowStaticPrototypeError, 0, 1)        \
-  F(ThrowSuperAlreadyCalledError, 0, 1)     \
-  F(ThrowSuperNotCalled, 0, 1)              \
-  F(ThrowUnsupportedSuperError, 0, 1)
+  F(StoreToSuper, 4, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F, I) \
   F(MapGrow, 1, 1)                           \
@@ -210,7 +213,34 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTL(F, I)
 #endif  // V8_INTL_SUPPORT
 
+#define FOR_EACH_THROWING_INTRINSIC_INTERNAL(F, I) \
+  F(Throw, 1, 1)                                   \
+  F(ThrowApplyNonFunction, 1, 1)                   \
+  F(ThrowCalledNonCallable, 1, 1)                  \
+  F(ThrowConstructedNonConstructable, 1, 1)        \
+  F(ThrowConstructorReturnedNonObject, 0, 1)       \
+  F(ThrowInvalidStringLength, 0, 1)                \
+  F(ThrowInvalidTypedArrayAlignment, 2, 1)         \
+  F(ThrowIteratorError, 1, 1)                      \
+  F(ThrowSpreadArgError, 2, 1)                     \
+  F(ThrowIteratorResultNotAnObject, 1, 1)          \
+  F(ThrowNoAccess, 0, 1)                           \
+  F(ThrowNotConstructor, 1, 1)                     \
+  F(ThrowPatternAssignmentNonCoercible, 1, 1)      \
+  F(ThrowRangeError, -1 /* >= 1 */, 1)             \
+  F(ThrowReferenceError, 1, 1)                     \
+  F(ThrowAccessedUninitializedVariable, 1, 1)      \
+  F(ThrowStackOverflow, 0, 1)                      \
+  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)         \
+  F(ThrowSymbolIteratorInvalid, 0, 1)              \
+  F(ThrowThrowMethodMissing, 0, 1)                 \
+  F(ThrowTypeError, -1 /* >= 1 */, 1)              \
+  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)      \
+  F(ReThrow, 1, 1)                                 \
+  F(ReThrowWithMessage, 2, 1)
+
 #define FOR_EACH_INTRINSIC_INTERNAL(F, I)                  \
+  FOR_EACH_THROWING_INTRINSIC_INTERNAL(F, I)               \
   F(AccessCheck, 1, 1)                                     \
   F(AllocateByteArray, 1, 1)                               \
   F(AllocateInYoungGeneration, 2, 1)                       \
@@ -243,36 +273,12 @@ namespace internal {
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \
   F(ReportMessageFromMicrotask, 1, 1)                      \
-  F(ReThrow, 1, 1)                                         \
-  F(ReThrowWithMessage, 2, 1)                              \
   F(RunMicrotaskCallback, 2, 1)                            \
   F(PerformMicrotaskCheckpoint, 0, 1)                      \
   F(SharedValueBarrierSlow, 1, 1)                          \
   F(StackGuard, 0, 1)                                      \
   F(HandleNoHeapWritesInterrupts, 0, 1)                    \
   F(StackGuardWithGap, 1, 1)                               \
-  F(Throw, 1, 1)                                           \
-  F(ThrowApplyNonFunction, 1, 1)                           \
-  F(ThrowCalledNonCallable, 1, 1)                          \
-  F(ThrowConstructedNonConstructable, 1, 1)                \
-  F(ThrowConstructorReturnedNonObject, 0, 1)               \
-  F(ThrowInvalidStringLength, 0, 1)                        \
-  F(ThrowInvalidTypedArrayAlignment, 2, 1)                 \
-  F(ThrowIteratorError, 1, 1)                              \
-  F(ThrowSpreadArgError, 2, 1)                             \
-  F(ThrowIteratorResultNotAnObject, 1, 1)                  \
-  F(ThrowNoAccess, 0, 1)                                   \
-  F(ThrowNotConstructor, 1, 1)                             \
-  F(ThrowPatternAssignmentNonCoercible, 1, 1)              \
-  F(ThrowRangeError, -1 /* >= 1 */, 1)                     \
-  F(ThrowReferenceError, 1, 1)                             \
-  F(ThrowAccessedUninitializedVariable, 1, 1)              \
-  F(ThrowStackOverflow, 0, 1)                              \
-  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)                 \
-  F(ThrowSymbolIteratorInvalid, 0, 1)                      \
-  F(ThrowThrowMethodMissing, 0, 1)                         \
-  F(ThrowTypeError, -1 /* >= 1 */, 1)                      \
-  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)              \
   F(TerminateExecution, 0, 1)                              \
   F(Typeof, 1, 1)                                          \
   F(UnwindAndFindExceptionHandler, 0, 1)
@@ -428,7 +434,12 @@ namespace internal {
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1)              \
   F(StringSplit, 3, 1)
 
+#define FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I) \
+  F(ThrowConstAssignError, 0, 1)                 \
+  F(ThrowUsingAssignError, 0, 1)
+
 #define FOR_EACH_INTRINSIC_SCOPES(F, I)            \
+  FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I)         \
   F(DeclareEvalFunction, 2, 1)                     \
   F(DeclareEvalVar, 1, 1)                          \
   F(DeclareGlobals, 2, 1)                          \
@@ -450,9 +461,7 @@ namespace internal {
   F(StoreGlobalNoHoleCheckForReplLetOrConst, 2, 1) \
   F(StoreLookupSlot_Sloppy, 2, 1)                  \
   F(StoreLookupSlot_SloppyHoisting, 2, 1)          \
-  F(StoreLookupSlot_Strict, 2, 1)                  \
-  F(ThrowConstAssignError, 0, 1)                   \
-  F(ThrowUsingAssignError, 0, 1)
+  F(StoreLookupSlot_Strict, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SHADOW_REALM(F, I) \
   F(ShadowRealmWrappedFunctionCreate, 2, 1)   \
@@ -801,6 +810,11 @@ namespace internal {
   IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)            \
   IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)       \
   FOR_EACH_INTRINSIC_WEAKREF(F, I)
+
+#define FOR_EACH_THROWING_INTRINSIC(F)       \
+  FOR_EACH_THROWING_INTRINSIC_CLASSES(F, F)  \
+  FOR_EACH_THROWING_INTRINSIC_INTERNAL(F, F) \
+  FOR_EACH_THROWING_INTRINSIC_SCOPES(F, F)
 
 // Defines the list of all intrinsics, coming in 2 flavors, either returning an
 // object or a pair.

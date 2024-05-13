@@ -3057,7 +3057,7 @@ void MaglevGraphBuilder::VisitStaGlobal() {
 void MaglevGraphBuilder::VisitLdaLookupSlot() {
   // LdaLookupSlot <name_index>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}).value());
 }
 
 void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
@@ -3092,7 +3092,7 @@ void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   // LdaLookupSlotInsideTypeof <name_index>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   SetAccumulator(
-      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}).value());
 }
 
 void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
@@ -3145,7 +3145,8 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   ValueNode* value = GetAccumulatorTagged();
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   uint32_t flags = GetFlag8Operand(1);
-  SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
+  SetAccumulator(
+      BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}).value());
 }
 
 NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
@@ -5489,9 +5490,11 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
   // StaModuleVariable <cell_index> <depth>
   int cell_index = iterator_.GetImmediateOperand(0);
   if (V8_UNLIKELY(cell_index < 0)) {
-    BuildCallRuntime(Runtime::kAbort,
-                     {GetSmiConstant(static_cast<int>(
-                         AbortReason::kUnsupportedModuleOperation))});
+    // TODO(verwaest): Make this fail as well.
+    CHECK(BuildCallRuntime(Runtime::kAbort,
+                           {GetSmiConstant(static_cast<int>(
+                               AbortReason::kUnsupportedModuleOperation))})
+              .IsDone());
     return;
   }
 
@@ -5714,8 +5717,9 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
   ValueNode* slot = GetTaggedIndexConstant(GetSlotOperand(3).ToInt());
   ValueNode* feedback_vector = GetConstant(feedback());
-  BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
-                   {object, name, value, flags, feedback_vector, slot});
+  CHECK(BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
+                         {object, name, value, flags, feedback_vector, slot})
+            .IsDone());
 }
 
 void MaglevGraphBuilder::VisitAdd() { VisitBinaryOperation<Operation::kAdd>(); }
@@ -8330,6 +8334,11 @@ void MaglevGraphBuilder::VisitCallRuntime() {
       },
       function_id, context);
   SetAccumulator(call_runtime);
+
+  if (RuntimeFunctionCanThrow(function_id)) {
+    RETURN_VOID_IF_DONE(BuildAbort(AbortReason::kUnexpectedReturnFromThrow));
+    UNREACHABLE();
+  }
 }
 
 void MaglevGraphBuilder::VisitCallJSRuntime() {
@@ -8466,7 +8475,7 @@ void MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
 void MaglevGraphBuilder::VisitIntrinsicGetImportMetaObject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 0);
-  SetAccumulator(BuildCallRuntime(Runtime::kGetImportMetaObject, {}));
+  SetAccumulator(BuildCallRuntime(Runtime::kGetImportMetaObject, {}).value());
 }
 
 void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
@@ -8700,7 +8709,7 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
   // site to avoid deopt loops.
   if (args.count() == 1 && allocation_site.CanInlineCall()) {
     ValueNode* int32_length = GetInt32(args[0]);
-    return Select<BranchIfInt32Compare>(
+    return SelectReduction<BranchIfInt32Compare>(
         [&] {
           CapturedValue elements =
               CapturedValue(AddNewNode<AllocateElementsArray>({int32_length},
@@ -10226,7 +10235,8 @@ void MaglevGraphBuilder::VisitCreateBlockContext() {
                                  map, scope_info, scope_info.ContextLength()),
                              done);
   // Fallback.
-  done(BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)}));
+  done(BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)})
+           .value());
 }
 
 void MaglevGraphBuilder::VisitCreateCatchContext() {
@@ -10283,7 +10293,8 @@ void MaglevGraphBuilder::VisitCreateEvalContext() {
     done(AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count,
                                            ScopeType::EVAL_SCOPE));
   } else {
-    done(BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)}));
+    done(BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)})
+             .value());
   }
 }
 
@@ -10329,7 +10340,7 @@ void MaglevGraphBuilder::VisitCreateMappedArguments() {
   }
   // Generic fallback.
   SetAccumulator(
-      BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
+      BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}).value());
 }
 
 void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
@@ -10340,7 +10351,7 @@ void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
   }
   // Generic fallback.
   SetAccumulator(
-      BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}));
+      BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}).value());
 }
 
 void MaglevGraphBuilder::VisitCreateRestParameter() {
@@ -10350,7 +10361,8 @@ void MaglevGraphBuilder::VisitCreateRestParameter() {
     return;
   }
   // Generic fallback.
-  SetAccumulator(BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}).value());
 }
 
 void MaglevGraphBuilder::PeelLoop() {
@@ -11155,13 +11167,13 @@ void MaglevGraphBuilder::VisitSetPendingMessage() {
 
 void MaglevGraphBuilder::VisitThrow() {
   ValueNode* exception = GetAccumulatorTagged();
-  BuildCallRuntime(Runtime::kThrow, {exception});
-  BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+  RETURN_VOID_IF_DONE(BuildCallRuntime(Runtime::kThrow, {exception}));
+  UNREACHABLE();
 }
 void MaglevGraphBuilder::VisitReThrow() {
   ValueNode* exception = GetAccumulatorTagged();
-  BuildCallRuntime(Runtime::kReThrow, {exception});
-  BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+  RETURN_VOID_IF_DONE(BuildCallRuntime(Runtime::kReThrow, {exception}));
+  UNREACHABLE();
 }
 
 void MaglevGraphBuilder::VisitReturn() {
@@ -11206,9 +11218,9 @@ void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
   if (IsConstantNode(value->opcode())) {
     if (IsTheHoleValue(value)) {
       ValueNode* constant = GetConstant(name);
-      BuildCallRuntime(Runtime::kThrowAccessedUninitializedVariable,
-                       {constant});
-      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+      RETURN_VOID_IF_DONE(BuildCallRuntime(
+          Runtime::kThrowAccessedUninitializedVariable, {constant}));
+      UNREACHABLE();
     }
     return;
   }
@@ -11252,8 +11264,8 @@ void MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
   // Avoid the check if we know it is not the hole.
   if (IsConstantNode(value->opcode())) {
     if (IsTheHoleValue(value)) {
-      BuildCallRuntime(Runtime::kThrowSuperNotCalled, {});
-      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+      RETURN_VOID_IF_DONE(BuildCallRuntime(Runtime::kThrowSuperNotCalled, {}));
+      UNREACHABLE();
     }
     return;
   }
@@ -11265,8 +11277,9 @@ void MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
   // Avoid the check if we know it is the hole.
   if (IsConstantNode(value->opcode())) {
     if (!IsTheHoleValue(value)) {
-      BuildCallRuntime(Runtime::kThrowSuperAlreadyCalledError, {});
-      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+      RETURN_VOID_IF_DONE(
+          BuildCallRuntime(Runtime::kThrowSuperAlreadyCalledError, {}));
+      UNREACHABLE();
     }
     return;
   }
@@ -11412,7 +11425,7 @@ void MaglevGraphBuilder::VisitGetIterator() {
 }
 
 void MaglevGraphBuilder::VisitDebugger() {
-  BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});
+  CHECK(BuildCallRuntime(Runtime::kHandleDebuggerStatement, {}).IsDone());
 }
 
 void MaglevGraphBuilder::VisitIncBlockCounter() {
@@ -11423,7 +11436,8 @@ void MaglevGraphBuilder::VisitIncBlockCounter() {
 
 void MaglevGraphBuilder::VisitAbort() {
   AbortReason reason = static_cast<AbortReason>(GetFlag8Operand(0));
-  BuildAbort(reason);
+  RETURN_VOID_IF_DONE(BuildAbort(reason));
+  UNREACHABLE();
 }
 
 void MaglevGraphBuilder::VisitWide() { UNREACHABLE(); }
