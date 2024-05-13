@@ -73,7 +73,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b0c2742896b6b9f869dc0eb35ae4785cbf2a4512',
+  'gn_version': 'git_revision:df98b86690c83b81aedc909ded18857296406159',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '01e3c73f58ca209014103abf934cc33be5f863d6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ef48ed5d9583911c48a5de44b3fd01308f1b1732',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4e0e9c73a0f26735f034f09a9cab2a5c0178536b',
   'buildtools/linux64': {
@@ -228,7 +228,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '0c02157621782572403132d1033230f050099118',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '711f324bf9fa1f09a3f81cc424d94d1efdc03695',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a9b9284faf89cd1a426371237df8307c328cc818',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e1385296c4ab4c7ee0a809676635b52d1df23b87',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -340,7 +340,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7d77fb7fd66d8a5640618ad32c71fdeb7d3e02df',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '091120aa2193b57762856ec97ff896601210ffa2',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b4959bf9895ea68d1f10a00b42dc339b8c087b44',
   'tools/luci-go': {
       'packages': [
         {
