@@ -405,10 +405,8 @@ void BreakIterator::SkipToPosition(int position) {
 }
 
 void BreakIterator::SetDebugBreak() {
-  DebugBreakType debug_break_type = GetDebugBreakType();
-  if (debug_break_type == DEBUGGER_STATEMENT) return;
+  DCHECK(GetDebugBreakType() >= DEBUGGER_STATEMENT);
   HandleScope scope(isolate());
-  DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
   Handle<BytecodeArray> bytecode_array(
       debug_info_->DebugBytecodeArray(isolate()), isolate());
   interpreter::BytecodeArrayIterator(bytecode_array, code_offset())
@@ -416,9 +414,7 @@ void BreakIterator::SetDebugBreak() {
 }
 
 void BreakIterator::ClearDebugBreak() {
-  DebugBreakType debug_break_type = GetDebugBreakType();
-  if (debug_break_type == DEBUGGER_STATEMENT) return;
-  DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
+  DCHECK(GetDebugBreakType() >= DEBUGGER_STATEMENT);
   Tagged<BytecodeArray> bytecode_array =
       debug_info_->DebugBytecodeArray(isolate());
   Tagged<BytecodeArray> original =
@@ -478,6 +474,8 @@ void Debug::ThreadInit() {
   thread_local_.break_on_next_function_call_ = false;
   thread_local_.scheduled_break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
+  thread_local_.muted_function_ = Smi::zero();
+  thread_local_.muted_position_ = -1;
 }
 
 char* Debug::ArchiveDebug(char* storage) {
@@ -538,6 +536,8 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
   v->VisitRootPointer(
       Root::kDebug, nullptr,
       FullObjectSlot(&thread_local_data->ignore_step_into_function_));
+  v->VisitRootPointer(Root::kDebug, nullptr,
+                      FullObjectSlot(&thread_local_data->muted_function_));
 }
 
 void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
@@ -671,6 +671,7 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   }
 
   // Find actual break points, if any, and trigger debug break event.
+  ClearMutedLocation();
   bool has_break_points;
   bool scheduled_break =
       scheduled_break_on_function_call() || shouldPauseAfterInstrumentation;
@@ -683,6 +684,13 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
     if (scheduled_break) {
       break_reasons.Add(debug::BreakReason::kScheduled);
     }
+    // If it's a debugger statement, add the reason and then mute the location
+    // so we don't stop a second time.
+    bool is_debugger_statement = IsBreakOnDebuggerStatement(shared, location);
+    if (is_debugger_statement) {
+      break_reasons.Add(debug::BreakReason::kDebuggerStatement);
+    }
+
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
@@ -690,6 +698,11 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
                      ? break_points_hit.ToHandleChecked()
                      : isolate_->factory()->empty_fixed_array(),
                  lastStepAction, break_reasons);
+
+    if (is_debugger_statement) {
+      // Don't pause here a second time
+      SetMutedLocation(shared, location);
+    }
     return;
   }
 
@@ -723,6 +736,9 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   bool step_break = false;
   switch (step_action) {
     case StepNone:
+      if (has_break_points) {
+        SetMutedLocation(shared, location);
+      }
       return;
     case StepOut:
       // StepOut should not break in a deeper frame than target frame.
@@ -772,8 +788,21 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   ClearStepping();
 
   if (step_break) {
+    // If it's a debugger statement, add the reason and then mute the location
+    // so we don't stop a second time.
+    debug::BreakReasons break_reasons;
+    bool is_debugger_statement = IsBreakOnDebuggerStatement(shared, location);
+    if (is_debugger_statement) {
+      break_reasons.Add(debug::BreakReason::kDebuggerStatement);
+    }
     // Notify the debug event listeners.
-    OnDebugBreak(isolate_->factory()->empty_fixed_array(), lastStepAction);
+    OnDebugBreak(isolate_->factory()->empty_fixed_array(), lastStepAction,
+                 break_reasons);
+
+    if (is_debugger_statement) {
+      // Don't pause here a second time
+      SetMutedLocation(shared, location);
+    }
   } else {
     // Re-prepare to continue.
     PrepareStep(step_action);
@@ -807,6 +836,18 @@ bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
   return false;
 }
 
+bool Debug::IsBreakOnDebuggerStatement(Handle<SharedFunctionInfo> function,
+                                       const BreakLocation& location) {
+  if (!function->HasBytecodeArray()) {
+    return false;
+  }
+  Tagged<BytecodeArray> original_bytecode =
+      function->GetBytecodeArray(isolate_);
+  interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(
+      original_bytecode->get(location.code_offset()));
+  return bytecode == interpreter::Bytecode::kDebugger;
+}
+
 // Find break point objects for this location, if any, and evaluate them.
 // Return an array of break point objects that evaluated true, or an empty
 // handle if none evaluated true.
@@ -827,18 +868,29 @@ MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
                                   has_break_points);
 }
 
-bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
+bool Debug::IsMutedAtAnyBreakLocation(
+    Handle<SharedFunctionInfo> function,
+    const std::vector<BreakLocation>& locations) {
   // A break location is considered muted if break locations on the current
   // statement have at least one break point, and all of these break points
   // evaluate to false. Aside from not triggering a debug break event at the
   // break location, we also do not trigger one for debugger statements, nor
   // an exception event on exception at this location.
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  HandleScope scope(isolate_);
-  bool has_break_points;
-  MaybeHandle<FixedArray> checked =
-      GetHitBreakpointsAtCurrentStatement(frame, &has_break_points);
-  return has_break_points && checked.is_null();
+  // This should have been computed at last break, and we should just
+  // check that we are not at that location.
+
+  if (IsSmi(thread_local_.muted_function_) ||
+      *function != thread_local_.muted_function_) {
+    return false;
+  }
+
+  for (const BreakLocation& location : locations) {
+    if (location.position() == thread_local_.muted_position_) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 namespace {
@@ -852,25 +904,6 @@ bool ToHandle(Isolate* isolate, base::Optional<Tagged<DebugInfo>> debug_info,
 }
 
 }  // namespace
-
-MaybeHandle<FixedArray> Debug::GetHitBreakpointsAtCurrentStatement(
-    JavaScriptFrame* frame, bool* has_break_points) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  FrameSummary summary = FrameSummary::GetTop(frame);
-  Handle<JSFunction> function = summary.AsJavaScript().function();
-  Handle<DebugInfo> debug_info;
-  if (!ToHandle(isolate_, TryGetDebugInfo(function->shared()), &debug_info) ||
-      !debug_info->HasBreakInfo()) {
-    *has_break_points = false;
-    return {};
-  }
-  // Enter the debugger.
-  DebugScope debug_scope(this);
-  std::vector<BreakLocation> break_locations;
-  BreakLocation::AllAtCurrentStatement(debug_info, frame, &break_locations);
-  return CheckBreakPointsForLocations(debug_info, break_locations,
-                                      has_break_points);
-}
 
 // Check whether a single break point object is triggered.
 bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
@@ -1583,6 +1616,7 @@ void Debug::ClearStepping() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Clear the various stepping setup.
   ClearOneShot();
+  ClearMutedLocation();
 
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
@@ -1612,6 +1646,17 @@ void Debug::ClearOneShot() {
     ClearBreakPoints(debug_info);
     ApplyBreakPoints(debug_info);
   }
+}
+
+void Debug::ClearMutedLocation() {
+  thread_local_.muted_function_ = Smi::zero();
+  thread_local_.muted_position_ = -1;
+}
+
+void Debug::SetMutedLocation(Handle<SharedFunctionInfo> function,
+                             const BreakLocation& location) {
+  thread_local_.muted_function_ = *function;
+  thread_local_.muted_position_ = location.position();
 }
 
 namespace {
@@ -2472,12 +2517,30 @@ void Debug::OnException(Handle<Object> exception,
 
   {
     JavaScriptStackFrameIterator it(isolate_);
-    // Check whether the affected frames are blackboxed or the break location is
-    // muted.
-    if (!it.done() && (IsMutedAtCurrentLocation(it.frame()))) {
+    std::vector<BreakLocation> break_locations;
+    Handle<SharedFunctionInfo> shared;
+    for (; !it.done(); it.Advance()) {
+      FrameSummary summary = FrameSummary::GetTop(it.frame());
+      Handle<JSFunction> function = summary.AsJavaScript().function();
+      if (function->shared()->IsSubjectToDebugging()) {
+        Handle<DebugInfo> debug_info;
+        shared = handle(function->shared(), isolate_);
+        if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
+            debug_info->HasBreakInfo()) {
+          // Enter the debugger.
+          DebugScope debug_scope(this);
+          BreakLocation::AllAtCurrentStatement(debug_info, it.frame(),
+                                               &break_locations);
+        }
+        break;  // Stop at first debuggable function
+      }
+    }
+
+    if (it.done()) return;  // Do not trigger an event with an empty stack.
+
+    if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
       return;
     }
-    if (it.done()) return;  // Do not trigger an event with an empty stack.
   }
 
   DebugScope debug_scope(this);
@@ -2770,22 +2833,13 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
         BreakLocation::AllAtCurrentStatement(debug_info, frame,
                                              &break_locations);
 
-        for (size_t i = 0; i < break_locations.size(); i++) {
-          if (IsBreakOnInstrumentation(debug_info, break_locations[i])) {
-            OnInstrumentationBreak();
-            break;
-          }
+        if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
+          // If we get to this point, a break was triggered because e.g. of
+          // a debugger statement, an assert, .. . However, we do not stop
+          // if this position "is muted", which happens if a conditional
+          // breakpoint at this point evaluated to false.
+          return;
         }
-
-        bool has_break_points;
-        break_points = CheckBreakPointsForLocations(debug_info, break_locations,
-                                                    &has_break_points);
-        bool is_muted = has_break_points && break_points.is_null();
-        // If we get to this point, a break was triggered because e.g. of a
-        // debugger statement, an assert, .. . However, we do not stop if this
-        // position "is muted", which happens if a conditional breakpoint at
-        // this point evaluates to false.
-        if (is_muted) return;
       }
     }
   }

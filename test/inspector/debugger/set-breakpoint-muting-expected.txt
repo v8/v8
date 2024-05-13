@@ -11,12 +11,6 @@ rejectInPromiseConstructor (breaking-functions.js:10:9)
 
 > Running again with location 10:39 muted
 console: log instead of break
-Paused on promiseRejection
-(anonymous) (breaking-functions.js:10:39)
-rejectInPromiseConstructor (breaking-functions.js:10:9)
-(anonymous) (:0:0)
-
-WARNING: Test paused 1 times
 
 Running test: testCase
 > Testing pause muting in function promiseReject() {
@@ -28,11 +22,6 @@ promiseReject (breaking-functions.js:14:17)
 
 > Running again with location 14:17 muted
 console: log instead of break
-Paused on promiseRejection
-promiseReject (breaking-functions.js:14:17)
-(anonymous) (:0:0)
-
-WARNING: Test paused 1 times
 
 Running test: testCase
 > Testing pause muting in function throwStatement() {
@@ -44,8 +33,6 @@ throwStatement (breaking-functions.js:18:2)
 
 > Running again with location 18:2 muted
 console: log instead of break
-console: log instead of break
-WARNING: Test printed to console 2 times
 
 Running test: testCase
 > Testing pause muting in function debuggerStatement() {
@@ -68,8 +55,6 @@ runtimeError (breaking-functions.js:26:9)
 
 > Running again with location 26:9 muted
 console: log instead of break
-console: log instead of break
-WARNING: Test printed to console 2 times
 
 Running test: testCase
 > Testing pause muting in function runtimeFunctionThrows() {
@@ -81,8 +66,6 @@ runtimeFunctionThrows (breaking-functions.js:30:14)
 
 > Running again with location 30:14 muted
 console: log instead of break
-console: log instead of break
-WARNING: Test printed to console 2 times
 
 Running test: testCase
 > Testing pause muting in function domBreakpoint() {
@@ -94,8 +77,6 @@ domBreakpoint (breaking-functions.js:34:12)
 
 > Running again with location 34:12 muted
 console: log instead of break
-console: log instead of break
-WARNING: Test printed to console 2 times
 
 Running test: testCase
 > Testing pause muting in function badConstructor() {
@@ -107,8 +88,3 @@ badConstructor (breaking-functions.js:38:2)
 
 > Running again with location 38:2 muted
 console: log instead of break
-Paused on exception
-badConstructor (breaking-functions.js:38:2)
-(anonymous) (:0:0)
-
-WARNING: Test paused 1 times
