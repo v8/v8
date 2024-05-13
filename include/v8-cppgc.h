@@ -50,10 +50,10 @@ struct WrapperDescriptor final {
    */
   static constexpr uint16_t kUnknownEmbedderId = UINT16_MAX;
 
-  V8_DEPRECATE_SOON("WrapperDescriptor is deprecated, see crbug.com/338411141.")
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   constexpr WrapperDescriptor() = default;
 
-  V8_DEPRECATE_SOON("WrapperDescriptor is deprecated, see crbug.com/338411141.")
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   constexpr WrapperDescriptor(InternalFieldIndex wrappable_type_index,
                               InternalFieldIndex wrappable_instance_index,
                               uint16_t embedder_id_for_garbage_collected)
@@ -87,7 +87,7 @@ struct V8_EXPORT CppHeapCreateParams {
       : custom_spaces(std::move(custom_spaces)) {}
   END_ALLOW_USE_DEPRECATED()
 
-  V8_DEPRECATE_SOON("WrapperDescriptor is deprecated, see crbug.com/338411141.")
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   CppHeapCreateParams(
       std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces,
       WrapperDescriptor wrapper_descriptor)
@@ -191,6 +191,7 @@ class V8_EXPORT CppHeap {
   /**
    * \returns the wrapper descriptor of this CppHeap.
    */
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   v8::WrapperDescriptor wrapper_descriptor() const;
 
  private:

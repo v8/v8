@@ -762,8 +762,10 @@ TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
   v8::Isolate* isolate = v8_isolate();
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable2>(allocation_handle());
+  START_ALLOW_USE_DEPRECATED()
   v8::WrapperDescriptor descriptor =
       isolate->GetCppHeap()->wrapper_descriptor();
+  END_ALLOW_USE_DEPRECATED()
   v8::Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
   int size = std::max(descriptor.wrappable_type_index,
                       descriptor.wrappable_instance_index) +

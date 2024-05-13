@@ -718,7 +718,9 @@ class WrappedContext : public cppgc::GarbageCollected<WrappedContext>,
 
 TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
   JsTestingScope testing_scope(v8_isolate());
+  START_ALLOW_USE_DEPRECATED()
   v8::WrapperDescriptor desc = v8_isolate()->GetCppHeap()->wrapper_descriptor();
+  END_ALLOW_USE_DEPRECATED()
   v8_isolate()->GetHeapProfiler()->SetGetDetachednessCallback(
       WrappedContext::GetDetachedness, &desc);
   cppgc::Persistent<WrappedContext> wrapped = WrappedContext::New(v8_isolate());
