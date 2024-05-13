@@ -180,13 +180,13 @@ class V8_NODISCARD BytecodeGenerator::ControlScope {
 // paths going through the finally-block to dispatch after leaving the block.
 class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
  public:
+
   DeferredCommands(BytecodeGenerator* generator, Register token_register,
-                   Register result_register, Register message_register)
+                   Register result_register)
       : generator_(generator),
         deferred_(generator->zone()),
         token_register_(token_register),
         result_register_(result_register),
-        message_register_(message_register),
         return_token_(-1),
         async_return_token_(-1) {
     // There's always a rethrow path.
@@ -229,12 +229,6 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
       // Smi token value is just as good, and by reusing it we save a bytecode.
       builder()->StoreAccumulatorInRegister(result_register_);
     }
-    if (command == CMD_RETHROW) {
-      // Clear message object as we enter the catch block. It will be restored
-      // if we rethrow.
-      builder()->LoadTheHole().SetPendingMessage().StoreAccumulatorInRegister(
-          message_register_);
-    }
   }
 
   // Records the dispatch token to be used to identify the re-throw path when
@@ -275,13 +269,6 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
           .CompareReference(token_register_)
           .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
 
-      if (entry.command == CMD_RETHROW) {
-        // Pending message object is restored on exit.
-        builder()
-            ->LoadAccumulatorWithRegister(message_register_)
-            .SetPendingMessage();
-      }
-
       if (CommandUsesAccumulator(entry.command)) {
         builder()->LoadAccumulatorWithRegister(result_register_);
       }
@@ -299,13 +286,6 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
           .Jump(&fall_through);
       for (const Entry& entry : deferred_) {
         builder()->Bind(jump_table, entry.token);
-
-        if (entry.command == CMD_RETHROW) {
-          // Pending message object is restored on exit.
-          builder()
-              ->LoadAccumulatorWithRegister(message_register_)
-              .SetPendingMessage();
-        }
 
         if (CommandUsesAccumulator(entry.command)) {
           builder()->LoadAccumulatorWithRegister(result_register_);
@@ -361,7 +341,6 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   ZoneVector<Entry> deferred_;
   Register token_register_;
   Register result_register_;
-  Register message_register_;
 
   // Tokens for commands that don't need a statement.
   int return_token_;
@@ -2578,14 +2557,12 @@ void BytecodeGenerator::BuildTryFinally(
   //  - Falling through into finally-block: Undefined and not used.
   Register token = register_allocator()->NewRegister();
   Register result = register_allocator()->NewRegister();
-  Register message = register_allocator()->NewRegister();
-  ControlScope::DeferredCommands commands(this, token, result, message);
+  ControlScope::DeferredCommands commands(this, token, result);
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
   // TODO(ignition): Be smarter about register allocation.
-  // Reuse the message register which is only used after the stack is unwound.
-  Register context = message;
+  Register context = register_allocator()->NewRegister();
   builder()->MoveRegister(Register::current_context(), context);
 
   // Evaluate the try-block inside a control scope. This simulates a handler
@@ -2607,11 +2584,20 @@ void BytecodeGenerator::BuildTryFinally(
   try_control_builder.BeginHandler();
   commands.RecordHandlerReThrowPath();
 
+  // Pending message object is saved on entry.
   try_control_builder.BeginFinally();
+  Register message = context;  // Reuse register.
+
+  // Clear message object as we enter the finally block.
+  builder()->LoadTheHole().SetPendingMessage().StoreAccumulatorInRegister(
+      message);
 
   // Evaluate the finally-block.
   finally_body_func(token, result);
   try_control_builder.EndFinally();
+
+  // Pending message object is restored on exit.
+  builder()->LoadAccumulatorWithRegister(message).SetPendingMessage();
 
   // Dynamic dispatch after the finally-block.
   commands.ApplyDeferredCommands();
