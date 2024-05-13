@@ -266,7 +266,8 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
-  JSDisposableStack::Add(isolate, stack, value, dispose_method);
+  JSDisposableStack::Add(isolate, stack, value, dispose_method,
+                         DisposeMethodCallType::kValueIsReceiver);
 
   return *value;
 }

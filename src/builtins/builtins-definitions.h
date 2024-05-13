@@ -601,6 +601,8 @@ namespace internal {
   CPP(DisposableStackConstructor)                                              \
   CPP(DisposableStackPrototypeUse)                                             \
   CPP(DisposableStackPrototypeDispose)                                         \
+  CPP(DisposableStackPrototypeAdopt)                                           \
+  CPP(DisposableStackPrototypeDefer)                                           \
                                                                                \
   /* Error */                                                                  \
   CPP(ErrorConstructor)                                                        \

@@ -31,13 +31,15 @@ BIT_FIELD_ACCESSORS(JSDisposableStack, status, length,
 
 inline void JSDisposableStack::Add(Isolate* isolate,
                                    Handle<JSDisposableStack> disposable_stack,
-                                   Handle<Object> value,
-                                   Handle<Object> method) {
+                                   Handle<Object> value, Handle<Object> method,
+                                   DisposeMethodCallType type) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
   int length = disposable_stack->length();
+  Handle<Smi> call_type(Smi::FromEnum(type), isolate);
   Handle<FixedArray> array(disposable_stack->stack(), isolate);
   array = FixedArray::SetAndGrow(isolate, array, length++, value);
   array = FixedArray::SetAndGrow(isolate, array, length++, method);
+  array = FixedArray::SetAndGrow(isolate, array, length++, call_type);
 
   disposable_stack->set_length(length);
   disposable_stack->set_stack(*array);

@@ -1635,7 +1635,7 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
 void JSDisposableStack::JSDisposableStackVerify(Isolate* isolate) {
   CHECK(IsJSDisposableStack(*this));
   JSObjectVerify(isolate);
-  CHECK_EQ(length() % 2, 0);
+  CHECK_EQ(length() % 3, 0);
   CHECK_GE(stack()->capacity(), length());
 }
 

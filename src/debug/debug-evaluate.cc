@@ -989,6 +989,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     // DisposableStack builtins.
     case Builtin::kDisposableStackPrototypeUse:
     case Builtin::kDisposableStackPrototypeDispose:
+    case Builtin::kDisposableStackPrototypeAdopt:
+    case Builtin::kDisposableStackPrototypeDefer:
     // RegExp builtins.
     case Builtin::kRegExpPrototypeTest:
     case Builtin::kRegExpPrototypeExec:

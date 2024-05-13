@@ -22,6 +22,12 @@ namespace internal {
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposablestack-objects
 enum class DisposableStackState { kDisposed, kPending };
 
+// kValueIsReceiver: Call the method with no argument
+// kValueIsArgument: Pass the value as the argument to the dispose method,
+// `disposablestack.prototype.adopt` is the only method that uses
+// kValueIsArgument as DisposeMethodCallType.
+enum class DisposeMethodCallType { kValueIsReceiver = 0, kValueIsArgument = 1 };
+
 class JSDisposableStack
     : public TorqueGeneratedJSDisposableStack<JSDisposableStack, JSObject> {
  public:
@@ -35,7 +41,8 @@ class JSDisposableStack
 
   static void Initialize(Isolate* isolate, Handle<JSDisposableStack> stack);
   static void Add(Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
-                  Handle<Object> value, Handle<Object> method);
+                  Handle<Object> value, Handle<Object> method,
+                  DisposeMethodCallType type);
   static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
       Isolate* isolate, Handle<Object> value);
   static Maybe<bool> DisposeResources(

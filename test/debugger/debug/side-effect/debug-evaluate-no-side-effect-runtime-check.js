@@ -223,6 +223,22 @@ success(42, `(() => {
   return 42;
 })()`);
 
+// DisposableStack adopt().
+fail(`disposable_stack.adopt(42, function(v) {return v})`);
+success(42, `(() => {
+  let stack = new DisposableStack();
+  stack.adopt(42, function(v) {return v});
+  return 42;
+})()`);
+
+// DisposableStack defer().
+fail(`disposable_stack.defer(() => console.log(42))`);
+success(42, `(() => {
+  let stack = new DisposableStack();
+  stack.defer(() => console.log(42));
+  return 42;
+})()`);
+
 function success(expectation, source) {
   const result = Debug.evaluateGlobal(source, true).value();
   if (expectation !== undefined) assertEquals(expectation, result);

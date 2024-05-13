@@ -5839,6 +5839,11 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
                         Builtin::kDisposableStackPrototypeUse, 1, true);
   SimpleInstallFunction(isolate(), disposable_stack_prototype, "dispose",
                         Builtin::kDisposableStackPrototypeDispose, 0, true);
+  SimpleInstallFunction(isolate(), disposable_stack_prototype, "adopt",
+                        Builtin::kDisposableStackPrototypeAdopt, 2, true);
+  SimpleInstallFunction(isolate(), disposable_stack_prototype, "defer",
+                        Builtin::kDisposableStackPrototypeDefer, 1, true);
+  InstallToStringTag(isolate(), disposable_stack_prototype, "DisposableStack");
 }
 
 void Genesis::InitializeGlobal_js_float16array() {

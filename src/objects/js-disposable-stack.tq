@@ -10,8 +10,10 @@ bitfield struct DisposableStackStatus extends uint31 {
 }
 
 extern class JSDisposableStack extends JSObject {
-  // In the stack, [i] is the value that the initializer evaluates to and [i+1]
-  // is dispose method.
+  // In the stack, [i] is the value that the initializer evaluates to, [i+1]
+  // is dispose method, and [i+2] determines if the value is the argument of the
+  // method or not. `disposablestack.prototype.adopt` is the only case that the
+  // value is the argument of method.
   stack: FixedArray;
   status: SmiTagged<DisposableStackStatus>;
 }
