@@ -675,8 +675,8 @@ class WrappedContext : public cppgc::GarbageCollected<WrappedContext>,
   }
 
   static v8::EmbedderGraph::Node::Detachedness GetDetachedness(
-      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
-      uint16_t class_id, void* data) {
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value, uint16_t,
+      void*) {
     return WrapperHelper::UnwrapAs<WrappedContext>(isolate,
                                                    v8_value.As<v8::Object>())
         ->detachedness();
@@ -718,11 +718,8 @@ class WrappedContext : public cppgc::GarbageCollected<WrappedContext>,
 
 TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
   JsTestingScope testing_scope(v8_isolate());
-  START_ALLOW_USE_DEPRECATED()
-  v8::WrapperDescriptor desc = v8_isolate()->GetCppHeap()->wrapper_descriptor();
-  END_ALLOW_USE_DEPRECATED()
   v8_isolate()->GetHeapProfiler()->SetGetDetachednessCallback(
-      WrappedContext::GetDetachedness, &desc);
+      WrappedContext::GetDetachedness, nullptr);
   cppgc::Persistent<WrappedContext> wrapped = WrappedContext::New(v8_isolate());
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));

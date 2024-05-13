@@ -4404,9 +4404,7 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
 
     SnapshotCreatorParams params;
     params.create_params.cpp_heap =
-        v8::CppHeap::Create(platform, v8::CppHeapCreateParams(
-                                          {}, v8::WrapperDescriptor(0, 1, 0)))
-            .release();
+        v8::CppHeap::Create(platform, v8::CppHeapCreateParams({})).release();
     v8::SnapshotCreator creator(params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     v8::CppHeap* cpp_heap = isolate->GetCppHeap();
