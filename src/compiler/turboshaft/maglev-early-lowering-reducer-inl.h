@@ -237,7 +237,6 @@ class MaglevEarlyLoweringReducer : public Next {
     BIND(end);
   }
 
- private:
   V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);
     if (V8_STATIC_ROOTS_BOOL) {
@@ -254,6 +253,7 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
+ private:
   V<Word32> CompareInstanceTypeRange(V<Map> map,
                                      InstanceType first_instance_type,
                                      InstanceType last_instance_type) {
