@@ -455,8 +455,6 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
 }
 
 THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
-  FLAG_SCOPE(harmony_rab_gsab);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -835,8 +833,6 @@ TEST(BackingStore_ReallocateShared) {
 END_ALLOW_USE_DEPRECATED()
 
 TEST(ArrayBuffer_Resizable) {
-  FLAG_SCOPE(harmony_rab_gsab);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -858,8 +854,6 @@ TEST(ArrayBuffer_Resizable) {
 }
 
 TEST(ArrayBuffer_FixedLength) {
-  FLAG_SCOPE(harmony_rab_gsab);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
