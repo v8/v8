@@ -6557,42 +6557,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   return GetRootConstant(RootIndex::kUndefinedValue);
 }
 
-ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
-    return ReduceResult::Fail();
-  }
-  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return ReduceResult::Fail();
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kEntries);
-}
-
-ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeKeys(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
-    return ReduceResult::Fail();
-  }
-  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return ReduceResult::Fail();
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kKeys);
-}
-
-ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeValues(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
-    return ReduceResult::Fail();
-  }
-  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return ReduceResult::Fail();
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kValues);
-}
-
 ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
@@ -8571,20 +8535,6 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArray(
     array.set(map.GetInObjectPropertyOffset(i), RootIndex::kUndefinedValue);
   }
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
-  return allocation;
-}
-
-ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
-    ValueNode* array, IterationKind iteration_kind) {
-  compiler::MapRef map =
-      broker()->target_native_context().initial_array_iterator_map(broker());
-  CapturedObject iterator = CapturedObject::CreateJSArrayIterator(
-      zone(), map, array, IterationKind::kValues);
-  ValueNode* allocation =
-      BuildInlinedAllocation(iterator, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
   // next side effect clear it.
   ClearCurrentAllocationBlock();
@@ -11468,17 +11418,7 @@ ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
     FeedbackSlot call_slot = FeedbackVector::ToSlot(call_slot_index);
     compiler::FeedbackSource call_feedback{feedback(), call_slot};
     CallArguments args(ConvertReceiverMode::kAny, {receiver});
-
-    // TODO(victorgomes): Should we stop passing the speculation mode and rely
-    // on the call_feedback instead?
-    compiler::ProcessedFeedback const& processed_feedback =
-        broker()->GetFeedbackForCall(call_feedback);
-    SpeculationMode speculation_mode =
-        processed_feedback.IsInsufficient()
-            ? SpeculationMode::kDisallowSpeculation
-            : processed_feedback.AsCall().speculation_mode();
-    ReduceResult result_call =
-        ReduceCall(iterator_method, args, call_feedback, speculation_mode);
+    ReduceResult result_call = ReduceCall(iterator_method, args, call_feedback);
 
     if (result_call.IsDoneWithAbort()) return result_call;
     DCHECK(result_call.IsDoneWithValue());
