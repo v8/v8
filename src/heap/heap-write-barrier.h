@@ -95,8 +95,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                                                        size_t argc,
                                                        void** values);
 
-  static inline void MarkingFromCppHeapWrappable(Tagged<JSObject> host,
-                                                 void* value);
+  static inline void CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                      void* value);
 
   static MarkingBarrier* SetForThread(MarkingBarrier*);
 

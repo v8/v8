@@ -18,7 +18,7 @@ base::Optional<WrappableInfo> WrappableInfo::From(
     Isolate* isolate, Tagged<JSObject> wrapper,
     const WrapperDescriptor& wrapper_descriptor) {
   DCHECK(wrapper->MayHaveEmbedderFields());
-  return wrapper_descriptor.embedder_id_for_garbage_collected !=
+  return wrapper_descriptor.embedder_id_for_garbage_collected ==
                      WrapperDescriptor::kUnknownEmbedderId ||
                  wrapper->GetEmbedderFieldCount() < 2
              ? base::Optional<WrappableInfo>()

@@ -601,17 +601,31 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
 }
 
 namespace {
-void VisitObjectWithEmbedderFields(Tagged<JSObject> object,
+void VisitObjectWithEmbedderFields(Isolate* isolate, Tagged<JSObject> js_object,
                                    MarkingWorklists::Local& worklist) {
-  DCHECK(object->MayHaveEmbedderFields());
-  DCHECK(!Heap::InYoungGeneration(object));
+  DCHECK(js_object->MayHaveEmbedderFields());
+  DCHECK(!Heap::InYoungGeneration(js_object));
 
-  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  const bool valid_snapshot =
-      worklist.ExtractWrapper(object->map(), object, wrapper_snapshot);
-  DCHECK(valid_snapshot);
-  USE(valid_snapshot);
-  worklist.PushExtractedWrapper(wrapper_snapshot);
+  const auto maybe_info = WrappableInfo::From(
+      isolate, js_object,
+      CppHeap::From(isolate->heap()->cpp_heap())->wrapper_descriptor());
+  if (maybe_info.has_value()) {
+    // Wrappers with 2 embedder fields.
+    worklist.cpp_marking_state()->MarkAndPush(maybe_info->instance);
+    return;
+  }
+  // Not every object that can have embedder fields is actually a JSApiWrapper.
+  if (!IsJSApiWrapperObject(js_object)) {
+    return;
+  }
+
+  // Wrapper using cpp_heap_wrappable field.
+  void* wrappable =
+      JSApiWrapper(js_object).GetCppHeapWrappable<kAnyExternalPointerTag>(
+          isolate);
+  if (wrappable) {
+    worklist.cpp_marking_state()->MarkAndPush(wrappable);
+  }
 }
 }  // namespace
 
@@ -625,7 +639,8 @@ void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
         &root_visitor);
     // Visit the V8-to-Oilpan remembered set.
     cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](Tagged<JSObject> obj) {
-      VisitObjectWithEmbedderFields(obj, *local_marking_worklists());
+      VisitObjectWithEmbedderFields(heap_->isolate(), obj,
+                                    *local_marking_worklists());
     });
   } else {
     // Otherwise, visit all young roots.
