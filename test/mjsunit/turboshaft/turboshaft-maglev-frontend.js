@@ -1698,17 +1698,3 @@ let glob_b = 3.35;
   assertEquals("abc", (migrate_and_load({a: 42, x : "abc"})));
   assertUnoptimized(migrate_and_load);
 }
-
-// Testing array destructuring.
-{
-  function destruct_arr () {
-    [a, b] = [4, 9];
-    return a + b;
-  }
-
-  %PrepareFunctionForOptimization(destruct_arr);
-  assertEquals(13, destruct_arr());
-  %OptimizeFunctionOnNextCall(destruct_arr);
-  assertEquals(13, destruct_arr());
-  assertOptimized(destruct_arr);
-}

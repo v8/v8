@@ -773,20 +773,6 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::GetIterator* node,
-                                const maglev::ProcessingState& state) {
-    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-
-    OpIndex arguments[] = {
-        Map(node->receiver()), __ TaggedIndexConstant(node->load_slot()),
-        __ TaggedIndexConstant(node->call_slot()),
-        __ HeapConstant(node->feedback()), Map(node->context())};
-
-    SetMap(node, GenerateBuiltinCall(node, Builtin::kGetIteratorWithFeedback,
-                                     frame_state, base::VectorOf(arguments)));
-    return maglev::ProcessResult::kContinue;
-  }
-
   maglev::ProcessResult Process(maglev::CheckSmi* node,
                                 const maglev::ProcessingState& state) {
     __ DeoptimizeIfNot(__ ObjectIsSmi(Map(node->receiver_input())),
@@ -1649,13 +1635,6 @@ class GraphBuilder {
               Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::BranchIfJSReceiver* node,
-                                const maglev::ProcessingState& state) {
-    __ GotoIf(__ IsSmi(Map(node->condition_input())), Map(node->if_false()));
-    __ Branch(__ JSAnyIsNotPrimitive(Map(node->condition_input())),
-              Map(node->if_true()), Map(node->if_false()));
-    return maglev::ProcessResult::kContinue;
-  }
 
   maglev::ProcessResult Process(maglev::Switch* node,
                                 const maglev::ProcessingState& state) {
@@ -2256,11 +2235,10 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::SetPendingMessage* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex message_address = __ ExternalConstant(
-        ExternalReference::address_of_pending_message(isolate_));
-    V<Object> old_message = __ LoadMessage(message_address);
-    __ StoreMessage(message_address, Map(node->value()));
-    SetMap(node, old_message);
+    __ StoreMessage(
+        __ ExternalConstant(
+            ExternalReference::address_of_pending_message(isolate_)),
+        Map(node->value()));
     return maglev::ProcessResult::kContinue;
   }
 
