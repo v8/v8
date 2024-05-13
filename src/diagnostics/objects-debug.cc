@@ -2689,7 +2689,7 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       nullptr
 #endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
   );
-  return true;
+  return success;
 }
 
 #undef USE_TORQUE_VERIFIER
