@@ -97,7 +97,7 @@ TestingModuleBuilder::TestingModuleBuilder(
           static_cast<int>(sig->parameter_count()), kNoSuspend, &cache_scope);
     }
 
-    ImportedFunctionEntry(instance_object_, maybe_import_index)
+    ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend(),
                      sig);
   }
@@ -286,7 +286,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
-      FunctionTargetAndRef entry(instance_object_, function.func_index);
+      FunctionTargetAndRef entry(isolate_, trusted_instance_data_,
+                                 function.func_index);
       trusted_instance_data_->dispatch_table(table_index)
           ->Set(i, *entry.ref(), entry.call_target(), sig_id);
       WasmTableObject::SetFunctionTablePlaceholder(

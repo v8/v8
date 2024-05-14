@@ -283,10 +283,8 @@ void WasmGraphBuilder::Start(unsigned params) {
         Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
                AbortReason::kUnexpectedInstanceType);
       }
-      Node* instance_object = gasm_->LoadExportedFunctionInstance(
+      instance_data_node_ = gasm_->LoadExportedFunctionInstanceData(
           gasm_->LoadFunctionDataFromJSFunction(param));
-      instance_data_node_ =
-          gasm_->LoadTrustedDataFromInstanceObject(instance_object);
       break;
     }
     case kNoSpecialParameterMode:

@@ -1375,6 +1375,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(LoadProtectedPointerField(
         data, WasmFunctionData::kProtectedInternalOffset));
   }
+
+  TNode<WasmTrustedInstanceData>
+  LoadWasmTrustedInstanceDataFromWasmExportedFunctionData(
+      TNode<WasmExportedFunctionData> data) {
+    return CAST(LoadProtectedPointerField(
+        data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

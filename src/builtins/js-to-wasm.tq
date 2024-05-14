@@ -467,7 +467,7 @@ macro JSToWasmWrapperHelper(
 
   const sig = functionData.sig;
   const trustedInstanceData: WasmTrustedInstanceData =
-      LoadTrustedDataFromInstance(functionData.instance);
+      functionData.instance_data;
 
   const paramCount = *GetRefAt<int32>(sig, kWasmParameterCountOffset);
 

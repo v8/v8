@@ -467,10 +467,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   DCHECK_EQ(1, args.length());
   Handle<WasmExportedFunctionData> function_data(
       WasmExportedFunctionData::cast(args[0]), isolate);
-  Handle<WasmInstanceObject> instance_object(function_data->instance(),
-                                             isolate);
-  Handle<WasmTrustedInstanceData> trusted_data(
-      instance_object->trusted_data(isolate), isolate);
+  Handle<WasmTrustedInstanceData> trusted_data{function_data->instance_data(),
+                                               isolate};
   DCHECK(isolate->context().is_null());
   isolate->set_context(trusted_data->native_context());
 
@@ -661,7 +659,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
     int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
-    ImportedFunctionEntry entry(instance_object, func_index);
+    ImportedFunctionEntry entry(trusted_data, func_index);
     entry.set_target(wasm_code->instruction_start());
   } else {
     // Indirect function table index.

@@ -446,7 +446,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
 #if V8_ENABLE_WEBASSEMBLY
   class WasmFrameSummary : public FrameSummaryBase {
    public:
-    WasmFrameSummary(Isolate* isolate, Handle<WasmInstanceObject> instance,
+    WasmFrameSummary(Isolate* isolate,
+                     Handle<WasmTrustedInstanceData> instance_data,
                      wasm::WasmCode* code, int byte_offset, int function_index,
                      bool at_to_number_conversion);
 
@@ -460,14 +461,16 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
-    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
+    Handle<WasmInstanceObject> wasm_instance() const;
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+      return instance_data_;
+    }
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
-    Handle<WasmInstanceObject> wasm_instance_;
+    Handle<WasmTrustedInstanceData> instance_data_;
     bool at_to_number_conversion_;
     wasm::WasmCode* code_;
     int byte_offset_;
@@ -479,11 +482,13 @@ class V8_EXPORT_PRIVATE FrameSummary {
   class WasmInlinedFrameSummary : public FrameSummaryBase {
    public:
     WasmInlinedFrameSummary(Isolate* isolate,
-                            Handle<WasmInstanceObject> instance,
+                            Handle<WasmTrustedInstanceData> instance_data,
                             int function_index, int op_wire_bytes_offset);
 
-    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
+    Handle<WasmInstanceObject> wasm_instance() const;
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+      return instance_data_;
+    }
     Handle<Object> receiver() const;
     uint32_t function_index() const;
     int code_offset() const { return op_wire_bytes_offset_; }
@@ -496,7 +501,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
-    Handle<WasmInstanceObject> wasm_instance_;
+    Handle<WasmTrustedInstanceData> instance_data_;
     int function_index_;
     int op_wire_bytes_offset_;  // relative to function offset.
   };

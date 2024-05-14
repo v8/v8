@@ -133,8 +133,6 @@ class WasmGraphAssembler : public GraphAssembler {
                                                    IntPtrConstant(offset));
   }
 
-  Node* BuildDecompressProtectedPointer(Node* tagged);
-
   Node* LoadImmutableFromObject(MachineType type, Node* base, Node* offset);
 
   Node* LoadImmutableFromObject(MachineType type, Node* base, int offset) {
@@ -260,7 +258,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadExportedFunctionIndexAsSmi(Node* exported_function_data);
 
-  Node* LoadExportedFunctionInstance(Node* exported_function_data);
+  Node* LoadExportedFunctionInstanceData(Node* exported_function_data);
 
   // JavaScript objects.
 

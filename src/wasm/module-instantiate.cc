@@ -663,12 +663,12 @@ ImportCallKind WasmImportData::ComputeKind(
     uint32_t func_index =
         static_cast<uint32_t>(imported_function->function_index());
     if (func_index >=
-        imported_function->instance()->module()->num_imported_functions) {
+        imported_function->instance_data()->module()->num_imported_functions) {
       return ImportCallKind::kWasmToWasm;
     }
     // Resolve the shortcut to the underlying callable and continue.
-    ImportedFunctionEntry entry(handle(imported_function->instance(), isolate),
-                                func_index);
+    ImportedFunctionEntry entry(
+        handle(imported_function->instance_data(), isolate), func_index);
     callable_ = handle(entry.callable(), isolate);
   }
   if (WasmJSFunction::IsWasmJSFunction(*callable_)) {
@@ -1508,8 +1508,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     DCHECK(start_function_.is_null());
     if (function.imported) {
-      ImportedFunctionEntry entry(instance_object,
-                                  module_->start_function_index);
+      ImportedFunctionEntry entry(trusted_data, module_->start_function_index);
       Tagged<Object> callable = entry.maybe_callable();
       if (IsJSFunction(callable)) {
         // If the start function was imported and calls into Blink, we have
@@ -1906,8 +1905,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
   js_receiver = resolved.callable();
-  ImportedFunctionEntry imported_entry(isolate_, trusted_instance_data,
-                                       func_index);
+  ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
       imported_entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
@@ -1921,13 +1919,10 @@ bool InstanceBuilder::ProcessImportedFunction(
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
       auto imported_function = Handle<WasmExportedFunction>::cast(js_receiver);
-      Handle<WasmInstanceObject> imported_instance_object(
-          imported_function->instance(), isolate_);
       // The import reference is the instance object itself.
       Address imported_target = imported_function->GetWasmCallTarget();
-      imported_entry.SetWasmToWasm(
-          imported_function->instance()->trusted_data(isolate_),
-          imported_target);
+      imported_entry.SetWasmToWasm(imported_function->instance_data(),
+                                   imported_target);
       break;
     }
     case ImportCallKind::kWasmToCapi: {
@@ -2027,12 +2022,12 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
   for (int i = 0; i < imported_table_size; ++i) {
     bool is_valid;
     bool is_null;
-    MaybeHandle<WasmInstanceObject> maybe_target_instance;
+    MaybeHandle<WasmTrustedInstanceData> maybe_target_instance_data;
     int function_index;
     MaybeHandle<WasmJSFunction> maybe_js_function;
     WasmTableObject::GetFunctionTableEntry(
         isolate_, module_, table_object, i, &is_valid, &is_null,
-        &maybe_target_instance, &function_index, &maybe_js_function);
+        &maybe_target_instance_data, &function_index, &maybe_js_function);
     if (!is_valid) {
       thrower_->LinkError("table import %d[%d] is not a wasm function",
                           import_index, i);
@@ -2046,12 +2041,12 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
       continue;
     }
 
-    Handle<WasmInstanceObject> target_instance =
-        maybe_target_instance.ToHandleChecked();
-    const WasmModule* target_module = target_instance->module();
+    Handle<WasmTrustedInstanceData> target_instance_data =
+        maybe_target_instance_data.ToHandleChecked();
+    const WasmModule* target_module = target_instance_data->module();
     const WasmFunction& function = target_module->functions[function_index];
 
-    FunctionTargetAndRef entry(target_instance, function_index);
+    FunctionTargetAndRef entry(isolate_, target_instance_data, function_index);
     Handle<Object> ref = entry.ref();
     if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
       Handle<WasmApiFunctionRef> orig_ref =

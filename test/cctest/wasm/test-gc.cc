@@ -247,12 +247,12 @@ class WasmGCTester {
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
-    NativeModule* native_module = trusted_instance_data_->native_module();
+    const WasmModule* module = trusted_instance_data_->module();
     Address wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     Handle<Object> object_ref = instance_object_;
     Handle<Code> c_wasm_entry =
-        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
+        compiler::CompileCWasmEntry(isolate_, sig, module);
     Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
                         packer->argv());
   }

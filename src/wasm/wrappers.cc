@@ -387,12 +387,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         modify_thread_in_wasm_flag_builder.emplace(this, Asm());
       }
 
-      V<HeapObject> instance_object =
-          __ Load(function_data, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::TaggedPointer(),
-                  WasmExportedFunctionData::kInstanceOffset);
       V<WasmTrustedInstanceData> instance_data =
-          LoadTrustedDataFromInstanceObject(instance_object);
+          V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
+              function_data, LoadOp::Kind::TaggedBase().Immutable(),
+              WasmExportedFunctionData::kProtectedInstanceDataOffset));
 
       if (is_import) {
         // Call to an imported function.

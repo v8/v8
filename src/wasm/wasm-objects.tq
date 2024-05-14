@@ -28,6 +28,7 @@ extern class WasmApiFunctionRef extends ExposedTrustedObject {
   callable: JSReceiver|Undefined;
   // Present when compiling JSFastApiCall wrappers, needed
   // to load memory start/size fields.
+  // TODO(jkummerow): This should probably point to WasmTrustedInstanceData.
   instance: WasmInstanceObject|Undefined;
   suspend: Smi;  // Boolean.
   wrapper_budget: Smi;
@@ -98,7 +99,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of
   // imported and re-exported functions is different from the instance
   // where the function is defined -- for the latter see WasmFunctionData::ref).
-  instance: WasmInstanceObject;
+  protected_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
   function_index: Smi;
   // Contains a Smi; boxed so that generated code can update the value.
   wrapper_budget: Cell;
@@ -113,6 +114,10 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
 
   sig: RawPtr;  // wasm::FunctionSig*
 }
+
+extern operator '.instance_data' macro
+    LoadWasmTrustedInstanceDataFromWasmExportedFunctionData(
+        WasmExportedFunctionData): WasmTrustedInstanceData;
 
 extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;

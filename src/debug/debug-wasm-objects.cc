@@ -307,7 +307,9 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<String> GetName(Isolate* isolate,
                                 Handle<WasmInstanceObject> instance,
                                 uint32_t index) {
-    return GetWasmFunctionDebugName(isolate, instance, index);
+    i::Handle<i::WasmTrustedInstanceData> instance_data{
+        instance->trusted_data(isolate), isolate};
+    return GetWasmFunctionDebugName(isolate, instance_data, index);
   }
 };
 
@@ -447,10 +449,8 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
 
   static Handle<JSObject> Create(WasmFrame* frame) {
     auto isolate = frame->isolate();
-    auto debug_info = frame->wasm_instance()
-                          ->module_object()
-                          ->native_module()
-                          ->GetDebugInfo();
+    auto debug_info =
+        frame->trusted_instance_data()->native_module()->GetDebugInfo();
     int count = debug_info->GetStackDepth(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count);
     Handle<WasmModuleObject> module_object(
@@ -1026,11 +1026,10 @@ std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
 }
 
-Handle<String> GetWasmFunctionDebugName(Isolate* isolate,
-                                        Handle<WasmInstanceObject> instance,
-                                        uint32_t func_index) {
-  wasm::NativeModule* native_module =
-      instance->module_object()->native_module();
+Handle<String> GetWasmFunctionDebugName(
+    Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
+    uint32_t func_index) {
+  wasm::NativeModule* native_module = instance_data->native_module();
   wasm::NamesProvider* names = native_module->GetNamesProvider();
   StringBuilder sb;
   wasm::NamesProvider::FunctionNamesBehavior behavior =

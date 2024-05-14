@@ -2136,10 +2136,8 @@ bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
 i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Isolate* i_isolate, i::Handle<i::WasmExportedFunctionData> data,
     ErrorThrower& thrower, bool with_suspender_param) {
-  i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
-      i::WasmTrustedInstanceData::cast(
-          data->instance()->trusted_data(i_isolate)),
-      i_isolate);
+  i::Handle<i::WasmTrustedInstanceData> trusted_instance_data{
+      data->instance_data(), i_isolate};
   int func_index = data->function_index();
   i::Handle<i::Code> wrapper =
       with_suspender_param ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)

@@ -298,23 +298,23 @@ TRUSTED_POINTER_ACCESSORS(WasmInstanceObject, trusted_data,
                           kWasmTrustedInstanceDataIndirectPointerTag)
 
 // Note: in case of existing in-sandbox corruption, this could return an
-// incorrect WasmModule! For security-relevant code, prefer going via
-// WasmTrustedInstanceData::native_module().
+// incorrect WasmModule! For security-relevant code, prefer reading
+// {native_module()} from a {WasmTrustedInstanceData}.
 const wasm::WasmModule* WasmInstanceObject::module() const {
   return module_object()->module();
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    Handle<WasmInstanceObject> instance_object, int index)
-    : instance_object_(instance_object), index_(index) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, instance_object->module()->num_imported_functions);
-}
+    Isolate* isolate, Handle<WasmInstanceObject> instance_object, int index)
+    : ImportedFunctionEntry(
+          handle(instance_object->trusted_data(isolate), isolate), index) {}
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data, int index)
-    : ImportedFunctionEntry(handle(instance_data->instance_object(), isolate),
-                            index) {}
+    Handle<WasmTrustedInstanceData> instance_data, int index)
+    : instance_data_(instance_data), index_(index) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, instance_data->module()->num_imported_functions);
+}
 
 // WasmDispatchTable
 CAST_ACCESSOR(WasmDispatchTable)
@@ -387,6 +387,10 @@ PROTECTED_POINTER_ACCESSORS(WasmFunctionData, internal, WasmInternalFunction,
                             kProtectedInternalOffset)
 
 // WasmExportedFunctionData
+PROTECTED_POINTER_ACCESSORS(WasmExportedFunctionData, instance_data,
+                            WasmTrustedInstanceData,
+                            kProtectedInstanceDataOffset)
+
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 

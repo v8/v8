@@ -69,7 +69,8 @@ class Managed;
 
 class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
-  FunctionTargetAndRef(Handle<WasmInstanceObject> target_instance_object,
+  FunctionTargetAndRef(Isolate* isolate,
+                       Handle<WasmTrustedInstanceData> target_instance_data,
                        int target_func_index);
   // The "ref" will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
   Handle<ExposedTrustedObject> ref() { return ref_; }
@@ -96,9 +97,8 @@ enum class OnResume : int { kContinue, kThrow };
 //      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
-  inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
-  inline ImportedFunctionEntry(Isolate*, Handle<WasmTrustedInstanceData>,
-                               int index);
+  inline ImportedFunctionEntry(Isolate*, Handle<WasmInstanceObject>, int index);
+  inline ImportedFunctionEntry(Handle<WasmTrustedInstanceData>, int index);
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter, since it must allocate a tuple.
@@ -120,8 +120,7 @@ class ImportedFunctionEntry {
   void set_target(Address new_target);
 
  private:
-  // TODO(14499): Less back-and-forth between trusted and untrusted data.
-  Handle<WasmInstanceObject> const instance_object_;
+  Handle<WasmTrustedInstanceData> const instance_data_;
   int const index_;
 };
 
@@ -248,7 +247,7 @@ class WasmTableObject
   static void GetFunctionTableEntry(
       Isolate* isolate, const wasm::WasmModule* module,
       Handle<WasmTableObject> table, int entry_index, bool* is_valid,
-      bool* is_null, MaybeHandle<WasmInstanceObject>* instance_object,
+      bool* is_null, MaybeHandle<WasmTrustedInstanceData>* instance_data,
       int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function);
 
  private:
@@ -761,7 +760,7 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
  public:
-  Tagged<WasmInstanceObject> instance();
+  Tagged<WasmTrustedInstanceData> instance_data();
   V8_EXPORT_PRIVATE int function_index();
 
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
@@ -870,6 +869,7 @@ class WasmExportedFunctionData
     : public TorqueGeneratedWasmExportedFunctionData<WasmExportedFunctionData,
                                                      WasmFunctionData> {
  public:
+  DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
   DECL_PRIMITIVE_ACCESSORS(sig, const wasm::FunctionSig*)
@@ -881,6 +881,7 @@ class WasmExportedFunctionData
   using BodyDescriptor = StackedBodyDescriptor<
       SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
                              FixedBodyDescriptorFor<WasmExportedFunctionData>>,
+      WithProtectedPointer<kProtectedInstanceDataOffset>,
       WithStrongCodePointer<kCWrapperCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)

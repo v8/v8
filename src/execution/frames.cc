@@ -2480,17 +2480,18 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
 
 #if V8_ENABLE_WEBASSEMBLY
 FrameSummary::WasmFrameSummary::WasmFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
-    int byte_offset, int function_index, bool at_to_number_conversion)
+    Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
+    wasm::WasmCode* code, int byte_offset, int function_index,
+    bool at_to_number_conversion)
     : FrameSummaryBase(isolate, WASM),
-      wasm_instance_(instance),
+      instance_data_(instance_data),
       at_to_number_conversion_(at_to_number_conversion),
       code_(code),
       byte_offset_(byte_offset),
       function_index_(function_index) {}
 
 Handle<Object> FrameSummary::WasmFrameSummary::receiver() const {
-  return wasm_instance_->GetIsolate()->global_proxy();
+  return isolate()->global_proxy();
 }
 
 uint32_t FrameSummary::WasmFrameSummary::function_index() const {
@@ -2498,20 +2499,18 @@ uint32_t FrameSummary::WasmFrameSummary::function_index() const {
 }
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module();
+  const wasm::WasmModule* module = wasm_trusted_instance_data()->module();
   return GetSourcePosition(module, function_index(), code_offset(),
                            at_to_number_conversion());
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
-  return handle(wasm_instance()->module_object()->script(),
-                wasm_instance()->GetIsolate());
+  return handle(wasm_instance()->module_object()->script(), isolate());
 }
 
-Handle<WasmTrustedInstanceData>
-FrameSummary::WasmFrameSummary::wasm_trusted_instance_data() const {
-  Isolate* isolate = wasm_instance_->GetIsolate();
-  return handle(wasm_instance_->trusted_data(isolate), isolate);
+Handle<WasmInstanceObject> FrameSummary::WasmFrameSummary::wasm_instance()
+    const {
+  return handle(instance_data_->instance_object(), isolate());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
@@ -2521,26 +2520,26 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
 Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
     const {
   Handle<String> function_name =
-      GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
+      GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);
 }
 
 FrameSummary::WasmInlinedFrameSummary::WasmInlinedFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int function_index,
-    int op_wire_bytes_offset)
+    Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
+    int function_index, int op_wire_bytes_offset)
     : FrameSummaryBase(isolate, WASM_INLINED),
-      wasm_instance_(instance),
+      instance_data_(instance_data),
       function_index_(function_index),
       op_wire_bytes_offset_(op_wire_bytes_offset) {}
 
-Handle<WasmTrustedInstanceData>
-FrameSummary::WasmInlinedFrameSummary::wasm_trusted_instance_data() const {
-  return handle(wasm_instance_->trusted_data(isolate()), isolate());
+Handle<WasmInstanceObject>
+FrameSummary::WasmInlinedFrameSummary::wasm_instance() const {
+  return handle(instance_data_->instance_object(), isolate());
 }
 
 Handle<Object> FrameSummary::WasmInlinedFrameSummary::receiver() const {
-  return wasm_instance_->GetIsolate()->global_proxy();
+  return isolate()->global_proxy();
 }
 
 uint32_t FrameSummary::WasmInlinedFrameSummary::function_index() const {
@@ -2548,7 +2547,7 @@ uint32_t FrameSummary::WasmInlinedFrameSummary::function_index() const {
 }
 
 int FrameSummary::WasmInlinedFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module();
+  const wasm::WasmModule* module = instance_data_->module();
   return GetSourcePosition(module, function_index(), code_offset(), false);
 }
 
@@ -2563,7 +2562,7 @@ Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
 Handle<StackFrameInfo>
 FrameSummary::WasmInlinedFrameSummary::CreateStackFrameInfo() const {
   Handle<String> function_name =
-      GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
+      GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);
 }
@@ -2774,8 +2773,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
       Tagged<WasmExportedFunctionData> function_data =
           shared_info->wasm_exported_function_data();
-      Handle<WasmInstanceObject> instance =
-          handle(function_data->instance(), isolate());
+      Handle<WasmTrustedInstanceData> instance{function_data->instance_data(),
+                                               isolate()};
       int func_index = function_data->function_index();
       FrameSummary::WasmInlinedFrameSummary summary(
           isolate(), instance, func_index, it->bytecode_offset().ToInt());
@@ -3114,7 +3113,8 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
   wasm::WasmCode* code = wasm_code();
   int offset =
       static_cast<int>(maybe_unauthenticated_pc() - code->instruction_start());
-  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  Handle<WasmTrustedInstanceData> instance_data{trusted_instance_data(),
+                                                isolate()};
   // Push regular non-inlined summary.
   SourcePosition pos = code->GetSourcePositionBefore(offset);
   bool at_conversion = at_to_number_conversion();
@@ -3128,7 +3128,7 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
     const auto [func_index, was_tail_call, caller_pos] =
         code->GetInliningPosition(pos.InliningId());
     if (!child_was_tail_call) {
-      FrameSummary::WasmFrameSummary summary(isolate(), instance, code,
+      FrameSummary::WasmFrameSummary summary(isolate(), instance_data, code,
                                              pos.ScriptOffset(), func_index,
                                              at_conversion);
       functions->push_back(summary);
@@ -3140,7 +3140,7 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
 
   if (!child_was_tail_call) {
     int func_index = code->index();
-    FrameSummary::WasmFrameSummary summary(isolate(), instance, code,
+    FrameSummary::WasmFrameSummary summary(isolate(), instance_data, code,
                                            pos.ScriptOffset(), func_index,
                                            at_conversion);
     functions->push_back(summary);

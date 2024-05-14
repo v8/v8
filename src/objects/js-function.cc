@@ -1334,7 +1334,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
   if (shared_info->HasWasmExportedFunctionData()) {
     Handle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
-    const wasm::WasmModule* module = function_data->instance()->module();
+    const wasm::WasmModule* module = function_data->instance_data()->module();
     if (is_asmjs_module(module)) {
       std::pair<int, int> offsets =
           module->asm_js_offset_information->GetFunctionOffsets(

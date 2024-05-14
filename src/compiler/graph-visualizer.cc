@@ -115,11 +115,8 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       } else if (shared->HasWasmExportedFunctionData()) {
         Tagged<WasmExportedFunctionData> function_data =
             shared->wasm_exported_function_data();
-        // TODO(jkummerow): Introduce a pointer from WasmExportedFunctionData
-        // to WasmTrustedInstanceData (without going via WasmInstanceObject).
-        Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
         wasm::NativeModule* native_module =
-            instance->trusted_data(isolate)->native_module();
+            function_data->instance_data()->native_module();
         const wasm::WasmModule* module = native_module->module();
         std::ostringstream str;
         wasm::DisassembleFunction(module, function_data->function_index(),

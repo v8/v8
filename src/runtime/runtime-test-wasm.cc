@@ -239,7 +239,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
 
   // Find the function name.
   int func_index = frame->function_index();
-  const wasm::WasmModule* module = frame->wasm_instance()->module();
+  const wasm::WasmModule* module = frame->trusted_instance_data()->module();
   wasm::ModuleWireBytes wire_bytes =
       wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
   int func_index = frame->function_index();
-  const wasm::WasmModule* module = frame->wasm_instance()->module();
+  const wasm::WasmModule* module = frame->trusted_instance_data()->module();
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
 
   size_t num_returns = sig->return_count();
@@ -545,9 +545,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  Tagged<WasmInstanceObject> instance_object = exp_fun->instance();
-  Tagged<WasmTrustedInstanceData> trusted_data =
-      instance_object->trusted_data(isolate);
+  Tagged<WasmTrustedInstanceData> trusted_data = exp_fun->instance_data();
   int func_index = exp_fun->function_index();
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -579,8 +577,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  wasm::NativeModule* native_module =
-      exp_fun->instance()->module_object()->native_module();
+  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
   uint32_t func_index = exp_fun->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
@@ -595,8 +592,7 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  wasm::NativeModule* native_module =
-      exp_fun->instance()->module_object()->native_module();
+  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
   uint32_t func_index = exp_fun->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
@@ -610,8 +606,7 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  wasm::NativeModule* native_module =
-      exp_fun->instance()->module_object()->native_module();
+  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
   uint32_t func_index = exp_fun->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
@@ -625,8 +620,7 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  wasm::NativeModule* native_module =
-      exp_fun->instance()->module_object()->native_module();
+  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
   uint32_t func_index = exp_fun->function_index();
   return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
 }

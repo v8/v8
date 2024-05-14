@@ -402,9 +402,12 @@ constexpr inline bool CanBeIndirectPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kIndirectPointer;
 }
 
+// Note: this is used in particular to decide which spill slots need
+// to be visited by the GC.
 constexpr inline bool CanBeTaggedOrCompressedPointer(
     MachineRepresentation rep) {
-  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
+  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep) ||
+         rep == MachineRepresentation::kProtectedPointer;
 }
 
 constexpr inline bool CanBeTaggedOrCompressedOrIndirectPointer(

@@ -922,9 +922,7 @@ const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
   if (!HasWasmExportedFunctionData()) return nullptr;
   Tagged<WasmExportedFunctionData> function_data =
       wasm_exported_function_data();
-  Tagged<WasmInstanceObject> wasm_instance = function_data->instance();
-  Tagged<WasmModuleObject> wasm_module_object = wasm_instance->module_object();
-  return wasm_module_object->module();
+  return function_data->instance_data()->module();
 }
 
 const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {

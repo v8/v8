@@ -1119,13 +1119,13 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
 #if V8_ENABLE_WEBASSEMBLY
-  // Handle wasm function.
   if (shared->HasWasmExportedFunctionData()) {
-    int func_index = shared->wasm_exported_function_data()->function_index();
-    Handle<WasmInstanceObject> wasm_instance(
-        shared->wasm_exported_function_data()->instance(), isolate_);
-    Handle<Script> script(
-        Script::cast(wasm_instance->module_object()->script()), isolate_);
+    Tagged<WasmExportedFunctionData> function_data =
+        shared->wasm_exported_function_data();
+    int func_index = function_data->function_index();
+    Tagged<WasmModuleObject> module_obj =
+        function_data->instance_data()->instance_object()->module_object();
+    Handle<Script> script(module_obj->script(), isolate_);
     return WasmScript::SetBreakPointOnFirstBreakableForFunction(
         script, func_index, breakpoint);
   }
