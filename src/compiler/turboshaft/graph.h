@@ -361,6 +361,8 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   }
 #endif
 
+  static constexpr int kInvalidPredecessorIndex = -1;
+
   // Returns the index of {target} in the predecessors of the current Block.
   // If {target} is not a direct predecessor, returns -1.
   int GetPredecessorIndex(const Block* target) const {
@@ -375,7 +377,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
       pred_count++;
     }
     if (pred_reverse_index == -1) {
-      return -1;
+      return kInvalidPredecessorIndex;
     }
     return pred_count - pred_reverse_index - 1;
   }

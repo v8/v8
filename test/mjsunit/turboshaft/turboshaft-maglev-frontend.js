@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 // Flags: --no-always-turbofan --no-stress-concurrent-inlining
 // Flags: --invocation-count-for-turbofan=3000 --concurrent-recompilation
+// Flags: --harmony-struct
 
 // TODO(dmercadier): re-allow optimization of these functions once the
 // maglev-to-turboshaft graph builder supports everything they need.
@@ -591,7 +592,7 @@ assertOptimized(simple_loop);
   assertEquals(41, branch_cmp(15, 3.25));
   assertEquals(29, branch_cmp(-2, 3.25));
   assertEquals(27, branch_cmp(-2, -1.5));
-  assertOptimized(f);
+  assertOptimized(branch_cmp);
 }
 
 // Test BranchIfReferenceEqual and TaggedEqual
@@ -1757,4 +1758,122 @@ let glob_b = 3.35;
   %OptimizeFunctionOnNextCall(make_array);
   assertEquals([], make_array());
   assertOptimized(make_array);
+}
+
+// Testing array destructuring.
+{
+  function destruct_arr () {
+    [a, b] = [4, 9];
+    return a + b;
+  }
+
+  %PrepareFunctionForOptimization(destruct_arr);
+  assertEquals(13, destruct_arr());
+  %OptimizeFunctionOnNextCall(destruct_arr);
+  assertEquals(13, destruct_arr());
+  assertOptimized(destruct_arr);
+}
+
+// Testing instanceof.
+{
+  function Foo() {}
+
+  function test_instance_shared_struct() {
+    return Foo instanceof (new SharedStructType(["foo"]));
+  }
+
+  %PrepareFunctionForOptimization(test_instance_shared_struct);
+  assertFalse(test_instance_shared_struct());
+  assertFalse(test_instance_shared_struct());
+  assertFalse(test_instance_shared_struct());
+  %OptimizeFunctionOnNextCall(test_instance_shared_struct);
+  assertFalse(test_instance_shared_struct());
+  assertOptimized(test_instance_shared_struct);
+}
+
+// Testing builtin continuation deopt with Math.round.
+{
+  function round(x, y) {
+    let prev_v = y + 14.556;
+    let rounded_x = Math.round(x);
+    return prev_v + rounded_x;
+  }
+
+  %PrepareFunctionForOptimization(round);
+  assertEquals(23.116, round(3.25569, 5.56));
+  %OptimizeFunctionOnNextCall(round);
+  assertEquals(23.116, round(3.25569, 5.56));
+  assertOptimized(round);
+
+  let o = { valueOf: function() { %DeoptimizeFunction(round); return 4.55 } };
+
+  assertEquals(25.116, round(o, 5.56));
+  assertUnoptimized(round);
+  assertEquals(25.116, round(o, 5.56));
+}
+
+// Testing instanceof and builtin continuations.
+// (copy-pasted from test/mjsunit/maglev/nested-continuations.js)
+{
+  function Foo() {}
+  Object.defineProperty(Foo, Symbol.hasInstance, { value: Math.round });
+
+  let foo = new Foo();
+
+  function test_instanceof_foo(f) {
+    // `f instanceof Foo` runs `%ToBoolean(Foo[Symbol.hasInstance](f))`, where
+    // `Foo[Symbol.hasInstance]` is `Math.round`.
+    //
+    // So with sufficient builtin inlining, this will call
+    // `%ToBoolean(round(%ToNumber(f)))`, which will call `f.valueOf`. If this
+    // deopts (which in this test it will), we need to make sure to both round it,
+    // and then convert that rounded value to a boolean.
+    return f instanceof Foo;
+  }
+
+  foo.valueOf = () => {
+    %DeoptimizeFunction(test_instanceof_foo);
+    // Return a value which, when rounded, has ToBoolean false, and when not
+    // rounded, has ToBoolean true.
+    return 0.2;
+  }
+
+  %PrepareFunctionForOptimization(test_instanceof_foo);
+  assertFalse(test_instanceof_foo(foo));
+  assertFalse(test_instanceof_foo(foo));
+
+  %OptimizeFunctionOnNextCall(test_instanceof_foo);
+  assertFalse(test_instanceof_foo(foo));
+}
+
+// Testing Javascript builtin continuation.
+{
+  let arr = [1, 2, 3, 4, 5, 6];
+
+  let trigger = false;
+  function maybe_deopt(v) {
+    if (v == 3 && trigger) {
+      // The first time this is executed, it will change the map of {arr}, which
+      // will trigger a deopt of {array_foreach}.
+      arr.x = 11;
+    }
+    return v;
+  }
+
+  function array_foreach(arr) {
+    let s = 0;
+    arr.forEach((v) => s += maybe_deopt(v));
+    return s;
+  }
+
+
+  %PrepareFunctionForOptimization(array_foreach);
+  assertEquals(21, array_foreach(arr));
+  %OptimizeFunctionOnNextCall(array_foreach);
+  assertEquals(21, array_foreach(arr));
+  assertOptimized(array_foreach);
+
+  trigger = true;
+  assertEquals(21, array_foreach(arr));
+  assertUnoptimized(array_foreach);
 }
