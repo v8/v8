@@ -522,11 +522,11 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
  * Here is a diagram of the relations between the types, where (*) means that
  * they have the kAnyHeapObject bit set.
  *
- *    NumberOrOddball            JsReceiver*            Name*
- *     /         \                /       \             /    \
- *  Oddball*     Number       Callable*  JSArray*   String*  Symbol*
- *    |          /    \                               |
- *  Boolean*    Smi   HeapNumber*              InternalizedString*
+ *    NumberOrOddball               JSReceiver*                 Name*
+ *     /         \                  /       \                  /    \
+ *  Oddball*     Number      UndetecJSRecv* DetecJSRecv*     String*  Symbol*
+ *    |          /    \                     |      \           |
+ *  Boolean*    Smi   HeapNumber*       Callable*  JSArray* InternalizedString*
  *
  */
 
@@ -543,11 +543,13 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   V(InternalizedString, (1 << 10) | kString)               \
   V(Symbol, (1 << 11) | kName)                             \
   V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
-  V(JSArray, (1 << 13) | kJSReceiver)                      \
-  V(Callable, (1 << 14) | kJSReceiver)                     \
+  V(DetectableJSReceiver, (1 << 13) | kJSReceiver)         \
+  V(UndetectableJSReceiver, (1 << 14) | kJSReceiver)       \
+  V(JSArray, (1 << 15) | kDetectableJSReceiver)            \
+  V(Callable, (1 << 16) | kDetectableJSReceiver)           \
   V(HeapNumber, kAnyHeapObject | kNumber)
 
-enum class NodeType : uint16_t {
+enum class NodeType : uint32_t {
 #define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
   NODE_TYPE_LIST(DEFINE_NODE_TYPE)
 #undef DEFINE_NODE_TYPE
@@ -571,7 +573,11 @@ inline NodeType StaticTypeForMap(compiler::MapRef map) {
   if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
   if (map.IsStringMap()) return NodeType::kString;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
-  if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
+  if (map.IsOddballMap()) return NodeType::kOddball;
+  if (map.IsJSReceiverMap()) {
+    if (map.is_undetectable()) return NodeType::kUndetectableJSReceiver;
+    return NodeType::kDetectableJSReceiver;
+  }
   return NodeType::kAnyHeapObject;
 }
 
@@ -610,6 +616,10 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsSymbolMap();
     case NodeType::kJSReceiver:
       return map.IsJSReceiverMap();
+    case NodeType::kUndetectableJSReceiver:
+      return map.IsJSReceiverMap() && map.is_undetectable();
+    case NodeType::kDetectableJSReceiver:
+      return map.IsJSReceiverMap() && !map.is_undetectable();
     case NodeType::kJSArray:
       return map.IsJSArrayMap();
     case NodeType::kCallable:

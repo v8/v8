@@ -3619,7 +3619,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
   // After this operation, object's map is transition_target (or we deopted).
   known_info->SetPossibleMaps(PossibleMaps{transition_target},
                               !transition_target.is_stable(),
-                              NodeType::kJSReceiver);
+                              StaticTypeForMap(transition_target));
   DCHECK(transition_target.IsJSReceiverMap());
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
@@ -3705,7 +3705,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
   DCHECK(transition_target.IsJSReceiverMap());
   known_info->SetPossibleMaps(PossibleMaps{transition_target},
                               !transition_target.is_stable(),
-                              NodeType::kJSReceiver);
+                              StaticTypeForMap(transition_target));
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
@@ -3966,7 +3966,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
       auto map = access_info.field_map().value();
       known_info->SetPossibleMaps(PossibleMaps{map}, false,
-                                  NodeType::kJSReceiver);
+                                  StaticTypeForMap(map));
       broker()->dependencies()->DependOnStableMap(map);
     } else {
       known_info->CombineType(NodeType::kAnyHeapObject);
@@ -3996,8 +3996,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
 void MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
                                        compiler::MapRef map) {
   AddNewNode<StoreMap>({object}, map);
-  NodeType object_type =
-      map.IsJSReceiverMap() ? NodeType::kJSReceiver : NodeType::kAnyHeapObject;
+  NodeType object_type = StaticTypeForMap(map);
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (map.is_stable()) {
     node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type);
@@ -9277,7 +9276,10 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   }
 
   NodeType value_type;
-  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
+  if (CheckType(value, NodeType::kUndetectableJSReceiver, &value_type)) {
+    return GetBooleanConstant(flip);
+  }
+  if (CheckType(value, NodeType::kDetectableJSReceiver)) {
     return GetBooleanConstant(!flip);
   }
   ValueNode* falsy_value = nullptr;
