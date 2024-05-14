@@ -8493,6 +8493,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  int expected_parameter_count() const { return expected_parameter_count_; }
+
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in

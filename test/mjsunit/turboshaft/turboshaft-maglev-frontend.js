@@ -1318,7 +1318,7 @@ assertOptimized(simple_loop);
 }
 
 // Testing function over- and and under-application (calling a function with
-// more or fewer arguments that it expects).
+// more or fewer arguments that it expects), where the callee is inlined.
 {
   function h() { return 42; }
   function g(x, y) {
@@ -1341,6 +1341,37 @@ assertOptimized(simple_loop);
   assertOptimized(f);
   assertEquals(93, f(0, 3));
   assertUnoptimized(f);
+}
+
+// Testing function over- and under-application, where the callee is not
+// inlined.
+{
+  %NeverOptimizeFunction(sum3);
+  function sum3(a, b, c) {
+    return a + b + c;
+  }
+
+  function under_apply(a, b) {
+    return sum3(a, b);
+  }
+
+  %PrepareFunctionForOptimization(under_apply);
+  assertEquals(NaN, under_apply(2.35, 5));
+
+  %OptimizeFunctionOnNextCall(under_apply);
+  assertEquals(NaN, under_apply(2.35, 5));
+  assertOptimized(under_apply);
+
+  function over_apply(a, b) {
+    return sum3(a, b, a, b);
+  }
+
+  %PrepareFunctionForOptimization(over_apply);
+  assertEquals(9.7, over_apply(2.35, 5));
+
+  %OptimizeFunctionOnNextCall(over_apply);
+  assertEquals(9.7, over_apply(2.35, 5));
+  assertOptimized(over_apply);
 }
 
 // Testing const tracking let.
@@ -1697,4 +1728,33 @@ let glob_b = 3.35;
   // Triggering deopt
   assertEquals("abc", (migrate_and_load({a: 42, x : "abc"})));
   assertUnoptimized(migrate_and_load);
+}
+
+// Testing builtin called through CallKnowJSFunction.
+{
+  function make_array_size(size) {
+    let a = Array(size);
+    assertTrue(%HasSmiOrObjectElements(a));
+    assertTrue(%HasHoleyElements(a));
+    assertEquals(size, a.length);
+    return a;
+  }
+
+  %PrepareFunctionForOptimization(make_array_size);
+  assertEquals([,,,,], make_array_size(4));
+  %OptimizeFunctionOnNextCall(make_array_size);
+  assertEquals([,,,,], make_array_size(4));
+  assertOptimized(make_array_size);
+
+  function make_array() {
+    let a = Array();
+    assertTrue(%HasSmiOrObjectElements(a));
+    return a;
+  }
+
+  %PrepareFunctionForOptimization(make_array);
+  assertEquals([], make_array());
+  %OptimizeFunctionOnNextCall(make_array);
+  assertEquals([], make_array());
+  assertOptimized(make_array);
 }

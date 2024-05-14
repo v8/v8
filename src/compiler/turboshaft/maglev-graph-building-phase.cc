@@ -430,31 +430,55 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
-    ThrowingScope throwing_scope(this, node);
-
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Object> callee = Map(node->closure());
-    base::SmallVector<OpIndex, 16> arguments;
-    arguments.push_back(Map(node->receiver()));
-    for (int i = 0; i < node->num_args(); i++) {
-      arguments.push_back(Map(node->arg(i)));
+    int actual_parameter_count = JSParameterCount(node->num_args());
+
+    if (node->shared_function_info().HasBuiltinId()) {
+      base::SmallVector<OpIndex, 16> arguments;
+      arguments.push_back(callee);
+      arguments.push_back(Map(node->new_target()));
+      arguments.push_back(__ Word32Constant(actual_parameter_count));
+      arguments.push_back(Map(node->receiver()));
+      for (int i = 0; i < node->num_args(); i++) {
+        arguments.push_back(Map(node->arg(i)));
+      }
+      arguments.push_back(Map(node->context()));
+      SetMap(node,
+             GenerateBuiltinCall(
+                 node, node->shared_function_info().builtin_id(), frame_state,
+                 base::VectorOf(arguments), actual_parameter_count));
+    } else {
+      ThrowingScope throwing_scope(this, node);
+      base::SmallVector<OpIndex, 16> arguments;
+      arguments.push_back(Map(node->receiver()));
+      for (int i = 0; i < node->num_args(); i++) {
+        arguments.push_back(Map(node->arg(i)));
+      }
+      if (actual_parameter_count < node->expected_parameter_count()) {
+        for (int i = actual_parameter_count;
+             i < node->expected_parameter_count(); i++) {
+          arguments.push_back(__ HeapConstant(factory_->undefined_value()));
+        }
+      }
+      arguments.push_back(Map(node->new_target()));
+      arguments.push_back(__ Word32Constant(actual_parameter_count));
+
+      // Load the context from {callee}.
+      OpIndex context =
+          __ LoadField(callee, AccessBuilder::ForJSFunctionContext());
+      arguments.push_back(context);
+
+      const CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+          graph_zone(), false,
+          std::max<int>(actual_parameter_count,
+                        node->expected_parameter_count()),
+          CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+      SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
+                           base::VectorOf(arguments),
+                           TSCallDescriptor::Create(descriptor, CanThrow::kYes,
+                                                    graph_zone())));
     }
-
-    arguments.push_back(Map(node->new_target()));
-    arguments.push_back(__ Word32Constant(JSParameterCount(node->num_args())));
-
-    // Load the context from {callee}.
-    OpIndex context =
-        __ LoadField(callee, AccessBuilder::ForJSFunctionContext());
-    arguments.push_back(context);
-
-    const CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
-        graph_zone(), false, 1 + node->num_args(),
-        CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
-    SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
-                         base::VectorOf(arguments),
-                         TSCallDescriptor::Create(descriptor, CanThrow::kYes,
-                                                  graph_zone())));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -1529,7 +1553,8 @@ class GraphBuilder {
         result = __ Select(__ ObjectIs(input, ObjectIsOp::Kind::kNonCallable,
                                        ObjectIsOp::InputAssumptions::kNone),
                            __ HeapConstant(factory_->true_value()),
-                           __ RootEqual(input, RootIndex::kNullValue, isolate_),
+                           ConvertWord32ToJSBool(__ RootEqual(
+                               input, RootIndex::kNullValue, isolate_)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
                            SelectOp::Implementation::kBranch);
         break;
@@ -2720,6 +2745,14 @@ class GraphBuilder {
                                                interpreter::Register reg) {
             if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
               // Skip, since not live at the handler offset.
+              return;
+            }
+            if (reg == interpreter::Register::virtual_accumulator()) {
+              // If the accumulator is live, the it corresponds to the exception
+              // object rather than whatever value it contained before the
+              // throwing operation. We don't record anything here, and when
+              // creating the exception phis, we'll use `catch_block_begin_` for
+              // the accumulator.
               return;
             }
             auto it = builder_.regs_to_vars_.find(reg.index());
