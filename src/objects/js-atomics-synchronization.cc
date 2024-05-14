@@ -45,25 +45,15 @@ MaybeHandle<JSPromise> PerformPromiseThen(
   return Handle<JSPromise>::cast(then_result);
 }
 
-Maybe<bool> SetAsyncUnlockHandlers(
+MaybeHandle<Context> SetAsyncUnlockHandlers(
     Isolate* isolate, Handle<JSAtomicsMutex> mutex,
     Handle<JSPromise> waiting_for_callback_promise,
-    Handle<JSPromise> unlocked_promise,
-    detail::WaiterQueueNode* async_locked_waiter) {
+    Handle<JSPromise> unlocked_promise) {
   Handle<Context> handlers_context = isolate->factory()->NewBuiltinContext(
       isolate->native_context(), JSAtomicsMutex::kAsyncContextLength);
   handlers_context->set(JSAtomicsMutex::kMutexAsyncContextSlot, *mutex);
   handlers_context->set(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot,
                         *unlocked_promise);
-
-  DCHECK_NOT_NULL(async_locked_waiter);
-  // Use a kGenericForeignTag because using a kWaiterQueueNodeTag will cause
-  // the pointer to be stored in the shared external pointer table, which is not
-  // necessary since this object is only visible in this thread.
-  Handle<Foreign> wrapper = isolate->factory()->NewForeign<kGenericForeignTag>(
-      reinterpret_cast<Address>(async_locked_waiter));
-  handlers_context->set(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot,
-                        *wrapper);
 
   Handle<SharedFunctionInfo> resolve_info(
       isolate->heap()->atomics_mutex_async_unlock_resolve_handler_sfi(),
@@ -83,10 +73,11 @@ Maybe<bool> SetAsyncUnlockHandlers(
           .set_allocation_type(AllocationType::kYoung)
           .Build();
 
-  MaybeHandle<JSPromise> then_result =
-      PerformPromiseThen(isolate, waiting_for_callback_promise,
-                         resolver_callback, reject_callback);
-  return then_result.is_null() ? Nothing<bool>() : Just(true);
+  RETURN_ON_EXCEPTION(isolate,
+                      PerformPromiseThen(isolate, waiting_for_callback_promise,
+                                         resolver_callback, reject_callback),
+                      Context);
+  return handlers_context;
 }
 
 void AddPromiseToNativeContext(Isolate* isolate, Handle<JSPromise> promise) {
@@ -833,6 +824,16 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
                          Handle<JSFunction>::cast(callback)),
       JSPromise);
   Handle<JSPromise> unlocked_promise = requester->factory()->NewJSPromise();
+  // Set the async unlock handlers here so we can throw without any additional
+  // cleanup if the inner `promise_then` call fails. Keep a reference to
+  // the handlers' synthetic context so we can store the waiter node in it once
+  // the node is created.
+  Handle<Context> handlers_context;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      requester, handlers_context,
+      SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,
+                             unlocked_promise),
+      JSPromise);
   LockAsyncWaiterQueueNode* waiter_node = nullptr;
   bool locked = LockAsync(requester, mutex, internal_locked_promise,
                           unlocked_promise, &waiter_node, timeout);
@@ -843,22 +844,14 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     waiter_node = LockAsyncWaiterQueueNode::NewLockedAsyncWaiterStoredInIsolate(
         requester, mutex);
   }
-  // Set `waiting_for_callback_promise` resolve and reject handlers. Resposible
-  // for unlocking the mutex and resolving or rejecting the `unlocked_promise`.
-  // The operation can fail if the inner call to `promise_then` is not
-  // successful. In that case, the asyncLock builtin call will fail, so cleanup
-  // before returning.
-  if (SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,
-                             unlocked_promise, waiter_node)
-          .IsNothing()) {
-    if (locked) {
-      mutex->Unlock(requester);
-    } else {
-      RemovePromiseFromNativeContext(requester, internal_locked_promise);
-    }
-    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter_node);
-    return MaybeHandle<JSPromise>();
-  }
+  // Use a kGenericForeignTag because using a kWaiterQueueNodeTag will cause
+  // the pointer to be stored in the shared external pointer table, which is not
+  // necessary since this object is only visible in this thread.
+  Handle<Foreign> wrapper =
+      requester->factory()->NewForeign<kGenericForeignTag>(
+          reinterpret_cast<Address>(waiter_node));
+  handlers_context->set(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot,
+                        *wrapper);
   return unlocked_promise;
 }
 
