@@ -94,7 +94,7 @@ class WrapperHelper {
   // analysis (marking) as well as tooling (snapshot).
   static v8::Local<v8::Object> CreateWrapper(v8::Local<v8::Context> context,
                                              void* wrappable_object,
-                                             const char* class_name = "");
+                                             const char* class_name = nullptr);
 
   // Resets the connection of a wrapper (JS) to its wrappable (C++), meaning
   // that the wrappable object is not longer kept alive by the wrapper object.
