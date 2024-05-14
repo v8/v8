@@ -251,6 +251,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8SConvertF32x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
                           Register scratch);
+  void I16x8SConvertF16x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
+                          Register scratch);
+  void I16x8TruncF16x8U(YMMRegister dst, YMMRegister src, YMMRegister tmp);
 
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,

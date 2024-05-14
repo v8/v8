@@ -111,6 +111,8 @@ class StatsCounter;
   V(address_of_double_neg_constant, "double_negate_constant")                  \
   V(address_of_enable_experimental_regexp_engine,                              \
     "address_of_enable_experimental_regexp_engine")                            \
+  V(address_of_fp16_abs_constant, "fp16_absolute_constant")                    \
+  V(address_of_fp16_neg_constant, "fp16_negate_constant")                      \
   V(address_of_float_abs_constant, "float_absolute_constant")                  \
   V(address_of_float_neg_constant, "float_negate_constant")                    \
   V(address_of_log10_offset_table, "log10_offset_table")                       \

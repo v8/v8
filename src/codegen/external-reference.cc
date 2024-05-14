@@ -62,6 +62,30 @@ constexpr double double_uint32_bias_constant =
     static_cast<double>(kMaxUInt32) + 1;
 
 constexpr struct alignas(16) {
+  uint16_t a;
+  uint16_t b;
+  uint16_t c;
+  uint16_t d;
+  uint16_t e;
+  uint16_t f;
+  uint16_t g;
+  uint16_t h;
+} fp16_absolute_constant = {0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
+                            0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF};
+
+constexpr struct alignas(16) {
+  uint16_t a;
+  uint16_t b;
+  uint16_t c;
+  uint16_t d;
+  uint16_t e;
+  uint16_t f;
+  uint16_t g;
+  uint16_t h;
+} fp16_negate_constant = {0x8000, 0x8000, 0x8000, 0x8000,
+                          0x8000, 0x8000, 0x8000, 0x8000};
+
+constexpr struct alignas(16) {
   uint32_t a;
   uint32_t b;
   uint32_t c;
@@ -734,6 +758,14 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<Address>(&double_uint32_bias_constant));
+}
+
+ExternalReference ExternalReference::address_of_fp16_abs_constant() {
+  return ExternalReference(reinterpret_cast<Address>(&fp16_absolute_constant));
+}
+
+ExternalReference ExternalReference::address_of_fp16_neg_constant() {
+  return ExternalReference(reinterpret_cast<Address>(&fp16_negate_constant));
 }
 
 ExternalReference ExternalReference::address_of_float_abs_constant() {
