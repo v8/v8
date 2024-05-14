@@ -8653,9 +8653,9 @@ std::optional<int> TryGetArrayContructorLength(CallArguments& args) {
 
 compiler::OptionalMapRef GetArrayConstructorInitialMap(
     compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
-    ElementsKind elements_kind, std::optional<int> maybe_length) {
+    ElementsKind elements_kind, size_t argc, std::optional<int> maybe_length) {
   compiler::MapRef initial_map = array_function.initial_map(broker);
-  if (!maybe_length.has_value() || *maybe_length > 0) {
+  if (argc == 1 && (!maybe_length.has_value() || *maybe_length > 0)) {
     // Constructing an Array via new Array(N) where N is an unsigned
     // integer, always creates a holey backing store.
     elements_kind = GetHoleyElementsKind(elements_kind);
@@ -8675,7 +8675,7 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
 
   std::optional<int> maybe_length = TryGetArrayContructorLength(args);
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), array_function, elements_kind, maybe_length);
+      broker(), array_function, elements_kind, args.count(), maybe_length);
   if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
   compiler::MapRef initial_map = maybe_initial_map.value();
 
