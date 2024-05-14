@@ -619,7 +619,6 @@ void V8::SetFlagsFromString(const char* str) {
 
 void V8::SetFlagsFromString(const char* str, size_t length) {
   i::FlagList::SetFlagsFromString(str, length);
-  i::FlagList::EnforceFlagImplications();
 }
 
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {

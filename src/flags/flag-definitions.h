@@ -29,9 +29,6 @@
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
-#define DEFINE_WEAK_NEG_NEG_IMPLICATION(whenflag, thenflag) \
-  DEFINE_WEAK_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
-
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
 // Read-only flags are static constants instead of fields.
 #if defined(FLAG_MODE_DECLARE)
@@ -80,10 +77,6 @@
   changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
                                 &v8_flags.thenflag, #thenflag, value, false);
 
-#define DEFINE_WEAK_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag,   \
-                                &v8_flags.thenflag, #thenflag, value, true);
-
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
 
@@ -120,10 +113,6 @@
 
 #ifndef DEFINE_NEG_VALUE_IMPLICATION
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
-#endif
-
-#ifndef DEFINE_WEAK_NEG_VALUE_IMPLICATION
-#define DEFINE_WEAK_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
 #ifndef DEBUG_BOOL
@@ -2659,7 +2648,6 @@ DEFINE_BOOL(trace_minor_ms_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
-DEFINE_WEAK_NEG_NEG_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
 DEFINE_BOOL(concurrent_minor_ms_marking, true,
@@ -3093,9 +3081,7 @@ DEFINE_INT(dump_allocations_digest_at_alloc, -1,
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_WEAK_NEG_IMPLICATION
 #undef DEFINE_NEG_NEG_IMPLICATION
-#undef DEFINE_WEAK_NEG_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
-#undef DEFINE_WEAK_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION

@@ -19,6 +19,7 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
+#include "src/flags/flags.h"
 #include "src/init/bootstrapper.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
@@ -174,8 +175,6 @@ void V8::Initialize() {
                    v8_flags.prof || v8_flags.prof_cpp || v8_flags.gdbjit;
   }
 
-  FlagList::EnforceFlagImplications();
-
   if (v8_flags.predictable && v8_flags.random_seed == 0) {
     // Avoid random seeds in predictable mode.
     v8_flags.random_seed = 12347;
@@ -252,6 +251,8 @@ void V8::Initialize() {
     GetPlatformPageAllocator()->SetRandomMmapSeed(v8_flags.random_seed);
     GetPlatformVirtualAddressSpace()->SetRandomSeed(v8_flags.random_seed);
   }
+
+  FlagList::EnforceFlagImplications();
 
   if (v8_flags.print_flag_values) FlagList::PrintValues();
 
