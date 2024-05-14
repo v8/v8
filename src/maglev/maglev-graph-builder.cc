@@ -372,6 +372,23 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
 
   DeoptFrameScope* parent() const { return parent_; }
 
+  bool IsLazyDeoptContinuationFrame() const {
+    if (data_.tag() != DeoptFrame::FrameType::kBuiltinContinuationFrame) {
+      return false;
+    }
+    switch (data_.get<DeoptFrame::FrameType::kBuiltinContinuationFrame>()
+                .builtin_id) {
+      case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
+      case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
+      case Builtin::kArrayForEachLoopLazyDeoptContinuation:
+      case Builtin::kGenericLazyDeoptContinuation:
+      case Builtin::kToBooleanLazyDeoptContinuation:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   DeoptFrame::FrameData& data() { return data_; }
   const DeoptFrame::FrameData& data() const { return data_; }
 
@@ -1116,18 +1133,24 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
     AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
-    if (current_deopt_scope_ != nullptr) {
+    // Skip lazy deopt builtin continuations.
+    const DeoptFrameScope* deopt_scope = current_deopt_scope_;
+    while (deopt_scope != nullptr &&
+           deopt_scope->IsLazyDeoptContinuationFrame()) {
+      deopt_scope = deopt_scope->parent();
+    }
+
+    if (deopt_scope != nullptr) {
       // Support exactly one eager deopt builtin continuation. This can be
       // expanded in the future if necessary.
-      DCHECK_NULL(current_deopt_scope_->parent());
-      DCHECK_EQ(current_deopt_scope_->data().tag(),
+      DCHECK_NULL(deopt_scope->parent());
+      DCHECK_EQ(deopt_scope->data().tag(),
                 DeoptFrame::FrameType::kBuiltinContinuationFrame);
 #ifdef DEBUG
-      if (current_deopt_scope_->data().tag() ==
+      if (deopt_scope->data().tag() ==
           DeoptFrame::FrameType::kBuiltinContinuationFrame) {
         const DeoptFrame::BuiltinContinuationFrameData& frame =
-            current_deopt_scope_->data()
-                .get<DeoptFrame::BuiltinContinuationFrameData>();
+            deopt_scope->data().get<DeoptFrame::BuiltinContinuationFrameData>();
         if (frame.maybe_js_target) {
           int stack_parameter_count =
               Builtins::GetStackParameterCount(frame.builtin_id);
@@ -1142,7 +1165,7 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
 
       // Wrap the above frame in the scope frame.
       latest_checkpointed_frame_.emplace(
-          current_deopt_scope_->data(),
+          deopt_scope->data(),
           zone()->New<DeoptFrame>(*latest_checkpointed_frame_));
     }
   }
@@ -5261,36 +5284,34 @@ ReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
   return ReduceResult::Fail();
 }
 
+ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
+    ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
+    compiler::FeedbackSource& feedback_source) {
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(feedback_source,
+                                             compiler::AccessMode::kLoad, name);
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    case compiler::ProcessedFeedback::kNamedAccess:
+      RETURN_IF_DONE(TryReuseKnownPropertyLoad(lookup_start_object, name));
+      return TryBuildNamedAccess(receiver, lookup_start_object,
+                                 processed_feedback.AsNamedAccess(),
+                                 feedback_source, compiler::AccessMode::kLoad);
+    default:
+      return ReduceResult::Fail();
+  }
+}
+
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegisterTagged(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
-
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(feedback_source,
-                                             compiler::AccessMode::kLoad, name);
-
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
-
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      ReduceResult result = TryReuseKnownPropertyLoad(object, name);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-
-      result = TryBuildNamedAccess(
-          object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kLoad);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-      break;
-    }
-    default:
-      break;
-  }
-
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildLoadNamedProperty(object, name, feedback_source), SetAccumulator);
   // Create a generic load in the fallthrough.
   ValueNode* context = GetContext();
   SetAccumulator(
@@ -5327,37 +5348,15 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
-
   // {home_object} is guaranteed to be a HeapObject.
   ValueNode* home_object_map =
       AddNewNode<LoadTaggedField>({home_object}, HeapObject::kMapOffset);
   ValueNode* lookup_start_object =
       AddNewNode<LoadTaggedField>({home_object_map}, Map::kPrototypeOffset);
-
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(feedback_source,
-                                             compiler::AccessMode::kLoad, name);
-
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
-
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      ReduceResult result =
-          TryReuseKnownPropertyLoad(lookup_start_object, name);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-
-      result = TryBuildNamedAccess(
-          receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
-          feedback_source, compiler::AccessMode::kLoad);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-      break;
-    }
-    default:
-      break;
-  }
-
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildLoadNamedProperty(receiver, lookup_start_object, name,
+                                feedback_source),
+      SetAccumulator);
   // Create a generic load.
   ValueNode* context = GetContext();
   SetAccumulator(AddNewNode<LoadNamedFromSuperGeneric>(
@@ -6477,11 +6476,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   ReduceResult result;
   {
-    // Checkpoint for eager deopts before creating the lazy deopt scope, so that
-    // reduced builtin calls that eager deopt don't pick up the lazy deopt
-    // continuation.
-    GetLatestCheckpointedFrame();
-
     DeoptFrameScope lazy_deopt_scope(
         this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>(
@@ -9216,11 +9210,6 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
                        {callable_node, object});
     ValueNode* call_result;
     {
-      // Checkpoint for eager deopts before creating the lazy deopt scope, so
-      // that reduced builtin calls that eager deopt don't pick up the lazy
-      // deopt continuation.
-      GetLatestCheckpointedFrame();
-
       // Make sure that a lazy deopt after the @@hasInstance call also performs
       // ToBoolean before returning to the interpreter.
       DeoptFrameScope continuation_scope(
@@ -11414,12 +11403,63 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
       {generator}, JSGeneratorObject::kInputOrDebugPosOffset));
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
+                                                      int load_slot_index,
+                                                      int call_slot_index) {
+  // Load iterator method property.
+  FeedbackSlot load_slot = FeedbackVector::ToSlot(load_slot_index);
+  compiler::FeedbackSource load_feedback{feedback(), load_slot};
+  compiler::NameRef iterator_symbol = broker()->iterator_symbol();
+  ValueNode* iterator_method;
+  {
+    DeoptFrameScope deopt_continuation(
+        this, Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>({receiver, GetSmiConstant(call_slot_index),
+                                    GetConstant(feedback())}));
+    ReduceResult result_load =
+        TryBuildLoadNamedProperty(receiver, iterator_symbol, load_feedback);
+    if (result_load.IsDoneWithAbort() || result_load.IsFail()) {
+      return result_load;
+    }
+    DCHECK(result_load.IsDoneWithValue());
+    iterator_method = result_load.value();
+  }
+  auto throw_iterator_error = [&] {
+    return BuildCallRuntime(Runtime::kThrowIteratorError, {receiver});
+  };
+  auto throw_symbol_iterator_invalid = [&] {
+    return BuildCallRuntime(Runtime::kThrowSymbolIteratorInvalid, {});
+  };
+  auto call_iterator_method = [&] {
+    DeoptFrameScope deopt_continuation(
+        this, Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation);
+
+    FeedbackSlot call_slot = FeedbackVector::ToSlot(call_slot_index);
+    compiler::FeedbackSource call_feedback{feedback(), call_slot};
+    CallArguments args(ConvertReceiverMode::kAny, {receiver});
+    ReduceResult result_call = ReduceCall(iterator_method, args, call_feedback);
+
+    if (result_call.IsDoneWithAbort()) return result_call;
+    DCHECK(result_call.IsDoneWithValue());
+    return SelectReduction<BranchIfJSReceiver>([&] { return result_call; },
+                                               throw_symbol_iterator_invalid,
+                                               {result_call.value()});
+  };
+  // Check if the iterator_method is undefined and call the method otherwise.
+  return SelectReduction<BranchIfRootConstant>(
+      throw_iterator_error, call_iterator_method, {iterator_method},
+      RootIndex::kUndefinedValue);
+}
+
 void MaglevGraphBuilder::VisitGetIterator() {
   // GetIterator <object>
   ValueNode* receiver = LoadRegisterTagged(0);
-  ValueNode* context = GetContext();
   int load_slot = iterator_.GetIndexOperand(1);
   int call_slot = iterator_.GetIndexOperand(2);
+  PROCESS_AND_RETURN_IF_DONE(
+      TryReduceGetIterator(receiver, load_slot, call_slot), SetAccumulator);
+  // Fallback to the builtin.
+  ValueNode* context = GetContext();
   SetAccumulator(AddNewNode<GetIterator>({context, receiver}, load_slot,
                                          call_slot, feedback()));
 }

@@ -1812,6 +1812,9 @@ class MaglevGraphBuilder {
   template <typename CallNode, typename... Args>
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
+  ReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
+                                    int call_slot);
+
   ValueNode* BuildCallSelf(ValueNode* context, ValueNode* function,
                            ValueNode* new_target,
                            compiler::SharedFunctionInfoRef shared,
@@ -2030,6 +2033,15 @@ class MaglevGraphBuilder {
       compiler::NamedAccessFeedback const& feedback,
       compiler::FeedbackSource const& feedback_source,
       compiler::AccessMode access_mode);
+
+  ReduceResult TryBuildLoadNamedProperty(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NameRef name, compiler::FeedbackSource& feedback_source);
+  ReduceResult TryBuildLoadNamedProperty(
+      ValueNode* receiver, compiler::NameRef name,
+      compiler::FeedbackSource& feedback_source) {
+    return TryBuildLoadNamedProperty(receiver, receiver, name, feedback_source);
+  }
 
   ReduceResult BuildLoadTypedArrayLength(ValueNode* object,
                                          ElementsKind elements_kind);
