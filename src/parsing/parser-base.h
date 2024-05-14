@@ -2666,7 +2666,9 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   // Each static block has its own var and lexical scope, so make a new var
   // block scope instead of using the synthetic members initializer function
   // scope.
-  BlockT static_block = ParseBlock(nullptr, NewVarblockScope());
+  DeclarationScope* static_block_var_scope = NewVarblockScope();
+  BlockT static_block = ParseBlock(nullptr, static_block_var_scope);
+  CheckConflictingVarDeclarations(static_block_var_scope);
   class_info->has_static_elements = true;
   return static_block;
 }
