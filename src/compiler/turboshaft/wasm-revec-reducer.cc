@@ -41,6 +41,26 @@ class StoreLoadInfo {
   StoreLoadInfo(const Graph* graph, const Op* op)
       : op_(op), offset_(op->offset) {
     base_ = &graph->Get(op->base());
+    if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
+      DCHECK_EQ(offset_, 0);
+      const WordBinopOp* add_op = base_->TryCast<WordBinopOp>();
+      if (!add_op || add_op->kind != WordBinopOp::Kind::kAdd ||
+          add_op->rep != WordRepresentation::Word64()) {
+        SetInvalid();
+        return;
+      }
+      base_ = &graph->Get(add_op->left());
+      const ConstantOp* const_op =
+          graph->Get(add_op->right()).TryCast<ConstantOp>();
+      if (!const_op) {
+        SetInvalid();
+        return;
+      }
+      // const_op->word64() won't be greater than uint32::max under 32-bits wasm
+      // memory.
+      DCHECK_EQ(const_op->word64(), const_op->word32());
+      offset_ = const_op->word32();
+    }
     const ChangeOp* change = nullptr;
     if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
       change = graph->Get(op->index()).template TryCast<ChangeOp>();
