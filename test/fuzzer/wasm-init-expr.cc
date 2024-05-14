@@ -214,6 +214,9 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
   EnableExperimentalWasmFeatures(isolate);
+  //  We switch it to synchronous mode to avoid the nondeterminism of background
+  //  jobs finishing at random times.
+  FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
