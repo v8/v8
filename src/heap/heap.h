@@ -89,8 +89,6 @@ class CollectionBarrier;
 class ConcurrentMarking;
 class CppHeap;
 class EphemeronRememberedSet;
-class GCIdleTimeHandler;
-class GCIdleTimeHeapState;
 class GCTracer;
 class IncrementalMarking;
 class IsolateSafepoint;
@@ -146,8 +144,6 @@ enum class InvalidateExternalPointerSlots { kYes, kNo };
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
-
-enum class GCIdleTimeAction : uint8_t;
 
 enum class SkipRoot {
   kExternalStringTable,
@@ -588,10 +584,6 @@ class Heap final {
 
   void CreateReadOnlyApiObjects();
   void CreateMutableApiObjects();
-
-  // Implements the corresponding V8 API function.
-  bool IdleNotification(double deadline_in_seconds);
-  bool IdleNotification(int idle_time_in_ms);
 
   V8_EXPORT_PRIVATE void MemoryPressureNotification(
       v8::MemoryPressureLevel level, bool is_isolate_locked);
@@ -1833,16 +1825,6 @@ class Heap final {
   void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 
-  GCIdleTimeHeapState ComputeHeapState();
-
-  bool PerformIdleTimeAction(GCIdleTimeAction action,
-                             GCIdleTimeHeapState heap_state,
-                             double deadline_in_ms);
-
-  void IdleNotificationEpilogue(GCIdleTimeAction action,
-                                GCIdleTimeHeapState heap_state, double start_ms,
-                                double deadline_in_ms);
-
   void PrintMaxMarkingLimitReached();
   void PrintMaxNewSpaceSizeReached();
 
@@ -2305,7 +2287,6 @@ class Heap final {
   std::unique_ptr<MemoryAllocator> memory_allocator_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
-  std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
   std::unique_ptr<MemoryMeasurement> memory_measurement_;
   std::unique_ptr<MemoryReducer> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;

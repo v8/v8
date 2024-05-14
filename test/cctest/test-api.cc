@@ -16843,51 +16843,6 @@ TEST(RecursionWithSourceURLInMessageScriptResourceNameOrSourceURL) {
 }
 
 
-static void CreateGarbageInOldSpace() {
-  i::Factory* factory = CcTest::i_isolate()->factory();
-  v8::HandleScope scope(CcTest::isolate());
-  i::AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
-  for (int i = 0; i < 1000; i++) {
-    factory->NewFixedArray(1000, i::AllocationType::kOld);
-  }
-}
-
-
-// Test that idle notification can be handled and eventually collects garbage.
-TEST(TestIdleNotification) {
-  if (!i::v8_flags.incremental_marking) return;
-  i::ManualGCScope manual_gc_scope;
-  const intptr_t MB = 1024 * 1024;
-  const double IdlePauseInSeconds = 1.0;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  intptr_t initial_size = CcTest::heap()->SizeOfObjects();
-  CreateGarbageInOldSpace();
-  intptr_t size_with_garbage = CcTest::heap()->SizeOfObjects();
-  CHECK_GT(size_with_garbage, initial_size + MB);
-  bool finished = false;
-  for (int i = 0; i < 200 && !finished; i++) {
-    if (i < 10 && CcTest::heap()->incremental_marking()->IsStopped()) {
-      CcTest::heap()->StartIncrementalMarking(
-          i::GCFlag::kReduceMemoryFootprint,
-          i::GarbageCollectionReason::kTesting);
-    }
-    START_ALLOW_USE_DEPRECATED();
-    finished = env->GetIsolate()->IdleNotificationDeadline(
-        (v8::base::TimeTicks::Now().ToInternalValue() /
-         static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
-        IdlePauseInSeconds);
-    END_ALLOW_USE_DEPRECATED();
-    if (CcTest::heap()->sweeping_in_progress()) {
-      CcTest::heap()->EnsureSweepingCompleted(
-          i::Heap::SweepingForcedFinalizationMode::kV8Only);
-    }
-  }
-  intptr_t final_size = CcTest::heap()->SizeOfObjects();
-  CHECK(finished);
-  CHECK_LT(final_size, initial_size + 1);
-}
-
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {

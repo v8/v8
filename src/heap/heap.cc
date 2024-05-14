@@ -53,7 +53,6 @@
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-callbacks.h"
-#include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-allocator.h"
@@ -4279,62 +4278,6 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
       clear_memory_mode, clear_recorded_slots, verify_no_slots_recorded);
 }
 
-GCIdleTimeHeapState Heap::ComputeHeapState() {
-  GCIdleTimeHeapState heap_state;
-  heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
-  heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
-  return heap_state;
-}
-
-bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
-                                 GCIdleTimeHeapState heap_state,
-                                 double deadline_in_ms) {
-  bool result = false;
-  switch (action) {
-    case GCIdleTimeAction::kDone:
-      result = true;
-      break;
-    case GCIdleTimeAction::kIncrementalStep: {
-      incremental_marking()->AdvanceAndFinalizeIfComplete();
-      result = incremental_marking()->IsStopped();
-      break;
-    }
-  }
-
-  return result;
-}
-
-void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
-                                    GCIdleTimeHeapState heap_state,
-                                    double start_ms, double deadline_in_ms) {
-  const double idle_time_in_ms = deadline_in_ms - start_ms;
-  const double deadline_difference =
-      deadline_in_ms - MonotonicallyIncreasingTimeInMs();
-
-  if (v8_flags.trace_idle_notification) {
-    isolate_->PrintWithTimestamp(
-        "Idle notification: requested idle time %.2f ms, used idle time %.2f "
-        "ms, deadline usage %.2f ms [",
-        idle_time_in_ms, idle_time_in_ms - deadline_difference,
-        deadline_difference);
-    switch (action) {
-      case GCIdleTimeAction::kDone:
-        PrintF("done");
-        break;
-      case GCIdleTimeAction::kIncrementalStep:
-        PrintF("incremental step");
-        break;
-    }
-    PrintF("]");
-    if (v8_flags.trace_idle_notification_verbose) {
-      PrintF("[");
-      heap_state.Print();
-      PrintF("]");
-    }
-    PrintF("\n");
-  }
-}
-
 double Heap::MonotonicallyIncreasingTimeInMs() const {
   return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
          static_cast<double>(base::Time::kMillisecondsPerSecond);
@@ -4346,38 +4289,6 @@ void Heap::VerifyNewSpaceTop() {
   allocator()->new_space_allocator()->Verify();
 }
 #endif  // DEBUG
-
-bool Heap::IdleNotification(int idle_time_in_ms) {
-  return IdleNotification(
-      V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() +
-      (static_cast<double>(idle_time_in_ms) /
-       static_cast<double>(base::Time::kMillisecondsPerSecond)));
-}
-
-bool Heap::IdleNotification(double deadline_in_seconds) {
-  CHECK(HasBeenSetUp());
-  double deadline_in_ms =
-      deadline_in_seconds *
-      static_cast<double>(base::Time::kMillisecondsPerSecond);
-  NestedTimedHistogramScope idle_notification_scope(
-      isolate_->counters()->gc_idle_notification());
-  TRACE_EVENT0("v8", "V8.GCIdleNotification");
-  double start_ms = MonotonicallyIncreasingTimeInMs();
-  double idle_time_in_ms = deadline_in_ms - start_ms;
-
-  FreeMainThreadLinearAllocationAreas();
-
-  tracer()->SampleAllocation(
-      base::TimeTicks::Now(), NewSpaceAllocationCounter(),
-      OldGenerationAllocationCounter(), EmbedderAllocationCounter());
-
-  GCIdleTimeHeapState heap_state = ComputeHeapState();
-  GCIdleTimeAction action =
-      gc_idle_time_handler_->Compute(idle_time_in_ms, heap_state);
-  bool result = PerformIdleTimeAction(action, heap_state, deadline_in_ms);
-  IdleNotificationEpilogue(action, heap_state, start_ms, deadline_in_ms);
-  return result;
-}
 
 class MemoryPressureInterruptTask : public CancelableTask {
  public:
@@ -6090,7 +6001,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   tracer_.reset(new GCTracer(this, startup_time));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
-  gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   if (v8_flags.memory_reducer) memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
@@ -6423,7 +6333,6 @@ void Heap::TearDown() {
   incremental_marking_.reset();
   concurrent_marking_.reset();
 
-  gc_idle_time_handler_.reset();
   memory_measurement_.reset();
   allocation_tracker_for_debugging_.reset();
   ephemeron_remembered_set_.reset();

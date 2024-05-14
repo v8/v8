@@ -348,7 +348,6 @@ v8_source_set("v8_unittests_sources") {
     "heap/cppgc-js/unified-heap-utils.h",
     "heap/cppgc-js/young-unified-heap-unittest.cc",
     "heap/direct-handles-unittest.cc",
-    "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
     "heap/global-handles-unittest.cc",
     "heap/global-safepoint-unittest.cc",

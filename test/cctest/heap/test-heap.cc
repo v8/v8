@@ -2756,36 +2756,6 @@ HEAP_TEST(Regress845060) {
   CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 }
 
-TEST(IdleNotificationFinishMarking) {
-  if (!v8_flags.incremental_marking) return;
-  ManualGCScope manual_gc_scope;
-  v8_flags.allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  const int initial_gc_count = CcTest::heap()->gc_count();
-  heap::SimulateFullSpace(CcTest::heap()->old_space());
-  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                          i::GarbageCollectionReason::kTesting);
-
-  CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count);
-
-  const auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
-  while (!marking->IsMajorMarkingComplete()) {
-    marking->AdvanceForTesting(kStepSize);
-  }
-
-  // The next idle notification has to finish incremental marking.
-  const double kLongIdleTime = 1000.0;
-  START_ALLOW_USE_DEPRECATED();
-  CcTest::isolate()->IdleNotificationDeadline(
-      (v8::base::TimeTicks::Now().ToInternalValue() /
-       static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
-      kLongIdleTime);
-  END_ALLOW_USE_DEPRECATED();
-  CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count + 1);
-}
-
 TEST(OptimizedPretenuringAllocationFolding) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.expose_gc = true;

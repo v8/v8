@@ -10301,14 +10301,6 @@ void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   i_isolate->SetAddCrashKeyCallback(callback);
 }
 
-bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
-  // Returning true tells the caller that it need not
-  // continue to call IdleNotification.
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (!i::v8_flags.use_idle_notification) return true;
-  return i_isolate->heap()->IdleNotification(deadline_in_seconds);
-}
-
 void Isolate::LowMemoryNotification() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   {

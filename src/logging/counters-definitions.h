@@ -116,7 +116,6 @@ namespace internal {
 // HT(name, caption, max, unit)
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Garbage collection timers. */                                            \
-  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
   HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
      MILLISECOND)                                                             \
