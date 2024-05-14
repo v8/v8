@@ -277,12 +277,6 @@ class V8_EXPORT Isolate {
     bool allow_atomics_wait = true;
 
     /**
-     * Termination is postponed when there is no active SafeForTerminationScope.
-     */
-    V8_DEPRECATED("All code should be safe for termination")
-    bool only_terminate_in_safe_scope = false;
-
-    /**
      * The following parameters describe the offsets for addressing type info
      * for wrapped API objects and are used by the fast C API
      * (for details see v8-fast-api-calls.h).
@@ -388,21 +382,6 @@ class V8_EXPORT Isolate {
     internal::Address previous_stack_height_;
 
     friend class internal::ThreadLocalTop;
-  };
-
-  /**
-   * This scope allows terminations inside direct V8 API calls and forbid them
-   * inside any recursive API calls without explicit SafeForTerminationScope.
-   */
-  class V8_EXPORT V8_NODISCARD SafeForTerminationScope {
-   public:
-    V8_DEPRECATED("All code should be safe for termination")
-    explicit SafeForTerminationScope(v8::Isolate* v8_isolate) {}
-    ~SafeForTerminationScope() {}
-
-    // Prevent copying of Scope objects.
-    SafeForTerminationScope(const SafeForTerminationScope&) = delete;
-    SafeForTerminationScope& operator=(const SafeForTerminationScope&) = delete;
   };
 
   /**

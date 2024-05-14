@@ -10676,10 +10676,6 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
   return ret;
 }
 
-MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
-                                 MicrotasksScope::Type type)
-    : MicrotasksScope(v8_isolate, nullptr, type) {}
-
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)
     : MicrotasksScope(v8_context->GetIsolate(), v8_context->GetMicrotaskQueue(),

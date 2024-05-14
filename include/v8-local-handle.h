@@ -51,8 +51,6 @@ class Isolate;
 class Object;
 template <class F1, class F2, class F3>
 class PersistentValueMapBase;
-template <class F1, class F2>
-class PersistentValueVector;
 class Primitive;
 class Private;
 template <class F>
@@ -382,8 +380,6 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend class InternalEscapableScope;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
-  template <class F1, class F2>
-  friend class PersistentValueVector;
   template <class F>
   friend class ReturnValue;
   template <class F>

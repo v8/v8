@@ -15,8 +15,6 @@ namespace v8 {
 class Isolate;
 template <class K, class V, class T>
 class PersistentValueMapBase;
-template <class V, class T>
-class PersistentValueVector;
 template <class T>
 class Global;
 template <class T>
@@ -204,8 +202,6 @@ class PersistentBase : public api_internal::IndirectHandleBase {
   friend class ReturnValue;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
-  template <class F1, class F2>
-  friend class PersistentValueVector;
   friend class Object;
   friend class internal::ValueHelper;
 
