@@ -295,8 +295,8 @@ class WasmLoweringReducer : public Next {
                    WasmArray::kLengthOffset);
   }
 
-  OpIndex REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
-                                    const wasm::ArrayType* array_type) {
+  V<WasmArray> REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
+                                         const wasm::ArrayType* array_type) {
     __ TrapIfNot(
         __ Uint32LessThanOrEqual(
             length, __ Word32Constant(WasmArray::MaxLength(array_type))),
@@ -311,7 +311,7 @@ class WasmLoweringReducer : public Next {
                                               element_type.value_kind_size())),
                      __ Word32Constant(int32_t{kObjectAlignment - 1})),
         __ Word32Constant(int32_t{-kObjectAlignment}));
-    Uninitialized<HeapObject> a = __ Allocate(
+    Uninitialized<WasmArray> a = __ template Allocate<WasmArray>(
         __ ChangeUint32ToUintPtr(__ Word32Add(
             padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
         AllocationType::kYoung);
@@ -326,26 +326,27 @@ class WasmLoweringReducer : public Next {
 
     // Note: Only the array header initialization is finished here, the elements
     // still need to be initialized by other code.
-    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    V<WasmArray> array = __ FinishInitialization(std::move(a));
     return array;
   }
 
-  OpIndex REDUCE(WasmAllocateStruct)(V<Map> rtt,
-                                     const wasm::StructType* struct_type) {
+  V<WasmStruct> REDUCE(WasmAllocateStruct)(
+      V<Map> rtt, const wasm::StructType* struct_type) {
     int size = WasmStruct::Size(struct_type);
-    Uninitialized<HeapObject> s = __ Allocate(size, AllocationType::kYoung);
+    Uninitialized<WasmStruct> s =
+        __ template Allocate<WasmStruct>(size, AllocationType::kYoung);
     __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
                        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        LOAD_ROOT(EmptyFixedArray));
     // Note: Struct initialization isn't finished here, the user defined fields
     // still need to be initialized by other operations.
-    V<HeapObject> struct_value = __ FinishInitialization(std::move(s));
+    V<WasmStruct> struct_value = __ FinishInitialization(std::move(s));
     return struct_value;
   }
 
-  OpIndex REDUCE(WasmRefFunc)(V<Object> wasm_instance,
-                              uint32_t function_index) {
+  V<WasmFuncRef> REDUCE(WasmRefFunc)(V<WasmTrustedInstanceData> wasm_instance,
+                                     uint32_t function_index) {
     V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
         wasm_instance, FuncRefs, MemoryRepresentation::TaggedPointer());
     V<Object> maybe_func_ref =

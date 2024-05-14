@@ -6966,10 +6966,13 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
   static constexpr OpEffects effects = OpEffects().CanAllocate();
   uint32_t function_index;
 
-  explicit WasmRefFuncOp(V<Object> wasm_instance, uint32_t function_index)
+  explicit WasmRefFuncOp(V<WasmTrustedInstanceData> wasm_instance,
+                         uint32_t function_index)
       : Base(wasm_instance), function_index(function_index) {}
 
-  OpIndex instance() const { return Base::input(0); }
+  V<WasmTrustedInstanceData> instance() const {
+    return input<WasmTrustedInstanceData>(0);
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
