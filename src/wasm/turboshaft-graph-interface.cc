@@ -21,6 +21,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/inlining-tree.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -2436,9 +2437,163 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                     Value returns[]) {
     if (v8_flags.experimental_wasm_inlining_call_indirect) {
       feedback_slot_++;
-      // TODO(dlehmann): Actually inline the callee(s). See `CallRef`.
-    }
 
+      if (should_inline(decoder, feedback_slot_,
+                        std::numeric_limits<int>::max())) {
+        // We are only interested in the target here for comparison against
+        // the inlined call target below.
+        // In particular, we don't need a dynamic type or null check: If the
+        // actual call target (at runtime) is equal to the inlined call target,
+        // we know already from the static check on the inlinee (see below) that
+        // the inlined code has the right signature.
+        constexpr bool kNeedsTypeOrNullCheck = false;
+        auto [target, _ref] = BuildIndirectCallTargetAndRef(
+            decoder, index.op, imm, kNeedsTypeOrNullCheck);
+
+        size_t return_count = imm.sig->return_count();
+        base::Vector<InliningTree*> feedback_cases =
+            inlining_decisions_->function_calls()[feedback_slot_];
+        std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
+        base::SmallVector<TSBlock*, 5> case_blocks;
+        size_t case_count = feedback_cases.size() + 1;
+        for (size_t i = 0; i < case_count; i++) {
+          case_blocks.push_back(__ NewBlock());
+        }
+        TSBlock* merge = __ NewBlock();
+        // For the control flow between the case blocks, we don't use the usual
+        // NewBlockWithPhis / SetupControlFlowEdge / BindBlockAndGeneratePhis
+        // helpers, because we don't need all their functionality. Instead, we
+        // inline trimmed-down copies of them, doing only what we need, which is
+        // handling the mutable fields cached on the InstanceCache.
+        uint32_t cached_fields = instance_cache_.num_mutable_fields();
+        BlockPhis merge_phis(decoder->zone_, instance_cache_);
+        InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
+        __ Goto(case_blocks[0]);
+        bool use_deopt_slowpath = v8_flags.wasm_deopt;
+        for (size_t i = 0; i < feedback_cases.size(); i++) {
+          __ Bind(case_blocks[i]);
+          InliningTree* tree = feedback_cases[i];
+          if (!tree || !tree->is_inlined()) {
+            // Fall through to the next case.
+            __ Goto(case_blocks[i + 1]);
+            // Do not use the deopt slowpath if we decided to not inline (at
+            // least) one call target.
+            // Otherwise, this could lead to a deopt loop.
+            // TODO(42204618): In case of only one known target it might make
+            // sense to still emit a `DeoptIfNot` and have a direct call for the
+            // non-inlined known call target. Evaluate the performance
+            // characteristics of this.
+            use_deopt_slowpath = false;
+            continue;
+          }
+          uint32_t inlined_index = tree->function_index();
+          // Ensure that we only inline if the inlinee's signature is compatible
+          // with the call_indirect. In other words, perform the type check that
+          // would normally be done dynamically (see above
+          // `BuildIndirectCallTargetAndRef`) statically on the inlined target.
+          // This can fail, e.g., because the mapping of feedback back to
+          // function indices may produce spurious targets, or because the
+          // feedback in the JS heap has been corrupted by a vulnerability.
+          if (!InlineTargetIsTypeCompatible(
+                  decoder->module_, imm.sig,
+                  decoder->module_->functions[inlined_index].sig)) {
+            __ Goto(case_blocks[i + 1]);
+            continue;
+          }
+
+          // TODO(335082212,dlehmann): We could avoid the following load by
+          // baking the inlined call target as a constant into the instruction
+          // stream and comparing against that constant instead. This would
+          // require a new relocation type since `RelocInfo::WASM_CALL` applies
+          // a delta in `AddCodeWithCodeSpace`, but we want the absolute address
+          // patched in. Something like:
+          // V<WordPtr> inlined_target = __ RelocatableConstant(
+          //     inlined_index, RelocInfo::WASM_CALL_TARGET);
+          bool shared_func =
+              decoder->module_->function_is_shared(inlined_index);
+          V<WordPtr> jump_table_start = LOAD_INSTANCE_FIELD(
+              trusted_instance_data(shared_func), JumpTableStart,
+              MemoryRepresentation::UintPtr());
+          V<WordPtr> inlined_target =
+              __ WordPtrAdd(jump_table_start,
+                            JumpTableOffset(decoder->module_, inlined_index));
+
+          bool is_last_call_target_block = (i == case_count - 2);
+          if (use_deopt_slowpath && is_last_call_target_block) {
+            // TODO(42204618,335082212): Deopt support for call_indirect.
+            UNIMPLEMENTED();
+          } else {
+            TSBlock* inline_block = __ NewBlock();
+            bool is_last_case = (i == case_count - 1);
+            BranchHint hint =
+                is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+            __ Branch({__ WordPtrEqual(target, inlined_target), hint},
+                      inline_block, case_blocks[i + 1]);
+            __ Bind(inline_block);
+          }
+
+          instance_cache_.RestoreFromSnapshot(saved_cache);
+          SmallZoneVector<Value, 4> direct_returns(return_count,
+                                                   decoder->zone_);
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Speculatively inlining call_indirect #%d, "
+                "case #%zu, "
+                "to function %d]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                feedback_slot_, i, inlined_index);
+          }
+          InlineWasmCall(decoder, inlined_index, imm.sig,
+                         static_cast<uint32_t>(i), false, args,
+                         direct_returns.data());
+          if (did_bailout()) return;
+
+          if (__ current_block() != nullptr) {
+            // Only add phi inputs and a Goto to {merge} if the current_block is
+            // not nullptr. If the current_block is nullptr, it means that the
+            // inlined body unconditionally exits early (likely an unconditional
+            // trap or throw).
+            for (size_t ret = 0; ret < direct_returns.size(); ret++) {
+              case_returns[ret].push_back(direct_returns[ret].op);
+            }
+            merge_phis.AddPhiInputs(instance_cache_);
+            __ Goto(merge);
+          }
+        }
+
+        if (!use_deopt_slowpath) {
+          TSBlock* no_inline_block = case_blocks[case_count - 1];
+          __ Bind(no_inline_block);
+          instance_cache_.RestoreFromSnapshot(saved_cache);
+          auto [target, ref] =
+              BuildIndirectCallTargetAndRef(decoder, index.op, imm);
+          SmallZoneVector<Value, 4> indirect_returns(return_count,
+                                                     decoder->zone_);
+          BuildWasmCall(decoder, imm.sig, target, ref, args,
+                        indirect_returns.data());
+          for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
+            case_returns[ret].push_back(indirect_returns[ret].op);
+          }
+          merge_phis.AddPhiInputs(instance_cache_);
+          __ Goto(merge);
+        }
+
+        __ Bind(merge);
+        for (size_t i = 0; i < case_returns.size(); i++) {
+          returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
+                                 RepresentationFor(imm.sig->GetReturn(i)));
+        }
+        for (uint32_t i = 0; i < cached_fields; i++) {
+          OpIndex phi =
+              MaybePhi(merge_phis.phi_inputs(i), merge_phis.phi_type(i));
+          instance_cache_.set_mutable_field_value(i, phi);
+        }
+
+        return;
+      }  // should_inline
+    }    // if inlining_enabled
+
+    // Didn't inline.
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
     BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
   }
@@ -2529,10 +2684,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
-              "[function %d%s: Speculatively inlining call_ref #%d, case #%d, "
+              "[function %d%s: Speculatively inlining call_ref #%d, case #%zu, "
               "to function %d]\n",
               func_index_, mode_ == kRegular ? "" : " (inlined)",
-              feedback_slot_, static_cast<int>(i), inlined_index);
+              feedback_slot_, i, inlined_index);
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        false, args, direct_returns.data());
@@ -2627,9 +2782,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
               "[function %d%s: Speculatively inlining return_call_ref #%d, "
-              "case #%d, to function %d]\n",
+              "case #%zu, to function %d]\n",
               func_index_, mode_ == kRegular ? "" : " (inlined)",
-              feedback_slot_, static_cast<int>(i), inlined_index);
+              feedback_slot_, i, inlined_index);
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        true, args, nullptr);
@@ -6523,7 +6678,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Returns the call target and the ref (WasmTrustedInstanceData or
   // WasmApiFunctionRef) for an indirect call.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>> BuildIndirectCallTargetAndRef(
-      FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
+      FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm,
+      bool needs_type_or_null_check = true) {
     uint32_t table_index = imm.table_imm.index;
     // Use zero-extension instead of sign-extension; for negative values this
     // will still fail the bounds check because tables have limited size.
@@ -6563,9 +6719,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     /* Step 3: Check the canonical real signature against the canonical declared
      * signature. */
     bool needs_type_check =
+        needs_type_or_null_check &&
         !EquivalentTypes(table.type.AsNonNull(), ValueType::Ref(sig_index),
                          decoder->module_, decoder->module_);
-    bool needs_null_check = table.type.is_nullable();
+    bool needs_null_check =
+        needs_type_or_null_check && table.type.is_nullable();
 
     V<WordPtr> dispatch_table_entry_offset = __ WordPtrAdd(
         __ WordPtrMul(index_intptr, WasmDispatchTable::kEntrySize),
@@ -7369,23 +7527,28 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return stack_slot;
   }
 
+  bool InlineTargetIsTypeCompatible(const WasmModule* module,
+                                    const FunctionSig* sig,
+                                    const FunctionSig* inlinee) {
+    if (sig->parameter_count() != inlinee->parameter_count()) return false;
+    if (sig->return_count() != inlinee->return_count()) return false;
+    for (size_t i = 0; i < sig->return_count(); ++i) {
+      if (!IsSubtypeOf(inlinee->GetReturn(i), sig->GetReturn(i), module))
+        return false;
+    }
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      if (!IsSubtypeOf(sig->GetParam(i), inlinee->GetParam(i), module))
+        return false;
+    }
+    return true;
+  }
+
   void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
                       const FunctionSig* sig, uint32_t feedback_case,
                       bool is_tail_call, const Value args[], Value returns[]) {
     DCHECK_IMPLIES(is_tail_call, returns == nullptr);
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
-    DCHECK_EQ(inlinee.sig->return_count(), sig->return_count());
-    DCHECK_EQ(inlinee.sig->parameter_count(), sig->parameter_count());
-#ifdef DEBUG
-    for (size_t i = 0; i < sig->return_count(); ++i) {
-      DCHECK(IsSubtypeOf(inlinee.sig->GetReturn(i), sig->GetReturn(i),
-                         decoder->module_));
-    }
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      DCHECK(IsSubtypeOf(sig->GetParam(i), inlinee.sig->GetParam(i),
-                         decoder->module_));
-    }
-#endif
+    DCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
