@@ -367,11 +367,13 @@ void ComputeWeaknessForYoungObject(
       JSObject::IsUnmodifiedApiObject(node->location());
   if (is_unmodified_api_object) {
     FullObjectSlot slot = node->location();
+    START_ALLOW_USE_DEPRECATED();
     const bool is_weak =
         node->is_droppable() ||
         (should_call_is_root_for_default_traced_reference &&
          !handler->IsRoot(
              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot)));
+    END_ALLOW_USE_DEPRECATED();
     node->set_weak(is_weak);
   }
 }
