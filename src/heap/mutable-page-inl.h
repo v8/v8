@@ -59,6 +59,10 @@ AllocationSpace MutablePageMetadata::owner_identity() const {
   return owner()->identity();
 }
 
+void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  return Chunk()->SetOldGenerationPageFlags(marking_mode, owner_identity());
+}
+
 }  // namespace internal
 }  // namespace v8
 

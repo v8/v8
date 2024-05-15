@@ -185,14 +185,18 @@ void MemoryChunk::ClearFlagSlow(Flag flag) {
 
 // static
 MemoryChunk::MainThreadFlags MemoryChunk::OldGenerationPageFlags(
-    MarkingMode marking_mode, bool in_shared_space) {
+    MarkingMode marking_mode, AllocationSpace space) {
   MainThreadFlags flags_to_set = NO_FLAGS;
+
+  if (!v8_flags.sticky_mark_bits || (space != OLD_SPACE)) {
+    flags_to_set |= MemoryChunk::CONTAINS_ONLY_OLD;
+  }
 
   if (marking_mode == MarkingMode::kMajorMarking) {
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
                     MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                     MemoryChunk::INCREMENTAL_MARKING;
-  } else if (in_shared_space) {
+  } else if (IsAnySharedSpace(space)) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   } else {
@@ -217,13 +221,12 @@ MemoryChunk::MainThreadFlags MemoryChunk::YoungGenerationPageFlags(
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(MarkingMode marking_mode,
-                                            bool in_shared_space) {
-  MainThreadFlags flags_to_set =
-      OldGenerationPageFlags(marking_mode, in_shared_space);
+                                            AllocationSpace space) {
+  MainThreadFlags flags_to_set = OldGenerationPageFlags(marking_mode, space);
   MainThreadFlags flags_to_clear = NO_FLAGS;
 
   if (marking_mode != MarkingMode::kMajorMarking) {
-    if (in_shared_space) {
+    if (IsAnySharedSpace(space)) {
       // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
       flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                         MemoryChunk::INCREMENTAL_MARKING;

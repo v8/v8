@@ -295,7 +295,7 @@ bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   if (v8_flags.sticky_mark_bits) {
     return !MemoryChunk::FromHeapObject(heap_object)
-                ->IsReadOnlyOrMajorMarkingOn() &&
+                ->IsOnlyOldOrMajorMarkingOn() &&
            !MarkBit::From(heap_object.address())
                 .template Get<AccessMode::ATOMIC>();
   }

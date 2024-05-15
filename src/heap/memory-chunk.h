@@ -61,57 +61,61 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // checking since read-only chunks have no owner once they are detached.
     READ_ONLY_HEAP = 1u << 6,
 
+    // Used in young generation checks. When sticky mark-bits are enabled and
+    // major GC in progress, treat all objects as old.
+    IS_MAJOR_GC_IN_PROGRESS = 1u << 7,
+
+    // Used to mark chunks belonging to spaces that do not suppor young gen
+    // allocations. Such chunks can never contain any young objects.
+    CONTAINS_ONLY_OLD = 1u << 8,
+
     // ----------------------------------------------------------------
     // Values below here are not critical for the heap write barrier.
 
-    LARGE_PAGE = 1u << 7,
-    EVACUATION_CANDIDATE = 1u << 8,
-    NEVER_EVACUATE = 1u << 9,
+    LARGE_PAGE = 1u << 9,
+    EVACUATION_CANDIDATE = 1u << 10,
+    NEVER_EVACUATE = 1u << 11,
 
     // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
     // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION = 1u << 10,
+    PAGE_NEW_OLD_PROMOTION = 1u << 12,
 
     // This flag is intended to be used for testing. Works only when both
     // v8_flags.stress_compaction and
     // v8_flags.manual_evacuation_candidates_selection are set. It forces the
     // page to become an evacuation candidate at next candidates selection
     // cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 13,
 
     // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
+    NEVER_ALLOCATE_ON_PAGE = 1u << 14,
 
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
-    PRE_FREED = 1u << 13,
+    PRE_FREED = 1u << 15,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 14,
+    COMPACTION_WAS_ABORTED = 1u << 16,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 15,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 17,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 16,
+    UNREGISTERED = 1u << 18,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 17,
+    PINNED = 1u << 19,
 
     // A Page with code objects.
-    IS_EXECUTABLE = 1u << 18,
+    IS_EXECUTABLE = 1u << 20,
 
     // The memory chunk belongs to the trusted space. When the sandbox is
     // enabled, the trusted space is located outside of the sandbox and so its
     // content cannot be corrupted by an attacker.
-    IS_TRUSTED = 1u << 19,
-
-    // Used in young generation checks. When sticky mark-bits are enabled and
-    // major GC in progress, treat all objects as old.
-    IS_MAJOR_GC_IN_PROGRESS = 1u << 20,
+    IS_TRUSTED = 1u << 21,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -139,8 +143,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
 
-  static constexpr MainThreadFlags kIsInReadOnlyHeapOrMajorGCInProgressMask =
-      kIsInReadOnlyHeapMask | IS_MAJOR_GC_IN_PROGRESS;
+  static constexpr MainThreadFlags kIsOnlyOldOrMajorGCInProgressMask =
+      MainThreadFlags(CONTAINS_ONLY_OLD) |
+      MainThreadFlags(IS_MAJOR_GC_IN_PROGRESS);
 
   MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
 
@@ -285,8 +290,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return InYoungGeneration() && IsLargePage();
   }
   bool IsPinned() const { return IsFlagSet(PINNED); }
-  bool IsReadOnlyOrMajorMarkingOn() const {
-    return InReadOnlySpace() || IsFlagSet(IS_MAJOR_GC_IN_PROGRESS);
+  bool IsOnlyOldOrMajorMarkingOn() const {
+    return GetFlags() & kIsOnlyOldOrMajorGCInProgressMask;
   }
 
   V8_INLINE static constexpr bool IsAligned(Address address) {
@@ -294,11 +299,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
   static MainThreadFlags OldGenerationPageFlags(MarkingMode marking_mode,
-                                                bool in_shared_space);
+                                                AllocationSpace space);
   static MainThreadFlags YoungGenerationPageFlags(MarkingMode marking_mode);
 
   void SetOldGenerationPageFlags(MarkingMode marking_mode,
-                                 bool in_shared_space);
+                                 AllocationSpace space);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode);
 
 #ifdef DEBUG

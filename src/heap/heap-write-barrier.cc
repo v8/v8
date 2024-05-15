@@ -23,7 +23,7 @@ thread_local MarkingBarrier* current_marking_barrier = nullptr;
 bool HeapObjectInYoungGenerationSticky(MemoryChunk* chunk,
                                        Tagged<HeapObject> object) {
   DCHECK(v8_flags.sticky_mark_bits);
-  return !chunk->IsReadOnlyOrMajorMarkingOn() &&
+  return !chunk->IsOnlyOldOrMajorMarkingOn() &&
          !MarkingBitmap::MarkBitFromAddress(object.address())
               .template Get<AccessMode::ATOMIC>();
 }

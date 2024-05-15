@@ -68,7 +68,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
         heap()->incremental_marking()->marking_mode());
   } else {
     flags |= MemoryChunk::OldGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode(), InSharedSpace());
+        heap()->incremental_marking()->marking_mode(), owner()->identity());
   }
 
   if (executable == EXECUTABLE) {

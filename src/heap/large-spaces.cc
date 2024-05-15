@@ -187,7 +187,7 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePageMetadata* page) {
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
   chunk->SetOldGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode(), false);
+      heap()->incremental_marking()->marking_mode(), LO_SPACE);
   AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
 }
 

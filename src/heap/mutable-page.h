@@ -72,9 +72,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
-  void SetOldGenerationPageFlags(MarkingMode marking_mode) {
-    return Chunk()->SetOldGenerationPageFlags(marking_mode, InSharedSpace());
-  }
+  V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
     return Chunk()->SetYoungGenerationPageFlags(marking_mode);
   }

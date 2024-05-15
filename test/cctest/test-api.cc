@@ -8116,7 +8116,7 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
 
-    if (global_gc || v8_flags.single_generation) {
+    if (global_gc || v8_flags.single_generation || v8_flags.sticky_mark_bits) {
       i::heap::InvokeAtomicMajorGC(CcTest::heap());
     } else {
       i::heap::InvokeMinorGC(CcTest::heap());

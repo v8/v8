@@ -372,8 +372,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     if (v8_flags.sticky_mark_bits) {
       Label not_read_only(this);
 
-      TNode<BoolT> is_read_only_page = IsPageFlagSet(
-          object, MemoryChunk::kIsInReadOnlyHeapOrMajorGCInProgressMask);
+      TNode<BoolT> is_read_only_page =
+          IsPageFlagSet(object, MemoryChunk::kIsOnlyOldOrMajorGCInProgressMask);
       Branch(is_read_only_page, false_label, &not_read_only);
 
       BIND(&not_read_only);
