@@ -907,6 +907,21 @@ class GraphBuilder {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckNumber* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    V<Object> input = Map(node->receiver_input());
+    V<Word32> check;
+    if (node->mode() == Object::Conversion::kToNumeric) {
+      check = __ ObjectIsNumberOrBigint(input);
+    } else {
+      DCHECK_EQ(node->mode(), Object::Conversion::kToNumber);
+      check = __ ObjectIsNumber(input);
+    }
+    __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kNotANumber,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckHeapObject* node,
                                 const maglev::ProcessingState& state) {
     __ DeoptimizeIf(__ ObjectIsSmi(Map(node->receiver_input())),

@@ -1877,3 +1877,21 @@ let glob_b = 3.35;
   assertEquals(21, array_foreach(arr));
   assertUnoptimized(array_foreach);
 }
+
+// Testing CheckNumber.
+{
+  function check_number(x) {
+    // With only number maps in the feedback, "+x" is a no-op and Maglev just
+    // emits a CheckNumber.
+    return +x;
+  }
+
+  %PrepareFunctionForOptimization(check_number);
+  assertEquals(3.65, check_number(3.65));
+  %OptimizeFunctionOnNextCall(check_number);
+  assertEquals(3.65, check_number(3.65));
+  assertOptimized(check_number);
+  // CheckNumber should trigger a deopt for non-number maps (like strings).
+  assertEquals(NaN, check_number("abc"));
+  assertUnoptimized(check_number);
+}

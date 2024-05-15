@@ -4273,6 +4273,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kInternalizedString,
     kNonCallable,
     kNumber,
+    kNumberOrBigInt,
     kReceiver,
     kReceiverOrNullOrUndefined,
     kSmi,

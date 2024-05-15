@@ -1049,6 +1049,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberOrBigInt:
+      return os << "NumberOrBigInt";
     case ObjectIsOp::Kind::kReceiver:
       return os << "Receiver";
     case ObjectIsOp::Kind::kReceiverOrNullOrUndefined:

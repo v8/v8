@@ -361,6 +361,25 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case ObjectIsOp::Kind::kNumberOrBigInt: {
+        Label<Word32> done(this);
+        DCHECK_NE(input_assumptions, ObjectIsOp::InputAssumptions::kBigInt);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 1);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        GOTO_IF(
+            __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+            done, 1);
+        GOTO(done,
+             __ TaggedEqual(map, __ HeapConstant(factory_->bigint_map())));
+
+        BIND(done, result);
+        return result;
+      }
 
 #if V8_STATIC_ROOTS_BOOL
       case ObjectIsOp::Kind::kString: {
