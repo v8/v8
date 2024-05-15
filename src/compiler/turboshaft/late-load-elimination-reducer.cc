@@ -356,15 +356,21 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     return;
   }
 
-  OpIndex value = store.value();
-
   // Updating the known stored values.
   if (!invalidate_maybe_aliasing) memory_.Invalidate(store);
   memory_.Insert(store);
 
   // Updating aliases if the value stored was known as non-aliasing.
+  OpIndex value = store.value();
   if (non_aliasing_objects_.HasKeyFor(value)) {
     non_aliasing_objects_.Set(value, false);
+  }
+
+  // If we just stored a map, invalidate the maps for this base.
+  if (store.offset == HeapObject::kMapOffset && !store.index().valid()) {
+    if (object_maps_.HasKeyFor(store.base())) {
+      object_maps_.Set(store.base(), MapMaskAndOr{});
+    }
   }
 }
 
