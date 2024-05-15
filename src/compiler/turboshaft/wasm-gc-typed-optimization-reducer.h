@@ -270,8 +270,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     return __ MapToNewGraph(type_annotation.value());
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(StructGet)(OpIndex op_idx,
-                                        const StructGetOp& struct_get) {
+  V<Any> REDUCE_INPUT_GRAPH(StructGet)(V<Any> op_idx,
+                                       const StructGetOp& struct_get) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphStructGet(op_idx, struct_get);
     }
@@ -288,7 +288,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(StructSet)(OpIndex op_idx,
+  V<None> REDUCE_INPUT_GRAPH(StructSet)(V<None> op_idx,
                                         const StructSetOp& struct_set) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphStructSet(op_idx, struct_set);

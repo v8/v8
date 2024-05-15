@@ -4047,14 +4047,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 
-  OpIndex StructGet(V<HeapObject> object, const wasm::StructType* type,
-                    uint32_t type_index, int field_index, bool is_signed,
-                    CheckForNull null_check) {
+  V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
+                   uint32_t type_index, int field_index, bool is_signed,
+                   CheckForNull null_check) {
     return ReduceIfReachableStructGet(object, type, type_index, field_index,
                                       is_signed, null_check);
   }
 
-  void StructSet(V<HeapObject> object, OpIndex value,
+  void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, uint32_t type_index,
                  int field_index, CheckForNull null_check) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,

@@ -539,6 +539,7 @@ using AnyOrNone = Union<Any, None>;
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
+using WasmStructNullable = Union<WasmStruct, WasmNull>;
 // The type for a nullable ref.string (stringref proposal). For imported strings
 // use StringOrNull instead.
 using WasmStringRefNullable = Union<String, WasmNull>;

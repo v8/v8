@@ -70,6 +70,7 @@ using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::WasmArrayNullable;
 using compiler::turboshaft::WasmStringRefNullable;
+using compiler::turboshaft::WasmStructNullable;
 using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
@@ -3871,7 +3872,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, bool is_signed, Value* result) {
     result->op = __ StructGet(
-        struct_object.op, field.struct_imm.struct_type, field.struct_imm.index,
+        V<WasmStructNullable>::Cast(struct_object.op),
+        field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index, is_signed,
         struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                          : compiler::kWithoutNullCheck);
@@ -3879,8 +3881,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, const Value& field_value) {
-    __ StructSet(struct_object.op, field_value.op, field.struct_imm.struct_type,
-                 field.struct_imm.index, field.field_imm.index,
+    __ StructSet(V<WasmStructNullable>::Cast(struct_object.op), field_value.op,
+                 field.struct_imm.struct_type, field.struct_imm.index,
+                 field.field_imm.index,
                  struct_object.type.is_nullable()
                      ? compiler::kWithNullCheck
                      : compiler::kWithoutNullCheck);

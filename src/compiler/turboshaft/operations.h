@@ -6731,8 +6731,9 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
     return result;
   }
 
-  StructGetOp(OpIndex object, const wasm::StructType* type, uint32_t type_index,
-              int field_index, bool is_signed, CheckForNull null_check)
+  StructGetOp(V<WasmStructNullable> object, const wasm::StructType* type,
+              uint32_t type_index, int field_index, bool is_signed,
+              CheckForNull null_check)
       : Base(object),
         is_signed(is_signed),
         null_check(null_check),
@@ -6740,7 +6741,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
         type_index(type_index),
         field_index(field_index) {}
 
-  OpIndex object() const { return input(0); }
+  V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
@@ -6780,16 +6781,17 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
     return result;
   }
 
-  StructSetOp(OpIndex object, OpIndex value, const wasm::StructType* type,
-              uint32_t type_index, int field_index, CheckForNull null_check)
+  StructSetOp(V<WasmStructNullable> object, V<Any> value,
+              const wasm::StructType* type, uint32_t type_index,
+              int field_index, CheckForNull null_check)
       : Base(object, value),
         null_check(null_check),
         type(type),
         type_index(type_index),
         field_index(field_index) {}
 
-  OpIndex object() const { return input(0); }
-  OpIndex value() const { return input(1); }
+  V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+  V<Any> value() const { return input(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
