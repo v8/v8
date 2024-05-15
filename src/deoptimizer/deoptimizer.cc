@@ -1027,7 +1027,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
                   base_offset - liftoff_iter->offset(), value.int64_value_);
               break;
             case wasm::ValueKind::kS128: {
-              int2 values = value.simd128_value_.to_i64x2();
+              int64x2 values = value.simd128_value_.to_i64x2();
               const int offset = base_offset - liftoff_iter->offset();
               output_frame->SetLiftoffFrameSlot64(offset, values.val[0]);
               output_frame->SetLiftoffFrameSlot64(offset + sizeof(int64_t),

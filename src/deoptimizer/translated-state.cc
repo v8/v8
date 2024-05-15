@@ -1559,7 +1559,7 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Simd128 value = registers->GetSimd128Register(input_reg);
       if (trace_file != nullptr) {
-        int16 val = value.to_i8x16();
+        int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
                "%02x %02x %02x %02x ; %s (Simd128)",
@@ -1708,7 +1708,7 @@ int TranslatedState::CreateNextTranslatedValue(
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
       Simd128 value = getSimd128Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        int16 val = value.to_i8x16();
+        int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
                "%02x %02x %02x %02x ; (Simd128) [fp %c %d]",

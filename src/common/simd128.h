@@ -13,13 +13,13 @@
 namespace v8::internal {
 
 // TODO(mliedtke): Rename the C++ types to int64x, ...
-#define FOREACH_SIMD_TYPE(V)  \
-  V(double, float2, f64x2, 2) \
-  V(float, float4, f32x4, 4)  \
-  V(int64_t, int2, i64x2, 2)  \
-  V(int32_t, int4, i32x4, 4)  \
-  V(int16_t, int8, i16x8, 8)  \
-  V(int8_t, int16, i8x16, 16)
+#define FOREACH_SIMD_TYPE(V)     \
+  V(double, float64x2, f64x2, 2) \
+  V(float, float32x4, f32x4, 4)  \
+  V(int64_t, int64x2, i64x2, 2)  \
+  V(int32_t, int32x4, i32x4, 4)  \
+  V(int16_t, int16x8, i16x8, 8)  \
+  V(int8_t, int8x16, i8x16, 16)
 
 #define DEFINE_SIMD_TYPE(cType, sType, name, kSize) \
   struct sType {                                    \
