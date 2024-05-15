@@ -5458,10 +5458,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x8DotI8x32I7x32AddS: {
       DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(2));
+      // If AVX_VNNI supported, pass kScratchSimd256Reg twice as unused
+      // arguments.
+      YMMRegister tmp = kScratchSimd256Reg;
+      if (!CpuFeatures::IsSupported(AVX_VNNI)) {
+        tmp = i.TempSimd256Register(0);
+      }
       __ I32x8DotI8x32I7x32AddS(
           i.OutputSimd256Register(), i.InputSimd256Register(0),
           i.InputSimd256Register(1), i.InputSimd256Register(2),
-          kScratchSimd256Reg, i.TempSimd256Register(0));
+          kScratchSimd256Reg, tmp);
       break;
     }
     case kX64I32x4ExtAddPairwiseI16x8S: {

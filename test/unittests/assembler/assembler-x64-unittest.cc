@@ -3224,6 +3224,7 @@ TEST_F(AssemblerX64Test, AssemblerX64AVXVNNI) {
   CpuFeatureScope fscope(&masm, AVX_VNNI);
 
   __ vpdpbusd(xmm1, xmm2, xmm3);
+  __ vpdpbusd(ymm8, ymm11, ymm9);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -3235,7 +3236,9 @@ TEST_F(AssemblerX64Test, AssemblerX64AVXVNNI) {
 #endif
 
   uint8_t expected[] = {// vpdpbusd xmm1, xmm2, xmm3
-                        0xc4, 0xe2, 0x69, 0x50, 0xcb};
+                        0xc4, 0xe2, 0x69, 0x50, 0xcb,
+                        // vpdpbusd ymm8, ymm11, ymm9
+                        0xc4, 0x42, 0x25, 0x50, 0xc1};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

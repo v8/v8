@@ -1454,6 +1454,8 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputVNNI) {
   CpuFeatureScope scope(&t.assm_, AVX_VNNI);
   COMPARE("c4e26950cb           vpdpbusd xmm1,xmm2,xmm3",
           vpdpbusd(xmm1, xmm2, xmm3));
+  COMPARE("c4622550c7           vpdpbusd ymm8,ymm11,ymm7",
+          vpdpbusd(ymm8, ymm11, ymm7));
 }
 
 TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
