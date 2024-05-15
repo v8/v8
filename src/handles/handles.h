@@ -136,22 +136,15 @@ class Handle final : public HandleBase {
   // This means that this is only permitted for Tagged<T> with an operator->,
   // i.e. for on-heap object T.
   V8_INLINE Tagged<T> operator->() const {
-    if constexpr (is_subtype_v<T, HeapObject>) {
-      return **this;
-    } else {
-      // `static_assert(false)` in this else clause was an unconditional error
-      // before CWG2518. See https://reviews.llvm.org/D144285
-#if defined(__clang__) && __clang_major__ >= 17
-      // For non-HeapObjects, there's no on-heap object to dereference, so
-      // disallow using operator->.
-      //
-      // If you got an error here and want to access the Tagged<T>, use
-      // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
-      static_assert(
-          is_subtype_v<T, HeapObject>,
-          "This handle does not reference a heap object. Use `(*handle).foo`.");
-#endif
-    }
+    // For non-HeapObjects, there's no on-heap object to dereference, so
+    // disallow using operator->.
+    //
+    // If you got an error here and want to access the Tagged<T>, use
+    // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
+    static_assert(
+        is_subtype_v<T, HeapObject>,
+        "This handle does not reference a heap object. Use `(*handle).foo`.");
+    return **this;
   }
 
   V8_INLINE Tagged<T> operator*() const {
