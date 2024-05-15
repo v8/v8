@@ -11,6 +11,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/arguments-inl.h"
@@ -243,7 +244,10 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  return *isolate->factory()->NewJSDisposableStack();
+  Handle<JSDisposableStack> disposable_stack =
+      isolate->factory()->NewJSDisposableStack();
+  JSDisposableStack::Initialize(isolate, disposable_stack);
+  return *disposable_stack;
 }
 
 RUNTIME_FUNCTION(Runtime_AddDisposableValue) {

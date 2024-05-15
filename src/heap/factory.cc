@@ -3204,8 +3204,7 @@ Handle<JSDisposableStack> Factory::NewJSDisposableStack() {
   Handle<Map> map(native_context->js_disposable_stack_map(), isolate());
   Handle<JSDisposableStack> disposable_stack(
       Handle<JSDisposableStack>::cast(NewJSObjectFromMap(map)));
-
-  JSDisposableStack::Initialize(isolate(), disposable_stack);
+  disposable_stack->set_status(0);
   return disposable_stack;
 }
 

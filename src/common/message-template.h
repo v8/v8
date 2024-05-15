@@ -375,7 +375,7 @@ namespace internal {
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
   T(DisposableStackIsDisposed,                                                 \
-    "Cannot add resources to an already-disposed DisposableStack")             \
+    "Cannot call % on an already-disposed DisposableStack")                    \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \

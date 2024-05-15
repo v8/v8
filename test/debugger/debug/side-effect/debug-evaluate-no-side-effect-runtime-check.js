@@ -239,6 +239,21 @@ success(42, `(() => {
   return 42;
 })()`);
 
+// DisposableStack move().
+fail(`let new_disposable_stack = disposable_stack.move()`);
+success(42, `(() => {
+  let stack = new DisposableStack();
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  stack.use(disposable);
+  let new_disposable_stack = stack.move()
+  return 42;
+})()`);
+
 function success(expectation, source) {
   const result = Debug.evaluateGlobal(source, true).value();
   if (expectation !== undefined) assertEquals(expectation, result);

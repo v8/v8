@@ -694,6 +694,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDatePrototypeValueOf:
     // DisposableStack builtins.
     case Builtin::kDisposableStackConstructor:
+    case Builtin::kDisposableStackPrototypeGetDisposed:
     // Map builtins.
     case Builtin::kMapConstructor:
     case Builtin::kMapGroupBy:
@@ -991,6 +992,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDisposableStackPrototypeDispose:
     case Builtin::kDisposableStackPrototypeAdopt:
     case Builtin::kDisposableStackPrototypeDefer:
+    case Builtin::kDisposableStackPrototypeMove:
     // RegExp builtins.
     case Builtin::kRegExpPrototypeTest:
     case Builtin::kRegExpPrototypeExec:

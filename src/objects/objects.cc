@@ -6223,7 +6223,6 @@ void JSDisposableStack::Initialize(Isolate* isolate,
                                    Handle<JSDisposableStack> disposable_stack) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(0);
   disposable_stack->set_stack(*array);
-  disposable_stack->set_status(0);
   disposable_stack->set_length(0);
   disposable_stack->set_state(DisposableStackState::kPending);
 }
