@@ -4615,9 +4615,11 @@ void MarkCompactCollector::Evacuate() {
       DCHECK(chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
       chunk->ClearFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
       Tagged<HeapObject> object = p->GetObject();
-      MarkBit::From(object).Clear();
+      if (!v8_flags.sticky_mark_bits) {
+        MarkBit::From(object).Clear();
+        p->SetLiveBytes(0);
+      }
       p->ProgressBar().ResetIfEnabled();
-      p->SetLiveBytes(0);
     }
     promoted_large_pages_.clear();
 
@@ -5502,9 +5504,11 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
 
       continue;
     }
-    MarkBit::From(object).Clear();
+    if (!v8_flags.sticky_mark_bits) {
+      MarkBit::From(object).Clear();
+      current->SetLiveBytes(0);
+    }
     current->ProgressBar().ResetIfEnabled();
-    current->SetLiveBytes(0);
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
