@@ -8224,7 +8224,7 @@ class LiftoffCompiler {
                            static_cast<int32_t>(~kWeakHeapObjectMask));
         } else {
           __ emit_i64_andi(real_rtt.reg(), real_rtt.reg(),
-                           static_cast<int64_t>(~kWeakHeapObjectMask));
+                           static_cast<int32_t>(~kWeakHeapObjectMask));
         }
         // Constant-time subtyping check: load exactly one candidate RTT from
         // the supertypes list.
