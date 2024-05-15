@@ -1915,3 +1915,17 @@ let glob_b = 3.35;
   assertTrue(called);
   assertOptimized(to_string);
 }
+
+// Testing NumberToString.
+{
+  function number_to_string(n) {
+    let v = n + 5;
+    return String(v);
+  }
+
+  %PrepareFunctionForOptimization(number_to_string);
+  assertEquals(String(458), number_to_string(453));
+  %OptimizeFunctionOnNextCall(number_to_string);
+  assertEquals(String(458), number_to_string(453));
+  assertOptimized(number_to_string);
+}

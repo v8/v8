@@ -1242,6 +1242,12 @@ class GraphBuilder {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::NumberToString* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ CallBuiltin_NumberToString(isolate_, Map(node->value_input())));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::ArgumentsLength* node,
                                 const maglev::ProcessingState& state) {
