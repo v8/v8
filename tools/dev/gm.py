@@ -6,7 +6,7 @@
 Convenience wrapper for compiling V8 with gn/ninja and running tests.
 Sets up build output directories if they don't exist.
 Produces simulator builds for non-Intel target architectures.
-Uses Goma by default if it is detected (at output directory setup time).
+Uses reclient by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
@@ -155,7 +155,7 @@ V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
-BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
+BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_remoteexec = (false|true)")
 RECLIENT_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
 
 class Reclient(IntEnum):
@@ -221,34 +221,7 @@ def detect_reclient_cert():
   return True
 
 
-# Deprecated.
-def detect_goma():
-  if os.environ.get("GOMA_DIR"):
-    return Path(os.environ.get("GOMA_DIR"))
-  if os.environ.get("GOMADIR"):
-    return Path(os.environ.get("GOMADIR"))
-  # There is a copy of goma in depot_tools, but it might not be in use on
-  # this machine.
-  goma = shutil.which("goma_ctl")
-  if goma is None: return None
-  cipd_bin = Path(goma).parent / ".cipd_bin"
-  if not cipd_bin.exists():
-    return None
-  # Some machines have one of these files, some have the other, some have both.
-  goma_auth = Path("~/.goma_client_oauth2_config").expanduser()
-  if goma_auth.exists():
-    return cipd_bin
-  goma_auth = Path("~/.goma_oauth2_config").expanduser()
-  if goma_auth.exists():
-    return cipd_bin
-  return None
-
-
 RECLIENT_MODE = detect_reclient()
-GOMADIR = detect_goma()
-
-# Let reclient have precedence over goma.
-IS_GOMA_MACHINE = not RECLIENT_MODE and GOMADIR is not None
 
 if platform.system() == "Linux":
   RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
@@ -260,8 +233,6 @@ if RECLIENT_MODE:
   BUILD_DISTRIBUTION_LINE = "\nuse_remoteexec = true"
   if RECLIENT_MODE == Reclient.CUSTOM:
     BUILD_DISTRIBUTION_LINE += f"\nrbe_cfg_dir = \"{RECLIENT_CFG_REL}\""
-elif IS_GOMA_MACHINE:
-  BUILD_DISTRIBUTION_LINE = "\nuse_goma = true"
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
@@ -785,12 +756,6 @@ def main(argv):
   parser = ArgumentParser()
   configs = parser.parse_arguments(argv[1:])
   return_code = 0
-  # If we have Goma but it is not running, start it.
-  is_goma_running_cmd = "tasklist | FIND \"compiler_proxy.exe\" > nul" if \
-    sys.platform == "win32" else "pgrep -x compiler_proxy > /dev/null"
-  if (IS_GOMA_MACHINE and _call(is_goma_running_cmd, silent=True) != 0):
-    goma_ctl = GOMADIR / "goma_ctl.py"
-    _call(f"{sys.executable} {goma_ctl} ensure_start")
   # If we have Reclient with the Google configuration, check for current
   # certificate.
   if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):

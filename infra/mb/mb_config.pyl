@@ -66,7 +66,6 @@
       'V8 Linux - verify csa - builder': 'release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'release_x64_gcmole',
-      'V8 Linux64 - builder (goma cache silo)': 'release_x64',
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - official - builder': 'official_x64_on_release_branch',
@@ -84,7 +83,6 @@
       # Windows.
       'V8 Win - arm64 - debug builder': 'debug_arm64',
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
-      'V8 Win32 - builder (goma cache silo)': 'release_x86',
       'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
@@ -726,8 +724,6 @@
       'debug', 'x86', 'reclient', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
-    'release_x86': [
-      'release_bot', 'x86'],
     'release_x86_asan_symbolized_verify_heap': [
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
