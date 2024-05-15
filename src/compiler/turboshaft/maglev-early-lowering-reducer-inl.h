@@ -111,9 +111,9 @@ class MaglevEarlyLoweringReducer : public Next {
       V<Boolean> is_same_string_bool =
           __ StringEqual(V<String>::Cast(object),
                          __ template HeapConstant<String>(value.object()));
-      __ DeoptimizeIf(__ RootEqual(is_same_string_bool, RootIndex::kFalseValue,
-                                   local_isolate_),
-                      frame_state, DeoptimizeReason::kWrongValue, feedback);
+      __ DeoptimizeIf(
+          __ RootEqual(is_same_string_bool, RootIndex::kFalseValue, isolate_),
+          frame_state, DeoptimizeReason::kWrongValue, feedback);
     }
   }
 
@@ -124,9 +124,9 @@ class MaglevEarlyLoweringReducer : public Next {
     // section 13.2.2-7 on page 74.
     Label<Object> done(this);
 
-    GOTO_IF(__ RootEqual(construct_result, RootIndex::kUndefinedValue,
-                         local_isolate_),
-            done, implicit_receiver);
+    GOTO_IF(
+        __ RootEqual(construct_result, RootIndex::kUndefinedValue, isolate_),
+        done, implicit_receiver);
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
     GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);

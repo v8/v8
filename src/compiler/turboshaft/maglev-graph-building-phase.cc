@@ -303,10 +303,9 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::RootConstant* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(
-        node,
-        __ HeapConstant(
-            MakeRef(broker_, node->DoReify(isolate_)).AsHeapObject().object()));
+    SetMap(node, __ HeapConstant(MakeRef(broker_, node->DoReify(local_isolate_))
+                                     .AsHeapObject()
+                                     .object()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Constant* node,
@@ -534,7 +533,8 @@ class GraphBuilder {
       if (actual_parameter_count < node->expected_parameter_count()) {
         for (int i = actual_parameter_count;
              i < node->expected_parameter_count(); i++) {
-          arguments.push_back(__ HeapConstant(factory_->undefined_value()));
+          arguments.push_back(
+              __ HeapConstant(local_factory_->undefined_value()));
         }
       }
       arguments.push_back(Map(node->new_target()));
@@ -564,8 +564,7 @@ class GraphBuilder {
       base::Optional<int> stack_arg_count = base::nullopt) {
     ThrowingScope throwing_scope(this, node);
 
-    Callable callable =
-        Builtins::CallableFor(isolate_->GetMainThreadIsolateUnsafe(), builtin);
+    Callable callable = Builtins::CallableFor(isolate_, builtin);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
         graph_zone(), descriptor,
@@ -606,8 +605,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    auto c_entry_stub = __ CEntryStubConstant(
-        isolate_->GetMainThreadIsolateUnsafe(), node->ReturnCount());
+    auto c_entry_stub = __ CEntryStubConstant(isolate_, node->ReturnCount());
 
     CallDescriptor* call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph_zone(), node->function_id(), node->num_args(),
@@ -643,7 +641,7 @@ class GraphBuilder {
     IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowAccessedUninitializedVariable(
-          isolate_->GetMainThreadIsolateUnsafe(), frame_state, native_context(),
+          isolate_, frame_state, native_context(),
           __ HeapConstant(node->name().object()));
       // ThrowAccessedUninitializedVariable should not return.
       __ Unreachable();
@@ -660,13 +658,13 @@ class GraphBuilder {
     V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
     if (node->scope_type() == FUNCTION_SCOPE) {
       SetMap(node, __ CallBuiltin_FastNewFunctionContextFunction(
-                       isolate_->GetMainThreadIsolateUnsafe(), frame_state,
-                       context, scope_info, node->slot_count()));
+                       isolate_, frame_state, context, scope_info,
+                       node->slot_count()));
     } else {
       DCHECK_EQ(node->scope_type(), EVAL_SCOPE);
       SetMap(node, __ CallBuiltin_FastNewFunctionContextEval(
-                       isolate_->GetMainThreadIsolateUnsafe(), frame_state,
-                       context, scope_info, node->slot_count()));
+                       isolate_, frame_state, context, scope_info,
+                       node->slot_count()));
     }
     return maglev::ProcessResult::kContinue;
   }
@@ -682,9 +680,9 @@ class GraphBuilder {
     V<FeedbackCell> feedback_cell =
         __ HeapConstant(node->feedback_cell().object());
 
-    SetMap(node, __ CallBuiltin_FastNewClosure(
-                     isolate_->GetMainThreadIsolateUnsafe(), frame_state,
-                     context, shared_function_info, feedback_cell));
+    SetMap(node,
+           __ CallBuiltin_FastNewClosure(isolate_, frame_state, context,
+                                         shared_function_info, feedback_cell));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -700,8 +698,8 @@ class GraphBuilder {
     V<Object> arguments_list = Map(node->arguments_list());
 
     SetMap(node, __ CallBuiltin_CallWithArrayLike(
-                     isolate_->GetMainThreadIsolateUnsafe(), graph_zone(),
-                     frame_state, context, receiver, function, arguments_list));
+                     isolate_, graph_zone(), frame_state, context, receiver,
+                     function, arguments_list));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -721,9 +719,9 @@ class GraphBuilder {
     }
 
     SetMap(node, __ CallBuiltin_CallWithSpread(
-                     isolate_->GetMainThreadIsolateUnsafe(), graph_zone(),
-                     frame_state, context, function, node->num_args_no_spread(),
-                     spread, base::VectorOf(arguments_no_spread)));
+                     isolate_, graph_zone(), frame_state, context, function,
+                     node->num_args_no_spread(), spread,
+                     base::VectorOf(arguments_no_spread)));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -746,9 +744,8 @@ class GraphBuilder {
     switch (node->target_type()) {
       case maglev::Call::TargetType::kJSFunction:
         call = __ CallBuiltin_CallFunctionForwardVarargs(
-            isolate_->GetMainThreadIsolateUnsafe(), graph_zone(), frame_state,
-            context, function, node->num_args(), node->start_index(),
-            base::VectorOf(arguments));
+            isolate_, graph_zone(), frame_state, context, function,
+            node->num_args(), node->start_index(), base::VectorOf(arguments));
         break;
       case maglev::Call::TargetType::kAny:
         UNIMPLEMENTED();
@@ -763,8 +760,7 @@ class GraphBuilder {
     ThrowingScope throwing_scope(this, node);
 
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-    Callable callable = Builtins::CallableFor(
-        isolate_->GetMainThreadIsolateUnsafe(), Builtin::kConstruct);
+    Callable callable = Builtins::CallableFor(isolate_, Builtin::kConstruct);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
         graph_zone(), descriptor, node->num_args(),
@@ -1217,6 +1213,35 @@ class GraphBuilder {
     }
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::ToString* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    Label<String> done(this);
+
+    V<Object> value = Map(node->value_input());
+    GOTO_IF(__ ObjectIsString(value), done, V<String>::Cast(value));
+
+    IF_NOT (__ IsSmi(value)) {
+      if (node->mode() == maglev::ToString::ConversionMode::kConvertSymbol) {
+        V<i::Map> map = __ LoadMapField(value);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
+        IF (__ Word32Equal(instance_type, SYMBOL_TYPE)) {
+          GOTO(done,
+               __ CallRuntime_SymbolDescriptiveString(
+                   isolate_, Map(node->context()), V<Symbol>::Cast(value)));
+        }
+      }
+    }
+
+    GOTO(done, __ CallBuiltin_ToString(isolate_,
+                                       BuildFrameState(node->lazy_deopt_info()),
+                                       Map(node->context()), value));
+
+    BIND(done, result);
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::ArgumentsLength* node,
                                 const maglev::ProcessingState& state) {
@@ -1652,14 +1677,14 @@ class GraphBuilder {
         break;
       case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
         result = __ Select(__ RootEqual(input, RootIndex::kTrueValue, isolate_),
-                           __ HeapConstant(factory_->true_value()),
-                           __ HeapConstant(factory_->false_value()),
+                           __ HeapConstant(local_factory_->true_value()),
+                           __ HeapConstant(local_factory_->false_value()),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
                            SelectOp::Implementation::kBranch);
         break;
       case interpreter::TestTypeOfFlags::LiteralFlag::kUndefined:
         result = __ Select(__ RootEqual(input, RootIndex::kNullValue, isolate_),
-                           __ HeapConstant(factory_->false_value()),
+                           __ HeapConstant(local_factory_->false_value()),
                            ConvertWord32ToJSBool(__ ObjectIs(
                                input, ObjectIsOp::Kind::kUndetectable,
                                ObjectIsOp::InputAssumptions::kNone)),
@@ -1669,7 +1694,7 @@ class GraphBuilder {
       case interpreter::TestTypeOfFlags::LiteralFlag::kObject:
         result = __ Select(__ ObjectIs(input, ObjectIsOp::Kind::kNonCallable,
                                        ObjectIsOp::InputAssumptions::kNone),
-                           __ HeapConstant(factory_->true_value()),
+                           __ HeapConstant(local_factory_->true_value()),
                            ConvertWord32ToJSBool(__ RootEqual(
                                input, RootIndex::kNullValue, isolate_)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
@@ -2062,7 +2087,7 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::LogicalNot* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition = __ TaggedEqual(
-        Map(node->value()), __ HeapConstant(factory_->true_value()));
+        Map(node->value()), __ HeapConstant(local_factory_->true_value()));
     SetMap(node, ConvertWord32ToJSBool(condition, /*flip*/ true));
     return maglev::ProcessResult::kContinue;
   }
@@ -2303,10 +2328,11 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::ConvertHoleToUndefined* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> cond = RootEqual(node->object_input(), RootIndex::kTheHoleValue);
-    SetMap(node, __ Select(cond, __ HeapConstant(factory_->undefined_value()),
-                           Map<Object>(node->object_input()),
-                           RegisterRepresentation::Tagged(), BranchHint::kNone,
-                           SelectOp::Implementation::kBranch));
+    SetMap(node,
+           __ Select(cond, __ HeapConstant(local_factory_->undefined_value()),
+                     Map<Object>(node->object_input()),
+                     RegisterRepresentation::Tagged(), BranchHint::kNone,
+                     SelectOp::Implementation::kBranch));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -2369,7 +2395,8 @@ class GraphBuilder {
     } ELSE {
       V<i::Map> map = __ LoadMapField(value);
       __ DeoptimizeIfNot(
-          __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+          __ TaggedEqual(map,
+                         __ HeapConstant(local_factory_->heap_number_map())),
           BuildFrameState(node->eager_deopt_info()),
           DeoptimizeReason::kNotAHeapNumber,
           node->eager_deopt_info()->feedback_to_update());
@@ -2605,7 +2632,7 @@ class GraphBuilder {
                        __ HeapConstant(frame.javascript_target().object()));
       // kJavaScriptCallNewTargetRegister
       builder.AddInput(MachineType::AnyTagged(),
-                       __ HeapConstant(factory_->undefined_value()));
+                       __ HeapConstant(local_factory_->undefined_value()));
       // kJavaScriptCallArgCountRegister
       builder.AddInput(
           MachineType::AnyTagged(),
@@ -2933,8 +2960,8 @@ class GraphBuilder {
   // the graph builder is finished, we should evaluate whether Select or Branch
   // is the best choice here.
   V<Boolean> ConvertWord32ToJSBool(V<Word32> b, bool flip = false) {
-    V<Boolean> true_idx = __ HeapConstant(factory_->true_value());
-    V<Boolean> false_idx = __ HeapConstant(factory_->false_value());
+    V<Boolean> true_idx = __ HeapConstant(local_factory_->true_value());
+    V<Boolean> false_idx = __ HeapConstant(local_factory_->false_value());
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
                      BranchHint::kNone, SelectOp::Implementation::kBranch);
@@ -3050,9 +3077,10 @@ class GraphBuilder {
 
   PipelineData* data_;
   Zone* temp_zone_;
-  LocalIsolate* isolate_ = data_->isolate()->AsLocalIsolate();
+  Isolate* isolate_ = data_->isolate();
+  LocalIsolate* local_isolate_ = isolate_->AsLocalIsolate();
   JSHeapBroker* broker_ = data_->broker();
-  LocalFactory* factory_ = isolate_->factory();
+  LocalFactory* local_factory_ = local_isolate_->factory();
   AssemblerT assembler_;
   maglev::MaglevCompilationUnit* maglev_compilation_unit_;
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;

@@ -1895,3 +1895,23 @@ let glob_b = 3.35;
   assertEquals(NaN, check_number("abc"));
   assertUnoptimized(check_number);
 }
+
+// Testing ToString.
+{
+  function to_string(n) {
+    return String(n);
+  }
+
+  %PrepareFunctionForOptimization(to_string);
+  assertEquals(String(453), to_string(453));
+  %OptimizeFunctionOnNextCall(to_string);
+  assertEquals(String(453), to_string(453));
+  assertEquals("Symbol(abc)", to_string(Symbol("abc")));
+  assertOptimized(to_string);
+
+  let called = false;
+  let o1 = { toString: function() { called = true; return 42; } };
+  assertEquals("42", to_string(o1));
+  assertTrue(called);
+  assertOptimized(to_string);
+}

@@ -142,6 +142,15 @@ struct RuntimeCallDescriptor {
   };
 #endif  // V8_INTL_SUPPORT
 
+  struct SymbolDescriptiveString : public Descriptor<SymbolDescriptiveString> {
+    static constexpr auto kFunction = Runtime::kSymbolDescriptiveString;
+    using arguments_t = std::tuple<V<Symbol>>;
+    using result_t = V<String>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
+  };
+
   struct TerminateExecution : public Descriptor<TerminateExecution> {
     static constexpr auto kFunction = Runtime::kTerminateExecution;
     using arguments_t = std::tuple<>;

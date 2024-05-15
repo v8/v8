@@ -1489,7 +1489,7 @@ class TurboshaftAssemblerOpInterface
     return Equal(left, right, RegisterRepresentation::Tagged());
   }
 
-  V<Word32> RootEqual(V<Object> input, RootIndex root, LocalIsolate* isolate) {
+  V<Word32> RootEqual(V<Object> input, RootIndex root, Isolate* isolate) {
     return __ TaggedEqual(
         input,
         __ HeapConstant(Handle<HeapObject>::cast(isolate->root_handle(root))));
@@ -3072,6 +3072,12 @@ class TurboshaftAssemblerOpInterface
     return CallBuiltin<typename BuiltinCallDescriptor::NumberToString>(isolate,
                                                                        {input});
   }
+  V<String> CallBuiltin_ToString(Isolate* isolate,
+                                 V<turboshaft::FrameState> frame_state,
+                                 V<Context> context, V<Object> input) {
+    return CallBuiltin<typename BuiltinCallDescriptor::ToString>(
+        isolate, frame_state, context, {input});
+  }
   V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
                                                V<PlainPrimitive> input) {
     return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
@@ -3330,6 +3336,12 @@ class TurboshaftAssemblerOpInterface
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
+  V<String> CallRuntime_SymbolDescriptiveString(Isolate* isolate,
+                                                V<Context> context,
+                                                V<Symbol> symbol) {
+    return CallRuntime<typename RuntimeCallDescriptor::SymbolDescriptiveString>(
+        isolate, context, {symbol});
+  }
   V<Object> CallRuntime_TerminateExecution(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
       V<Context> context) {
