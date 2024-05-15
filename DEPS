@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e6bad9d579ad23c516bb49a145dedae944a7e639',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '26998e9872e3952758c2a4246714ae9ce987ccbe',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6206ead2d5fbf66d174c5ee7edd05dbefcc849a0',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '84798693112c7e241d8c560ea6090e5d91a12fa2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2b6524b2085a41a4a0988d6e6e9c2f276ec83387',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -322,7 +322,7 @@ deps = {
   'third_party/protobuf_chrome':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '4abbe88863a7dd75dd11da0487e9b995133f7592',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'f31c2c6f380331ddc862e37c7dea0bcf440b29dc',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'b7e96b34c0945fccb8b5282404f82c7ab0843717',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
@@ -338,7 +338,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7d77fb7fd66d8a5640618ad32c71fdeb7d3e02df',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4f653ff1af93e9256c59a2c524795cd84c39c698',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'cef4fc680f01086b264558bd11ee6b434c578611',
   'tools/luci-go': {
