@@ -195,7 +195,8 @@ MemoryChunk::MainThreadFlags MemoryChunk::OldGenerationPageFlags(
   if (marking_mode == MarkingMode::kMajorMarking) {
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
                     MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                    MemoryChunk::INCREMENTAL_MARKING;
+                    MemoryChunk::INCREMENTAL_MARKING |
+                    MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
   } else if (IsAnySharedSpace(space)) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
@@ -216,6 +217,9 @@ MemoryChunk::MainThreadFlags MemoryChunk::YoungGenerationPageFlags(
   if (marking_mode != MarkingMode::kNoMarking) {
     flags |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
     flags |= MemoryChunk::INCREMENTAL_MARKING;
+    if (marking_mode == MarkingMode::kMajorMarking) {
+      flags |= MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
+    }
   }
   return flags;
 }
