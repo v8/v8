@@ -1007,20 +1007,26 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
           }
           break;
         case wasm::LiftoffVarState::kStack:
-          switch (wasm::value_kind_size(liftoff_iter->kind())) {
-            case 4:
-              // TODO(mliedtke): The source might be 64 bits?
-              // TODO(mliedtke): This is also UB if we didn't write int32_value_
-              // but e.g. float_value_.
+          switch (liftoff_iter->kind()) {
+            case wasm::ValueKind::kI32:
+              DCHECK(value.kind() == TranslatedValue::Kind::kInt32 ||
+                     value.kind() == TranslatedValue::Kind::kUint32);
               output_frame->SetLiftoffFrameSlot32(
                   base_offset - liftoff_iter->offset(), value.int32_value_);
               break;
-            case 8:
-              // TODO(mliedtke): The source might be 32 bits?
+            case wasm::ValueKind::kF32:
+              DCHECK_EQ(value.kind(), TranslatedValue::Kind::kFloat);
+              output_frame->SetLiftoffFrameSlot32(
+                  base_offset - liftoff_iter->offset(),
+                  value.float_value().get_bits());
+              break;
+            case wasm::ValueKind::kI64:
+              DCHECK(value.kind() == TranslatedValue::Kind::kInt64 ||
+                     value.kind() == TranslatedValue::Kind::kUint64);
               output_frame->SetLiftoffFrameSlot64(
                   base_offset - liftoff_iter->offset(), value.int64_value_);
               break;
-            case 16: {
+            case wasm::ValueKind::kS128: {
               int2 values = value.simd128_value_.to_i64x2();
               const int offset = base_offset - liftoff_iter->offset();
               output_frame->SetLiftoffFrameSlot64(offset, values.val[0]);
@@ -1028,6 +1034,19 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
                                                   values.val[1]);
               break;
             }
+            case wasm::ValueKind::kF64:
+              DCHECK_EQ(value.kind(), TranslatedValue::Kind::kDouble);
+              output_frame->SetLiftoffFrameSlot64(
+                  base_offset - liftoff_iter->offset(),
+                  value.double_value().get_bits());
+              break;
+            case wasm::ValueKind::kRef:
+            case wasm::ValueKind::kRefNull:
+              DCHECK_EQ(value.kind(), TranslatedValue::Kind::kTagged);
+              output_frame->SetLiftoffFrameSlot64(
+                  base_offset - liftoff_iter->offset(),
+                  value.raw_literal_.ptr());
+              break;
             default:
               UNIMPLEMENTED();
           }

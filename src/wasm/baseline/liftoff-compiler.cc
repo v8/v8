@@ -8374,12 +8374,12 @@ class LiftoffCompiler {
     Register first_param_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
-      // TODO(14667): This creates extra work whenever wasm deopts are enabled
-      // for liftoff compilations. The frame descriptions should only be
+      // TODO(42204618): This creates extra work whenever wasm deopts are
+      // enabled for liftoff compilations. The frame descriptions should only be
       // generated if the liftoff compilation is requested by the deoptimizer.
-      // TODO(14667): If we only collect frame descriptions for the deoptimizer
-      // compilation run, it should also be enough to collect it for the single
-      // deopt point the deoptimizer is interested in.
+      // TODO(42204618): If we only collect frame descriptions for the
+      // deoptimizer compilation run, it should also be enough to collect it for
+      // the single deopt point the deoptimizer is interested in.
       if (v8_flags.wasm_deopt) {
         if (!frame_descriptions_) {
           frame_descriptions_ =
