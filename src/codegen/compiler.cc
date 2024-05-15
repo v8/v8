@@ -3036,14 +3036,12 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 // Check whether embedder allows code generation in this context.
-// (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback
-//  or v8::Isolate::SetModifyCodeGenerationFromStringsCallback2)
+// (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate,
                                      Handle<NativeContext> context,
                                      Handle<i::Object>* source,
                                      bool is_code_like) {
-  DCHECK(isolate->modify_code_gen_callback() ||
-         isolate->modify_code_gen_callback2());
+  DCHECK(isolate->modify_code_gen_callback());
   DCHECK(source);
 
   // Callback set. Run it, and use the return value as source, or block
@@ -3051,12 +3049,9 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate,
   VMState<EXTERNAL> state(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   ModifyCodeGenerationFromStringsResult result =
-      isolate->modify_code_gen_callback()
-          ? isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
-                                                v8::Utils::ToLocal(*source))
-          : isolate->modify_code_gen_callback2()(v8::Utils::ToLocal(context),
-                                                 v8::Utils::ToLocal(*source),
-                                                 is_code_like);
+      isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
+                                          v8::Utils::ToLocal(*source),
+                                          is_code_like);
   if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
     // Use the new source (which might be the same as the old source).
     *source =
@@ -3114,8 +3109,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   // Check if the context wants to block or modify this source object.
   // Double-check that we really have a string now.
   // (Let modify_code_gen_callback decide, if it's been set.)
-  if (isolate->modify_code_gen_callback() ||
-      isolate->modify_code_gen_callback2()) {
+  if (isolate->modify_code_gen_callback()) {
     Handle<i::Object> modified_source = original_source;
     if (!ModifyCodeGenerationFromStrings(isolate, context, &modified_source,
                                          is_code_like)) {
