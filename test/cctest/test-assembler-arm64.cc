@@ -16047,6 +16047,32 @@ TEST(neon_pmull) {
   }
 }
 
+TEST(neon_3extension_dot_product) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(DOTPROD);
+  START();
+
+  __ Movi(v0.V2D(), 0x7122712271227122, 0x7122712271227122);
+  __ Movi(v1.V2D(), 0xe245e245f245f245, 0xe245e245f245f245);
+  __ Movi(v2.V2D(), 0x3939393900000000, 0x3939393900000000);
+
+  __ Movi(v16.V2D(), 0x0000400000004000, 0x0000400000004000);
+  __ Movi(v17.V2D(), 0x0000400000004000, 0x0000400000004000);
+
+  __ Sdot(v16.V4S(), v0.V16B(), v1.V16B());
+  __ Sdot(v17.V2S(), v1.V8B(), v2.V8B());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x000037d8000045f8, 0x000037d8000045f8, q16);
+    CHECK_EQUAL_128(0, 0x0000515e00004000, q17);
+  }
+}
+
 #define FP16_OP_LIST(V) \
   V(fadd)               \
   V(fsub)               \

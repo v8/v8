@@ -2020,6 +2020,11 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   LogicVRegister sqrdmulh(VectorFormat vform, LogicVRegister dst,
                           const LogicVRegister& src1,
                           const LogicVRegister& src2, bool round = true);
+  LogicVRegister dot(VectorFormat vform, LogicVRegister dst,
+                     const LogicVRegister& src1, const LogicVRegister& src2,
+                     bool is_src1_signed, bool is_src2_signed);
+  LogicVRegister sdot(VectorFormat vform, LogicVRegister dst,
+                      const LogicVRegister& src1, const LogicVRegister& src2);
   LogicVRegister sqdmulh(VectorFormat vform, LogicVRegister dst,
                          const LogicVRegister& src1,
                          const LogicVRegister& src2);

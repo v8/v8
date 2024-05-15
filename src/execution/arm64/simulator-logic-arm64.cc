@@ -4372,6 +4372,42 @@ LogicVRegister Simulator::ucvtf(VectorFormat vform, LogicVRegister dst,
   return dst;
 }
 
+LogicVRegister Simulator::dot(VectorFormat vform, LogicVRegister dst,
+                              const LogicVRegister& src1,
+                              const LogicVRegister& src2, bool is_src1_signed,
+                              bool is_src2_signed) {
+  VectorFormat quarter_vform =
+      VectorFormatHalfWidthDoubleLanes(VectorFormatHalfWidthDoubleLanes(vform));
+
+  dst.ClearForWrite(vform);
+  for (int e = 0; e < LaneCountFromFormat(vform); e++) {
+    uint64_t result = 0;
+    int64_t element1, element2;
+    for (int i = 0; i < 4; i++) {
+      int index = 4 * e + i;
+      if (is_src1_signed) {
+        element1 = src1.Int(quarter_vform, index);
+      } else {
+        element1 = src1.Uint(quarter_vform, index);
+      }
+      if (is_src2_signed) {
+        element2 = src2.Int(quarter_vform, index);
+      } else {
+        element2 = src2.Uint(quarter_vform, index);
+      }
+      result += element1 * element2;
+    }
+    dst.SetUint(vform, e, result + dst.Uint(vform, e));
+  }
+  return dst;
+}
+
+LogicVRegister Simulator::sdot(VectorFormat vform, LogicVRegister dst,
+                               const LogicVRegister& src1,
+                               const LogicVRegister& src2) {
+  return dot(vform, dst, src1, src2, true, true);
+}
+
 }  // namespace internal
 }  // namespace v8
 

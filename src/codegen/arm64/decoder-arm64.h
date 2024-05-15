@@ -61,6 +61,7 @@ namespace internal {
   V(FPFixedPointConvert)                \
   V(NEON2RegMisc)                       \
   V(NEON3Different)                     \
+  V(NEON3Extension)                     \
   V(NEON3Same)                          \
   V(NEON3SameHP)                        \
   V(NEONAcrossLanes)                    \

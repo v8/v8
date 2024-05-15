@@ -1777,7 +1777,6 @@ constexpr NEON3DifferentOp NEON_SADDL = NEON3DifferentFixed | 0x00000000;
 constexpr NEON3DifferentOp NEON_SADDL2 = NEON_SADDL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SADDW = NEON3DifferentFixed | 0x00001000;
 constexpr NEON3DifferentOp NEON_SADDW2 = NEON_SADDW | NEON_Q;
-constexpr NEON3DifferentOp NEON_SDOT = NEON3DifferentDot | 0x00009400;
 constexpr NEON3DifferentOp NEON_SMLAL = NEON3DifferentFixed | 0x00008000;
 constexpr NEON3DifferentOp NEON_SMLAL2 = NEON_SMLAL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SMLSL = NEON3DifferentFixed | 0x0000A000;
@@ -1814,6 +1813,13 @@ constexpr NEON3DifferentOp NEON_USUBL = NEON_SSUBL | NEON3SameUBit;
 constexpr NEON3DifferentOp NEON_USUBL2 = NEON_USUBL | NEON_Q;
 constexpr NEON3DifferentOp NEON_USUBW = NEON_SSUBW | NEON3SameUBit;
 constexpr NEON3DifferentOp NEON_USUBW2 = NEON_USUBW | NEON_Q;
+
+// NEON instructions with three operands and extension.
+using NEON3ExtensionOp = uint32_t;
+constexpr NEON3ExtensionOp NEON3ExtensionFixed = 0x0E008400;
+constexpr NEON3ExtensionOp NEON3ExtensionFMask = 0x9F208400;
+constexpr NEON3ExtensionOp NEON3ExtensionMask = 0xBF20FC00;
+constexpr NEON3ExtensionOp NEON_SDOT = NEON3ExtensionFixed | 0x00001000;
 
 // NEON instructions operating across vectors.
 using NEONAcrossLanesOp = uint32_t;

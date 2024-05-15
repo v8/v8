@@ -1654,10 +1654,10 @@ ATOMIC_MEMORY_LOAD_MODES(DEFINE_ASM_SWP_FUNC, swp, SWP)
 
 void Assembler::sdot(const VRegister& vd, const VRegister& vn,
                      const VRegister& vm) {
-  DCHECK(CpuFeatures::IsSupported(DOTPROD));
-  DCHECK(vn.Is16B() && vd.Is4S());
+  DCHECK(IsEnabled(DOTPROD));
+  DCHECK((vn.Is16B() && vd.Is4S()) || (vn.Is8B() && vd.Is2S()));
   DCHECK(AreSameFormat(vn, vm));
-  Emit(NEON_Q | NEON_SDOT | Rm(vm) | Rn(vn) | Rd(vd));
+  Emit(VFormat(vd) | NEON_SDOT | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,

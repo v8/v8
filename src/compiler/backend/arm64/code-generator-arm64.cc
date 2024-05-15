@@ -2712,6 +2712,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64I32x4DotI8x16AddS: {
       if (CpuFeatures::IsSupported(DOTPROD)) {
+        CpuFeatureScope scope(masm(), DOTPROD);
+
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
         __ Sdot(i.InputSimd128Register(2).V4S(),
                 i.InputSimd128Register(0).V16B(),

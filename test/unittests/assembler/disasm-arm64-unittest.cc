@@ -4041,11 +4041,24 @@ TEST_F(DisasmArm64Test, neon_3different) {
   COMPARE(Pmull2(v2.V8H(), v3.V16B(), v4.V16B()),
           "pmull2 v2.8h, v3.16b, v4.16b");
 
-  CpuFeatureScope feature_scope(assm, PMULL1Q,
-                                CpuFeatureScope::kDontCheckSupported);
+  {
+    CpuFeatureScope feature_scope(assm, PMULL1Q,
+                                  CpuFeatureScope::kDontCheckSupported);
 
-  COMPARE(Pmull(v5.V1Q(), v6.V1D(), v7.V1D()), "pmull v5.1q, v6.1d, v7.1d");
-  COMPARE(Pmull2(v8.V1Q(), v9.V2D(), v10.V2D()), "pmull2 v8.1q, v9.2d, v10.2d");
+    COMPARE(Pmull(v5.V1Q(), v6.V1D(), v7.V1D()), "pmull v5.1q, v6.1d, v7.1d");
+    COMPARE(Pmull2(v8.V1Q(), v9.V2D(), v10.V2D()),
+            "pmull2 v8.1q, v9.2d, v10.2d");
+  }
+
+  {
+    CpuFeatureScope feature_scope(assm, DOTPROD,
+                                  CpuFeatureScope::kDontCheckSupported);
+
+    COMPARE(Sdot(v11.V2S(), v20.V8B(), v25.V8B()),
+            "sdot v11.2s, v20.8b, v25.8b");
+    COMPARE(Sdot(v26.V4S(), v5.V16B(), v14.V16B()),
+            "sdot v26.4s, v5.16b, v14.16b");
+  }
 
   CLEANUP();
 }
