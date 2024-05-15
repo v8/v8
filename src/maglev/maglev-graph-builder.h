@@ -1970,6 +1970,9 @@ class MaglevGraphBuilder {
   void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,
                                       int index);
 
+  ValueNode* BuildLogicalNot(ValueNode* node);
+  ValueNode* BuildTestUndetectable(ValueNode* node);
+
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
                                        ValueNode* value, int offset);

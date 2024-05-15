@@ -2794,25 +2794,51 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
   SetAccumulator(BuildTaggedEqual(lhs, rhs));
 }
 
-void MaglevGraphBuilder::VisitTestUndetectable() {
-  ValueNode* value = GetAccumulatorTagged();
-  if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(value)) {
-    if (maybe_constant.value().map(broker()).is_undetectable()) {
-      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
-    } else {
-      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
+  if (value->properties().value_representation() ==
+      ValueRepresentation::kHoleyFloat64) {
+    return AddNewNode<HoleyFloat64IsHole>({value});
+  } else if (value->properties().value_representation() !=
+             ValueRepresentation::kTagged) {
+    return GetBooleanConstant(false);
+  }
+
+  if (auto maybe_constant = TryGetConstant(value)) {
+    auto map = maybe_constant.value().map(broker());
+    return GetBooleanConstant(map.is_undetectable());
+  }
+
+  NodeType node_type;
+  if (CheckType(value, NodeType::kSmi, &node_type)) {
+    return GetBooleanConstant(false);
+  }
+
+  auto it = known_node_aspects().FindInfo(value);
+  if (known_node_aspects().IsValid(it)) {
+    NodeInfo& info = it->second;
+    if (info.possible_maps_are_known()) {
+      // We check if all the possible maps have the same undetectable bit value.
+      DCHECK_GT(info.possible_maps().size(), 0);
+      bool first_is_undetectable = info.possible_maps()[0].is_undetectable();
+      bool all_the_same_value =
+          std::all_of(info.possible_maps().begin(), info.possible_maps().end(),
+                      [first_is_undetectable](compiler::MapRef map) {
+                        bool is_undetectable = map.is_undetectable();
+                        return (first_is_undetectable && is_undetectable) ||
+                               (!first_is_undetectable && !is_undetectable);
+                      });
+      if (all_the_same_value) {
+        return GetBooleanConstant(first_is_undetectable);
+      }
     }
-    return;
   }
 
-  NodeType old_type;
-  if (CheckType(value, NodeType::kSmi, &old_type)) {
-    SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
-    return;
-  }
+  enum CheckType type = GetCheckType(node_type);
+  return AddNewNode<TestUndetectable>({value}, type);
+}
 
-  enum CheckType type = GetCheckType(old_type);
-  SetAccumulator(AddNewNode<TestUndetectable>({value}, type));
+void MaglevGraphBuilder::VisitTestUndetectable() {
+  SetAccumulator(BuildTestUndetectable(GetAccumulatorTagged()));
 }
 
 void MaglevGraphBuilder::VisitTestNull() {
@@ -5810,25 +5836,29 @@ void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
   SetAccumulator(BuildToBoolean</* flip */ true>(GetRawAccumulator()));
 }
 
-void MaglevGraphBuilder::VisitLogicalNot() {
-  // Invariant: accumulator must already be a boolean value.
-  ValueNode* value = GetAccumulatorTagged();
+ValueNode* MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
+  // TODO(victorgomes): Use NodeInfo to add more type optimizations here.
   switch (value->opcode()) {
-#define CASE(Name)                                                             \
-  case Opcode::k##Name: {                                                      \
-    SetAccumulator(                                                            \
-        GetBooleanConstant(!value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    break;                                                                     \
+#define CASE(Name)                                         \
+  case Opcode::k##Name: {                                  \
+    return GetBooleanConstant(                             \
+        !value->Cast<Name>()->ToBoolean(local_isolate())); \
   }
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
     default:
-      SetAccumulator(AddNewNode<LogicalNot>({value}));
-      break;
+      return AddNewNode<LogicalNot>({value});
   }
 }
 
+void MaglevGraphBuilder::VisitLogicalNot() {
+  // Invariant: accumulator must already be a boolean value.
+  SetAccumulator(BuildLogicalNot(GetAccumulatorTagged()));
+}
+
 void MaglevGraphBuilder::VisitTypeOf() {
+  // Similar to TF, we assume that all undetectable receiver objects are also
+  // callables. In practice, there is only one: document.all.
   ValueNode* value = GetAccumulatorTagged();
   if (CheckType(value, NodeType::kBoolean)) {
     SetAccumulator(GetRootConstant(RootIndex::kboolean_string));
@@ -5839,7 +5869,10 @@ void MaglevGraphBuilder::VisitTypeOf() {
   } else if (CheckType(value, NodeType::kSymbol)) {
     SetAccumulator(GetRootConstant(RootIndex::ksymbol_string));
   } else if (CheckType(value, NodeType::kCallable)) {
-    SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
+    SetAccumulator(Select<BranchIfUndetectable>(
+        [&] { return GetRootConstant(RootIndex::kundefined_string); },
+        [&] { return GetRootConstant(RootIndex::kfunction_string); }, {value},
+        CheckType::kOmitHeapObjectCheck));
   } else if (CheckType(value, NodeType::kJSArray)) {
     // TODO(victorgomes): Track JSReceiver, non-callable types in Maglev.
     SetAccumulator(GetRootConstant(RootIndex::kobject_string));
@@ -9324,11 +9357,15 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   }
 
   NodeType value_type;
-  if (CheckType(value, NodeType::kUndetectableJSReceiver, &value_type)) {
-    return GetBooleanConstant(flip);
-  }
-  if (CheckType(value, NodeType::kDetectableJSReceiver)) {
-    return GetBooleanConstant(!flip);
+  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
+    ValueNode* result = BuildTestUndetectable(value);
+    // TODO(victorgomes): Check if it is worth to create
+    // TestUndetectableLogicalNot or to remove ToBooleanLogicalNot, since we
+    // already optimize LogicalNots by swapping the branches.
+    if constexpr (!flip) {
+      result = BuildLogicalNot(result);
+    }
+    return result;
   }
   ValueNode* falsy_value = nullptr;
   if (CheckType(value, NodeType::kString)) {
@@ -9341,8 +9378,8 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
         {value, falsy_value});
   }
   if (CheckType(value, NodeType::kBoolean)) {
-    if (flip) {
-      value = AddNewNode<LogicalNot>({value});
+    if constexpr (flip) {
+      value = BuildLogicalNot(value);
     }
     return value;
   }
