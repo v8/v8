@@ -27,13 +27,13 @@ BUILTIN(DisposableStackConstructor) {
   // 2. Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget,
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //    [[DisposeCapability]] »).
-  Handle<JSDisposableStack> disposableStack =
+  Handle<JSDisposableStack> disposable_stack =
       isolate->factory()->NewJSDisposableStack();
   // 3. Set disposableStack.[[DisposableState]] to pending.
   // 4. Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
-  JSDisposableStack::Initialize(isolate, disposableStack);
+  JSDisposableStack::Initialize(isolate, disposable_stack);
   // 5. Return disposableStack.
-  return *disposableStack;
+  return *disposable_stack;
 }
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposablestack.prototype.use
@@ -43,7 +43,7 @@ BUILTIN(DisposableStackPrototypeUse) {
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
   Handle<Object> value = args.at(1);
 
   // use(value) does nothing when the value is null or undefined, so return
@@ -54,7 +54,7 @@ BUILTIN(DisposableStackPrototypeUse) {
 
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   //    ReferenceError exception.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewReferenceError(
@@ -69,7 +69,7 @@ BUILTIN(DisposableStackPrototypeUse) {
 
   // 4. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
   //    value, sync-dispose).
-  JSDisposableStack::Add(isolate, disposableStack, value, method,
+  JSDisposableStack::Add(isolate, disposable_stack, value, method,
                          DisposeMethodCallType::kValueIsReceiver);
 
   // 5. Return value.
@@ -82,10 +82,10 @@ BUILTIN(DisposableStackPrototypeDispose) {
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, return undefined.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -94,7 +94,7 @@ BUILTIN(DisposableStackPrototypeDispose) {
 
   // 5. Return ? DisposeResources(disposableStack.[[DisposeCapability]],
   //    NormalCompletion(undefined)).
-  MAYBE_RETURN(JSDisposableStack::DisposeResources(isolate, disposableStack,
+  MAYBE_RETURN(JSDisposableStack::DisposeResources(isolate, disposable_stack,
                                                    MaybeHandle<Object>()),
                ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
@@ -106,10 +106,10 @@ BUILTIN(DisposableStackPrototypeGetDisposed) {
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, return true.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     return ReadOnlyRoots(isolate).true_value();
   }
   // 4. Otherwise, return false.
@@ -121,15 +121,15 @@ BUILTIN(DisposableStackPrototypeAdopt) {
   const char* const kMethodName = "DisposableStack.prototype.adopt";
   HandleScope scope(isolate);
   Handle<Object> value = args.at(1);
-  Handle<Object> onDispose = args.at(2);
+  Handle<Object> on_dispose = args.at(2);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   //    ReferenceError exception.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewReferenceError(
@@ -138,9 +138,9 @@ BUILTIN(DisposableStackPrototypeAdopt) {
   }
 
   // 4. If IsCallable(onDispose) is false, throw a TypeError exception.
-  if (!IsCallable(*onDispose)) {
+  if (!IsCallable(*on_dispose)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotCallable, onDispose));
+        isolate, NewTypeError(MessageTemplate::kNotCallable, on_dispose));
   }
 
   // 5. Let closure be a new Abstract Closure with no parameters that captures
@@ -152,7 +152,7 @@ BUILTIN(DisposableStackPrototypeAdopt) {
   // Instead of creating an abstract closure and a function, we pass
   // DisposeMethodCallType::kArgument so at the time of disposal, the value will
   // be passed as the argument to the method.
-  JSDisposableStack::Add(isolate, disposableStack, value, onDispose,
+  JSDisposableStack::Add(isolate, disposable_stack, value, on_dispose,
                          DisposeMethodCallType::kValueIsArgument);
 
   // 8. Return value.
@@ -163,15 +163,15 @@ BUILTIN(DisposableStackPrototypeAdopt) {
 BUILTIN(DisposableStackPrototypeDefer) {
   const char* const kMethodName = "DisposableStack.prototype.defer";
   HandleScope scope(isolate);
-  Handle<Object> onDispose = args.at(1);
+  Handle<Object> on_dispose = args.at(1);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   // ReferenceError exception.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewReferenceError(
@@ -180,16 +180,16 @@ BUILTIN(DisposableStackPrototypeDefer) {
   }
 
   // 4. If IsCallable(onDispose) is false, throw a TypeError exception.
-  if (!IsCallable(*onDispose)) {
+  if (!IsCallable(*on_dispose)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotCallable, onDispose));
+        isolate, NewTypeError(MessageTemplate::kNotCallable, on_dispose));
   }
 
   // 5. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
   // undefined, sync-dispose, onDispose).
-  JSDisposableStack::Add(isolate, disposableStack,
+  JSDisposableStack::Add(isolate, disposable_stack,
                          ReadOnlyRoots(isolate).undefined_value_handle(),
-                         onDispose, DisposeMethodCallType::kValueIsReceiver);
+                         on_dispose, DisposeMethodCallType::kValueIsReceiver);
 
   // 6. Return undefined.
   return ReadOnlyRoots(isolate).undefined_value();
@@ -201,11 +201,11 @@ BUILTIN(DisposableStackPrototypeMove) {
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
-  CHECK_RECEIVER(JSDisposableStack, disposableStack, kMethodName);
+  CHECK_RECEIVER(JSDisposableStack, disposable_stack, kMethodName);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   //    ReferenceError exception.
-  if (disposableStack->state() == DisposableStackState::kDisposed) {
+  if (disposable_stack->state() == DisposableStackState::kDisposed) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewReferenceError(
@@ -218,24 +218,24 @@ BUILTIN(DisposableStackPrototypeMove) {
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //     [[DisposeCapability]] »).
   // 5. Set newDisposableStack.[[DisposableState]] to pending.
-  Handle<JSDisposableStack> newDisposableStack =
+  Handle<JSDisposableStack> new_disposable_stack =
       isolate->factory()->NewJSDisposableStack();
 
   // 6. Set newDisposableStack.[[DisposeCapability]] to
   //    disposableStack.[[DisposeCapability]].
-  newDisposableStack->set_stack(disposableStack->stack());
-  newDisposableStack->set_length(disposableStack->length());
-  newDisposableStack->set_state(DisposableStackState::kPending);
+  new_disposable_stack->set_stack(disposable_stack->stack());
+  new_disposable_stack->set_length(disposable_stack->length());
+  new_disposable_stack->set_state(DisposableStackState::kPending);
 
   // 7. Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
-  disposableStack->set_stack(ReadOnlyRoots(isolate).empty_fixed_array());
-  disposableStack->set_length(0);
+  disposable_stack->set_stack(ReadOnlyRoots(isolate).empty_fixed_array());
+  disposable_stack->set_length(0);
 
   // 8. Set disposableStack.[[DisposableState]] to disposed.
-  disposableStack->set_state(DisposableStackState::kDisposed);
+  disposable_stack->set_state(DisposableStackState::kDisposed);
 
   // 9. Return newDisposableStack.
-  return *newDisposableStack;
+  return *new_disposable_stack;
 }
 
 }  // namespace internal
