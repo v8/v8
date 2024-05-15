@@ -32,11 +32,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // |kDone|: The page state when sweeping is complete or sweeping must not be
   //   performed on that page. Sweeper threads that are done with their work
   //   will set this value and not touch the page anymore.
-  // |kPending|: This page is ready for parallel sweeping.
-  // |kInProgress|: This page is currently swept by a sweeper thread.
+  // |kPendingSweeping|: This page is ready for parallel sweeping.
+  // |kPendingIteration|: This page is ready for parallel promoted page
+  // iteration. |kInProgress|: This page is currently swept by a sweeper thread.
   enum class ConcurrentSweepingState : intptr_t {
     kDone,
-    kPending,
+    kPendingSweeping,
+    kPendingIteration,
     kInProgress,
   };
 
@@ -216,6 +218,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   void ResetAllocationStatistics() {
     MemoryChunkMetadata::ResetAllocationStatistics();
+    allocated_lab_size_ = 0;
+  }
+
+  void ResetAllocationStatisticsForPromotedPage() {
+    DCHECK_NE(0, live_bytes());
+    allocated_bytes_ = live_bytes();
+    wasted_memory_ = area_size() - allocated_bytes_;
     allocated_lab_size_ = 0;
   }
 

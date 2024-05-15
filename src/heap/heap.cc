@@ -680,7 +680,7 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
-               sweeping_in_progress() ? "*" : "",
+               major_sweeping_in_progress() ? "*" : "",
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Code space,             used: %6zu KB"
@@ -708,7 +708,7 @@ void Heap::PrintShortHeapStatistics() {
                ", committed: %6zu KB\n",
                trusted_space_->SizeOfObjects() / KB,
                trusted_space_->Available() / KB,
-               sweeping_in_progress() ? "*" : "",
+               major_sweeping_in_progress() ? "*" : "",
                trusted_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Trusted large object space,     used: %6zu KB"
@@ -2515,6 +2515,7 @@ bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
 }
 
 void Heap::CompleteSweepingYoung() {
+  DCHECK(!v8_flags.sticky_mark_bits);
   CompleteArrayBufferSweeping(this);
 
   // If sweeping is in progress and there are no sweeper tasks running, finish
@@ -7580,7 +7581,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       trusted_space()->RefillFreeList();
     }
 
-    if (v8_flags.minor_ms && use_new_space() &&
+    if (!v8_flags.sticky_mark_bits && v8_flags.minor_ms && use_new_space() &&
         was_minor_sweeping_in_progress) {
       TRACE_GC_EPOCH_WITH_FLOW(
           tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
@@ -7588,11 +7589,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
           sweeper_->GetTraceIdForFlowEvent(
               GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING),
           TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-      if (!v8_flags.sticky_mark_bits) {
-        paged_new_space()->paged_space()->RefillFreeList();
-      }
-      // Refill OLD_SPACE's freelist again for swept promoted pages.
-      old_space()->RefillFreeList();
+      paged_new_space()->paged_space()->RefillFreeList();
     }
 
     tracer()->NotifyFullSweepingCompleted();
@@ -7619,6 +7616,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
 void Heap::EnsureYoungSweepingCompleted() {
   if (!sweeper()->minor_sweeping_in_progress()) return;
+  DCHECK(!v8_flags.sticky_mark_bits);
 
   TRACE_GC_EPOCH_WITH_FLOW(
       tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING, ThreadKind::kMain,
@@ -7627,10 +7625,7 @@ void Heap::EnsureYoungSweepingCompleted() {
       TRACE_EVENT_FLAG_FLOW_IN);
 
   sweeper()->EnsureMinorCompleted();
-  if (!v8_flags.sticky_mark_bits) {
-    paged_new_space()->paged_space()->RefillFreeList();
-  }
-  old_space()->RefillFreeList();
+  paged_new_space()->paged_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
 }

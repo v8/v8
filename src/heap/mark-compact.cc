@@ -1025,6 +1025,9 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     MutablePageMetadata* host_page_metadata =
         MutablePageMetadata::cast(host_chunk->Metadata());
     DCHECK(Heap::InYoungGeneration(host));
+    // Temporarily record new-to-shared slots in the old-to-shared remembered
+    // set so we don't need to iterate the page again later for updating the
+    // references.
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
         host_page_metadata, host_chunk->Offset(slot.address()));
     collector_->MarkRootObject(Root::kClientHeap, heap_object,
