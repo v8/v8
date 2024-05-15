@@ -437,6 +437,7 @@ class MaglevGraphBuilder {
   // Returns true if we statically know that {lhs} and {rhs} have different
   // types.
   bool HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs);
+  bool HasDifferentType(ValueNode* lhs, NodeType rhs_type);
 
   template <typename Function>
   bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);

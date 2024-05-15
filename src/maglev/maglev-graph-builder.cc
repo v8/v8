@@ -3354,8 +3354,11 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
 }
 
 bool MaglevGraphBuilder::HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs) {
+  return HasDifferentType(lhs, GetType(rhs));
+}
+
+bool MaglevGraphBuilder::HasDifferentType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
-  NodeType rhs_type = GetType(rhs);
   if (lhs_type == NodeType::kUnknown || rhs_type == NodeType::kUnknown) {
     return false;
   }
@@ -11036,8 +11039,19 @@ void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
   StartFallthroughBlock(next_offset(), block);
 }
 void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
+  ValueNode* node = GetRawAccumulator();
+  if (CheckType(node, NodeType::kJSReceiver)) {
+    MarkBranchDeadAndJumpIfNeeded(true);
+    return;
+  } else if (HasDifferentType(node, NodeType::kJSReceiver)) {
+    MarkBranchDeadAndJumpIfNeeded(false);
+    return;
+  }
+  // Untagged nodes will have been recognized as non-JSReceiver.
+  CHECK(node->properties().is_tagged());
+
   BasicBlock* block = FinishBlock<BranchIfJSReceiver>(
-      {GetAccumulatorTagged()}, &jump_targets_[iterator_.GetJumpTargetOffset()],
+      {node}, &jump_targets_[iterator_.GetJumpTargetOffset()],
       &jump_targets_[next_offset()]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
