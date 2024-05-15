@@ -3055,6 +3055,8 @@ DEFINE_BOOL(single_threaded_gc_in_background, false,
             "disable the use of background gc tasks when in background")
 DEFINE_BOOL(parallel_pause_for_gc_in_background, false,
             "Use parallel threads in the atomic pause for background GCs")
+DEFINE_BOOL(incremental_marking_for_gc_in_background, true,
+            "Use parallel threads in the atomic pause for background GCs")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

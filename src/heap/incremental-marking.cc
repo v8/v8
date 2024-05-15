@@ -111,6 +111,10 @@ void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
       static_cast<intptr_t>(object_size);
 }
 
+bool IncrementalMarking::CanAndShouldBeStarted() const {
+  return CanBeStarted() && heap_->ShouldUseIncrementalMarking();
+}
+
 bool IncrementalMarking::CanBeStarted() const {
   // Only start incremental marking in a safe state:
   //   1) when incremental marking is turned on
@@ -133,6 +137,9 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                 !heap_->sweeping_in_progress());
   CHECK_IMPLIES(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER,
                 !heap_->minor_sweeping_in_progress());
+  // Do not invoke CanAndShouldBeStarted() here again because its return value
+  // might change across multiple invocations (its internal state could be
+  // updated concurrently from another thread between invocations).
   CHECK(CanBeStarted());
 
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {

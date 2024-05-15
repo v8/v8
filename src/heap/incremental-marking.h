@@ -92,7 +92,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return major_collection_requested_via_stack_guard_;
   }
 
-  bool CanBeStarted() const;
+  // Checks whether incremental marking is safe to be started and whether it
+  // should be started.
+  bool CanAndShouldBeStarted() const;
   void Start(GarbageCollector garbage_collector,
              GarbageCollectionReason gc_reason);
   // Returns true if incremental marking was running and false otherwise.
@@ -153,6 +155,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void StartMarkingMajor();
   void StartMarkingMinor();
+
+  // Checks whether incremental marking is safe to be started.
+  bool CanBeStarted() const;
 
   void StartBlackAllocation();
   void PauseBlackAllocation();

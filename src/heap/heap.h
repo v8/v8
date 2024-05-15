@@ -1665,6 +1665,7 @@ class Heap final {
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() const;
 
   bool ShouldUseBackgroundThreads() const;
+  bool ShouldUseIncrementalMarking() const;
 
   HeapAllocator* allocator() { return heap_allocator_; }
 

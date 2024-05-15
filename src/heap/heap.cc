@@ -528,6 +528,15 @@ bool Heap::ShouldUseBackgroundThreads() const {
          !isolate()->EfficiencyModeEnabled();
 }
 
+bool Heap::ShouldUseIncrementalMarking() const {
+  if (v8_flags.single_threaded_gc_in_background &&
+      isolate()->EfficiencyModeEnabled()) {
+    return v8_flags.incremental_marking_for_gc_in_background;
+  } else {
+    return true;
+  }
+}
+
 bool Heap::ShouldOptimizeForBattery() const {
   return v8_flags.optimize_gc_for_battery ||
          isolate()->BatterySaverModeEnabled();
@@ -1514,7 +1523,8 @@ size_t MinorMSConcurrentMarkingTrigger(Heap* heap) {
 void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
   if (incremental_marking()->IsMarking()) return;
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
-      incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global)) {
+      incremental_marking()->CanAndShouldBeStarted() &&
+      V8_LIKELY(!v8_flags.gc_global)) {
     size_t usable_capacity = 0;
     size_t new_space_size = 0;
     if (v8_flags.sticky_mark_bits) {
@@ -1718,7 +1728,7 @@ void Heap::ReportExternalMemoryPressure() {
     return;
   }
   if (incremental_marking()->IsStopped()) {
-    if (incremental_marking()->CanBeStarted()) {
+    if (incremental_marking()->CanAndShouldBeStarted()) {
       StartIncrementalMarking(GCFlagsForIncrementalMarking(),
                               GarbageCollectionReason::kExternalMemoryPressure,
                               kGCCallbackFlagsForExternalMemory);
@@ -2210,7 +2220,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     LocalHeap* local_heap, GCFlags gc_flags,
     const GCCallbackFlags gc_callback_flags) {
   if (incremental_marking()->IsStopped() &&
-      incremental_marking()->CanBeStarted()) {
+      incremental_marking()->CanAndShouldBeStarted()) {
     switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
@@ -5665,7 +5675,7 @@ double Heap::PercentToGlobalMemoryLimit() const {
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   // InstructionStream using an AlwaysAllocateScope assumes that the GC state
   // does not change; that implies that no marking steps must be performed.
-  if (!incremental_marking()->CanBeStarted() || always_allocate()) {
+  if (!incremental_marking()->CanAndShouldBeStarted() || always_allocate()) {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
   }
