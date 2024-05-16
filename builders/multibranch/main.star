@@ -164,6 +164,13 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
+        name = "V8 Linux64 - sticky mark bits - debug builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "12.7",
+        barrier = BARRIER.NONE,
+    ),
+    main_multibranch_builder(
         name = "V8 Linux64 - verify builtins",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_all_builtins_hashes"]},
