@@ -384,6 +384,9 @@ void Map::set_instance_type(InstanceType value) {
 }
 
 int Map::UnusedPropertyFields() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(*this), value == 0);
   int unused;
@@ -400,6 +403,9 @@ int Map::UnusedPropertyFields() const {
 int Map::UnusedInObjectProperties() const {
   // Like Map::UnusedPropertyFields(), but returns 0 for out of object
   // properties.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(*this), value == 0);
   if (value >= JSObject::kFieldsAdded) {
@@ -419,6 +425,9 @@ void Map::set_used_or_unused_instance_size_in_words(int value) {
 }
 
 int Map::UsedInstanceSize() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int words = used_or_unused_instance_size_in_words();
   if (words < JSObject::kFieldsAdded) {
     // All in-object properties are used and the words is tracking the slack
@@ -433,7 +442,6 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
   if (!IsJSObjectMap(*this)) {
     CHECK_EQ(0, value);
     set_used_or_unused_instance_size_in_words(0);
-    DCHECK_EQ(0, UnusedPropertyFields());
     return;
   }
   CHECK_LE(0, value);
