@@ -3813,10 +3813,17 @@ WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
   uint8_t choice = range.get<uint8_t>() % 3;
   ValueType element_type = builder->GetArrayType(index)->element_type();
   if (choice == 0) {
-    int element_count = range.get<uint8_t>() % kMaxArrayLength;
+    size_t element_count = range.get<uint8_t>() % kMaxArrayLength;
+    if (!element_type.is_defaultable()) {
+      // If the element type is not defaultable, limit the size to 0 or 1
+      // to prevent having to create too many such elements on the value
+      // stack. (With multiple non-nullable references, this can explode
+      // in size very quickly.)
+      element_count %= 2;
+    }
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
-    for (int i = 0; i < element_count; i++) {
+    for (size_t i = 0; i < element_count; i++) {
       elements->push_back(GenerateInitExpr(zone, range, builder, element_type,
                                            structs, arrays,
                                            recursion_depth + 1));
