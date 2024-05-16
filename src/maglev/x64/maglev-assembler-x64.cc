@@ -94,9 +94,13 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
-                                         Register scratch) {
+                                         Register scratch,
+                                         CharCodeMaskMode mask_mode) {
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
+  if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
+    andl(char_code, Immediate(0xFFFF));
+  }
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,
@@ -105,6 +109,9 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
          Register scratch) {
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
+        // TODO(victorgomes): This is probably not needed any more, because
+        // we now ensure that results registers don't alias with inputs/temps.
+        // Confirm, and drop this check.
         if (char_code == result) {
           // This is guaranteed to be true since we've already checked
           // char_code != scratch.
@@ -115,7 +122,6 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, result, 1);
-        __ andl(char_code, Immediate(0xFFFF));
         __ movw(FieldOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
                 char_code);
         __ jmp(*done);

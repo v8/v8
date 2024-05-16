@@ -233,41 +233,35 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
-                                         Register scratch) {
+                                         Register scratch,
+                                         CharCodeMaskMode mask_mode) {
   AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
+  if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
+    and_(char_code, char_code, Operand(0xFFFF));
+  }
   cmp(char_code, Operand(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       kUnsignedGreaterThan,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register char_code,
          Register scratch) {
-        ScratchRegisterScope temps(masm);
-        // Ensure that {result} never aliases {scratch}, otherwise the store
-        // will fail.
-        Register string = result;
-        bool reallocate_result = (scratch == result);
-        if (reallocate_result) {
-          string = temps.Acquire();
-        }
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
+        // TODO(victorgomes): This is probably not needed any more, because
+        // we now ensure that results registers don't alias with inputs/temps.
+        // Confirm, and drop this check.
         if (char_code == result) {
           __ Move(scratch, char_code);
           char_code = scratch;
         }
-        DCHECK_NE(char_code, string);
-        DCHECK_NE(scratch, string);
+        DCHECK_NE(char_code, result);
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
-        __ AllocateTwoByteString(register_snapshot, string, 1);
-        __ and_(scratch, char_code, Operand(0xFFFF));
-        __ strh(scratch, FieldMemOperand(
-                             string, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        if (reallocate_result) {
-          __ Move(result, string);
-        }
+        __ AllocateTwoByteString(register_snapshot, result, 1);
+        __ strh(char_code, FieldMemOperand(
+                               result, OFFSET_OF_DATA_START(SeqTwoByteString)));
         __ b(*done);
       },
       register_snapshot, done, result, char_code, scratch);

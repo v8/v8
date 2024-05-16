@@ -138,21 +138,22 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register result_string = ToRegister(result());
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value();
+    int32_t char_code = constant->value() & 0xFFFF;
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ movw(
           FieldOperand(result_string, OFFSET_OF_DATA_START(SeqTwoByteString)),
-          Immediate(char_code & 0xFFFF));
+          Immediate(char_code));
     }
   } else {
     MaglevAssembler::ScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register char_code = ToRegister(code_input());
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
-                          char_code, scratch);
+                          char_code, scratch,
+                          MaglevAssembler::CharCodeMaskMode::kMustApplyMask);
   }
 }
 

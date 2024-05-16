@@ -4610,7 +4610,8 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt, save_registers,
       char_code, string, index, scratch, &cached_one_byte_string);
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
-                        char_code, scratch);
+                        char_code, scratch,
+                        MaglevAssembler::CharCodeMaskMode::kValueIsInRange);
 }
 
 void StringLength::SetValueLocationConstraints() {

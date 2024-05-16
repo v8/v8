@@ -1031,12 +1031,14 @@ Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str, int begin,
   DCHECK(str->IsFlat());  // Callers must flatten.
   DCHECK_GT(length, 0);   // Callers must handle empty string.
   bool one_byte;
-  if (str->IsOneByteRepresentation()) {
-    one_byte = true;
-  } else {
+  {
     DisallowGarbageCollection no_gc;
-    const uint16_t* src = str->GetFlatContent(no_gc).ToUC16Vector().data();
-    one_byte = String::IsOneByte(src + begin, length);
+    String::FlatContent flat = str->GetFlatContent(no_gc);
+    if (flat.IsOneByte()) {
+      one_byte = true;
+    } else {
+      one_byte = String::IsOneByte(flat.ToUC16Vector().data() + begin, length);
+    }
   }
   if (one_byte) {
     Handle<SeqOneByteString> result =

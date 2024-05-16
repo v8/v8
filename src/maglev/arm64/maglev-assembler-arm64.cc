@@ -265,42 +265,36 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
-                                         Register scratch) {
+                                         Register scratch,
+                                         CharCodeMaskMode mask_mode) {
   AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
+  if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
+    And(char_code, char_code, Immediate(0xFFFF));
+  }
   Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       hi,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register char_code,
          Register scratch) {
-        ScratchRegisterScope temps(masm);
-        // Ensure that {result} never aliases {scratch}, otherwise the store
-        // will fail.
-        Register string = result;
-        bool reallocate_result = scratch.Aliases(result);
-        if (reallocate_result) {
-          string = temps.Acquire();
-        }
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
+        // TODO(victorgomes): This is probably not needed any more, because
+        // we now ensure that results registers don't alias with inputs/temps.
+        // Confirm, and drop this check.
         if (char_code.Aliases(result)) {
           __ Move(scratch, char_code);
           char_code = scratch;
         }
-        DCHECK(!char_code.Aliases(string));
-        DCHECK(!scratch.Aliases(string));
+        DCHECK(!char_code.Aliases(result));
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
-        __ AllocateTwoByteString(register_snapshot, string, 1);
-        __ And(scratch, char_code, Immediate(0xFFFF));
+        __ AllocateTwoByteString(register_snapshot, result, 1);
         __ Strh(
-            scratch.W(),
-            FieldMemOperand(string, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        if (reallocate_result) {
-          __ Move(result, string);
-        }
+            char_code.W(),
+            FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)));
         __ B(*done);
       },
       register_snapshot, done, result, char_code, scratch);
