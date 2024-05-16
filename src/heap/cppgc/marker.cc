@@ -309,6 +309,11 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
 
 void MarkerBase::ReEnableConcurrentMarking() {
   CHECK(is_marking_);
+
+  if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
+    return;
+  }
+
   CHECK_EQ(config_.marking_type, MarkingConfig::MarkingType::kIncremental);
   config_.marking_type = MarkingConfig::MarkingType::kIncrementalAndConcurrent;
   mutator_marking_state_.Publish();
