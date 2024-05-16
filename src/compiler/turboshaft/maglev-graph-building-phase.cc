@@ -928,6 +928,11 @@ class GraphBuilder {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckInt32IsSmi* node,
+                                const maglev::ProcessingState& state) {
+    DeoptIfInt32IsNotSmi(node->input(), node);
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckNumber* node,
                                 const maglev::ProcessingState& state) {
     V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
@@ -1048,14 +1053,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckedSmiSizedInt32* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): is there no higher level way of doing this?
-    V<Word32> input = Map<Word32>(node->input());
-    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(input, input);
-    V<Word32> check = __ template Projection<1>(add);
-    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
-    __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi,
-                    node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, input);
+    DeoptIfInt32IsNotSmi(node->input(), node);
+    SetMap(node, Map(node->input()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckNotHole* node,
@@ -2937,6 +2936,17 @@ class GraphBuilder {
 
   V<Word32> RootEqual(maglev::Input input, RootIndex root) {
     return __ RootEqual(Map(input), root, isolate_);
+  }
+
+  void DeoptIfInt32IsNotSmi(maglev::Input maglev_input,
+                            maglev::NodeBase* node) {
+    // TODO(dmercadier): is there no higher level way of doing this?
+    V<Word32> input = Map<Word32>(maglev_input);
+    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(input, input);
+    V<Word32> check = __ template Projection<1>(add);
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi,
+                    node->eager_deopt_info()->feedback_to_update());
   }
 
   std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(
