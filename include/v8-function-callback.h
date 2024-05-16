@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-primitive.h"     // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -406,15 +407,14 @@ void ReturnValue<T>::Set(int16_t i) {
   using I = internal::Internals;
   static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::max()));
-  SetInternal(I::IntToSmi(i));
+  SetInternal(I::IntegralToSmi(i));
 }
 
 template <typename T>
 void ReturnValue<T>::Set(int32_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
-  using I = internal::Internals;
-  if (V8_LIKELY(I::IsValidSmi(i))) {
-    SetInternal(I::IntToSmi(i));
+  if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
+    SetInternal(*result);
     return;
   }
   SetNonEmpty(Integer::New(GetIsolate(), i));
@@ -423,9 +423,8 @@ void ReturnValue<T>::Set(int32_t i) {
 template <typename T>
 void ReturnValue<T>::Set(int64_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
-  using I = internal::Internals;
-  if (V8_LIKELY(I::IsValidSmi(i))) {
-    SetInternal(I::IntToSmi(i));
+  if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
+    SetInternal(*result);
     return;
   }
   SetNonEmpty(Number::New(GetIsolate(), static_cast<double>(i)));
@@ -437,15 +436,14 @@ void ReturnValue<T>::Set(uint16_t i) {
   using I = internal::Internals;
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::max()));
-  SetInternal(I::IntToSmi(i));
+  SetInternal(I::IntegralToSmi(i));
 }
 
 template <typename T>
 void ReturnValue<T>::Set(uint32_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
-  static_assert(internal::kSmiMaxValue <= std::numeric_limits<uint32_t>::max());
-  if (V8_LIKELY(i <= static_cast<uint32_t>(internal::kSmiMaxValue))) {
-    SetInternal(internal::IntToSmi(i));
+  if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
+    SetInternal(*result);
     return;
   }
   SetNonEmpty(Integer::NewFromUnsigned(GetIsolate(), i));
@@ -454,9 +452,8 @@ void ReturnValue<T>::Set(uint32_t i) {
 template <typename T>
 void ReturnValue<T>::Set(uint64_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
-  static_assert(internal::kSmiMaxValue <= std::numeric_limits<uint64_t>::max());
-  if (V8_LIKELY(i <= static_cast<uint64_t>(internal::kSmiMaxValue))) {
-    SetInternal(internal::IntToSmi(i));
+  if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
+    SetInternal(*result);
     return;
   }
   SetNonEmpty(Number::New(GetIsolate(), static_cast<double>(i)));
@@ -652,8 +649,8 @@ template <typename T>
 bool PropertyCallbackInfo<T>::ShouldThrowOnError() const {
   using I = internal::Internals;
   if (args_[kShouldThrowOnErrorIndex] !=
-      I::IntToSmi(I::kInferShouldThrowMode)) {
-    return args_[kShouldThrowOnErrorIndex] != I::IntToSmi(I::kDontThrow);
+      I::IntegralToSmi(I::kInferShouldThrowMode)) {
+    return args_[kShouldThrowOnErrorIndex] != I::IntegralToSmi(I::kDontThrow);
   }
   return v8::internal::ShouldThrowOnError(
       reinterpret_cast<v8::internal::Isolate*>(GetIsolate()));

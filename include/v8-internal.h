@@ -11,7 +11,9 @@
 
 #include <atomic>
 #include <iterator>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -87,7 +89,10 @@ struct SmiTagging<4> {
     // Truncate and shift down (requires >> to be sign extending).
     return static_cast<int32_t>(static_cast<uint32_t>(value)) >> shift_bits;
   }
-  V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
+
+  template <class T, typename std::enable_if_t<std::is_integral_v<T> &&
+                                               std::is_signed_v<T>>* = nullptr>
+  V8_INLINE static constexpr bool IsValidSmi(T value) {
     // Is value in range [kSmiMinValue, kSmiMaxValue].
     // Use unsigned operations in order to avoid undefined behaviour in case of
     // signed integer overflow.
@@ -96,7 +101,15 @@ struct SmiTagging<4> {
            (static_cast<uintptr_t>(kSmiMaxValue) -
             static_cast<uintptr_t>(kSmiMinValue));
   }
-#ifndef V8_HOST_ARCH_64_BIT
+
+  template <class T,
+            typename std::enable_if_t<std::is_integral_v<T> &&
+                                      std::is_unsigned_v<T>>* = nullptr>
+  V8_INLINE static constexpr bool IsValidSmi(T value) {
+    static_assert(kSmiMaxValue <= std::numeric_limits<uintptr_t>::max());
+    return value <= static_cast<uintptr_t>(kSmiMaxValue);
+  }
+
   // Same as the `intptr_t` version but works with int64_t on 32-bit builds
   // without slowing down anything else.
   V8_INLINE static constexpr bool IsValidSmi(int64_t value) {
@@ -105,7 +118,11 @@ struct SmiTagging<4> {
            (static_cast<uint64_t>(kSmiMaxValue) -
             static_cast<uint64_t>(kSmiMinValue));
   }
-#endif
+
+  V8_INLINE static constexpr bool IsValidSmi(uint64_t value) {
+    static_assert(kSmiMaxValue <= std::numeric_limits<uint64_t>::max());
+    return value <= static_cast<uint64_t>(kSmiMaxValue);
+  }
 };
 
 // Smi constants for systems where tagged pointer is a 64-bit value.
@@ -122,9 +139,20 @@ struct SmiTagging<8> {
     // Shift down and throw away top 32 bits.
     return static_cast<int>(static_cast<intptr_t>(value) >> shift_bits);
   }
-  V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
+
+  template <class T, typename std::enable_if_t<std::is_integral_v<T> &&
+                                               std::is_signed_v<T>>* = nullptr>
+  V8_INLINE static constexpr bool IsValidSmi(T value) {
     // To be representable as a long smi, the value must be a 32-bit integer.
     return (value == static_cast<int32_t>(value));
+  }
+
+  template <class T,
+            typename std::enable_if_t<std::is_integral_v<T> &&
+                                      std::is_unsigned_v<T>>* = nullptr>
+  V8_INLINE static constexpr bool IsValidSmi(T value) {
+    return (static_cast<uintptr_t>(value) ==
+            static_cast<uintptr_t>(static_cast<int32_t>(value)));
   }
 };
 
@@ -956,19 +984,35 @@ class Internals {
     return PlatformSmiTagging::SmiToInt(value);
   }
 
+  V8_INLINE static constexpr Address AddressToSmi(Address value) {
+    return (value << (kSmiTagSize + PlatformSmiTagging::kSmiShiftSize)) |
+           kSmiTag;
+  }
+
   V8_INLINE static constexpr Address IntToSmi(int value) {
-    return internal::IntToSmi(value);
+    return AddressToSmi(static_cast<Address>(value));
   }
 
-  V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
+  template <typename T,
+            typename std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+  V8_INLINE static constexpr Address IntegralToSmi(T value) {
+    return AddressToSmi(static_cast<Address>(value));
+  }
+
+  template <typename T,
+            typename std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+  V8_INLINE static constexpr bool IsValidSmi(T value) {
     return PlatformSmiTagging::IsValidSmi(value);
   }
 
-#ifndef V8_HOST_ARCH_64_BIT
-  V8_INLINE static constexpr bool IsValidSmi(int64_t value) {
-    return PlatformSmiTagging::IsValidSmi(value);
+  template <typename T,
+            typename std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+  static constexpr std::optional<Address> TryIntegralToSmi(T value) {
+    if (V8_LIKELY(PlatformSmiTagging::IsValidSmi(value))) {
+      return {AddressToSmi(static_cast<Address>(value))};
+    }
+    return {};
   }
-#endif
 
 #if V8_STATIC_ROOTS_BOOL
   V8_INLINE static bool is_identical(Address obj, Tagged_t constant) {

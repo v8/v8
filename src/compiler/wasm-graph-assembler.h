@@ -75,7 +75,7 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* SmiConstant(Tagged_t value) {
-    Address tagged_value = Internals::IntToSmi(static_cast<int>(value));
+    Address tagged_value = Internals::IntegralToSmi(static_cast<int>(value));
     return kTaggedSize == kInt32Size
                ? Int32Constant(static_cast<int32_t>(tagged_value))
                : Int64Constant(static_cast<int64_t>(tagged_value));
