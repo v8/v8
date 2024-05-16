@@ -822,6 +822,39 @@ TEST(RunWasm_I16x16DotI8x32I7x32S) {
     }
   }
 }
+
+TEST(RunWasmTurbofan_F32x8RelaxedMin) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMin, Minimum,
+                         compiler::IrOpcode::kF32x8RelaxedMin);
+}
+
+TEST(RunWasmTurbofan_F32x8RelaxedMax) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMax, Maximum,
+                         compiler::IrOpcode::kF32x8RelaxedMax);
+}
+
+TEST(RunWasmTurbofan_F64x4RelaxedMin) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMin, Minimum,
+                         compiler::IrOpcode::kF64x4RelaxedMin);
+}
+
+TEST(RunWasmTurbofan_F64x4RelaxedMax) {
+  if (!v8_flags.turboshaft_wasm ||
+      !v8_flags.turboshaft_wasm_instruction_selection_staged)
+    return;
+  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMax, Maximum,
+                         compiler::IrOpcode::kF64x4RelaxedMax);
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace v8::internal::wasm

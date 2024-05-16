@@ -8155,6 +8155,10 @@ std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
   V(F64x4Max)                             \
   V(F64x4Pmin)                            \
   V(F64x4Pmax)                            \
+  V(F32x8RelaxedMin)                      \
+  V(F32x8RelaxedMax)                      \
+  V(F64x4RelaxedMin)                      \
+  V(F64x4RelaxedMax)                      \
   V(I16x16DotI8x32I7x32S)                 \
   FOREACH_SIMD_256_BINARY_SIGN_EXTENSION_OPCODE(V)
 

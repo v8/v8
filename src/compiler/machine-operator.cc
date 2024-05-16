@@ -567,6 +567,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
   IF_WASM(V, F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
   IF_WASM(V, F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
+  IF_WASM(V, F32x8RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
+  IF_WASM(V, F32x8RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
+  IF_WASM(V, F64x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
+  IF_WASM(V, F64x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
   IF_WASM(V, I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)        \
   IF_WASM(V, I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)        \
   IF_WASM(V, I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1)    \

@@ -3930,11 +3930,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Minps: {
-      ASSEMBLE_SIMD_BINOP(minps);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        ASSEMBLE_SIMD_BINOP(minps);
+      } else if (vec_len == kV256) {
+        ASSEMBLE_SIMD256_BINOP(minps, AVX);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64Maxps: {
-      ASSEMBLE_SIMD_BINOP(maxps);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        ASSEMBLE_SIMD_BINOP(maxps);
+      } else if (vec_len == kV256) {
+        ASSEMBLE_SIMD256_BINOP(maxps, AVX);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64F32x8Pmin: {
@@ -3974,11 +3988,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Minpd: {
-      ASSEMBLE_SIMD_BINOP(minpd);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        ASSEMBLE_SIMD_BINOP(minpd);
+      } else if (vec_len == kV256) {
+        ASSEMBLE_SIMD256_BINOP(minpd, AVX);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64Maxpd: {
-      ASSEMBLE_SIMD_BINOP(maxpd);
+      VectorLength vec_len = VectorLengthField::decode(opcode);
+      if (vec_len == kV128) {
+        ASSEMBLE_SIMD_BINOP(maxpd);
+      } else if (vec_len == kV256) {
+        ASSEMBLE_SIMD256_BINOP(maxpd, AVX);
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case kX64ISplat: {

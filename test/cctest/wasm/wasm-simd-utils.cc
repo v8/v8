@@ -1332,6 +1332,7 @@ void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
     FOR_FLOAT32_NAN_INPUTS(j) {
       float y = base::bit_cast<float>(nan_test_array[j]);
       if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       float expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       for (int i = 0; i < 4; i++) {
@@ -1466,6 +1467,7 @@ void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
     FOR_FLOAT64_NAN_INPUTS(j) {
       double y = base::bit_cast<double>(double_nan_test_array[j]);
       if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       double expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       for (int i = 0; i < 2; i++) {
