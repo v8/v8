@@ -1324,6 +1324,14 @@
 }],  # arch in [ppc64, s390x] and pointer_compression'
 
 ##############################################################################
+['pointer_compression and not pointer_compression_shared_cage', {
+
+  # The test requires shared heap but it is not shared in the multi cage mode.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+
+}],  # pointer_compression and not pointer_compression_shared_cage'
+
+##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
   # Slow tests
