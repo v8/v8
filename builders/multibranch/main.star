@@ -168,7 +168,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "12.7",
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - verify builtins",
