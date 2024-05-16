@@ -109,6 +109,8 @@ class LiftoffVarState {
   int spill_offset_;
 };
 
+std::ostream& operator<<(std::ostream& os, LiftoffVarState);
+
 ASSERT_TRIVIALLY_COPYABLE(LiftoffVarState);
 }  // namespace v8::internal::wasm
 

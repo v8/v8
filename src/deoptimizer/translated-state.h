@@ -212,7 +212,7 @@ class TranslatedFrame {
     kInvalid
   };
 
-  int GetValueCount();
+  int GetValueCount() const;
 
   Kind kind() const { return kind_; }
   BytecodeOffset bytecode_offset() const { return bytecode_offset_; }
@@ -287,6 +287,11 @@ class TranslatedFrame {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
     return return_kind_;
   }
+
+  int wasm_function_index() const {
+    DCHECK_EQ(kind(), kLiftoffFunction);
+    return wasm_function_index_;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -315,7 +320,8 @@ class TranslatedFrame {
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
       int height, base::Optional<wasm::ValueKind> return_type);
-  static TranslatedFrame LiftoffFrame(BytecodeOffset bailout_id, int height);
+  static TranslatedFrame LiftoffFrame(BytecodeOffset bailout_id, int height,
+                                      int function_index);
 #endif  // V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
@@ -358,6 +364,8 @@ class TranslatedFrame {
 #if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
   base::Optional<wasm::ValueKind> return_kind_;
+  // Only for Kind == kLiftOffFunction
+  int wasm_function_index_ = -1;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

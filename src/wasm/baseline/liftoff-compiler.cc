@@ -640,7 +640,7 @@ class LiftoffCompiler {
   }
 
   std::unique_ptr<LiftoffFrameDescriptionsForDeopt> ReleaseFrameDescriptions() {
-    return std::move(frame_descriptions_);
+    return std::move(frame_description_);
   }
 
   base::OwnedVector<uint8_t> GetSourcePositionTable() {
@@ -1220,8 +1220,8 @@ class LiftoffCompiler {
       }
     }
 
-    if (frame_descriptions_) {
-      frame_descriptions_->total_frame_size = __ GetTotalFrameSize();
+    if (frame_description_) {
+      frame_description_->total_frame_size = __ GetTotalFrameSize();
     }
   }
 
@@ -8042,6 +8042,20 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
+        if (v8_flags.wasm_deopt &&
+            env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
+          // TODO(mliedtke): We need to do the same for all other inlineable
+          // call targets and provide test coverage for them.
+          DCHECK(!frame_description_);
+          frame_description_ =
+              std::make_unique<LiftoffFrameDescriptionsForDeopt>();
+          frame_description_->description = LiftoffFrameDescription(
+              {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+               std::vector<LiftoffVarState>(
+                   __ cache_state()->stack_state.begin(),
+                   __ cache_state()->stack_state.end()),
+               __ cache_state()->cached_instance_data});
+        }
         FinishCall(decoder, &sig, call_descriptor);
       }
     }
@@ -8374,18 +8388,12 @@ class LiftoffCompiler {
     Register first_param_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
-      // TODO(42204618): This creates extra work whenever wasm deopts are
-      // enabled for liftoff compilations. The frame descriptions should only be
-      // generated if the liftoff compilation is requested by the deoptimizer.
-      // TODO(42204618): If we only collect frame descriptions for the
-      // deoptimizer compilation run, it should also be enough to collect it for
-      // the single deopt point the deoptimizer is interested in.
-      if (v8_flags.wasm_deopt) {
-        if (!frame_descriptions_) {
-          frame_descriptions_ =
-              std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-        }
-        frame_descriptions_->descriptions.push_back(
+      if (v8_flags.wasm_deopt &&
+          env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
+        DCHECK(!frame_description_);
+        frame_description_ =
+            std::make_unique<LiftoffFrameDescriptionsForDeopt>();
+        frame_description_->description = LiftoffFrameDescription(
             {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
              std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
                                           __ cache_state()->stack_state.end()),
@@ -8843,7 +8851,7 @@ class LiftoffCompiler {
   int32_t* max_steps_;
   int32_t* nondeterminism_;
 
-  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> frame_descriptions_;
+  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> frame_description_;
 
   const compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL

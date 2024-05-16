@@ -135,10 +135,12 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     }
 
     case v8::internal::TranslationOpcode::LIFTOFF_FRAME: {
-      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       int bailout_id = iterator.NextOperand();
       unsigned height = iterator.NextOperand();
-      os << "{bailout_id=" << bailout_id << ", height=" << height << "}";
+      unsigned function_id = iterator.NextOperand();
+      os << "{bailout_id=" << bailout_id << ", height=" << height
+         << ", function_id=" << function_id << "}";
       break;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -863,13 +865,14 @@ TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
   return frame;
 }
 
-TranslatedFrame TranslatedFrame::LiftoffFrame(
-    BytecodeOffset bytecode_offset, int height) {
+TranslatedFrame TranslatedFrame::LiftoffFrame(BytecodeOffset bytecode_offset,
+                                              int height, int function_index) {
   // WebAssembly functions do not have a SharedFunctionInfo on the stack.
   // The deoptimizer has to recover the function-specific data based on the PC.
   Tagged<SharedFunctionInfo> shared_info;
   TranslatedFrame frame(kLiftoffFunction, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
+  frame.wasm_function_index_ = function_index;
   return frame;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -891,7 +894,7 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
   return frame;
 }
 
-int TranslatedFrame::GetValueCount() {
+int TranslatedFrame::GetValueCount() const {
   // The function is added to all frame state descriptors in
   // InstructionSelector::AddInputsToFrameStateDescriptor.
   static constexpr int kTheFunction = 1;
@@ -1122,12 +1125,14 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::LIFTOFF_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
       int height = iterator->NextOperand();
+      int function_id = iterator->NextOperand();
       if (trace_file != nullptr) {
         PrintF(trace_file, "  reading input for liftoff frame");
-        PrintF(trace_file, " => bailout_id=%d, height=%d ; inputs:\n",
-               bailout_id.ToInt(), height);
+        PrintF(trace_file,
+               " => bailout_id=%d, height=%d, function_id=%d ; inputs:\n",
+               bailout_id.ToInt(), height, function_id);
       }
-      return TranslatedFrame::LiftoffFrame(bailout_id, height);
+      return TranslatedFrame::LiftoffFrame(bailout_id, height, function_id);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

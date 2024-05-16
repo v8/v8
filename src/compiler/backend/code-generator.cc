@@ -1233,7 +1233,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       break;
     }
     case FrameStateType::kLiftoffFunction:
-      translations_.BeginLiftoffFrame(bailout_id, height);
+      translations_.BeginLiftoffFrame(bailout_id, height,
+                                      descriptor->GetWasmFunctionIndex());
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation: {

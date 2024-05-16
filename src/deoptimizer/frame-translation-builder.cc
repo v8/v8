@@ -299,9 +299,11 @@ void FrameTranslationBuilder::BeginWasmInlinedIntoJSFrame(
 }
 
 void FrameTranslationBuilder::BeginLiftoffFrame(BytecodeOffset bailout_id,
-                                                unsigned height) {
+                                                unsigned height,
+                                                uint32_t wasm_function_index) {
   auto opcode = TranslationOpcode::LIFTOFF_FRAME;
-  Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(height));
+  Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(height),
+      SignedOperand(wasm_function_index));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

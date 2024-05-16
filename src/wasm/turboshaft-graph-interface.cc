@@ -58,6 +58,7 @@ using compiler::turboshaft::Operation;
 using compiler::turboshaft::OperationMatcher;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::OptionalOpIndex;
+using compiler::turboshaft::OptionalV;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::Simd128ConstantOp;
@@ -374,7 +375,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       bool shared, const WireBytesStorage* wire_bytes,
       base::Vector<OpIndex> real_parameters, TSBlock* return_block,
-      BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call)
+      BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
+      OptionalV<FrameState> parent_frame_state)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -390,7 +392,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         return_block_(return_block),
         return_phis_(return_phis),
         return_catch_block_(catch_block),
-        is_inlined_tail_call_(is_inlined_tail_call) {
+        is_inlined_tail_call_(is_inlined_tail_call),
+        parent_frame_state_(parent_frame_state) {
     DCHECK_NE(mode_, kRegular);
     DCHECK_EQ(return_block == nullptr, mode == kInlinedTailCall);
     DCHECK_EQ(catch_block != nullptr, mode == kInlinedWithCatch);
@@ -2580,6 +2583,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       V<FixedArray> shared_func_refs =
           LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(true), FuncRefs,
                                         MemoryRepresentation::TaggedPointer());
+
       size_t return_count = sig->return_count();
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
@@ -2622,8 +2626,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // sense to still emit a `DeoptIfNot` and have a direct call for the
           // non-inlined known call target. Evaluate the performance
           // characteristics of this.
+          V<FrameState> frame_state =
+              CreateFrameState(decoder, sig, &func_ref, args);
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
-                     sig, func_ref, args);
+                     sig, func_ref, args, frame_state);
         } else {
           bool is_last_case = (i == case_count - 1);
           TSBlock* inline_block = __ NewBlock();
@@ -5285,11 +5291,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
  private:
-  void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  const FunctionSig* callee_sig, const Value& func_ref,
-                  const Value args[]) {
-    CHECK(v8_flags.wasm_deopt);
+  V<FrameState> CreateFrameState(FullDecoder* decoder,
+                                 const FunctionSig* callee_sig,
+                                 const Value* func_ref, const Value args[]) {
     compiler::turboshaft::FrameStateData::Builder builder;
+    if (parent_frame_state_.valid()) {
+      builder.AddParentFrameState(parent_frame_state_.value());
+    }
     // The first input is the closure for JS. (The instruction selector will
     // just skip this input as the liftoff frame doesn't have a closure.)
     builder.AddInput(MachineType::AnyTagged(), __ SmiConstant(0));
@@ -5319,32 +5327,42 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       builder.AddInput(val->type.machine_type(), val->op);
     }
     // Add the call_ref stack values.
-    for (const Value& arg :
-         base::VectorOf(args, callee_sig->parameter_count())) {
-      builder.AddInput(arg.type.machine_type(), arg.op);
+    if (args != nullptr) {
+      for (const Value& arg :
+           base::VectorOf(args, callee_sig->parameter_count())) {
+        builder.AddInput(arg.type.machine_type(), arg.op);
+      }
     }
-    builder.AddInput(func_ref.type.machine_type(), func_ref.op);
+    if (func_ref) {
+      builder.AddInput(func_ref->type.machine_type(), func_ref->op);
+    }
     // Add the wasm trusted instance as a real input.
     // TODO(14616): Fix sharedness.
     builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
     // The call_ref (callee) & the wasm instance.
-    constexpr size_t kExtraLocals = 2;
+    const size_t kExtraLocals = func_ref != nullptr ? 2 : 1;
     size_t wasm_local_count = ssa_env_.size() - param_count;
-    size_t local_count = callee_sig->parameter_count() + kExtraLocals +
-                         decoder->stack_size() + wasm_local_count -
-                         callee_sig->return_count();
+    size_t local_count = kExtraLocals + decoder->stack_size() +
+                         wasm_local_count - callee_sig->return_count();
+    local_count += args != nullptr ? callee_sig->parameter_count() : 0;
     Handle<SharedFunctionInfo> shared_info;
     Zone* zone = Asm().data()->shared_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
         static_cast<int>(param_count), static_cast<int>(local_count),
-        shared_info, GetLiftoffFrameSize(decoder));
+        shared_info, GetLiftoffFrameSize(decoder), func_index_);
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
-    V<FrameState> frame_state =
-        __ FrameState(builder.Inputs(), builder.inlined(),
-                      builder.AllocateFrameStateData(*frame_state_info, zone));
+    return __ FrameState(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(*frame_state_info, zone));
+  }
+
+  void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
+                  const FunctionSig* callee_sig, const Value& func_ref,
+                  const Value args[], V<FrameState> frame_state) {
+    CHECK(v8_flags.wasm_deopt);
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
                        compiler::FeedbackSource());
@@ -7586,15 +7604,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       inlinee_return_phis = &fresh_return_phis;
     }
 
+    OptionalV<FrameState> frame_state;
+    if (v8_flags.wasm_deopt) {
+      frame_state =
+          CreateFrameState(decoder, sig, /*funcref*/ nullptr, /*args*/ nullptr);
+    }
+
     WasmFullDecoder<Decoder::FullValidationTag,
                     TurboshaftGraphBuildingInterface>
-        inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
-                        decoder->detected_, inlinee_body, decoder->zone_,
-                        nullptr, asm_, inlinee_mode, instance_cache_,
-                        assumptions_, inlining_positions_, func_index,
-                        inlinee_is_shared, wire_bytes_,
-                        base::VectorOf(inlinee_args), callee_return_block,
-                        inlinee_return_phis, callee_catch_block, is_tail_call);
+        inlinee_decoder(
+            decoder->zone_, decoder->module_, decoder->enabled_,
+            decoder->detected_, inlinee_body, decoder->zone_, nullptr, asm_,
+            inlinee_mode, instance_cache_, assumptions_, inlining_positions_,
+            func_index, inlinee_is_shared, wire_bytes_,
+            base::VectorOf(inlinee_args), callee_return_block,
+            inlinee_return_phis, callee_catch_block, is_tail_call, frame_state);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined
@@ -7856,6 +7880,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // The position of the call that is being inlined.
   SourcePosition parent_position_;
   bool is_inlined_tail_call_ = false;
+
+  OptionalV<FrameState> parent_frame_state_;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(

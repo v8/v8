@@ -105,10 +105,12 @@ struct LiftoffFrameDescription {
   Register trusted_instance = no_reg;
 };
 
-// The set of frame descriptions for all deopt points for a single liftoff
-// function.
+// TODO(mliedtke): Merge back into LiftoffFrameDescription as we only create one
+// of them!
+// The set of frame descriptions for all deopt points for a single
+// liftoff function.
 struct LiftoffFrameDescriptionsForDeopt {
-  std::vector<LiftoffFrameDescription> descriptions;
+  LiftoffFrameDescription description;
   int total_frame_size = 0;
 };
 

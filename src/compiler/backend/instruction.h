@@ -1473,7 +1473,8 @@ class FrameStateDescriptor : public ZoneObject {
       size_t locals_count, size_t stack_count,
       MaybeHandle<SharedFunctionInfo> shared_info,
       FrameStateDescriptor* outer_state = nullptr,
-      uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max());
+      uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max(),
+      uint32_t wasm_function_index = std::numeric_limits<uint32_t>::max());
 
   FrameStateType type() const { return type_; }
   BytecodeOffset bailout_id() const { return bailout_id_; }
@@ -1522,6 +1523,11 @@ class FrameStateDescriptor : public ZoneObject {
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
 
+  uint32_t GetWasmFunctionIndex() const {
+    DCHECK(wasm_function_index_ != std::numeric_limits<uint32_t>::max());
+    return wasm_function_index_;
+  }
+
   StateValueList* GetStateValueDescriptors() { return &values_; }
 
   static const int kImpossibleValue = 0xdead;
@@ -1537,6 +1543,7 @@ class FrameStateDescriptor : public ZoneObject {
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* const outer_state_;
+  uint32_t wasm_function_index_;
 };
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -162,6 +162,9 @@ class Deoptimizer : public Malloced {
 
   void DoComputeOutputFrames();
   void DoComputeOutputFramesWasmImpl();
+  FrameDescription* DoComputeWasmLiftoffFrame(TranslatedFrame& frame,
+                                              wasm::NativeModule* native_module,
+                                              int frame_index);
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,

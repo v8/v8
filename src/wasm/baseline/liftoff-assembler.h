@@ -1542,8 +1542,6 @@ class LiftoffAssembler : public MacroAssembler {
   const char* bailout_detail_ = nullptr;
 };
 
-std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);
-
 #if DEBUG
 inline FreezeCacheState::FreezeCacheState(LiftoffAssembler& assm)
     : assm_(assm) {

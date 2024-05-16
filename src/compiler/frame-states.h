@@ -93,12 +93,14 @@ class FrameStateFunctionInfo {
   FrameStateFunctionInfo(FrameStateType type, int parameter_count,
                          int local_count,
                          Handle<SharedFunctionInfo> shared_info,
-                         uint32_t wasm_liftoff_frame_size = 0)
+                         uint32_t wasm_liftoff_frame_size = 0,
+                         uint32_t wasm_function_index = -1)
       : type_(type),
         parameter_count_(parameter_count),
         local_count_(local_count),
 #if V8_ENABLE_WEBASSEMBLY
         wasm_liftoff_frame_size_(wasm_liftoff_frame_size),
+        wasm_function_index_(wasm_function_index),
 #endif
         shared_info_(shared_info) {
   }
@@ -107,12 +109,10 @@ class FrameStateFunctionInfo {
   int parameter_count() const { return parameter_count_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
-#if V8_ENABLE_WEBASSEMBLY
   uint32_t wasm_liftoff_frame_size() const {
-    DCHECK_EQ(type_, FrameStateType::kLiftoffFunction);
     return wasm_liftoff_frame_size_;
   }
-#endif
+  uint32_t wasm_function_index() const { return wasm_function_index_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
     // This must be in sync with TRANSLATION_JS_FRAME_OPCODE_LIST in
@@ -128,6 +128,10 @@ class FrameStateFunctionInfo {
   const int local_count_;
 #if V8_ENABLE_WEBASSEMBLY
   const uint32_t wasm_liftoff_frame_size_ = 0;
+  const uint32_t wasm_function_index_ = -1;
+#else
+  static constexpr uint32_t wasm_liftoff_frame_size_ = 0;
+  static constexpr uint32_t wasm_function_index_ = -1;
 #endif
   const Handle<SharedFunctionInfo> shared_info_;
 };

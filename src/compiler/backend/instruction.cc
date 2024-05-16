@@ -1220,7 +1220,8 @@ FrameStateDescriptor::FrameStateDescriptor(
     OutputFrameStateCombine state_combine, size_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size)
+    FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
+    uint32_t wasm_function_index)
     : type_(type),
       bailout_id_(bailout_id),
       frame_state_combine_(state_combine),
@@ -1233,7 +1234,8 @@ FrameStateDescriptor::FrameStateDescriptor(
               wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {}
+      outer_state_(outer_state),
+      wasm_function_index_(wasm_function_index) {}
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {

@@ -1214,14 +1214,14 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, VarState slot) {
+std::ostream& operator<<(std::ostream& os, LiftoffVarState slot) {
   os << name(slot.kind()) << ":";
   switch (slot.loc()) {
-    case VarState::kStack:
+    case LiftoffVarState::kStack:
       return os << "s0x" << std::hex << slot.offset() << std::dec;
-    case VarState::kRegister:
+    case LiftoffVarState::kRegister:
       return os << slot.reg();
-    case VarState::kIntConst:
+    case LiftoffVarState::kIntConst:
       return os << "c" << slot.i32_const();
   }
   UNREACHABLE();

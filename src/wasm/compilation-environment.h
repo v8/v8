@@ -64,6 +64,8 @@ struct CompilationEnv {
 
   std::atomic<bool>* fast_api_return_is_bool;
 
+  uint32_t deopt_info_bytecode_offset = std::numeric_limits<uint32_t>::max();
+
   // Create a {CompilationEnv} object for compilation. The caller has to ensure
   // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
   // being used.
