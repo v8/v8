@@ -666,6 +666,15 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_sticky_mark_bits_dbg': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1725,6 +1734,15 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux64 - sticky mark bits - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'V8 Linux64 - verify csa': {
