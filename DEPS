@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '70f690a155413414c3c94f4045ad62e173cd4493',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c71a0f463ebfddaf5dd8bf5dbd301089bf44e0c3',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'efa920ce144e4dc1c1841e73179cd7e23b9f0d5e',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7f95b88c669f684781cb34240fcbc71766d720de',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '274689c4a55104b92bf66248d03249ce0175aa02',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -340,7 +340,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4f653ff1af93e9256c59a2c524795cd84c39c698',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '92f7ccaec35db85a0e188b6c836d5e33fc785dcd',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '29b73ebcd5d8eab37eed507251fce48bd15d9f50',
   'tools/luci-go': {
       'packages': [
         {
