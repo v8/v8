@@ -1313,6 +1313,14 @@
 }],  # 'verify_predictable'
 
 ##############################################################################
+['arch in [ppc64, s390x]', {
+
+  # Float parameters are not supported in the fast api
+  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
+
+}],  # arch in [ppc64, s390x]'
+
+##############################################################################
 ['arch in [ppc64, s390x] and pointer_compression', {
 
   # Needs sandbox enabled.
