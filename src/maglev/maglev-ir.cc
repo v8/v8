@@ -3846,6 +3846,7 @@ void CreateRegExpLiteral::GenerateCode(MaglevAssembler* masm,
       pattern().object(),                           // pattern
       Smi::FromInt(flags())                         // flags
   );
+  masm->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
 int GetTemplateObject::MaxCallStackArgs() const {

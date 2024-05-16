@@ -5367,8 +5367,9 @@ class CreateRegExpLiteral
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::NotIdempotent() |
+                                              OpProperties::CanThrow();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
