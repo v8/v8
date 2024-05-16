@@ -2005,3 +2005,20 @@ let glob_b = 3.35;
   assertEquals(15, call_loop(6));
   assertOptimized(call_loop);
 }
+
+// Testing ToName.
+{
+  function to_name() {
+    var o = {
+      [Symbol.toPrimitive]() {}
+    };
+    return o;
+  }
+
+  %PrepareFunctionForOptimization(to_name);
+  let o = to_name();
+  assertEquals(o, to_name());
+  %OptimizeFunctionOnNextCall(to_name);
+  assertEquals(o, to_name());
+  assertOptimized(to_name);
+}
