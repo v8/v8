@@ -165,21 +165,18 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     // Double value to test if value can be a Smi, and if so, to convert it.
     V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(value, value);
     V<Word32> ovf = __ template Projection<1>(add);
-    Variable result = __ NewVariable(RegisterRepresentation::Tagged());
+    ScopedVar<Number> result(this, OpIndex::Invalid());
     IF_NOT (UNLIKELY(ovf)) {
       // If it didn't overflow, the result is {2 * value} as pointer-sized
       // value.
-      __ SetVariable(result,
-                     __ ChangeInt32ToIntPtr(__ template Projection<0>(add)));
+      result = __ BitcastWordPtrToSmi(
+          __ ChangeInt32ToIntPtr(__ template Projection<0>(add)));
     } ELSE{
       // Otherwise, call builtin, to convert to a HeapNumber.
-      V<HeapNumber> call = CallBuiltin<WasmInt32ToHeapNumberDescriptor>(
+      result = CallBuiltin<WasmInt32ToHeapNumberDescriptor>(
           Builtin::kWasmInt32ToHeapNumber, Operator::kNoProperties, value);
-      __ SetVariable(result, call);
     }
-    OpIndex merge = __ GetVariable(result);
-    __ SetVariable(result, OpIndex::Invalid());
-    return merge;
+    return result;
   }
 
   V<Number> BuildChangeFloat32ToNumber(V<Float32> value) {
@@ -228,28 +225,22 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                     wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
               // Function reference. Extract the external function.
-              Variable maybe_external =
-                  __ NewVariable(RegisterRepresentation::Tagged());
               V<WasmInternalFunction> internal =
                   V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
                       ret, LoadOp::Kind::TaggedBase(),
                       kWasmInternalFunctionIndirectPointerTag,
                       WasmFuncRef::kTrustedInternalOffset));
-              __ SetVariable(maybe_external,
-                             __ Load(internal, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::TaggedPointer(),
-                                     WasmInternalFunction::kExternalOffset));
-              IF (__ TaggedEqual(__ GetVariable(maybe_external),
-                                 LOAD_ROOT(UndefinedValue))) {
-                __ SetVariable(
-                    maybe_external,
+              ScopedVar<Object> maybe_external(
+                  this, __ Load(internal, LoadOp::Kind::TaggedBase(),
+                                MemoryRepresentation::TaggedPointer(),
+                                WasmInternalFunction::kExternalOffset));
+              IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
+                maybe_external =
                     CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                         Builtin::kWasmInternalFunctionCreateExternal,
-                        Operator::kNoProperties, internal, context));
+                        Operator::kNoProperties, internal, context);
               }
-              OpIndex merge = __ GetVariable(maybe_external);
-              __ SetVariable(maybe_external, OpIndex::Invalid());
-              return merge;
+              return maybe_external;
             } else {
               return ret;
             }
@@ -270,25 +261,22 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case wasm::HeapType::kString:
           case wasm::HeapType::kI31:
           case wasm::HeapType::kAny: {
-            Variable result = __ NewVariable(RegisterRepresentation::Tagged());
+            ScopedVar<Object> result(this, OpIndex::Invalid());
             IF_NOT (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-              __ SetVariable(result, ret);
+              result = ret;
             } ELSE{
-              __ SetVariable(result, LOAD_ROOT(NullValue));
+              result = LOAD_ROOT(NullValue);
             }
-            OpIndex merge = __ GetVariable(result);
-            __ SetVariable(result, OpIndex::Invalid());
-            return merge;
+            return result;
           }
           case wasm::HeapType::kFunc:
           default: {
             if (type.heap_representation_non_shared() ==
                     wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
-              Variable result =
-                  __ NewVariable(RegisterRepresentation::Tagged());
+              ScopedVar<Object> result(this, OpIndex::Invalid());
               IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-                __ SetVariable(result, LOAD_ROOT(NullValue));
+                result = LOAD_ROOT(NullValue);
               } ELSE{
                 V<WasmInternalFunction> internal =
                     V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
@@ -304,25 +292,20 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                       CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                           Builtin::kWasmInternalFunctionCreateExternal,
                           Operator::kNoProperties, internal, context);
-                  __ SetVariable(result, from_builtin);
+                  result = from_builtin;
                 } ELSE{
-                  __ SetVariable(result, maybe_external);
+                  result = maybe_external;
                 }
               }
-              OpIndex merge = __ GetVariable(result);
-              __ SetVariable(result, OpIndex::Invalid());
-              return merge;
+              return result;
             } else {
-              Variable result =
-                  __ NewVariable(RegisterRepresentation::Tagged());
+              ScopedVar<Object> result(this, OpIndex::Invalid());
               IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-                __ SetVariable(result, LOAD_ROOT(NullValue));
+                result = LOAD_ROOT(NullValue);
               } ELSE{
-                __ SetVariable(result, ret);
+                result = ret;
               }
-              OpIndex merge = __ GetVariable(result);
-              __ SetVariable(result, OpIndex::Invalid());
-              return merge;
+              return result;
             }
           }
         }
@@ -829,27 +812,22 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kI32:
         return BuildChangeSmiToInt32(input);
       case wasm::kF32: {
-        Variable result = __ NewVariable(RegisterRepresentation::Float32());
+        ScopedVar<Float32> result(this, OpIndex::Invalid());
         IF (__ IsSmi(input)) {
-          __ SetVariable(result, __ ChangeInt32ToFloat32(__ UntagSmi(input)));
+          result = __ ChangeInt32ToFloat32(__ UntagSmi(input));
         } ELSE {
-          __ SetVariable(
-              result, __ TruncateFloat64ToFloat32(HeapNumberToFloat64(input)));
+          result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(input));
         }
-        OpIndex merge = __ GetVariable(result);
-        __ SetVariable(result, OpIndex::Invalid());
-        return merge;
+        return result;
       }
       case wasm::kF64: {
-        Variable result = __ NewVariable(RegisterRepresentation::Float64());
+        ScopedVar<Float64> result(this, OpIndex::Invalid());
         IF (__ IsSmi(input)) {
-          __ SetVariable(result, __ ChangeInt32ToFloat64(__ UntagSmi(input)));
+          result = __ ChangeInt32ToFloat64(__ UntagSmi(input));
         } ELSE{
-          __ SetVariable(result, HeapNumberToFloat64(input));
+          result = HeapNumberToFloat64(input);
         }
-        OpIndex merge = __ GetVariable(result);
-        __ SetVariable(result, OpIndex::Invalid());
-        return merge;
+        return result;
       }
       case wasm::kRef:
       case wasm::kRefNull:
@@ -872,8 +850,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   OpIndex BuildCheckString(OpIndex input, OpIndex js_context, ValueType type) {
     auto done = __ NewBlock();
     auto type_error = __ NewBlock();
-    Variable result = __ NewVariable(RegisterRepresentation::Tagged());
-    __ SetVariable(result, LOAD_ROOT(WasmNull));
+    ScopedVar<Object> result(this, LOAD_ROOT(WasmNull));
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = __ NewBlock();
@@ -885,7 +862,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     OpIndex instance_type = LoadInstanceType(map);
     OpIndex check = __ Uint32LessThan(instance_type,
                                       __ Word32Constant(FIRST_NONSTRING_TYPE));
-    __ SetVariable(result, input);
+    result = input;
     __ GotoIf(check, done, BranchHint::kTrue);
     __ Goto(type_error);
     __ Bind(type_error);
@@ -893,9 +870,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 js_context);
     __ Unreachable();
     __ Bind(done);
-    OpIndex merge = __ GetVariable(result);
-    __ SetVariable(result, OpIndex::Invalid());
-    return merge;
+    return result;
   }
 
   V<Float64> BuildChangeTaggedToFloat64(
@@ -919,9 +894,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       compiler::turboshaft::OptionalOpIndex frame_state) {
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
-    Variable result = __ NewVariable(RegisterRepresentation::Word32());
+    ScopedVar<Word32> result(this, OpIndex::Invalid());
     IF (__ IsSmi(value)) {
-      __ SetVariable(result, BuildChangeSmiToInt32(value));
+      result = BuildChangeSmiToInt32(value);
     } ELSE{
       OpIndex call =
           frame_state.valid()
@@ -931,14 +906,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               : CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
                     Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties,
                     value, context);
-      __ SetVariable(result, call);
+      result = call;
       // The source position here is needed for asm.js, see the comment on the
       // source position of the call to JavaScript in the wasm-to-js wrapper.
       __ output_graph().source_positions()[call] = SourcePosition(1);
     }
-    OpIndex merge = __ GetVariable(result);
-    __ SetVariable(result, OpIndex::Invalid());
-    return merge;
+    return result;
   }
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
@@ -1154,17 +1127,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                  SharedFunctionInfo::IsStrictBit::kMask));
 
     // Load global receiver if sloppy else use undefined.
-    Variable strict_d = __ NewVariable(RegisterRepresentation::Tagged());
+    ScopedVar<Object> strict_d(this, OpIndex::Invalid());
     IF (strict_check) {
-      __ SetVariable(strict_d, undefined_node);
+      strict_d = undefined_node;
     } ELSE {
-      __ SetVariable(strict_d,
-                     __ LoadFixedArrayElement(native_context,
-                                              Context::GLOBAL_PROXY_INDEX));
+      strict_d =
+          __ LoadFixedArrayElement(native_context, Context::GLOBAL_PROXY_INDEX);
     }
-    OpIndex result = __ GetVariable(strict_d);
-    __ SetVariable(strict_d, OpIndex::Invalid());
-    return result;
+    return strict_d;
   }
 
   V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {
@@ -1251,10 +1221,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
-    Variable result = __ NewVariable(RegisterRepresentation::Tagged());
-    __ SetVariable(result, value);
-    Variable old_sp_var = __ NewVariable(RegisterRepresentation::WordPtr());
-    __ SetVariable(old_sp_var, __ IntPtrConstant(0));
+    ScopedVar<Object> result(this, value);
+    ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
         IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {
@@ -1308,15 +1276,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         BuildSwitchBackFromCentralStack(*old_sp, suspender);
         OpIndex resolved =
             __ Call(suspend, {suspender}, suspend_call_descriptor);
-        __ SetVariable(old_sp_var, BuildSwitchToTheCentralStack(suspender));
-        __ SetVariable(result, resolved);
+        old_sp_var = BuildSwitchToTheCentralStack(suspender);
+        result = resolved;
       }
     }
-    OpIndex merge = __ GetVariable(result);
-    __ SetVariable(result, OpIndex::Invalid());
-    *old_sp = __ GetVariable(old_sp_var);
-    __ SetVariable(old_sp_var, OpIndex::Invalid());
-    return merge;
+    *old_sp = old_sp_var;
+    return result;
   }
 
   V<FixedArray> BuildMultiReturnFixedArrayFromIterable(OpIndex iterable,
