@@ -155,7 +155,8 @@ V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
-BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_remoteexec = (false|true)")
+BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
+GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
 RECLIENT_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
 
 class Reclient(IntEnum):
@@ -401,6 +402,8 @@ class RawConfig:
     new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
     new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
                                             new_gn_args)
+    # Remove stale goma_dir to silence GN warnings about unused options.
+    new_gn_args = GOMA_DIR_LINE.sub("", new_gn_args)
     if gn_args != new_gn_args:
       print(f"# Updated gn args:{BUILD_DISTRIBUTION_LINE}")
       _write(args_gn, new_gn_args, log=False)
