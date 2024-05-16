@@ -922,10 +922,10 @@ class CapturedObject {
   bool IsFixedArray() const { return tag_ == kFixedArray; }
 
   template <typename T>
-  inline void set(int offset, T value);
-  void set(int offset, ValueNode* value);
+  inline void set(unsigned int offset, T value);
+  void set(unsigned int offset, ValueNode* value);
 
-  CapturedValue& get(int offset) const;
+  CapturedValue& get(unsigned int offset) const;
   int slot_count() const { return slot_count_; }
 
   compiler::MapRef GetMap() const;
@@ -953,7 +953,7 @@ class CapturedObject {
         slots_(zone->AllocateArray<CapturedValue>(slot_count)) {}
 
   void ClearSlots(int last_init_slot);
-  void set(int offset, CapturedValue&& value);
+  void set(unsigned int offset, CapturedValue&& value);
 
   Tag tag_;
   int slot_count_;
@@ -1028,17 +1028,17 @@ struct CapturedValue {
 };
 
 template <typename T>
-inline void CapturedObject::set(int offset, T value) {
+inline void CapturedObject::set(unsigned int offset, T value) {
   set(offset, CapturedValue(value));
 }
 
-inline void CapturedObject::set(int offset, CapturedValue&& value) {
-  DCHECK_LT(offset / kTaggedSize, slot_count_);
+inline void CapturedObject::set(unsigned int offset, CapturedValue&& value) {
+  SBXCHECK_LT(offset / kTaggedSize, slot_count_);
   slots_[offset / kTaggedSize] = value;
 }
 
-inline CapturedValue& CapturedObject::get(int offset) const {
-  DCHECK_LT(offset / kTaggedSize, slot_count_);
+inline CapturedValue& CapturedObject::get(unsigned int offset) const {
+  SBXCHECK_LT(offset / kTaggedSize, slot_count_);
   return slots_[offset / kTaggedSize];
 }
 

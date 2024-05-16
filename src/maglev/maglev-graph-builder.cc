@@ -8632,6 +8632,34 @@ CapturedValue BuildElementsArray(Zone* zone, compiler::JSHeapBroker* broker,
   }
   return CapturedValue(elements);
 }
+
+std::optional<int> TryGetArrayContructorLength(CallArguments& args) {
+  if (args.count() != 1) return {};
+  ValueNode* length = args[0];
+  switch (args[0]->opcode()) {
+    case Opcode::kSmiConstant:
+      return length->Cast<SmiConstant>()->value().value();
+    case Opcode::kInt32Constant:
+      return length->Cast<Int32Constant>()->value();
+    case Opcode::kUint32Constant:
+      return length->Cast<Uint32Constant>()->value();
+    default:
+      return {};
+  }
+}
+
+compiler::OptionalMapRef GetArrayConstructorInitialMap(
+    compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
+    ElementsKind elements_kind, size_t argc, std::optional<int> maybe_length) {
+  compiler::MapRef initial_map = array_function.initial_map(broker);
+  if (argc == 1 && (!maybe_length.has_value() || *maybe_length > 0)) {
+    // Constructing an Array via new Array(N) where N is an unsigned
+    // integer, always creates a holey backing store.
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
+  return initial_map.AsElementsKind(broker, elements_kind);
+}
+
 }  // namespace
 
 ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
@@ -8640,13 +8668,13 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
   ElementsKind elements_kind = allocation_site.GetElementsKind();
   // TODO(victorgomes): Support double elements array.
   if (IsDoubleElementsKind(elements_kind)) return ReduceResult::Fail();
+  DCHECK(IsFastElementsKind(elements_kind));
 
-  compiler::OptionalMapRef maybe_initial_map =
-      array_function.initial_map(broker()).AsElementsKind(broker(),
-                                                          elements_kind);
+  std::optional<int> maybe_length = TryGetArrayContructorLength(args);
+  compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
+      broker(), array_function, elements_kind, args.count(), maybe_length);
   if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
   compiler::MapRef initial_map = maybe_initial_map.value();
-  DCHECK(IsFastElementsKind(elements_kind));
 
   compiler::SlackTrackingPrediction slack_tracking_prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
@@ -8663,63 +8691,36 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
         slack_tracking_prediction, allocation_type);
   }
 
-  if (args.count() == 1) {
-    ValueNode* length_node = args[0];
-    std::optional<int> length;
-    switch (length_node->opcode()) {
-      case Opcode::kSmiConstant:
-        length = length_node->Cast<SmiConstant>()->value().value();
-        break;
-      case Opcode::kInt32Constant:
-        length = length_node->Cast<Int32Constant>()->value();
-        break;
-      case Opcode::kUint32Constant:
-        length = length_node->Cast<Uint32Constant>()->value();
-        break;
-      default:
-        break;
-    }
+  if (maybe_length.has_value() && *maybe_length >= 0 &&
+      *maybe_length < JSArray::kInitialMaxFastElementArray) {
+    return BuildAndAllocateJSArray(
+        initial_map, GetSmiConstant(*maybe_length),
+        BuildElementsArray(zone(), broker(), *maybe_length),
+        slack_tracking_prediction, allocation_type);
+  }
 
-    if (!length.has_value() || *length > 0) {
-      // Constructing an Array via new Array(N) where N is an unsigned
-      // integer, always creates a holey backing store.
-      compiler::OptionalMapRef maybe_initial_map = initial_map.AsElementsKind(
-          broker(), GetHoleyElementsKind(elements_kind));
-      if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
-      initial_map = maybe_initial_map.value();
-    }
+  // TODO(victorgomes): If we know the argument cannot be a number, we should
+  // allocate an array with one element.
 
-    if (length.has_value() && *length >= 0 &&
-        *length < JSArray::kInitialMaxFastElementArray) {
-      return BuildAndAllocateJSArray(
-          initial_map, GetSmiConstant(*length),
-          BuildElementsArray(zone(), broker(), *length),
-          slack_tracking_prediction, allocation_type);
-    }
-
-    // TODO(victorgomes): If we know the argument cannot be a number, we should
-    // allocate an array with one element.
-
-    // We don't know anything about the length, so we rely on the allocation
-    // site to avoid deopt loops.
-    if (allocation_site.CanInlineCall()) {
-      ValueNode* int32_length = GetInt32(length_node);
-      return SelectReduction<BranchIfInt32Compare>(
-          [&] {
-            CapturedValue elements =
-                CapturedValue(AddNewNode<AllocateElementsArray>(
-                    {int32_length}, allocation_type));
-            return BuildAndAllocateJSArray(
-                initial_map, GetTaggedValue(length_node), elements,
-                slack_tracking_prediction, allocation_type);
-          },
-          [&] {
-            ValueNode* error = GetSmiConstant(
-                static_cast<int>(MessageTemplate::kInvalidArrayLength));
-            return BuildCallRuntime(Runtime::kThrowRangeError, {error});
-          },
-          {int32_length, GetInt32Constant(0)}, Operation::kGreaterThanOrEqual);
-    }
+  // We don't know anything about the length, so we rely on the allocation
+  // site to avoid deopt loops.
+  if (args.count() == 1 && allocation_site.CanInlineCall()) {
+    ValueNode* int32_length = GetInt32(args[0]);
+    return SelectReduction<BranchIfInt32Compare>(
+        [&] {
+          CapturedValue elements =
+              CapturedValue(AddNewNode<AllocateElementsArray>({int32_length},
+                                                              allocation_type));
+          return BuildAndAllocateJSArray(initial_map, GetTaggedValue(args[0]),
+                                         elements, slack_tracking_prediction,
+                                         allocation_type);
+        },
+        [&] {
+          ValueNode* error = GetSmiConstant(
+              static_cast<int>(MessageTemplate::kInvalidArrayLength));
+          return BuildCallRuntime(Runtime::kThrowRangeError, {error});
+        },
+        {int32_length, GetInt32Constant(0)}, Operation::kGreaterThanOrEqual);
   }
 
   // TODO(victorgomes): Support the constructor with argument count larger
