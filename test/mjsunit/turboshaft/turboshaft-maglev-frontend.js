@@ -1930,7 +1930,7 @@ let glob_b = 3.35;
   assertOptimized(number_to_string);
 }
 
-// Testing DeleteProperty
+// Testing DeleteProperty.
 {
   function delete_prop_strict(o) {
     "use strict";
@@ -1964,4 +1964,22 @@ let glob_b = 3.35;
   delete_prop_sloppy(o);
   assertEquals({x:25}, o);
   assertOptimized(delete_prop_sloppy);
+}
+
+// Testing Uint32->Int32 conversion.
+{
+  const arr = new Uint32Array(2);
+  function uint_to_int() {
+    return arr[0] - 2;
+  }
+
+  %PrepareFunctionForOptimization(uint_to_int);
+  assertEquals(-2, uint_to_int());
+  %OptimizeFunctionOnNextCall(uint_to_int),
+  assertEquals(-2, uint_to_int());
+  assertOptimized(uint_to_int);
+
+  arr[0] = 0xffffff35; // Does not fit in a signed Int32
+  assertEquals(0xffffff33, uint_to_int());
+  assertUnoptimized(uint_to_int);
 }

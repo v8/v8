@@ -2266,6 +2266,15 @@ class GraphBuilder {
     SetMap(node, Map(node->input()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedUint32ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0),
+                    BuildFrameState(node->eager_deopt_info()),
+                    DeoptimizeReason::kNotInt32,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, Map(node->input()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
                                 const maglev::ProcessingState& state) {
     // This is a no-op in Maglev, and also in Turboshaft where both Uint32 and
