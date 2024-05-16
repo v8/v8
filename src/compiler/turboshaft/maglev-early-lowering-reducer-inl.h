@@ -10,6 +10,7 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/objects/contexts.h"
 #include "src/objects/instance-type-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -132,7 +133,8 @@ class MaglevEarlyLoweringReducer : public Next {
     GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);
 
     // Check if the type of the result is not an object in the ECMA sense.
-    GOTO_IF(JSAnyIsNotPrimitive(construct_result), done, construct_result);
+    GOTO_IF(JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result)), done,
+            construct_result);
 
     // Throw away the result of the constructor invocation and use the
     // implicit receiver as the result.
@@ -140,6 +142,27 @@ class MaglevEarlyLoweringReducer : public Next {
 
     BIND(done, result);
     return result;
+  }
+
+  void CheckDerivedConstructResult(V<Object> construct_result,
+                                   V<FrameState> frame_state,
+                                   V<NativeContext> native_context) {
+    // The result of a derived construct should be an object (in the ECMA
+    // sense).
+    Label<> do_throw(this);
+
+    // If the result is a smi, it is *not* an object in the ECMA sense.
+    GOTO_IF(__ IsSmi(construct_result), do_throw);
+
+    // Check if the type of the result is not an object done the ECMA sense.
+    IF_NOT (JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result))) {
+      GOTO(do_throw);
+      BIND(do_throw);
+      __ CallRuntime_ThrowConstructorReturnedNonObject(isolate_, frame_state,
+                                                       native_context);
+      // ThrowConstructorReturnedNonObject should not return.
+      __ Unreachable();
+    }
   }
 
   void CheckConstTrackingLetCellTagged(V<Context> context, V<Object> value,
@@ -237,7 +260,7 @@ class MaglevEarlyLoweringReducer : public Next {
     BIND(end);
   }
 
-  V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
+  V<Word32> JSAnyIsNotPrimitive(V<HeapObject> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);
     if (V8_STATIC_ROOTS_BOOL) {
       // All primitive object's maps are allocated at the start of the read only

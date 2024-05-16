@@ -3360,13 +3360,19 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
         isolate, context, {heap_object});
   }
-  void CallRuntime_ThrowAccessedUninitializedVariable(Isolate* isolate,
-                                                      OpIndex frame_state,
-                                                      V<Context> context,
-                                                      V<Object> object) {
+  void CallRuntime_ThrowAccessedUninitializedVariable(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<Object> object) {
     CallRuntime<
         typename RuntimeCallDescriptor::ThrowAccessedUninitializedVariable>(
         isolate, frame_state, context, {object});
+  }
+  void CallRuntime_ThrowConstructorReturnedNonObject(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context) {
+    CallRuntime<
+        typename RuntimeCallDescriptor::ThrowConstructorReturnedNonObject>(
+        isolate, frame_state, context, {});
   }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,

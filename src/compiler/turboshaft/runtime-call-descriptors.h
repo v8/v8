@@ -192,6 +192,19 @@ struct RuntimeCallDescriptor {
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
+
+  struct ThrowConstructorReturnedNonObject
+      : public Descriptor<ThrowConstructorReturnedNonObject> {
+    static constexpr auto kFunction =
+        Runtime::kThrowConstructorReturnedNonObject;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -2046,3 +2046,17 @@ let glob_b = 3.35;
   assertEquals(4_000_000_000, check_int32_is_smi(1_000_000_000, true));
   assertUnoptimized(check_int32_is_smi);
 }
+
+// Testing creation of derived objects.
+{
+  class C extends Array { };
+
+  function new_derived_obj() {
+    new C();
+  }
+
+  %PrepareFunctionForOptimization(new_derived_obj);
+  new_derived_obj();
+  %OptimizeFunctionOnNextCall(new_derived_obj);
+  new_derived_obj();
+}

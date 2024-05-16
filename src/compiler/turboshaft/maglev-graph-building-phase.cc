@@ -796,6 +796,14 @@ class GraphBuilder {
                                          Map(node->implicit_receiver_input())));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckDerivedConstructResult* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+    __ CheckDerivedConstructResult(Map(node->construct_result_input()),
+                                   BuildFrameState(node->lazy_deopt_info()),
+                                   native_context());
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::SetKeyedGeneric* node,
                                 const maglev::ProcessingState& state) {
@@ -3124,7 +3132,7 @@ class GraphBuilder {
     return idx;
   }
 
-  V<Context> native_context() {
+  V<NativeContext> native_context() {
     DCHECK(native_context_.valid());
     return native_context_;
   }
@@ -3165,7 +3173,7 @@ class GraphBuilder {
   base::SmallVector<OpIndex, 16> loop_phis_first_input_;
   int loop_phis_first_input_index_ = -1;
 
-  V<Context> native_context_ = OpIndex::Invalid();
+  V<NativeContext> native_context_ = V<NativeContext>::Invalid();
   V<Object> new_target_param_ = OpIndex::Invalid();
   base::SmallVector<int, 16> predecessor_permutation_;
 };
