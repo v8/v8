@@ -2492,8 +2492,12 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForLoop* node,
                                 const maglev::ProcessingState&) {
-    // No need to update the interrupt budget once we reach Turboshaft. However,
-    // we still need to emit a StackCheck to handle interrupt requests.
+    // ReduceInterruptBudgetForLoop nodes are not emitted by Maglev when it is
+    // used as a frontend for Turboshaft.
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::HandleNoHeapWritesInterrupt* node,
+                                const maglev::ProcessingState&) {
     __ JSLoopStackCheck(native_context(),
                         BuildFrameState(node->lazy_deopt_info()));
     return maglev::ProcessResult::kContinue;

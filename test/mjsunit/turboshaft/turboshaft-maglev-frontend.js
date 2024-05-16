@@ -1983,3 +1983,25 @@ let glob_b = 3.35;
   assertEquals(0xffffff33, uint_to_int());
   assertUnoptimized(uint_to_int);
 }
+
+// Testing loops in inner functions.
+{
+  function inner_loop(x) {
+    let s = 0;
+    for (let i = 0; i < x; i++) {
+      s += i;
+    }
+    return s;
+  }
+
+  function call_loop(x) {
+    return inner_loop(x);
+  }
+
+  %PrepareFunctionForOptimization(inner_loop);
+  %PrepareFunctionForOptimization(call_loop);
+  assertEquals(15, call_loop(6));
+  %OptimizeFunctionOnNextCall(call_loop);
+  assertEquals(15, call_loop(6));
+  assertOptimized(call_loop);
+}

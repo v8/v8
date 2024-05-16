@@ -447,6 +447,11 @@ class MaglevGraphBuilder {
                      NodeType new_node_type);
   bool ShouldEmitInterruptBudgetChecks() {
     if (is_inline()) return false;
+    if (v8_flags.turboshaft_from_maglev) {
+      // As the top-tier compiler, Turboshaft doesn't need interrupt budget
+      // checks.
+      return false;
+    }
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
   bool ShouldEmitOsrInterruptBudgetChecks() {
