@@ -491,6 +491,7 @@
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -594,6 +595,9 @@
   'wasm/bigint-opt': [SKIP],
   'wasm/simd-lane-memory64': [SKIP],
   'regress/regress-1320641': [SKIP],
+
+  # Float parameters are not supported in the fast api on these platforms
+  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
@@ -2118,6 +2122,7 @@
   'compiler/fast-api-calls-throw': [FAIL],
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
+  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).

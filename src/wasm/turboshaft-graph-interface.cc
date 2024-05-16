@@ -1870,40 +1870,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     BIND(if_equal_maps);
     OpIndex receiver_handle = __ AdaptLocalArgument(receiver);
-    OpIndex options_object;
-    {
-      const int kAlign = alignof(v8::FastApiCallbackOptions);
-      const int kSize = sizeof(v8::FastApiCallbackOptions);
-
-      options_object = __ StackSlot(kSize, kAlign);
-
-      __ Store(options_object, __ Word32Constant(0),
-               StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint32(),
-               compiler::kNoWriteBarrier,
-               offsetof(v8::FastApiCallbackOptions, fallback));
-
-      static_assert(
-          sizeof(v8::FastApiCallbackOptions::data) == sizeof(intptr_t),
-          "We expected 'data' to be pointer sized, but it is not.");
-      // TODO(41492790): Provide the actual data pointer here.
-      __ Store(options_object, __ IntPtrConstant(0),
-               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-               compiler::kNoWriteBarrier,
-               offsetof(v8::FastApiCallbackOptions, data));
-
-      static_assert(
-          sizeof(v8::FastApiCallbackOptions::wasm_memory) == sizeof(intptr_t),
-          "We expected 'wasm_memory' to be pointer sized, but it is not.");
-      __ Store(options_object, __ IntPtrConstant(0),
-               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-               compiler::kNoWriteBarrier,
-               offsetof(v8::FastApiCallbackOptions, wasm_memory));
-    }
 
     const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
     size_t param_count = sig->parameter_count();
     // All normal parameters + the options as additional parameter at the end.
-    MachineSignature::Builder builder(decoder->zone(), 1, param_count + 1);
+    MachineSignature::Builder builder(decoder->zone(), 1, param_count);
     builder.AddReturn(sig->GetReturn().machine_type());
     // The first parameter is the receiver. Because of the fake handle on the
     // stack the type is `Pointer`.
@@ -1912,10 +1883,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (size_t i = 1; i < sig->parameter_count(); ++i) {
       builder.AddParam(sig->GetParam(i).machine_type());
     }
-    // Options object.
-    builder.AddParam(MachineType::Pointer());
 
-    base::SmallVector<OpIndex, 16> inputs(param_count + 1);
+    base::SmallVector<OpIndex, 16> inputs(param_count);
 
     inputs[0] = receiver_handle;
 
@@ -1926,8 +1895,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         inputs[i] = args[i].op;
       }
     }
-
-    inputs[param_count] = options_object;
 
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
@@ -1972,21 +1939,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
                                   WordRepresentation::Word32());
     }
-    Variable result =
-        __ NewVariable(RegisterRepresentation::FromMachineRepresentation(
-            sig->GetReturn().machine_representation()));
-    IF (__ Load(options_object, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::Uint32(),
-                offsetof(v8::FastApiCallbackOptions, fallback))) {
-      auto [target, ref] =
-          BuildImportedFunctionTargetAndRef(decoder, imm.index);
-      BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
-      __ SetVariable(result, returns[0].op);
-    } ELSE {
-      __ SetVariable(result, ret_val);
-    }
-    returns[0].op = __ GetVariable(result);
-    __ SetVariable(result, OpIndex::Invalid());
+    returns[0].op = ret_val;
   }
 
   bool HandleWellKnownImport(FullDecoder* decoder,

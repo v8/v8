@@ -957,17 +957,10 @@ class FastCApiObject {
   }
 
   static bool IsFastCApiObjectFastCallback(v8::Local<v8::Object> receiver,
-                                           bool should_fallback,
-                                           v8::Local<v8::Value> arg,
-                                           FastApiCallbackOptions& options) {
+                                           v8::Local<v8::Value> arg) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(false);
-    self->fast_call_count_++;
 
-    if (should_fallback) {
-      options.fallback = true;
-      return false;
-    }
+    self->fast_call_count_++;
 
     if (!arg->IsObject()) {
       return false;
@@ -998,13 +991,13 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     bool result = false;
-    if (info.Length() < 2) {
+    if (info.Length() < 1) {
       info.GetIsolate()->ThrowError(
-          "is_valid_api_object should be called with 2 arguments");
+          "is_valid_api_object should be called with an argument");
       return;
     }
-    if (info[1]->IsObject()) {
-      Local<Object> object = info[1].As<Object>();
+    if (info[0]->IsObject()) {
+      Local<Object> object = info[0].As<Object>();
       if (!IsValidApiObject(object)) {
         result = false;
       } else {
