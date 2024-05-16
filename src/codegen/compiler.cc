@@ -62,6 +62,7 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/tracing/traced-value.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
@@ -4220,7 +4221,65 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     // If it's a top-level script, report compilation to the debugger.
     Handle<Script> script(Script::cast(shared->script()), isolate);
     isolate->debug()->OnAfterCompile(script);
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+                 "ScriptCompiled", "data",
+                 AddScriptCompiledTrace(isolate, shared));
+    TRACE_EVENT1(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+        "ScriptCompiled", "data", AddScriptSourceTextTrace(isolate, shared));
   }
+}
+
+std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  i::Tagged<i::Object> context_value =
+      isolate->native_context()->debug_context_id();
+  int contextId = (IsSmi(context_value)) ? i::Smi::ToInt(context_value) : 0;
+  Script::InitLineEnds(isolate, script);
+  Script::PositionInfo endInfo;
+  Script::GetPositionInfo(script, i::String::cast(script->source())->length(),
+                          &endInfo);
+  Script::PositionInfo startInfo;
+  Script::GetPositionInfo(script, shared->StartPosition(), &startInfo);
+  auto value = v8::tracing::TracedValue::Create();
+  value->SetString("isolate",
+                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetInteger("executionContextId", contextId);
+  value->SetInteger("scriptId", script->id());
+  value->SetInteger("startLine", startInfo.line);
+  value->SetInteger("startColumn", startInfo.column);
+  value->SetInteger("endLine", endInfo.line);
+  value->SetInteger("endColumn", endInfo.column);
+  value->SetBoolean("isModule", script->origin_options().IsModule());
+  value->SetBoolean("hasSourceUrl", script->HasValidSource());
+  if (script->HasValidSource() && IsString(script->GetNameOrSourceURL())) {
+    value->SetString(
+        "sourceMapUrl",
+        i::String::cast(script->GetNameOrSourceURL())->ToCString().get());
+  }
+  value->SetString("url", i::String::cast(script->name())->ToCString().get());
+  value->SetString("hash",
+                   i::Script::GetScriptHash(isolate, script,
+                                            /* forceForInspector: */ false)
+                       ->ToCString()
+                       .get());
+  return value;
+}
+
+std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptSourceTextTrace(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  auto value = v8::tracing::TracedValue::Create();
+  value->SetString("isolate",
+                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetInteger("scriptId", script->id());
+  if (IsString(script->source())) {
+    Tagged<String> source = i::String::cast(script->source());
+    value->SetInteger("length", source->length());
+    value->SetString("sourceText", source->ToCString().get());
+  }
+  return value;
 }
 
 // ----------------------------------------------------------------------------
