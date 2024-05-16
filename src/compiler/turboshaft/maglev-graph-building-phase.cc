@@ -895,6 +895,20 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::DeleteProperty* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        Map(node->object()), Map(node->key()),
+        __ SmiConstant(Smi::FromInt(static_cast<int>(node->mode()))),
+        Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kDeleteProperty,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckSmi* node,
                                 const maglev::ProcessingState& state) {
     __ DeoptimizeIfNot(__ ObjectIsSmi(Map(node->receiver_input())),
