@@ -1348,7 +1348,6 @@
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'non-extensible-array-reduce': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
-  'regress/regress-708247': [PASS, SLOW],
   'regress/regress-779407': [PASS, SLOW],
   'regress/regress-1449567': [PASS, SLOW],
   'tools/processor': [PASS, SLOW],
@@ -1464,7 +1463,6 @@
   # Other slow tests:
   'compiler/regress-crbug-1520697': [SKIP],
   'regress/regress-1449567': [SKIP],
-  'regress/regress-708247': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -1941,7 +1939,6 @@
   'wasm/memory_2gb_oob': [SKIP],
   'wasm/memory_1gb_oob': [SKIP],
   'wasm/memory_4gb_oob': [SKIP],
-  'regress/regress-708247': [SKIP],
   # Performs GC
   'code-coverage-precise': [SKIP],
   'compiler/monomorphic-named-load-with-no-map': [SKIP],
