@@ -893,6 +893,18 @@ bool Debug::IsMutedAtAnyBreakLocation(
   return false;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void Debug::SetMutedWasmLocation(Handle<Script> script, int position) {
+  thread_local_.muted_function_ = *script;
+  thread_local_.muted_position_ = position;
+}
+
+bool Debug::IsMutedAtWasmLocation(Tagged<Script> script, int position) {
+  return script == thread_local_.muted_function_ &&
+         position == thread_local_.muted_position_;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace {
 
 // Convenience helper for easier base::Optional translation.
@@ -2516,31 +2528,42 @@ void Debug::OnException(Handle<Object> exception,
   }
 
   {
-    JavaScriptStackFrameIterator it(isolate_);
-    std::vector<BreakLocation> break_locations;
-    Handle<SharedFunctionInfo> shared;
+    StackFrameIterator it(isolate_);
     for (; !it.done(); it.Advance()) {
-      FrameSummary summary = FrameSummary::GetTop(it.frame());
-      Handle<JSFunction> function = summary.AsJavaScript().function();
-      if (function->shared()->IsSubjectToDebugging()) {
-        Handle<DebugInfo> debug_info;
-        shared = handle(function->shared(), isolate_);
-        if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
-            debug_info->HasBreakInfo()) {
-          // Enter the debugger.
-          DebugScope debug_scope(this);
-          BreakLocation::AllAtCurrentStatement(debug_info, it.frame(),
-                                               &break_locations);
+      if (it.frame()->is_java_script()) {
+        JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
+        FrameSummary summary = FrameSummary::GetTop(frame);
+        Handle<SharedFunctionInfo> shared{
+            summary.AsJavaScript().function()->shared(), isolate_};
+        if (shared->IsSubjectToDebugging()) {
+          Handle<DebugInfo> debug_info;
+          std::vector<BreakLocation> break_locations;
+          if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
+              debug_info->HasBreakInfo()) {
+            // Enter the debugger.
+            DebugScope debug_scope(this);
+            BreakLocation::AllAtCurrentStatement(debug_info, frame,
+                                                 &break_locations);
+          }
+          if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
+            return;
+          }
+          break;  // Stop at first debuggable function
         }
-        break;  // Stop at first debuggable function
       }
+#if V8_ENABLE_WEBASSEMBLY
+      else if (it.frame()->is_wasm()) {
+        const WasmFrame* frame = WasmFrame::cast(it.frame());
+        if (IsMutedAtWasmLocation(frame->script(), frame->position())) {
+          return;
+        }
+        // Wasm is always subject to debugging
+        break;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
 
     if (it.done()) return;  // Do not trigger an event with an empty stack.
-
-    if (IsMutedAtAnyBreakLocation(shared, break_locations)) {
-      return;
-    }
   }
 
   DebugScope debug_scope(this);

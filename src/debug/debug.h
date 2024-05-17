@@ -487,6 +487,13 @@ class V8_EXPORT_PRIVATE Debug {
 
   static char* Iterate(RootVisitor* v, char* thread_storage);
 
+  // Clear information pertaining to break location muting.
+  void ClearMutedLocation();
+#if V8_ENABLE_WEBASSEMBLY
+  // Mute additional pauses from this Wasm location.
+  void SetMutedWasmLocation(Handle<Script> script, int position);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -530,8 +537,8 @@ class V8_EXPORT_PRIVATE Debug {
                         bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
-  // Clear information pertaining to break location muting.
-  void ClearMutedLocation();
+
+  // Mute additional pauses from this JavaScript location.
   void SetMutedLocation(Handle<SharedFunctionInfo> function,
                         const BreakLocation& location);
 
@@ -551,6 +558,9 @@ class V8_EXPORT_PRIVATE Debug {
 
   bool IsMutedAtAnyBreakLocation(Handle<SharedFunctionInfo> function,
                                  const std::vector<BreakLocation>& locations);
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsMutedAtWasmLocation(Tagged<Script> script, int position);
+#endif  // V8_ENABLE_WEBASSEMBLY
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
   bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
@@ -663,8 +673,9 @@ class V8_EXPORT_PRIVATE Debug {
 
     // If the most recent breakpoint did not result in a break because its
     // condition was false, we will mute other break reasons if we are still at
-    // the same location. In that case, this points to the SharedFunctionInfo of
-    // the location where stopping has been muted; otherwise it is Smi::zero().
+    // the same location. In that case, this points to the SharedFunctionInfo
+    // (if JavaScript) or Script (if Wasm) of the location where stopping has
+    // been muted; otherwise it is Smi::zero().
     Tagged<Object> muted_function_;
 
     // The source position at which breaking is muted. Only relevant if

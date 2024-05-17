@@ -1243,8 +1243,13 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
   if (!IsFixedArray(*break_points)) {
     if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
                          frame_id)) {
+      // A breakpoint that doesn't break mutes traps. (Rule enables the
+      // "Never Pause Here" feature.)
+      isolate->debug()->SetMutedWasmLocation(script, position);
       return {};
     }
+    // If breakpoint does fire, clear any prior muting behavior.
+    isolate->debug()->ClearMutedLocation();
     Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
     break_points_hit->set(0, *break_points);
     return break_points_hit;
