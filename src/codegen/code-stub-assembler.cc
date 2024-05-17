@@ -2480,7 +2480,9 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 
   GotoIf(IsCleared(maybe_object), if_cleared);
 
-  GotoIf(IsStrong(maybe_object), &inner_if_strong);
+  TNode<HeapObjectReference> object_ref = CAST(maybe_object);
+
+  GotoIf(IsStrong(object_ref), &inner_if_strong);
 
   *extracted = GetHeapObjectAssumeWeak(maybe_object);
   Goto(if_weak);
