@@ -5336,11 +5336,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (func_ref) {
       builder.AddInput(func_ref->type.machine_type(), func_ref->op);
     }
-    // Add the wasm trusted instance as a real input.
-    // TODO(14616): Fix sharedness.
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
-    // The call_ref (callee) & the wasm instance.
-    const size_t kExtraLocals = func_ref != nullptr ? 2 : 1;
+    // The call_ref (callee).
+    const size_t kExtraLocals = func_ref != nullptr ? 1 : 0;
     size_t wasm_local_count = ssa_env_.size() - param_count;
     size_t local_count = kExtraLocals + decoder->stack_size() +
                          wasm_local_count - callee_sig->return_count();

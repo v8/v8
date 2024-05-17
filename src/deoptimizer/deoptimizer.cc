@@ -930,27 +930,21 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
               input_->GetFrameSize() -
               (2 + parameter_stack_slots) * kSystemPointerSize -
               WasmLiftoffFrameConstants::kInstanceDataOffset))));
+  // Set trusted instance data on output frame.
+  output_frame->SetFrameSlot(
+      base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset,
+      wasm_trusted_instance.ptr());
+  if (liftoff_description.trusted_instance != no_reg) {
+    DCHECK_EQ(liftoff_description.trusted_instance, kWasmInstanceRegister);
+    output_frame->SetRegister(liftoff_description.trusted_instance.code(),
+                              wasm_trusted_instance.ptr());
+  }
+
   DCHECK_GE(translated_state_.frames().size(), 1);
   auto liftoff_iter = liftoff_description.var_state.begin();
-  bool has_set_trusted_instance = false;
-  DCHECK_EQ(liftoff_description.var_state.size() + 1, frame.GetValueCount());
+  DCHECK_EQ(liftoff_description.var_state.size(), frame.GetValueCount());
 
   for (const TranslatedValue& value : frame) {
-    if (liftoff_iter == liftoff_description.var_state.end()) {
-      DCHECK(!has_set_trusted_instance);
-      USE(has_set_trusted_instance);
-      has_set_trusted_instance = true;
-      // The trusted instance.
-      uint32_t offset =
-          base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset;
-      output_frame->SetFrameSlot(offset, wasm_trusted_instance.ptr());
-      if (liftoff_description.trusted_instance != no_reg) {
-        DCHECK_EQ(liftoff_description.trusted_instance, kWasmInstanceRegister);
-        output_frame->SetRegister(liftoff_description.trusted_instance.code(),
-                                  wasm_trusted_instance.ptr());
-      }
-      break;
-    }
     switch (liftoff_iter->loc()) {
       case wasm::LiftoffVarState::kIntConst:
         break;  // Nothing to be done for constants in liftoff frame.
