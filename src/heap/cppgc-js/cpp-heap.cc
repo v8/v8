@@ -37,6 +37,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -694,6 +695,9 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
   sweeping_support_ = v8_flags.single_threaded_gc
                           ? CppHeap::SweepingType::kIncremental
                           : CppHeap::SweepingType::kIncrementalAndConcurrent;
+
+  page_backend_->page_pool().SetDecommitPooledPages(
+      v8_flags.decommit_pooled_pages);
 }
 
 void CppHeap::InitializeMarking(CollectionType collection_type,
