@@ -4547,7 +4547,9 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
         if (!DoubleToUint32IfEqualToSelf(value, &uint32_value)) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
         }
-        return GetUint32Constant(uint32_value);
+        if (Smi::IsValid(uint32_value)) {
+          return GetUint32Constant(uint32_value);
+        }
       }
       [[fallthrough]];
     case ValueRepresentation::kHoleyFloat64: {
