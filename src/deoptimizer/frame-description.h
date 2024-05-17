@@ -44,11 +44,18 @@ class RegisterValues {
     registers_[n] = value;
   }
 
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  void SetDoubleRegister(unsigned n, Float64 value) {
+    V8_ASSUME(n < arraysize(double_registers_));
+    double_registers_[n] = value;
+  }
+#else
   void SetDoubleRegister(unsigned n, Float64 value) {
     V8_ASSUME(n < arraysize(simd128_registers_));
     base::WriteUnalignedValue(reinterpret_cast<Address>(simd128_registers_ + n),
                               value);
   }
+#endif
 
   void SetSimd128Register(unsigned n, Simd128 value) {
     V8_ASSUME(n < arraysize(simd128_registers_));
@@ -60,7 +67,12 @@ class RegisterValues {
   // element size matches what the machine instructions expect.
   static_assert(sizeof(Simd128) == kSimd128Size, "size mismatch");
 
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  Float64 double_registers_[DoubleRegister::kNumRegisters];
+  Simd128 simd128_registers_[Simd128Register::kNumRegisters];
+#else
   Simd128 simd128_registers_[DoubleRegister::kNumRegisters];
+#endif
 };
 
 class FrameDescription {
@@ -169,6 +181,12 @@ class FrameDescription {
   static int registers_offset() {
     return offsetof(FrameDescription, register_values_.registers_);
   }
+
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  static constexpr int double_registers_offset() {
+    return offsetof(FrameDescription, register_values_.double_registers_);
+  }
+#endif
 
   static constexpr int simd128_registers_offset() {
     return offsetof(FrameDescription, register_values_.simd128_registers_);

@@ -3864,8 +3864,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  // Copy FPU registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
+  // int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  //  Copy FPU registers to
+  //  double_registers_[DoubleRegister::kNumAllocatableRegisters]
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
@@ -3874,6 +3875,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ LoadDouble(ft0, MemOperand(sp, src_offset));
     __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
+  // TODO(riscv): Add Simd128 copy
 
   // Remove the saved registers from the stack.
   __ AddWord(sp, sp, Operand(kSavedRegistersAreaSize));
