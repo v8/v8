@@ -564,6 +564,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   if (v8_flags.wasm_deopt && function.is_null()) {
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
+    compiled_optimized_wasm_code_ = code;
     DCHECK_NOT_NULL(code);
     DCHECK_EQ(code->kind(), wasm::WasmCode::kWasmFunction);
     wasm::WasmDeoptView deopt_view(code->deopt_data());
@@ -835,6 +836,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   UNREACHABLE();
 #else
   const bool is_bottommost = frame_index == 0;
+  const bool is_topmost = output_count_ - 1 == frame_index;
   // Recompile the liftoff (unoptimized) wasm code for the input frame.
   // TODO(mliedtke): This recompiles every single function even if it never got
   // optimized and exists as a liftoff variant in the WasmCodeManager as we also
@@ -897,21 +899,31 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
                 2 * kSystemPointerSize);
   uint32_t input_offset = input_->GetFrameSize();
   uint32_t output_offset = total_output_frame_size;
-  for (uint32_t i = 1; i <= parameter_stack_slots; ++i) {
-    input_offset -= kSystemPointerSize;
-    intptr_t value = input_->GetFrameSlot(input_offset);
-    output_offset -= kSystemPointerSize;
-    output_frame->SetFrameSlot(output_offset, value);
+  if (is_topmost) {
+    for (uint32_t i = 1; i <= parameter_stack_slots; ++i) {
+      input_offset -= kSystemPointerSize;
+      intptr_t value = input_->GetFrameSlot(input_offset);
+      output_offset -= kSystemPointerSize;
+      output_frame->SetFrameSlot(output_offset, value);
+    }
+  } else {
+    // Zero out the incoming parameter slots. This will make sure that tagged
+    // values are safely ignored by the gc.
+    // Note that zero is clearly not the correct value. Still, liftoff copies
+    // all parameters into "its own" stack slots at the beginning and always
+    // uses these slots to restore parameters from the stack.
+    for (uint32_t i = 0; i < parameter_stack_slots; ++i) {
+      output_offset -= kSystemPointerSize;
+      output_frame->SetFrameSlot(output_offset, 0);
+    }
   }
 
   // Store the caller PC.
-  input_offset -= kSystemPointerSize;
   output_offset -= kSystemPointerSize;
   output_frame->SetFrameSlot(
       output_offset,
       is_bottommost ? caller_pc_ : output_[frame_index - 1]->GetPc());
   // Store the caller frame pointer.
-  input_offset -= kSystemPointerSize;
   output_offset -= kSystemPointerSize;
   output_frame->SetFrameSlot(
       output_offset,
@@ -928,7 +940,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
       Tagged<WasmTrustedInstanceData>::cast(
           (Tagged<Object>(input_->GetFrameSlot(
               input_->GetFrameSize() -
-              (2 + parameter_stack_slots) * kSystemPointerSize -
+              (2 + input_->parameter_count()) * kSystemPointerSize -
               WasmLiftoffFrameConstants::kInstanceDataOffset))));
   // Set trusted instance data on output frame.
   output_frame->SetFrameSlot(
@@ -1032,14 +1044,19 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   uint32_t frame_type_offset =
       base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
   output_frame->SetFrameSlot(frame_type_offset,
-                             Smi::FromInt(StackFrame::WASM).ptr());
+                             StackFrame::TypeToMarker(StackFrame::WASM));
   // Store feedback vector in stack slot.
   Tagged<FixedArray> module_feedback =
       wasm_trusted_instance->feedback_vectors();
   uint32_t feedback_offset =
       base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-  output_frame->SetFrameSlot(
-      feedback_offset, module_feedback->get(frame.wasm_function_index()).ptr());
+  // There isn't feedback for imported functions, so feedback index 0 belongs to
+  // the first non-imported function etc.
+  uint32_t fct_feedback_index = frame.wasm_function_index() -
+                                native_module->module()->num_imported_functions;
+  CHECK_LT(fct_feedback_index, module_feedback->length());
+  output_frame->SetFrameSlot(feedback_offset,
+                             module_feedback->get(fct_feedback_index).ptr());
 
   output_frame->SetPc(wasm_code->instruction_start() +
                       liftoff_description.pc_offset);
@@ -1048,9 +1065,6 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // return to the liftoff code.
   output_frame->SetContinuation(0);
 
-  // TODO(mliedtke): This should be calculated outside the loop.
-  caller_frame_top_ = stack_fp_ + CommonFrameConstants::kFixedFrameSizeAboveFp +
-                      parameter_stack_slots * kSystemPointerSize;
   Address top = is_bottommost ? caller_frame_top_ - total_output_frame_size
                               : output_[frame_index - 1]->GetTop() -
                                     total_output_frame_size;
@@ -1080,10 +1094,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   {
     base::ElapsedTimer timer;
     // Lookup the deopt info for the input frame.
-    // TODO(mliedtke): Should we store this in the Deoptimizer instead of
-    // looking it up again?
-    wasm::WasmCode* code =
-        wasm::GetWasmCodeManager()->LookupCode(isolate_, from_);
+    wasm::WasmCode* code = compiled_optimized_wasm_code_;
     DCHECK_NOT_NULL(code);
     DCHECK_EQ(code->kind(), wasm::WasmCode::kWasmFunction);
     wasm::WasmDeoptView deopt_view(code->deopt_data());
@@ -1122,6 +1133,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
         Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
+    caller_frame_top_ = stack_fp_ +
+                        CommonFrameConstants::kFixedFrameSizeAboveFp +
+                        input_->parameter_count() * kSystemPointerSize;
 
     FILE* trace_file =
         verbose_tracing_enabled() ? trace_scope()->file() : nullptr;

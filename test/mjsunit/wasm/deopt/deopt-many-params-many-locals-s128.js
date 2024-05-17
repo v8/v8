@@ -21,6 +21,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody(generateCalleeBody(kExprI32x4Add)).exportFunc();
   builder.addFunction("sub", funcRefT)
     .addBody(generateCalleeBody(kExprI32x4Sub)).exportFunc();
+  builder.addFunction("max", funcRefT)
+    .addBody(generateCalleeBody(kExprI32x4MaxU)).exportFunc();
 
   let deoptingFct = builder.addFunction(
       "deopting", makeSig([...calleeParams, wasmRefType(funcRefT)], [kWasmI32]))
@@ -62,6 +64,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let values = [...Array(paramCount).keys()];
   let expectedSum = values.reduce((a, b) => a + b) * 4 * 2;
   let expectedDiff = values.reduce((a, b) => a - b) * 4 * 2;
+  let expectedMax = (paramCount - 1) * 4 * 2;
   assertEquals(expectedSum, -expectedDiff);
 
   let wasm = builder.instantiate().exports;
@@ -72,6 +75,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedDiff, wasm.main(0, wasm.sub));
   assertFalse(%IsTurboFanFunction(wasm.deopting));
 
+  // Repeat the test but this time with an additional layer of inlining.
+  %WasmTierUpFunction(wasm.main);
+  assertEquals(expectedSum, wasm.main(0, wasm.add));
+  assertEquals(expectedDiff, wasm.main(0, wasm.sub));
+  assertTrue(%IsTurboFanFunction(wasm.main));
+  assertEquals(expectedMax, wasm.main(0, wasm.max));
 
   function generateCalleeBody(binop) {
     let result = [kExprLocalGet, 0];

@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --turboshaft-wasm
-// Flags: --experimental-wasm-inlining --liftoff
+// Flags: --experimental-wasm-inlining --liftoff --expose-gc
 // Flags: --turboshaft-wasm-instruction-selection-staged
 // Flags: --wasm-inlining-ignore-call-counts
-// Flags: --wasm-inlining-factor=10
+// Flags: --wasm-inlining-factor=30
+// Flags: --wasm-inlining-budget=100000
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -51,26 +52,49 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .map((_, i) => types[i % types.length].type);
   let funcRefT = builder.addType(makeSig(calleeParams, [kWasmI32]));
 
+  let gcImport = builder.addImport("i", "gc", makeSig([], []));
   builder.addFunction("add", funcRefT)
     .addBody(generateCalleeBody(kExprI32Add)).exportFunc();
   builder.addFunction("sub", funcRefT)
     .addBody(generateCalleeBody(kExprI32Sub)).exportFunc();
+  builder.addFunction("add2", funcRefT)
+    .addBody(generateCalleeBody(kExprI32Add)).exportFunc();
+  builder.addFunction("addGC", funcRefT)
+    .addBody([
+      kExprCallFunction, gcImport,
+      ...generateCalleeBody(kExprI32Add)
+    ]).exportFunc();
 
   let mainParams = [...calleeParams, wasmRefType(funcRefT)];
-  builder.addFunction("main", makeSig(mainParams, [kWasmI32]))
+  let main = builder.addFunction("main", makeSig(mainParams, [kWasmI32]))
     .addBody([
       ...pushArgs(paramCount + 1),
       kExprCallRef, funcRefT,
+      // Repeat it to make sure that the parameter slots are still valid.
+      ...pushArgs(paramCount + 1),
+      kExprCallRef, funcRefT,
+      // Add both results
+      kExprI32Add,
   ]).exportFunc();
+
+  // The outer params just contain an extra dummy param in the beginning, so
+  // they don't align with the parameters of the inner function.
+  let outerParams = [kWasmI32, ...mainParams];
+  builder.addFunction("outerDirect", makeSig(outerParams, [kWasmI32]))
+  .addBody([
+    ...pushArgs(paramCount + 2),
+    kExprCallFunction, main.index,
+    kExprReturn,
+]).exportFunc();
 
   // [0, 1, ..., paramCount - 1]
   let values = [...Array(paramCount).keys()];
   let valuesTyped = values.map((_, i) => types[i % types.length].fromI32(i));
-  let expectedSum = values.reduce((a, b) => a + b);
-  let expectedDiff = values.reduce((a, b) => a - b);
+  let expectedSum = 2 * values.reduce((a, b) => a + b);
+  let expectedDiff = 2 * values.reduce((a, b) => a - b);
   assertEquals(expectedSum, -expectedDiff);
 
-  let wasm = builder.instantiate().exports;
+  let wasm = builder.instantiate({i: {gc}}).exports;
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
@@ -78,6 +102,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedDiff, wasm.main(...valuesTyped, wasm.sub));
   assertFalse(%IsTurboFanFunction(wasm.main));
 
+  // Repeat the test but this time with an additional layer of inlining.
+  assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add));
+  %WasmTierUpFunction(wasm.outerDirect);
+  assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add));
+  assertEquals(expectedDiff, wasm.outerDirect(42, ...valuesTyped, wasm.sub));
+  assertTrue(%IsTurboFanFunction(wasm.outerDirect));
+  assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
+  assertFalse(%IsTurboFanFunction(wasm.outerDirect));
+  %WasmTierUpFunction(wasm.outerDirect);
+  assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
+  assertTrue(%IsTurboFanFunction(wasm.outerDirect));
+  assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.addGC));
+  assertFalse(%IsTurboFanFunction(wasm.outerDirect));
 
   function generateCalleeBody(binop) {
     let result = [kExprLocalGet, 0, ...types[0].toI32];

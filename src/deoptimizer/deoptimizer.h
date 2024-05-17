@@ -22,6 +22,10 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class WasmCode;
+}
+
 enum class BuiltinContinuationMode;
 
 class DeoptimizedFrameInfo;
@@ -214,6 +218,9 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   Tagged<JSFunction> function_;
   Tagged<Code> compiled_code_;
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCode* compiled_optimized_wasm_code_ = nullptr;
+#endif
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;
