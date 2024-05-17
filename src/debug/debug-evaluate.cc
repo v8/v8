@@ -342,7 +342,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(StringToNumber)                      \
   /* BigInts */                          \
   V(BigIntEqualToBigInt)                 \
-  V(BigIntToBoolean)                     \
   V(BigIntToNumber)                      \
   /* Literals */                         \
   V(CreateArrayLiteral)                  \

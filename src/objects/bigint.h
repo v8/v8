@@ -210,23 +210,9 @@ V8_OBJECT class BigInt : public BigIntBase {
                                  Handle<BigInt> y);
   static MaybeHandle<BigInt> Subtract(Isolate* isolate, Handle<BigInt> x,
                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> LeftShift(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> SignedRightShift(Isolate* isolate,
-                                              Handle<BigInt> x,
-                                              Handle<BigInt> y);
-  static MaybeHandle<BigInt> UnsignedRightShift(Isolate* isolate,
-                                                Handle<BigInt> x,
-                                                Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
   static bool EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseOr(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
 
   // Other parts of the public interface.
   static MaybeHandle<BigInt> Increment(Isolate* isolate, Handle<BigInt> x);
