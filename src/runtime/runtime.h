@@ -57,7 +57,6 @@ namespace internal {
   F(AtomicsCompareExchange, 4, 1)                              \
   F(AtomicsExchange, 3, 1)                                     \
   F(AtomicsNumWaitersForTesting, 2, 1)                         \
-  F(AtomicsNumAsyncWaitersForTesting, 0, 1)                    \
   F(AtomicsNumUnresolvedAsyncPromisesForTesting, 2, 1)         \
   F(AtomicsOr, 3, 1)                                           \
   F(AtomicsSub, 3, 1)                                          \
