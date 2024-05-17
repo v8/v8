@@ -17,6 +17,7 @@
 #include "src/execution/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
 #include "src/utils/utils.h"
@@ -220,6 +221,18 @@ void CodeGenerator::AssembleCode() {
     masm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
+      info->builtin() == Builtin::kWasmToJsWrapperCSA) {
+    // By default the code generator can convert slot IDs to SP-relative memory
+    // operands depending on the offset. However, the SP may switch to the
+    // central stack at the beginning of the wrapper if the caller is on a
+    // secondary stack, and switch back at the end. So for the whole duration
+    // of the wrapper, only FP-relative addressing is valid.
+    frame_access_state()->SetFPRelativeOnly(true);
+  }
+#endif
 
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones

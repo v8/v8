@@ -1898,7 +1898,14 @@ struct FrameElisionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(FrameElision)
 
   void Run(PipelineData* data, Zone* temp_zone, bool has_dummy_end_block) {
-    FrameElider(data->sequence(), has_dummy_end_block).Run();
+#if V8_ENABLE_WEBASSEMBLY
+    bool is_wasm_to_js =
+        data->info()->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
+        data->info()->builtin() == Builtin::kWasmToJsWrapperCSA;
+#else
+    bool is_wasm_to_js = false;
+#endif
+    FrameElider(data->sequence(), has_dummy_end_block, is_wasm_to_js).Run();
   }
 };
 

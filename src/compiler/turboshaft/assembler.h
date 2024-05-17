@@ -4251,8 +4251,8 @@ class TurboshaftAssemblerOpInterface
 
   OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }
 
-  void SetStackPointer(V<WordPtr> value, wasm::FPRelativeScope fp_scope) {
-    ReduceIfReachableSetStackPointer(value, fp_scope);
+  void SetStackPointer(V<WordPtr> value) {
+    ReduceIfReachableSetStackPointer(value);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -787,7 +787,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #if V8_ENABLE_WEBASSEMBLY
   // Access to the stack pointer.
   TNode<RawPtrT> LoadStackPointer();
-  void SetStackPointer(TNode<RawPtrT> ptr, wasm::FPRelativeScope fp_scope);
+  void SetStackPointer(TNode<RawPtrT> ptr);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);

@@ -1232,7 +1232,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadParentFramePointer();
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* LoadStackPointer();
-  const Operator* SetStackPointer(wasm::FPRelativeScope fp_scope);
+  const Operator* SetStackPointer();
 #endif
 
   // Compares: stack_pointer [- offset] > value. The offset is optionally

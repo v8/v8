@@ -1926,7 +1926,7 @@ Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {
 }
 
 Node* ScheduleBuilder::ProcessOperation(const SetStackPointerOp& op) {
-  return AddNode(machine.SetStackPointer(op.fp_scope), {GetNode(op.value())});
+  return AddNode(machine.SetStackPointer(), {GetNode(op.value())});
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

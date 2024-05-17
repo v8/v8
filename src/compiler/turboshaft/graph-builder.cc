@@ -2350,8 +2350,7 @@ OpIndex GraphBuilder::Process(
       return __ LoadStackPointer();
 
     case IrOpcode::kSetStackPointer:
-      __ SetStackPointer(Map(node->InputAt(0)),
-                         OpParameter<wasm::FPRelativeScope>(node->op()));
+      __ SetStackPointer(Map(node->InputAt(0)));
       return OpIndex::Invalid();
 
 #endif  // V8_ENABLE_WEBASSEMBLY

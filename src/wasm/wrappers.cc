@@ -602,6 +602,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<JSFunction> callable_node = __ Load(ref, LoadOp::Kind::TaggedBase(),
                                           MemoryRepresentation::TaggedPointer(),
                                           WasmApiFunctionRef::kCallableOffset);
+    OpIndex old_sp = BuildSwitchToTheCentralStackIfNeeded(callable_node);
     BuildModifyThreadInWasmFlag(__ phase_zone(), false);
     OpIndex call = OpIndex::Invalid();
     switch (kind) {
@@ -662,28 +663,34 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
     DCHECK(call.valid());
     if (suspend == kSuspend) {
-      call = BuildSuspend(call, LOAD_ROOT(ActiveSuspender), ref);
+      call = BuildSuspend(call, LOAD_ROOT(ActiveSuspender), ref, &old_sp);
     } else if (suspend == kSuspendWithSuspender) {
-      call = BuildSuspend(call, suspender, ref);
+      call = BuildSuspend(call, suspender, ref, &old_sp);
     }
 
     // Convert the return value(s) back.
+    OpIndex val;
+    base::SmallVector<OpIndex, 8> wasm_values;
     if (sig_->return_count() <= 1) {
-      OpIndex val =
-          sig_->return_count() == 0
-              ? __ Word32Constant(0)
-              : FromJS(call, native_context, sig_->GetReturn(), module);
-      BuildModifyThreadInWasmFlag(__ phase_zone(), true);
-      __ Return(val);
+      val = sig_->return_count() == 0
+                ? __ Word32Constant(0)
+                : FromJS(call, native_context, sig_->GetReturn(), module);
     } else {
       V<FixedArray> fixed_array =
           BuildMultiReturnFixedArrayFromIterable(call, native_context);
-      base::SmallVector<OpIndex, 8> wasm_values(sig_->return_count());
+      wasm_values.resize_no_init(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(__ LoadFixedArrayElement(fixed_array, i),
                                 native_context, sig_->GetReturn(i), module);
       }
-      BuildModifyThreadInWasmFlag(__ phase_zone(), true);
+    }
+    BuildModifyThreadInWasmFlag(__ phase_zone(), true);
+    IF_NOT (__ WordPtrEqual(old_sp, __ IntPtrConstant(0))) {
+      BuildSwitchBackFromCentralStack(old_sp, callable_node);
+    }
+    if (sig_->return_count() <= 1) {
+      __ Return(val);
+    } else {
       __ Return(__ Word32Constant(0), base::VectorOf(wasm_values));
     }
   }
@@ -1166,7 +1173,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                    JSFunction::kContextOffset);
   }
 
-  OpIndex BuildSwitchToTheCentralStack(OpIndex callable_node) {
+  OpIndex BuildSwitchToTheCentralStack(OpIndex receiver) {
     V<WordPtr> stack_limit_slot = __ WordPtrAdd(
         __ FramePointer(),
         __ UintPtrConstant(
@@ -1178,14 +1185,27 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     OpIndex central_stack_sp = CallC(
         &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
-        {__ BitcastHeapObjectToWordPtr(callable_node), stack_limit_slot});
+        {__ BitcastHeapObjectToWordPtr(receiver), stack_limit_slot});
     OpIndex old_sp = __ LoadStackPointer();
     // Temporarily disallow sp-relative offsets.
-    __ SetStackPointer(central_stack_sp, wasm::kEnterFPRelativeOnlyScope);
+    __ SetStackPointer(central_stack_sp);
     __ Store(__ FramePointer(), central_stack_sp, StoreOp::Kind::RawAligned(),
              MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              WasmImportWrapperFrameConstants::kCentralStackSPOffset);
     return old_sp;
+  }
+
+  OpIndex BuildSwitchToTheCentralStackIfNeeded(OpIndex receiver) {
+    OpIndex isolate_root = __ LoadRootRegister();
+    OpIndex is_on_central_stack_flag = __ Load(
+        isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+        IsolateData::is_on_central_stack_flag_offset());
+    ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+    IF_NOT (is_on_central_stack_flag) {
+      OpIndex old_sp = BuildSwitchToTheCentralStack(receiver);
+      old_sp_var = old_sp;
+    }
+    return old_sp_var;
   }
 
   void BuildSwitchBackFromCentralStack(OpIndex old_sp, OpIndex receiver) {
@@ -1202,48 +1222,27 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
              compiler::kNoWriteBarrier,
              WasmImportWrapperFrameConstants::kCentralStackSPOffset);
-    __ SetStackPointer(old_sp, wasm::kLeaveFPRelativeOnlyScope);
+    __ SetStackPointer(old_sp);
   }
 
   OpIndex BuildCallOnCentralStack(OpIndex target,
                                   base::SmallVector<OpIndex, 16> args,
                                   const TSCallDescriptor* call_descriptor,
                                   OpIndex receiver) {
-    // If the current stack is a secondary stack, switch, perform the call and
-    // switch back. Otherwise, just do the call.
-    // Return the Phi of the calls in the two branches.
-    OpIndex isolate_root = __ LoadRootRegister();
-    OpIndex is_on_central_stack_flag = __ Load(
-        isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
-        IsolateData::is_on_central_stack_flag_offset());
-    Variable result_var = __ NewVariable(RegisterRepresentation::Tagged());
-    IF (LIKELY(is_on_central_stack_flag)) {
-      OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
-                             call_descriptor);
-      // For asm.js the error location can differ depending on whether an
-      // exception was thrown in imported JS code or an exception was thrown in
-      // the ToNumber builtin that converts the result of the JS code a
-      // WebAssembly value. The source position allows asm.js to determine the
-      // correct error location. Source position 1 encodes the call to ToNumber,
-      // source position 0 encodes the call to the imported JS code.
-      __ output_graph().source_positions()[call] = SourcePosition(0);
-      __ SetVariable(result_var, call);
-    } ELSE {
-      OpIndex old_sp = BuildSwitchToTheCentralStack(receiver);
-      // See comment above.
-      OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
-                             call_descriptor);
-      __ output_graph().source_positions()[call] = SourcePosition(0);
-      __ SetVariable(result_var, call);
-      BuildSwitchBackFromCentralStack(old_sp, receiver);
-    }
-    OpIndex result = __ GetVariable(result_var);
-    __ SetVariable(result_var, OpIndex::Invalid());
-    return result;
+    OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
+                           call_descriptor);
+    // For asm.js the error location can differ depending on whether an
+    // exception was thrown in imported JS code or an exception was thrown in
+    // the ToNumber builtin that converts the result of the JS code a
+    // WebAssembly value. The source position allows asm.js to determine the
+    // correct error location. Source position 1 encodes the call to ToNumber,
+    // source position 0 encodes the call to the imported JS code.
+    __ output_graph().source_positions()[call] = SourcePosition(0);
+    return call;
   }
 
   OpIndex BuildSuspend(OpIndex value, V<Object> suspender,
-                       V<Object> api_function_ref) {
+                       V<Object> api_function_ref, OpIndex* old_sp) {
     V<Context> native_context =
         __ Load(api_function_ref, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
@@ -1254,6 +1253,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     // with the promise's resolved value.
     Variable result = __ NewVariable(RegisterRepresentation::Tagged());
     __ SetVariable(result, value);
+    Variable old_sp_var = __ NewVariable(RegisterRepresentation::WordPtr());
+    __ SetVariable(old_sp_var, __ IntPtrConstant(0));
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
         IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {
@@ -1266,11 +1267,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                       native_context);
           __ Unreachable();
         }
-        // Trap if there is any JS frame on the stack.
-        OpIndex has_js_frames =
-            __ UntagSmi(__ Load(suspender, LoadOp::Kind::TaggedBase(),
-                                MemoryRepresentation::TaggedSigned(),
-                                WasmSuspenderObject::kHasJsFramesOffset));
+        // If {old_sp} is null, it must be that we were on the central stack
+        // before entering the wasm-to-js wrapper, which means that there are JS
+        // frames in the current suspender. JS frames cannot be suspended, so
+        // trap.
+        OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), *old_sp);
         IF (has_js_frames) {
           // {ThrowWasmError} expects to be called from wasm code, so set the
           // thread-in-wasm flag now.
@@ -1304,13 +1305,17 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         OpIndex suspend = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
         auto* suspend_call_descriptor = GetBuiltinCallDescriptor(
             Builtin::kWasmSuspend, __ graph_zone(), stub_mode_);
+        BuildSwitchBackFromCentralStack(*old_sp, suspender);
         OpIndex resolved =
             __ Call(suspend, {suspender}, suspend_call_descriptor);
+        __ SetVariable(old_sp_var, BuildSwitchToTheCentralStack(suspender));
         __ SetVariable(result, resolved);
       }
     }
     OpIndex merge = __ GetVariable(result);
     __ SetVariable(result, OpIndex::Invalid());
+    *old_sp = __ GetVariable(old_sp_var);
+    __ SetVariable(old_sp_var, OpIndex::Invalid());
     return merge;
   }
 

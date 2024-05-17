@@ -124,12 +124,12 @@ MachineType assert_size(int expected_size, MachineType type) {
                   MachineType::Pointer(), BuildLoadIsolateRoot(), \
                   IsolateData::root_slot_offset(RootIndex::k##RootName)))
 
-#define LOAD_MUTABLE_ROOT(RootName, factory_name)                    \
-  (isolate_                                                          \
-       ? graph()->NewNode(mcgraph()->common()->HeapConstant(         \
-             isolate_->factory()->factory_name()))                   \
-       : gasm_->Load(MachineType::Pointer(), BuildLoadIsolateRoot(), \
-                     IsolateData::root_slot_offset(RootIndex::k##RootName)))
+#define LOAD_MUTABLE_ROOT(RootName, factory_name)                 \
+  (isolate_ ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
+                  isolate_->factory()->factory_name()))           \
+            : gasm_->BitcastWordToTagged(gasm_->Load(             \
+                  MachineType::Pointer(), BuildLoadIsolateRoot(), \
+                  IsolateData::root_slot_offset(RootIndex::k##RootName))))
 
 bool ContainsSimd(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
@@ -7751,7 +7751,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  Node* BuildSuspend(Node* value, Node* suspender, Node* api_function_ref) {
+  Node* BuildSuspend(Node* value, Node* suspender, Node* api_function_ref,
+                     Node** old_sp) {
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
@@ -7760,10 +7761,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
-    auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
-    gasm_->GotoIf(IsSmi(value), &resume, value);
+    auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged,
+                                   MachineType::UintPtr().representation());
+    gasm_->GotoIf(IsSmi(value), &resume, value, *old_sp);
     gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
-                     BranchHint::kTrue, value);
+                     BranchHint::kTrue, value, *old_sp);
 
     // Trap if the suspender argument is not the active suspender or if there is
     // no active suspender.
@@ -7776,13 +7778,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto* call_descriptor =
         GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
     Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
-    // Trap if there is any JS frame on the stack.
-    Node* has_js_frames = gasm_->Load(
-        MachineType::TaggedSigned(), suspender,
-        wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kHasJsFramesOffset));
-    Node* cond = gasm_->TaggedEqual(gasm_->SmiConstant(0), has_js_frames);
+    // If {old_sp} is null, it must be that we were on the central stack before
+    // entering the wasm-to-js wrapper, which means that there are JS frames in
+    // the current suspender. JS frames cannot be suspended, so trap.
+    Node* has_js_frames = gasm_->IntPtrEqual(gasm_->IntPtrConstant(0), *old_sp);
     auto suspend = gasm_->MakeLabel();
-    gasm_->GotoIf(cond, &suspend);
+    gasm_->GotoIfNot(has_js_frames, &suspend);
     // {ThrowWasmError} expects to be called from wasm code, so set the
     // thread-in-wasm flag now.
     // Usually we set this flag later so that it stays off while we convert the
@@ -7807,28 +7808,26 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     auto* then_call_desc = GetBuiltinCallDescriptor(
         Builtin::kPerformPromiseThen, zone_, StubCallMode::kCallBuiltinPointer);
-    Node* target = gasm_->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
-    base::SmallVector<Node*, 16> args(8);
-    int pos = 0;
-    args[pos++] = target;
-    args[pos++] = value;
-    args[pos++] = on_fulfilled;
-    args[pos++] = on_rejected;
-    args[pos++] = UndefinedValue();
-    args[pos++] = native_context;
-    BuildCallOnCentralStack(args, pos, then_call_desc, suspender);
+    Node* then_target =
+        gasm_->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
+    gasm_->Call(then_call_desc, then_target, value, on_fulfilled, on_rejected,
+                UndefinedValue(), native_context);
 
+    BuildSwitchBackFromCentralStack(*old_sp, suspender);
     Node* resolved = gasm_->Call(call_descriptor, call_target, suspender);
-    gasm_->Goto(&resume, resolved);
+    BuildSwitchToTheCentralStack(suspender);
+    gasm_->Goto(&resume, resolved, *old_sp);
+
     gasm_->Bind(&bad_suspender);
     BuildCallToRuntimeWithContext(Runtime::kThrowBadSuspenderError,
                                   native_context, nullptr, 0);
     TerminateThrow(effect(), control());
     gasm_->Bind(&resume);
+    *old_sp = resume.PhiAt(1);
     return resume.PhiAt(0);
   }
 
-  Node* BuildSwitchToTheCentralStack(Node* callable_node) {
+  Node* BuildSwitchToTheCentralStack(Node* receiver) {
     Node* stack_limit_slot = gasm_->IntPtrAdd(
         gasm_->LoadFramePointer(),
         gasm_->IntPtrConstant(
@@ -7841,10 +7840,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     MachineSignature sig(1, 2, reps);
 
     Node* central_stack_sp =
-        BuildCCall(&sig, do_switch, callable_node, stack_limit_slot);
+        BuildCCall(&sig, do_switch, receiver, stack_limit_slot);
     Node* old_sp = gasm_->LoadStackPointer();
     // Temporarily disallow sp-relative offsets.
-    gasm_->SetStackPointer(central_stack_sp, wasm::kEnterFPRelativeOnlyScope);
+    gasm_->SetStackPointer(central_stack_sp);
     gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                      kNoWriteBarrier),
                  gasm_->LoadFramePointer(),
@@ -7868,46 +7867,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                  gasm_->LoadFramePointer(),
                  WasmImportWrapperFrameConstants::kCentralStackSPOffset,
                  gasm_->IntPtrConstant(0));
-    gasm_->SetStackPointer(old_sp, wasm::kLeaveFPRelativeOnlyScope);
+    gasm_->SetStackPointer(old_sp);
   }
 
-  Node* BuildCallOnCentralStack(base::SmallVector<Node*, 16>& args, int& pos,
-                                CallDescriptor* call_descriptor,
-                                Node* callable_node) {
-    // If the current stack is a secondary stack, switch, perform the call and
-    // switch back. Otherwise, just do the call.
-    // Return the Phi of the calls in the two branches.
-    auto do_switch = gasm_->MakeDeferredLabel();
+  Node* BuildSwitchToTheCentralStackIfNeeded(Node* receiver) {
+    // If the current stack is a secondary stack, switch to the central stack.
     auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
     Node* isolate_root = BuildLoadIsolateRoot();
     Node* is_on_central_stack_flag =
         gasm_->Load(MachineType::Uint8(), isolate_root,
                     IsolateData::is_on_central_stack_flag_offset());
-    gasm_->GotoIfNot(is_on_central_stack_flag, &do_switch);
+    gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kNone,
+                  gasm_->IntPtrConstant(0));
 
-    args[pos++] = effect();
-    args[pos++] = control();
-    DCHECK_EQ(pos, args.size());
-    Node* call = gasm_->Call(call_descriptor, pos, args.begin());
-    // For asm.js the error location can differ depending on whether an
-    // exception was thrown in imported JS code or an exception was thrown in
-    // the ToNumber builtin that converts the result of the JS code a
-    // WebAssembly value. The source position allows asm.js to determine the
-    // correct error location. Source position 1 encodes the call to ToNumber,
-    // source position 0 encodes the call to the imported JS code.
-    SetSourcePosition(call, 0);
-    gasm_->Goto(&end, call);
-
-    gasm_->Bind(&do_switch);
-    Node* old_sp = BuildSwitchToTheCentralStack(callable_node);
-    args[pos - 2] = effect();
-    args[pos - 1] = control();
-
-    call = gasm_->Call(call_descriptor, pos, args.begin());
-    // See comment above.
-    SetSourcePosition(call, 0);
-    BuildSwitchBackFromCentralStack(old_sp, callable_node);
-    gasm_->Goto(&end, call);
+    Node* old_sp = BuildSwitchToTheCentralStack(receiver);
+    gasm_->Goto(&end, old_sp);
 
     gasm_->Bind(&end);
     return end.PhiAt(0);
@@ -7940,6 +7914,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* callable_node = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));
+    Node* old_sp = BuildSwitchToTheCentralStackIfNeeded(callable_node);
 
     Node* undefined_node = UndefinedValue();
     Node* call = nullptr;
@@ -7976,11 +7951,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         Node* function_context =
             gasm_->LoadContextFromJSFunction(callable_node);
         args[pos++] = function_context;
+        args[pos++] = effect();
+        args[pos++] = control();
 
         auto call_descriptor = Linkage::GetJSCallDescriptor(
             graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
+        call = gasm_->Call(call_descriptor, pos, args.begin());
         break;
       }
       // =======================================================================
@@ -8011,38 +7987,58 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // TypeError, if the target is a native function, or if the target is a
         // callable JSObject, which can only be constructed by the runtime.
         args[pos++] = native_context;
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
+        args[pos++] = effect();
+        args[pos++] = control();
+        call = gasm_->Call(call_descriptor, pos, args.begin());
         break;
       }
       default:
         UNREACHABLE();
     }
+    // For asm.js the error location can differ depending on whether an
+    // exception was thrown in imported JS code or an exception was thrown in
+    // the ToNumber builtin that converts the result of the JS code a
+    // WebAssembly value. The source position allows asm.js to determine the
+    // correct error location. Source position 1 encodes the call to ToNumber,
+    // source position 0 encodes the call to the imported JS code.
+    SetSourcePosition(call, 0);
     DCHECK_NOT_NULL(call);
 
     if (suspend == wasm::kSuspend) {
-      Node* active_suspender = LOAD_ROOT(ActiveSuspender, active_suspender);
-      call = BuildSuspend(call, active_suspender, Param(0));
+      Node* active_suspender =
+          LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
+      call = BuildSuspend(call, active_suspender, Param(0), &old_sp);
     } else if (suspend == wasm::kSuspendWithSuspender) {
-      call = BuildSuspend(call, Param(1), Param(0));
+      call = BuildSuspend(call, Param(1), Param(0), &old_sp);
     }
 
     // Convert the return value(s) back.
+    Node* val;
+    base::SmallVector<Node*, 8> wasm_values;
     if (sig_->return_count() <= 1) {
-      Node* val = sig_->return_count() == 0
-                      ? Int32Constant(0)
-                      : FromJS(call, native_context, sig_->GetReturn(), module);
-      BuildModifyThreadInWasmFlag(true);
-      Return(val);
+      val = sig_->return_count() == 0
+                ? Int32Constant(0)
+                : FromJS(call, native_context, sig_->GetReturn(), module);
     } else {
       Node* fixed_array =
           BuildMultiReturnFixedArrayFromIterable(sig_, call, native_context);
-      base::SmallVector<Node*, 8> wasm_values(sig_->return_count());
+      wasm_values.resize_no_init(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(gasm_->LoadFixedArrayElementAny(fixed_array, i),
                                 native_context, sig_->GetReturn(i), module);
       }
-      BuildModifyThreadInWasmFlag(true);
+    }
+    BuildModifyThreadInWasmFlag(true);
+
+    auto done = gasm_->MakeLabel();
+    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done);
+    BuildSwitchBackFromCentralStack(old_sp, callable_node);
+    gasm_->Goto(&done);
+    gasm_->Bind(&done);
+
+    if (sig_->return_count() <= 1) {
+      Return(val);
+    } else {
       Return(base::VectorOf(wasm_values));
     }
 

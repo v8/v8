@@ -8479,15 +8479,12 @@ struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
 };
 
 struct SetStackPointerOp : FixedArityOperationT<1, SetStackPointerOp> {
-  wasm::FPRelativeScope fp_scope;
-
   // TODO(nicohartmann@): Review effects.
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
   OpIndex value() const { return Base::input(0); }
 
-  SetStackPointerOp(OpIndex value, wasm::FPRelativeScope fp_scope)
-      : Base(value), fp_scope(fp_scope) {}
+  explicit SetStackPointerOp(OpIndex value) : Base(value) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -8497,7 +8494,7 @@ struct SetStackPointerOp : FixedArityOperationT<1, SetStackPointerOp> {
   }
 
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{fp_scope}; }
+  auto options() const { return std::tuple{}; }
 };
 
 #endif  // V8_ENABLE_WEBASSEMBLY

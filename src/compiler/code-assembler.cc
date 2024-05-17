@@ -594,9 +594,8 @@ TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
 }
 
-void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr,
-                                    wasm::FPRelativeScope fp_scope) {
-  raw_assembler()->SetStackPointer(ptr, fp_scope);
+void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr) {
+  raw_assembler()->SetStackPointer(ptr);
 }
 #endif
 

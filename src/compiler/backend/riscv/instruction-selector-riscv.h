@@ -2399,15 +2399,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   OperandGenerator g(this);
   auto input = g.UseRegister(this->input_at(node, 0));
-  wasm::FPRelativeScope fp_scope;
-  if constexpr (Adapter::IsTurboshaft) {
-    fp_scope =
-        this->Get(node).template Cast<turboshaft::SetStackPointerOp>().fp_scope;
-  } else {
-    fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
-  }
-  Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
-       &input);
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 #endif
 }  // namespace compiler

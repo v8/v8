@@ -4757,9 +4757,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<Uint8T> property_details,
                               Label* needs_resize);
 
-  TNode<Object> CallOnCentralStack(TNode<Context> context, TNode<Object> target,
-                                   TNode<Int32T> num_args,
-                                   TNode<FixedArray> args);
+  // If the current code is running on a secondary stack, move the stack pointer
+  // to the central stack (but not the frame pointer) and adjust the stack
+  // limit. Returns the old stack pointer, or nullptr if no switch was
+  // performed.
+  TNode<RawPtrT> SwitchToTheCentralStackIfNeeded(TNode<Object> receiver);
+  // Switch the SP back to the secondary stack after switching to the central
+  // stack.
+  void SwitchFromTheCentralStack(TNode<RawPtrT> old_sp, TNode<Object> receiver);
 
   TNode<BoolT> IsMarked(TNode<Object> object);
 
@@ -4918,9 +4923,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, ElementsKind elements_kind,
       TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
 
-  TNode<RawPtrT> SwitchToTheCentralStackForJS(TNode<Object> callable_node);
-  void SwitchFromTheCentralStackForJS(TNode<RawPtrT> old_sp,
-                                      TNode<Object> callable);
+  TNode<RawPtrT> SwitchToTheCentralStack(TNode<Object> receiver);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
