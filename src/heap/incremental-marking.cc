@@ -234,7 +234,7 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
     : public RootVisitor {
  public:
   explicit IncrementalMarkingRootMarkingVisitor(Heap* heap)
-      : heap_(heap), incremental_marking_(heap->incremental_marking()) {}
+      : incremental_marking_(heap->incremental_marking()) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -262,18 +262,14 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
 
     if (InAnySharedSpace(heap_object) || InReadOnlySpace(heap_object)) return;
 
-    if (incremental_marking_->IsMajorMarking()) {
-      if (incremental_marking_->WhiteToGreyAndPush(heap_object)) {
-        if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-          heap_->AddRetainingRoot(root, heap_object);
-        }
-      }
-    } else if (Heap::InYoungGeneration(heap_object)) {
+    if (incremental_marking_->IsMajorMarking() ||
+        Heap::InYoungGeneration(heap_object)) {
+      // Either major marking, or minor marking and the object is in the young
+      // generation.
       incremental_marking_->WhiteToGreyAndPush(heap_object);
     }
   }
 
-  Heap* const heap_;
   IncrementalMarking* const incremental_marking_;
 };
 

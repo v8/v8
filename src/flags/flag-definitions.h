@@ -1865,8 +1865,6 @@ DEFINE_GENERIC_IMPLICATION(
     trace_zone_type_stats,
     TracingFlags::zone_stats.store(
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
-DEFINE_BOOL(track_retaining_path, false,
-            "enable support for tracking retaining path")
 DEFINE_DEBUG_BOOL(trace_backing_store, false, "trace backing store events")
 DEFINE_INT(gc_stats, 0, "Used by tracing internally to enable gc statistics")
 DEFINE_IMPLICATION(trace_gc_object_stats, track_gc_object_stats)
@@ -1882,8 +1880,6 @@ DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
 DEFINE_NEG_NEG_IMPLICATION(incremental_marking, concurrent_marking)
 DEFINE_NEG_NEG_IMPLICATION(parallel_marking, concurrent_marking)
 DEFINE_IMPLICATION(concurrent_marking, incremental_marking)
-DEFINE_NEG_IMPLICATION(track_retaining_path, parallel_marking)
-DEFINE_NEG_IMPLICATION(track_retaining_path, concurrent_marking)
 DEFINE_BOOL(track_detached_contexts, true,
             "track native contexts that are expected to be garbage collected")
 DEFINE_BOOL(trace_detached_contexts, false,

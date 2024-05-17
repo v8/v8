@@ -87,11 +87,7 @@ void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
       WhiteToGreyAndPush(value);  // NEW->NEW
     }
   } else {
-    if (WhiteToGreyAndPush(value)) {
-      if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-        heap_->AddRetainingRoot(Root::kWriteBarrier, value);
-      }
-    }
+    WhiteToGreyAndPush(value);
   }
 }
 

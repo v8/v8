@@ -25,9 +25,6 @@ void MarkCompactCollector::MarkObject(Tagged<HeapObject> host,
   DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
   if (marking_state_->TryMark(obj)) {
     local_marking_worklists_->Push(obj);
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_->AddRetainer(host, obj);
-    }
   }
 }
 

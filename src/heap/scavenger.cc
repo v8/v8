@@ -497,10 +497,6 @@ void ScavengerCollector::CollectGarbage() {
 
     heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
 
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_->UpdateRetainersAfterScavenge();
-    }
-
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
       isolate_->string_forwarding_table()->UpdateAfterYoungEvacuation();
     }

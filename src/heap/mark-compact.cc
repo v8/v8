@@ -262,12 +262,6 @@ class MainMarkingVisitor final
     MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
   }
 
-  TraceRetainingPathMode retaining_path_mode() {
-    return (V8_UNLIKELY(v8_flags.track_retaining_path))
-               ? TraceRetainingPathMode::kEnabled
-               : TraceRetainingPathMode::kDisabled;
-  }
-
   friend class MarkingVisitorBase<MainMarkingVisitor>;
 };
 
@@ -891,9 +885,6 @@ void MarkCompactCollector::MarkRootObject(Root root, Tagged<HeapObject> obj) {
   DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
   if (marking_state_->TryMark(obj)) {
     local_marking_worklists_->Push(obj);
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_->AddRetainingRoot(root, obj);
-    }
   }
 }
 
@@ -2394,9 +2385,6 @@ void MarkCompactCollector::RetainMaps() {
         if (ShouldRetainMap(marking_state_, map, age)) {
           if (marking_state_->TryMark(map)) {
             local_marking_worklists_->Push(map);
-          }
-          if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-            heap_->AddRetainingRoot(Root::kRetainMaps, map);
           }
         }
         Tagged<Object> prototype = map->prototype();

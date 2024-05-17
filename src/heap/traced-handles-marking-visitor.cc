@@ -46,19 +46,17 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
       return;
     }
     Tagged<HeapObject> heap_object = HeapObject::cast(object);
-    if (InReadOnlySpace(heap_object)) return;
+    if (!ShouldMarkObject(heap_object)) return;
     if (marking_state_.TryMark(heap_object)) {
       local_marking_worklist_.Push(heap_object);
-    }
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_.AddRetainingRoot(Root::kTracedHandles, heap_object);
     }
   }
 }
 
 bool ConservativeTracedHandlesMarkingVisitor::ShouldMarkObject(
     Tagged<HeapObject> object) const {
-  // Keep up-to-date with MarkCompactCollector::ShouldMarkObject.
+  // Keep up-to-date with `MarkCompactCollector::ShouldMarkObject()`.
+  if (InReadOnlySpace(object)) return false;
   if (V8_LIKELY(!has_shared_space_)) return true;
   if (is_shared_space_isolate_) return true;
   return !InAnySharedSpace(object);

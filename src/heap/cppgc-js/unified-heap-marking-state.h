@@ -35,7 +35,6 @@ class UnifiedHeapMarkingState final {
   const bool is_shared_space_isolate_;
   MarkingState* const marking_state_;
   MarkingWorklists::Local* local_marking_worklist_ = nullptr;
-  const bool track_retaining_path_;
   const TracedHandles::MarkMode mark_mode_;
 };
 

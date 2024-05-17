@@ -77,11 +77,9 @@ class ConcurrentMarkingVisitor final
   // Returns true if value was actually marked.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value) {
     if (IsMarked(key)) {
-      if (TryMark(value)) {
-        local_marking_worklists_->Push(value);
+      if (MarkObject(key, value)) {
         return true;
       }
-
     } else if (IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
@@ -115,10 +113,6 @@ class ConcurrentMarkingVisitor final
       data.typed_slots.reset(new TypedSlots());
     }
     data.typed_slots->Insert(info.slot_type, info.offset);
-  }
-
-  TraceRetainingPathMode retaining_path_mode() {
-    return TraceRetainingPathMode::kDisabled;
   }
 
   MemoryChunkDataMap* memory_chunk_data_;

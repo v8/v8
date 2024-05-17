@@ -36,7 +36,6 @@ struct EphemeronMarking {
 // - TryMark
 // - IsMarked
 // - MarkPointerTableEntry
-// - retaining_path_mode
 // - RecordSlot
 // - RecordRelocSlot
 //
@@ -170,8 +169,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
     return !InAnySharedSpace(object);
   }
 
-  // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj);
+  // Marks the object  and pushes it on the marking work list. The `retainer` is
+  // used for the reference summarizer to valide that the heap snapshot is in
+  // sync with the marker.
+  V8_INLINE bool MarkObject(Tagged<HeapObject> retainer,
+                            Tagged<HeapObject> obj);
 
   V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
     return false;

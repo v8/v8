@@ -1323,7 +1323,6 @@ void Heap::CreateInitialMutableObjects() {
   set_many_closures_cell(*many_closures_cell);
 
   set_detached_contexts(roots.empty_weak_array_list());
-  set_retaining_path_targets(roots.empty_weak_array_list());
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
   set_functions_marked_for_manual_optimization(roots.undefined_value());

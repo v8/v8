@@ -143,8 +143,6 @@ enum class InvalidateExternalPointerSlots { kYes, kNo };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
-enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
-
 enum class SkipRoot {
   kExternalStringTable,
   kGlobalHandles,
@@ -1518,16 +1516,6 @@ class Heap final {
   }
 
   // ===========================================================================
-  // Retaining path tracking. ==================================================
-  // ===========================================================================
-
-  // Adds the given object to the weak table of retaining path targets.
-  // On each GC if the marker discovers the object, it will print the retaining
-  // path. This requires --track-retaining-path flag.
-  void AddRetainingPathTarget(Handle<HeapObject> object,
-                              RetainingPathOption option);
-
-  // ===========================================================================
   // Stack frame support. ======================================================
   // ===========================================================================
 
@@ -2052,22 +2040,6 @@ class Heap final {
   // Helper for IsPendingAllocation.
   inline bool IsPendingAllocationInternal(Tagged<HeapObject> object);
 
-  // ===========================================================================
-  // Retaining path tracing ====================================================
-  // ===========================================================================
-
-  void AddRetainer(Tagged<HeapObject> retainer, Tagged<HeapObject> object);
-  void AddEphemeronRetainer(Tagged<HeapObject> retainer,
-                            Tagged<HeapObject> object);
-  void AddRetainingRoot(Root root, Tagged<HeapObject> object);
-  // Returns true if the given object is a target of retaining path tracking.
-  // Stores the option corresponding to the object in the provided *option.
-  bool IsRetainingPathTarget(Tagged<HeapObject> object,
-                             RetainingPathOption* option);
-  void PrintRetainingPath(Tagged<HeapObject> object,
-                          RetainingPathOption option);
-  void UpdateRetainersAfterScavenge();
-
 #ifdef DEBUG
   V8_EXPORT_PRIVATE void IncrementObjectCounters();
 #endif  // DEBUG
@@ -2407,15 +2379,6 @@ class Heap final {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
-
-  UnorderedHeapObjectMap<Tagged<HeapObject>> retainer_;
-  UnorderedHeapObjectMap<Root> retaining_root_;
-  // If an object is retained by an ephemeron, then the retaining key of the
-  // ephemeron is stored in this map.
-  UnorderedHeapObjectMap<Tagged<HeapObject>> ephemeron_retainer_;
-  // For each index in the retaining_path_targets_ array this map
-  // stores the option of the corresponding target.
-  std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 

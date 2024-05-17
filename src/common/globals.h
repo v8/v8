@@ -2541,8 +2541,6 @@ V8_INLINE bool operator!(ExceptionStatus status) {
   return !static_cast<bool>(status);
 }
 
-enum class TraceRetainingPathMode { kEnabled, kDisabled };
-
 // Used in the ScopeInfo flags fields for the function name variable for named
 // function expressions, and for the receiver. Must be declared here so that it
 // can be used in Torque.

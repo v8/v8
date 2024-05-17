@@ -36,18 +36,17 @@ namespace internal {
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::MarkObject(
-    Tagged<HeapObject> host, Tagged<HeapObject> object) {
+bool MarkingVisitorBase<ConcreteVisitor>::MarkObject(
+    Tagged<HeapObject> retainer, Tagged<HeapObject> object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
   SynchronizePageAccess(object);
-  concrete_visitor()->AddStrongReferenceForReferenceSummarizer(host, object);
+  concrete_visitor()->AddStrongReferenceForReferenceSummarizer(retainer,
+                                                               object);
   if (concrete_visitor()->TryMark(object)) {
     local_marking_worklists_->Push(object);
-    if (V8_UNLIKELY(concrete_visitor()->retaining_path_mode() ==
-                    TraceRetainingPathMode::kEnabled)) {
-      heap_->AddRetainer(host, object);
-    }
+    return true;
   }
+  return false;
 }
 
 // class template arguments

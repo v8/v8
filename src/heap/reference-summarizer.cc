@@ -116,10 +116,6 @@ class ReferenceSummarizerMarkingVisitor
     marking_state_->AddWeakReferenceForReferenceSummarizer(host, obj);
   }
 
-  TraceRetainingPathMode retaining_path_mode() {
-    return TraceRetainingPathMode::kDisabled;
-  }
-
   constexpr bool CanUpdateValuesInHeap() { return false; }
 
   // Standard marking visitor functions:

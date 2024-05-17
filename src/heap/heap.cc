@@ -1008,86 +1008,6 @@ void Heap::RemoveHeapObjectAllocationTracker(
   }
 }
 
-void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
-                                  RetainingPathOption option) {
-  if (!v8_flags.track_retaining_path) {
-    PrintF("Retaining path tracking requires --track-retaining-path\n");
-  } else {
-    Handle<WeakArrayList> array(retaining_path_targets(), isolate());
-    int index = array->length();
-    array = WeakArrayList::AddToEnd(isolate(), array,
-                                    MaybeObjectHandle::Weak(object));
-    set_retaining_path_targets(*array);
-    DCHECK_EQ(array->length(), index + 1);
-    retaining_path_target_option_[index] = option;
-  }
-}
-
-bool Heap::IsRetainingPathTarget(Tagged<HeapObject> object,
-                                 RetainingPathOption* option) {
-  Tagged<WeakArrayList> targets = retaining_path_targets();
-  int length = targets->length();
-  Tagged<MaybeObject> object_to_check = MakeWeak(object);
-  for (int i = 0; i < length; i++) {
-    Tagged<MaybeObject> target = targets->Get(i);
-    DCHECK(target.IsWeakOrCleared());
-    if (target == object_to_check) {
-      DCHECK(retaining_path_target_option_.count(i));
-      *option = retaining_path_target_option_[i];
-      return true;
-    }
-  }
-  return false;
-}
-
-void Heap::PrintRetainingPath(Tagged<HeapObject> target,
-                              RetainingPathOption option) {
-  PrintF("\n\n\n");
-  PrintF("#################################################\n");
-  PrintF("Retaining path for %p:\n", reinterpret_cast<void*>(target.ptr()));
-  Tagged<HeapObject> object = target;
-  std::vector<std::pair<Tagged<HeapObject>, bool>> retaining_path;
-  base::Optional<Root> root;
-  bool ephemeron = false;
-  while (true) {
-    retaining_path.push_back(std::make_pair(object, ephemeron));
-    if (option == RetainingPathOption::kTrackEphemeronPath &&
-        ephemeron_retainer_.count(object)) {
-      object = ephemeron_retainer_[object];
-      ephemeron = true;
-    } else if (retainer_.count(object)) {
-      object = retainer_[object];
-      ephemeron = false;
-    } else {
-      if (retaining_root_.count(object)) {
-        root.emplace(retaining_root_[object]);
-      }
-      break;
-    }
-  }
-  int distance = static_cast<int>(retaining_path.size());
-  for (auto node : retaining_path) {
-    Tagged<HeapObject> node_object = node.first;
-    bool node_ephemeron = node.second;
-    PrintF("\n");
-    PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-    PrintF("Distance from root %d%s: ", distance,
-           node_ephemeron ? " (ephemeron)" : "");
-    ShortPrint(*node_object);
-    PrintF("\n");
-#ifdef OBJECT_PRINT
-    i::Print(*node_object);
-    PrintF("\n");
-#endif
-    --distance;
-  }
-  PrintF("\n");
-  PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-  PrintF("Root: %s\n",
-         root.has_value() ? RootVisitor::RootName(root.value()) : "Unknown");
-  PrintF("-------------------------------------------------\n");
-}
-
 void UpdateRetainersMapAfterScavenge(
     UnorderedHeapObjectMap<Tagged<HeapObject>>* map) {
   // This is only used for Scavenger.
@@ -1115,70 +1035,6 @@ void UpdateRetainersMapAfterScavenge(
   }
 
   *map = std::move(updated_map);
-}
-
-void Heap::UpdateRetainersAfterScavenge() {
-  if (!incremental_marking()->IsMarking()) return;
-  DCHECK(incremental_marking()->IsMajorMarking());
-
-  // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_ms);
-
-  UpdateRetainersMapAfterScavenge(&retainer_);
-  UpdateRetainersMapAfterScavenge(&ephemeron_retainer_);
-
-  UnorderedHeapObjectMap<Root> updated_retaining_root;
-
-  for (auto pair : retaining_root_) {
-    Tagged<HeapObject> object = pair.first;
-
-    if (Heap::InFromPage(object)) {
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      if (!map_word.IsForwardingAddress()) continue;
-      object = map_word.ToForwardingAddress(object);
-    }
-
-    updated_retaining_root[object] = pair.second;
-  }
-
-  retaining_root_ = std::move(updated_retaining_root);
-}
-
-void Heap::AddRetainer(Tagged<HeapObject> retainer, Tagged<HeapObject> object) {
-  if (retainer_.count(object)) return;
-  retainer_[object] = retainer;
-  RetainingPathOption option = RetainingPathOption::kDefault;
-  if (IsRetainingPathTarget(object, &option)) {
-    // Check if the retaining path was already printed in
-    // AddEphemeronRetainer().
-    if (ephemeron_retainer_.count(object) == 0 ||
-        option == RetainingPathOption::kDefault) {
-      PrintRetainingPath(object, option);
-    }
-  }
-}
-
-void Heap::AddEphemeronRetainer(Tagged<HeapObject> retainer,
-                                Tagged<HeapObject> object) {
-  if (ephemeron_retainer_.count(object)) return;
-  ephemeron_retainer_[object] = retainer;
-  RetainingPathOption option = RetainingPathOption::kDefault;
-  if (IsRetainingPathTarget(object, &option) &&
-      option == RetainingPathOption::kTrackEphemeronPath) {
-    // Check if the retaining path was already printed in AddRetainer().
-    if (retainer_.count(object) == 0) {
-      PrintRetainingPath(object, option);
-    }
-  }
-}
-
-void Heap::AddRetainingRoot(Root root, Tagged<HeapObject> object) {
-  if (retaining_root_.count(object)) return;
-  retaining_root_[object] = root;
-  RetainingPathOption option = RetainingPathOption::kDefault;
-  if (IsRetainingPathTarget(object, &option)) {
-    PrintRetainingPath(object, option);
-  }
 }
 
 void Heap::IncrementDeferredCounts(
@@ -1438,13 +1294,6 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   AllowGarbageCollection for_the_rest_of_the_epilogue;
 
   UpdateMaximumCommitted();
-
-  if (v8_flags.track_retaining_path &&
-      collector == GarbageCollector::MARK_COMPACTOR) {
-    retainer_.clear();
-    ephemeron_retainer_.clear();
-    retaining_root_.clear();
-  }
 
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));

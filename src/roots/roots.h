@@ -374,7 +374,6 @@ class RootVisitor;
   V(WeakArrayList, script_list, ScriptList)                                 \
   V(FixedArray, materialized_objects, MaterializedObjects)                  \
   V(WeakArrayList, detached_contexts, DetachedContexts)                     \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)            \
   /* Feedback vectors that we need for code coverage or type profile */     \
   V(Object, feedback_vectors_for_profiling_tools,                           \
     FeedbackVectorsForProfilingTools)                                       \
