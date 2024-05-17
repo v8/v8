@@ -244,8 +244,6 @@ namespace internal {
   F(AllocateByteArray, 1, 1)                               \
   F(AllocateInYoungGeneration, 2, 1)                       \
   F(AllocateInOldGeneration, 2, 1)                         \
-  F(AllocateSeqOneByteString, 1, 1)                        \
-  F(AllocateSeqTwoByteString, 1, 1)                        \
   F(AllowDynamicFunction, 1, 1)                            \
   I(CreateAsyncFromSyncIterator, 1, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                         \
@@ -265,9 +263,7 @@ namespace internal {
   F(BytecodeBudgetInterruptWithStackCheck_Maglev, 1, 1)    \
   F(InvalidateDependentCodeForConstTrackingLet, 1, 1)      \
   F(NewError, 2, 1)                                        \
-  F(NewForeign, 0, 1)                                      \
   F(NewReferenceError, 2, 1)                               \
-  F(NewSyntaxError, 2, 1)                                  \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \

@@ -352,8 +352,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   /* Called from builtins */             \
   V(AllocateInYoungGeneration)           \
   V(AllocateInOldGeneration)             \
-  V(AllocateSeqOneByteString)            \
-  V(AllocateSeqTwoByteString)            \
   V(ArrayIncludes_Slow)                  \
   V(ArrayIndexOf)                        \
   V(ArrayIsArray)                        \
