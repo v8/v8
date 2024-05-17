@@ -3682,15 +3682,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp | ra;
 
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kSimd128RegsSize = kSimd128Size * Simd128Register::kNumRegisters;
 
-  // Save all double FPU registers before messing with them.
-  __ Sub_d(sp, sp, Operand(kDoubleRegsSize));
+  // Save all allocatable simd128 / double registers before messing with them.
+  // TODO(loong64): Add simd support here.
+  __ Sub_d(sp, sp, Operand(kSimd128RegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
-    int offset = code * kDoubleSize;
+    int offset = code * kSimd128Size;
     __ Fst_d(fpu_reg, MemOperand(sp, offset));
   }
 
@@ -3708,7 +3709,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ St_d(fp, MemOperand(a2, 0));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kSystemPointerSize) + kSimd128RegsSize;
 
   // Get the address of the location in the code object (a2) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
@@ -3757,14 +3758,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     }
   }
 
-  int double_regs_offset = FrameDescription::double_registers_offset();
-  // Copy FPU registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    int dst_offset = code * kDoubleSize + double_regs_offset;
+  // Copy simd128 / double registers to the input frame.
+  // TODO(loong64): Add simd support here.
+  int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    int dst_offset = code * kSimd128Size + simd128_regs_offset;
     int src_offset =
-        code * kDoubleSize + kNumberOfRegisters * kSystemPointerSize;
+        code * kSimd128Size + kNumberOfRegisters * kSystemPointerSize;
     __ Fld_d(f0, MemOperand(sp, src_offset));
     __ Fst_d(f0, MemOperand(a1, dst_offset));
   }
@@ -3829,10 +3830,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
   __ Ld_d(a1, MemOperand(a0, Deoptimizer::input_offset()));
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
+  // TODO(loong64): Add simd support here.
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
-    int src_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kSimd128Size + simd128_regs_offset;
     __ Fld_d(fpu_reg, MemOperand(a1, src_offset));
   }
 

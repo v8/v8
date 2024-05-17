@@ -3664,16 +3664,42 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp | ra;
 
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kMSARegsSize = kSimd128Size * MSARegister::kNumRegisters;
 
-  // Save all double FPU registers before messing with them.
-  __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
+  // Save all allocatable simd128 / double registers before messing with them.
+  __ Dsubu(sp, sp, Operand(kMSARegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
-    int offset = code * kDoubleSize;
-    __ Sdc1(fpu_reg, MemOperand(sp, offset));
+  {
+    // Check if machine has simd support, if so save vector registers.
+    // If not then save double registers.
+    Label no_simd, done;
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+
+    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(scratch, MemOperand(scratch));
+    __ Branch(&no_simd, le, scratch, Operand(zero_reg));
+
+    CpuFeatureScope msa_scope(
+        masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int offset = code * kSimd128Size;
+      const MSARegister fpu_reg = MSARegister::from_code(code);
+      __ st_d(fpu_reg, MemOperand(sp, offset));
+    }
+    __ Branch(&done);
+
+    __ bind(&no_simd);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int offset = code * kSimd128Size;
+      const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+      __ Sdc1(fpu_reg, MemOperand(sp, offset));
+    }
+
+    __ bind(&done);
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -3690,7 +3716,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Sd(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kSystemPointerSize) + kMSARegsSize;
 
   // Get the address of the location in the code object (a2) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
@@ -3740,16 +3766,43 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     }
   }
 
-  int double_regs_offset = FrameDescription::double_registers_offset();
-  // Copy FPU registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset =
-        code * kDoubleSize + kNumberOfRegisters * kSystemPointerSize;
-    __ Ldc1(f0, MemOperand(sp, src_offset));
-    __ Sdc1(f0, MemOperand(a1, dst_offset));
+  // Copy simd128 / double registers to the input frame.
+  int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  {
+    // Check if machine has simd support, if so copy vector registers.
+    // If not then copy double registers.
+    Label no_simd, done;
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+
+    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(scratch, MemOperand(scratch));
+    __ Branch(&no_simd, le, scratch, Operand(zero_reg));
+
+    CpuFeatureScope msa_scope(
+        masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int dst_offset = code * kSimd128Size + simd128_regs_offset;
+      int src_offset =
+          code * kSimd128Size + kNumberOfRegisters * kSystemPointerSize;
+      __ ld_d(w0, MemOperand(sp, src_offset));
+      __ st_d(w0, MemOperand(a1, dst_offset));
+    }
+    __ Branch(&done);
+
+    __ bind(&no_simd);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int dst_offset = code * kSimd128Size + simd128_regs_offset;
+      int src_offset =
+          code * kSimd128Size + kNumberOfRegisters * kSystemPointerSize;
+      __ Ldc1(f0, MemOperand(sp, src_offset));
+      __ Sdc1(f0, MemOperand(a1, dst_offset));
+    }
+
+    __ bind(&done);
   }
 
   // Remove the saved registers from the stack.
@@ -3812,11 +3865,37 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
   __ Ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
-    int src_offset = code * kDoubleSize + double_regs_offset;
-    __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
+  {
+    // Check if machine has simd support, if so restore vector registers.
+    // If not then restore double registers.
+    Label no_simd, done;
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+
+    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(scratch, MemOperand(scratch));
+    __ Branch(&no_simd, le, scratch, Operand(zero_reg));
+
+    CpuFeatureScope msa_scope(
+        masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int src_offset = code * kSimd128Size + simd128_regs_offset;
+      const MSARegister fpu_reg = MSARegister::from_code(code);
+      __ ld_d(fpu_reg, MemOperand(a1, src_offset));
+    }
+    __ Branch(&done);
+
+    __ bind(&no_simd);
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+      int code = config->GetAllocatableSimd128Code(i);
+      int src_offset = code * kSimd128Size + simd128_regs_offset;
+      const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+      __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
+    }
+
+    __ bind(&done);
   }
 
   // Push pc and continuation from the last output frame.
