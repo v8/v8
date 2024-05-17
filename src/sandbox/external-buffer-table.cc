@@ -113,7 +113,7 @@ uint32_t ExternalBufferTable::SweepAndCompact(Space* space,
           // the entry that was evacuated must have been processed already (it
           // is in an evacuated segment, which are processed first as they are
           // at the end of the space). This will have cleared the marking bit.
-          DCHECK(at(i).GetRawPayload().ContainsExternalPointer());
+          DCHECK(at(i).GetRawPayload().ContainsPointer());
           DCHECK(!at(i).GetRawPayload().HasMarkBitSet());
         } else {
           // If the evacuation entry hasn't been resolved for whatever reason,

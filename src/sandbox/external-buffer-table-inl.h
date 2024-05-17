@@ -29,7 +29,7 @@ std::pair<Address, size_t> ExternalBufferTableEntry::GetExternalBuffer(
     ExternalBufferTag tag) const {
   auto payload = payload_.load(std::memory_order_relaxed);
   auto size = size_.load(std::memory_order_relaxed);
-  DCHECK(payload.ContainsExternalPointer());
+  DCHECK(payload.ContainsPointer());
   return {payload.Untag(tag), size};
 }
 
@@ -52,7 +52,7 @@ uint32_t ExternalBufferTableEntry::GetNextFreelistEntryIndex() const {
 
 void ExternalBufferTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsExternalPointer());
+  DCHECK(old_payload.ContainsPointer());
 
   auto new_payload = old_payload;
   new_payload.SetMarkBit();
@@ -81,7 +81,7 @@ void ExternalBufferTableEntry::MigrateInto(ExternalBufferTableEntry& other) {
   auto payload = payload_.load(std::memory_order_relaxed);
   auto size = size_.load(std::memory_order_relaxed);
   // We expect to only migrate entries containing external pointers.
-  DCHECK(payload.ContainsExternalPointer());
+  DCHECK(payload.ContainsPointer());
 
   other.payload_.store(payload, std::memory_order_relaxed);
   other.size_.store(size, std::memory_order_relaxed);

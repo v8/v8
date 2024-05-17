@@ -4095,6 +4095,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/sandbox.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",
+    "src/sandbox/tagged-payload.h",
     "src/sandbox/testing.h",
     "src/sandbox/trusted-pointer-table-inl.h",
     "src/sandbox/trusted-pointer-table.h",

@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/external-buffer-tag.h"
+#include "src/sandbox/tagged-payload.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -76,65 +77,17 @@ struct ExternalBufferTableEntry {
  private:
   friend class ExternalBufferTable;
 
-  // TODO(v8:14585): Investigate a reusable "TaggedPayload" class for external
-  // pointer tables and trusted pointer tables.
-  struct Payload {
-    Payload(Address pointer, ExternalBufferTag tag)
-        : encoded_word_(Tag(pointer, tag)) {}
-
-    Address Untag(ExternalBufferTag tag) const { return encoded_word_ & ~tag; }
-
-    static Address Tag(Address pointer, ExternalBufferTag tag) {
-      return pointer | tag;
-    }
-
-    bool IsTaggedWith(ExternalBufferTag tag) const {
-      // We have to explicitly ignore the marking bit (which is part of the
-      // tag) since an unmarked entry with tag kXyzTag is still considered to
-      // be tagged with kXyzTag.
-      uint64_t expected = tag & ~kExternalBufferMarkBit;
-      uint64_t actual = encoded_word_ & kExternalBufferTagMaskWithoutMarkBit;
-      return expected == actual;
-    }
-
-    void SetMarkBit() { encoded_word_ |= kExternalBufferMarkBit; }
-
-    void ClearMarkBit() { encoded_word_ &= ~kExternalBufferMarkBit; }
-
-    bool HasMarkBitSet() const {
-      return (encoded_word_ & kExternalBufferMarkBit) != 0;
-    }
-
-    bool ContainsFreelistLink() const {
-      return IsTaggedWith(kExternalBufferFreeEntryTag);
-    }
-
-    uint32_t ExtractFreelistLink() const {
-      return static_cast<uint32_t>(encoded_word_);
-    }
-
-    bool ContainsEvacuationEntry() const {
-      return IsTaggedWith(kExternalBufferEvacuationEntryTag);
-    }
-
-    Address ExtractEvacuationEntryHandleLocation() const {
-      return Untag(kExternalBufferEvacuationEntryTag);
-    }
-
-    bool ContainsExternalPointer() const {
-      return !ContainsFreelistLink() && !ContainsEvacuationEntry();
-    }
-
-    bool operator==(Payload other) const {
-      return encoded_word_ == other.encoded_word_;
-    }
-    bool operator!=(Payload other) const {
-      return encoded_word_ != other.encoded_word_;
-    }
-
-   private:
-    Address encoded_word_;
+  struct ExternalBufferTaggingScheme {
+    using TagType = ExternalBufferTag;
+    static constexpr uint64_t kMarkBit = kExternalBufferMarkBit;
+    static constexpr uint64_t kTagMask = kExternalBufferTagMask;
+    static constexpr TagType kFreeEntryTag = kExternalBufferFreeEntryTag;
+    static constexpr TagType kEvacuationEntryTag =
+        kExternalBufferEvacuationEntryTag;
+    static constexpr bool kSupportsEvacuation = true;
   };
+
+  using Payload = TaggedPayload<ExternalBufferTaggingScheme>;
 
   inline Payload GetRawPayload() {
     return payload_.load(std::memory_order_relaxed);

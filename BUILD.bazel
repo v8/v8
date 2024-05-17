@@ -2325,6 +2325,7 @@ filegroup(
         "src/sandbox/sandbox.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
+        "src/sandbox/tagged-payload.h",
         "src/sandbox/testing.cc",
         "src/sandbox/testing.h",
         "src/snapshot/code-serializer.cc",

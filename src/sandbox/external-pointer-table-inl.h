@@ -29,7 +29,7 @@ void ExternalPointerTableEntry::MakeExternalPointerEntry(
 Address ExternalPointerTableEntry::GetExternalPointer(
     ExternalPointerTag tag) const {
   auto payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(payload.ContainsExternalPointer());
+  DCHECK(payload.ContainsPointer());
   return payload.Untag(tag);
 }
 
@@ -37,7 +37,7 @@ void ExternalPointerTableEntry::SetExternalPointer(Address value,
                                                    ExternalPointerTag tag) {
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   DCHECK(tag & kExternalPointerMarkBit);
-  DCHECK(payload_.load(std::memory_order_relaxed).ContainsExternalPointer());
+  DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
   Payload new_payload(value, tag);
   payload_.store(new_payload, std::memory_order_relaxed);
@@ -58,14 +58,14 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
   Payload new_payload(value, tag);
   Payload old_payload =
       payload_.exchange(new_payload, std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsExternalPointer());
+  DCHECK(old_payload.ContainsPointer());
   MaybeUpdateRawPointerForLSan(value);
   return old_payload.Untag(tag);
 }
 
 ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
   auto payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(payload.ContainsExternalPointer());
+  DCHECK(payload.ContainsPointer());
   return payload.ExtractTag();
 }
 
@@ -97,7 +97,7 @@ uint32_t ExternalPointerTableEntry::GetNextFreelistEntryIndex() const {
 
 void ExternalPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsExternalPointer());
+  DCHECK(old_payload.ContainsPointer());
 
   auto new_payload = old_payload;
   new_payload.SetMarkBit();
@@ -126,7 +126,7 @@ void ExternalPointerTableEntry::Evacuate(ExternalPointerTableEntry& dest,
                                          EvacuateMarkMode mode) {
   auto payload = payload_.load(std::memory_order_relaxed);
   // We expect to only evacuate entries containing external pointers.
-  DCHECK(payload.ContainsExternalPointer());
+  DCHECK(payload.ContainsPointer());
 
   switch (mode) {
     case EvacuateMarkMode::kTransferMark:
