@@ -210,8 +210,7 @@ class PtrComprCageAccessScope final {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   const Address cage_base_;
 #ifdef V8_EXTERNAL_CODE_SPACE
-// In case this configuration is necessary the code cage base must be saved too.
-#error Multi-cage pointer compression with external code space is not supported
+  const Address code_cage_base_;
 #endif  // V8_EXTERNAL_CODE_SPACE
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
