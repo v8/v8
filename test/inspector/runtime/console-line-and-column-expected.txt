@@ -10,7 +10,6 @@ Tests line and column numbers in console messages
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -37,7 +36,6 @@ Tests line and column numbers in console messages
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

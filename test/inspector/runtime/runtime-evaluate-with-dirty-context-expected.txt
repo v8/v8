@@ -10,7 +10,6 @@ Checks that Runtime.evaluate works with dirty context.
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

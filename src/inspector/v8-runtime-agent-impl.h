@@ -130,8 +130,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
       std::unique_ptr<TerminateExecutionCallback> callback) override;
 
   Response addBinding(const String16& name, Maybe<int> executionContextId,
-                      Maybe<String16> executionContextName,
-                      Maybe<String16> executionContextUniqueId) override;
+                      Maybe<String16> executionContextName) override;
   Response removeBinding(const String16& name) override;
   void addBindings(InspectedContext* context);
   Response getExceptionDetails(const String16& errorObjectId,
@@ -152,8 +151,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
 
   static void bindingCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
   void bindingCalled(const String16& name, const String16& payload,
-                     int executionContextId,
-                     const String16& executionContextUniqueId);
+                     int executionContextId);
   void addBinding(InspectedContext* context, const String16& name);
 
   V8InspectorSessionImpl* m_session;

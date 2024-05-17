@@ -9,15 +9,14 @@ Checks that repeated console.time do not reset
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -35,15 +34,14 @@ Checks that repeated console.time do not reset
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -61,15 +59,14 @@ Checks that repeated console.time do not reset
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }

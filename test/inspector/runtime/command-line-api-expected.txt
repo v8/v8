@@ -433,7 +433,6 @@ Running test: testDir
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -460,7 +459,6 @@ Running test: testDir
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -495,7 +493,6 @@ Running test: testDir
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -543,7 +540,6 @@ Running test: testDirXML
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -570,7 +566,6 @@ Running test: testDirXML
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -618,7 +613,6 @@ Running test: testTable
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -645,7 +639,6 @@ Running test: testTable
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -684,7 +677,6 @@ Running test: testClear
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -710,7 +702,6 @@ Running test: testClear
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

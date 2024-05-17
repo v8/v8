@@ -9,7 +9,6 @@ Running test: testEnable
         }
     ]
     executionContextId : <executionContextId>
-    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {
@@ -32,7 +31,6 @@ Running test: testEnable
         }
     ]
     executionContextId : <executionContextId>
-    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {
@@ -55,7 +53,6 @@ Running test: testEnable
         }
     ]
     executionContextId : <executionContextId>
-    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {
@@ -78,7 +75,6 @@ Running test: testEnable
         }
     ]
     executionContextId : <executionContextId>
-    executionContextUniqueId : <executionContextUniqueId>
     stackTrace : {
         callFrames : [
             [0] : {

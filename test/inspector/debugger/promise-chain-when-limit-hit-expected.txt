@@ -12,7 +12,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -104,7 +103,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -196,7 +194,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -288,7 +285,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -380,7 +376,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -472,7 +467,6 @@ Run expression 'console.trace()' with async chain len: 3
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

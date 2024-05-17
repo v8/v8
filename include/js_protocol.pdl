@@ -1297,10 +1297,6 @@ domain Runtime
   # Id of an execution context.
   type ExecutionContextId extends integer
 
-  # Id of an execution context that is unique across processes
-  # (unlike ExecutionContextId).
-  type ExecutionContextUniqueId extends string
-
   # Description of an isolated world.
   type ExecutionContextDescription extends object
     properties
@@ -1314,7 +1310,7 @@ domain Runtime
       # A system-unique execution context identifier. Unlike the id, this is unique across
       # multiple processes, so can be reliably used to identify specific context while backend
       # performs a cross-process navigation.
-      experimental ExecutionContextUniqueId uniqueId
+      experimental string uniqueId
       # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object auxData
 
@@ -1675,8 +1671,7 @@ domain Runtime
       # If specified, the binding would only be exposed to the specified
       # execution context. If omitted and `executionContextName` is not set,
       # the binding is exposed to all execution contexts of the target.
-      # This parameter is mutually exclusive with `executionContextName`
-      # and `executionContextUniqueId`.
+      # This parameter is mutually exclusive with `executionContextName`.
       # Deprecated in favor of `executionContextName` due to an unclear use case
       # and bugs in implementation (crbug.com/1169639). `executionContextId` will be
       # removed in the future.
@@ -1685,12 +1680,8 @@ domain Runtime
       # matching name, even for contexts created after the binding is added.
       # See also `ExecutionContext.name` and `worldName` parameter to
       # `Page.addScriptToEvaluateOnNewDocument`.
-      # This parameter is mutually exclusive with `executionContextId`
-      # and `executionContextUniqueId`.
+      # This parameter is mutually exclusive with `executionContextId`.
       optional string executionContextName
-      # This parameter is mutually exclusive with `executionContextId`
-      # and `executionContextName`.
-      experimental optional ExecutionContextUniqueId executionContextUniqueId
 
   # This method does not remove binding function from global object but
   # unsubscribes current runtime agent from Runtime.bindingCalled notifications.
@@ -1717,7 +1708,6 @@ domain Runtime
       string payload
       # Identifier of the context where the call was made.
       ExecutionContextId executionContextId
-      experimental ExecutionContextUniqueId executionContextUniqueId
 
   # Issued when console API was called.
   event consoleAPICalled
@@ -1746,7 +1736,6 @@ domain Runtime
       array of RemoteObject args
       # Identifier of the context where the call was made.
       ExecutionContextId executionContextId
-      experimental ExecutionContextUniqueId executionContextUniqueId
       # Call timestamp.
       Timestamp timestamp
       # Stack trace captured when the call was made. The async stack chain is automatically reported for
@@ -1785,7 +1774,7 @@ domain Runtime
       # Id of the destroyed context
       deprecated ExecutionContextId executionContextId
       # Unique Id of the destroyed context
-      experimental ExecutionContextUniqueId executionContextUniqueId
+      experimental string executionContextUniqueId
 
   # Issued when all executionContexts were cleared in browser
   event executionContextsCleared

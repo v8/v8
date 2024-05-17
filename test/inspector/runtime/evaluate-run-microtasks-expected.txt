@@ -10,7 +10,6 @@ Tests that microtasks run before the Runtime.evaluate response is sent
             }
         ]
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         stackTrace : {
             callFrames : [
                 [0] : {

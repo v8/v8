@@ -9,7 +9,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -22,7 +21,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -32,7 +30,6 @@ binding called in session2
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -45,7 +42,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -55,7 +51,6 @@ binding called in session2
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -68,7 +63,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -78,7 +72,6 @@ binding called in session2
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -91,7 +84,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -101,7 +93,6 @@ binding called in session2
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -116,7 +107,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -132,7 +122,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -147,7 +136,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : send
         payload : payload
     }
@@ -163,22 +151,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
-        name : frobnicate
-        payload : message
-    }
-}
-Call binding in newly created context (binding should NOT be exposed)
-
-Running test: testAddBindingToContextByUniqueId
-Call binding in default context (binding should NOT be exposed)
-Call binding in target context (binding should be exposed)
-binding called in session1
-{
-    method : Runtime.bindingCalled
-    params : {
-        executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -192,7 +164,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -203,31 +174,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
-        name : frobnicate
-        payload : message
-    }
-}
-
-Running test: testAddBindingToMultipleContextsByUniqueId
-Call binding in default context (binding should be exposed)
-binding called in session1
-{
-    method : Runtime.bindingCalled
-    params : {
-        executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
-        name : frobnicate
-        payload : message
-    }
-}
-Call binding in target context (binding should be exposed)
-binding called in session1
-{
-    method : Runtime.bindingCalled
-    params : {
-        executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -240,7 +186,6 @@ binding called in group1/session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -251,7 +196,6 @@ binding called in group2/session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -265,7 +209,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
@@ -277,7 +220,6 @@ binding called in session1
     method : Runtime.bindingCalled
     params : {
         executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
         name : frobnicate
         payload : message
     }
