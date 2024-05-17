@@ -392,6 +392,8 @@ class MaglevGraphBuilder {
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
+    // TODO(victorgomes): Change GotoIFXXX to get a lambda returning a
+    // BranchResult.
     template <typename ControlNodeT, typename... Args>
     void GotoIfTrue(Label* true_target,
                     std::initializer_list<ValueNode*> control_inputs,
@@ -409,11 +411,12 @@ class MaglevGraphBuilder {
     void set(Variable& var, ValueNode* value);
     ValueNode* get(const Variable& var) const;
 
+    void MergeIntoLabel(Label* label, BasicBlock* predecessor);
+
    private:
     class BorrowParentKnownNodeAspects;
     void TakeKnownNodeAspectsFromParent();
     void MoveKnownNodeAspectsToParent();
-    void MergeIntoLabel(Label* label, BasicBlock* predecessor);
 
     MaglevGraphBuilder* builder_;
     MaglevCompilationUnit* compilation_unit_;
@@ -1976,8 +1979,11 @@ class MaglevGraphBuilder {
   void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,
                                       int index);
 
-  ValueNode* BuildLogicalNot(ValueNode* node);
-  ValueNode* BuildTestUndetectable(ValueNode* node);
+  template <bool flip = false>
+  ValueNode* BuildToBoolean(ValueNode* node);
+  ValueNode* BuildLogicalNot(ValueNode* value);
+  ValueNode* BuildTestUndetectable(ValueNode* value);
+  void BuildToNumberOrToNumeric(Object::Conversion mode);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
@@ -2233,40 +2239,186 @@ class MaglevGraphBuilder {
   ValueNode* BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
   ValueNode* BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
 
+  class BranchBuilder;
+
+  enum class BranchType { kBranchIfTrue, kBranchIfFalse };
+  enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
+  enum class BranchResult {
+    kDefault,
+    kAlwaysTrue,
+    kAlwaysFalse,
+  };
+
+  static inline BranchType NegateBranchType(BranchType jump_type) {
+    switch (jump_type) {
+      case BranchType::kBranchIfTrue:
+        return BranchType::kBranchIfFalse;
+      case BranchType::kBranchIfFalse:
+        return BranchType::kBranchIfTrue;
+    }
+  }
+
+  // This class encapsulates the logic of branch nodes (using the graph builder
+  // or the sub graph builder).
+  class BranchBuilder {
+   public:
+    enum Mode {
+      kBytecodeJumpTarget,
+      kLabelJumpTarget,
+    };
+
+    class PatchAccumulatorInBranchScope {
+     public:
+      PatchAccumulatorInBranchScope(BranchBuilder& builder, ValueNode* node,
+                                    RootIndex root_index)
+          : builder_(builder),
+            node_(node),
+            root_index_(root_index),
+            jump_type_(builder.GetCurrentBranchType()) {
+        if (builder.mode() == kBytecodeJumpTarget) {
+          builder_.data_.bytecode_target.patch_accumulator_scope = this;
+        }
+      }
+
+      ~PatchAccumulatorInBranchScope() {
+        builder_.data_.bytecode_target.patch_accumulator_scope = nullptr;
+      }
+
+     private:
+      BranchBuilder& builder_;
+      ValueNode* node_;
+      RootIndex root_index_;
+      BranchType jump_type_;
+
+      friend class BranchBuilder;
+    };
+
+    struct BytecodeJumpTarget {
+      BytecodeJumpTarget(int jump_target_offset, int fallthrough_offset)
+          : jump_target_offset(jump_target_offset),
+            fallthrough_offset(fallthrough_offset),
+            patch_accumulator_scope(nullptr) {}
+      int jump_target_offset;
+      int fallthrough_offset;
+      PatchAccumulatorInBranchScope* patch_accumulator_scope;
+    };
+
+    struct LabelJumpTarget {
+      explicit LabelJumpTarget(MaglevSubGraphBuilder::Label* jump_label)
+          : jump_label(jump_label), fallthrough() {}
+      MaglevSubGraphBuilder::Label* jump_label;
+      BasicBlockRef fallthrough;
+    };
+
+    union Data {
+      Data(int jump_target_offset, int fallthrough_offset)
+          : bytecode_target(jump_target_offset, fallthrough_offset) {}
+      explicit Data(MaglevSubGraphBuilder::Label* jump_label)
+          : label_target(jump_label) {}
+      BytecodeJumpTarget bytecode_target;
+      LabelJumpTarget label_target;
+    };
+
+    // Creates a branch builder for bytecode offsets.
+    BranchBuilder(MaglevGraphBuilder* builder, BranchType jump_type)
+        : builder_(builder),
+          sub_builder_(nullptr),
+          jump_type_(jump_type),
+          data_(builder->iterator_.GetJumpTargetOffset(),
+                builder->iterator_.next_offset()) {}
+
+    // Creates a branch builder for subgraph label.
+    BranchBuilder(MaglevGraphBuilder* builder,
+                  MaglevSubGraphBuilder* sub_builder, BranchType jump_type,
+                  MaglevSubGraphBuilder::Label* jump_label)
+        : builder_(builder),
+          sub_builder_(sub_builder),
+          jump_type_(jump_type),
+          data_(jump_label) {}
+
+    Mode mode() const {
+      return sub_builder_ == nullptr ? kBytecodeJumpTarget : kLabelJumpTarget;
+    }
+
+    BranchType GetCurrentBranchType() const { return jump_type_; }
+
+    void SetBranchSpecializationMode(BranchSpecializationMode mode) {
+      branch_specialization_mode_ = mode;
+    }
+    void SwapTargets() { jump_type_ = NegateBranchType(jump_type_); }
+
+    BasicBlockRef* jump_target();
+    BasicBlockRef* fallthrough();
+    BasicBlockRef* true_target();
+    BasicBlockRef* false_target();
+
+    BranchResult FromBool(bool value) const;
+    BranchResult AlwaysTrue() const { return FromBool(true); }
+    BranchResult AlwaysFalse() const { return FromBool(false); }
+
+    template <typename NodeT, typename... Args>
+    BranchResult Build(std::initializer_list<ValueNode*> inputs,
+                       Args&&... args);
+
+   private:
+    MaglevGraphBuilder* builder_;
+    MaglevGraphBuilder::MaglevSubGraphBuilder* sub_builder_;
+    BranchType jump_type_;
+    BranchSpecializationMode branch_specialization_mode_ =
+        BranchSpecializationMode::kDefault;
+    Data data_;
+
+    void StartFallthroughBlock(BasicBlock* predecessor);
+    void SetAccumulatorInBranch(BranchType jump_type) const;
+  };
+
+  BranchBuilder CreateBranchBuilder(
+      BranchType jump_type = BranchType::kBranchIfTrue) {
+    return BranchBuilder(this, jump_type);
+  }
+  BranchBuilder CreateBranchBuilder(
+      MaglevSubGraphBuilder* subgraph, MaglevSubGraphBuilder::Label* jump_label,
+      BranchType jump_type = BranchType::kBranchIfTrue) {
+    return BranchBuilder(this, subgraph, jump_type, jump_label);
+  }
+
+  BranchResult BuildBranchIfRootConstant(BranchBuilder& builder,
+                                         ValueNode* node, RootIndex root_index);
+  BranchResult BuildBranchIfToBooleanTrue(BranchBuilder& builder,
+                                          ValueNode* node);
+  BranchResult BuildBranchIfInt32ToBooleanTrue(BranchBuilder& builder,
+                                               ValueNode* node);
+  BranchResult BuildBranchIfFloat64ToBooleanTrue(BranchBuilder& builder,
+                                                 ValueNode* node);
+  BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
+                                          ValueNode* node);
+  BranchResult BuildBranchIfReferenceEqual(BranchBuilder& builder,
+                                           ValueNode* lhs, ValueNode* rhs);
+  BranchResult BuildBranchIfInt32Compare(BranchBuilder& builder, Operation op,
+                                         ValueNode* lhs, ValueNode* rhs);
+  BranchResult BuildBranchIfUint32Compare(BranchBuilder& builder, Operation op,
+                                          ValueNode* lhs, ValueNode* rhs);
+  BranchResult BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
+                                            ValueNode* node);
+  BranchResult BuildBranchIfUndetectable(BranchBuilder& builder,
+                                         ValueNode* value);
+  BranchResult BuildBranchIfJSReceiver(BranchBuilder& builder,
+                                       ValueNode* value);
+
+  BranchResult BuildBranchIfTrue(BranchBuilder& builder, ValueNode* node);
+  BranchResult BuildBranchIfNull(BranchBuilder& builder, ValueNode* node);
+  BranchResult BuildBranchIfUndefined(BranchBuilder& builder, ValueNode* node);
   BasicBlock* BuildBranchIfReferenceEqual(ValueNode* lhs, ValueNode* rhs,
                                           BasicBlockRef* true_target,
                                           BasicBlockRef* false_target);
 
-  enum JumpType { kJumpIfTrue, kJumpIfFalse };
-  enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
-  JumpType NegateJumpType(JumpType jump_type);
+  template <typename FCond, typename FTrue, typename FFalse>
+  ValueNode* Select(FCond cond, FTrue if_true, FFalse if_false);
+
+  template <typename FCond, typename FTrue, typename FFalse>
+  ReduceResult SelectReduction(FCond cond, FTrue if_true, FFalse if_false);
+
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
-  void BuildBranchIfRootConstant(
-      ValueNode* node, JumpType jump_type, RootIndex root_index,
-      BranchSpecializationMode mode = BranchSpecializationMode::kDefault);
-  void BuildBranchIfTrue(ValueNode* node, JumpType jump_type);
-  void BuildBranchIfNull(ValueNode* node, JumpType jump_type);
-  void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
-  void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
-  template <bool flip = false>
-  ValueNode* BuildToBoolean(ValueNode* node);
-  BasicBlock* BuildSpecializedBranchIfCompareNode(ValueNode* node,
-                                                  BasicBlockRef* true_target,
-                                                  BasicBlockRef* false_target);
-
-  void BuildToNumberOrToNumeric(Object::Conversion mode);
-
-  template <typename ControlNodeT, typename FTrue, typename FFalse,
-            typename... Args>
-  ValueNode* Select(FTrue if_true, FFalse if_false,
-                    std::initializer_list<ValueNode*> control_inputs,
-                    Args&&... args);
-
-  template <typename ControlNodeT, typename FTrue, typename FFalse,
-            typename... Args>
-  ReduceResult SelectReduction(FTrue if_true, FFalse if_false,
-                               std::initializer_list<ValueNode*> control_inputs,
-                               Args&&... args);
 
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
