@@ -384,7 +384,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot(ToBooleanMode mode);
-  BytecodeArrayBuilder& TypeOf();
+  BytecodeArrayBuilder& TypeOf(int feedback_slot);
 
   // Expects a heap object in the accumulator. Returns its super constructor in
   // the register |out| if it passes the IsConstructor test. Otherwise, it

@@ -271,7 +271,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit unary operator invocations.
   builder.LogicalNot(ToBooleanMode::kConvertToBoolean)
       .LogicalNot(ToBooleanMode::kAlreadyBoolean)
-      .TypeOf();
+      .TypeOf(1);
 
   // Emit delete
   builder.Delete(reg, LanguageMode::kSloppy).Delete(reg, LanguageMode::kStrict);

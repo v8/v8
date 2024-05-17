@@ -599,6 +599,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForBinaryOperation(
   return *zone()->New<BinaryOperationFeedback>(hint, nexus.kind());
 }
 
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTypeOf(
+    FeedbackSource const& source) const {
+  FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
+  if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
+  return *zone()->New<TypeOfOpFeedback>(nexus.GetTypeOfFeedback(),
+                                        nexus.kind());
+}
+
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCompareOperation(
     FeedbackSource const& source) const {
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
@@ -705,6 +713,13 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
                                    : feedback.AsBinaryOperation().value();
 }
 
+TypeOfFeedback::Result JSHeapBroker::GetFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  ProcessedFeedback const& feedback = ProcessFeedbackForTypeOf(source);
+  return feedback.IsInsufficient() ? TypeOfFeedback::kNone
+                                   : feedback.AsTypeOf().value();
+}
+
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
@@ -740,6 +755,14 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForTemplateObject(source);
+  SetFeedback(source, &feedback);
+  return feedback;
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForTypeOf(source);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -901,6 +924,11 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
                   << map);
   property_access_infos_.insert({target, access_info});
   return access_info;
+}
+
+TypeOfOpFeedback const& ProcessedFeedback::AsTypeOf() const {
+  CHECK_EQ(kTypeOf, kind());
+  return *static_cast<TypeOfOpFeedback const*>(this);
 }
 
 BinaryOperationFeedback const& ProcessedFeedback::AsBinaryOperation() const {

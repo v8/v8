@@ -4256,7 +4256,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     TNode<Smi>* cache_length_out,
                     UpdateFeedbackMode update_feedback_mode);
 
-  TNode<String> Typeof(TNode<Object> value);
+  TNode<String> Typeof(
+      TNode<Object> value, std::optional<TNode<UintPtrT>> slot_id = {},
+      std::optional<TNode<HeapObject>> maybe_feedback_vector = {});
 
   TNode<HeapObject> GetSuperConstructor(TNode<JSFunction> active_function);
 

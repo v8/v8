@@ -296,6 +296,7 @@ class MergePointInterpreterFrameState;
   V(CheckTypedArrayNotDetached)             \
   V(CheckMaps)                              \
   V(CheckMapsWithMigration)                 \
+  V(CheckDetectableCallable)                \
   V(CheckNumber)                            \
   V(CheckSmi)                               \
   V(CheckString)                            \
@@ -5834,6 +5835,32 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
+class CheckDetectableCallable
+    : public FixedInputNodeT<1, CheckDetectableCallable> {
+  using Base = FixedInputNodeT<1, CheckDetectableCallable>;
+
+ public:
+  explicit CheckDetectableCallable(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream& out, MaglevGraphLabeller*) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 

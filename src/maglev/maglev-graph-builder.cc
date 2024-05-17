@@ -5876,13 +5876,36 @@ void MaglevGraphBuilder::VisitTypeOf() {
         [&] { return GetRootConstant(RootIndex::kundefined_string); },
         [&] { return GetRootConstant(RootIndex::kfunction_string); }, {value},
         CheckType::kOmitHeapObjectCheck));
-  } else if (CheckType(value, NodeType::kJSArray)) {
+  } else if (IsNullValue(value) || CheckType(value, NodeType::kJSArray)) {
     // TODO(victorgomes): Track JSReceiver, non-callable types in Maglev.
     SetAccumulator(GetRootConstant(RootIndex::kobject_string));
   } else if (IsUndefinedValue(value)) {
     SetAccumulator(GetRootConstant(RootIndex::kundefined_string));
   } else {
-    SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
+    FeedbackNexus nexus = FeedbackNexusForOperand(0);
+    TypeOfFeedback::Result feedback = nexus.GetTypeOfFeedback();
+    switch (feedback) {
+      case TypeOfFeedback::kNone:
+        RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+            DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf));
+      case TypeOfFeedback::kNumber:
+        BuildCheckNumber(value);
+        SetAccumulator(GetRootConstant(RootIndex::knumber_string));
+        break;
+      case TypeOfFeedback::kString:
+        BuildCheckString(value);
+        SetAccumulator(GetRootConstant(RootIndex::kstring_string));
+        break;
+      case TypeOfFeedback::kFunction:
+        AddNewNode<CheckDetectableCallable>({value},
+                                            CheckType::kOmitHeapObjectCheck);
+        EnsureType(value, NodeType::kCallable);
+        SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
+        break;
+      default:
+        SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
+        break;
+    }
   }
 }
 

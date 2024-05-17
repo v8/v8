@@ -528,8 +528,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot(ToBooleanMode mode) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
-  OutputTypeOf();
+BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf(int feedback_slot) {
+  OutputTypeOf(feedback_slot);
   return *this;
 }
 

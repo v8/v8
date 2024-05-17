@@ -1372,7 +1372,9 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
 // object in the accumulator.
 IGNITION_HANDLER(TypeOf, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<String> result = Typeof(value);
+  TNode<UintPtrT> slot_id = BytecodeOperandIdx(0);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<String> result = Typeof(value, slot_id, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }

@@ -3517,6 +3517,22 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
                      __ GetDeoptLabel(this, DeoptimizeReason::kNotAString));
 }
 
+void CheckDetectableCallable::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(1);
+}
+
+void CheckDetectableCallable::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  auto deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotDetectableReceiver);
+  __ JumpIfNotCallable(object, scratch, check_type(), deopt);
+  __ JumpIfUndetectable(object, scratch, CheckType::kOmitHeapObjectCheck,
+                        deopt);
+}
+
 void CheckNotHole::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineSameAsFirst(this);
@@ -5020,16 +5036,10 @@ void ThrowIfNotCallable::GenerateCode(MaglevAssembler* masm,
       this);
 
   Register value_reg = ToRegister(value());
-  __ JumpIfSmi(value_reg, if_not_callable);
-
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ LoadMap(scratch, value_reg);
-  static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
-  __ LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset),
-                       1);
-  __ TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsCallableBit::kMask,
-                                if_not_callable);
+  __ JumpIfNotCallable(value_reg, scratch, CheckType::kCheckHeapObject,
+                       if_not_callable);
 }
 
 int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }

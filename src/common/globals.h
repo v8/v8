@@ -2093,6 +2093,23 @@ class CompareOperationFeedback {
   };
 };
 
+class TypeOfFeedback {
+  enum {
+    kNumberFlag = 1,
+    kFunctionFlag = 1 << 1,
+    kStringFlag = 1 << 2,
+  };
+
+ public:
+  enum Result {
+    kNone = 0,
+    kNumber = kNumberFlag,
+    kFunction = kFunctionFlag,
+    kString = kStringFlag,
+    kAny = kNumberFlag | kFunctionFlag | kStringFlag,
+  };
+};
+
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.

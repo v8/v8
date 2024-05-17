@@ -225,7 +225,7 @@ namespace interpreter {
   V(BitwiseNot, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx) \
   V(ToBooleanLogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)           \
   V(LogicalNot, ImplicitRegisterUse::kReadWriteAccumulator)                    \
-  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator)                        \
+  V(TypeOf, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)     \
   V(DeletePropertyStrict, ImplicitRegisterUse::kReadWriteAccumulator,          \
     OperandType::kReg)                                                         \
   V(DeletePropertySloppy, ImplicitRegisterUse::kReadWriteAccumulator,          \

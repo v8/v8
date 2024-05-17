@@ -71,6 +71,7 @@ enum class FeedbackSlotKind : uint8_t {
   kLiteral,
   kForIn,
   kInstanceOf,
+  kTypeOf,
   kCloneObject,
   kJumpLoop,
 
@@ -536,6 +537,8 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kInstanceOf);
   }
 
+  FeedbackSlot AddTypeOfSlot() { return AddSlot(FeedbackSlotKind::kTypeOf); }
+
   FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
 
   FeedbackSlot AddDefineKeyedOwnPropertyInLiteralICSlot() {
@@ -866,6 +869,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
+  TypeOfFeedback::Result GetTypeOfFeedback() const;
   ForInHint GetForInFeedback() const;
 
   // For KeyedLoad ICs.

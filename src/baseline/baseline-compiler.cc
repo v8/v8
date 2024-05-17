@@ -1191,7 +1191,8 @@ void BaselineCompiler::VisitLogicalNot() {
 }
 
 void BaselineCompiler::VisitTypeOf() {
-  CallBuiltin<Builtin::kTypeof>(kInterpreterAccumulatorRegister);
+  CallBuiltin<Builtin::kTypeof_Baseline>(kInterpreterAccumulatorRegister,
+                                         Index(0));
 }
 
 void BaselineCompiler::VisitDeletePropertyStrict() {

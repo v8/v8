@@ -6588,7 +6588,7 @@ void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
 
 void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
   VisitForTypeOfValue(expr->expression());
-  builder()->TypeOf();
+  builder()->TypeOf(feedback_index(feedback_spec()->AddTypeOfSlot()));
   execution_result()->SetResultIsInternalizedString();
 }
 

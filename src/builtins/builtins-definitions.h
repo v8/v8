@@ -283,6 +283,7 @@ namespace internal {
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(ToBigIntConvertNumber, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
+  TFC(Typeof_Baseline, UnaryOp_Baseline)                                       \
   TFC(BigIntToI64, BigIntToI64)                                                \
   TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
   TFC(I64ToBigInt, I64ToBigInt)                                                \

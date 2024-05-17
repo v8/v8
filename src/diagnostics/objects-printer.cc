@@ -1459,6 +1459,7 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
+    case FeedbackSlotKind::kTypeOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kStoreInArrayLiteral: {
       os << InlineCacheState2String(ic_state());

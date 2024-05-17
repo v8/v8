@@ -344,6 +344,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   template <typename Function, typename... Args>
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
+  void JumpIfNotCallable(Register object, Register scratch,
+                         CheckType check_type, Label* target,
+                         Label::Distance distance = Label::kFar);
   void JumpIfUndetectable(Register object, Register scratch,
                           CheckType check_type, Label* target,
                           Label::Distance distance = Label::kFar);

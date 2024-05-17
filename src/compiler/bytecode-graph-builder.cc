@@ -3268,8 +3268,22 @@ void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
 }
 
 void BytecodeGraphBuilder::VisitTypeOf() {
-  Node* node =
-      NewNode(simplified()->TypeOf(), environment()->LookupAccumulator());
+  PrepareEagerCheckpoint();
+  Node* operand = environment()->LookupAccumulator();
+
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(0);
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedUnaryOp(simplified()->TypeOf(), operand, slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(simplified()->TypeOf(), environment()->LookupAccumulator());
+  }
+
   environment()->BindAccumulator(node);
 }
 

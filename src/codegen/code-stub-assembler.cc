@@ -15454,7 +15454,9 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
   *cache_length_out = cache_length.value();
 }
 
-TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
+TNode<String> CodeStubAssembler::Typeof(
+    TNode<Object> value, std::optional<TNode<UintPtrT>> slot_id,
+    std::optional<TNode<HeapObject>> maybe_feedback_vector) {
   TVARIABLE(String, result_var);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
@@ -15495,9 +15497,16 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   Abort(AbortReason::kUnexpectedInstanceType);
 
+  auto UpdateFeedback = [&](TypeOfFeedback::Result feedback) {
+    if (maybe_feedback_vector.has_value()) {
+      MaybeUpdateFeedback(SmiConstant(feedback), *maybe_feedback_vector,
+                          *slot_id);
+    }
+  };
   BIND(&return_number);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->number_string());
+    UpdateFeedback(TypeOfFeedback::kNumber);
     Goto(&return_result);
   }
 
@@ -15506,42 +15515,49 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
     TNode<String> type =
         CAST(LoadObjectField(value_heap_object, offsetof(Oddball, type_of_)));
     result_var = type;
+    UpdateFeedback(TypeOfFeedback::kAny);
     Goto(&return_result);
   }
 
   BIND(&return_function);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->function_string());
+    UpdateFeedback(TypeOfFeedback::kFunction);
     Goto(&return_result);
   }
 
   BIND(&return_undefined);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->undefined_string());
+    UpdateFeedback(TypeOfFeedback::kAny);
     Goto(&return_result);
   }
 
   BIND(&return_object);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->object_string());
+    UpdateFeedback(TypeOfFeedback::kAny);
     Goto(&return_result);
   }
 
   BIND(&return_string);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->string_string());
+    UpdateFeedback(TypeOfFeedback::kString);
     Goto(&return_result);
   }
 
   BIND(&return_bigint);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->bigint_string());
+    UpdateFeedback(TypeOfFeedback::kAny);
     Goto(&return_result);
   }
 
   BIND(&return_symbol);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->symbol_string());
+    UpdateFeedback(TypeOfFeedback::kAny);
     Goto(&return_result);
   }
 
