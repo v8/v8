@@ -331,7 +331,6 @@ size_t PagedSpaceBase::Available() const {
 }
 
 size_t PagedSpaceBase::Waste() const {
-  ConcurrentAllocationMutex guard(this);
   return free_list_->wasted_bytes();
 }
 
