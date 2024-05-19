@@ -3721,6 +3721,18 @@ void Simulator::DecodeRVRType() {
       set_rd(rs2() + (zext32(rs1()) << 3));
       break;
     }
+    case RO_ROLW: {
+      reg_t extz_rs1 = zext32(rs1());
+      sreg_t shamt = rs2() & 31;
+      set_rd(sext32((extz_rs1 << shamt) | (extz_rs1 >> (32 - shamt))));
+      break;
+    }
+    case RO_RORW: {
+      reg_t extz_rs1 = zext32(rs1());
+      sreg_t shamt = rs2() & 31;
+      set_rd(sext32((extz_rs1 >> shamt) | (extz_rs1 << (32 - shamt))));
+      break;
+    }
 #endif /* V8_TARGET_ARCH_RISCV64 */
       // TODO(riscv): Add RISCV M extension macro
     case RO_MUL: {
@@ -3857,6 +3869,16 @@ void Simulator::DecodeRVRType() {
     case RO_ZEXTH:
       set_rd(zext_xlen(uint16_t(rs1())));
       break;
+    case RO_ROL: {
+      sreg_t shamt = rs2() & (xlen - 1);
+      set_rd((rs1() << shamt) | (rs1() >> (xlen - shamt)));
+      break;
+    }
+    case RO_ROR: {
+      sreg_t shamt = rs2() & (xlen - 1);
+      set_rd((rs1() >> shamt) | (rs1() << (xlen - shamt)));
+      break;
+    }
     case RO_BCLR: {
       sreg_t index = rs2() & (xlen - 1);
       set_rd(rs1() & ~(1l << index));
@@ -5278,6 +5300,28 @@ void Simulator::DecodeRVIType() {
           set_rd((rs1() >> index) & 1);
           break;
         }
+        case RO_ORCB & (kFunct6Mask | OP_SHR): {
+          reg_t rs1_val = rs1();
+          reg_t result = 0;
+          reg_t mask = 0xFF;
+          reg_t step = 8;
+          for (reg_t i = 0; i < xlen; i += step) {
+            if ((rs1_val & mask) != 0) {
+              result |= mask;
+            }
+            mask <<= step;
+          }
+          set_rd(result);
+          break;
+        }
+        case RO_RORI: {
+          int16_t shamt = shamt6();
+          if (shamt >= xlen) {
+            shamt = shamt5();
+          }
+          set_rd((rs1() >> shamt) | (rs1() << (xlen - shamt)));
+          break;
+        }
         case RO_REV8: {
           if (imm12() == RO_REV8_IMM12) {
             reg_t input = rs1();
@@ -5363,6 +5407,12 @@ void Simulator::DecodeRVIType() {
         case RO_SRAIW:
           set_rd(sext32(int32_t(rs1()) >> shamt5()));
           break;
+        case RO_RORIW: {
+          reg_t extz_rs1 = zext32(rs1());
+          int16_t shamt = shamt5();
+          set_rd(sext32((extz_rs1 >> shamt) | (extz_rs1 << (32 - shamt))));
+          break;
+        }
         default:
           UNSUPPORTED_RISCV();
       }

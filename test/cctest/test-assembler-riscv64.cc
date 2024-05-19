@@ -542,6 +542,14 @@ UTEST_R1_FORM_WITH_RES(sexth, int64_t, int64_t, 0xB080,
                        int64_t(0xffffffffffffb080))
 UTEST_R1_FORM_WITH_RES(zexth, int64_t, int64_t, 0xB080, 0xB080)
 
+UTEST_R2_FORM_WITH_RES(rol, uint64_t, 16, 2, 64)
+UTEST_R2_FORM_WITH_RES(rolw, uint32_t, 16, 2, 64)
+UTEST_R2_FORM_WITH_RES(ror, uint64_t, 16, 2, 4)
+UTEST_R2_FORM_WITH_RES(rorw, uint32_t, 16, 2, 4)
+UTEST_I_FORM_WITH_RES(rori, int64_t, 16, 2, 4)
+UTEST_I_FORM_WITH_RES(roriw, int32_t, 16, 2, 4)
+UTEST_R1_FORM_WITH_RES(orcb, int64_t, uint64_t, 0xFF00011010010011,
+                       0xFF00FFFFFFFF00FF)
 UTEST_R1_FORM_WITH_RES(rev8, uint64_t, uint64_t, 0x1234567890ABCDEF,
                        0xEFCDAB9078563412)
 

@@ -1574,7 +1574,15 @@ void MacroAssembler::Sll64(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
+void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {  
+  if (CpuFeatures::IsSupported(ZBB)) {
+    if (rs.is_reg()) {
+      rorw(rd, rs, rt.rm());
+    } else {
+      roriw(rd, rs, rt.immediate() % 32);
+    }
+    return;
+  }
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -1600,6 +1608,13 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 }
 
 void MacroAssembler::Dror(Register rd, Register rs, const Operand& rt) {
+  if (CpuFeatures::IsSupported(ZBB)) {
+    if (rs.is_reg()) 
+      ror(rd, rs, rt.rm());
+    else
+      rori(rd, rs, rt.immediate() % 64);
+    return
+  }
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -1662,6 +1677,13 @@ void MacroAssembler::Srl32(Register rd, Register rs, const Operand& rt) {
 }
 
 void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
+  if (CpuFeatures::IsSupported(ZBB)) {
+    if (rs.is_reg()) 
+      ror(rd, rs, rt.rm());
+    else
+      rori(rd, rs, rt.immediate());
+    return
+  }
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -1732,6 +1754,10 @@ void MacroAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
                               Register scratch) {
+  if (CpuFeatures::IsSupported(ZBB)) {
+    rev8(rd, rs, scratch);
+    return;
+  }
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
   DCHECK(operand_size == 4 || operand_size == 8);
@@ -1790,6 +1816,10 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
 #elif V8_TARGET_ARCH_RISCV32
 void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
                               Register scratch) {
+  if (CpuFeatures::IsSupported(ZBB)) {
+    rev8(rd, rs, scratch);
+    return;
+  }
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
   // Uint32_t x1 = 0x00FF00FF;
