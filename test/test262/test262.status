@@ -830,7 +830,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainDate/argument-builtin-calendar-no-array-iteration': [FAIL],
 
   'built-ins/Temporal/Calendar/prototype/yearOfWeek/not-a-constructor': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/relativeto-zoneddatetime-normalized-time-duration-to-days-range-errors': [FAIL],
 
   'built-ins/Temporal/Calendar/from/calendar-temporal-object': [FAIL],
   'built-ins/Temporal/Calendar/prototype/yearOfWeek/argument-propertybag-calendar-case-insensitive': [FAIL],
@@ -901,7 +900,6 @@
   'built-ins/Temporal/Duration/prototype/round/largestunit-correct-rebalancing': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-calendar-string': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-timezone-string': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/throws-in-unbalance-duration-relative-when-sign-mismatched': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/timezone-getpossibleinstantsfor-iterable': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-calendar-string': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-timezone-string': [FAIL],
@@ -2417,7 +2415,6 @@
   'built-ins/Temporal/Duration/prototype/total/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-normalized-time-duration-to-days-range-errors': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/since/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/order-of-operations': [FAIL],
@@ -2513,7 +2510,6 @@
   'built-ins/Temporal/Duration/prototype/add/result-out-of-range-1': [SKIP],
   'built-ins/Temporal/Duration/prototype/add/result-out-of-range-2': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/date-and-time-durations-opposite-signs': [SKIP],
-  'built-ins/Temporal/Duration/prototype/round/normalized-time-duration-to-days-loop-arbitrarily': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/out-of-range-when-converting-from-normalized-duration': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-out-of-range-backward-offset-shift': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-out-of-range-forward-offset-shift': [SKIP],
@@ -2525,7 +2521,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/result-out-of-range-1': [SKIP],
   'built-ins/Temporal/Duration/prototype/subtract/result-out-of-range-2': [SKIP],
   'built-ins/Temporal/Duration/prototype/toString/throws-when-rounded-duration-is-invalid': [SKIP],
-  'built-ins/Temporal/Duration/prototype/total/normalized-time-duration-to-days-loop-arbitrarily': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-3': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-4': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [SKIP],
@@ -2574,8 +2569,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-out-of-range-backward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-out-of-range-forward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/since/date-and-time-durations-opposite-signs': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/normalized-time-duration-to-days-loop-arbitrarily': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/normalized-time-duration-to-days-range-errors': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/since/wrapping-at-end-of-month': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/startOfDay/getoffsetnanosecondsfor-out-of-range-forward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/startOfDay/getpossibleinstantsfor-out-of-range-backward-offset-shift': [SKIP],
@@ -2583,8 +2576,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-out-of-range-backward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-out-of-range-forward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/until/date-and-time-durations-opposite-signs': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/normalized-time-duration-to-days-loop-arbitrarily': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/normalized-time-duration-to-days-range-errors': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/until/wrapping-at-end-of-month': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/with/getoffsetnanosecondsfor-out-of-range-forward-offset-shift': [SKIP],
   'built-ins/Temporal/ZonedDateTime/prototype/with/getpossibleinstantsfor-out-of-range-backward-offset-shift': [SKIP],
@@ -2754,6 +2745,34 @@
   'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-short-en': [SKIP],
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [SKIP],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Promise/try/args': [SKIP],
+  'built-ins/Promise/try/ctx-ctor': [SKIP],
+  'built-ins/Promise/try/ctx-ctor-throws': [SKIP],
+  'built-ins/Promise/try/length': [SKIP],
+  'built-ins/Promise/try/name': [SKIP],
+  'built-ins/Promise/try/not-a-constructor': [SKIP],
+  'built-ins/Promise/try/promise': [SKIP],
+  'built-ins/Promise/try/prop-desc': [SKIP],
+  'built-ins/Promise/try/return-value': [SKIP],
+  'built-ins/Promise/try/throws': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/dateuntil-field': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/largestunit-smallestunit-combinations-relativeto': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/dst-balancing-result': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/dst-day-length': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/total-of-each-unit': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/total-of-each-unit-relativeto': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/roundingincrement-addition-out-of-range': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/roundingincrement-non-integer': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/roundingincrement-addition-out-of-range': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/roundingincrement-non-integer': [SKIP],
+  'intl402/Temporal/Duration/prototype/round/relativeto-string-datetime': [SKIP],
 }],
 # End roll-watcher patch
 ####
