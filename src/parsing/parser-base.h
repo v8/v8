@@ -612,7 +612,6 @@ class ParserBase {
     bool has_instance_members = false;
     bool requires_brand = false;
     bool is_anonymous = false;
-    bool has_private_methods = false;
     DeclarationScope* static_elements_scope = nullptr;
     DeclarationScope* instance_members_scope = nullptr;
     int computed_field_count = 0;
@@ -5024,7 +5023,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteralBody(
       DCHECK(!is_constructor);
       class_info.requires_brand |= (!is_field && !prop_info.is_static);
       bool is_method = property_kind == ClassLiteralProperty::METHOD;
-      class_info.has_private_methods |= is_method;
       class_info.has_static_private_methods |= is_method && prop_info.is_static;
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,

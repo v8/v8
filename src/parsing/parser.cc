@@ -3350,7 +3350,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
       class_info->public_members, class_info->private_members,
       static_initializer, instance_members_initializer_function, pos, end_pos,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods, class_info->home_object_variable,
+      class_info->home_object_variable,
       class_info->static_home_object_variable);
 
   AddFunctionForNameInference(class_info->constructor);
