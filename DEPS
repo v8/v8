@@ -228,11 +228,11 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'fe087b52bb86cb87eaf1b0675a715e92aeec1d95',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'd246272069be506602bd2a7dcf49526d7de603f9',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '2fb5f9cb8feec2234952f6999af941ac48555710',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '2db0eb3f96a5756298dcd7f9319e56a98585bd10',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
