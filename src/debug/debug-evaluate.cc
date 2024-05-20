@@ -356,7 +356,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(ArrayIndexOf)                        \
   V(ArrayIsArray)                        \
   V(GetFunctionName)                     \
-  V(GetOwnPropertyDescriptor)            \
   V(GlobalPrint)                         \
   V(HasProperty)                         \
   V(ObjectCreate)                        \

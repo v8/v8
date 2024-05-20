@@ -1286,22 +1286,6 @@ RUNTIME_FUNCTION(Runtime_SetOwnPropertyIgnoreAttributes) {
                                o, key, value, PropertyAttributes(attributes)));
 }
 
-RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(2, args.length());
-  Handle<JSReceiver> object = args.at<JSReceiver>(0);
-  Handle<Name> name = args.at<Name>(1);
-
-  PropertyDescriptor desc;
-  Maybe<bool> found =
-      JSReceiver::GetOwnPropertyDescriptor(isolate, object, name, &desc);
-  MAYBE_RETURN(found, ReadOnlyRoots(isolate).exception());
-
-  if (!found.FromJust()) return ReadOnlyRoots(isolate).undefined_value();
-  return *desc.ToObject(isolate);
-}
-
 // Returns a PropertyDescriptorObject (property-descriptor-object.h)
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptorObject) {
   HandleScope scope(isolate);
