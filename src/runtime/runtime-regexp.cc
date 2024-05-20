@@ -2034,13 +2034,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   return *regexp;
 }
 
-RUNTIME_FUNCTION(Runtime_IsRegExp) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSRegExp(obj));
-}
-
 RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

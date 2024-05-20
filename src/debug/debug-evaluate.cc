@@ -314,7 +314,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(IsArray)                             \
   V(IsJSProxy)                           \
   V(IsJSReceiver)                        \
-  V(IsRegExp)                            \
   V(IsSmi)                               \
   /* Loads */                            \
   V(LoadLookupSlotForCall)               \

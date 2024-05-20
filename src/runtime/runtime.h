@@ -393,7 +393,6 @@ namespace internal {
   F(PromiseHookInit, 2, 1)               \
   F(PromiseRejectEventFromStack, 2, 1)   \
   F(PromiseRevokeReject, 1, 1)           \
-  F(PromiseStatus, 1, 1)                 \
   F(RejectPromise, 3, 1)                 \
   F(ResolvePromise, 2, 1)                \
   F(PromiseRejectAfterResolved, 2, 1)    \
@@ -412,7 +411,6 @@ namespace internal {
   F(SetPropertyWithReceiver, 4, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)                          \
-  F(IsRegExp, 1, 1)                                              \
   F(RegExpBuildIndices, 3, 1)                                    \
   F(RegExpExec, 4, 1)                                            \
   F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \
