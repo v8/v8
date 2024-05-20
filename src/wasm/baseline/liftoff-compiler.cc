@@ -4821,7 +4821,12 @@ class LiftoffCompiler {
         LiftoffRegister acc = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
+#if defined(V8_TARGET_ARCH_X64)
+        LiftoffRegister dst =
+            __ GetUnusedRegister(res_rc, {acc}, LiftoffRegList{lhs, rhs});
+#else
         LiftoffRegister dst = __ GetUnusedRegister(res_rc, {lhs, rhs, acc}, {});
+#endif
 
         __ emit_i32x4_dot_i8x16_i7x16_add_s(dst, lhs, rhs, acc);
         __ PushRegister(kS128, dst);
