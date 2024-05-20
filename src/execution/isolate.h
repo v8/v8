@@ -980,6 +980,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
   Handle<String> CurrentScriptNameOrSourceURL();
+  bool GetStackTraceLimit(Isolate* isolate, int* result);
 
   Address GetAbstractPC(int* line, int* column);
 

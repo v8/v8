@@ -1013,25 +1013,6 @@ class CallSiteBuilder {
   Handle<FixedArray> elements_;
 };
 
-bool GetStackTraceLimit(Isolate* isolate, int* result) {
-  if (v8_flags.correctness_fuzzer_suppressions) return false;
-  Handle<JSObject> error = isolate->error_function();
-
-  Handle<String> key = isolate->factory()->stackTraceLimit_string();
-  Handle<Object> stack_trace_limit =
-      JSReceiver::GetDataProperty(isolate, error, key);
-  if (!IsNumber(*stack_trace_limit)) return false;
-
-  // Ensure that limit is not negative.
-  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
-
-  if (*result != v8_flags.stack_trace_limit) {
-    isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
-  }
-
-  return true;
-}
-
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                             CallSiteBuilder* builder) {
   while (!builder->Full()) {
@@ -1522,6 +1503,25 @@ Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
+}
+
+bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
+  if (v8_flags.correctness_fuzzer_suppressions) return false;
+  Handle<JSObject> error = isolate->error_function();
+
+  Handle<String> key = isolate->factory()->stackTraceLimit_string();
+  Handle<Object> stack_trace_limit =
+      JSReceiver::GetDataProperty(isolate, error, key);
+  if (!IsNumber(*stack_trace_limit)) return false;
+
+  // Ensure that limit is not negative.
+  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
+
+  if (*result != v8_flags.stack_trace_limit) {
+    isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
+  }
+
+  return true;
 }
 
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {

@@ -5022,6 +5022,53 @@ TEST(MessageGetSourceLine) {
       });
 }
 
+TEST(GetStackTraceLimit) {
+  i::v8_flags.stack_trace_limit = 10;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  const int stack_trace_limit = isolate->GetStackTraceLimit();
+  CHECK_EQ(10, stack_trace_limit);
+}
+
+TEST(GetStackTraceLimitSetFromJS) {
+  i::v8_flags.stack_trace_limit = 10;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
+  v8::Local<v8::String> script = v8_str("Error.stackTraceLimit = 5;\n");
+  v8::Script::Compile(context.local(), script, &origin)
+      .ToLocalChecked()
+      ->Run(context.local())
+      .ToLocalChecked();
+
+  const int stack_trace_limit = isolate->GetStackTraceLimit();
+  CHECK_EQ(5, stack_trace_limit);
+}
+
+TEST(GetStackTraceLimitSetNegativeFromJS) {
+  i::v8_flags.stack_trace_limit = 10;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
+  v8::Local<v8::String> script = v8_str("Error.stackTraceLimit = -5;\n");
+  v8::Script::Compile(context.local(), script, &origin)
+      .ToLocalChecked()
+      ->Run(context.local())
+      .ToLocalChecked();
+
+  const int stack_trace_limit = isolate->GetStackTraceLimit();
+  CHECK_EQ(0, stack_trace_limit);
+}
+
 void GetCurrentStackTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::stringstream ss;
   v8::Message::PrintCurrentStackTrace(args.GetIsolate(), ss);

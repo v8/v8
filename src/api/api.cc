@@ -9873,6 +9873,15 @@ void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
   i_isolate->SetPrepareStackTraceCallback(callback);
 }
 
+int Isolate::GetStackTraceLimit() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  int stack_trace_limit = 0;
+  if (!i_isolate->GetStackTraceLimit(i_isolate, &stack_trace_limit)) {
+    return i::v8_flags.stack_trace_limit;
+  }
+  return stack_trace_limit;
+}
+
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
     Isolate* v8_isolate,
     Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)

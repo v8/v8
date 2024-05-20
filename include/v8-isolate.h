@@ -671,6 +671,11 @@ class V8_EXPORT Isolate {
    */
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
 
+  /**
+   * Get the stackTraceLimit property of Error.
+   */
+  int GetStackTraceLimit();
+
 #if defined(V8_OS_WIN)
   /**
    * This specifies the callback called when an ETW tracing session starts.
