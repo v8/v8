@@ -2985,17 +2985,76 @@ void MaglevGraphBuilder::VisitTestUndefined() {
   SetAccumulator(BuildTaggedEqual(value, RootIndex::kUndefinedValue));
 }
 
+template <typename Function>
+ReduceResult MaglevGraphBuilder::TryReduceTypeOf(ValueNode* value,
+                                                 const Function& GetResult) {
+  // Similar to TF, we assume that all undetectable receiver objects are also
+  // callables. In practice, there is only one: document.all.
+  switch (CheckTypes(
+      value, {NodeType::kBoolean, NodeType::kNumber, NodeType::kString,
+              NodeType::kSymbol, NodeType::kCallable, NodeType::kJSArray})) {
+    case NodeType::kBoolean:
+      return GetResult(TypeOfLiteralFlag::kBoolean, RootIndex::kboolean_string);
+    case NodeType::kNumber:
+      return GetResult(TypeOfLiteralFlag::kNumber, RootIndex::knumber_string);
+    case NodeType::kString:
+      return GetResult(TypeOfLiteralFlag::kString, RootIndex::kstring_string);
+    case NodeType::kSymbol:
+      return GetResult(TypeOfLiteralFlag::kSymbol, RootIndex::ksymbol_string);
+    case NodeType::kCallable:
+      return Select(
+          [&](auto& builder) {
+            return BuildBranchIfUndetectable(builder, value);
+          },
+          [&] {
+            return GetResult(TypeOfLiteralFlag::kUndefined,
+                             RootIndex::kundefined_string);
+          },
+          [&] {
+            return GetResult(TypeOfLiteralFlag::kFunction,
+                             RootIndex::kfunction_string);
+          });
+    case NodeType::kJSArray:
+      // TODO(victorgomes): Track JSReceiver, non-callable types in Maglev.
+      return GetResult(TypeOfLiteralFlag::kObject, RootIndex::kobject_string);
+    default:
+      break;
+  }
+
+  if (IsNullValue(value)) {
+    return GetResult(TypeOfLiteralFlag::kObject, RootIndex::kobject_string);
+  }
+  if (IsUndefinedValue(value)) {
+    return GetResult(TypeOfLiteralFlag::kUndefined,
+                     RootIndex::kundefined_string);
+  }
+
+  return ReduceResult::Fail();
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceTypeOf(ValueNode* value) {
+  return TryReduceTypeOf(value,
+                         [&](TypeOfLiteralFlag _, RootIndex idx) -> ValueNode* {
+                           return GetRootConstant(idx);
+                         });
+}
+
 void MaglevGraphBuilder::VisitTestTypeOf() {
-  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   // TODO(v8:7700): Add a branch version of TestTypeOf that does not need to
   // materialise the boolean value.
-  LiteralFlag literal =
+  TypeOfLiteralFlag literal =
       interpreter::TestTypeOfFlags::Decode(GetFlag8Operand(0));
-  if (literal == LiteralFlag::kOther) {
+  if (literal == TypeOfLiteralFlag::kOther) {
     SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
     return;
   }
   ValueNode* value = GetAccumulatorTagged();
+  auto GetResult = [&](TypeOfLiteralFlag expected, RootIndex _) {
+    return GetRootConstant(literal == expected ? RootIndex::kTrueValue
+                                               : RootIndex::kFalseValue);
+  };
+  PROCESS_AND_RETURN_IF_DONE(TryReduceTypeOf(value, GetResult), SetAccumulator);
+
   SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
 }
 
@@ -3468,6 +3527,19 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
   known_info->CombineType(new_node_type);
   known_info->alternative().set_constant(GetConstant(ref));
+}
+
+NodeType MaglevGraphBuilder::CheckTypes(ValueNode* node,
+                                        std::initializer_list<NodeType> types) {
+  auto it = known_node_aspects().FindInfo(node);
+  bool has_kna = known_node_aspects().IsValid(it);
+  for (NodeType type : types) {
+    if (CheckStaticType(node, type)) return type;
+    if (has_kna) {
+      if (NodeTypeIs(it->second.type(), type)) return type;
+    }
+  }
+  return NodeType::kUnknown;
 }
 
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
@@ -6009,55 +6081,34 @@ void MaglevGraphBuilder::VisitLogicalNot() {
 }
 
 void MaglevGraphBuilder::VisitTypeOf() {
-  // Similar to TF, we assume that all undetectable receiver objects are also
-  // callables. In practice, there is only one: document.all.
   ValueNode* value = GetAccumulatorTagged();
-  if (CheckType(value, NodeType::kBoolean)) {
-    SetAccumulator(GetRootConstant(RootIndex::kboolean_string));
-  } else if (CheckType(value, NodeType::kNumber)) {
-    SetAccumulator(GetRootConstant(RootIndex::knumber_string));
-  } else if (CheckType(value, NodeType::kString)) {
-    SetAccumulator(GetRootConstant(RootIndex::kstring_string));
-  } else if (CheckType(value, NodeType::kSymbol)) {
-    SetAccumulator(GetRootConstant(RootIndex::ksymbol_string));
-  } else if (CheckType(value, NodeType::kCallable)) {
-    SetAccumulator(Select(
-        [&](auto& builder) {
-          return BuildBranchIfUndetectable(builder, value);
-        },
-        [&] { return GetRootConstant(RootIndex::kundefined_string); },
-        [&] { return GetRootConstant(RootIndex::kfunction_string); }));
-  } else if (IsNullValue(value) || CheckType(value, NodeType::kJSArray)) {
-    // TODO(victorgomes): Track JSReceiver, non-callable types in Maglev.
-    SetAccumulator(GetRootConstant(RootIndex::kobject_string));
-  } else if (IsUndefinedValue(value)) {
-    SetAccumulator(GetRootConstant(RootIndex::kundefined_string));
-  } else {
-    FeedbackNexus nexus = FeedbackNexusForOperand(0);
-    TypeOfFeedback::Result feedback = nexus.GetTypeOfFeedback();
-    switch (feedback) {
-      case TypeOfFeedback::kNone:
-        RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
-            DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf));
-      case TypeOfFeedback::kNumber:
-        BuildCheckNumber(value);
-        SetAccumulator(GetRootConstant(RootIndex::knumber_string));
-        break;
-      case TypeOfFeedback::kString:
-        BuildCheckString(value);
-        SetAccumulator(GetRootConstant(RootIndex::kstring_string));
-        break;
-      case TypeOfFeedback::kFunction:
-        AddNewNode<CheckDetectableCallable>({value},
-                                            GetCheckType(GetType(value)));
-        EnsureType(value, NodeType::kCallable);
-        SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
-        break;
-      default:
-        SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
-        break;
-    }
+  PROCESS_AND_RETURN_IF_DONE(TryReduceTypeOf(value), SetAccumulator);
+
+  FeedbackNexus nexus = FeedbackNexusForOperand(0);
+  TypeOfFeedback::Result feedback = nexus.GetTypeOfFeedback();
+  switch (feedback) {
+    case TypeOfFeedback::kNone:
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf));
+    case TypeOfFeedback::kNumber:
+      BuildCheckNumber(value);
+      SetAccumulator(GetRootConstant(RootIndex::knumber_string));
+      return;
+    case TypeOfFeedback::kString:
+      BuildCheckString(value);
+      SetAccumulator(GetRootConstant(RootIndex::kstring_string));
+      return;
+    case TypeOfFeedback::kFunction:
+      AddNewNode<CheckDetectableCallable>({value},
+                                          GetCheckType(GetType(value)));
+      EnsureType(value, NodeType::kCallable);
+      SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
+      return;
+    default:
+      break;
   }
+
+  SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
 }
 
 void MaglevGraphBuilder::VisitDeletePropertyStrict() {

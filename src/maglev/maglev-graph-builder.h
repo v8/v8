@@ -434,6 +434,7 @@ class MaglevGraphBuilder {
 
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   NodeType GetType(ValueNode* node);
 
@@ -2227,6 +2228,11 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   void VisitCompareOperation();
+
+  using TypeOfLiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  template <typename Function>
+  ReduceResult TryReduceTypeOf(ValueNode* value, const Function& GetResult);
+  ReduceResult TryReduceTypeOf(ValueNode* value);
 
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);

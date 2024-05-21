@@ -43,6 +43,8 @@ assertEquals('function', typeof new Proxy(_ => 42, {}));
 assertEquals('function', typeof class {});
 assertEquals('function', typeof Object);
 
+// Optimizing TypeOf
+
 function test2(v, t) {
   assertEquals(typeof v, t);
 }
@@ -55,6 +57,36 @@ function test(v1, t1, v2, t2) {
   %OptimizeFunctionOnNextCall(test2);
   test2(v1, t1);
   test2(v2, t2);
+}
+test(function(){}, 'function', {}, 'object');
+test(1, 'number', {}, 'object');
+test(1.2, 'number', {}, 'object');
+test("asdF", 'string', {}, 'object');
+test(undefined, 'undefined', {}, 'object');
+test(undefined, 'undefined', null, 'object');
+test(null, 'object', undefined, 'undefined');
+test(true, 'boolean', null, 'object');
+
+// Optimizing TestTypeOf
+
+function test2(v) {
+  if (v) v.x
+  if (typeof v == "number") return "number";
+  if (typeof v == "object") return "object";
+  if (typeof v == "function") return "function";
+  if (typeof v == "undefined") return "undefined";
+  if (typeof v == "boolean") return "boolean";
+  if (typeof v == "string") return "string";
+}
+%PrepareFunctionForOptimization(test2);
+function test(v1, t1, v2, t2) {
+  %ClearFunctionFeedback(test2);
+  assertEquals(test2(v1), t1);
+  assertEquals(test2(v1), t1);
+  assertEquals(test2(v1), t1);
+  %OptimizeFunctionOnNextCall(test2);
+  assertEquals(test2(v1), t1);
+  assertEquals(test2(v2), t2);
 }
 test(function(){}, 'function', {}, 'object');
 test(1, 'number', {}, 'object');
