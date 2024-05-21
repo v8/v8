@@ -2139,3 +2139,21 @@ let glob_b = 3.35;
                "accessing 'this' or returning from derived constructor");
   assertOptimized(A3);
 }
+
+// Testing closures as object properties.
+{
+  function create_closure(v) {
+    let o = {};
+    let x = 4;
+    o.x = (c) => v + x++ + 2 + c;
+    return o;
+  }
+
+  %PrepareFunctionForOptimization(create_closure);
+  create_closure(7);
+  %OptimizeFunctionOnNextCall(create_closure);
+  let o = create_closure(7);
+  assertEquals(7+4+2+2, o.x(2));
+  assertEquals(7+5+2+5, o.x(5));
+  assertOptimized(create_closure);
+}

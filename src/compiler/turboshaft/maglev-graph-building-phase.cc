@@ -752,6 +752,29 @@ class GraphBuilder {
 
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CreateClosure* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK(!node->properties().can_throw());
+
+    V<Context> context = Map(node->context());
+    V<SharedFunctionInfo> shared_function_info =
+        __ HeapConstant(node->shared_function_info().object());
+    V<FeedbackCell> feedback_cell =
+        __ HeapConstant(node->feedback_cell().object());
+
+    V<JSFunction> closure;
+    if (node->pretenured()) {
+      closure = __ CallRuntime_NewClosure_Tenured(
+          isolate_, context, shared_function_info, feedback_cell);
+    } else {
+      closure = __ CallRuntime_NewClosure(isolate_, context,
+                                          shared_function_info, feedback_cell);
+    }
+
+    SetMap(node, closure);
+
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CallWithArrayLike* node,
                                 const maglev::ProcessingState& state) {

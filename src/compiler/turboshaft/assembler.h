@@ -3392,6 +3392,20 @@ class TurboshaftAssemblerOpInterface
     CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
         isolate, frame_state, context, {});
   }
+  V<JSFunction> CallRuntime_NewClosure(
+      Isolate* isolate, V<Context> context,
+      V<SharedFunctionInfo> shared_function_info,
+      V<FeedbackCell> feedback_cell) {
+    return CallRuntime<typename RuntimeCallDescriptor::NewClosure>(
+        isolate, context, {shared_function_info, feedback_cell});
+  }
+  V<JSFunction> CallRuntime_NewClosure_Tenured(
+      Isolate* isolate, V<Context> context,
+      V<SharedFunctionInfo> shared_function_info,
+      V<FeedbackCell> feedback_cell) {
+    return CallRuntime<typename RuntimeCallDescriptor::NewClosure_Tenured>(
+        isolate, context, {shared_function_info, feedback_cell});
+  }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
