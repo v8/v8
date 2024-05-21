@@ -10897,12 +10897,42 @@ void MaglevGraphBuilder::MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken) {
   }
 }
 
+#ifdef DEBUG
+namespace {
+bool IsNumberRootConstant(RootIndex root_index) {
+  switch (root_index) {
+#define CASE(type, name, label) case RootIndex::k##label:
+    SMI_ROOT_LIST(CASE)
+    STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(CASE)
+    return true;
+    default:
+      return false;
+  }
+#undef CASE
+}
+}  // namespace
+#endif
+
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
     BranchBuilder& builder, ValueNode* node, RootIndex root_index) {
+  // We assume that Maglev never emits a comparison to a root number.
+  DCHECK(!IsNumberRootConstant(root_index));
+
   // If the node we're checking is in the accumulator, swap it in the branch
   // with the checked value. Cache whether we want to swap, since after we've
   // swapped the accumulator isn't the original node anymore.
   BranchBuilder::PatchAccumulatorInBranchScope scope(builder, node, root_index);
+
+  if (node->properties().value_representation() ==
+          ValueRepresentation::kHoleyFloat64 &&
+      root_index == RootIndex::kUndefinedValue) {
+    return builder.Build<BranchIfFloat64IsHole>({node});
+  }
+
+  if (CheckType(node, NodeType::kNumber)) {
+    return builder.AlwaysFalse();
+  }
+  CHECK(node->is_tagged());
 
   if (root_index != RootIndex::kTrueValue &&
       root_index != RootIndex::kFalseValue &&
@@ -11123,27 +11153,27 @@ void MaglevGraphBuilder::VisitJumpIfToBooleanFalse() {
 }
 void MaglevGraphBuilder::VisitJumpIfTrue() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);
-  BuildBranchIfTrue(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfTrue(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfFalse() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfFalse);
-  BuildBranchIfTrue(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfTrue(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfNull() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);
-  BuildBranchIfNull(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfNull(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfNotNull() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfFalse);
-  BuildBranchIfNull(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfNull(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfUndefined() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfTrue);
-  BuildBranchIfUndefined(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfUndefined(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfNotUndefined() {
   auto branch_builder = CreateBranchBuilder(BranchType::kBranchIfFalse);
-  BuildBranchIfUndefined(branch_builder, GetAccumulatorTagged());
+  BuildBranchIfUndefined(branch_builder, GetRawAccumulator());
 }
 void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
   auto branch_builder = CreateBranchBuilder();
@@ -11648,6 +11678,9 @@ ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
   auto throw_iterator_error = [&] {
     return BuildCallRuntime(Runtime::kThrowIteratorError, {receiver});
   };
+  if (!iterator_method->is_tagged()) {
+    return throw_iterator_error();
+  }
   auto throw_symbol_iterator_invalid = [&] {
     return BuildCallRuntime(Runtime::kThrowSymbolIteratorInvalid, {});
   };
