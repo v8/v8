@@ -204,6 +204,18 @@ in_category(
 )
 
 in_category(
+    "Drumbrake",
+    experiment_builder_pair(
+        name = "V8 Win64 - drumbrake - debug",
+        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+        priority = 35,
+        use_remoteexec = RECLIENT.DEFAULT,
+        triggered_by = ["v8-trigger"],
+        notify_owners = ["paolosev@microsoft.com"],
+    ),
+)
+
+in_category(
     "Linux64 no sandbox",
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox",
