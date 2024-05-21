@@ -42,22 +42,29 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(!InWritableSharedSpace(host));
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
   Tagged<HeapObject> value = HeapObject::cast(slot.load(isolate()));
-  MarkValue(host, value);
+  if (InReadOnlySpace(value)) return;
 
-  // We don't emit generational- and shared write barriers for indirect
-  // pointers as objects referenced through them are currently never allocated
-  // in the young generation or the shared (writable) heap. If this ever
-  // changes (in which case, this DCHECK here would fail), we would need to
-  // update the code for these barriers and make the remembered sets aware of
-  // pointer table entries.
   DCHECK(!Heap::InYoungGeneration(value));
-  DCHECK(!InWritableSharedSpace(value));
+
+  if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
+    if (InWritableSharedSpace(value)) {
+      // A client isolate does not need a marking barrier for shared trusted
+      // objects. This is because all entries in the trusted pointer table will
+      // be marked for client isolates in the atomic pause.
+      DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
+    } else {
+      MarkValueLocal(value);
+    }
+  } else {
+    MarkValueLocal(value);
+  }
 
   // We never need to record indirect pointer slots (i.e. references through a
   // pointer table) since the referenced object owns its table entry and will
