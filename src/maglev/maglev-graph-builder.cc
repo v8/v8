@@ -6042,7 +6042,7 @@ void MaglevGraphBuilder::VisitTypeOf() {
         break;
       case TypeOfFeedback::kFunction:
         AddNewNode<CheckDetectableCallable>({value},
-                                            CheckType::kOmitHeapObjectCheck);
+                                            GetCheckType(GetType(value)));
         EnsureType(value, NodeType::kCallable);
         SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
         break;
