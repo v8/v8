@@ -390,10 +390,6 @@
 
 
   # Some wasm functionality is not implemented yet.
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
 
   # According to riscv's NaN generation and propagation scheme, the payload
   # is not guaranteed. So the test fails when src bits has payload.
@@ -401,8 +397,6 @@
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
 
   'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
-
-  'turboshaft-test-compare-combine/CombineCompareTwoLogicInputs':[SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 ['arch == riscv32', {
   # Some wasm functionality is not implemented yet.
