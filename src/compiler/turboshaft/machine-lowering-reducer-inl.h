@@ -2968,7 +2968,7 @@ class MachineLoweringReducer : public Next {
     return input;
   }
 
-  OpIndex REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
+  V<None> REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
                                                 V<Object> value,
                                                 V<FrameState> frame_state) {
     Label<> done(this);
@@ -3024,7 +3024,7 @@ class MachineLoweringReducer : public Next {
     GOTO(done);
 
     BIND(done);
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
@@ -3032,10 +3032,10 @@ class MachineLoweringReducer : public Next {
         offset, AccessBuilder::ForExternalIntPtr()));
   }
 
-  OpIndex REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
+  V<None> REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
     __ StoreField(offset, AccessBuilder::ForExternalIntPtr(),
                   __ BitcastTaggedToWordPtr(object));
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   V<Boolean> REDUCE(SameValue)(OpIndex left, OpIndex right,

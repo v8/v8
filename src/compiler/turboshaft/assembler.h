@@ -720,7 +720,7 @@ class EmitProjectionReducer
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(EmitProjection)
 
-  OpIndex ReduceCatchBlockBegin() {
+  V<Object> ReduceCatchBlockBegin() {
     // CatchBlockBegin have a single output, so they never have projections,
     // but additionally split-edge can transform CatchBlockBeginOp into PhiOp,
     // which means that there is no guarantee here that Next::CatchBlockBegin is
@@ -969,7 +969,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex REDUCE(CatchBlockBegin)() {
+  V<Object> REDUCE(CatchBlockBegin)() {
     Block* current_block = Asm().current_block();
     if (current_block->IsBranchTarget()) {
       DCHECK_EQ(current_block->PredecessorCount(), 1);
@@ -987,7 +987,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     DCHECK(current_block->IsMerge());
     base::SmallVector<OpIndex, 8> phi_inputs;
     for (Block* predecessor : current_block->Predecessors()) {
-      OpIndex catch_begin = predecessor->begin();
+      V<Object> catch_begin = predecessor->begin();
       DCHECK(Asm().Get(catch_begin).template Is<CatchBlockBeginOp>());
       phi_inputs.push_back(catch_begin);
     }

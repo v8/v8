@@ -2603,7 +2603,7 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::SetPendingMessage* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex message_address = __ ExternalConstant(
+    V<WordPtr> message_address = __ ExternalConstant(
         ExternalReference::address_of_pending_message(isolate_));
     V<Object> old_message = __ LoadMessage(message_address);
     __ StoreMessage(message_address, Map(node->value()));
@@ -3280,7 +3280,7 @@ class GraphBuilder {
   // exception phi. When emitting a Turboshaft exception block, we thus store
   // the CatchBlockBegin in {catch_block_begin_}, which we then use when trying
   // to map the exception phi corresponding to the accumulator.
-  V<Object> catch_block_begin_ = OpIndex::Invalid();
+  V<Object> catch_block_begin_ = V<Object>::Invalid();
 
   // Maglev loops can have multiple forward edges, while Turboshaft should only
   // have a single one. When a Maglev loop has multiple forward edge, we create
@@ -3299,7 +3299,7 @@ class GraphBuilder {
   int loop_phis_first_input_index_ = -1;
 
   V<NativeContext> native_context_ = V<NativeContext>::Invalid();
-  V<Object> new_target_param_ = OpIndex::Invalid();
+  V<Object> new_target_param_ = V<Object>::Invalid();
   base::SmallVector<int, 16> predecessor_permutation_;
 };
 
