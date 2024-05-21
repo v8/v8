@@ -764,8 +764,14 @@ class Heap final {
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
   TrustedSpace* trusted_space() const { return trusted_space_; }
+  SharedTrustedSpace* shared_trusted_space() const {
+    return shared_trusted_space_;
+  }
   TrustedLargeObjectSpace* trusted_lo_space() const {
     return trusted_lo_space_;
+  }
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space() const {
+    return shared_trusted_lo_space_;
   }
 
   PagedSpace* shared_allocation_space() const {

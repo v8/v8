@@ -4380,11 +4380,14 @@ bool Heap::Contains(Tagged<HeapObject> value) const {
   return (new_space_ && new_space_->Contains(value)) ||
          old_space_->Contains(value) || code_space_->Contains(value) ||
          (shared_space_ && shared_space_->Contains(value)) ||
+         (shared_trusted_space_ && shared_trusted_space_->Contains(value)) ||
          lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
          (new_lo_space_ && new_lo_space_->Contains(value)) ||
          trusted_space_->Contains(value) ||
          trusted_lo_space_->Contains(value) ||
-         (shared_lo_space_ && shared_lo_space_->Contains(value));
+         (shared_lo_space_ && shared_lo_space_->Contains(value)) ||
+         (shared_trusted_lo_space_ &&
+          shared_trusted_lo_space_->Contains(value));
 }
 
 bool Heap::ContainsCode(Tagged<HeapObject> value) const {

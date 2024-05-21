@@ -7,6 +7,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope-inl.h"
+#include "src/objects/fixed-array.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -107,7 +108,7 @@ class SharedTrustedSpaceAllocationThread final : public ParkingThread {
           HandleScope scope(i_client_isolate);
 
           for (int i = 0; i < kNumIterations; i++) {
-            i_client_isolate->factory()->NewFixedArray(
+            i_client_isolate->factory()->NewTrustedByteArray(
                 10, AllocationType::kSharedTrusted);
           }
 
@@ -201,10 +202,9 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
 
           for (int i = 0; i < kNumIterations; i++) {
             HandleScope scope(i_client_isolate);
-            Handle<FixedArray> fixed_array =
-                i_client_isolate->factory()->NewFixedArray(
-                    kMaxRegularHeapObjectSize / kTaggedSize,
-                    AllocationType::kSharedTrusted);
+            Handle<TrustedByteArray> fixed_array =
+                i_client_isolate->factory()->NewTrustedByteArray(
+                    kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
             CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
           }
 

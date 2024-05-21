@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
@@ -286,9 +287,10 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 }
 
 template <typename Impl>
-Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(int length) {
+Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
+    int length, AllocationType allocation_type) {
   if (length == 0) return empty_trusted_byte_array();
-  return TrustedByteArray::New(isolate(), length);
+  return TrustedByteArray::New(isolate(), length, allocation_type);
 }
 
 template <typename Impl>
