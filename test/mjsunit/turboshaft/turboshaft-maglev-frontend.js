@@ -2157,3 +2157,20 @@ let glob_b = 3.35;
   assertEquals(7+5+2+5, o.x(5));
   assertOptimized(create_closure);
 }
+
+// Testing CreateShallowObjectLiteral.
+{
+  function g(o) { return o.u; }
+
+  function create_shallow_obj(x) {
+    var o = {u: x};
+    return g(o);
+  }
+
+  %PrepareFunctionForOptimization(create_shallow_obj);
+  assertEquals(42, create_shallow_obj(42));
+  assertEquals(3.56, create_shallow_obj(3.56));
+  %OptimizeFunctionOnNextCall(create_shallow_obj);
+  assertEquals(42, create_shallow_obj(42));
+  assertEquals(3.56, create_shallow_obj(3.56));
+}

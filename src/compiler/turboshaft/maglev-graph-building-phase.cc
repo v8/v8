@@ -980,6 +980,21 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CreateShallowObjectLiteral* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        __ HeapConstant(node->feedback().vector),
+        __ TaggedIndexConstant(node->feedback().index()),
+        __ HeapConstant(node->boilerplate_descriptor().object()),
+        __ SmiConstant(Smi::FromInt(node->flags())), native_context()};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kCreateShallowObjectLiteral,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TestInstanceOf* node,
                                 const maglev::ProcessingState& state) {
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
