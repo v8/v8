@@ -23,6 +23,8 @@
 namespace v8 {
 namespace internal {
 
+class MinorMarkSweepCollector;
+
 using YoungGenerationMainMarkingVisitor = YoungGenerationMarkingVisitor<
     YoungGenerationMarkingVisitationMode::kParallel>;
 
@@ -114,7 +116,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
 class YoungGenerationRootMarkingVisitor final : public RootVisitor {
  public:
   explicit YoungGenerationRootMarkingVisitor(
-      YoungGenerationMainMarkingVisitor* main_marking_visitor);
+      MinorMarkSweepCollector* collector);
   ~YoungGenerationRootMarkingVisitor();
 
   V8_INLINE void VisitRootPointer(Root root, const char* description,
@@ -127,6 +129,11 @@ class YoungGenerationRootMarkingVisitor final : public RootVisitor {
   GarbageCollector collector() const override {
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
+
+  YoungGenerationRootMarkingVisitor(const YoungGenerationRootMarkingVisitor&) =
+      delete;
+  YoungGenerationRootMarkingVisitor& operator=(
+      const YoungGenerationRootMarkingVisitor&) = delete;
 
  private:
   template <typename TSlot>

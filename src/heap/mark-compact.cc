@@ -881,75 +881,6 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
       ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes);
 }
 
-void MarkCompactCollector::MarkRootObject(Root root, Tagged<HeapObject> obj) {
-  DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
-  if (marking_state_->TryMark(obj)) {
-    local_marking_worklists_->Push(obj);
-  }
-}
-
-bool MarkCompactCollector::ShouldMarkObject(Tagged<HeapObject> object) const {
-  if (InReadOnlySpace(object)) return false;
-  if (V8_LIKELY(!uses_shared_heap_)) return true;
-  if (is_shared_space_isolate_) return true;
-  return !InAnySharedSpace(object);
-}
-
-class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
- public:
-  explicit RootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector) {}
-
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) final {
-    DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
-    MarkObjectByPointer(root, p);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) final {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      MarkObjectByPointer(root, p);
-    }
-  }
-
-  // Keep this synced with RootsReferencesExtractor::VisitRunningCode.
-  void VisitRunningCode(FullObjectSlot code_slot,
-                        FullObjectSlot istream_or_smi_zero_slot) final {
-    Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
-    DCHECK(istream_or_smi_zero == Smi::zero() ||
-           IsInstructionStream(istream_or_smi_zero));
-    Tagged<Code> code = Code::cast(*code_slot);
-    DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
-                  collector_->heap_->isolate()->code_cage_base()}),
-              istream_or_smi_zero);
-
-    // We must not remove deoptimization literals which may be needed in
-    // order to successfully deoptimize.
-    code->IterateDeoptimizationLiterals(this);
-
-    if (istream_or_smi_zero != Smi::zero()) {
-      VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
-    }
-
-    VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
-  }
-
- private:
-  V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    Tagged<Object> object = *p;
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    if (object.ptr() == kTaggedNullAddress) return;
-#endif
-    if (!IsHeapObject(object)) return;
-    Tagged<HeapObject> heap_object = HeapObject::cast(object);
-    if (!collector_->ShouldMarkObject(heap_object)) return;
-    collector_->MarkRootObject(root, heap_object);
-  }
-
-  MarkCompactCollector* const collector_;
-};
-
 // This visitor is used to visit the body of special objects held alive by
 // other roots.
 //
@@ -5563,6 +5494,32 @@ void MarkCompactCollector::Sweep() {
   }
 
   sweeper_->StartMajorSweeping();
+}
+
+RootMarkingVisitor::RootMarkingVisitor(MarkCompactCollector* collector)
+    : collector_(collector) {}
+
+RootMarkingVisitor::~RootMarkingVisitor() = default;
+
+void RootMarkingVisitor::VisitRunningCode(
+    FullObjectSlot code_slot, FullObjectSlot istream_or_smi_zero_slot) {
+  Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
+  DCHECK(istream_or_smi_zero == Smi::zero() ||
+         IsInstructionStream(istream_or_smi_zero));
+  Tagged<Code> code = Code::cast(*code_slot);
+  DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
+                collector_->heap()->isolate()->code_cage_base()}),
+            istream_or_smi_zero);
+
+  // We must not remove deoptimization literals which may be needed in
+  // order to successfully deoptimize.
+  code->IterateDeoptimizationLiterals(this);
+
+  if (istream_or_smi_zero != Smi::zero()) {
+    VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
+  }
+
+  VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
 }
 
 }  // namespace internal

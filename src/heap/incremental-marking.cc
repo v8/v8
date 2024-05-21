@@ -222,68 +222,18 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   }
 }
 
-bool IncrementalMarking::WhiteToGreyAndPush(Tagged<HeapObject> obj) {
-  if (marking_state()->TryMark(obj)) {
-    local_marking_worklists()->Push(obj);
-    return true;
-  }
-  return false;
-}
-
-class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
-    : public RootVisitor {
- public:
-  explicit IncrementalMarkingRootMarkingVisitor(Heap* heap)
-      : incremental_marking_(heap->incremental_marking()) {}
-
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) final {
-    DCHECK(!MapWord::IsPacked((*p).ptr()));
-    MarkObjectByPointer(root, p);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) final {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      DCHECK(!MapWord::IsPacked((*p).ptr()));
-      MarkObjectByPointer(root, p);
-    }
-  }
-
- private:
-  void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    Tagged<Object> object = *p;
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    if (object.ptr() == kTaggedNullAddress) return;
-#endif
-    if (!IsHeapObject(object)) return;
-    DCHECK(!MapWord::IsPacked(object.ptr()));
-    Tagged<HeapObject> heap_object = HeapObject::cast(object);
-
-    if (InAnySharedSpace(heap_object) || InReadOnlySpace(heap_object)) return;
-
-    if (incremental_marking_->IsMajorMarking() ||
-        Heap::InYoungGeneration(heap_object)) {
-      // Either major marking, or minor marking and the object is in the young
-      // generation.
-      incremental_marking_->WhiteToGreyAndPush(heap_object);
-    }
-  }
-
-  IncrementalMarking* const incremental_marking_;
-};
-
 void IncrementalMarking::MarkRoots() {
   if (IsMajorMarking()) {
-    IncrementalMarkingRootMarkingVisitor visitor(heap_);
+    RootMarkingVisitor root_visitor(heap_->mark_compact_collector());
     heap_->IterateRoots(
-        &visitor,
+        &root_visitor,
         base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
                                 SkipRoot::kTracedHandles, SkipRoot::kWeak,
                                 SkipRoot::kReadOnlyBuiltins});
   } else {
+    DCHECK(IsMinorMarking());
     YoungGenerationRootMarkingVisitor root_visitor(
-        heap_->minor_mark_sweep_collector()->main_marking_visitor());
+        heap_->minor_mark_sweep_collector());
     heap_->IterateRoots(
         &root_visitor,
         base::EnumSet<SkipRoot>{
@@ -291,7 +241,6 @@ void IncrementalMarking::MarkRoots() {
             SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
             SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
             SkipRoot::kReadOnlyBuiltins});
-
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         &root_visitor);
   }

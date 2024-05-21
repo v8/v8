@@ -74,6 +74,45 @@ void MarkCompactCollector::AddTransitionArray(Tagged<TransitionArray> array) {
   local_weak_objects()->transition_arrays_local.Push(array);
 }
 
+bool MarkCompactCollector::ShouldMarkObject(Tagged<HeapObject> object) const {
+  if (InReadOnlySpace(object)) return false;
+  if (V8_LIKELY(!uses_shared_heap_)) return true;
+  if (is_shared_space_isolate_) return true;
+  return !InAnySharedSpace(object);
+}
+
+void MarkCompactCollector::MarkRootObject(Root root, Tagged<HeapObject> obj) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
+  if (marking_state_->TryMark(obj)) {
+    local_marking_worklists_->Push(obj);
+  }
+}
+
+void RootMarkingVisitor::VisitRootPointer(Root root, const char* description,
+                                          FullObjectSlot p) {
+  DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
+  MarkObjectByPointer(root, p);
+}
+
+void RootMarkingVisitor::VisitRootPointers(Root root, const char* description,
+                                           FullObjectSlot start,
+                                           FullObjectSlot end) {
+  for (FullObjectSlot p = start; p < end; ++p) {
+    MarkObjectByPointer(root, p);
+  }
+}
+
+void RootMarkingVisitor::MarkObjectByPointer(Root root, FullObjectSlot p) {
+  Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  if (object.ptr() == kTaggedNullAddress) return;
+#endif
+  if (!IsHeapObject(object)) return;
+  Tagged<HeapObject> heap_object = HeapObject::cast(object);
+  if (!collector_->ShouldMarkObject(heap_object)) return;
+  collector_->MarkRootObject(root, heap_object);
+}
+
 }  // namespace internal
 }  // namespace v8
 

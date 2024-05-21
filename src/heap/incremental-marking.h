@@ -141,8 +141,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   uint64_t current_trace_id() const { return current_trace_id_.value(); }
 
  private:
-  class IncrementalMarkingRootMarkingVisitor;
-
   class Observer final : public AllocationObserver {
    public:
     Observer(IncrementalMarking* incremental_marking, intptr_t step_size);
@@ -167,9 +165,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void StopPointerTableBlackAllocation();
 
   void MarkRoots();
-  // Returns true if the function succeeds in transitioning the object
-  // from white to grey.
-  bool WhiteToGreyAndPush(Tagged<HeapObject> obj);
+
   void PublishWriteBarrierWorklists();
 
   // Fetches marked byte counters from the concurrent marker.

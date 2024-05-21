@@ -2413,7 +2413,6 @@ class Heap final {
   friend class HeapVerifier;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
-  friend class IncrementalMarkingRootMarkingVisitor;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class LocalHeap;

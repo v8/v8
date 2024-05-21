@@ -26,14 +26,39 @@ class HeapObjectVisitor;
 class LargeObjectSpace;
 class LargePageMetadata;
 class MainMarkingVisitor;
+class MarkCompactCollector;
 class RecordMigratedSlotVisitor;
+
+class RootMarkingVisitor final : public RootVisitor {
+ public:
+  explicit RootMarkingVisitor(MarkCompactCollector* collector);
+  ~RootMarkingVisitor();
+
+  V8_INLINE void VisitRootPointer(Root root, const char* description,
+                                  FullObjectSlot p) final;
+
+  V8_INLINE void VisitRootPointers(Root root, const char* description,
+                                   FullObjectSlot start,
+                                   FullObjectSlot end) final;
+
+  // Keep this synced with `RootsReferencesExtractor::VisitRunningCode()`.
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) final;
+
+  RootMarkingVisitor(const RootMarkingVisitor&) = delete;
+  RootMarkingVisitor& operator=(const RootMarkingVisitor&) = delete;
+
+ private:
+  V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p);
+
+  MarkCompactCollector* const collector_;
+};
 
 // Collector for young and old generation.
 class MarkCompactCollector final {
  public:
   class CustomRootBodyMarkingVisitor;
   class SharedHeapObjectVisitor;
-  class RootMarkingVisitor;
 
   enum class StartCompactionMode {
     kIncremental,
@@ -415,6 +440,7 @@ class MarkCompactCollector final {
 
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
+  friend class RootMarkingVisitor;
 };
 
 }  // namespace internal
