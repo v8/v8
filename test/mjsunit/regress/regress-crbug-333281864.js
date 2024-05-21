@@ -18,3 +18,13 @@ for (var i = 0; i < 400; ++i) {
 
 // Mutate const field
 foo.not_const = 9;
+
+
+// Overflow transitions of jsfunction object
+Function.x = 1;
+function foo2(){};
+
+// Overflow the transitions
+for (var i = 0; i < 400; ++i) {
+  foo2.__proto__ = {};
+}
