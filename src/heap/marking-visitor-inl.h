@@ -42,7 +42,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::MarkObject(
   SynchronizePageAccess(object);
   concrete_visitor()->AddStrongReferenceForReferenceSummarizer(retainer,
                                                                object);
-  if (concrete_visitor()->TryMark(object)) {
+  if (concrete_visitor()->marking_state()->TryMark(object)) {
     local_marking_worklists_->Push(object);
     return true;
   }
@@ -83,7 +83,7 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     Tagged<HeapObject> heap_object) {
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
-  if (concrete_visitor()->IsMarked(heap_object)) {
+  if (concrete_visitor()->marking_state()->IsMarked(heap_object)) {
     // Weak references with live values are directly processed here to
     // reduce the processing time of weak cells during the main GC
     // pause.
@@ -147,7 +147,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!ShouldMarkObject(object)) return;
 
-  if (!concrete_visitor()->IsMarked(object)) {
+  if (!concrete_visitor()->marking_state()->IsMarked(object)) {
     Tagged<Code> code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
     if (code->IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
@@ -461,7 +461,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
     Tagged<Map> map, Tagged<FixedArray> object, ProgressBar& progress_bar) {
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
-  DCHECK(concrete_visitor()->IsMarked(object));
+  DCHECK(concrete_visitor()->marking_state()->IsMarked(object));
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
   size_t current_progress_bar = progress_bar.Value();
   int start = static_cast<int>(current_progress_bar);
@@ -604,7 +604,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
     DCHECK(!InWritableSharedSpace(key));
-    if (InReadOnlySpace(key) || concrete_visitor()->IsMarked(key)) {
+    if (InReadOnlySpace(key) ||
+        concrete_visitor()->marking_state()->IsMarked(key)) {
       VisitPointer(table, value_slot);
     } else {
       Tagged<Object> value_obj = table->ValueAt(i);
@@ -620,7 +621,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.
-        if (concrete_visitor()->IsUnmarked(value)) {
+        if (concrete_visitor()->marking_state()->IsUnmarked(value)) {
           local_weak_objects_->discovered_ephemerons_local.Push(
               Ephemeron{key, value});
         }
@@ -638,7 +639,10 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
   if (IsHeapObject(weak_ref->target())) {
     Tagged<HeapObject> target = HeapObject::cast(weak_ref->target());
     SynchronizePageAccess(target);
-    if (InReadOnlySpace(target) || concrete_visitor()->IsMarked(target)) {
+    concrete_visitor()->AddWeakReferenceForReferenceSummarizer(weak_ref,
+                                                               target);
+    if (InReadOnlySpace(target) ||
+        concrete_visitor()->marking_state()->IsMarked(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
       ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
@@ -647,8 +651,6 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
       // JSWeakRef points to a potentially dead object. We have to process
       // them when we know the liveness of the whole transitive closure.
       local_weak_objects_->js_weak_refs_local.Push(weak_ref);
-      concrete_visitor()->AddWeakReferenceForReferenceSummarizer(weak_ref,
-                                                                 target);
     }
   }
   return size;
@@ -664,9 +666,10 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
   Tagged<HeapObject> unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
-  if ((InReadOnlySpace(target) || concrete_visitor()->IsMarked(target)) &&
+  if ((InReadOnlySpace(target) ||
+       concrete_visitor()->marking_state()->IsMarked(target)) &&
       (InReadOnlySpace(unregister_token) ||
-       concrete_visitor()->IsMarked(unregister_token))) {
+       concrete_visitor()->marking_state()->IsMarked(unregister_token))) {
     // Record the slots inside the WeakCell, since the IterateBody above
     // didn't visit it.
     ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
@@ -784,7 +787,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
     // std::min<int>() below.
     const auto descriptors_to_mark = std::min<int>(
         number_of_own_descriptors, descriptors->number_of_descriptors());
-    concrete_visitor()->TryMark(descriptors);
+    concrete_visitor()->marking_state()->TryMark(descriptors);
     if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
             mark_compact_epoch_, descriptors, descriptors_to_mark)) {
       local_marking_worklists_->Push(descriptors);

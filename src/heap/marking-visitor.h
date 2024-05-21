@@ -33,8 +33,7 @@ struct EphemeronMarking {
 // - CanUpdateValuesInHeap
 // - AddStrongReferenceForReferenceSummarizer
 // - AddWeakReferenceForReferenceSummarizer
-// - TryMark
-// - IsMarked
+// - marking_state
 // - MarkPointerTableEntry
 // - RecordSlot
 // - RecordRelocSlot
@@ -179,11 +178,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
     return false;
   }
 
-  // Convenience method.
-  bool IsUnmarked(Tagged<HeapObject> obj) const {
-    return !concrete_visitor()->IsMarked(obj);
-  }
-
  protected:
   using ConcurrentHeapVisitor<int, ConcreteVisitor>::concrete_visitor;
 
@@ -263,7 +257,8 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
       : MarkingVisitorBase<ConcreteVisitor>(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, trace_embedder_fields,
-            should_keep_ages_unchanged, code_flushing_increase) {}
+            should_keep_ages_unchanged, code_flushing_increase),
+        marking_state_(heap->marking_state()) {}
 
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(
       Tagged<HeapObject> host, Tagged<HeapObject> obj) {}
@@ -273,14 +268,12 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
 
   constexpr bool CanUpdateValuesInHeap() { return true; }
 
-  bool TryMark(Tagged<HeapObject> obj) {
-    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
-  }
-  bool IsMarked(Tagged<HeapObject> obj) const {
-    return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
-  }
+  MarkingState* marking_state() const { return marking_state_; }
 
   void MarkPointerTableEntry(Tagged<HeapObject> obj, IndirectPointerSlot slot);
+
+ private:
+  MarkingState* marking_state_;
 };
 
 }  // namespace internal
