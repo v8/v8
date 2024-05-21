@@ -6184,6 +6184,7 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
 
   Register map = temps.Acquire();
   __ LoadMapForCompare(map, object);
+  __ CompareTaggedAndJumpIf(map, transition_target_.object(), kEqual, *done);
 
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
@@ -6954,6 +6955,16 @@ void CheckMaps::PrintParams(std::ostream& os,
     os << *map.object();
   }
   os << ")";
+}
+
+void TransitionElementsKindOrCheckMap::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Node::input(0).node() << ", [";
+  os << *transition_target().object();
+  for (compiler::MapRef source : transition_sources()) {
+    os << ", " << *source.object();
+  }
+  os << "]-->" << *transition_target().object() << ")";
 }
 
 void CheckValue::PrintParams(std::ostream& os,

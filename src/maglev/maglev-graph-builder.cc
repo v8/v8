@@ -4542,7 +4542,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       is_number.emplace(&subgraph, 2);
       subgraph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
     } else {
-      AddNewNode<CheckHeapObject>({lookup_start_object});
+      BuildCheckHeapObject(lookup_start_object);
     }
     ValueNode* lookup_start_object_map = AddNewNode<LoadTaggedField>(
         {lookup_start_object}, HeapObject::kMapOffset);
@@ -5151,15 +5151,22 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     return ReduceResult::Fail();
   }
 
+  NodeInfo* object_info = known_node_aspects().TryGetInfoFor(object);
+  compiler::ElementAccessFeedback refined_feedback =
+      object_info && object_info->possible_maps_are_known()
+          ? feedback.Refine(broker(), object_info->possible_maps())
+          : feedback;
+
   // TODO(victorgomes): Add fast path for loading from HeapConstant.
 
-  if (feedback.HasOnlyStringMaps(broker())) {
+  if (refined_feedback.HasOnlyStringMaps(broker())) {
     return TryBuildElementAccessOnString(object, index_object, keyed_mode);
   }
 
   compiler::AccessInfoFactory access_info_factory(broker(), zone());
   ZoneVector<compiler::ElementAccessInfo> access_infos(zone());
-  if (!access_info_factory.ComputeElementAccessInfos(feedback, &access_infos) ||
+  if (!access_info_factory.ComputeElementAccessInfos(refined_feedback,
+                                                     &access_infos) ||
       access_infos.empty()) {
     return ReduceResult::Fail();
   }
@@ -5184,7 +5191,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
         // with no element accessors and no throwing behavior for elements (and
         // we need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
-             StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
+             StoreModeCanGrow(refined_feedback.keyed_mode().store_mode())) &&
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return ReduceResult::Fail();
@@ -5255,7 +5262,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   base::Optional<MaglevSubGraphBuilder::Label> done;
   base::Optional<MaglevSubGraphBuilder::Label> generic_access;
 
-  AddNewNode<CheckHeapObject>({object});
+  BuildCheckHeapObject(object);
 
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
