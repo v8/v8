@@ -643,9 +643,75 @@ class GraphBuilder {
       __ CallRuntime_ThrowAccessedUninitializedVariable(
           isolate_, frame_state, native_context(),
           __ HeapConstant(node->name().object()));
-      // ThrowAccessedUninitializedVariable should not return.
+      // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
+      // However, before doing so, RuntimeAbort should be changed so that 1)
+      // it's a block terminator and 2) it doesn't call the runtime when
+      // v8_flags.trap_on_abort is true.
       __ Unreachable();
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ThrowIfNotSuperConstructor* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<HeapObject> constructor = Map(node->constructor());
+    V<i::Map> map = __ LoadMapField(constructor);
+    static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
+    V<Word32> bitfield =
+        __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField());
+    IF_NOT (LIKELY(__ Word32BitwiseAnd(bitfield,
+                                       Map::Bits1::IsConstructorBit::kMask))) {
+      V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+      __ CallRuntime_ThrowNotSuperConstructor(isolate_, frame_state,
+                                              native_context(), constructor,
+                                              Map(node->function()));
+      // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
+      // However, before doing so, RuntimeAbort should be changed so that 1)
+      // it's a block terminator and 2) it doesn't call the runtime when
+      // v8_flags.trap_on_abort is true.
+      __ Unreachable();
+    }
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ThrowSuperAlreadyCalledIfNotHole* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    IF_NOT (LIKELY(__ RootEqual(Map(node->value()), RootIndex::kTheHoleValue,
+                                isolate_))) {
+      V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+      __ CallRuntime_ThrowSuperAlreadyCalledError(isolate_, frame_state,
+                                                  native_context());
+      // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
+      // However, before doing so, RuntimeAbort should be changed so that 1)
+      // it's a block terminator and 2) it doesn't call the runtime when
+      // v8_flags.trap_on_abort is true.
+      __ Unreachable();
+    }
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ThrowSuperNotCalledIfHole* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    IF (UNLIKELY(__ RootEqual(Map(node->value()), RootIndex::kTheHoleValue,
+                              isolate_))) {
+      V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+      __ CallRuntime_ThrowSuperNotCalled(isolate_, frame_state,
+                                         native_context());
+      // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
+      // However, before doing so, RuntimeAbort should be changed so that 1)
+      // it's a block terminator and 2) it doesn't call the runtime when
+      // v8_flags.trap_on_abort is true.
+      __ Unreachable();
+    }
+
     return maglev::ProcessResult::kContinue;
   }
 

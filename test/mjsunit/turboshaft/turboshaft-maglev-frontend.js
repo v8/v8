@@ -2060,3 +2060,82 @@ let glob_b = 3.35;
   %OptimizeFunctionOnNextCall(new_derived_obj);
   new_derived_obj();
 }
+
+// Testing constructors (when it doesn't throw anything).
+{
+  class A extends Object {
+    constructor(b) {
+      super();
+      this.x = b;
+      this.y = 42;
+    }
+  }
+
+  class B extends A {
+    constructor(b) {
+      super(b);
+      this.z = 12;
+    }
+  }
+
+  %PrepareFunctionForOptimization(B);
+  let o = new B();
+  %OptimizeFunctionOnNextCall(B);
+  assertEquals(o, new B());
+  assertOptimized(B);
+}
+
+// Testing various throws in constructors.
+{
+  // Testing ThrowIfNotSuperConstructor (which triggers because the base class
+  // of A1 is "null", which doesn't have a constructor).
+  class A1 extends null {
+    constructor() {
+      super();
+    }
+  }
+
+  %PrepareFunctionForOptimization(A1);
+  assertThrows(() => new A1(), TypeError,
+               "Super constructor null of A1 is not a constructor");
+  %OptimizeFunctionOnNextCall(A1);
+  assertThrows(() => new A1(), TypeError,
+               "Super constructor null of A1 is not a constructor");
+  assertOptimized(A1);
+
+
+  // Testing ThrowSuperAlreadyCalledIfNotHole (which triggers because we call
+  // super() twice).
+  class A2 extends Object {
+    constructor() {
+      super();
+      super();
+    }
+  }
+
+  %PrepareFunctionForOptimization(A2);
+  assertThrows(() => new A2(), ReferenceError,
+               "Super constructor may only be called once");
+  %OptimizeFunctionOnNextCall(A2);
+  assertThrows(() => new A2(), ReferenceError,
+               "Super constructor may only be called once");
+  assertOptimized(A2);
+
+
+  // Testing ThrowSuperNotCalledIfHole (which triggers because we call
+  // don't call super()).
+  class A3 extends Object {
+    constructor() {
+    }
+  }
+
+  %PrepareFunctionForOptimization(A3);
+  assertThrows(() => new A3(), ReferenceError,
+               "Must call super constructor in derived class before " +
+               "accessing 'this' or returning from derived constructor");
+  %OptimizeFunctionOnNextCall(A3);
+  assertThrows(() => new A3(), ReferenceError,
+               "Must call super constructor in derived class before " +
+               "accessing 'this' or returning from derived constructor");
+  assertOptimized(A3);
+}

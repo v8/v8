@@ -205,6 +205,41 @@ struct RuntimeCallDescriptor {
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
+
+  struct ThrowNotSuperConstructor
+      : public Descriptor<ThrowNotSuperConstructor> {
+    static constexpr auto kFunction = Runtime::kThrowNotSuperConstructor;
+    using arguments_t = std::tuple<V<Object>, V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowSuperAlreadyCalledError
+      : public Descriptor<ThrowSuperAlreadyCalledError> {
+    static constexpr auto kFunction = Runtime::kThrowSuperAlreadyCalledError;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowSuperNotCalled : public Descriptor<ThrowSuperNotCalled> {
+    static constexpr auto kFunction = Runtime::kThrowSuperNotCalled;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

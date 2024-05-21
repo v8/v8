@@ -3374,6 +3374,24 @@ class TurboshaftAssemblerOpInterface
         typename RuntimeCallDescriptor::ThrowConstructorReturnedNonObject>(
         isolate, frame_state, context, {});
   }
+  void CallRuntime_ThrowNotSuperConstructor(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<Object> constructor, V<Object> function) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowNotSuperConstructor>(
+        isolate, frame_state, context, {constructor, function});
+  }
+  void CallRuntime_ThrowSuperAlreadyCalledError(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperAlreadyCalledError>(
+        isolate, frame_state, context, {});
+  }
+  void CallRuntime_ThrowSuperNotCalled(Isolate* isolate,
+                                       V<turboshaft::FrameState> frame_state,
+                                       V<Context> context) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
+        isolate, frame_state, context, {});
+  }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
