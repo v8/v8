@@ -2420,6 +2420,11 @@ class GraphBuilder {
     SetMap(node, __ ChangeInt32ToFloat64(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::ChangeUint32ToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ChangeUint32ToFloat64(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToInt32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node,
