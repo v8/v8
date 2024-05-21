@@ -47,6 +47,9 @@ namespace {
 // No ASAN support as accessing fake frames otherwise results in
 // "stack-use-after-scope" warnings.
 DISABLE_ASAN
+// No HW ASAN support as stack iteration constructs pointers from arbitrary
+// memory which may e.g. lead to tag mismatches.
+DISABLE_HWASAN
 // No TSAN support as the stack may not be exclusively owned by the current
 // thread, e.g., for interrupt handling. Atomic reads are not enough as the
 // other thread may use a lock to synchronize the access.
@@ -114,6 +117,9 @@ void IteratePointersInUnsafeStackIfNecessary(StackVisitor* visitor,
 V8_NOINLINE
 // No ASAN support as method accesses redzones while walking the stack.
 DISABLE_ASAN
+// No HW ASAN support as stack iteration constructs pointers from arbitrary
+// memory which may e.g. lead to tag mismatches.
+DISABLE_HWASAN
 // No TSAN support as the stack may not be exclusively owned by the current
 // thread, e.g., for interrupt handling. Atomic reads are not enough as the
 // other thread may use a lock to synchronize the access.
@@ -138,7 +144,9 @@ void IteratePointersInStack(StackVisitor* visitor,
     // into a local which is unpoisoned.
     const void* address = *current;
     MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
-    if (address == nullptr) continue;
+    if (address == nullptr) {
+      continue;
+    }
     visitor->VisitPointer(address);
     IterateAsanFakeFrameIfNecessary(visitor, segment, address);
   }
