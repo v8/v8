@@ -829,25 +829,18 @@ void Deoptimizer::TraceDeoptAll(Isolate* isolate) {
   PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
 }
 
-FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
-    TranslatedFrame& frame, wasm::NativeModule* native_module,
-    int frame_index) {
-#if !V8_ENABLE_WEBASSEMBLY
-  UNREACHABLE();
-#else
-  const bool is_bottommost = frame_index == 0;
-  const bool is_topmost = output_count_ - 1 == frame_index;
-  // Recompile the liftoff (unoptimized) wasm code for the input frame.
-  // TODO(mliedtke): This recompiles every single function even if it never got
-  // optimized and exists as a liftoff variant in the WasmCodeManager as we also
-  // need to compute the deopt information. Can we avoid some of the extra work
-  // here?
-  wasm::WasmCompilationUnit unit(frame.wasm_function_index(),
-                                 wasm::ExecutionTier::kLiftoff,
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+std::pair<wasm::WasmCode*,
+          std::unique_ptr<wasm::LiftoffFrameDescriptionsForDeopt>>
+CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
+                                  int function_index,
+                                  BytecodeOffset deopt_point) {
+  wasm::WasmCompilationUnit unit(function_index, wasm::ExecutionTier::kLiftoff,
                                  wasm::ForDebugging::kNotForDebugging);
   wasm::WasmFeatures detected;
   wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
-  env.deopt_info_bytecode_offset = frame.bytecode_offset().ToInt();
+  env.deopt_info_bytecode_offset = deopt_point.ToInt();
   std::shared_ptr<wasm::WireBytesStorage> wire_bytes =
       native_module->compilation_state()->GetWireBytesStorage();
   wasm::WasmCompilationResult result =
@@ -864,10 +857,31 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // TODO(mliedtke): The code cache should also be invalidated.
   wasm::WasmCode* wasm_code =
       native_module->PublishCode(std::move(compiled_code));
+  return {wasm_code, std::move(result.liftoff_frame_descriptions)};
+}
+}  // anonymous namespace
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-  DCHECK(result.liftoff_frame_descriptions);
+FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
+    TranslatedFrame& frame, wasm::NativeModule* native_module,
+    int frame_index) {
+#if !V8_ENABLE_WEBASSEMBLY
+  UNREACHABLE();
+#else
+  const bool is_bottommost = frame_index == 0;
+  const bool is_topmost = output_count_ - 1 == frame_index;
+  // Recompile the liftoff (unoptimized) wasm code for the input frame.
+  // TODO(mliedtke): This recompiles every single function even if it never got
+  // optimized and exists as a liftoff variant in the WasmCodeManager as we also
+  // need to compute the deopt information. Can we avoid some of the extra work
+  // here?
+  auto [wasm_code, liftoff_frame_descriptions] =
+      CompileWithLiftoffAndGetDeoptInfo(
+          native_module, frame.wasm_function_index(), frame.bytecode_offset());
+
+  DCHECK(liftoff_frame_descriptions);
   const wasm::LiftoffFrameDescription& liftoff_description =
-      result.liftoff_frame_descriptions->description;
+      liftoff_frame_descriptions->description;
 
   if (verbose_tracing_enabled()) {
     std::ostringstream outstream;
@@ -887,7 +901,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
 
   // Allocate and populate the FrameDescription describing the output frame.
   const uint32_t output_frame_size =
-      result.liftoff_frame_descriptions->total_frame_size;
+      liftoff_frame_descriptions->total_frame_size;
   const uint32_t total_output_frame_size =
       output_frame_size + parameter_stack_slots * kSystemPointerSize +
       CommonFrameConstants::kFixedFrameSizeAboveFp;
@@ -1145,8 +1159,19 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
                            parameter_count, parameter_count);
 
     const size_t output_frames = translated_state_.frames().size();
+    CHECK_GT(output_frames, 0);
     output_count_ = static_cast<int>(output_frames);
     output_ = new FrameDescription* [output_frames] {};
+
+    // The top output function *should* be the same as the optimized function
+    // with the deopt. However, this is not the case in case of inlined return
+    // calls. The optimized function still needs to be invalidated.
+    if (translated_state_.frames()[0].wasm_function_index() !=
+        compiled_optimized_wasm_code_->index()) {
+      CompileWithLiftoffAndGetDeoptInfo(native_module,
+                                        compiled_optimized_wasm_code_->index(),
+                                        deopt_entry.bytecode_offset);
+    }
 
     for (int i = 0; i < output_count_; ++i) {
       TranslatedFrame& frame = translated_state_.frames()[i];

@@ -7602,7 +7602,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     OptionalV<FrameState> frame_state;
-    if (v8_flags.wasm_deopt) {
+    if (v8_flags.wasm_deopt && !is_tail_call) {
       frame_state =
           CreateFrameState(decoder, sig, /*funcref*/ nullptr, /*args*/ nullptr);
     }
