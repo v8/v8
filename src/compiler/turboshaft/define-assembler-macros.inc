@@ -53,7 +53,14 @@
 // warning with Pragmas. Clang and GCC helpfully disagree on where the warning
 // is (on the if or the else), so they need separate macros.
 #if defined(__clang__)
+#if defined(DEBUG)
+// TODO(dmercadier,leszeks): re-enable forced unrolling in DEBUG build. This
+// requires figuring out why Clang doesn't manage to unroll the loop in DEBUG
+// builds.
+#define FORCE_UNROLL_LOOP
+#else
 #define FORCE_UNROLL_LOOP _Pragma("clang loop unroll(full)")
+#endif
 #define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
 #define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE                             \
   _Pragma("GCC diagnostic push")                                          \
