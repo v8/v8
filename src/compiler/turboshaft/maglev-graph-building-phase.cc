@@ -558,6 +558,70 @@ class GraphBuilder {
 
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CallKnownApiFunction* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    if (node->inline_builtin()) {
+      DCHECK(v8_flags.maglev_inline_api_calls);
+      // TODO(dmercadier, 40912714, 42203760): The flag maglev_inline_api_calls
+      // is currently experimental, and it's not clear at this point if it will
+      // even become non-experimental, so we currently don't support it in the
+      // Maglev->Turboshaft translation. Note that a quick-fix would be to treat
+      // kNoProfilingInlined like kNoProfiling, although this would be slower
+      // than desired.
+      UNIMPLEMENTED();
+    }
+
+    OpIndex api_holder;
+    if (node->api_holder().has_value()) {
+      api_holder = __ HeapConstant(node->api_holder().value().object());
+    } else {
+      api_holder = Map(node->receiver());
+    }
+
+    V<Object> data;
+    if (node->data().IsSmi()) {
+      data = __ SmiConstant(node->data().AsSmi());
+    } else {
+      data = __ HeapConstant(node->data().AsHeapObject().object());
+    }
+
+    ApiFunction function(node->function_template_info().callback(broker_));
+    ExternalReference function_ref = ExternalReference::Create(
+        &function, ExternalReference::DIRECT_API_CALL);
+
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(__ ExternalConstant(function_ref));
+    arguments.push_back(__ Word32Constant(node->num_args()));
+    arguments.push_back(data);
+    arguments.push_back(api_holder);
+    arguments.push_back(Map(node->receiver()));
+    for (maglev::Input arg : node->args()) {
+      arguments.push_back(Map(arg));
+    }
+    arguments.push_back(Map(node->context()));
+
+    Builtin builtin;
+    switch (node->mode()) {
+      case maglev::CallKnownApiFunction::Mode::kNoProfiling:
+        builtin = Builtin::kCallApiCallbackOptimizedNoProfiling;
+        break;
+      case maglev::CallKnownApiFunction::Mode::kNoProfilingInlined:
+        // Handled earlier when checking `node->inline_builtin()`.
+        UNREACHABLE();
+      case maglev::CallKnownApiFunction::Mode::kGeneric:
+        builtin = Builtin::kCallApiCallbackOptimized;
+        break;
+    }
+
+    int stack_arg_count = node->num_args() + /* implicit receiver */ 1;
+    V<Any> result = GenerateBuiltinCall(
+        node, builtin, frame_state, base::VectorOf(arguments), stack_arg_count);
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
   V<Any> GenerateBuiltinCall(
       maglev::NodeBase* node, Builtin builtin, V<FrameState> frame_state,
       base::Vector<const OpIndex> arguments,

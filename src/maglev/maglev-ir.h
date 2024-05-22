@@ -8606,6 +8606,7 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     return function_template_info_;
   }
   compiler::ObjectRef data() const { return data_; }
+  compiler::OptionalJSObjectRef api_holder() const { return api_holder_; }
 
   bool inline_builtin() const { return mode() == kNoProfilingInlined; }
 
