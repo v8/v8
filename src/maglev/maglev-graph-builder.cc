@@ -10975,9 +10975,11 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
   BranchBuilder::PatchAccumulatorInBranchScope scope(builder, node, root_index);
 
   if (node->properties().value_representation() ==
-          ValueRepresentation::kHoleyFloat64 &&
-      root_index == RootIndex::kUndefinedValue) {
-    return builder.Build<BranchIfFloat64IsHole>({node});
+      ValueRepresentation::kHoleyFloat64) {
+    if (root_index == RootIndex::kUndefinedValue) {
+      return builder.Build<BranchIfFloat64IsHole>({node});
+    }
+    return builder.AlwaysFalse();
   }
 
   if (CheckType(node, NodeType::kNumber)) {
