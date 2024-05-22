@@ -920,6 +920,9 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-779407': [SKIP],
+
+  # MIPS64 port doesn't support maglev yet.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -928,6 +931,9 @@
   # This test fail because when convert sNaN to qNaN, loong64 use a different
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
+
+  # Loong64 port doesn't support maglev yet.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
