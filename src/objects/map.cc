@@ -1279,7 +1279,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
       fresh->set_elements_kind(new_elements_kind);
       if (!new_prototype.is_null()) {
-        fresh->set_prototype(*new_prototype);
+        Map::SetPrototype(isolate, fresh, new_prototype);
       }
 
       static_assert(Map::kPrototypeValidityCellOffset ==
@@ -1321,7 +1321,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
     new_map->set_elements_kind(new_elements_kind);
     if (!new_prototype.is_null()) {
-      new_map->set_prototype(*new_prototype);
+      Map::SetPrototype(isolate, new_map, new_prototype);
+      DCHECK(new_map->is_dictionary_map() && !new_map->is_deprecated());
     }
     if (use_cache) {
       cache->Set(fast_map, new_map);
