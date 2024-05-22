@@ -3563,6 +3563,7 @@ int ConvertReceiver::MaxCallStackArgs() const {
 }
 void ConvertReceiver::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  static_assert(D::GetRegisterParameter(D::kInput) == kReturnRegister0);
   UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
   DefineAsFixed(this, kReturnRegister0);
 }
@@ -3573,6 +3574,10 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ JumpIfSmi(
       receiver, &convert_to_object,
       v8_flags.debug_code ? Label::Distance::kFar : Label::Distance::kNear);
+
+  // If {receiver} is not primitive, no need to move it to {result}, since
+  // they share the same register.
+  DCHECK_EQ(receiver, ToRegister(result()));
   __ JumpIfJSAnyIsNotPrimitive(receiver, &done);
 
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();

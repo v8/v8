@@ -8716,6 +8716,9 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
 
   auto options() const { return std::tuple{native_context_, mode_}; }
 
+  compiler::NativeContextRef native_context() const { return native_context_; }
+  ConvertReceiverMode mode() const { return mode_; }
+
  private:
   const compiler::NativeContextRef native_context_;
   ConvertReceiverMode mode_;

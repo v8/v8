@@ -438,7 +438,7 @@ struct BuiltinCallDescriptor {
   struct ToObject : public Descriptor<ToObject> {
     static constexpr auto kFunction = Builtin::kToObject;
     using arguments_t = std::tuple<V<JSPrimitive>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<JSReceiver>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;

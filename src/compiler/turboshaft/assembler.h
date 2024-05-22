@@ -3146,8 +3146,8 @@ class TurboshaftAssemblerOpInterface
     return CallBuiltin<typename BuiltinCallDescriptor::ToBoolean>(isolate,
                                                                   {object});
   }
-  V<Object> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
-                                 V<JSPrimitive> object) {
+  V<JSReceiver> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
+                                     V<JSPrimitive> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
   }

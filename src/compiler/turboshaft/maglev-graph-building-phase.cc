@@ -17,6 +17,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -2579,6 +2580,42 @@ class GraphBuilder {
                      Map<Object>(node->object_input()),
                      RegisterRepresentation::Tagged(), BranchHint::kNone,
                      SelectOp::Implementation::kBranch));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ConvertReceiver* node,
+                                const maglev::ProcessingState& state) {
+    Label<Object> done(this);
+    Label<> non_js_receiver(this);
+    V<Object> receiver = Map(node->receiver_input());
+
+    GOTO_IF(__ IsSmi(receiver), non_js_receiver);
+
+    GOTO_IF(__ JSAnyIsNotPrimitive(V<HeapObject>::Cast(receiver)), done,
+            receiver);
+
+    if (node->mode() != ConvertReceiverMode::kNotNullOrUndefined) {
+      Label<> convert_global_proxy(this);
+      GOTO_IF(__ RootEqual(receiver, RootIndex::kUndefinedValue, isolate_),
+              convert_global_proxy);
+      GOTO_IF_NOT(__ RootEqual(receiver, RootIndex::kNullValue, isolate_),
+                  non_js_receiver);
+      GOTO(convert_global_proxy);
+      BIND(convert_global_proxy);
+      GOTO(done,
+           __ HeapConstant(
+               node->native_context().global_proxy_object(broker_).object()));
+    } else {
+      GOTO(non_js_receiver);
+    }
+
+    BIND(non_js_receiver);
+    GOTO(done, __ CallBuiltin_ToObject(
+                   isolate_, __ HeapConstant(node->native_context().object()),
+                   V<JSPrimitive>::Cast(receiver)));
+
+    BIND(done, result);
+    SetMap(node, result);
+
     return maglev::ProcessResult::kContinue;
   }
 
