@@ -2292,7 +2292,6 @@ void ForInPrepare::GenerateCode(MaglevAssembler* masm,
       TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
       feedback().vector                             // feedback vector
   );
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 int ForInNext::MaxCallStackArgs() const {

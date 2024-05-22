@@ -4569,7 +4569,7 @@ class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
       : Base(bitfield), feedback_(feedback) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::GenericRuntimeOrBuiltinCall();
+      OpProperties::Call() | OpProperties::NotIdempotent();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 

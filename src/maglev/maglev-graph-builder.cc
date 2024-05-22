@@ -11372,9 +11372,6 @@ void MaglevGraphBuilder::VisitForInPrepare() {
                                cache_type_reg);
       ForInPrepare* result =
           AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
-      // The add will set up a lazy deopt info writing to all three output
-      // registers. Update this to only write to the latter two.
-      result->lazy_deopt_info()->UpdateResultLocation(cache_array_reg, 2);
       StoreRegisterPair({cache_array_reg, cache_length_reg}, result);
       // Force a conversion to Int32 for the cache length value.
       GetInt32(cache_length_reg);
