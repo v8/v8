@@ -12,16 +12,16 @@
 d8.file.execute('test/mjsunit/mjsunit.js');
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-function BuildTest(call_ref_or_indirect, callee_count) {
+function BuildTest(call_type, callee_count) {
   print(
-      'Test ' + call_ref_or_indirect + ' speculative inlining with ' +
+      'Test ' + call_type + ' speculative inlining with ' +
       callee_count + ' different callees during feedback collection.');
   let builder = new WasmModuleBuilder();
 
   let sig_index = builder.addType(kSig_i_i);
 
   let main = builder.addFunction("main", kSig_i_ii).exportFunc();
-  if (call_ref_or_indirect === "call_ref") {
+  if (call_type === "call_ref") {
     main.addBody([
       kExprLocalGet, 0,
 
@@ -31,12 +31,19 @@ function BuildTest(call_ref_or_indirect, callee_count) {
 
       kExprCallRef, sig_index,
     ]);
-  } else if (call_ref_or_indirect === "call_indirect") {
+  } else if (call_type === "call_indirect") {
     main.addBody([
       kExprLocalGet, 0,
 
       kExprLocalGet, 1,
       kExprCallIndirect, sig_index, kTableZero,
+    ]);
+  } else if (call_type === "return_call_indirect") {
+    main.addBody([
+      kExprLocalGet, 0,
+
+      kExprLocalGet, 1,
+      kExprReturnCallIndirect, sig_index, kTableZero,
     ]);
   }
 
@@ -81,3 +88,16 @@ const kMaxPolymorphism = 4;
 (function CallIndirectMonomorphic() { BuildTest("call_indirect", 1); })();
 (function CallIndirectPolymorphic() { BuildTest("call_indirect", kMaxPolymorphism); })();
 (function CallIndirectMegamorphic() { BuildTest("call_indirect", kMaxPolymorphism + 1); })();
+
+(function ReturnCallIndirectUninitializedFeedback() {
+  BuildTest("return_call_indirect", 0);
+})();
+(function ReturnCallIndirectMonomorphic() {
+  BuildTest('return_call_indirect', 1);
+})();
+(function ReturnCallIndirectPolymorphic() {
+  BuildTest('return_call_indirect', kMaxPolymorphism);
+})();
+(function ReturnCallIndirectMegamorphic() {
+  BuildTest('return_call_indirect', kMaxPolymorphism + 1);
+})();
