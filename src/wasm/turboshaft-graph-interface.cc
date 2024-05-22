@@ -2411,9 +2411,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         base::Vector<InliningTree*> feedback_cases =
             inlining_decisions_->function_calls()[feedback_slot_];
         std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
-        base::SmallVector<TSBlock*, 5> case_blocks;
-        size_t case_count = feedback_cases.size() + 1;
-        for (size_t i = 0; i < case_count; i++) {
+        // The slow path is the non-inlined generic `call_indirect`,
+        // or a deopt node if that is enabled.
+        constexpr int kSlowpathCase = 1;
+        base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+            case_blocks;
+        for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
           case_blocks.push_back(__ NewBlock());
         }
         TSBlock* merge = __ NewBlock();
@@ -2426,6 +2429,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BlockPhis merge_phis(decoder->zone_, instance_cache_);
         InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
         __ Goto(case_blocks[0]);
+
         bool use_deopt_slowpath = v8_flags.wasm_deopt;
         for (size_t i = 0; i < feedback_cases.size(); i++) {
           __ Bind(case_blocks[i]);
@@ -2475,15 +2479,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               __ WordPtrAdd(jump_table_start,
                             JumpTableOffset(decoder->module_, inlined_index));
 
-          bool is_last_call_target_block = (i == case_count - 2);
-          if (use_deopt_slowpath && is_last_call_target_block) {
+          bool is_last_feedback_case = (i == feedback_cases.size() - 1);
+          if (use_deopt_slowpath && is_last_feedback_case) {
             // TODO(42204618,335082212): Deopt support for call_indirect.
             UNIMPLEMENTED();
           } else {
             TSBlock* inline_block = __ NewBlock();
-            bool is_last_case = (i == case_count - 1);
             BranchHint hint =
-                is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+                is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
             __ Branch({__ WordPtrEqual(target, inlined_target), hint},
                       inline_block, case_blocks[i + 1]);
             __ Bind(inline_block);
@@ -2519,7 +2522,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
 
         if (!use_deopt_slowpath) {
-          TSBlock* no_inline_block = case_blocks[case_count - 1];
+          TSBlock* no_inline_block = case_blocks.back();
           __ Bind(no_inline_block);
           instance_cache_.RestoreFromSnapshot(saved_cache);
           auto [target, ref] =
@@ -2588,10 +2591,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
-      base::SmallVector<TSBlock*, 5> case_blocks;
-      bool use_deopt_slowpath = v8_flags.wasm_deopt;
-      size_t case_count = feedback_cases.size() + 1;
-      for (size_t i = 0; i < case_count; i++) {
+      // The slow path is the non-inlined generic `call_ref`,
+      // or a deopt node if that is enabled.
+      constexpr int kSlowpathCase = 1;
+      base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+          case_blocks;
+      for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
         case_blocks.push_back(__ NewBlock());
       }
       TSBlock* merge = __ NewBlock();
@@ -2604,12 +2609,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BlockPhis merge_phis(decoder->zone_, instance_cache_);
       InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
       __ Goto(case_blocks[0]);
+
+      bool use_deopt_slowpath = v8_flags.wasm_deopt;
       for (size_t i = 0; i < feedback_cases.size(); i++) {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
         if (!tree || !tree->is_inlined()) {
-          use_deopt_slowpath = false;
+          // Fall through to the next case.
           __ Goto(case_blocks[i + 1]);
+          // Do not use the deopt slowpath if we decided to not inline (at
+          // least) one call target. Otherwise, this could lead to a deopt loop.
+          // TODO(42204618): In case of only one known target it might make
+          // sense to still emit a `DeoptIfNot` and have a direct call for the
+          // non-inlined known call target. Evaluate the performance
+          // characteristics of this.
+          use_deopt_slowpath = false;
           continue;
         }
         uint32_t inlined_index = tree->function_index();
@@ -2618,23 +2632,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         bool shared = decoder->module_->types[sig_index].is_shared;
         V<Object> inlined_func_ref = __ LoadFixedArrayElement(
             shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
-        bool is_last_call_target_block = i == case_count - 2;
-        if (use_deopt_slowpath && is_last_call_target_block) {
-          // Do not use the deopt slowpath if we decided to not inline (at
-          // least) one call target. Otherwise, this could lead to a deopt loop.
-          // TODO(42204618): In case of only one known target it might make
-          // sense to still emit a `DeoptIfNot` and have a direct call for the
-          // non-inlined known call target. Evaluate the performance
-          // characteristics of this.
+
+        bool is_last_feedback_case = (i == feedback_cases.size() - 1);
+        if (use_deopt_slowpath && is_last_feedback_case) {
           V<FrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
                      sig, func_ref, args, frame_state);
         } else {
-          bool is_last_case = (i == case_count - 1);
           TSBlock* inline_block = __ NewBlock();
           BranchHint hint =
-              is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+              is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
           __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
                     inline_block, case_blocks[i + 1]);
           __ Bind(inline_block);
@@ -2667,7 +2675,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
 
       if (!use_deopt_slowpath) {
-        TSBlock* no_inline_block = case_blocks[case_count - 1];
+        TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
         instance_cache_.RestoreFromSnapshot(saved_cache);
         auto [target, ref] =
@@ -2714,15 +2722,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                         MemoryRepresentation::TaggedPointer());
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
-      base::SmallVector<TSBlock*, 5> case_blocks;
-      for (size_t i = 0; i < feedback_cases.size() + 1; i++) {
+      constexpr int kSlowpathCase = 1;
+      base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+          case_blocks;
+      for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
         case_blocks.push_back(__ NewBlock());
       }
       __ Goto(case_blocks[0]);
+
       for (size_t i = 0; i < feedback_cases.size(); i++) {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
         if (!tree || !tree->is_inlined()) {
+          // Fall through to the next case.
           __ Goto(case_blocks[i + 1]);
           continue;
         }
@@ -2753,7 +2765,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         DCHECK_EQ(__ current_block(), nullptr);
       }
 
-      TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
+      TSBlock* no_inline_block = case_blocks.back();
       __ Bind(no_inline_block);
     }
     auto [target, ref] =
