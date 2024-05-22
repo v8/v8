@@ -403,26 +403,30 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
+    // No need to check value page flags with the indirect pointer write barrier
+    // because the value is always an ExposedTrustedObject.
+    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-    // TODO(333906585): Optimize this path.
-    Label stub_call_with_decompressed_value;
-    __ CheckPageFlag(value_, scratch0_, MemoryChunk::kIsInReadOnlyHeapMask,
-                     not_zero, exit());
-    __ CheckMarkBit(value_, scratch0_, scratch1_, carry, exit());
-    __ jmp(&stub_call_with_decompressed_value);
+      // TODO(333906585): Optimize this path.
+      Label stub_call_with_decompressed_value;
+      __ CheckPageFlag(value_, scratch0_, MemoryChunk::kIsInReadOnlyHeapMask,
+                       not_zero, exit());
+      __ CheckMarkBit(value_, scratch0_, scratch1_, carry, exit());
+      __ jmp(&stub_call_with_decompressed_value);
 
-    __ bind(&stub_call_);
-    if (COMPRESS_POINTERS_BOOL &&
-        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
-      __ DecompressTagged(value_, value_);
-    }
+      __ bind(&stub_call_);
+      if (COMPRESS_POINTERS_BOOL &&
+          mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+        __ DecompressTagged(value_, value_);
+      }
 
-    __ bind(&stub_call_with_decompressed_value);
+      __ bind(&stub_call_with_decompressed_value);
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
-                     exit());
+      __ CheckPageFlag(value_, scratch0_,
+                       MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                       exit());
 #endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+    }
 
     __ leaq(scratch1_, operand_);
 
@@ -1794,15 +1798,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);
-#if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
-                       not_zero, ool->stub_call());
-      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
-#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask,
-                       not_zero, ool->entry());
-#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+      __ JumpIfMarking(ool->entry());
       __ bind(ool->exit());
       break;
     }

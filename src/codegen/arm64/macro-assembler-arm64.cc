@@ -3522,6 +3522,24 @@ void MacroAssembler::CheckPageFlag(const Register& object, int mask,
   }
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldrb(scratch,
+       MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Cbnz(scratch, is_marking);
+}
+
+void MacroAssembler::JumpIfNotMarking(Label* not_marking,
+                                      Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldrb(scratch,
+       MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Cbz(scratch, not_marking);
+}
+
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value,
                                       LinkRegisterStatus lr_status,
@@ -3934,11 +3952,17 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &done);
 
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
-                &done);
+  if (slot.contains_indirect_pointer()) {
+    // The indirect pointer write barrier is only enabled during marking.
+    JumpIfNotMarking(&done);
+  } else {
+    CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                  &done);
+
+    CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+                  &done);
+  }
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {

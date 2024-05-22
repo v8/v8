@@ -330,8 +330,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    // No need to check value page flags with the indirect pointer write barrier
+    // because the value is always an ExposedTrustedObject.
+    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+      __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask,
+                       eq, exit());
+    }
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -1133,8 +1137,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           &unwinding_info_writer_, tag);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+      __ JumpIfMarking(ool->entry());
       __ Bind(ool->exit());
       break;
     }

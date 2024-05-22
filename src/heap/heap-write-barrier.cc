@@ -161,17 +161,12 @@ int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
   IndirectPointerSlot slot(raw_slot, tag);
 
 #if DEBUG
-  Heap* heap = MutablePageMetadata::FromHeapObject(host)->heap();
-  DCHECK(heap->incremental_marking()->IsMarking());
-
-  // We will only reach local objects here while incremental marking in the
-  // current isolate is enabled. However, we might still reach objects in the
-  // shared space but only from the shared space isolate (= the main isolate).
+  DCHECK(!InWritableSharedSpace(host));
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
-  DCHECK_IMPLIES(InWritableSharedSpace(host),
-                 barrier->heap()->isolate()->is_shared_space_isolate());
-  barrier->AssertMarkingIsActivated();
-#endif  // DEBUG
+  DCHECK(barrier->heap()->isolate()->isolate_data()->is_marking());
+
+  DCHECK(IsExposedTrustedObject(slot.load(barrier->heap()->isolate())));
+#endif
 
   WriteBarrier::Marking(host, slot);
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type

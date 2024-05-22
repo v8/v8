@@ -210,6 +210,7 @@ class IsolateData final {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
     return stack_is_iterable_ != 0;
   }
+  bool is_marking() const { return is_marking_flag_; }
 
   // Returns true if this address points to data stored in this instance. If
   // it's the case then the value can be accessed indirectly through the root
