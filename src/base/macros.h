@@ -134,6 +134,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
