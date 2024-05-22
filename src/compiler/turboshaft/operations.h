@@ -7935,6 +7935,7 @@ struct Simd256Extract128LaneOp
   }
 
   auto options() const { return std::tuple{lane}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 #define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \

@@ -1657,6 +1657,10 @@ void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
   PrintSimdValue(os, value);
 }
 
+void Simd256Extract128LaneOp::PrintOptions(std::ostream& os) const {
+  os << '[' << static_cast<int>(lane) << ']';
+}
+
 void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
