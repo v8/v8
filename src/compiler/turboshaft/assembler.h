@@ -3406,6 +3406,12 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<typename RuntimeCallDescriptor::NewClosure_Tenured>(
         isolate, context, {shared_function_info, feedback_cell});
   }
+  V<Boolean> CallRuntime_HasInPrototypeChain(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<Object> object, V<HeapObject> prototype) {
+    return CallRuntime<typename RuntimeCallDescriptor::HasInPrototypeChain>(
+        isolate, frame_state, context, {object, prototype});
+  }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {

@@ -244,8 +244,6 @@ struct RuntimeCallDescriptor {
   struct NewClosure : public Descriptor<NewClosure> {
     static constexpr auto kFunction = Runtime::kNewClosure;
     using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
-    // Doesn't actually return something, but the actual runtime call descriptor
-    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
     using result_t = V<JSFunction>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -255,12 +253,19 @@ struct RuntimeCallDescriptor {
   struct NewClosure_Tenured : public Descriptor<NewClosure_Tenured> {
     static constexpr auto kFunction = Runtime::kNewClosure_Tenured;
     using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
-    // Doesn't actually return something, but the actual runtime call descriptor
-    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
     using result_t = V<JSFunction>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
+  };
+
+  struct HasInPrototypeChain : public Descriptor<HasInPrototypeChain> {
+    static constexpr auto kFunction = Runtime::kHasInPrototypeChain;
+    using arguments_t = std::tuple<V<Object>, V<HeapObject>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 };
 

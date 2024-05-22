@@ -1342,6 +1342,16 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::HasInPrototypeChain* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    SetMap(node, __ HasInPrototypeChain(Map(node->object()), node->prototype(),
+                                        frame_state, native_context()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::UpdateJSArrayLength* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ UpdateJSArrayLength(Map(node->length_input()),
