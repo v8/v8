@@ -81,14 +81,4 @@ class AsanUnpoisonScope final {
 
 #endif  // !V8_USE_ADDRESS_SANITIZER
 
-#ifdef V8_USE_HWADDRESS_SANITIZER
-
-#define DISABLE_ASAN __attribute__((no_sanitize("hwaddress")))
-
-#else  // !V8_USE_HWADDRESS_SANITIZER
-
-#define DISABLE_HWASAN
-
-#endif  // !V8_USE_HWADDRESS_SANITIZER
-
 #endif  // V8_BASE_SANITIZER_ASAN_H_
