@@ -284,7 +284,7 @@ bool IsJSApiWrapperObject(Tagged<Map> map) {
          InstanceTypeChecker::IsJSSpecialObject(instance_type);
 }
 
-bool IsJSApiWrapperObject(Tagged<JSObject> js_obj) {
+bool IsJSApiWrapperObject(Tagged<HeapObject> js_obj) {
   return IsJSApiWrapperObject(js_obj->map());
 }
 
