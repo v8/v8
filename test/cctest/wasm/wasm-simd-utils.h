@@ -12,11 +12,91 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+#include "src/compiler/turboshaft/wasm-revec-phase.h"
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
+#define SKIP_TEST_IF_NO_TURBOSHAFT                                  \
+  do {                                                              \
+    if (!v8_flags.turboshaft_wasm ||                                \
+        !v8_flags.turboshaft_wasm_instruction_selection_staged) {   \
+      /* This pattern is only implemented for turboshaft_wasm and*/ \
+      /* turboshaft_wasm_instruction_selection*/                    \
+      return;                                                       \
+    }                                                               \
+  } while (0);
+
+class TSSimd256VerifyScope {
+ public:
+  static bool VerifyHaveAnySimd256Op(const compiler::turboshaft::Graph& graph) {
+    for (const compiler::turboshaft::Operation& op : graph.AllOperations()) {
+      switch (op.opcode) {
+#define CASE_SIMD256(name)                      \
+  case compiler::turboshaft::Opcode::k##name: { \
+    return true;                                \
+  }
+        TURBOSHAFT_SIMD256_OPERATION_LIST(CASE_SIMD256)
+        default:
+          break;
+      }
+#undef CASE_SIMD256
+    }
+    return false;
+  }
+
+  template <compiler::turboshaft::Opcode opcode>
+  static bool VerifyHaveOpcode(const compiler::turboshaft::Graph& graph) {
+    for (const compiler::turboshaft::Operation& op : graph.AllOperations()) {
+      if (op.opcode == opcode) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  template <typename TOp, TOp::Kind op_kind>
+  static bool VerifyHaveOpWithKind(const compiler::turboshaft::Graph& graph) {
+    for (const compiler::turboshaft::Operation& op : graph.AllOperations()) {
+      if (const TOp* t_op = op.TryCast<TOp>()) {
+        if (t_op->kind == op_kind) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  explicit TSSimd256VerifyScope(
+      Zone* zone,
+      std::function<bool(const compiler::turboshaft::Graph&)> raw_handler =
+          TSSimd256VerifyScope::VerifyHaveAnySimd256Op) {
+    SKIP_TEST_IF_NO_TURBOSHAFT;
+
+    std::function<void(const compiler::turboshaft::Graph&)> handler;
+
+    handler = [&](const compiler::turboshaft::Graph& graph) {
+      check_pass_ = raw_handler(graph);
+    };
+
+    auto* verifier =
+        zone->New<compiler::turboshaft::WasmRevecVerifier>(handler);
+
+    Isolate* isolate = CcTest::InitIsolateOnce();
+
+    isolate->set_wasm_revec_verifier_for_test(verifier);
+  }
+
+  ~TSSimd256VerifyScope() {
+    SKIP_TEST_IF_NO_TURBOSHAFT;
+    CHECK(check_pass_);
+  }
+
+  bool check_pass_ = false;
+};
 
 class SIMD256NodeObserver : public compiler::NodeObserver {
  public:

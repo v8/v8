@@ -173,6 +173,9 @@ class Interpreter;
 namespace compiler {
 class NodeObserver;
 class PerIsolateCompilerCache;
+namespace turboshaft {
+class WasmRevecVerifier;
+}  // namespace turboshaft
 }  // namespace compiler
 
 namespace win64_unwindinfo {
@@ -2228,6 +2231,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  void set_wasm_revec_verifier_for_test(
+      compiler::turboshaft::WasmRevecVerifier* verifier) {
+    wasm_revec_verifier_for_test_ = verifier;
+  }
+
+  compiler::turboshaft::WasmRevecVerifier* wasm_revec_verifier_for_test()
+      const {
+    return wasm_revec_verifier_for_test_;
+  }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
@@ -2709,6 +2724,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // predefined set of data as crash keys to be used in postmortem debugging
   // in case of a crash.
   AddCrashKeyCallback add_crash_key_callback_ = nullptr;
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  compiler::turboshaft::WasmRevecVerifier* wasm_revec_verifier_for_test_ =
+      nullptr;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
