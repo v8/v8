@@ -1217,7 +1217,7 @@ class LiteralProperty : public ZoneObject {
   LiteralProperty(Expression* key, Expression* value, bool is_computed_name)
       : key_and_is_computed_name_(key, is_computed_name), value_(value) {}
 
-  base::PointerWithPayload<Expression, bool, 1> key_and_is_computed_name_;
+  base::PointerWithPayload<Expression*, bool, 1> key_and_is_computed_name_;
   Expression* value_;
 };
 

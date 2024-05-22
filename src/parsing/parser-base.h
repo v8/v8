@@ -483,7 +483,7 @@ class ParserBase {
       }
 
      private:
-      base::PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
+      base::PointerWithPayload<FunctionState*, bool, 1> state_and_prev_value_;
     };
 
     class V8_NODISCARD LoopScope final {

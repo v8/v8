@@ -42,6 +42,15 @@
 #include "src/utils/memcopy.h"
 
 namespace v8 {
+
+namespace base {
+template <>
+struct PointerWithPayloadTraits<v8::internal::maglev::ValueNode*> {
+  static_assert(alignof(v8::internal::maglev::ValueNode) >= 8);
+  static constexpr int kAvailableBits = 3;
+};
+}  // namespace base
+
 namespace internal {
 namespace maglev {
 
@@ -99,7 +108,7 @@ class V8_NODISCARD ReduceResult {
 
  private:
   explicit ReduceResult(Kind kind) : payload_(kind) {}
-  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
+  base::PointerWithPayload<ValueNode*, Kind, 3> payload_;
 };
 
 #define RETURN_IF_DONE(result)   \

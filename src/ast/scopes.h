@@ -1535,7 +1535,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     rare_data_and_is_parsing_heritage_.SetPayload(v);
   }
 
-  base::PointerWithPayload<RareData, bool, 1>
+  base::PointerWithPayload<RareData*, bool, 1>
       rare_data_and_is_parsing_heritage_;
   Variable* class_variable_ = nullptr;
   // These are only maintained when the scope is parsed, not when the
