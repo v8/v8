@@ -3422,7 +3422,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kNumberOrOddball;
     case Opcode::kAllocationBlock:
     case Opcode::kInlinedAllocation:
-      return NodeType::kAnyHeapObject;
+      return StaticTypeForMap(node->Cast<InlinedAllocation>()->GetMap(broker));
     case Opcode::kRootConstant: {
       RootConstant* constant = node->Cast<RootConstant>();
       switch (constant->index()) {

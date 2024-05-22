@@ -1091,6 +1091,17 @@ struct CapturedAllocation {
     }
   }
 
+  compiler::MapRef GetMap(compiler::JSHeapBroker* broker) const {
+    switch (type) {
+      case CapturedAllocation::kObject:
+        return object.GetMap();
+      case CapturedAllocation::kFixedDoubleArray:
+        return broker->fixed_double_array_map();
+      case CapturedAllocation::kHeapNumber:
+        return broker->heap_number_map();
+    }
+  }
+
   int id;
   enum Type { kObject, kFixedDoubleArray, kHeapNumber } type;
   union {
@@ -5097,6 +5108,10 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 
   int size() const { return captured_allocation_.size(); }
+
+  compiler::MapRef GetMap(compiler::JSHeapBroker* broker) const {
+    return captured_allocation_.GetMap(broker);
+  }
 
   const CapturedAllocation& captured_allocation() const {
     return captured_allocation_;
