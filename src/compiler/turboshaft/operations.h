@@ -2414,6 +2414,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   RegisterRepresentation rep = Representation(kind);
   union Storage {
     uint64_t integral;
+    // TODO(42204049): To prevent signaling NaNs converting to quiet NaNs we
+    // should use Float32 and Float64.
     float float32;
     double float64;
     ExternalReference external;
