@@ -701,6 +701,8 @@ namespace {
 const int kHostDefinedOptionsLength = 2;
 const uint32_t kHostDefinedOptionsMagicConstant = 0xF1F2F3F0;
 
+const char kDataURLPrefix[] = "data:text/javascript,";
+
 std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
   String::Utf8Value utf8(isolate, v8_str);
   // Should not be able to fail since the input is a String.
@@ -1058,6 +1060,17 @@ std::string NormalizePath(const std::string& path,
   return os.str();
 }
 
+// Resolves specifier to an absolute path if necessary, and does some
+// normalization (eliding references to the current directory
+// and replacing backslashes with slashes).
+//
+// If specifier is a data url, returns it unchanged.
+std::string NormalizeModuleSpecifier(const std::string& specifier,
+                                     const std::string& dir_name) {
+  if (specifier.starts_with(kDataURLPrefix)) return specifier;
+  return NormalizePath(specifier, dir_name);
+}
+
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
                                          Local<FixedArray> import_attributes,
@@ -1068,8 +1081,8 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
   auto specifier_it = module_data->module_to_specifier_map.find(
       Global<Module>(isolate, referrer));
   CHECK(specifier_it != module_data->module_to_specifier_map.end());
-  std::string absolute_path = NormalizePath(ToSTLString(isolate, specifier),
-                                            DirName(specifier_it->second));
+  std::string absolute_path = NormalizeModuleSpecifier(
+      ToSTLString(isolate, specifier), DirName(specifier_it->second));
   ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAttributes(
       context, import_attributes, true);
   auto module_it =
@@ -1080,26 +1093,34 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
 
 }  // anonymous namespace
 
+// file_name must be either an absolute path to the filesystem or a data URL.
 MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           Local<Context> context,
-                                          const std::string& file_name,
+                                          const std::string& module_specifier,
                                           ModuleType module_type) {
-  DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
-  MaybeLocal<String> source_text = ReadFile(isolate, file_name.c_str(), false);
-  if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
-    std::string fallback_file_name = file_name + ".js";
-    source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
-    if (source_text.IsEmpty()) {
-      fallback_file_name = file_name + ".mjs";
-      source_text = ReadFile(isolate, fallback_file_name.c_str());
+  const bool is_data_url = module_specifier.starts_with(kDataURLPrefix);
+  MaybeLocal<String> source_text;
+  if (is_data_url) {
+    source_text = String::NewFromUtf8(
+        isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
+  } else {
+    DCHECK(IsAbsolutePath(module_specifier));
+    source_text = ReadFile(isolate, module_specifier.c_str(), false);
+    if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
+      std::string fallback_file_name = module_specifier + ".js";
+      source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
+      if (source_text.IsEmpty()) {
+        fallback_file_name = module_specifier + ".mjs";
+        source_text = ReadFile(isolate, fallback_file_name.c_str());
+      }
     }
   }
 
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
-    std::string msg = "d8: Error reading  module from " + file_name;
+    std::string msg = "d8: Error reading module from " + module_specifier;
     if (!referrer.IsEmpty()) {
       auto specifier_it = module_data->module_to_specifier_map.find(
           Global<Module>(isolate, referrer));
@@ -1112,7 +1133,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   }
 
   Local<String> resource_name =
-      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked();
+      String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked();
   ScriptOrigin origin =
       CreateScriptOrigin(isolate, resource_name, ScriptType::kModule);
 
@@ -1136,7 +1157,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
     module = v8::Module::CreateSyntheticModule(
         isolate,
-        String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
+        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
         export_names, Shell::JSONModuleEvaluationSteps);
 
     CHECK(module_data->json_module_to_parsed_json_map
@@ -1147,23 +1168,28 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     UNREACHABLE();
   }
 
-  CHECK(module_data->module_map
-            .insert(std::make_pair(std::make_pair(file_name, module_type),
-                                   Global<Module>(isolate, module)))
-            .second);
+  CHECK(
+      module_data->module_map
+          .insert(std::make_pair(std::make_pair(module_specifier, module_type),
+                                 Global<Module>(isolate, module)))
+          .second);
   CHECK(module_data->module_to_specifier_map
-            .insert(std::make_pair(Global<Module>(isolate, module), file_name))
+            .insert(std::make_pair(Global<Module>(isolate, module),
+                                   module_specifier))
             .second);
 
-  std::string dir_name = DirName(file_name);
+  // data URLs don't support further imports, so we're done.
+  if (is_data_url) return module;
+
+  std::string dir_name = DirName(module_specifier);
 
   Local<FixedArray> module_requests = module->GetModuleRequests();
   for (int i = 0, length = module_requests->Length(); i < length; ++i) {
     Local<ModuleRequest> module_request =
         module_requests->Get(context, i).As<ModuleRequest>();
     Local<String> name = module_request->GetSpecifier();
-    std::string absolute_path =
-        NormalizePath(ToSTLString(isolate, name), dir_name);
+    std::string normalized_specifier =
+        NormalizeModuleSpecifier(ToSTLString(isolate, name), dir_name);
     Local<FixedArray> import_attributes = module_request->GetImportAttributes();
     ModuleType request_module_type =
         ModuleEmbedderData::ModuleTypeFromImportAttributes(
@@ -1175,11 +1201,12 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
 
     if (module_data->module_map.count(
-            std::make_pair(absolute_path, request_module_type))) {
+            std::make_pair(normalized_specifier, request_module_type))) {
       continue;
     }
 
-    if (FetchModuleTree(module, context, absolute_path, request_module_type)
+    if (FetchModuleTree(module, context, normalized_specifier,
+                        request_module_type)
             .IsEmpty()) {
       return MaybeLocal<Module>();
     }
@@ -1408,7 +1435,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     std::string dir_name =
         DirName(NormalizePath(source_url, GetWorkingDirectory()));
     std::string file_name = ToSTLString(isolate, specifier);
-    std::string absolute_path = NormalizePath(file_name, dir_name);
+    std::string absolute_path = NormalizeModuleSpecifier(file_name, dir_name);
 
     Local<Module> root_module;
     auto module_it = module_data->module_map.find(
@@ -1494,7 +1521,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
     Context::Scope context_scope(realm);
 
-    std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
+    std::string absolute_path =
+        NormalizeModuleSpecifier(file_name, GetWorkingDirectory());
 
     std::shared_ptr<ModuleEmbedderData> module_data =
         GetModuleDataFromContext(realm);
