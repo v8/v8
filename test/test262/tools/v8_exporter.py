@@ -11,16 +11,25 @@ import logging
 
 _log = logging.getLogger(__name__)
 
-class V8TestExporter(TestExporter):
+PR_APPROVAL_LOGIN = 'test262-merge-bot'
+
+
+class BaseV8TestExporter(TestExporter):
+
+  def export_in_flight_changes(self, pr_events) -> bool:
+    """Test262 exporter ignores in-flight changes."""
+    pass
+
+
+class V8TestExporter(BaseV8TestExporter):
+
   def merge_pull_request(self, pull_request):
     """Exporter mode does not merge any PRs. We only create them."""
     pass
 
-  def export_in_flight_changes(self, pr_events) -> bool:
-    pass
 
+class V8TestApprover(BaseV8TestExporter):
 
-class V8TestApprover(TestExporter):
   def merge_pull_request(self, pull_request):
     """Merges a pull request only if in approver mode."""
     self.approve(pull_request.number)
@@ -35,10 +44,8 @@ class V8TestApprover(TestExporter):
         We will mimic the same behavior by sending an approve request just
         before we attempt a second pass merge.
         """
-    path = '/repos/%s/%s/pulls/%d/reviews'  % (
-        self.github.gh_org,
-        self.github.gh_repo_name,
-        pr_number)
+    if not self.is_approvable(pr_number):
+      return
 
     body = {
         'body': ('The review process for this patch is being conducted in '
@@ -48,14 +55,32 @@ class V8TestApprover(TestExporter):
     }
 
     try:
-      response = self.github.request(path, method='POST', body=body)
+      response = self.github.request(
+          self.pr_path(pr_number), method='POST', body=body)
     except HTTPError as e:
       response = e.response
       _log.error('Failed to approve PR %d: %s', pr_number, response.text)
 
+  def pr_path(self, pr_number):
+    return (f'/repos/{self.github.gh_org}/{self.github.gh_repo_name}'
+            f'/pulls/{pr_number}/reviews')
+
+  def is_approvable(self, pr_number):
+    """Validates approval requirements."""
+    try:
+      response = self.github.request(self.pr_path(pr_number), method='GET')
+      reviews = response.data['items']
+      reviewed_by_bot = any(
+          review['user']['login'] == PR_APPROVAL_LOGIN for review in reviews)
+      if reviewed_by_bot:
+        _log.info('PR %d already approved by us', pr_number)
+        return False
+    except HTTPError as e:
+      response = e.response
+      _log.error('Failed to get PR %d: %s', pr_number, response.text)
+      return False
+    return True
+
   def create_or_update_pr_from_landed_commit(self, commit):
     """Approver mode does not create any PRs"""
-    pass
-
-  def export_in_flight_changes(self, pr_events) -> bool:
     pass
