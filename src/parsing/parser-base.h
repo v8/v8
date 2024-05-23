@@ -867,6 +867,10 @@ class ParserBase {
     return (peek() == Token::kSemicolon) ? peek_end_position() : end_position();
   }
 
+  V8_INLINE Token::Value PeekAheadAhead() {
+    return scanner()->PeekAheadAhead();
+  }
+
   V8_INLINE Token::Value PeekAhead() { return scanner()->PeekAhead(); }
 
   V8_INLINE Token::Value Next() { return scanner()->Next(); }

@@ -288,6 +288,8 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value Next();
   // Returns the token following peek()
   Token::Value PeekAhead();
+  // Returns the token following PeekAhead()
+  Token::Value PeekAheadAhead();
   // Returns the current token again.
   Token::Value current_token() const { return current().token; }
 
@@ -500,6 +502,7 @@ class V8_EXPORT_PRIVATE Scanner {
     current_ = &token_storage_[0];
     next_ = &token_storage_[1];
     next_next_ = &token_storage_[2];
+    next_next_next_ = &token_storage_[3];
 
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
@@ -728,12 +731,15 @@ class V8_EXPORT_PRIVATE Scanner {
   const TokenDesc& current() const { return *current_; }
   const TokenDesc& next() const { return *next_; }
   const TokenDesc& next_next() const { return *next_next_; }
+  const TokenDesc& next_next_next() const { return *next_next_next_; }
 
   UnoptimizedCompileFlags flags_;
 
   TokenDesc* current_;    // desc for current token (as returned by Next())
   TokenDesc* next_;       // desc for next token (one token look-ahead)
-  TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
+  TokenDesc* next_next_;  // desc for the token after next (after peek())
+  TokenDesc* next_next_next_;  // desc for the token after next of next (after
+                               // PeekAhead())
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;
@@ -741,7 +747,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   base::uc32 c0_;
 
-  TokenDesc token_storage_[3];
+  TokenDesc token_storage_[4];
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
