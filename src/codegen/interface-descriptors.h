@@ -1878,7 +1878,7 @@ class ConstructForwardAllArgs_WithFeedbackDescriptor
   DEFINE_PARAMETERS(kTarget, kNewTarget, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
-                         MachineType::UintPtr(),    // kSlot
+                         MachineType::AnyTagged(),  // kSlot
                          MachineType::AnyTagged())  // kVector
   DECLARE_DESCRIPTOR(ConstructForwardAllArgs_WithFeedbackDescriptor)
 };

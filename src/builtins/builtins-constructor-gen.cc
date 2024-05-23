@@ -198,13 +198,14 @@ TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
   auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
+  // TODO(42200059): Propagate TaggedIndex usage.
   return BuildConstructForwardAllArgs(
       target, new_target, [=] { return context; },
-      [=] { return feedback_vector; }, slot);
+      [=] { return feedback_vector; }, Unsigned(TaggedIndexToIntPtr(slot)));
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstructForwardAllArgs(
