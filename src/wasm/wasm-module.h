@@ -640,7 +640,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_imported_tables = 0;
   uint32_t num_imported_tags = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
-  uint32_t num_small_functions = 0;
+  // This field is updated when decoding the functions. At this point in time
+  // with streaming compilation there can already be background threads running
+  // turbofan compilations which will read this to decide on inlining budgets.
+  // This can only happen with eager compilation as code execution only starts
+  // after the module has been fully decoded and therefore it does not affect
+  // production configurations.
+  std::atomic<uint32_t> num_small_functions = 0;
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
   // Position and size of the code section (payload only, i.e. without section
