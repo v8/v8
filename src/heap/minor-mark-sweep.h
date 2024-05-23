@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
@@ -188,6 +189,8 @@ class MinorMarkSweepCollector final {
     return use_background_threads_in_cycle_.value();
   }
 
+  void DrainMarkingWorklistForTesting() { DrainMarkingWorklist(); }
+
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -198,7 +201,7 @@ class MinorMarkSweepCollector final {
   void MarkLiveObjects();
   void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor,
                  bool was_marked_incrementally);
-  void DrainMarkingWorklist();
+  V8_EXPORT_PRIVATE void DrainMarkingWorklist();
   void MarkRootsFromTracedHandles(
       YoungGenerationRootMarkingVisitor& root_visitor);
   void MarkRootsFromConservativeStack(
