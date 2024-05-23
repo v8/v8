@@ -223,7 +223,12 @@ EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
   if (ReturnCount() > 0) {
     DCHECK_EQ(1, ReturnCount());
     if (IsFloatingPoint(GetReturnType(0).representation())) {
-      sig.SetFloat(EncodedCSignature::kReturnIndex);
+      if (GetReturnType(0).representation() ==
+          MachineRepresentation::kFloat64) {
+        sig.SetReturnFloat64();
+      } else {
+        sig.SetReturnFloat32();
+      }
     }
   }
   return sig;
