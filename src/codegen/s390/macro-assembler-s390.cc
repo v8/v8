@@ -6240,6 +6240,7 @@ void MacroAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
 void MacroAssembler::I32x4DotI8x16AddS(
     Simd128Register dst, Simd128Register src1, Simd128Register src2,
     Simd128Register src3, Simd128Register scratch1, Simd128Register scratch2) {
+  DCHECK_NE(dst, src3);
   // I8 -> I16.
   vme(scratch1, src1, src2, Condition(0), Condition(0), Condition(0));
   vmo(dst, src1, src2, Condition(0), Condition(0), Condition(0));

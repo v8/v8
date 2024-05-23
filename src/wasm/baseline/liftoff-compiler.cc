@@ -4821,11 +4821,15 @@ class LiftoffCompiler {
         LiftoffRegister acc = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+        // x86 platforms save a move when dst == acc, so prefer that.
         LiftoffRegister dst =
             __ GetUnusedRegister(res_rc, {acc}, LiftoffRegList{lhs, rhs});
 #else
-        LiftoffRegister dst = __ GetUnusedRegister(res_rc, {lhs, rhs, acc}, {});
+        // On other platforms, for simplicity, we ensure that none of the
+        // registers alias. (If we cared, it would probably be feasible to
+        // allow {dst} to alias with {lhs} or {rhs}, but that'd be brittle.)
+        LiftoffRegister dst = __ GetUnusedRegister(res_rc, pinned);
 #endif
 
         __ emit_i32x4_dot_i8x16_i7x16_add_s(dst, lhs, rhs, acc);
