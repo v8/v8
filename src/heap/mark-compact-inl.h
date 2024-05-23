@@ -11,6 +11,7 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/marking.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -20,12 +21,20 @@
 namespace v8 {
 namespace internal {
 
-void MarkCompactCollector::MarkObject(Tagged<HeapObject> host,
-                                      Tagged<HeapObject> obj) {
+void MarkCompactCollector::MarkObject(
+    Tagged<HeapObject> host, Tagged<HeapObject> obj,
+    MarkingHelper::WorklistTarget target_worklist) {
   DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
-  if (marking_state_->TryMark(obj)) {
-    local_marking_worklists_->Push(obj);
-  }
+  MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
+                                marking_state_, target_worklist, obj);
+}
+
+void MarkCompactCollector::MarkRootObject(
+    Root root, Tagged<HeapObject> obj,
+    MarkingHelper::WorklistTarget target_worklist) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
+  MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
+                                marking_state_, target_worklist, obj);
 }
 
 // static
@@ -74,20 +83,6 @@ void MarkCompactCollector::AddTransitionArray(Tagged<TransitionArray> array) {
   local_weak_objects()->transition_arrays_local.Push(array);
 }
 
-bool MarkCompactCollector::ShouldMarkObject(Tagged<HeapObject> object) const {
-  if (InReadOnlySpace(object)) return false;
-  if (V8_LIKELY(!uses_shared_heap_)) return true;
-  if (is_shared_space_isolate_) return true;
-  return !InAnySharedSpace(object);
-}
-
-void MarkCompactCollector::MarkRootObject(Root root, Tagged<HeapObject> obj) {
-  DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
-  if (marking_state_->TryMark(obj)) {
-    local_marking_worklists_->Push(obj);
-  }
-}
-
 void RootMarkingVisitor::VisitRootPointer(Root root, const char* description,
                                           FullObjectSlot p) {
   DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
@@ -109,8 +104,12 @@ void RootMarkingVisitor::MarkObjectByPointer(Root root, FullObjectSlot p) {
 #endif
   if (!IsHeapObject(object)) return;
   Tagged<HeapObject> heap_object = HeapObject::cast(object);
-  if (!collector_->ShouldMarkObject(heap_object)) return;
-  collector_->MarkRootObject(root, heap_object);
+  const auto target_worklist =
+      MarkingHelper::ShouldMarkObject(collector_->heap(), heap_object);
+  if (!target_worklist) {
+    return;
+  }
+  collector_->MarkRootObject(root, heap_object, target_worklist.value());
 }
 
 }  // namespace internal

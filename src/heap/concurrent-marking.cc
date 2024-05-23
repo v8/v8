@@ -77,7 +77,10 @@ class ConcurrentMarkingVisitor final
   // Returns true if value was actually marked.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value) {
     if (marking_state()->IsMarked(key)) {
-      if (MarkObject(key, value)) {
+      const auto target_worklist =
+          MarkingHelper::ShouldMarkObject(heap_, value);
+      DCHECK(target_worklist.has_value());
+      if (MarkObject(key, value, target_worklist.value())) {
         return true;
       }
     } else if (marking_state()->IsUnmarked(value)) {

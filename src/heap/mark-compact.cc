@@ -43,6 +43,7 @@
 #include "src/heap/marking-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
@@ -945,8 +946,12 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<Object> object) {
     if (!IsHeapObject(object)) return;
     Tagged<HeapObject> heap_object = HeapObject::cast(object);
-    if (!collector_->ShouldMarkObject(heap_object)) return;
-    collector_->MarkObject(host, heap_object);
+    const auto target_worklist =
+        MarkingHelper::ShouldMarkObject(collector_->heap(), heap_object);
+    if (!target_worklist) {
+      return;
+    }
+    collector_->MarkObject(host, heap_object, target_worklist.value());
   }
 
   MarkCompactCollector* const collector_;
@@ -1022,7 +1027,8 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     DCHECK(Heap::InYoungGeneration(host));
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
         host_page_metadata, host_chunk->Offset(slot.address()));
-    collector_->MarkRootObject(Root::kClientHeap, heap_object);
+    collector_->MarkRootObject(Root::kClientHeap, heap_object,
+                               MarkingHelper::WorklistTarget::kRegular);
   }
 
   MarkCompactCollector* const collector_;
@@ -1879,7 +1885,8 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
           if (obj.GetHeapObject(&heap_object) &&
               InWritableSharedSpace(heap_object)) {
-            collector->MarkRootObject(Root::kClientHeap, heap_object);
+            collector->MarkRootObject(Root::kClientHeap, heap_object,
+                                      MarkingHelper::WorklistTarget::kRegular);
             return KEEP_SLOT;
           } else {
             return REMOVE_SLOT;
@@ -1895,7 +1902,8 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
           Tagged<HeapObject> heap_object =
               UpdateTypedSlotHelper::GetTargetObject(heap, slot_type, slot);
           if (InWritableSharedSpace(heap_object)) {
-            collector->MarkRootObject(Root::kClientHeap, heap_object);
+            collector->MarkRootObject(Root::kClientHeap, heap_object,
+                                      MarkingHelper::WorklistTarget::kRegular);
             return KEEP_SLOT;
           } else {
             return REMOVE_SLOT;
@@ -1925,7 +1933,8 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         Tagged<HeapObject> heap_obj = HeapObject::cast(Tagged<Object>(content));
         DCHECK(IsExposedTrustedObject(heap_obj));
         if (!InWritableSharedSpace(heap_obj)) return;
-        collector->MarkRootObject(Root::kClientHeap, heap_obj);
+        collector->MarkRootObject(Root::kClientHeap, heap_obj,
+                                  MarkingHelper::WorklistTarget::kRegular);
       });
 #endif  // V8_ENABLE_SANDBOX
 }
@@ -2066,9 +2075,11 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
       // next_ephemerons.
       local_weak_objects()->next_ephemerons_local.Publish();
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
-        if (non_atomic_marking_state_->IsMarked(ephemeron.key) &&
-            non_atomic_marking_state_->TryMark(ephemeron.value)) {
-          local_marking_worklists_->Push(ephemeron.value);
+        if (non_atomic_marking_state_->IsMarked(ephemeron.key)) {
+          DCHECK(MarkingHelper::ShouldMarkObject(heap_, ephemeron.value));
+          MarkingHelper::TryMarkAndPush(
+              heap_, local_marking_worklists_.get(), non_atomic_marking_state_,
+              MarkingHelper::WorklistTarget::kRegular, ephemeron.value);
         }
       });
 
@@ -2080,7 +2091,10 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
         auto range = key_to_values.equal_range(object);
         for (auto it = range.first; it != range.second; ++it) {
           Tagged<HeapObject> value = it->second;
-          MarkObject(object, value);
+          const auto target_worklist =
+              MarkingHelper::ShouldMarkObject(heap_, value);
+          DCHECK(target_worklist);
+          MarkObject(object, value, target_worklist.value());
         }
       }
     }
@@ -2195,13 +2209,17 @@ bool MarkCompactCollector::ProcessEphemeron(Tagged<HeapObject> key,
   // worklist. However, minor collection during incremental marking may promote
   // strings from the younger generation into the shared heap. This
   // ShouldMarkObject call catches those cases.
-  if (!ShouldMarkObject(value)) return false;
+  const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
+  if (!target_worklist) {
+    return false;
+  }
   if (marking_state_->IsMarked(key)) {
-    if (marking_state_->TryMark(value)) {
-      local_marking_worklists_->Push(value);
+    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
+    if (MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
+                                      marking_state_, target_worklist.value(),
+                                      value)) {
       return true;
     }
-
   } else if (marking_state_->IsUnmarked(value)) {
     local_weak_objects()->next_ephemerons_local.Push(Ephemeron{key, value});
   }
@@ -2324,9 +2342,10 @@ void MarkCompactCollector::RetainMaps() {
       Tagged<Map> map = Map::cast(map_heap_object);
       if (should_retain_maps && marking_state_->IsUnmarked(map)) {
         if (ShouldRetainMap(marking_state_, map, age)) {
-          if (marking_state_->TryMark(map)) {
-            local_marking_worklists_->Push(map);
-          }
+          DCHECK(MarkingHelper::ShouldMarkObject(heap_, map));
+          MarkingHelper::TryMarkAndPush(
+              heap_, local_marking_worklists_.get(), marking_state_,
+              MarkingHelper::WorklistTarget::kRegular, map);
         }
         Tagged<Object> prototype = map->prototype();
         if (age > 0 && IsHeapObject(prototype) &&
@@ -3013,7 +3032,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Mark the uncompiled data as black, and ensure all fields have already been
   // marked.
-  DCHECK(!ShouldMarkObject(inferred_name) ||
+  DCHECK(MarkingHelper::GetLivenessMode(heap_, inferred_name) ==
+             MarkingHelper::LivenessMode::kAlwaysLive ||
          marking_state_->IsMarked(inferred_name));
   marking_state_->TryMarkAndAccountLiveBytes(uncompiled_data);
 
@@ -3416,15 +3436,19 @@ void MarkCompactCollector::ClearWeakCollections() {
         Tagged<Object> value = table->ValueAt(i);
         if (IsHeapObject(value)) {
           Tagged<HeapObject> heap_object = HeapObject::cast(value);
-          CHECK_IMPLIES(!ShouldMarkObject(key) ||
+
+          CHECK_IMPLIES(MarkingHelper::GetLivenessMode(heap_, key) ==
+                                MarkingHelper::LivenessMode::kAlwaysLive ||
                             non_atomic_marking_state_->IsMarked(key),
-                        !ShouldMarkObject(heap_object) ||
+                        MarkingHelper::GetLivenessMode(heap_, heap_object) ==
+                                MarkingHelper::LivenessMode::kAlwaysLive ||
                             non_atomic_marking_state_->IsMarked(heap_object));
         }
       }
 #endif  // VERIFY_HEAP
-      if (!ShouldMarkObject(key)) continue;
-      if (!non_atomic_marking_state_->IsMarked(key)) {
+      if (MarkingHelper::GetLivenessMode(heap_, key) ==
+              MarkingHelper::LivenessMode::kMarkbit &&
+          !non_atomic_marking_state_->IsMarked(key)) {
         table->RemoveEntry(i);
       }
     }

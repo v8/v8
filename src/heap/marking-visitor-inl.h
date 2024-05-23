@@ -10,6 +10,7 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
+#include "src/heap/marking.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
@@ -37,16 +38,15 @@ namespace internal {
 
 template <typename ConcreteVisitor>
 bool MarkingVisitorBase<ConcreteVisitor>::MarkObject(
-    Tagged<HeapObject> retainer, Tagged<HeapObject> object) {
-  DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
+    Tagged<HeapObject> retainer, Tagged<HeapObject> object,
+    MarkingHelper::WorklistTarget target_worklist) {
+  DCHECK(heap_->Contains(object));
   SynchronizePageAccess(object);
   concrete_visitor()->AddStrongReferenceForReferenceSummarizer(retainer,
                                                                object);
-  if (concrete_visitor()->marking_state()->TryMark(object)) {
-    local_marking_worklists_->Push(object);
-    return true;
-  }
-  return false;
+  return MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_,
+                                       concrete_visitor()->marking_state(),
+                                       target_worklist, object);
 }
 
 // class template arguments
@@ -57,7 +57,11 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
     Tagged<HeapObject> host, THeapObjectSlot slot,
     Tagged<HeapObject> heap_object) {
   SynchronizePageAccess(heap_object);
-  if (!ShouldMarkObject(heap_object)) return;
+  const auto target_worklist =
+      MarkingHelper::ShouldMarkObject(heap_, heap_object);
+  if (!target_worklist) {
+    return;
+  }
   // TODO(chromium:1495151): Remove after diagnosing.
   if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
                   IsFreeSpaceOrFiller(
@@ -70,7 +74,7 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
                                     ->owner()
                                     ->identity()));
   }
-  MarkObject(host, heap_object);
+  MarkObject(host, heap_object, target_worklist.value());
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }
 
@@ -82,7 +86,12 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     Tagged<HeapObject> host, THeapObjectSlot slot,
     Tagged<HeapObject> heap_object) {
   SynchronizePageAccess(heap_object);
-  if (!ShouldMarkObject(heap_object)) return;
+  concrete_visitor()->AddWeakReferenceForReferenceSummarizer(host, heap_object);
+  const auto target_worklist =
+      MarkingHelper::ShouldMarkObject(heap_, heap_object);
+  if (!target_worklist) {
+    return;
+  }
   if (concrete_visitor()->marking_state()->IsMarked(heap_object)) {
     // Weak references with live values are directly processed here to
     // reduce the processing time of weak cells during the main GC
@@ -93,8 +102,6 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     // the reference when we know the liveness of the whole transitive
     // closure.
     local_weak_objects_->weak_references_local.Push(std::make_pair(host, slot));
-    concrete_visitor()->AddWeakReferenceForReferenceSummarizer(host,
-                                                               heap_object);
   }
 }
 
@@ -145,7 +152,10 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   Tagged<HeapObject> object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
-  if (!ShouldMarkObject(object)) return;
+  const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, object);
+  if (!target_worklist) {
+    return;
+  }
 
   if (!concrete_visitor()->marking_state()->IsMarked(object)) {
     Tagged<Code> code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
@@ -154,7 +164,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
           std::make_pair(object, code));
       concrete_visitor()->AddWeakReferenceForReferenceSummarizer(host, object);
     } else {
-      MarkObject(host, object);
+      MarkObject(host, object, target_worklist.value());
     }
   }
   concrete_visitor()->RecordRelocSlot(host, rinfo, object);
@@ -167,8 +177,11 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
   Tagged<InstructionStream> target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
 
-  if (!ShouldMarkObject(target)) return;
-  MarkObject(host, target);
+  const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, target);
+  if (!target_worklist) {
+    return;
+  }
+  MarkObject(host, target, target_worklist.value());
   concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }
 
@@ -241,9 +254,11 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     if (IsHeapObject(value)) {
       Tagged<HeapObject> obj = HeapObject::cast(value);
       SynchronizePageAccess(obj);
-      if (ShouldMarkObject(obj)) {
-        MarkObject(host, obj);
+      const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, obj);
+      if (!target_worklist) {
+        return;
       }
+      MarkObject(host, obj, target_worklist.value());
     }
   }
 #else
@@ -477,7 +492,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
-      DCHECK(ShouldMarkObject(object));
+      DCHECK(MarkingHelper::ShouldMarkObject(heap_, object));
       local_marking_worklists_->Push(object);
     }
   }
@@ -617,7 +632,11 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
         concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table,
                                                                    value);
 
-        if (!ShouldMarkObject(value)) continue;
+        const auto target_worklist =
+            MarkingHelper::ShouldMarkObject(heap_, value);
+        if (!target_worklist) {
+          continue;
+        }
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.

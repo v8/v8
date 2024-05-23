@@ -12,7 +12,6 @@
 
 #include "src/heap/base/worklist.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
-#include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/address-map.h"
 

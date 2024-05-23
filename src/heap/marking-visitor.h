@@ -10,6 +10,7 @@
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
@@ -61,7 +62,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
         code_flushing_increase_(code_flushing_increase),
         isolate_in_background_(heap->isolate()->is_backgrounded())
 #ifdef V8_COMPRESS_POINTERS
@@ -162,17 +162,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #endif
   }
 
-  bool ShouldMarkObject(Tagged<HeapObject> object) const {
-    if (InReadOnlySpace(object)) return false;
-    if (should_mark_shared_heap_) return true;
-    return !InAnySharedSpace(object);
-  }
-
-  // Marks the object  and pushes it on the marking work list. The `retainer` is
+  // Marks the object  and pushes it on the marking work list. The `host` is
   // used for the reference summarizer to valide that the heap snapshot is in
   // sync with the marker.
-  V8_INLINE bool MarkObject(Tagged<HeapObject> retainer,
-                            Tagged<HeapObject> obj);
+  V8_INLINE bool MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+                            MarkingHelper::WorklistTarget target_worklist);
 
   V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
     return false;
@@ -227,7 +221,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
-  const bool should_mark_shared_heap_;
   const uint16_t code_flushing_increase_;
   const bool isolate_in_background_;
 #ifdef V8_COMPRESS_POINTERS

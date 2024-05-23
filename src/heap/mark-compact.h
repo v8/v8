@@ -214,13 +214,13 @@ class MarkCompactCollector final {
 
   void MarkLiveObjects();
 
-  // Marks the object grey and adds it to the marking work list.
-  // This is for non-incremental marking only.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj);
+  // Marks the object and adds it to the worklist.
+  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+                            MarkingHelper::WorklistTarget target_worklist);
 
-  // Marks the object grey and adds it to the marking work list.
-  // This is for non-incremental marking only.
-  V8_INLINE void MarkRootObject(Root root, Tagged<HeapObject> obj);
+  // Marks the root object and adds it to the worklist.
+  V8_INLINE void MarkRootObject(Root root, Tagged<HeapObject> obj,
+                                MarkingHelper::WorklistTarget target_worklist);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor);
@@ -356,8 +356,6 @@ class MarkCompactCollector final {
 
   void RightTrimDescriptorArray(Tagged<DescriptorArray> array,
                                 int descriptors_to_trim);
-
-  V8_INLINE bool ShouldMarkObject(Tagged<HeapObject>) const;
 
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
