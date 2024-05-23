@@ -1498,6 +1498,9 @@ class InterpretedDeoptFrame : public DeoptFrame {
   BytecodeOffset bytecode_position() const { return data().bytecode_position; }
   SourcePosition source_position() const { return data().source_position; }
 
+  int ComputeReturnOffset(interpreter::Register result_location,
+                          int result_size) const;
+
  private:
   InterpretedFrameData& data() { return data_.get<InterpretedFrameData>(); }
   const InterpretedFrameData& data() const {
@@ -1745,6 +1748,10 @@ class LazyDeoptInfo : public DeoptInfo {
               kUninitializedCallReturnPc);
     bitfield_ = DeoptingCallReturnPcField::update(bitfield_, pc);
   }
+
+  static bool InReturnValues(interpreter::Register reg,
+                             interpreter::Register result_location,
+                             int result_size);
 
  private:
 #ifdef DEBUG

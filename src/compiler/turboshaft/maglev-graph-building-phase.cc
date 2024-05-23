@@ -624,8 +624,8 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
   V<Any> GenerateBuiltinCall(
-      maglev::NodeBase* node, Builtin builtin, V<FrameState> frame_state,
-      base::Vector<const OpIndex> arguments,
+      maglev::NodeBase* node, Builtin builtin,
+      OptionalV<FrameState> frame_state, base::Vector<const OpIndex> arguments,
       base::Optional<int> stack_arg_count = base::nullopt) {
     ThrowingScope throwing_scope(this, node);
 
@@ -635,7 +635,8 @@ class GraphBuilder {
         graph_zone(), descriptor,
         stack_arg_count.has_value() ? stack_arg_count.value()
                                     : descriptor.GetStackParameterCount(),
-        CallDescriptor::kNeedsFrameState);
+        frame_state.valid() ? CallDescriptor::kNeedsFrameState
+                            : CallDescriptor::kNoFlags);
     V<Code> stub_code = __ HeapConstant(callable.code());
 
     return __ Call(stub_code, frame_state, base::VectorOf(arguments),
@@ -661,8 +662,22 @@ class GraphBuilder {
       arguments.push_back(Map(node->context_input()));
     }
 
-    SetMap(node, GenerateBuiltinCall(node, node->builtin(), frame_state,
-                                     base::VectorOf(arguments)));
+    V<Any> call_idx = GenerateBuiltinCall(node, node->builtin(), frame_state,
+                                          base::VectorOf(arguments));
+    const Operation& call_op = __ output_graph().Get(call_idx);
+    if (const TupleOp* tuple = call_op.TryCast<TupleOp>()) {
+      // If the builtin call returned multiple values, then in Maglev, {node} is
+      // used as the 1st returned value, and a GetSecondReturnedValue node is
+      // used to access the 2nd value. We thus call `SetMap` with the 1st
+      // projection of the call, and record the 2nd projection in
+      // {second_return_value_}, which we'll use when translating
+      // GetSecondReturnedValue.
+      DCHECK_EQ(tuple->input_count, 2);
+      SetMap(node, tuple->input(0));
+      second_return_value_ = tuple->input<Object>(1);
+    } else {
+      SetMap(node, call_idx);
+    }
 
     return maglev::ProcessResult::kContinue;
   }
@@ -953,9 +968,11 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::CheckDerivedConstructResult* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
-    __ CheckDerivedConstructResult(Map(node->construct_result_input()),
+    V<Object> construct_result = Map(node->construct_result_input());
+    __ CheckDerivedConstructResult(construct_result,
                                    BuildFrameState(node->lazy_deopt_info()),
                                    native_context());
+    SetMap(node, construct_result);
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1093,6 +1110,39 @@ class GraphBuilder {
     OpIndex arguments[] = {Map(node->value_input()), Map(node->context())};
 
     SetMap(node, GenerateBuiltinCall(node, Builtin::kToName, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ForInPrepare* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex arguments[] = {Map(node->enumerator()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    V<Any> call =
+        GenerateBuiltinCall(node, Builtin::kForInPrepare,
+                            OptionalV<turboshaft::FrameState>::Nullopt(),
+                            base::VectorOf(arguments));
+    SetMap(node, __ Projection(call, 0, RegisterRepresentation::Tagged()));
+    second_return_value_ = V<Object>::Cast(
+        __ Projection(call, 1, RegisterRepresentation::Tagged()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ForInNext* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {__ TaggedIndexConstant(node->feedback().index()),
+                           Map(node->receiver()),
+                           Map(node->cache_array()),
+                           Map(node->cache_type()),
+                           Map(node->cache_index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kForInNext, frame_state,
                                      base::VectorOf(arguments)));
     return maglev::ProcessResult::kContinue;
   }
@@ -2734,6 +2784,18 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::GetSecondReturnedValue* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK(second_return_value_.valid());
+    SetMap(node, second_return_value_);
+
+#ifdef DEBUG
+    second_return_value_ = V<Object>::Invalid();
+#endif
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TryOnStackReplacement*,
                                 const maglev::ProcessingState&) {
     // Turboshaft is the top tier compiler, so we never need to OSR from it.
@@ -2769,10 +2831,15 @@ class GraphBuilder {
 
  private:
   V<FrameState> BuildFrameState(maglev::EagerDeoptInfo* eager_deopt_info) {
+    // Eager deopts don't have a result location/size.
+    const interpreter::Register result_location =
+        interpreter::Register::invalid_value();
+    const int result_size = 0;
+
     switch (eager_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState(eager_deopt_info->top_frame().as_interpreted(),
-                               OutputFrameStateCombine::Ignore(), true);
+                               result_location, result_size);
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return BuildFrameState(
             eager_deopt_info->top_frame().as_builtin_continuation());
@@ -2785,19 +2852,9 @@ class GraphBuilder {
   V<FrameState> BuildFrameState(maglev::LazyDeoptInfo* lazy_deopt_info) {
     switch (lazy_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
-        if (lazy_deopt_info->result_size() == 1) {
-          DCHECK_EQ(lazy_deopt_info->result_location(),
-                    interpreter::Register::virtual_accumulator());
-          return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
-                                 OutputFrameStateCombine::PokeAt(0), true);
-        } else if (lazy_deopt_info->result_size() == 0) {
-          return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
-                                 OutputFrameStateCombine::Ignore(), true);
-        } else {
-          // TODO(dmercadier): handle cases where the lazy deopt has multiple
-          // return values.
-          UNIMPLEMENTED();
-        }
+        return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
+                               lazy_deopt_info->result_location(),
+                               lazy_deopt_info->result_size());
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildFrameState(
             lazy_deopt_info->top_frame().as_construct_stub());
@@ -2812,16 +2869,18 @@ class GraphBuilder {
   }
 
   V<FrameState> BuildParentFrameState(maglev::DeoptFrame& frame) {
-    // Only the topmost frame should have a non-ignore OutputFrameStateCombine.
-    // One reason for this is that, in Maglev, the PokeAt is not an attribute of
-    // the DeoptFrame but rather of the LazyDeoptInfo (to which the topmost
-    // frame is attached).
-    const OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore();
-    const bool is_topmost = false;
+    // Only the topmost frame should have a valid result_location and
+    // result_size. One reason for this is that, in Maglev, the PokeAt is not an
+    // attribute of the DeoptFrame but rather of the LazyDeoptInfo (to which the
+    // topmost frame is attached).
+    const interpreter::Register result_location =
+        interpreter::Register::invalid_value();
+    const int result_size = 0;
 
     switch (frame.type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
-        return BuildFrameState(frame.as_interpreted(), combine, is_topmost);
+        return BuildFrameState(frame.as_interpreted(), result_location,
+                               result_size);
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildFrameState(frame.as_construct_stub());
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -2937,9 +2996,9 @@ class GraphBuilder {
   }
 
   V<FrameState> BuildFrameState(maglev::InterpretedDeoptFrame& frame,
-                                OutputFrameStateCombine combine,
-                                bool is_topmost) {
-    DCHECK_IMPLIES(!is_topmost, combine.IsOutputIgnored());
+                                interpreter::Register result_location,
+                                int result_size) {
+    DCHECK_EQ(result_size != 0, result_location.is_valid());
     FrameStateData::Builder builder;
 
     if (frame.parent() != nullptr) {
@@ -2953,7 +3012,7 @@ class GraphBuilder {
     // Parameters
     frame.frame_state()->ForEachParameter(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          AddDeoptInput(builder, value);
+          AddDeoptInput(builder, value, reg, result_location, result_size);
         });
 
     // Context
@@ -2973,7 +3032,7 @@ class GraphBuilder {
             builder.AddUnusedRegister();
             local_index++;
           }
-          AddDeoptInput(builder, value);
+          AddDeoptInput(builder, value, reg, result_location, result_size);
           local_index++;
         });
     for (; local_index < frame.unit().register_count(); local_index++) {
@@ -2981,20 +3040,16 @@ class GraphBuilder {
     }
 
     // Accumulator
-    // When `combine` is PokeAt(0), the value of the accumulator is produced by
-    // the function that lazy deopts, and thus it shouldn't be in the
-    // FrameState (since the FrameState is defined before the function is
-    // called), so in that case we set the Accumulator to UnusedRegister, even
-    // if it is alive.
-    // TODO(dmercadier): the "combine != PokeAt(0)" is fine for now since we
-    // don't have PokeAt with other values than 0 for now, but once we do, we
-    // should use instead something similar to InReturnValues in Maglev.
-    if (is_topmost && frame.frame_state()->liveness()->AccumulatorIsLive() &&
-        combine != OutputFrameStateCombine::PokeAt(0)) {
-      AddDeoptInput(builder, frame.frame_state()->accumulator(frame.unit()));
+    if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
+      AddDeoptInput(builder, frame.frame_state()->accumulator(frame.unit()),
+                    interpreter::Register::virtual_accumulator(),
+                    result_location, result_size);
     } else {
       builder.AddUnusedRegister();
     }
+
+    OutputFrameStateCombine combine =
+        ComputeCombine(frame, result_location, result_size);
 
     const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame, combine);
     return __ FrameState(
@@ -3005,6 +3060,27 @@ class GraphBuilder {
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::ValueNode* node) {
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
+  }
+
+  void AddDeoptInput(FrameStateData::Builder& builder,
+                     const maglev::ValueNode* node, interpreter::Register reg,
+                     interpreter::Register result_location, int result_size) {
+    if (result_location.is_valid() && maglev::LazyDeoptInfo::InReturnValues(
+                                          reg, result_location, result_size)) {
+      builder.AddUnusedRegister();
+    } else {
+      AddDeoptInput(builder, node);
+    }
+  }
+
+  OutputFrameStateCombine ComputeCombine(maglev::InterpretedDeoptFrame& frame,
+                                         interpreter::Register result_location,
+                                         int result_size) {
+    if (result_size == 0) {
+      return OutputFrameStateCombine::Ignore();
+    }
+    return OutputFrameStateCombine::PokeAt(
+        frame.ComputeReturnOffset(result_location, result_size));
   }
 
   const FrameStateInfo* MakeFrameStateInfo(
@@ -3284,7 +3360,7 @@ class GraphBuilder {
    public:
     ThrowingScope(GraphBuilder* builder, maglev::NodeBase* throwing_node)
         : builder_(*builder) {
-      DCHECK(throwing_node->properties().can_throw());
+      if (!throwing_node->properties().can_throw()) return;
       const maglev::ExceptionHandlerInfo* info =
           throwing_node->exception_handler_info();
       if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
@@ -3364,6 +3440,7 @@ class GraphBuilder {
 
   OpIndex SetMap(maglev::NodeBase* node, OpIndex idx) {
     DCHECK(idx.valid());
+    DCHECK_EQ(__ output_graph().Get(idx).outputs_rep().size(), 1);
     node_mapping_[node] = idx;
     return idx;
   }
@@ -3408,6 +3485,15 @@ class GraphBuilder {
   // the first input for the current loop phi.
   base::SmallVector<OpIndex, 16> loop_phis_first_input_;
   int loop_phis_first_input_index_ = -1;
+
+  // Magle doesn't have projections. Instead, after nodes that return multiple
+  // values (currently, only maglev::ForInPrepare and maglev::CallBuiltin for
+  // some builtins), Maglev inserts a GetSecondReturnedValue node, which
+  // basically just binds kReturnRegister1 to a ValueNode. In the
+  // Maglev->Turboshaft translation, when we emit a builtin call with multiple
+  // return values, we set {second_return_value_} to the 2nd projection, and
+  // then use it when translating GetSecondReturnedValue.
+  V<Object> second_return_value_ = V<Object>::Invalid();
 
   V<NativeContext> native_context_ = V<NativeContext>::Invalid();
   V<Object> new_target_param_ = V<Object>::Invalid();
