@@ -3035,6 +3035,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallConstant(isolate_, symbol_fun, "unscopables",
                     factory->unscopables_symbol());
     InstallConstant(isolate_, symbol_fun, "dispose", factory->dispose_symbol());
+    InstallConstant(isolate_, symbol_fun, "asyncDispose",
+                    factory->async_dispose_symbol());
 
     // Setup %SymbolPrototype%.
     Handle<JSObject> prototype(JSObject::cast(symbol_fun->instance_prototype()),

@@ -1078,4 +1078,26 @@ TEST_F(DeclsTest, TestUsing) {
   }
 }
 
+TEST_F(DeclsTest, TestAwaitUsing) {
+  i::v8_flags.js_explicit_resource_management = true;
+  HandleScope scope(isolate());
+
+  {
+    SimpleContext context;
+    context.Check("await using x = 42;", EXPECT_ERROR);
+    context.Check("async function f() {await using await x = 1;} \n f();",
+                  EXPECT_ERROR);
+    context.Check("async function f() {await using {x} = {x:5};} \n f();",
+                  EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using x in [1, 2, 3]){\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using {x} = {x:5}; x < 10 ; i++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+  }
+}
+
 }  // namespace v8

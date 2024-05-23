@@ -373,6 +373,7 @@ void Scope::SetDefaults() {
   is_block_scope_for_object_literal_ = false;
 
   has_using_declaration_ = false;
+  has_await_using_declaration_ = false;
 
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
@@ -1083,14 +1084,16 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   // This function handles VariableMode::kVar, VariableMode::kLet,
-  // VariableMode::kConst, and VariableMode::kUsing modes.
-  // VariableMode::kDynamic variables are introduced during variable allocation,
-  // and VariableMode::kTemporary variables are allocated via NewTemporary().
+  // VariableMode::kConst, VariableMode::kUsing, and VariableMode::kAwaitUsing
+  // modes. VariableMode::kDynamic variables are introduced during variable
+  // allocation, and VariableMode::kTemporary variables are allocated via
+  // NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK_IMPLIES(GetDeclarationScope()->is_being_lazily_parsed(),
                  mode == VariableMode::kVar || mode == VariableMode::kLet ||
                      mode == VariableMode::kConst ||
-                     mode == VariableMode::kUsing);
+                     mode == VariableMode::kUsing ||
+                     mode == VariableMode::kAwaitUsing);
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
   Variable* var =
       Declare(zone(), name, mode, kind, init_flag, kNotAssigned, was_added);

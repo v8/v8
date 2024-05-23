@@ -406,6 +406,12 @@ class V8_EXPORT_PRIVATE Scanner {
     return next_next().after_line_terminator;
   }
 
+  bool HasLineTerminatorAfterNextNext() {
+    Token::Value ensure_next_next_next = PeekAheadAhead();
+    USE(ensure_next_next_next);
+    return next_next_next().after_line_terminator;
+  }
+
   // Scans the input as a regular expression pattern, next token must be /(=).
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
@@ -442,7 +448,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // escape sequences are allowed.
   class ErrorState;
 
-  // The current and look-ahead token.
+  // The current and look-ahead tokens.
   struct TokenDesc {
     Location location = {0, 0};
     LiteralBuffer literal_chars;

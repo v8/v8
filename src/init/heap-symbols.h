@@ -537,7 +537,8 @@
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
   V(_, unscopables_symbol, Symbol.unscopables)            \
-  V(_, dispose_symbol, Symbol.dispose)
+  V(_, dispose_symbol, Symbol.dispose)                    \
+  V(_, async_dispose_symbol, Symbol.asyncDispose)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
 // them to produce an undefined value when a load results in a failed access

@@ -763,31 +763,32 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t ksearch_symbol = 0x5f89;
   static constexpr Tagged_t kunscopables_symbol = 0x5fb5;
   static constexpr Tagged_t kdispose_symbol = 0x5fe5;
-  static constexpr Tagged_t khas_instance_symbol = 0x6011;
-  static constexpr Tagged_t kto_string_tag_symbol = 0x6041;
-  static constexpr Tagged_t kconstructor_string = 0x60b9;
-  static constexpr Tagged_t knext_string = 0x60d1;
-  static constexpr Tagged_t kresolve_string = 0x60e1;
-  static constexpr Tagged_t kthen_string = 0x60f5;
-  static constexpr Tagged_t kvalueOf_string = 0x6105;
-  static constexpr Tagged_t kiterator_symbol = 0x6119;
-  static constexpr Tagged_t kmatch_all_symbol = 0x6129;
-  static constexpr Tagged_t kreplace_symbol = 0x6139;
-  static constexpr Tagged_t kspecies_symbol = 0x6149;
-  static constexpr Tagged_t ksplit_symbol = 0x6159;
-  static constexpr Tagged_t kto_primitive_symbol = 0x6169;
-  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x6179;
-  static constexpr Tagged_t kEmptySlowElementDictionary = 0x6189;
-  static constexpr Tagged_t kEmptySymbolTable = 0x61ad;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x61c9;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x61dd;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x61f1;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x61fd;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x621d;
-  static constexpr Tagged_t kNativeScopeInfo = 0x6241;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x6259;
-  static constexpr Tagged_t kEmptyExternalPointerArray = 0x6271;
-  static constexpr Tagged_t kWasmNullPadding = 0x6279;
+  static constexpr Tagged_t kasync_dispose_symbol = 0x6011;
+  static constexpr Tagged_t khas_instance_symbol = 0x6041;
+  static constexpr Tagged_t kto_string_tag_symbol = 0x6071;
+  static constexpr Tagged_t kconstructor_string = 0x60e9;
+  static constexpr Tagged_t knext_string = 0x6101;
+  static constexpr Tagged_t kresolve_string = 0x6111;
+  static constexpr Tagged_t kthen_string = 0x6125;
+  static constexpr Tagged_t kvalueOf_string = 0x6135;
+  static constexpr Tagged_t kiterator_symbol = 0x6149;
+  static constexpr Tagged_t kmatch_all_symbol = 0x6159;
+  static constexpr Tagged_t kreplace_symbol = 0x6169;
+  static constexpr Tagged_t kspecies_symbol = 0x6179;
+  static constexpr Tagged_t ksplit_symbol = 0x6189;
+  static constexpr Tagged_t kto_primitive_symbol = 0x6199;
+  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x61a9;
+  static constexpr Tagged_t kEmptySlowElementDictionary = 0x61b9;
+  static constexpr Tagged_t kEmptySymbolTable = 0x61dd;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x61f9;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x620d;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x6221;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x622d;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x624d;
+  static constexpr Tagged_t kNativeScopeInfo = 0x6271;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x6289;
+  static constexpr Tagged_t kEmptyExternalPointerArray = 0x62a1;
+  static constexpr Tagged_t kWasmNullPadding = 0x62a9;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
   static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
@@ -796,7 +797,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x2006d;
 };
 
-static constexpr std::array<Tagged_t, 763> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 764> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -1464,6 +1465,7 @@ static constexpr std::array<Tagged_t, 763> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::ksearch_symbol,
     StaticReadOnlyRoot::kunscopables_symbol,
     StaticReadOnlyRoot::kdispose_symbol,
+    StaticReadOnlyRoot::kasync_dispose_symbol,
     StaticReadOnlyRoot::khas_instance_symbol,
     StaticReadOnlyRoot::kto_string_tag_symbol,
     StaticReadOnlyRoot::kPromiseFulfillReactionJobTaskMap,

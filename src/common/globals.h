@@ -1788,8 +1788,11 @@ enum class VariableMode : uint8_t {
 
   kConst,  // declared via 'const' declarations
 
-  kUsing,  // declared via 'using' declaration for explicit memory management
-           // (last lexical)
+  kUsing,  // declared via 'using' declaration for explicit resource management
+
+  kAwaitUsing,  // declared via 'await using' declaration for explicit resource
+                // management
+                // (last lexical)
 
   kVar,  // declared via 'var', and 'function' declarations
 
@@ -1828,7 +1831,7 @@ enum class VariableMode : uint8_t {
   kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
                             // same name in the same scope.
 
-  kLastLexicalVariableMode = kUsing,
+  kLastLexicalVariableMode = kAwaitUsing,
 };
 
 // Printing support
@@ -1859,6 +1862,8 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "TEMPORARY";
     case VariableMode::kUsing:
       return "USING";
+    case VariableMode::kAwaitUsing:
+      return "AWAIT_USING";
   }
   UNREACHABLE();
 }
@@ -1902,7 +1907,8 @@ inline bool IsSerializableVariableMode(VariableMode mode) {
 }
 
 inline bool IsImmutableLexicalVariableMode(VariableMode mode) {
-  return mode == VariableMode::kConst || mode == VariableMode::kUsing;
+  return mode == VariableMode::kConst || mode == VariableMode::kUsing ||
+         mode == VariableMode::kAwaitUsing;
 }
 
 inline bool IsImmutableLexicalOrPrivateVariableMode(VariableMode mode) {
