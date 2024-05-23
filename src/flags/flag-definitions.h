@@ -282,7 +282,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                      \
-  V(harmony_array_grouping, "harmony array grouping")                 \
   V(harmony_array_from_async, "harmony Array.fromAsync")              \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")          \
   V(harmony_set_methods, "harmony Set Methods")                       \
