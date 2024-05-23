@@ -492,7 +492,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
-      DCHECK(MarkingHelper::ShouldMarkObject(heap_, object));
+#ifdef DEBUG
+      const auto target_worklist =
+          MarkingHelper::ShouldMarkObject(heap_, object);
+      DCHECK(target_worklist);
+      DCHECK_EQ(target_worklist.value(),
+                MarkingHelper::WorklistTarget::kRegular);
+#endif  // DEBUG
       local_marking_worklists_->Push(object);
     }
   }
@@ -809,6 +815,13 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
     concrete_visitor()->marking_state()->TryMark(descriptors);
     if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
             mark_compact_epoch_, descriptors, descriptors_to_mark)) {
+#ifdef DEBUG
+      const auto target_worklist =
+          MarkingHelper::ShouldMarkObject(heap_, descriptors);
+      DCHECK(target_worklist);
+      DCHECK_EQ(target_worklist.value(),
+                MarkingHelper::WorklistTarget::kRegular);
+#endif  // DEBUG
       local_marking_worklists_->Push(descriptors);
     }
   }
