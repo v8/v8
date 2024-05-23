@@ -23,9 +23,11 @@ assertEquals(true, is_a(new A()));
 assertEquals(false, is_a(new C()));
 assertOptimized(is_a);
 
-// Changing manually the prototype of an object.
-let b = new B();
+// Setting the prototype to be a Wasm object.
+d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
+let {struct, array} = CreateWasmObjects();
+b = new B();
 assertEquals(true, is_a(b));
-Object.setPrototypeOf(b, {});
+Object.setPrototypeOf(b, struct);
 assertEquals(false, is_a(b));
 assertOptimized(is_a);

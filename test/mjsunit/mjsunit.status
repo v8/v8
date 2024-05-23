@@ -459,6 +459,8 @@
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
 
+  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
+
   'sandbox/regress/regress-334120897': [SKIP],
 
   # Tests tracing when generating wasm in TurboFan.
@@ -1623,6 +1625,7 @@
   'regress/regress-crbug-935800': [SKIP],
   'regress/wasm/*': [SKIP],
   'wasm/*': [SKIP],
+  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
