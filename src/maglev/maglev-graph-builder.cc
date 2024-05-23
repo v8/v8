@@ -48,8 +48,10 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
@@ -62,6 +64,15 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
+
+#define TRACE(...)                            \
+  if (v8_flags.trace_maglev_graph_building) { \
+    std::cout << __VA_ARGS__ << std::endl;    \
+  }
+
+#define FAIL(...)                                                         \
+  TRACE("Failed " << __func__ << ":" << __LINE__ << ": " << __VA_ARGS__); \
+  return ReduceResult::Fail();
 
 namespace v8::internal::maglev {
 
@@ -6839,6 +6850,137 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   return GetRootConstant(RootIndex::kUndefinedValue);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
+
+  ValueNode* receiver = args.receiver();
+  if (!receiver) return ReduceResult::Fail();
+
+  if (!receiver->Is<InlinedAllocation>()) return ReduceResult::Fail();
+  auto maybe_iterator = receiver->Cast<InlinedAllocation>()->GetObject();
+  if (!maybe_iterator.has_value()) {
+    FAIL("iterator is not an inlined allocation");
+  }
+
+  auto iterator = maybe_iterator.value();
+  if (!iterator.GetMap().IsJSArrayIteratorMap()) {
+    FAIL("iterator is not a JS array iterator object");
+  }
+  ValueNode* iterated_object = GetValueNodeFromCapturedValue(
+      iterator.get(JSArrayIterator::kIteratedObjectOffset));
+
+  ElementsKind elements_kind;
+  if (iterated_object->Is<InlinedAllocation>()) {
+    auto maybe_array = iterated_object->Cast<InlinedAllocation>()->GetObject();
+    if (!maybe_array) {
+      FAIL("not a valid iterated object");
+    }
+    auto map = maybe_array->GetMap();
+    if (!map.supports_fast_array_iteration(broker())) {
+      FAIL("no fast array iteration support");
+    }
+    elements_kind = map.elements_kind();
+  } else {
+    auto node_info = known_node_aspects().TryGetInfoFor(iterated_object);
+    if (!node_info || !node_info->possible_maps_are_known()) {
+      FAIL("iterated object is unknown");
+    }
+    if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
+                                        &elements_kind)) {
+      FAIL("no fast array iteration support or incompatible maps");
+    }
+  }
+
+  // TODO(victorgomes): Support typed arrays.
+  if (IsTypedArrayElementsKind(elements_kind)) {
+    FAIL("no typed arrays support");
+  }
+
+  if (IsHoleyElementsKind(elements_kind) &&
+      !broker()->dependencies()->DependOnNoElementsProtector()) {
+    FAIL("no elements protector");
+  }
+
+  // Load the [[NextIndex]] from the {iterator} and leverage the fact
+  // that we definitely know that it's a positive Smi since the
+  // {iterated_object} is a JSArray.
+  ValueNode* smi_index = AddNewNode<LoadTaggedField>(
+      {receiver}, JSArrayIterator::kNextIndexOffset);
+  EnsureType(smi_index, NodeType::kSmi);
+  ValueNode* int32_index = GetInt32(smi_index);
+  ValueNode* uint32_index = AddNewNode<UnsafeInt32ToUint32>({int32_index});
+  ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>(
+      {GetInt32(BuildLoadJSArrayLength(iterated_object))});
+
+  // Check next index is below length
+  MaglevSubGraphBuilder subgraph(this, 2);
+  MaglevSubGraphBuilder::Variable is_done(0);
+  MaglevSubGraphBuilder::Variable ret_value(1);
+  MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
+  MaglevSubGraphBuilder::Label done(&subgraph, 2, {&is_done, &ret_value});
+  subgraph.GotoIfFalse<BranchIfUint32Compare>(
+      &else_branch, {uint32_index, uint32_length}, Operation::kLessThan);
+
+  // Index is below length.
+  subgraph.set(is_done, GetBooleanConstant(false));
+  IterationKind iteration_kind = static_cast<IterationKind>(
+      iterator.get(JSArrayIterator::kKindOffset).smi);
+  if (iteration_kind == IterationKind::kKeys) {
+    subgraph.set(ret_value, smi_index);
+  } else {
+    ValueNode* value;
+    ValueNode* elements_array = BuildLoadElements(iterated_object);
+    if (IsDoubleElementsKind(elements_kind)) {
+      if (IsHoleyElementsKind(elements_kind)) {
+        value = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
+            {elements_array, int32_index});
+      } else {
+        value = AddNewNode<LoadFixedDoubleArrayElement>(
+            {elements_array, int32_index});
+      }
+    } else {
+      DCHECK(IsSmiElementsKind(elements_kind) ||
+             IsObjectElementsKind(elements_kind));
+      value = AddNewNode<LoadFixedArrayElement>({elements_array, int32_index});
+    }
+    if (iteration_kind == IterationKind::kEntries) {
+      subgraph.set(ret_value, BuildAndAllocateKeyValueArray(smi_index, value));
+    } else {
+      subgraph.set(ret_value, value);
+    }
+  }
+  // Add 1 to index
+  ValueNode* next_index =
+      AddNewNode<Int32AddWithOverflow>({int32_index, GetInt32Constant(1)});
+  ValueNode* smi_next_index = AddNewNode<CheckedSmiTagInt32>({next_index});
+  // Update [[NextIndex]]
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, smi_next_index},
+                                             JSArrayIterator::kNextIndexOffset);
+  subgraph.Goto(&done);
+
+  // Index is greater or equal than length.
+  subgraph.Bind(&else_branch);
+  subgraph.set(is_done, GetBooleanConstant(true));
+  subgraph.set(ret_value, GetRootConstant(RootIndex::kUndefinedValue));
+  subgraph.Goto(&done);
+
+  // Allocate result object and return.
+  subgraph.Bind(&done);
+  compiler::MapRef map =
+      broker()->target_native_context().iterator_result_map(broker());
+  CapturedObject iter_result = CapturedObject::CreateJSIteratorResult(
+      zone(), map, subgraph.get(ret_value), subgraph.get(is_done));
+  ValueNode* allocation =
+      BuildInlinedAllocation(iter_result, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  return allocation;
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
@@ -8846,6 +8988,24 @@ ValueNode* MaglevGraphBuilder::BuildGenericConstruct(
         }
       },
       feedback_source, target, new_target, context);
+}
+
+ValueNode* MaglevGraphBuilder::BuildAndAllocateKeyValueArray(ValueNode* key,
+                                                             ValueNode* value) {
+  auto elements =
+      CapturedObject::CreateFixedArray(zone(), broker()->fixed_array_map(), 2);
+  elements.set(FixedArray::OffsetOfElementAt(0), key);
+  elements.set(FixedArray::OffsetOfElementAt(1), value);
+  compiler::MapRef map =
+      broker()->target_native_context().js_array_packed_elements_map(broker());
+  CapturedObject array = CapturedObject::CreateJSArray(
+      zone(), map, map.instance_size(), GetSmiConstant(2));
+  array.set(JSArray::kElementsOffset, elements);
+  ValueNode* allocation = BuildInlinedAllocation(array, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  return allocation;
 }
 
 ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArray(

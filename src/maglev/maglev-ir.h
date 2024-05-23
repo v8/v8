@@ -5116,6 +5116,12 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   const CapturedAllocation& captured_allocation() const {
     return captured_allocation_;
   }
+  std::optional<CapturedObject> GetObject() {
+    if (captured_allocation_.type == CapturedAllocation::kObject) {
+      return captured_allocation_.object;
+    }
+    return {};
+  }
 
   int offset() const {
     DCHECK_NE(offset_, -1);

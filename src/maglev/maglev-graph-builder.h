@@ -1779,6 +1779,7 @@ class MaglevGraphBuilder {
 #define MAGLEV_REDUCED_BUILTIN(V)  \
   V(ArrayForEach)                  \
   V(ArrayIsArray)                  \
+  V(ArrayIteratorPrototypeNext)    \
   V(ArrayPrototypeEntries)         \
   V(ArrayPrototypeKeys)            \
   V(ArrayPrototypeValues)          \
@@ -1908,6 +1909,7 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  ValueNode* BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ValueNode* BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, CapturedValue elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
