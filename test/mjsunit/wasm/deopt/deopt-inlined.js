@@ -11,9 +11,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDeoptInlined() {
   let inlineeIndex = 2;
+  let sig = 1;
   let tests = [
     {name: "callDirect", ops: [kExprCallFunction, inlineeIndex]},
+    {name: "callRef", ops: [kExprRefFunc, inlineeIndex, kExprCallRef, sig]},
     {name: "returnCall", ops: [kExprReturnCall, inlineeIndex]},
+    {name: "returnCallRef",
+     ops: [kExprRefFunc, inlineeIndex, kExprReturnCallRef, sig]},
   ];
 
   for (let test of tests) {
@@ -22,14 +26,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let funcRefT = builder.addType(kSig_i_ii);
 
     builder.addFunction("add", funcRefT)
-      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
-      .exportFunc();
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
+    .exportFunc();
     builder.addFunction("mul", funcRefT)
-      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul])
-      .exportFunc();
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul])
+    .exportFunc();
 
-    let mainSig = makeSig([kWasmI32, kWasmI32,
-      wasmRefType(funcRefT)], [kWasmI32]);
+    let mainSig = builder.addType(makeSig([kWasmI32, kWasmI32,
+      wasmRefType(funcRefT)], [kWasmI32]));
+    assertEquals(sig, mainSig);
     let inlinee = builder.addFunction("inlinee", mainSig)
       .addBody([
         kExprLocalGet, 1,

@@ -8049,17 +8049,12 @@ class LiftoffCompiler {
         __ CallNativeWasmCode(addr);
         if (v8_flags.wasm_deopt &&
             env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
+          DCHECK_EQ(env_->deopt_location_kind,
+                    LocationKindForDeopt::kInlinedCall);
           // TODO(mliedtke): We need to do the same for all other inlineable
           // call targets and provide test coverage for them.
-          DCHECK(!frame_description_);
-          frame_description_ =
-              std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-          frame_description_->description = LiftoffFrameDescription(
-              {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
-               std::vector<LiftoffVarState>(
-                   __ cache_state()->stack_state.begin(),
-                   __ cache_state()->stack_state.end()),
-               __ cache_state()->cached_instance_data});
+          // TODO(mliedtke): Should we do this in `FinishCall` instead?
+          StoreFrameDescriptionForDeopt(decoder);
         }
         FinishCall(decoder, &sig, call_descriptor);
       }
@@ -8379,6 +8374,17 @@ class LiftoffCompiler {
     }
   }
 
+  void StoreFrameDescriptionForDeopt(FullDecoder* decoder) {
+    DCHECK(v8_flags.wasm_deopt);
+    DCHECK(!frame_description_);
+    frame_description_ = std::make_unique<LiftoffFrameDescriptionsForDeopt>();
+    frame_description_->description = LiftoffFrameDescription(
+        {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+         std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
+                                      __ cache_state()->stack_state.end()),
+         __ cache_state()->cached_instance_data});
+  }
+
   void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
                    const FunctionSig* type_sig, TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, type_sig);
@@ -8394,15 +8400,9 @@ class LiftoffCompiler {
 
     if (inlining_enabled(decoder)) {
       if (v8_flags.wasm_deopt &&
-          env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
-        DCHECK(!frame_description_);
-        frame_description_ =
-            std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-        frame_description_->description = LiftoffFrameDescription(
-            {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
-             std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
-                                          __ cache_state()->stack_state.end()),
-             __ cache_state()->cached_instance_data});
+          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+          env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
+        StoreFrameDescriptionForDeopt(decoder);
       }
       LiftoffRegList pinned;
       LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
@@ -8477,6 +8477,12 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(&sig, call_descriptor, target_reg);
+
+      if (v8_flags.wasm_deopt &&
+          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+          env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
+        StoreFrameDescriptionForDeopt(decoder);
+      }
 
       FinishCall(decoder, &sig, call_descriptor);
     }

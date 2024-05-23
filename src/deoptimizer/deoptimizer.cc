@@ -835,12 +835,15 @@ std::pair<wasm::WasmCode*,
           std::unique_ptr<wasm::LiftoffFrameDescriptionsForDeopt>>
 CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                                   int function_index,
-                                  BytecodeOffset deopt_point) {
+                                  BytecodeOffset deopt_point, bool is_topmost) {
   wasm::WasmCompilationUnit unit(function_index, wasm::ExecutionTier::kLiftoff,
                                  wasm::ForDebugging::kNotForDebugging);
   wasm::WasmFeatures detected;
   wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
   env.deopt_info_bytecode_offset = deopt_point.ToInt();
+  env.deopt_location_kind = is_topmost
+                                ? wasm::LocationKindForDeopt::kEagerDeopt
+                                : wasm::LocationKindForDeopt::kInlinedCall;
   std::shared_ptr<wasm::WireBytesStorage> wire_bytes =
       native_module->compilation_state()->GetWireBytesStorage();
   wasm::WasmCompilationResult result =
@@ -868,6 +871,9 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
 #if !V8_ENABLE_WEBASSEMBLY
   UNREACHABLE();
 #else
+  // Given inlined frames where function a calls b, b is considered the topmost
+  // because b is on top of the call stack! This is aligned with the names used
+  // by the JS deopt.
   const bool is_bottommost = frame_index == 0;
   const bool is_topmost = output_count_ - 1 == frame_index;
   // Recompile the liftoff (unoptimized) wasm code for the input frame.
@@ -876,8 +882,9 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // need to compute the deopt information. Can we avoid some of the extra work
   // here?
   auto [wasm_code, liftoff_frame_descriptions] =
-      CompileWithLiftoffAndGetDeoptInfo(
-          native_module, frame.wasm_function_index(), frame.bytecode_offset());
+      CompileWithLiftoffAndGetDeoptInfo(native_module,
+                                        frame.wasm_function_index(),
+                                        frame.bytecode_offset(), is_topmost);
 
   DCHECK(liftoff_frame_descriptions);
   const wasm::LiftoffFrameDescription& liftoff_description =
@@ -1170,7 +1177,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
         compiled_optimized_wasm_code_->index()) {
       CompileWithLiftoffAndGetDeoptInfo(native_module,
                                         compiled_optimized_wasm_code_->index(),
-                                        deopt_entry.bytecode_offset);
+                                        deopt_entry.bytecode_offset, false);
     }
 
     for (int i = 0; i < output_count_; ++i) {
