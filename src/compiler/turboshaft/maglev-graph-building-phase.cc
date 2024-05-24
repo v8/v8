@@ -2177,6 +2177,12 @@ class GraphBuilder {
     __ Branch(condition, Map(node->if_false()), Map(node->if_true()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::BranchIfFloat64IsHole* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = __ Float64IsHole(Map(node->condition_input()));
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
@@ -2641,6 +2647,12 @@ class GraphBuilder {
                RegisterRepresentation::Float64(),
                ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
                CheckForMinusZeroMode::kCheckForMinusZero));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::HoleyFloat64IsHole* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(__ Float64IsHole(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
 
