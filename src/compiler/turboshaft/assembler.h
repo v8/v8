@@ -1751,22 +1751,30 @@ class TurboshaftAssemblerOpInterface
                      ObjectIsOp::InputAssumptions input_assumptions) {
     return ReduceIfReachableObjectIs(input, kind, input_assumptions);
   }
-  V<Word32> ObjectIsSmi(V<Object> object) {
-    return ObjectIs(object, ObjectIsOp::Kind::kSmi,
-                    ObjectIsOp::InputAssumptions::kNone);
+#define DECL_OBJECT_IS(kind)                              \
+  V<Word32> ObjectIs##kind(V<Object> object) {            \
+    return ObjectIs(object, ObjectIsOp::Kind::k##kind,    \
+                    ObjectIsOp::InputAssumptions::kNone); \
   }
-  V<Word32> ObjectIsString(V<Object> object) {
-    return ObjectIs(object, ObjectIsOp::Kind::kString,
-                    ObjectIsOp::InputAssumptions::kNone);
-  }
-  V<Word32> ObjectIsNumberOrBigint(V<Object> object) {
-    return ObjectIs(object, ObjectIsOp::Kind::kNumberOrBigInt,
-                    ObjectIsOp::InputAssumptions::kNone);
-  }
-  V<Word32> ObjectIsNumber(V<Object> object) {
-    return ObjectIs(object, ObjectIsOp::Kind::kNumber,
-                    ObjectIsOp::InputAssumptions::kNone);
-  }
+
+  DECL_OBJECT_IS(ArrayBufferView)
+  DECL_OBJECT_IS(BigInt)
+  DECL_OBJECT_IS(BigInt64)
+  DECL_OBJECT_IS(Callable)
+  DECL_OBJECT_IS(Constructor)
+  DECL_OBJECT_IS(DetectableCallable)
+  DECL_OBJECT_IS(InternalizedString)
+  DECL_OBJECT_IS(NonCallable)
+  DECL_OBJECT_IS(Number)
+  DECL_OBJECT_IS(NumberOrBigInt)
+  DECL_OBJECT_IS(Receiver)
+  DECL_OBJECT_IS(ReceiverOrNullOrUndefined)
+  DECL_OBJECT_IS(Smi)
+  DECL_OBJECT_IS(String)
+  DECL_OBJECT_IS(StringOrStringWrapper)
+  DECL_OBJECT_IS(Symbol)
+  DECL_OBJECT_IS(Undetectable)
+#undef DECL_OBJECT_IS
 
   V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
     return ReduceIfReachableFloat64Is(input, kind);
@@ -3391,6 +3399,12 @@ class TurboshaftAssemblerOpInterface
                                        V<Context> context) {
     CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
         isolate, frame_state, context, {});
+  }
+  void CallRuntime_ThrowCalledNonCallable(Isolate* isolate,
+                                          V<turboshaft::FrameState> frame_state,
+                                          V<Context> context, V<Object> value) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowCalledNonCallable>(
+        isolate, frame_state, context, {value});
   }
   V<JSFunction> CallRuntime_NewClosure(
       Isolate* isolate, V<Context> context,

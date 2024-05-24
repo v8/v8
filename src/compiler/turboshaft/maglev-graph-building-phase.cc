@@ -795,6 +795,26 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::ThrowIfNotCallable* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<Object> value = Map(node->value());
+
+    IF_NOT (LIKELY(__ ObjectIsCallable(value))) {
+      V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+      __ CallRuntime_ThrowCalledNonCallable(isolate_, frame_state,
+                                            native_context(), value);
+      // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
+      // However, before doing so, RuntimeAbort should be changed so that 1)
+      // it's a block terminator and 2) it doesn't call the runtime when
+      // v8_flags.trap_on_abort is true.
+      __ Unreachable();
+    }
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CreateFunctionContext* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
@@ -1166,7 +1186,7 @@ class GraphBuilder {
     V<Object> input = Map(node->receiver_input());
     V<Word32> check;
     if (node->mode() == Object::Conversion::kToNumeric) {
-      check = __ ObjectIsNumberOrBigint(input);
+      check = __ ObjectIsNumberOrBigInt(input);
     } else {
       DCHECK_EQ(node->mode(), Object::Conversion::kToNumber);
       check = __ ObjectIsNumber(input);
