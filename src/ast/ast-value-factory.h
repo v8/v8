@@ -240,7 +240,6 @@ using AstRawStringMap =
   F(as, "as")                                      \
   F(assert, "assert")                              \
   F(async, "async")                                \
-  F(await, "await")                                \
   F(bigint, "bigint")                              \
   F(boolean, "boolean")                            \
   F(computed, "<computed>")                        \
@@ -267,7 +266,6 @@ using AstRawStringMap =
   F(length, "length")                              \
   F(let, "let")                                    \
   F(meta, "meta")                                  \
-  F(name, "name")                                  \
   F(native, "native")                              \
   F(new_target, ".new.target")                     \
   F(next, "next")                                  \

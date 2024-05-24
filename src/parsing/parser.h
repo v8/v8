@@ -585,10 +585,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return identifier == ast_value_factory()->constructor_string();
   }
 
-  V8_INLINE bool IsName(const AstRawString* identifier) const {
-    return identifier == ast_value_factory()->name_string();
-  }
-
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
     return !property->IsPrototype();
