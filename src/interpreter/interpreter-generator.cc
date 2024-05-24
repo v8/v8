@@ -1656,7 +1656,7 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
 IGNITION_HANDLER(ConstructForwardAllArgs, InterpreterAssembler) {
   TNode<Object> new_target = GetAccumulator();
   TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
-  TNode<UintPtrT> slot_id = BytecodeOperandIdx(1);
+  TNode<TaggedIndex> slot_id = BytecodeOperandIdxTaggedIndex(1);
   TNode<Context> context = GetContext();
   TNode<Object> result =
       ConstructForwardAllArgs(constructor, context, new_target, slot_id);

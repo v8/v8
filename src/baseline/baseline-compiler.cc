@@ -1521,8 +1521,8 @@ void BaselineCompiler::VisitConstructWithSpread() {
       RegisterOperand(0),          // kFunction
       new_target,                  // kNewTarget
       arg_count,                   // kActualArgumentsCount
-      Index(3),                    // kSlot
       spread_register,             // kSpread
+      IndexAsTagged(3),            // kSlot
       RootIndex::kUndefinedValue,  // kReceiver
       args);
 }
@@ -1537,7 +1537,7 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
   CallBuiltin<Builtin::kConstructForwardAllArgs_Baseline>(
       RegisterOperand(0),  // kFunction
       new_target,          // kNewTarget
-      Index(1));           // kSlot
+      IndexAsTagged(1));   // kSlot
 }
 
 void BaselineCompiler::VisitTestEqual() {
