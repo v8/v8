@@ -16,6 +16,7 @@ namespace v8::internal::compiler {
 class Schedule;
 class Graph;
 class CallDescriptor;
+class TFPipelineData;
 }  // namespace v8::internal::compiler
 namespace v8::internal::compiler::turboshaft {
 class Graph;
@@ -27,6 +28,7 @@ struct RecreateScheduleResult {
 };
 
 RecreateScheduleResult RecreateSchedule(PipelineData* data,
+                                        compiler::TFPipelineData* turbofan_data,
                                         CallDescriptor* call_descriptor,
                                         Zone* phase_zone);
 
