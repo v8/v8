@@ -4487,85 +4487,89 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     compiler::NamedAccessFeedback const& feedback,
     compiler::FeedbackSource const& feedback_source,
     compiler::AccessMode access_mode) {
-  // Check for the megamorphic case.
-  if (feedback.maps().empty()) {
+  compiler::ZoneRefSet<Map> inferred_maps;
+
+  if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
+    compiler::MapRef constant_map = c.value().map(broker());
+    if (c.value().IsJSFunction() &&
+        feedback.name().equals(broker()->prototype_string())) {
+      compiler::JSFunctionRef function = c.value().AsJSFunction();
+      if (!constant_map.has_prototype_slot() ||
+          !function.has_instance_prototype(broker()) ||
+          function.PrototypeRequiresRuntimeLookup(broker()) ||
+          access_mode != compiler::AccessMode::kLoad) {
+        return ReduceResult::Fail();
+      }
+      compiler::HeapObjectRef prototype =
+          broker()->dependencies()->DependOnPrototypeProperty(function);
+      return GetConstant(prototype);
+    }
+    inferred_maps = compiler::ZoneRefSet<Map>(constant_map);
+  } else if (feedback.maps().empty()) {
+    // The IC is megamorphic.
+
     // We can't do megamorphic loads for lookups where the lookup start isn't
     // the receiver (e.g. load from super).
     if (receiver != lookup_start_object) return ReduceResult::Fail();
 
-    switch (access_mode) {
-      case compiler::AccessMode::kLoad:
-        return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
-            {receiver, GetConstant(feedback.name())}, feedback_source);
-      case compiler::AccessMode::kStore:
-        return BuildCallBuiltin<Builtin::kStoreIC_Megamorphic>(
-            {receiver, GetConstant(feedback.name()), GetAccumulatorTagged()},
-            feedback_source);
-      case compiler::AccessMode::kDefine:
-        return ReduceResult::Fail();
-      case compiler::AccessMode::kHas:
-      case compiler::AccessMode::kStoreInLiteral:
-        UNREACHABLE();
+    // Use known possible maps if we have any.
+    NodeInfo* object_info =
+        known_node_aspects().TryGetInfoFor(lookup_start_object);
+    if (object_info && object_info->possible_maps_are_known()) {
+      inferred_maps = object_info->possible_maps();
+    } else {
+      // If we have no known maps, make the access megamorphic.
+      switch (access_mode) {
+        case compiler::AccessMode::kLoad:
+          return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
+              {receiver, GetConstant(feedback.name())}, feedback_source);
+        case compiler::AccessMode::kStore:
+          return BuildCallBuiltin<Builtin::kStoreIC_Megamorphic>(
+              {receiver, GetConstant(feedback.name()), GetAccumulatorTagged()},
+              feedback_source);
+        case compiler::AccessMode::kDefine:
+          return ReduceResult::Fail();
+        case compiler::AccessMode::kHas:
+        case compiler::AccessMode::kStoreInLiteral:
+          UNREACHABLE();
+      }
     }
+  } else {
+    // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
+    // consider passing the merger into there.
+    KnownMapsMerger merger(broker(), base::VectorOf(feedback.maps()));
+    merger.IntersectWithKnownNodeAspects(lookup_start_object,
+                                         known_node_aspects());
+    inferred_maps = merger.intersect_set();
+  }
+
+  if (inferred_maps.is_empty()) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
-  {
-    ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
-    compiler::ZoneRefSet<Map> inferred_maps;
+  ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
 
-    if (compiler::OptionalHeapObjectRef c =
-            TryGetConstant(lookup_start_object)) {
-      compiler::MapRef constant_map = c.value().map(broker());
-      if (c.value().IsJSFunction() &&
-          feedback.name().equals(broker()->prototype_string())) {
-        compiler::JSFunctionRef function = c.value().AsJSFunction();
-        if (!constant_map.has_prototype_slot() ||
-            !function.has_instance_prototype(broker()) ||
-            function.PrototypeRequiresRuntimeLookup(broker()) ||
-            access_mode != compiler::AccessMode::kLoad) {
-          return ReduceResult::Fail();
-        }
-        compiler::HeapObjectRef prototype =
-            broker()->dependencies()->DependOnPrototypeProperty(function);
-        return GetConstant(prototype);
-      }
-      inferred_maps = compiler::ZoneRefSet<Map>(constant_map);
-    } else {
-      // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
-      // consider passing the merger into there.
-      KnownMapsMerger merger(broker(), base::VectorOf(feedback.maps()));
-      merger.IntersectWithKnownNodeAspects(lookup_start_object,
-                                           known_node_aspects());
-      inferred_maps = merger.intersect_set();
-    }
+  for (compiler::MapRef map : inferred_maps) {
+    if (map.is_deprecated()) continue;
 
-    if (inferred_maps.is_empty()) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-    }
-
-    for (compiler::MapRef map : inferred_maps) {
-      if (map.is_deprecated()) continue;
-
-      // TODO(v8:12547): Support writing to objects in shared space, which
-      // need a write barrier that calls Object::Share to ensure the RHS is
-      // shared.
-      if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
-              map.instance_type()) &&
-          access_mode == compiler::AccessMode::kStore) {
-        return ReduceResult::Fail();
-      }
-
-      compiler::PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
-      access_infos_for_feedback.push_back(access_info);
-    }
-
-    compiler::AccessInfoFactory access_info_factory(broker(), zone());
-    if (!access_info_factory.FinalizePropertyAccessInfos(
-            access_infos_for_feedback, access_mode, &access_infos)) {
+    // TODO(v8:12547): Support writing to objects in shared space, which
+    // need a write barrier that calls Object::Share to ensure the RHS is
+    // shared.
+    if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(map.instance_type()) &&
+        access_mode == compiler::AccessMode::kStore) {
       return ReduceResult::Fail();
     }
+
+    compiler::PropertyAccessInfo access_info =
+        broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
+    access_infos_for_feedback.push_back(access_info);
+  }
+
+  compiler::AccessInfoFactory access_info_factory(broker(), zone());
+  if (!access_info_factory.FinalizePropertyAccessInfos(
+          access_infos_for_feedback, access_mode, &access_infos)) {
+    return ReduceResult::Fail();
   }
 
   // Check for monomorphic case.
