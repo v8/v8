@@ -16,7 +16,6 @@
 #include "src/utils/utils.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-module.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal::wasm {
 
@@ -146,7 +145,7 @@ struct TreeNodeOrdering {
   }
 };
 
-void InliningTree::FullyExpand(const size_t initial_graph_size) {
+void InliningTree::FullyExpand(const size_t initial_wire_byte_size) {
   DCHECK_EQ(this->function_index_, this->topmost_caller_index_);
   size_t inlined_wire_byte_count = 0;
   std::priority_queue<InliningTree*, std::vector<InliningTree*>,
@@ -162,10 +161,11 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
       if (top != this) {
         PrintF(
             "[function %d: in function %d, considering call #%d, case #%d, to "
-            "function %d... ",
+            "function %d (count=%d, size=%d, score=%lld)... ",
             top->topmost_caller_index_, top->caller_index_, top->feedback_slot_,
             static_cast<int>(top->case_),
-            static_cast<int>(top->function_index_));
+            static_cast<int>(top->function_index_), top->call_count_,
+            top->wire_byte_size_, static_cast<long long>(top->score()));
       } else {
         PrintF("[function %d: expanding topmost caller... ",
                top->topmost_caller_index_);
@@ -190,7 +190,7 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
       continue;
     }
 
-    if (!top->SmallEnoughToInline(initial_graph_size,
+    if (!top->SmallEnoughToInline(initial_wire_byte_size,
                                   inlined_wire_byte_count)) {
       if (v8_flags.trace_wasm_inlining && top != this) {
         PrintF("not enough inlining budget]\n");
@@ -231,7 +231,7 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
 // TODO(mliedtke): The upper_budget calculation only depends on the module, not
 // on the callsite / callee. Consider moving this to a more central place and
 // propagating the information along the inlining tree.
-bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
+bool InliningTree::SmallEnoughToInline(size_t initial_wire_byte_size,
                                        size_t inlined_wire_byte_count) {
   if (wire_byte_size_ > static_cast<int>(v8_flags.wasm_inlining_max_size)) {
     return false;
@@ -253,7 +253,7 @@ bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
   // inlining.
   size_t budget_small_function =
       std::max<size_t>(v8_flags.wasm_inlining_min_budget,
-                       v8_flags.wasm_inlining_factor * initial_graph_size);
+                       v8_flags.wasm_inlining_factor * initial_wire_byte_size);
   // For large-ish functions, the inlining budget is mainly defined by the
   // wasm_inlining_budget.
   size_t upper_budget = v8_flags.wasm_inlining_budget;
@@ -277,8 +277,8 @@ bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
   // still allow some inlining which is why 10% of the graph size is the minimal
   // budget even for large functions larger than the upper_budget.
   size_t budget_large_function =
-      std::max<size_t>(upper_budget, initial_graph_size * 1.1);
-  size_t total_size = initial_graph_size + inlined_wire_byte_count +
+      std::max<size_t>(upper_budget, initial_wire_byte_size * 1.1);
+  size_t total_size = initial_wire_byte_size + inlined_wire_byte_count +
                       static_cast<size_t>(wire_byte_size_);
   return total_size <
          std::min<size_t>(budget_small_function, budget_large_function);
