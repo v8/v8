@@ -6451,7 +6451,7 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   gasm_->Bind(&bailout);
   gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
                          Builtin::kWasmStringViewWtf16GetCodeUnit,
-                         Operator::kPure, string, offset));
+                         Operator::kEliminatable, string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating
@@ -6524,8 +6524,8 @@ Node* WasmGraphBuilder::StringCodePointAt(Node* string, CheckForNull null_check,
 
   gasm_->Bind(&bailout);
   gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
-                         Builtin::kWasmStringCodePointAt, Operator::kPure,
-                         string, offset));
+                         Builtin::kWasmStringCodePointAt,
+                         Operator::kEliminatable, string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating

@@ -868,7 +868,7 @@ Reduction WasmGCLowering::ReduceStringAsWtf16(Node* node) {
                                  gasm_.Int32Constant(kSeqStringTag)),
                &done, str);
   gasm_.Goto(&done, gasm_.CallBuiltin(Builtin::kWasmStringAsWtf16,
-                                      Operator::kPure, str));
+                                      Operator::kEliminatable, str));
   gasm_.Bind(&done);
   ReplaceWithValue(node, done.PhiAt(0), gasm_.effect(), gasm_.control());
   node->Kill();
