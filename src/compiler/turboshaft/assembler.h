@@ -2655,6 +2655,14 @@ class TurboshaftAssemblerOpInterface
     StoreNonArrayBufferElement(object.object(), access, index, value);
   }
 
+  V<Word32> ArrayBufferIsDetached(V<JSArrayBufferView> object) {
+    V<HeapObject> buffer = __ template LoadField<HeapObject>(
+        object, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
+    V<Word32> bitfield = __ template LoadField<Word32>(
+        buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
+    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::WasDetachedBit::kMask);
+  }
+
   template <typename T = HeapObject>
   Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
     static_assert(is_subtype_v<T, HeapObject>);

@@ -1910,6 +1910,17 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckTypedArrayNotDetached* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIf(
+        __ ArrayBufferIsDetached(Map<JSArrayBufferView>(node->object_input())),
+        BuildFrameState(node->eager_deopt_info()),
+        DeoptimizeReason::kArrayBufferWasDetached,
+        node->eager_deopt_info()->feedback_to_update());
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   void BuildJump(maglev::BasicBlock* target) {
     Block* destination = Map(target);
     if (target->is_loop() && target->predecessor_count() > 2) {

@@ -455,6 +455,7 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
                         MaybeHandle<Name>(),   OptionalMapRef(),
                         Type::OtherInternal(), MachineType::TaggedPointer(),
                         kPointerWriteBarrier,  "JSArrayBufferViewBuffer"};
+  access.is_immutable = true;
   return access;
 }
 

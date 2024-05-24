@@ -1624,18 +1624,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  V<Word32> IsDetached(V<Object> dataview) {
-    // TODO(evih): Make the buffer load immutable.
-    V<Object> buffer = __ LoadField<Object>(
-        dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
-    V<Word32> bit_field = __ LoadField<Word32>(
-        buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-    return __ Word32BitwiseAnd(bit_field, JSArrayBuffer::WasDetachedBit::kMask);
-  }
-
   void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
-    IF (UNLIKELY(IsDetached(dataview))) {
+    IF (UNLIKELY(
+            __ ArrayBufferIsDetached(V<JSArrayBufferView>::Cast(dataview)))) {
       ThrowDataViewDetachedError(decoder, op_type);
     }
   }
