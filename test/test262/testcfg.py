@@ -65,6 +65,7 @@ FEATURE_FLAGS = {
     'regexp-modifiers': '--js-regexp-modifiers',
     'Float16Array': '--js-float16array',
     'explicit-resource-management': '--js_explicit_resource_management',
+    'decorators': '--js-decorators',
 }
 
 SKIPPED_FEATURES = set([])

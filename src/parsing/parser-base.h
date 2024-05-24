@@ -4752,6 +4752,7 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     case Token::kSet:
     case Token::kOf:
     case Token::kUsing:
+    case Token::kAccessor:
     case Token::kAsync:
       return true;
     case Token::kFutureStrictReservedWord:
