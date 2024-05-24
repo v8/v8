@@ -2561,6 +2561,17 @@ class GraphBuilder {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::Float64ToHeapNumberForField* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ConvertUntaggedToJSPrimitive(
+               Map(node->input()),
+               ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber,
+               RegisterRepresentation::Float64(),
+               ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+               CheckForMinusZeroMode::kCheckForMinusZero));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
