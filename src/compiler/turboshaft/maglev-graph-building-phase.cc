@@ -1054,6 +1054,30 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::LoadGlobal* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {__ HeapConstant(node->name().object()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    Builtin builtin;
+    switch (node->typeof_mode()) {
+      case TypeofMode::kInside:
+        builtin = Builtin::kLoadGlobalICInsideTypeof;
+        break;
+      case TypeofMode::kNotInside:
+        builtin = Builtin::kLoadGlobalIC;
+        break;
+    }
+
+    SetMap(node, GenerateBuiltinCall(node, builtin, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::StoreGlobal* node,
                                 const maglev::ProcessingState& state) {
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
