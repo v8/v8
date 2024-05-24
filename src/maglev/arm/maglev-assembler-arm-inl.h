@@ -526,7 +526,7 @@ inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
                                                 Register c_function,
                                                 Register scratch) {
-  EnterExitFrame(extra_slots, frame_type);
+  EnterExitFrame(scratch, extra_slots, frame_type);
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
