@@ -210,7 +210,8 @@ enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                     const wasm::FunctionSig* expected_sig,
                                     Tagged<SharedFunctionInfo> shared,
-                                    ReceiverKind receiver_kind) {
+                                    ReceiverKind receiver_kind,
+                                    int* out_index) {
   if (!shared->IsApiFunction()) {
     return false;
   }
@@ -226,21 +227,19 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     // TODO(wasm): CFunctionInfo* signature check.
     return false;
   }
-  const CFunctionInfo* info = shared->api_func_data()->GetCSignature(0);
-  if (!compiler::IsFastCallSupportedSignature(info)) {
-    return false;
-  }
 
-  const auto log_imported_function_mismatch = [&shared,
-                                               isolate](const char* reason) {
+  const auto log_imported_function_mismatch = [&shared, isolate](
+                                                  int func_index,
+                                                  const char* reason) {
     if (v8_flags.trace_opt) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[disabled optimization for ");
       ShortPrint(*shared, scope.file());
       PrintF(scope.file(),
-             ", reason: the signature of the imported function in the Wasm "
-             "module doesn't match that of the Fast API function (%s)]\n",
-             reason);
+             " for C function %d, reason: the signature of the imported "
+             "function in the Wasm module doesn't match that of the Fast API "
+             "function (%s)]\n",
+             func_index, reason);
     }
   };
 
@@ -250,67 +249,94 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     // function but we cannot optimize the call, which might be unxepected. In
     // that case we use the "slow" path making a normal Wasm->JS call and
     // calling the "slow" callback specified in FunctionTemplate::New().
-    log_imported_function_mismatch("too many return values");
+    log_imported_function_mismatch(0, "too many return values");
     return false;
-  }
-  CTypeInfo return_info = info->ReturnInfo();
-  // Unsupported if return type doesn't match.
-  if (expected_sig->return_count() == 0 &&
-      return_info.GetType() != CTypeInfo::Type::kVoid) {
-    log_imported_function_mismatch("too few return values");
-    return false;
-  }
-  // Unsupported if return type doesn't match.
-  if (expected_sig->return_count() == 1) {
-    if (return_info.GetType() == CTypeInfo::Type::kVoid) {
-      log_imported_function_mismatch("too many return values");
-      return false;
-    }
-    if (NormalizeFastApiRepresentation(return_info) !=
-        expected_sig->GetReturn(0).machine_type().representation()) {
-      log_imported_function_mismatch("mismatching return value");
-      return false;
-    }
   }
 
-  if (receiver_kind == ReceiverKind::kFirstParamIsReceiver) {
-    if (expected_sig->parameter_count() < 1) {
-      log_imported_function_mismatch(
-          "at least one parameter is needed as the receiver");
-      return false;
+  for (int c_func_id = 0, end = shared->api_func_data()->GetCFunctionsCount();
+       c_func_id < end; ++c_func_id) {
+    const CFunctionInfo* info =
+        shared->api_func_data()->GetCSignature(c_func_id);
+    if (!compiler::IsFastCallSupportedSignature(info)) {
+      log_imported_function_mismatch(c_func_id,
+                                     "signature not supported by the fast API");
+      continue;
     }
-    if (!expected_sig->GetParam(0).is_reference()) {
-      log_imported_function_mismatch("the receiver has to be a reference");
-      return false;
-    }
-    if (info->HasOptions()) {
-      log_imported_function_mismatch("options parameter is not supported");
-      return false;
-    }
-  }
 
-  int param_offset =
-      receiver_kind == ReceiverKind::kFirstParamIsReceiver ? 1 : 0;
-  // Unsupported if arity doesn't match.
-  if (expected_sig->parameter_count() - param_offset !=
-      info->ArgumentCount() - 1) {
-    log_imported_function_mismatch("mismatched arity");
-    return false;
-  }
-  // Unsupported if any argument types don't match.
-  for (unsigned int i = 0; i < expected_sig->parameter_count() - param_offset;
-       ++i) {
-    int sig_index = i + param_offset;
-    // Arg 0 is the receiver, skip over it since either the receiver does not
-    // matter, or we already checked it above.
-    CTypeInfo arg = info->ArgumentInfo(i + 1);
-    if (NormalizeFastApiRepresentation(arg) !=
-        expected_sig->GetParam(sig_index).machine_type().representation()) {
-      log_imported_function_mismatch("parameter type mismatch");
-      return false;
+    CTypeInfo return_info = info->ReturnInfo();
+    // Unsupported if return type doesn't match.
+    if (expected_sig->return_count() == 0 &&
+        return_info.GetType() != CTypeInfo::Type::kVoid) {
+      log_imported_function_mismatch(c_func_id, "too few return values");
+      continue;
     }
+    // Unsupported if return type doesn't match.
+    if (expected_sig->return_count() == 1) {
+      if (return_info.GetType() == CTypeInfo::Type::kVoid) {
+        log_imported_function_mismatch(c_func_id, "too many return values");
+        continue;
+      }
+      if (NormalizeFastApiRepresentation(return_info) !=
+          expected_sig->GetReturn(0).machine_type().representation()) {
+        log_imported_function_mismatch(c_func_id, "mismatching return value");
+        continue;
+      }
+    }
+
+    if (receiver_kind == ReceiverKind::kFirstParamIsReceiver) {
+      if (expected_sig->parameter_count() < 1) {
+        log_imported_function_mismatch(
+            c_func_id, "at least one parameter is needed as the receiver");
+        continue;
+      }
+      if (!expected_sig->GetParam(0).is_reference()) {
+        log_imported_function_mismatch(c_func_id,
+                                       "the receiver has to be a reference");
+        continue;
+      }
+      if (info->HasOptions()) {
+        log_imported_function_mismatch(c_func_id,
+                                       "options parameter is not supported");
+        continue;
+      }
+    }
+
+    int param_offset =
+        receiver_kind == ReceiverKind::kFirstParamIsReceiver ? 1 : 0;
+    // Unsupported if arity doesn't match.
+    if (expected_sig->parameter_count() - param_offset !=
+        info->ArgumentCount() - 1) {
+      log_imported_function_mismatch(c_func_id, "mismatched arity");
+      continue;
+    }
+    // Unsupported if any argument types don't match.
+    bool param_mismatch = false;
+    for (unsigned int i = 0; i < expected_sig->parameter_count() - param_offset;
+         ++i) {
+      int sig_index = i + param_offset;
+      // Arg 0 is the receiver, skip over it since either the receiver does not
+      // matter, or we already checked it above.
+      CTypeInfo arg = info->ArgumentInfo(i + 1);
+      if (NormalizeFastApiRepresentation(arg) !=
+          expected_sig->GetParam(sig_index).machine_type().representation()) {
+        log_imported_function_mismatch(c_func_id, "parameter type mismatch");
+        param_mismatch = true;
+        break;
+      }
+      if (arg.GetSequenceType() == CTypeInfo::SequenceType::kIsSequence) {
+        log_imported_function_mismatch(c_func_id,
+                                       "sequence types are not allowed");
+        param_mismatch = true;
+        break;
+      }
+    }
+    if (param_mismatch) {
+      continue;
+    }
+    *out_index = c_func_id;
+    return true;
   }
-  return true;
+  return false;
 }
 
 bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
@@ -340,8 +366,14 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
 
   Isolate* isolate = target->GetIsolate();
   Handle<SharedFunctionInfo> shared(target->shared(), isolate);
+  int api_function_index = -1;
+  // The fast API call wrapper currently does not support function overloading.
+  // Therefore, if the matching function is not function 0, the fast API cannot
+  // be used.
   return IsSupportedWasmFastApiFunction(isolate, expected_sig, *shared,
-                                        ReceiverKind::kAnyReceiver);
+                                        ReceiverKind::kAnyReceiver,
+                                        &api_function_index) &&
+         api_function_index == 0;
 }
 
 bool IsStringRef(wasm::ValueType type) {
@@ -423,13 +455,15 @@ WellKnownImport CheckForWellKnownImport(
   if (!IsJSFunction(bound_this)) return kGeneric;
   sfi = JSFunction::cast(bound_this)->shared();
   Isolate* isolate = JSFunction::cast(bound_this)->GetIsolate();
+  int out_api_function_index = -1;
   if (v8_flags.wasm_fast_api &&
       IsSupportedWasmFastApiFunction(isolate, sig, sfi,
-                                     ReceiverKind::kFirstParamIsReceiver)) {
+                                     ReceiverKind::kFirstParamIsReceiver,
+                                     &out_api_function_index)) {
     Tagged<FunctionTemplateInfo> func_data = sfi->api_func_data();
     NativeModule* native_module = trusted_instance_data->native_module();
-    if (!native_module->TrySetFastApiCallTarget(func_index,
-                                                func_data->GetCFunction(0))) {
+    if (!native_module->TrySetFastApiCallTarget(
+            func_index, func_data->GetCFunction(out_api_function_index))) {
       return kGeneric;
     }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS

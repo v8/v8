@@ -253,6 +253,7 @@ class FastCApiObject {
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
                                          bool should_fallback,
                                          Local<Array> seq_arg,
@@ -307,6 +308,10 @@ class FastCApiObject {
     }
     if (info[1]->IsTypedArray()) {
       AddAllTypedArraySlowCallback(info);
+      return;
+    }
+    if (info[1]->IsNumber()) {
+      AddAllSlowCallback(info);
       return;
     }
     self->slow_call_count_++;
@@ -1574,6 +1579,16 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_float32_typed_array_c_func));
 
+    CFunction add_all_no_options_c_func = CFunction::Make(
+        FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAllFastCallbackNoOptionsPatch));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_no_options",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
+            Local<Signature>(), 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &add_all_no_options_c_func));
+
     CFunction add_all_float64_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<double>
             V8_IF_USE_SIMULATOR(
@@ -1589,13 +1604,14 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     const CFunction add_all_overloads[] = {
         add_all_uint32_typed_array_c_func,
         add_all_seq_c_func,
+        add_all_no_options_c_func,
     };
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_overload",
         FunctionTemplate::NewWithCFunctionOverloads(
             isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, {add_all_overloads, 2}));
+            SideEffectType::kHasSideEffect, {add_all_overloads, 3}));
 
     CFunction add_all_int_invalid_func =
         CFunction::Make(FastCApiObject::AddAllIntInvalidCallback);
@@ -1642,16 +1658,6 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
             Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
-
-    CFunction add_all_no_options_c_func = CFunction::Make(
-        FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
-            FastCApiObject::AddAllFastCallbackNoOptionsPatch));
-    api_obj_ctor->PrototypeTemplate()->Set(
-        isolate, "add_all_no_options",
-        FunctionTemplate::New(
-            isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
-            Local<Signature>(), 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, &add_all_no_options_c_func));
 
     CFunction add_32bit_int_c_func = CFunction::Make(
         FastCApiObject::Add32BitIntFastCallback V8_IF_USE_SIMULATOR(

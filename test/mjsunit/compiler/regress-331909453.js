@@ -7,7 +7,7 @@
 const fast_c_api = new d8.test.FastCAPI();
 
 function f() {
-  return fast_c_api.add_all_sequence(false, 0);
+  return fast_c_api.add_all_sequence(false, {});
 }
 
 %PrepareFunctionForOptimization(f);

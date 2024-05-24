@@ -39,6 +39,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const fallback = true;
   fast_c_api.reset_counts();
   instance.exports.main(fast_c_api, !fallback, 1, 2, 3n, 4n, 5, 6);
+  assertEquals(1, fast_c_api.fast_call_count());
   instance.exports.main(fast_c_api, fallback, 1, 2, 3n, 4n, 5, 6);
   assertEquals(2, fast_c_api.fast_call_count());
   assertThrows(
@@ -47,6 +48,46 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       _ => instance.exports.main({}, false, 1, 2, 3n, 4n, 5, 6), TypeError);
 })();
 
+(function TestFastApiCallWithOverloadFromWasm() {
+  const fast_c_api = new d8.test.FastCAPI();
+  const boundImport = Function.prototype.call.bind(fast_c_api.add_all_overload);
+
+  const builder = new WasmModuleBuilder();
+  const sig = makeSig(
+      [
+        kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmI64,
+        kWasmF32, kWasmF64
+      ],
+      [kWasmF64],
+  );
+  const imp_index = builder.addImport('mod', 'foo', sig);
+  builder.addFunction('main', sig)
+      .addBody([
+        kExprLocalGet, 0, // receiver
+        kExprLocalGet, 1, // fallback
+        kExprLocalGet, 2, // param int32
+        kExprLocalGet, 3, // param uint32
+        kExprLocalGet, 4, // param int64
+        kExprLocalGet, 5, // param uint64
+        kExprLocalGet, 6, // param float32
+        kExprLocalGet, 7, // param float64
+        kExprCallFunction, imp_index
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate({'mod': {'foo': boundImport}});
+
+  const fallback = true;
+  fast_c_api.reset_counts();
+  instance.exports.main(fast_c_api, !fallback, 1, 2, 3n, 4n, 5, 6);
+  assertEquals(1, fast_c_api.fast_call_count());
+  instance.exports.main(fast_c_api, fallback, 1, 2, 3n, 4n, 5, 6);
+  assertEquals(2, fast_c_api.fast_call_count());
+  assertThrows(
+      _ => instance.exports.main(12, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+  assertThrows(
+      _ => instance.exports.main({}, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+})();
 (function TestTaggedParam() {
   const fast_c_api = new d8.test.FastCAPI();
   const boundImport =

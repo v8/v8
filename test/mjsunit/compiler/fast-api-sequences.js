@@ -39,7 +39,6 @@ const fast_c_api = new d8.test.FastCAPI();
   %OptimizeFunctionOnNextCall(add_all_sequence_mismatch);
 
   // Test that passing non-array arguments falls down the slow path.
-  assert_throws_and_optimized(add_all_sequence_mismatch, 42);
   assert_throws_and_optimized(add_all_sequence_mismatch, {});
   assert_throws_and_optimized(add_all_sequence_mismatch, 'string');
   assert_throws_and_optimized(add_all_sequence_mismatch, Symbol());
