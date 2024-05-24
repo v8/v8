@@ -946,15 +946,7 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::Construct* node,
                                 const maglev::ProcessingState& state) {
-    ThrowingScope throwing_scope(this, node);
-
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-    Callable callable = Builtins::CallableFor(isolate_, Builtin::kConstruct);
-    const CallInterfaceDescriptor& descriptor = callable.descriptor();
-    CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-        graph_zone(), descriptor, node->num_args(),
-        CallDescriptor::kNeedsFrameState);
-    V<Code> stub_code = __ HeapConstant(callable.code());
     base::SmallVector<OpIndex, 16> arguments;
 
     arguments.push_back(Map(node->function()));
@@ -965,18 +957,33 @@ class GraphBuilder {
       arguments.push_back(Map(arg));
     }
 
-#ifdef DEBUG
-    CallInterfaceDescriptor inter_descr =
-        Builtins::CallInterfaceDescriptorFor(Builtin::kConstruct);
-    DCHECK(inter_descr.HasContextParameter());
-#endif
+    arguments.push_back(Map(node->context()));
+
+    SetMap(node,
+           GenerateBuiltinCall(node, Builtin::kConstruct, frame_state,
+                               base::VectorOf(arguments), node->num_args()));
+
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ConstructWithSpread* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(Map(node->function()));
+    arguments.push_back(Map(node->new_target()));
+    arguments.push_back(__ Word32Constant(node->num_args_no_spread()));
+    arguments.push_back(Map(node->spread()));
+
+    for (auto arg : node->args_no_spread()) {
+      arguments.push_back(Map(arg));
+    }
 
     arguments.push_back(Map(node->context()));
 
-    SetMap(node, __ Call(stub_code, frame_state, base::VectorOf(arguments),
-                         TSCallDescriptor::Create(
-                             call_descriptor, CanThrow::kYes, graph_zone())));
-
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kConstructWithSpread,
+                                     frame_state, base::VectorOf(arguments),
+                                     node->num_args_no_spread()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckConstructResult* node,
