@@ -1167,6 +1167,53 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CreateRegExpLiteral* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {__ HeapConstant(node->feedback().vector),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->pattern().object()),
+                           __ SmiConstant(Smi::FromInt(node->flags())),
+                           native_context()};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kCreateRegExpLiteral,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CreateObjectLiteral* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        __ HeapConstant(node->feedback().vector),
+        __ TaggedIndexConstant(node->feedback().index()),
+        __ HeapConstant(node->boilerplate_descriptor().object()),
+        __ SmiConstant(Smi::FromInt(node->flags())), native_context()};
+
+    SetMap(node,
+           GenerateBuiltinCall(node, Builtin::kCreateObjectFromSlowBoilerplate,
+                               frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CreateArrayLiteral* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {__ HeapConstant(node->feedback().vector),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->constant_elements().object()),
+                           __ SmiConstant(Smi::FromInt(node->flags())),
+                           native_context()};
+
+    SetMap(node,
+           GenerateBuiltinCall(node, Builtin::kCreateArrayFromSlowBoilerplate,
+                               frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ForInPrepare* node,
                                 const maglev::ProcessingState& state) {
     OpIndex arguments[] = {Map(node->enumerator()),
