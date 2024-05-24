@@ -39,7 +39,9 @@ void TracedNode::Release() {
   DCHECK(is_in_use());
   // Clear all flags.
   flags_ = 0;
+  clear_markbit();
   set_raw_object(kGlobalHandleZapValue);
+  DCHECK(IsMetadataCleared());
 }
 
 // static
@@ -223,7 +225,7 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   DCHECK_EQ(*from, *to);
   if (is_marking_) {
     // Write barrier needs to cover node as well as object.
-    to_node->set_markbit<AccessMode::ATOMIC>();
+    to_node->set_markbit();
     WriteBarrier::MarkingFromGlobalHandle(to_node->object());
   } else if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
     const bool object_is_young_and_not_yet_recorded =
@@ -578,7 +580,7 @@ Tagged<Object> MarkObject(Tagged<Object> obj, TracedNode& node,
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
       !node.is_in_young_list())
     return Smi::zero();
-  node.set_markbit<AccessMode::ATOMIC>();
+  node.set_markbit();
   // Being in the young list, the node may still point to an old object, in
   // which case we want to keep the node marked, but not follow the reference.
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
@@ -596,7 +598,7 @@ Tagged<Object> TracedHandles::Mark(Address* location, MarkMode mark_mode) {
       Tagged<Object>(reinterpret_cast<std::atomic<Address>*>(location)->load(
           std::memory_order_acquire));
   auto* node = TracedNode::FromLocation(location);
-  DCHECK(node->is_in_use<AccessMode::ATOMIC>());
+  DCHECK(node->is_in_use());
   return MarkObject(object, *node, mark_mode);
 }
 
@@ -610,21 +612,18 @@ Tagged<Object> TracedHandles::MarkConservatively(
   const auto index = delta / sizeof(TracedNode);
   TracedNode& node =
       reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
-  // `MarkConservatively()` runs concurrently with marking code. Reading
-  // state concurrently to setting the markbit is safe.
-  if (!node.is_in_use<AccessMode::ATOMIC>()) return Smi::zero();
+  if (!node.is_in_use()) return Smi::zero();
   return MarkObject(node.object(), node, mark_mode);
 }
 
 bool TracedHandles::IsValidInUseNode(Address* location) {
   TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
-  DCHECK(!node->markbit<AccessMode::NON_ATOMIC>());
-  CHECK_IMPLIES(node->is_in_use<AccessMode::NON_ATOMIC>(),
-                node->raw_object() != kGlobalHandleZapValue);
-  CHECK_IMPLIES(!node->is_in_use<AccessMode::NON_ATOMIC>(),
+  DCHECK(!node->markbit());
+  CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);
+  CHECK_IMPLIES(!node->is_in_use(),
                 node->raw_object() == kGlobalHandleZapValue);
-  return node->is_in_use<AccessMode::NON_ATOMIC>();
+  return node->is_in_use();
 }
 
 bool TracedHandles::HasYoung() const { return !young_blocks_.empty(); }
