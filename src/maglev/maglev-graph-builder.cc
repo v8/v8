@@ -7803,6 +7803,48 @@ ReduceResult MaglevGraphBuilder::TryReduceMathRound(
   return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceMathAbs(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+  ValueNode* arg = args[0];
+
+  switch (arg->value_representation()) {
+    case ValueRepresentation::kUint32:
+      return arg;
+    case ValueRepresentation::kInt32:
+      if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+        return ReduceResult::Fail();
+      }
+      return AddNewNode<Int32AbsWithOverflow>({arg});
+    case ValueRepresentation::kTagged:
+      switch (CheckTypes(arg, {NodeType::kSmi, NodeType::kNumberOrOddball})) {
+        case NodeType::kSmi:
+          if (current_speculation_mode_ ==
+              SpeculationMode::kDisallowSpeculation) {
+            return ReduceResult::Fail();
+          }
+          return AddNewNode<Int32AbsWithOverflow>({GetInt32(arg)});
+        case NodeType::kNumberOrOddball:
+          return AddNewNode<Float64Abs>({GetHoleyFloat64ForToNumber(
+              arg, ToNumberHint::kAssumeNumberOrOddball)});
+        default:
+          break;
+      }
+      if (CheckType(arg, NodeType::kNumberOrOddball)) {
+        // TODO(verwaest): Add support for ToNumberOrNumeric and deopt.
+      }
+      break;
+    case ValueRepresentation::kIntPtr:
+      UNREACHABLE();
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      return AddNewNode<Float64Abs>({arg});
+  }
+  return ReduceResult::Fail();
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceMathFloor(
     compiler::JSFunctionRef target, CallArguments& args) {
   return DoTryReduceMathRound(args, Float64Round::Kind::kFloor);

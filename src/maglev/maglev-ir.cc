@@ -4596,6 +4596,16 @@ void Float64Round::SetValueLocationConstraints() {
   }
 }
 
+void Int32AbsWithOverflow::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void Float64Abs::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
 void CheckedSmiTagFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

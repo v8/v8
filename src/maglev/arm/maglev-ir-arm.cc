@@ -39,6 +39,20 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
+void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register out = ToRegister(result());
+  Label done;
+  __ cmp(out, Operand(0));
+  __ JumpIf(ge, &done);
+  __ rsb(out, out, Operand(0), SetCC);
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+  __ bind(&done);
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -629,6 +643,13 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
   DoubleRegister value = ToDoubleRegister(input());
   DoubleRegister out = ToDoubleRegister(result());
   __ vneg(out, value);
+}
+
+void Float64Abs::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister in = ToDoubleRegister(input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vabs(out, in);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,

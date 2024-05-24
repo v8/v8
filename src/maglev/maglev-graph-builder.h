@@ -1803,6 +1803,7 @@ class MaglevGraphBuilder {
   V(MathPow)                       \
   V(ArrayPrototypePush)            \
   V(ArrayPrototypePop)             \
+  V(MathAbs)                       \
   V(MathRound)                     \
   V(StringConstructor)             \
   V(StringFromCharCode)            \

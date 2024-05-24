@@ -526,6 +526,17 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
+void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register value = ToRegister(result());
+  Label done;
+  __ cmpl(value, Immediate(0));
+  __ j(greater_equal, &done);
+  __ negl(value);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+  __ bind(&done);
+}
+
 void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineSameAsFirst(this);
@@ -640,6 +651,12 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   __ Negpd(value, value, kScratchRegister);
+}
+
+void Float64Abs::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Abspd(out, out, kScratchRegister);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
