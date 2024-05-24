@@ -3536,6 +3536,9 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
     LeftTrimmerVerifierRootVisitor root_visitor(object);
     ReadOnlyRoots(this).Iterate(&root_visitor);
 
+    // Stale references are allowed in some locations. IterateRoots() uses
+    // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
+    // beforehand.
     IterateRoots(&root_visitor,
                  base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
   }
@@ -4615,10 +4618,11 @@ void Heap::IterateSmiRoots(RootVisitor* v) {
 // sure all handles still needed are updated. Filter out a stale pointer
 // and clear the slot to allow post processing of handles (needed because
 // the sweeper might actually free the underlying page).
-class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
+class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
  public:
-  explicit ClearStaleLeftTrimmedHandlesVisitor(Heap* heap)
-      : heap_(heap)
+  ClearStaleLeftTrimmedPointerVisitor(Heap* heap, RootVisitor* visitor)
+      : heap_(heap),
+        visitor_(visitor)
 #if V8_COMPRESS_POINTERS
         ,
         cage_base_(heap->isolate())
@@ -4629,14 +4633,27 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
-    FixHandle(p);
+    ClearLeftTrimmedOrForward(root, description, p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
-      FixHandle(p);
+      ClearLeftTrimmedOrForward(root, description, p);
     }
+  }
+
+  void Synchronize(VisitorSynchronization::SyncTag tag) override {
+    visitor_->Synchronize(tag);
+  }
+
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) override {
+    // Directly forward to actualy visitor here. Code objects and instruction
+    // stream will not be left-trimmed.
+    DCHECK(!IsLeftTrimmed(code_slot));
+    DCHECK(!IsLeftTrimmed(istream_or_smi_zero_slot));
+    visitor_->VisitRunningCode(code_slot, istream_or_smi_zero_slot);
   }
 
   // The pointer compression cage base value used for decompression of all
@@ -4650,8 +4667,19 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   }
 
  private:
-  inline void FixHandle(FullObjectSlot p) {
+  inline void ClearLeftTrimmedOrForward(Root root, const char* description,
+                                        FullObjectSlot p) {
     if (!IsHeapObject(*p)) return;
+
+    if (IsLeftTrimmed(p)) {
+      p.store(Smi::zero());
+    } else {
+      visitor_->VisitRootPointer(root, description, p);
+    }
+  }
+
+  inline bool IsLeftTrimmed(FullObjectSlot p) {
+    if (!IsHeapObject(*p)) return false;
     Tagged<HeapObject> current = HeapObject::cast(*p);
     if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
         IsFreeSpaceOrFiller(current, cage_base())) {
@@ -4676,11 +4704,14 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
           current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
           IsFixedArrayBase(current, cage_base()));
 #endif  // DEBUG
-      p.store(Smi::zero());
+      return true;
+    } else {
+      return false;
     }
   }
 
   Heap* heap_;
+  RootVisitor* visitor_;
 
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
@@ -4755,7 +4786,8 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
     if (!options.contains(SkipRoot::kStack)) {
-      IterateStackRoots(v);
+      ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(this, v);
+      IterateStackRoots(&left_trim_visitor);
       if (!options.contains(SkipRoot::kConservativeStack)) {
         IterateConservativeStackRoots(v, roots_mode);
       }
@@ -4766,9 +4798,8 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     if (!options.contains(SkipRoot::kMainThreadHandles)) {
       // Clear main thread handles with stale references to left-trimmed
       // objects. The GC would crash on such stale references.
-      ClearStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
+      ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(this, v);
       isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
-      isolate_->handle_scope_implementer()->Iterate(v);
     }
     // Iterate local handles for all local heaps.
     safepoint_->Iterate(v);
