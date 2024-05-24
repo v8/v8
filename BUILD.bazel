@@ -274,18 +274,6 @@ v8_flag(
     default = True,
 )
 
-# Shared RO heap. Flag has to be set to false when
-# v8_enable_pointer_compression_shared_cage is set to false.
-v8_flag(
-    name = "v8_enable_shared_ro_heap",
-    default = True,
-)
-
-v8_flag(
-    name = "v8_enable_extensible_ro_snapshot",
-    default = True,
-)
-
 # Enable shared cage if v8_enable_pointer_compression
 # and v8_enable_pointer_compression_shared_cage.
 selects.config_setting_group(
@@ -430,6 +418,7 @@ v8_config(
         "V8_CONCURRENT_MARKING",
         "V8_ENABLE_SPARKPLUG",
         "V8_MOVE_PROTOYPE_TRANSITIONS_FIRST", # (see issue 332914927).
+        "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
     ] + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",
@@ -498,13 +487,13 @@ v8_config(
         ],
         "//conditions:default": [],
     }) + select({
-        ":is_v8_enable_shared_ro_heap": [
+        # Shared RO heap is unconfigurable in bazel. However, we
+        # still have to make sure that the flag is disabled when
+        # v8_enable_pointer_compression_shared_cage is set to false.
+        ":is_v8_enable_pointer_compression_shared_cage": [
             "V8_SHARED_RO_HEAP",
         ],
-    }) + select({
-        ":is_v8_enable_extensible_ro_snapshot": [
-            "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
-        ],
+        "//conditions:default": [],
     }) + select({
         ":is_v8_enable_short_builtin_calls": [
             "V8_SHORT_BUILTIN_CALLS",
