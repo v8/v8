@@ -1377,6 +1377,14 @@ class GraphBuilder {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckValueEqualsInt32* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ DeoptimizeIfNot(__ Word32Equal(Map(node->target_input()), node->value()),
+                       frame_state, DeoptimizeReason::kWrongValue,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckString* node,
                                 const maglev::ProcessingState& state) {
     V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
