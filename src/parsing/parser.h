@@ -503,8 +503,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
 
-  ArrayLiteral* ArrayLiteralFromListWithSpread(
-      const ScopedPtrList<Expression>& list);
   Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
@@ -521,8 +519,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
-
-  Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
                                 Expression* return_value,
