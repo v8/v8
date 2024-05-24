@@ -5306,6 +5306,8 @@ class AllocateElementsArray
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
+  AllocationType allocation_type() const { return allocation_type_; }
+
  private:
   AllocationType allocation_type_;
 };
