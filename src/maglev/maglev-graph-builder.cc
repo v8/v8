@@ -7825,11 +7825,9 @@ ReduceResult MaglevGraphBuilder::TryReduceMathAbs(
         case NodeType::kNumberOrOddball:
           return AddNewNode<Float64Abs>({GetHoleyFloat64ForToNumber(
               arg, ToNumberHint::kAssumeNumberOrOddball)});
+        // TODO(verwaest): Add support for ToNumberOrNumeric and deopt.
         default:
           break;
-      }
-      if (CheckType(arg, NodeType::kNumberOrOddball)) {
-        // TODO(verwaest): Add support for ToNumberOrNumeric and deopt.
       }
       break;
     case ValueRepresentation::kIntPtr:
