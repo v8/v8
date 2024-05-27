@@ -92,8 +92,9 @@ class WasmDeoptDataProcessor {
       const ZoneDeque<DeoptimizationLiteral>& deopt_literals);
 };
 
-// The frame "layout" of a liftoff function for a single deopt point.
-struct LiftoffFrameDescription {
+// All the information needed by the deoptimizer to know what the Liftoff frame
+// has to look like.
+struct LiftoffFrameDescriptionForDeopt {
   uint32_t wire_bytes_offset = 0;
   uint32_t pc_offset = 0;
   std::vector<LiftoffVarState> var_state = {};
@@ -103,14 +104,6 @@ struct LiftoffFrameDescription {
   // can be cached in liftoff and need to be initialized when performing a
   // deopt.
   Register trusted_instance = no_reg;
-};
-
-// TODO(mliedtke): Merge back into LiftoffFrameDescription as we only create one
-// of them!
-// The set of frame descriptions for all deopt points for a single
-// liftoff function.
-struct LiftoffFrameDescriptionsForDeopt {
-  LiftoffFrameDescription description;
   int total_frame_size = 0;
 };
 

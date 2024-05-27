@@ -12,7 +12,6 @@
 
 namespace v8::internal {
 
-// TODO(mliedtke): Rename the C++ types to int64x, ...
 #define FOREACH_SIMD_TYPE(V)     \
   V(double, float64x2, f64x2, 2) \
   V(float, float32x4, f32x4, 4)  \

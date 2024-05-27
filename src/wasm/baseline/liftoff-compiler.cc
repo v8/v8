@@ -639,7 +639,7 @@ class LiftoffCompiler {
     return asm_.ReleaseBuffer();
   }
 
-  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> ReleaseFrameDescriptions() {
+  std::unique_ptr<LiftoffFrameDescriptionForDeopt> ReleaseFrameDescriptions() {
     return std::move(frame_description_);
   }
 
@@ -8381,12 +8381,12 @@ class LiftoffCompiler {
   void StoreFrameDescriptionForDeopt(FullDecoder* decoder) {
     DCHECK(v8_flags.wasm_deopt);
     DCHECK(!frame_description_);
-    frame_description_ = std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-    frame_description_->description = LiftoffFrameDescription(
-        {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
-         std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
-                                      __ cache_state()->stack_state.end()),
-         __ cache_state()->cached_instance_data});
+    frame_description_ = std::make_unique<LiftoffFrameDescriptionForDeopt>(
+        LiftoffFrameDescriptionForDeopt{
+            decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+            std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
+                                         __ cache_state()->stack_state.end()),
+            __ cache_state()->cached_instance_data});
   }
 
   void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
@@ -8866,7 +8866,7 @@ class LiftoffCompiler {
   int32_t* max_steps_;
   int32_t* nondeterminism_;
 
-  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> frame_description_;
+  std::unique_ptr<LiftoffFrameDescriptionForDeopt> frame_description_;
 
   const compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
