@@ -1398,6 +1398,19 @@ class GraphBuilder {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckSymbol* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions input_assumptions =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    V<Word32> check = __ ObjectIs(Map(node->receiver_input()),
+                                  ObjectIsOp::Kind::kSymbol, input_assumptions);
+    __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kNotASymbol,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckInstanceType* node,
                                 const maglev::ProcessingState& state) {
     __ CheckInstanceType(
