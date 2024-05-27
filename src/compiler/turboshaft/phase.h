@@ -102,7 +102,7 @@ struct produces_printable_graph_impl<
     P, std::void_t<decltype(P::kOutputIsTraceableGraph)>>
     : std::bool_constant<P::kOutputIsTraceableGraph> {};
 
-#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS
+#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS
 template <base::tmp::StringLiteral ZoneName>
 #else
 template <auto ZoneName>
@@ -113,7 +113,7 @@ struct ComponentWithZone {
 
   explicit ComponentWithZone(ZoneStats* zone_stats)
       : zone(zone_stats,
-#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS
+#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS
              ZoneName.c_str()
 #else
              ZONE_NAME

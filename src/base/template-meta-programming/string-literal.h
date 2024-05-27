@@ -12,7 +12,7 @@
 
 namespace v8::base::tmp {
 
-#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS
+#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS
 
 #ifdef __cpp_lib_to_array
 using std::to_array;

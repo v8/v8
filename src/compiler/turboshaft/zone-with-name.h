@@ -26,7 +26,7 @@ namespace v8::internal::compiler::turboshaft {
 // to the underlying raw `Zone*` and `Graph*` to make its use as smooth as
 // possible, even when `foo`'s arguments expects raw types. NOTE: In release
 // builds, `ZoneWithNamePointer<T, Name>` is merely an alias to `T*`.
-#if defined(DEBUG) && defined(HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS)
+#if defined(DEBUG) && defined(HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS)
 template <typename T, base::tmp::StringLiteral Name>
 class ZoneWithNamePointerImpl final {
  public:
@@ -61,7 +61,7 @@ template <typename T, auto>
 using ZoneWithNamePointer = T*;
 #endif
 
-#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS
+#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS
 template <base::tmp::StringLiteral Name>
 #else
 template <auto Name>
@@ -71,7 +71,7 @@ class ZoneWithName final {
   ZoneWithName(ZoneStats* pool, const char* name,
                bool support_zone_compression = false)
       : scope_(pool, name, support_zone_compression) {
-#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS
+#ifdef HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS
     DCHECK_EQ(std::strcmp(name, Name.c_str()), 0);
 #endif
   }

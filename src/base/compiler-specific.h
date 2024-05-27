@@ -147,7 +147,7 @@
 #endif
 
 #if __cplusplus >= 202002L
-#define HAS_CPP_CLASS_TYPES_AS_TEMPATE_ARGS 1
+#define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
 #endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_
