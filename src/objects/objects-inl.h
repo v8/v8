@@ -51,6 +51,7 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/code-pointer-inl.h"
+#include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
@@ -812,16 +813,18 @@ Address HeapObject::ReadExternalPointerField(size_t offset,
   return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
 }
 
-template <ExternalPointerTag tag>
+template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
 Address HeapObject::TryReadCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate) const {
-  return i::TryReadCppHeapPointerField<tag>(field_address(offset), isolate);
+  return i::TryReadCppHeapPointerField<lower_bound, upper_bound>(
+      field_address(offset), isolate);
 }
 
 Address HeapObject::TryReadCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate,
-    ExternalPointerTag tag) const {
-  return i::TryReadCppHeapPointerField(field_address(offset), isolate, tag);
+    CppHeapPointerTagRange tag_range) const {
+  return i::TryReadCppHeapPointerField(field_address(offset), isolate,
+                                       tag_range);
 }
 
 template <ExternalPointerTag tag>
@@ -843,10 +846,10 @@ void HeapObject::SetupLazilyInitializedExternalPointerField(size_t offset) {
 }
 
 void HeapObject::SetupLazilyInitializedCppHeapPointerField(size_t offset) {
-  CppHeapPointerSlot(field_address(offset), kAnyExternalPointerTag).init();
+  CppHeapPointerSlot(field_address(offset)).init();
 }
 
-template <ExternalPointerTag tag>
+template <CppHeapPointerTag tag>
 void HeapObject::WriteLazilyInitializedCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate, Address value) {
   i::WriteLazilyInitializedCppHeapPointerField<tag>(field_address(offset),
@@ -855,7 +858,7 @@ void HeapObject::WriteLazilyInitializedCppHeapPointerField(
 
 void HeapObject::WriteLazilyInitializedCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate, Address value,
-    ExternalPointerTag tag) {
+    CppHeapPointerTag tag) {
   i::WriteLazilyInitializedCppHeapPointerField(field_address(offset), isolate,
                                                value, tag);
 }
@@ -971,9 +974,8 @@ ExternalPointerSlot HeapObject::RawExternalPointerField(
   return ExternalPointerSlot(field_address(byte_offset), tag);
 }
 
-CppHeapPointerSlot HeapObject::RawCppHeapPointerField(
-    int byte_offset, ExternalPointerTag tag) const {
-  return CppHeapPointerSlot(field_address(byte_offset), tag);
+CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {
+  return CppHeapPointerSlot(field_address(byte_offset));
 }
 
 IndirectPointerSlot HeapObject::RawIndirectPointerField(

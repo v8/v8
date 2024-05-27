@@ -225,16 +225,16 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
     Tagged<HeapObject> host, CppHeapPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
   const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   if (handle == kNullExternalPointerHandle) {
     return;
   }
-  ExternalPointerTable* table = cpp_heap_pointer_table_;
-  ExternalPointerTable::Space* space = heap_->cpp_heap_pointer_space();
+  CppHeapPointerTable* table = cpp_heap_pointer_table_;
+  CppHeapPointerTable::Space* space = heap_->cpp_heap_pointer_space();
   table->Mark(space, handle, slot.address());
 #endif  // V8_COMPRESS_POINTERS
-  if (auto cpp_heap_pointer = slot.try_load(heap_->isolate())) {
+  if (auto cpp_heap_pointer =
+          slot.try_load(heap_->isolate(), kAnyCppHeapPointer)) {
     local_marking_worklists_->cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }

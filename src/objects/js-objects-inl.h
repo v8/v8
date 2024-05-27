@@ -625,20 +625,22 @@ JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
   DCHECK(IsJSApiWrapperObject(object));
 }
 
-template <ExternalPointerTag tag>
+template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
 void* JSApiWrapper::GetCppHeapWrappable(
     IsolateForPointerCompression isolate) const {
-  return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField<tag>(
-      kCppHeapWrappableOffset, isolate));
+  return reinterpret_cast<void*>(
+      object_->TryReadCppHeapPointerField<lower_bound, upper_bound>(
+          kCppHeapWrappableOffset, isolate));
 }
 
-void* JSApiWrapper::GetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                        ExternalPointerTag tag) const {
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate,
+    CppHeapPointerTagRange tag_range) const {
   return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField(
-      kCppHeapWrappableOffset, isolate, tag));
+      kCppHeapWrappableOffset, isolate, tag_range));
 }
 
-template <ExternalPointerTag tag>
+template <CppHeapPointerTag tag>
 void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
                                        void* instance) {
   object_->WriteLazilyInitializedCppHeapPointerField<tag>(
@@ -650,7 +652,7 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
 }
 
 void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                       void* instance, ExternalPointerTag tag) {
+                                       void* instance, CppHeapPointerTag tag) {
   object_->WriteLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance), tag);

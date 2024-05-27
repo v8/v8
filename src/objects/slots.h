@@ -400,23 +400,9 @@ class CppHeapPointerSlot
     : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
                       /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
  public:
-  CppHeapPointerSlot()
-      : SlotBase(kNullAddress)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_(kExternalPointerNullTag)
-#endif
-  {
-  }
+  CppHeapPointerSlot() : SlotBase(kNullAddress) {}
 
-  CppHeapPointerSlot(Address ptr, ExternalPointerTag tag)
-      : SlotBase(ptr)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_(tag)
-#endif
-  {
-  }
+  CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
 
 #ifdef V8_COMPRESS_POINTERS
 
@@ -432,21 +418,11 @@ class CppHeapPointerSlot
 
 #endif  // V8_COMPRESS_POINTERS
 
-  inline Address try_load(IsolateForPointerCompression isolate) const;
-  inline void store(IsolateForPointerCompression isolate, Address value) const;
+  inline Address try_load(IsolateForPointerCompression isolate,
+                          CppHeapPointerTagRange tag_range) const;
+  inline void store(IsolateForPointerCompression isolate, Address value,
+                    CppHeapPointerTag tag) const;
   inline void init() const;
-
-#ifdef V8_COMPRESS_POINTERS
-  ExternalPointerTag tag() const { return tag_; }
-#else
-  ExternalPointerTag tag() const { return kExternalPointerNullTag; }
-#endif  // V8_COMPRESS_POINTERS
-
- private:
-#ifdef V8_COMPRESS_POINTERS
-  // The tag associated with this slot.
-  ExternalPointerTag tag_;
-#endif  // V8_COMPRESS_POINTERS
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing

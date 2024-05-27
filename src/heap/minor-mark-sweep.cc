@@ -621,8 +621,7 @@ void VisitObjectWithEmbedderFields(Isolate* isolate, Tagged<JSObject> js_object,
 
   // Wrapper using cpp_heap_wrappable field.
   void* wrappable =
-      JSApiWrapper(js_object).GetCppHeapWrappable<kAnyExternalPointerTag>(
-          isolate);
+      JSApiWrapper(js_object).GetCppHeapWrappable(isolate, kAnyCppHeapPointer);
   if (wrappable) {
     worklist.cpp_marking_state()->MarkAndPush(wrappable);
   }

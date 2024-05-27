@@ -59,7 +59,7 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
   // The table is not reclaimed in the young generation, so we only need to mark
   // through to the C++ pointer.
 
-  if (auto cpp_heap_pointer = slot.try_load(isolate_)) {
+  if (auto cpp_heap_pointer = slot.try_load(isolate_, kAnyCppHeapPointer)) {
     marking_worklists_local_.cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }

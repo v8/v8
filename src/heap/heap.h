@@ -800,7 +800,7 @@ class Heap final {
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
   }
-  ExternalPointerTable::Space* cpp_heap_pointer_space() {
+  CppHeapPointerTable::Space* cpp_heap_pointer_space() {
     return &cpp_heap_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
@@ -2168,7 +2168,7 @@ class Heap final {
   ExternalPointerTable::Space read_only_external_pointer_space_;
   // Space in the ExternalPointerTable containing entries owned by objects in
   // this heap. The entries exclusively point to CppHeap objects.
-  ExternalPointerTable::Space cpp_heap_pointer_space_;
+  CppHeapPointerTable::Space cpp_heap_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX

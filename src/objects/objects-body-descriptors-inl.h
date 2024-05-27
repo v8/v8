@@ -122,8 +122,7 @@ class JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor
                   JSAPIObjectWithEmbedderSlots::kHeaderSize);
     v->VisitCppHeapPointer(
         obj, obj->RawCppHeapPointerField(
-                 JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
-                 kAnyExternalPointerTag));
+                 JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset));
   }
 
   template <typename ConcreteType, typename ObjectVisitor>

@@ -286,7 +286,7 @@ void ContextSerializer::SerializeApiWrapperFields(Handle<JSObject> js_object) {
   DCHECK(IsJSApiWrapperObject(*js_object));
   auto* cpp_heap_pointer =
       JSApiWrapper(*js_object)
-          .GetCppHeapWrappable<kAnyExternalPointerTag>(isolate());
+          .GetCppHeapWrappable(isolate(), kAnyCppHeapPointer);
   const auto& callback_data = serialize_embedder_fields_.api_wrapper_callback;
   if (callback_data.callback == nullptr && cpp_heap_pointer == nullptr) {
     // No need to serialize anything as empty handles or handles pointing to

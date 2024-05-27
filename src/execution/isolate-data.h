@@ -13,6 +13,7 @@
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -90,7 +91,7 @@ class Isolate;
     external_pointer_table)                                   \
   V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
     shared_external_pointer_table)                            \
-  V(kCppHeapPointerTableOffset, ExternalPointerTable::kSize,  \
+  V(kCppHeapPointerTableOffset, CppHeapPointerTable::kSize,   \
     cpp_heap_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
@@ -335,7 +336,7 @@ class IsolateData final {
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
-  ExternalPointerTable cpp_heap_pointer_table_;
+  CppHeapPointerTable cpp_heap_pointer_table_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX

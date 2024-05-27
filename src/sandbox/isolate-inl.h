@@ -114,11 +114,11 @@ IsolateForPointerCompression::GetExternalPointerTableSpaceFor(
   return isolate_->heap()->old_external_pointer_space();
 }
 
-ExternalPointerTable& IsolateForPointerCompression::GetCppHeapPointerTable() {
+CppHeapPointerTable& IsolateForPointerCompression::GetCppHeapPointerTable() {
   return isolate_->cpp_heap_pointer_table();
 }
 
-ExternalPointerTable::Space*
+CppHeapPointerTable::Space*
 IsolateForPointerCompression::GetCppHeapPointerTableSpace() {
   return isolate_->heap()->cpp_heap_pointer_space();
 }

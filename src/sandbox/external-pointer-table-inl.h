@@ -105,7 +105,7 @@ void ExternalPointerTableEntry::Mark() {
   // We don't need to perform the CAS in a loop: if the new value is not equal
   // to the old value, then the mutator must've just written a new value into
   // the entry. This in turn must've set the marking bit already (see e.g.
-  // StoreExternalPointer), so we don't need to do it again.
+  // SetExternalPointer), so we don't need to do it again.
   bool success = payload_.compare_exchange_strong(old_payload, new_payload,
                                                   std::memory_order_relaxed);
   DCHECK(success || old_payload.HasMarkBitSet());
@@ -228,22 +228,15 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
                                 Address handle_location) {
   DCHECK(space->BelongsTo(this));
 
-  // The handle_location must always contain the given handle. Except:
-  // - If the slot is lazily-initialized, the handle may transition from the
-  //   null handle to a valid handle. In that case, we'll return from this
-  //   function early (see below), which is fine since the newly-allocated
-  //   entry will already have been marked as alive during allocation.
-  // - If the slot is de-initialized, i.e. reset to the null handle. In that
-  //   case, we'll still mark the old entry as alive and potentially mark it for
-  //   evacuation. Both of these things are fine though: the entry is just kept
-  //   alive a little longer and compaction will detect that the slot has been
-  //   de-initialized and not perform the evacuation.
+  // The handle_location must always contain the given handle. Except if the
+  // slot is lazily-initialized. In that case, the handle may transition from
+  // the null handle to a valid handle. However, in that case the
+  // newly-allocated entry will already have been marked as alive during
+  // allocation, and so we don't need to do anything here.
 #ifdef DEBUG
   ExternalPointerHandle current_handle = base::AsAtomic32::Acquire_Load(
       reinterpret_cast<ExternalPointerHandle*>(handle_location));
-  DCHECK(handle == kNullExternalPointerHandle ||
-         current_handle == kNullExternalPointerHandle ||
-         handle == current_handle);
+  DCHECK(handle == kNullExternalPointerHandle || handle == current_handle);
 #endif
 
   // If the handle is null, it doesn't have an EPT entry; no mark is needed.

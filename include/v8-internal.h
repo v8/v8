@@ -359,6 +359,33 @@ using CppHeapPointer_t = Address;
 constexpr CppHeapPointer_t kNullCppHeapPointer = 0;
 constexpr CppHeapPointerHandle kNullCppHeapPointerHandle = 0;
 
+constexpr uint64_t kCppHeapPointerMarkBit = 1ULL;
+constexpr uint64_t kCppHeapPointerTagShift = 1;
+constexpr uint64_t kCppHeapPointerPayloadShift = 16;
+
+#ifdef V8_COMPRESS_POINTERS
+// CppHeapPointers use a dedicated pointer table. These constants control the
+// size and layout of the table. See the corresponding constants for the
+// external pointer table for further details.
+constexpr size_t kCppHeapPointerTableReservationSize =
+    kExternalPointerTableReservationSize;
+constexpr uint32_t kCppHeapPointerIndexShift = kExternalPointerIndexShift;
+
+constexpr int kCppHeapPointerTableEntrySize = 8;
+constexpr int kCppHeapPointerTableEntrySizeLog2 = 3;
+constexpr size_t kMaxCppHeapPointers =
+    kCppHeapPointerTableReservationSize / kCppHeapPointerTableEntrySize;
+static_assert((1 << (32 - kCppHeapPointerIndexShift)) == kMaxCppHeapPointers,
+              "kCppHeapPointerTableReservationSize and "
+              "kCppHeapPointerIndexShift don't match");
+
+#else  // !V8_COMPRESS_POINTERS
+
+// Needed for the V8.SandboxedCppHeapPointersCount histogram.
+constexpr size_t kMaxCppHeapPointers = 0;
+
+#endif  // V8_COMPRESS_POINTERS
+
 // See `ExternalPointerHandle` for the main documentation. The difference to
 // `ExternalPointerHandle` is that the handle always refers to a
 // (external pointer, size) tuple. The handles are used in combination with a

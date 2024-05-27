@@ -2099,11 +2099,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  ExternalPointerTable& cpp_heap_pointer_table() {
+  CppHeapPointerTable& cpp_heap_pointer_table() {
     return isolate_data_.cpp_heap_pointer_table_;
   }
 
-  const ExternalPointerTable& cpp_heap_pointer_table() const {
+  const CppHeapPointerTable& cpp_heap_pointer_table() const {
     return isolate_data_.cpp_heap_pointer_table_;
   }
 

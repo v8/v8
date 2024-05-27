@@ -227,7 +227,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
   ExternalPointerTable::Space* const shared_external_pointer_space_;
-  ExternalPointerTable* const cpp_heap_pointer_table_;
+  CppHeapPointerTable* const cpp_heap_pointer_table_;
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable* const trusted_pointer_table_;
