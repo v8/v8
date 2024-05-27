@@ -170,15 +170,19 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   if (!slot.HasExternalPointerHandle()) return;
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  ExternalPointerTable& table = isolate_->external_pointer_table();
-  auto* space = isolate_->heap()->young_external_pointer_space();
   if (handle != kNullExternalPointerHandle) {
+    ExternalPointerTable& table = isolate_->external_pointer_table();
+    auto* space = isolate_->heap()->young_external_pointer_space();
     table.Mark(space, handle, slot.address());
-
-    auto slot_chunk = MutablePageMetadata::FromHeapObject(host);
-    RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
-        AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
   }
+
+  // Add to the remset whether the handle is null or not, as the slot could be
+  // set to a non-null value before the marking pause.
+  // TODO(342905179): Avoid adding null handle locations to the remset, and
+  // instead make external pointer writes invoke a marking barrier.
+  auto slot_chunk = MutablePageMetadata::FromHeapObject(host);
+  RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
+      AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
 }
 #endif  // V8_COMPRESS_POINTERS
 
