@@ -1544,6 +1544,13 @@ class GraphBuilder {
         node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::TransitionElementsKind* node,
+                                const maglev::ProcessingState& state) {
+    __ TransitionMultipleElementsKind(Map(node->object_input()),
+                                      node->transition_sources(),
+                                      node->transition_target());
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::HasInPrototypeChain* node,
                                 const maglev::ProcessingState& state) {
