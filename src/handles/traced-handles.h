@@ -88,7 +88,7 @@ class TracedNode final {
                                    bool needs_young_bit_update,
                                    bool needs_black_allocation,
                                    bool has_old_host, bool is_droppable);
-  void Release();
+  void Release(Address zap_value);
 
  private:
   using IsInUse = base::BitField8<bool, 0, 1>;
@@ -212,7 +212,7 @@ class TracedNodeBlock final {
   static const TracedNodeBlock& From(const TracedNode& node);
 
   V8_INLINE TracedNode* AllocateNode();
-  void FreeNode(TracedNode*);
+  void FreeNode(TracedNode* node, Address zap_value);
 
   TracedNode* at(TracedNode::IndexType index) {
     return &(reinterpret_cast<TracedNode*>(this + 1)[index]);
@@ -320,7 +320,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
  private:
   V8_INLINE std::pair<TracedNodeBlock*, TracedNode*> AllocateNode();
   V8_NOINLINE V8_PRESERVE_MOST void RefillUsableNodeBlocks();
-  void FreeNode(TracedNode*);
+  void FreeNode(TracedNode* node, Address zap_value);
 
   V8_INLINE bool NeedsToBeRemembered(Tagged<Object> value, TracedNode* node,
                                      Address* slot,

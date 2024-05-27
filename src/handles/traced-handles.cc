@@ -35,12 +35,12 @@ TracedNode::TracedNode(IndexType index, IndexType next_free_index)
   DCHECK(!is_droppable());
 }
 
-void TracedNode::Release() {
+void TracedNode::Release(Address zap_value) {
   DCHECK(is_in_use());
   // Clear all flags.
   flags_ = 0;
   clear_markbit();
-  set_raw_object(kGlobalHandleZapValue);
+  set_raw_object(zap_value);
   DCHECK(IsMetadataCleared());
 }
 
@@ -86,9 +86,9 @@ const TracedNodeBlock& TracedNodeBlock::From(const TracedNode& node) {
   return From(const_cast<TracedNode&>(node));
 }
 
-void TracedNodeBlock::FreeNode(TracedNode* node) {
+void TracedNodeBlock::FreeNode(TracedNode* node, Address zap_value) {
   DCHECK(node->is_in_use());
-  node->Release();
+  node->Release(zap_value);
   DCHECK(!node->is_in_use());
   node->set_next_free(first_free_node_);
   first_free_node_ = node->index();
@@ -118,13 +118,13 @@ void TracedHandles::RefillUsableNodeBlocks() {
   DCHECK(!usable_blocks_.empty());
 }
 
-void TracedHandles::FreeNode(TracedNode* node) {
+void TracedHandles::FreeNode(TracedNode* node, Address zap_value) {
   auto& block = TracedNodeBlock::From(*node);
   if (V8_UNLIKELY(block.IsFull())) {
     DCHECK(!usable_blocks_.ContainsSlow(&block));
     usable_blocks_.PushFront(&block);
   }
-  block.FreeNode(node);
+  block.FreeNode(node, zap_value);
   if (block.IsEmpty()) {
     usable_blocks_.Remove(&block);
     blocks_.Remove(&block);
@@ -186,7 +186,7 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   // In case marking and sweeping are off, the handle may be freed immediately.
   // Note that this includes also the case when invoking the first pass
   // callbacks during the atomic pause which requires releasing a node fully.
-  FreeNode(&node);
+  FreeNode(&node, kTracedHandleEagerResetZapValue);
 }
 
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
@@ -320,7 +320,7 @@ void TracedHandles::ResetDeadNodes(
 
       // Detect unreachable nodes first.
       if (!node->markbit()) {
-        FreeNode(node);
+        FreeNode(node, kTracedHandleFullGCResetZapValue);
         continue;
       }
 
@@ -348,7 +348,7 @@ void TracedHandles::ResetYoungDeadNodes(
       DCHECK_IMPLIES(node->has_old_host(), node->markbit());
 
       if (!node->markbit()) {
-        FreeNode(node);
+        FreeNode(node, kTracedHandleMinorGCResetZapValue);
         continue;
       }
 
@@ -434,15 +434,15 @@ void TracedHandles::ProcessYoungObjects(
 
       bool should_reset =
           should_reset_handle(isolate_->heap(), node->location());
-      CHECK_IMPLIES(!node->is_weak(), !should_reset);
       if (should_reset) {
+        CHECK(node->is_weak());
         CHECK(!is_marking_);
         FullObjectSlot slot = node->location();
         handler->ResetRoot(
             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot));
-        // We cannot check whether a node is in use here as the reset behavior
-        // depends on whether incremental marking is running when reclaiming
-        // young objects.
+        // Mark as cleared due to weak semantics.
+        node->set_raw_object(kTracedHandleMinorGCWeakResetZapValue);
+        CHECK(!node->is_in_use());
       } else {
         if (node->is_weak()) {
           node->set_weak(false);

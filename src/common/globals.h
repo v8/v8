@@ -898,6 +898,14 @@ constexpr uint64_t kClearedFreeMemoryValue = 0;
 constexpr uint64_t kZapValue = uint64_t{0xdeadbeedbeadbeef};
 constexpr uint64_t kHandleZapValue = uint64_t{0x1baddead0baddeaf};
 constexpr uint64_t kGlobalHandleZapValue = uint64_t{0x1baffed00baffedf};
+constexpr uint64_t kTracedHandleEagerResetZapValue =
+    uint64_t{0x1beffedaabaffedf};
+constexpr uint64_t kTracedHandleMinorGCResetZapValue =
+    uint64_t{0x1beffedeebaffedf};
+constexpr uint64_t kTracedHandleMinorGCWeakResetZapValue =
+    uint64_t{0x1beffed11baffedf};
+constexpr uint64_t kTracedHandleFullGCResetZapValue =
+    uint64_t{0x1beffed77baffedf};
 constexpr uint64_t kFromSpaceZapValue = uint64_t{0x1beefdad0beefdaf};
 constexpr uint64_t kDebugZapValue = uint64_t{0xbadbaddbbadbaddb};
 constexpr uint64_t kSlotsZapValue = uint64_t{0xbeefdeadbeefdeef};
@@ -907,6 +915,10 @@ constexpr uint32_t kClearedFreeMemoryValue = 0;
 constexpr uint32_t kZapValue = 0xdeadbeef;
 constexpr uint32_t kHandleZapValue = 0xbaddeaf;
 constexpr uint32_t kGlobalHandleZapValue = 0xbaffedf;
+constexpr uint32_t kTracedHandleEagerResetZapValue = 0xbeffedf;
+constexpr uint32_t kTracedHandleMinorGCResetZapValue = 0xbeffadf;
+constexpr uint32_t kTracedHandleMinorGCWeakResetZapValue = 0xbe11adf;
+constexpr uint32_t kTracedHandleFullGCResetZapValue = 0xbe77adf;
 constexpr uint32_t kFromSpaceZapValue = 0xbeefdaf;
 constexpr uint32_t kSlotsZapValue = 0xbeefdeef;
 constexpr uint32_t kDebugZapValue = 0xbadbaddb;
