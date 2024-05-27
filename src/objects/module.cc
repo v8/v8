@@ -170,16 +170,14 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   }
 }
 
-bool Module::Instantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
+                         v8::Local<v8::Context> context,
+                         v8::Module::ResolveModuleCallback callback) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, callback,
-                          callback_without_import_assertions)) {
+  if (!PrepareInstantiate(isolate, module, context, callback)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUnlinked);
     return false;
@@ -198,10 +196,9 @@ bool Module::Instantiate(
   return true;
 }
 
-bool Module::PrepareInstantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
+                                v8::Local<v8::Context> context,
+                                v8::Module::ResolveModuleCallback callback) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kLinking);
   if (module->status() >= kPreLinking) return true;
@@ -210,8 +207,7 @@ bool Module::PrepareInstantiate(
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback,
-        callback_without_import_assertions);
+        isolate, Handle<SourceTextModule>::cast(module), context, callback);
   } else {
     return SyntheticModule::PrepareInstantiate(
         isolate, Handle<SyntheticModule>::cast(module), context);

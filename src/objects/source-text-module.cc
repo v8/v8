@@ -320,9 +320,9 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
 bool SourceTextModule::PrepareInstantiate(
     Isolate* isolate, Handle<SourceTextModule> module,
-    v8::Local<v8::Context> context, v8::Module::ResolveModuleCallback callback,
-    Module::DeprecatedResolveCallback callback_without_import_assertions) {
-  DCHECK_EQ(callback != nullptr, callback_without_import_assertions == nullptr);
+    v8::Local<v8::Context> context,
+    v8::Module::ResolveModuleCallback callback) {
+  DCHECK_NE(callback, nullptr);
   // Obtain requested modules.
   Handle<SourceTextModuleInfo> module_info(module->info(), isolate);
   Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
@@ -332,22 +332,13 @@ bool SourceTextModule::PrepareInstantiate(
         ModuleRequest::cast(module_requests->get(i)), isolate);
     Handle<String> specifier(module_request->specifier(), isolate);
     v8::Local<v8::Module> api_requested_module;
-    if (callback) {
-      Handle<FixedArray> import_attributes(module_request->import_attributes(),
-                                           isolate);
-      if (!callback(context, v8::Utils::ToLocal(specifier),
-                    v8::Utils::FixedArrayToLocal(import_attributes),
-                    v8::Utils::ToLocal(Handle<Module>::cast(module)))
-               .ToLocal(&api_requested_module)) {
-        return false;
-      }
-    } else {
-      if (!callback_without_import_assertions(
-               context, v8::Utils::ToLocal(specifier),
-               v8::Utils::ToLocal(Handle<Module>::cast(module)))
-               .ToLocal(&api_requested_module)) {
-        return false;
-      }
+    Handle<FixedArray> import_attributes(module_request->import_attributes(),
+                                         isolate);
+    if (!callback(context, v8::Utils::ToLocal(specifier),
+                  v8::Utils::FixedArrayToLocal(import_attributes),
+                  v8::Utils::ToLocal(Handle<Module>::cast(module)))
+             .ToLocal(&api_requested_module)) {
+      return false;
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
     requested_modules->set(i, *requested_module);
@@ -358,8 +349,7 @@ bool SourceTextModule::PrepareInstantiate(
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
-                                    callback,
-                                    callback_without_import_assertions)) {
+                                    callback)) {
       return false;
     }
   }
