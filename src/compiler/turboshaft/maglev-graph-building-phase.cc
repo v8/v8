@@ -2916,6 +2916,18 @@ class GraphBuilder {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> input = Map(node->input());
+
+    __ DeoptimizeIf(__ Float64IsHole(input),
+                    BuildFrameState(node->eager_deopt_info()),
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+
+    SetMap(node, input);
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::ConvertHoleToUndefined* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> cond = RootEqual(node->object_input(), RootIndex::kTheHoleValue);
