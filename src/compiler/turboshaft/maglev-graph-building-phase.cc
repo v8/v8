@@ -2492,10 +2492,33 @@ class GraphBuilder {
                                      __ Word32Constant(-1)));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::Int32AbsWithOverflow* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> input = Map(node->input());
+    ScopedVariable<Word32, AssemblerT> result(this, input);
+
+    IF (__ Int32LessThan(input, 0)) {
+      V<Tuple<Word32, Word32>> result_with_ovf =
+          __ Int32MulCheckOverflow(input, -1);
+      __ DeoptimizeIf(__ Projection<1>(result_with_ovf),
+                      BuildFrameState(node->eager_deopt_info()),
+                      DeoptimizeReason::kOverflow,
+                      node->eager_deopt_info()->feedback_to_update());
+      result = __ Projection<0>(result_with_ovf);
+    }
+
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::Float64Negate* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Float64Negate(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64Abs* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Float64Abs(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64Round* node,
