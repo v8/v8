@@ -2178,6 +2178,30 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckDetectableCallable* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> receiver = Map(node->receiver_input());
+
+    ObjectIsOp::InputAssumptions assumptions;
+    switch (node->check_type()) {
+      case maglev::CheckType::kCheckHeapObject:
+        assumptions = ObjectIsOp::InputAssumptions::kNone;
+        break;
+      case maglev::CheckType::kOmitHeapObjectCheck:
+        assumptions = ObjectIsOp::InputAssumptions::kHeapObject;
+        break;
+    }
+
+    __ DeoptimizeIfNot(
+        __ ObjectIs(receiver, ObjectIsOp::Kind::kDetectableCallable,
+                    assumptions),
+        BuildFrameState(node->eager_deopt_info()),
+        DeoptimizeReason::kNotDetectableReceiver,
+        node->eager_deopt_info()->feedback_to_update());
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::BranchIfToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumption =
