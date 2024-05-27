@@ -69,7 +69,7 @@ class V8TestApprover(BaseV8TestExporter):
     """Validates approval requirements."""
     try:
       response = self.github.request(self.pr_path(pr_number), method='GET')
-      reviews = response.data['items']
+      reviews = response.data
       reviewed_by_bot = any(
           review['user']['login'] == PR_APPROVAL_LOGIN for review in reviews)
       if reviewed_by_bot:
