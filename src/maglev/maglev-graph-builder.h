@@ -13,6 +13,7 @@
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -2092,7 +2093,7 @@ class MaglevGraphBuilder {
       compiler::KeyedAccessMode const& keyed_mode);
   ReduceResult TryBuildElementLoadOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index,
-      const compiler::ElementAccessInfo& access_info,
+      base::Vector<const compiler::MapRef> maps, ElementsKind kind,
       KeyedAccessLoadMode load_mode);
   ReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index_object, ValueNode* value,

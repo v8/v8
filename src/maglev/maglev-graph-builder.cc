@@ -4994,14 +4994,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
 
 ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object,
-    const compiler::ElementAccessInfo& access_info,
+    base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
     KeyedAccessLoadMode load_mode) {
-  ElementsKind elements_kind = access_info.elements_kind();
   DCHECK(IsFastElementsKind(elements_kind));
-
-  base::Vector<const compiler::MapRef> maps =
-      base::VectorOf(access_info.lookup_start_object_maps());
-
   bool is_jsarray = HasOnlyJSArrayMaps(maps);
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
@@ -5202,7 +5197,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       return TryBuildElementLoadOnJSArrayOrJSObject(
-          object, index_object, access_info, keyed_mode.load_mode());
+          object, index_object,
+          base::VectorOf(access_info.lookup_start_object_maps()),
+          access_info.elements_kind(), keyed_mode.load_mode());
     case compiler::AccessMode::kStoreInLiteral:
     case compiler::AccessMode::kStore: {
       base::Vector<const compiler::MapRef> maps =
@@ -6877,6 +6874,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       iterator.get(JSArrayIterator::kIteratedObjectOffset));
 
   ElementsKind elements_kind;
+  base::SmallVector<compiler::MapRef, 4> maps;
   if (iterated_object->Is<InlinedAllocation>()) {
     auto maybe_array = iterated_object->Cast<InlinedAllocation>()->GetObject();
     if (!maybe_array) {
@@ -6887,6 +6885,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       FAIL("no fast array iteration support");
     }
     elements_kind = map.elements_kind();
+    maps.push_back(map);
   } else {
     auto node_info = known_node_aspects().TryGetInfoFor(iterated_object);
     if (!node_info || !node_info->possible_maps_are_known()) {
@@ -6895,6 +6894,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
                                         &elements_kind)) {
       FAIL("no fast array iteration support or incompatible maps");
+    }
+    for (auto map : node_info->possible_maps()) {
+      maps.push_back(map);
     }
   }
 
@@ -6936,20 +6938,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     subgraph.set(ret_value, smi_index);
   } else {
     ValueNode* value;
-    ValueNode* elements_array = BuildLoadElements(iterated_object);
-    if (IsDoubleElementsKind(elements_kind)) {
-      if (IsHoleyElementsKind(elements_kind)) {
-        value = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
-            {elements_array, int32_index});
-      } else {
-        value = AddNewNode<LoadFixedDoubleArrayElement>(
-            {elements_array, int32_index});
-      }
-    } else {
-      DCHECK(IsSmiElementsKind(elements_kind) ||
-             IsObjectElementsKind(elements_kind));
-      value = AddNewNode<LoadFixedArrayElement>({elements_array, int32_index});
-    }
+    GET_VALUE_OR_ABORT(
+        value, TryBuildElementLoadOnJSArrayOrJSObject(
+                   iterated_object, int32_index, base::VectorOf(maps),
+                   elements_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
     if (iteration_kind == IterationKind::kEntries) {
       subgraph.set(ret_value, BuildAndAllocateKeyValueArray(smi_index, value));
     } else {
