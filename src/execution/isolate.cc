@@ -4103,6 +4103,10 @@ void Isolate::Deinit() {
     });
   }
 
+  // We start with the heap tear down so that releasing managed objects does
+  // not cause a GC.
+  heap_.StartTearDown();
+
   DisallowGarbageCollection no_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
 
@@ -4145,10 +4149,6 @@ void Isolate::Deinit() {
   v8_file_logger_->StopProfilerThread();
 
   FreeThreadResources();
-
-  // We start with the heap tear down so that releasing managed objects does
-  // not cause a GC.
-  heap_.StartTearDown();
 
   // Stop concurrent tasks before destroying resources since they might still
   // use those.
