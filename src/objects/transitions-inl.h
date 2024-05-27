@@ -188,6 +188,9 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
       IsUndefined(heap_object, isolate)) {
     return false;
   }
+  if (raw.IsCleared()) {
+    return false;
+  }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
   return true;
 }
@@ -276,12 +279,12 @@ MaybeHandle<Map> TransitionsAccessor::SearchTransition(
 }
 
 // static
-MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
-                                                    Handle<Map> map,
-                                                    Tagged<Symbol> name) {
-  Tagged<Map> result = TransitionsAccessor(isolate, *map).SearchSpecial(name);
-  if (result.is_null()) return MaybeHandle<Map>();
-  return MaybeHandle<Map>(result, isolate);
+std::optional<Handle<Map>> TransitionsAccessor::SearchSpecial(
+    Isolate* isolate, Handle<Map> map, Tagged<Symbol> name) {
+  if (auto result = TransitionsAccessor(isolate, *map).SearchSpecial(name)) {
+    return handle(*result, isolate);
+  }
+  return {};
 }
 
 int TransitionArray::number_of_transitions() const {
@@ -381,8 +384,8 @@ Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
   return handle(GetTarget(0), isolate_);
 }
 
-template <typename Callback, typename ProtoCallback>
-void TransitionsAccessor::ForEachTransition(
+template <typename Callback, typename ProtoCallback, bool with_key>
+void TransitionsAccessor::ForEachTransitionWithKey(
     DisallowGarbageCollection* no_gc, Callback callback,
     ProtoCallback proto_transition_callback) {
   switch (encoding()) {
@@ -393,16 +396,38 @@ void TransitionsAccessor::ForEachTransition(
     case kWeakRef: {
       Tagged<Map> target =
           Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
-      callback(target);
+      if constexpr (with_key) {
+        callback(GetSimpleTransitionKey(target), target);
+      } else {
+        callback(target);
+      }
       return;
     }
     case kFullTransitionArray: {
       base::SharedMutexGuardIf<base::kShared> scope(
           isolate_->full_transition_array_access(), concurrent_access_);
-      int num_transitions = transitions()->number_of_transitions();
+      Tagged<TransitionArray> transition_array = transitions();
+      int num_transitions = transition_array->number_of_transitions();
+      ReadOnlyRoots roots(isolate_);
       for (int i = 0; i < num_transitions; ++i) {
-        Tagged<Map> target = transitions()->GetTarget(i);
-        callback(target);
+        Tagged<MaybeObject> target = transition_array->GetRawTarget(i);
+        if (target.IsCleared()) {
+          DCHECK(
+              IsSpecialSidestepTransition(roots, transition_array->GetKey(i)));
+          if constexpr (with_key) {
+            Tagged<Name> key = transition_array->GetKey(i);
+            callback(key, Tagged<Map>());
+          } else {
+            callback(Tagged<Map>());
+          }
+          continue;
+        }
+        if constexpr (with_key) {
+          Tagged<Name> key = transition_array->GetKey(i);
+          callback(key, TransitionsAccessor::GetTargetFromRaw(target));
+        } else {
+          callback(TransitionsAccessor::GetTargetFromRaw(target));
+        }
       }
       if constexpr (!std::is_same<ProtoCallback, std::nullptr_t>::value) {
         if (transitions()->HasPrototypeTransitions()) {

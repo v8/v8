@@ -414,19 +414,21 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
 
   // Replay the transitions as they were before the integrity level transition.
-  Tagged<Map> result = root_map->TryReplayPropertyTransitions(
+  Tagged<Map> replay = root_map->TryReplayPropertyTransitions(
       isolate, info.integrity_level_source_map, cmode);
-  if (result.is_null()) return {};
+  if (replay.is_null()) return {};
 
+  std::optional<Tagged<Map>> result = replay;
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
+    result = TransitionsAccessor(isolate, *result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
-  if (result.is_null()) return {};
 
-  DCHECK_EQ(old_map->elements_kind(), result->elements_kind());
-  DCHECK_EQ(old_map->instance_type(), result->instance_type());
+  if (result) {
+    DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+    DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
+  }
   return result;
 }
 
@@ -788,9 +790,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 
     // We try to replay the integrity level transition here.
-    MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-        isolate_, target_map_, *integrity_level_symbol_);
-    if (maybe_transition.ToHandle(&result_map_)) {
+    if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
+            isolate_, target_map_, *integrity_level_symbol_)) {
+      result_map_ = *maybe_transition;
       state_ = kEnd;
       return state_;  // Done.
     }
@@ -1216,19 +1218,30 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 
   std::queue<Tagged<Map>> backlog;
   backlog.push(*map);
+  std::unordered_set<Tagged<Map>, Object::Hasher> sidestep_transition;
 
+  ReadOnlyRoots roots(isolate);
   while (!backlog.empty()) {
     Tagged<Map> current = backlog.front();
     backlog.pop();
 
     TransitionsAccessor transitions(isolate, current);
-    transitions.ForEachTransition(
-        &no_gc, [&backlog](Tagged<Map> target) { backlog.push(target); }
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-        ,
-        nullptr
+    transitions.ForEachTransitionWithKey(
+        &no_gc,
+        [&](Tagged<Name> key, Tagged<Map> target) {
+          if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
+            if (target.is_null() || sidestep_transition.count(target)) {
+              return;
+            }
+            sidestep_transition.insert(target);
+          }
+          backlog.push(target);
+        },
+        [&](Tagged<Map> target) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+          backlog.push(target);
 #endif
-    );
+        });
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);

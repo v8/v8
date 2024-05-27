@@ -4,6 +4,8 @@
 
 #include "src/objects/transitions.h"
 
+#include <optional>
+
 #include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -40,23 +42,40 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 
 // static
 void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
-                                 Handle<Name> name, Handle<Map> target,
+                                 Handle<Name> name,
+                                 std::optional<Handle<Map>> target,
                                  TransitionKindFlag flag) {
   DCHECK_NE(flag, PROTOTYPE_TRANSITION);
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
-  target->SetBackPointer(*map);
+  ReadOnlyRoots roots(isolate);
+  DCHECK_IMPLIES(IsSpecialSidestepTransition(roots, *name),
+                 v8_flags.clone_object_sidestep_transitions);
+  DCHECK_IMPLIES(IsSpecialSidestepTransition(roots, *name),
+                 flag == SPECIAL_TRANSITION);
+  DCHECK_IMPLIES(!target.has_value(),
+                 IsSpecialSidestepTransition(roots, *name));
+  if (flag != SPECIAL_TRANSITION ||
+      !IsSpecialSidestepTransition(roots, *name)) {
+    (*target)->SetBackPointer(*map);
+  }
 
+  auto GetWeakRef = [&]() -> Tagged<MaybeObject> {
+    if (!target.has_value()) {
+      return ClearedValue(isolate);
+    }
+    return MakeWeak(**target);
+  };
   // If the map doesn't have any transitions at all yet, install the new one.
   if (encoding == kUninitialized || encoding == kMigrationTarget) {
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
-      ReplaceTransitions(isolate, map, MakeWeak(*target));
+      ReplaceTransitions(isolate, map, MakeWeak(**target));
       return;
     }
     // If the flag requires a full TransitionArray, allocate one.
     Handle<TransitionArray> result =
         isolate->factory()->NewTransitionArray(1, 0);
-    result->Set(0, *name, MakeWeak(*target));
+    result->Set(0, *name, GetWeakRef());
     ReplaceTransitions(isolate, map, result);
     DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, *result));
     return;
@@ -70,10 +89,10 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
       Tagged<Name> key = GetSimpleTransitionKey(simple_transition);
       PropertyDetails old_details =
           simple_transition->GetLastDescriptorDetails(isolate);
-      PropertyDetails new_details = GetTargetDetails(*name, *target);
+      PropertyDetails new_details = GetTargetDetails(*name, **target);
       if (key->Equals(*name) && old_details.kind() == new_details.kind() &&
           old_details.attributes() == new_details.attributes()) {
-        ReplaceTransitions(isolate, map, MakeWeak(*target));
+        ReplaceTransitions(isolate, map, MakeWeak(**target));
         return;
       }
     }
@@ -86,7 +105,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
     // cleared.
     simple_transition = GetSimpleTransition(isolate, map);
     if (simple_transition.is_null()) {
-      result->Set(0, *name, MakeWeak(*target));
+      result->Set(0, *name, GetWeakRef());
       ReplaceTransitions(isolate, map, result);
       DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, *result));
       return;
@@ -103,7 +122,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
       index =
           result->SearchSpecial(Symbol::cast(*name), false, &insertion_index);
     } else {
-      PropertyDetails details = GetTargetDetails(*name, *target);
+      PropertyDetails details = GetTargetDetails(*name, **target);
       index = result->Search(details.kind(), *name, details.attributes(),
                              &insertion_index);
     }
@@ -118,7 +137,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
                   MakeWeak(simple_transition));
     }
     result->SetKey(insertion_index, *name);
-    result->SetRawTarget(insertion_index, MakeWeak(*target));
+    result->SetRawTarget(insertion_index, GetWeakRef());
 
     SLOW_DCHECK(result->IsSortedNoDuplicates());
     ReplaceTransitions(isolate, map, result);
@@ -133,11 +152,10 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
   int new_nof = 0;
   int insertion_index = kNotFound;
   const bool is_special_transition = flag == SPECIAL_TRANSITION;
-  DCHECK_EQ(is_special_transition,
-            IsSpecialTransition(ReadOnlyRoots(isolate), *name));
+  DCHECK_EQ(is_special_transition, IsSpecialTransition(roots, *name));
   PropertyDetails details = is_special_transition
                                 ? PropertyDetails::Empty()
-                                : GetTargetDetails(*name, *target);
+                                : GetTargetDetails(*name, **target);
 
   {
     DisallowGarbageCollection no_gc;
@@ -153,7 +171,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
     if (index != kNotFound) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
           isolate->full_transition_array_access());
-      array->SetRawTarget(index, MakeWeak(*target));
+      array->SetRawTarget(index, GetWeakRef());
       return;
     }
 
@@ -172,7 +190,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
         array->SetRawTarget(i, array->GetRawTarget(i - 1));
       }
       array->SetKey(insertion_index, *name);
-      array->SetRawTarget(insertion_index, MakeWeak(*target));
+      array->SetRawTarget(insertion_index, GetWeakRef());
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -214,7 +232,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
   for (int i = 0; i < insertion_index; ++i) {
     result->Set(i, array->GetKey(i), array->GetRawTarget(i));
   }
-  result->Set(insertion_index, *name, MakeWeak(*target));
+  result->Set(insertion_index, *name, GetWeakRef());
   for (int i = insertion_index; i < number_of_transitions; ++i) {
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
@@ -245,13 +263,18 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
   UNREACHABLE();
 }
 
-Tagged<Map> TransitionsAccessor::SearchSpecial(Tagged<Symbol> name) {
-  if (encoding() != kFullTransitionArray) return Tagged<Map>();
+std::optional<Tagged<Map>> TransitionsAccessor::SearchSpecial(
+    Tagged<Symbol> name) {
+  if (encoding() != kFullTransitionArray) return {};
   base::SharedMutexGuardIf<base::kShared> scope(
       isolate_->full_transition_array_access(), concurrent_access_);
   int transition = transitions()->SearchSpecial(name, concurrent_access_);
-  if (transition == kNotFound) return Tagged<Map>();
-  return transitions()->GetTarget(transition);
+  if (transition == kNotFound) return {};
+  Tagged<MaybeObject> res = transitions()->GetRawTarget(transition);
+  if (res.IsCleared()) {
+    return Map();
+  }
+  return GetTargetFromRaw(res);
 }
 
 // static
@@ -261,7 +284,14 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol();
+         name == roots.strict_function_transition_symbol() ||
+         IsSpecialSidestepTransition(roots, name);
+}
+
+// static
+bool TransitionsAccessor::IsSpecialSidestepTransition(ReadOnlyRoots roots,
+                                                      Tagged<Name> name) {
+  return name == roots.object_clone_transition_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(

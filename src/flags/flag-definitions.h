@@ -2308,6 +2308,9 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
            "maximum number of valid maps to track in POLYMORPHIC state")
+DEFINE_BOOL_READONLY(
+    clone_object_sidestep_transitions, true,
+    "support sidestep transitions for dependency tracking object clone maps")
 
 // map-inl.h
 DEFINE_INT(fast_properties_soft_limit, 12,

@@ -3207,31 +3207,42 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
 void MarkCompactCollector::ClearFullMapTransitions() {
   Tagged<TransitionArray> array;
   Isolate* const isolate = heap_->isolate();
+  ReadOnlyRoots roots(isolate);
   while (local_weak_objects()->transition_arrays_local.Pop(&array)) {
     int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
-      Tagged<Map> map;
-      // The array might contain "undefined" elements because it's not yet
-      // filled. Allow it.
-      if (array->GetTargetIfExists(0, isolate, &map)) {
-        DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
-        Tagged<Object> constructor_or_back_pointer =
-            map->constructor_or_back_pointer();
-        if (IsSmi(constructor_or_back_pointer)) {
-          DCHECK(isolate->has_active_deserializer());
-          DCHECK_EQ(constructor_or_back_pointer,
-                    Smi::uninitialized_deserialization_value());
-          continue;
-        }
-        Tagged<Map> parent = Map::cast(map->constructor_or_back_pointer());
-        bool parent_is_alive = non_atomic_marking_state_->IsMarked(parent);
-        Tagged<DescriptorArray> descriptors =
-            parent_is_alive ? parent->instance_descriptors(isolate)
-                            : Tagged<DescriptorArray>();
-        bool descriptors_owner_died =
-            CompactTransitionArray(parent, array, descriptors);
-        if (descriptors_owner_died) {
-          TrimDescriptorArray(parent, descriptors);
+      int first = 0;
+      // Search for the owner of this transition array by scanning over sidestep
+      // transitions.
+      while (first < num_transitions &&
+             TransitionsAccessor::IsSpecialSidestepTransition(
+                 roots, array->GetKey(first))) {
+        first++;
+      }
+      if (first < num_transitions) {
+        Tagged<Map> map;
+        // The array might contain "undefined" elements because it's not yet
+        // filled. Allow it.
+        if (array->GetTargetIfExists(first, isolate, &map)) {
+          DCHECK(!map.is_null());
+          Tagged<Object> constructor_or_back_pointer =
+              map->constructor_or_back_pointer();
+          if (IsSmi(constructor_or_back_pointer)) {
+            DCHECK(isolate->has_active_deserializer());
+            DCHECK_EQ(constructor_or_back_pointer,
+                      Smi::uninitialized_deserialization_value());
+            continue;
+          }
+          Tagged<Map> parent = Map::cast(map->constructor_or_back_pointer());
+          bool parent_is_alive = non_atomic_marking_state_->IsMarked(parent);
+          Tagged<DescriptorArray> descriptors =
+              parent_is_alive ? parent->instance_descriptors(isolate)
+                              : Tagged<DescriptorArray>();
+          bool descriptors_owner_died =
+              CompactTransitionArray(parent, array, descriptors);
+          if (descriptors_owner_died) {
+            TrimDescriptorArray(parent, descriptors);
+          }
         }
       }
     }
@@ -3242,6 +3253,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 // still being deserialized.
 bool MarkCompactCollector::TransitionArrayNeedsCompaction(
     Tagged<TransitionArray> transitions, int num_transitions) {
+  ReadOnlyRoots roots(heap_->isolate());
   for (int i = 0; i < num_transitions; ++i) {
     Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
     if (raw_target.IsSmi()) {
@@ -3257,15 +3269,23 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
       }
 #endif
       return false;
-    } else if (non_atomic_marking_state_->IsUnmarked(
-                   TransitionsAccessor::GetTargetFromRaw(raw_target))) {
+    }
+    Tagged<Map> map;
+    if (transitions->GetTargetIfExists(i, heap_->isolate(), &map)) {
+      if (non_atomic_marking_state_->IsUnmarked(map)) {
 #ifdef DEBUG
-      // Targets can only be dead iff this array is fully deserialized.
-      for (int j = 0; j < num_transitions; ++j) {
-        DCHECK(!transitions->GetRawTarget(j).IsSmi());
-      }
+        // Targets can only be dead iff this array is fully deserialized.
+        for (int j = 0; j < num_transitions; ++j) {
+          DCHECK(!transitions->GetRawTarget(j).IsSmi());
+        }
 #endif
-      return true;
+        return true;
+      }
+    } else {
+      // Cleared entries are used as sentinels in sidestep transitions. In all
+      // other cases the transition array is always compacted.
+      DCHECK(TransitionsAccessor::IsSpecialSidestepTransition(
+          roots, transitions->GetKey(i)));
     }
   }
   return false;
@@ -3279,32 +3299,51 @@ bool MarkCompactCollector::CompactTransitionArray(
   if (!TransitionArrayNeedsCompaction(transitions, num_transitions)) {
     return false;
   }
+  ReadOnlyRoots roots(heap_->isolate());
   bool descriptors_owner_died = false;
   int transition_index = 0;
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    Tagged<Map> target = transitions->GetTarget(i);
-    DCHECK_EQ(target->constructor_or_back_pointer(), map);
-    if (non_atomic_marking_state_->IsUnmarked(target)) {
-      if (!descriptors.is_null() &&
-          target->instance_descriptors(heap_->isolate()) == descriptors) {
-        DCHECK(!target->is_prototype_map());
-        descriptors_owner_died = true;
+    {
+      Tagged<Map> target;
+      if (transitions->GetTargetIfExists(i, heap_->isolate(), &target)) {
+        if (non_atomic_marking_state_->IsUnmarked(target)) {
+          if (TransitionsAccessor::IsSpecialSidestepTransition(
+                  roots, transitions->GetKey(i))) {
+            // In case of side-step transition the back pointer might not be
+            // equal to the descriptor owner.
+            continue;
+          }
+          if (!descriptors.is_null() &&
+              target->instance_descriptors(heap_->isolate()) == descriptors) {
+            DCHECK(!target->is_prototype_map());
+            descriptors_owner_died = true;
+          }
+          continue;
+        }
+      } else {
+        // In sidestep transitions we use cleared entries as sentinels. Thus we
+        // keep them in the transition array to remember the absence of a
+        // particular sidestep transition.
+        DCHECK(TransitionsAccessor::IsSpecialSidestepTransition(
+            roots, transitions->GetKey(i)));
       }
-    } else {
-      if (i != transition_index) {
-        Tagged<Name> key = transitions->GetKey(i);
-        transitions->SetKey(transition_index, key);
-        HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
-        RecordSlot(transitions, key_slot, key);
-        Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
-        transitions->SetRawTarget(transition_index, raw_target);
+    }
+
+    if (i != transition_index) {
+      Tagged<Name> key = transitions->GetKey(i);
+      transitions->SetKey(transition_index, key);
+      HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
+      RecordSlot(transitions, key_slot, key);
+      Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
+      transitions->SetRawTarget(transition_index, raw_target);
+      if (!raw_target.IsCleared()) {
         HeapObjectSlot target_slot =
             transitions->GetTargetSlot(transition_index);
         RecordSlot(transitions, target_slot, raw_target.GetHeapObject());
       }
-      transition_index++;
     }
+    transition_index++;
   }
   // If there are no transitions to be cleared, return.
   if (transition_index == num_transitions) {

@@ -977,6 +977,23 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
 void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
   WeakFixedArrayVerify(isolate);
   CHECK_LE(LengthFor(number_of_transitions()), length());
+
+  ReadOnlyRoots roots(isolate);
+  Tagged<Map> owner;
+  for (int i = 0; i < number_of_transitions(); ++i) {
+    // Only sidestep transitions are allowed to cross between unrelated branches
+    // of the transition tree. All other transitions must originate from the
+    // same source map.
+    if (!TransitionsAccessor::IsSpecialSidestepTransition(roots, GetKey(i))) {
+      Tagged<Map> parent =
+          Tagged<Map>::cast(GetTarget(i)->constructor_or_back_pointer());
+      if (owner.is_null()) {
+        parent = owner;
+      } else {
+        CHECK_EQ(parent, owner);
+      }
+    }
+  }
 }
 
 namespace {
@@ -2665,12 +2682,9 @@ static bool CheckOneBackPointer(Tagged<Map> current_map, Tagged<Map> target) {
 bool TransitionsAccessor::IsConsistentWithBackPointers() {
   DisallowGarbageCollection no_gc;
   bool success = true;
-  ForEachTransition(
-      &no_gc,
+  ReadOnlyRoots roots(isolate_);
+  auto CheckTarget =
       [&](Tagged<Map> target) {
-        // Ensure maps belong to the same NativeContext (i.e. have
-        // the same meta map).
-        DCHECK_EQ(map_->map(), target->map());
 #ifdef DEBUG
         if (!map_->is_deprecated() && !target->is_deprecated()) {
           DCHECK_EQ(map_->IsInobjectSlackTrackingInProgress(),
@@ -2683,12 +2697,20 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
         if (!CheckOneBackPointer(map_, target)) {
           success = false;
         }
-      }
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-      ,
-      nullptr
+      };
+  ForEachTransitionWithKey(
+      &no_gc,
+      [&](Tagged<Name> key, Tagged<Map> target) {
+        if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
+          return;
+        }
+        CheckTarget(target);
+      },
+      [&](Tagged<Map> target) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+        CheckTarget(target);
 #endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-  );
+      });
   return success;
 }
 

@@ -585,15 +585,21 @@ Map::FieldCounts Map::GetFieldCounts() const {
 void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (is_deprecated()) return;
   DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots(isolate);
   TransitionsAccessor transitions(isolate, *this);
-  transitions.ForEachTransition(
+  transitions.ForEachTransitionWithKey(
       &no_gc,
-      [isolate](Tagged<Map> map) { map->DeprecateTransitionTree(isolate); }
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-      ,
-      nullptr
+      [&](Tagged<Name> key, Tagged<Map> map) {
+        if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
+          return;
+        }
+        map->DeprecateTransitionTree(isolate);
+      },
+      [&](Tagged<Map> map) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+        map->DeprecateTransitionTree(isolate);
 #endif
-  );
+      });
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
@@ -1698,10 +1704,9 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
   DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
-  MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-      isolate, initial_map, *transition_symbol);
-  if (!maybe_transition.is_null()) {
-    return maybe_transition.ToHandleChecked();
+  if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
+          isolate, initial_map, *transition_symbol)) {
+    return *maybe_transition;
   }
   initial_map->NotifyLeafMapLayoutChange(isolate);
 
