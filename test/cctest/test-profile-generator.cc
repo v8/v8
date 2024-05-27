@@ -668,6 +668,7 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   sample2.timestamp = v8::base::TimeTicks::Now();
   sample2.pc = ToPointer(0x1925);
   sample2.stack[0] = ToPointer(0x1780);
+  sample2.stack[1] = ToPointer(0x1760);
   sample2.frames_count = 2;
   symbolized = symbolizer.SymbolizeTickSample(sample2);
   profiles.AddPathToCurrentProfiles(
@@ -677,6 +678,9 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::Now();
   sample3.pc = ToPointer(0x1510);
+  sample3.stack[0] = ToPointer(0x1780);
+  sample3.stack[1] = ToPointer(0x1760);
+  sample3.stack[2] = ToPointer(0x1740);
   sample3.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
   profiles.AddPathToCurrentProfiles(

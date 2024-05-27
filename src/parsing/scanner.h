@@ -205,7 +205,7 @@ class Utf16CharacterStream {
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
   size_t buffer_pos_;
-  RuntimeCallStats* runtime_call_stats_;
+  RuntimeCallStats* runtime_call_stats_ = nullptr;
   bool has_parser_error_ = false;
 };
 
