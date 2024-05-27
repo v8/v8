@@ -2323,6 +2323,18 @@ class GraphBuilder {
             node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedSmiTagUint32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ConvertUntaggedToJSPrimitiveOrDeopt(
+               Map(node->input()), BuildFrameState(node->eager_deopt_info()),
+               ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
+               RegisterRepresentation::Word32(),
+               ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::
+                   kUnsigned,
+               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedSmiTagFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> as_int32 = __ ChangeFloat64ToInt32OrDeopt(
