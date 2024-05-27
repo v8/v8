@@ -51,7 +51,7 @@ struct ParserFormalParameters : FormalParametersBase {
           position(position),
           initializer_end_position(initializer_end_position) {}
 
-    base::PointerWithPayload<Expression*, bool, 1> initializer_and_is_rest;
+    base::PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
 
     Expression* pattern;
     Expression* initializer() const {
