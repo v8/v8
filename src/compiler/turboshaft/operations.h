@@ -2104,6 +2104,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt32,
     kUint64ToInt64,
     kFloat64ToInt32,
+    kFloat64ToUint32,
     kFloat64ToInt64,
     kFloat64NotHole,
   };
@@ -2118,6 +2119,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kInt64ToInt32:
       case Kind::kUint64ToInt32:
       case Kind::kFloat64ToInt32:
+      case Kind::kFloat64ToUint32:
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kUint64ToInt64:
       case Kind::kFloat64ToInt64:
@@ -2137,6 +2139,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kUint64ToInt64:
         return MaybeRepVector<MaybeRegisterRepresentation::Word64()>();
       case Kind::kFloat64ToInt32:
+      case Kind::kFloat64ToUint32:
       case Kind::kFloat64ToInt64:
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();

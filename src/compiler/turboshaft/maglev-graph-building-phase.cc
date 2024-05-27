@@ -2778,6 +2778,15 @@ class GraphBuilder {
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToUint32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ChangeFloat64ToUint32OrDeopt(
+               Map(node->input()), BuildFrameState(node->eager_deopt_info()),
+               CheckForMinusZeroMode::kCheckForMinusZero,
+               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(
       maglev::CheckedTruncateNumberOrOddballToInt32* node,
       const maglev::ProcessingState& state) {
