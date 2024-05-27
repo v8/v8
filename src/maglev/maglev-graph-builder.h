@@ -1799,6 +1799,7 @@ class MaglevGraphBuilder {
   V(ObjectGetPrototypeOf)          \
   V(ReflectGetPrototypeOf)         \
   V(ObjectPrototypeHasOwnProperty) \
+  V(NumberParseInt)                \
   V(MathCeil)                      \
   V(MathFloor)                     \
   V(MathPow)                       \
