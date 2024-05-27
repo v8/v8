@@ -618,6 +618,7 @@ struct WasmTable {
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.
+  bool is_table64 = false;        // true if the table is 64 bit.
   bool shared = false;            // true if the table lives in the shared heap.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.

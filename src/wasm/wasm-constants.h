@@ -72,15 +72,16 @@ enum ImportExportKindCode : uint8_t {
   kExternalTag = 4
 };
 
+// The limits structure: valid for both memory and table limits.
 enum LimitsFlags : uint8_t {
-  kNoMaximum = 0x00,                 // Also valid for table limits.
-  kWithMaximum = 0x01,               // Also valid for table limits.
-  kSharedNoMaximum = 0x02,           // Only valid for memory limits.
-  kSharedWithMaximum = 0x03,         // Only valid for memory limits.
-  kMemory64NoMaximum = 0x04,         // Only valid for memory limits.
-  kMemory64WithMaximum = 0x05,       // Only valid for memory limits.
-  kMemory64SharedNoMaximum = 0x06,   // Only valid for memory limits.
-  kMemory64SharedWithMaximum = 0x07  // Only valid for memory limits.
+  kNoMaximum = 0x00,
+  kWithMaximum = 0x01,
+  kSharedNoMaximum = 0x02,
+  kSharedWithMaximum = 0x03,
+  kMemory64NoMaximum = 0x04,
+  kMemory64WithMaximum = 0x05,
+  kMemory64SharedNoMaximum = 0x06,
+  kMemory64SharedWithMaximum = 0x07
 };
 
 // Flags for data and element segments.

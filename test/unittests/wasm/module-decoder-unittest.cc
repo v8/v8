@@ -1488,6 +1488,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   EXPECT_FAILURE(data);
 }
 
+// TODO(evih): Use enum values instead of numbers.
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------
