@@ -962,7 +962,6 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
       base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset,
       wasm_trusted_instance.ptr());
   if (liftoff_description->trusted_instance != no_reg) {
-    DCHECK_EQ(liftoff_description->trusted_instance, kWasmInstanceRegister);
     output_frame->SetRegister(liftoff_description->trusted_instance.code(),
                               wasm_trusted_instance.ptr());
   }
@@ -1210,7 +1209,10 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function_.is_null()) {
-    return DoComputeOutputFramesWasmImpl();
+    trap_handler::ClearThreadInWasm();
+    DoComputeOutputFramesWasmImpl();
+    trap_handler::SetThreadInWasm();
+    return;
   }
 #endif
 
