@@ -92,6 +92,8 @@ inline MemOperand CFunctionArgumentOperand(int index) {
   return MemOperand(sp, offset);
 }
 
+enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
+
 class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  public:
   using MacroAssemblerBase::MacroAssemblerBase;
@@ -1528,8 +1530,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // -------------------------------------------------------------------------
   // Stack limit utilities
-
-  enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
   void LoadStackLimit(Register destination, StackLimitKind kind);
   void StackOverflowCheck(Register num_args, Register scratch1,
                           Register scratch2, Label* stack_overflow,

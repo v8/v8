@@ -336,6 +336,9 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
+    if (AreAliased(object, value, scratch)) {
+      std::cout << object << " " << value << " " << scratch << std::endl;
+    }
     DCHECK(!AreAliased(object, value, scratch));
     AddWord(scratch, object, offset - kHeapObjectTag);
     And(scratch, scratch, Operand(kTaggedSize - 1));
@@ -3004,6 +3007,7 @@ void MacroAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
 
 void MacroAssembler::Clear_if_nan_d(Register rd, FPURegister fs) {
   Label no_nan;
+  DCHECK_NE(kScratchReg, rd);
   feq_d(kScratchReg, fs, fs);
   bnez(kScratchReg, &no_nan);
   Move(rd, zero_reg);
@@ -3012,6 +3016,7 @@ void MacroAssembler::Clear_if_nan_d(Register rd, FPURegister fs) {
 
 void MacroAssembler::Clear_if_nan_s(Register rd, FPURegister fs) {
   Label no_nan;
+  DCHECK_NE(kScratchReg, rd);
   feq_s(kScratchReg, fs, fs);
   bnez(kScratchReg, &no_nan);
   Move(rd, zero_reg);
@@ -5527,6 +5532,7 @@ void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
 
 void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
                               MemOperand src) {
+  DCHECK_NE(kScratchReg, src.rm());
   if (ts == 8) {
     Lbu(kScratchReg2, src);
     VU.set(kScratchReg, E32, m1);
@@ -5567,6 +5573,7 @@ void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
 
 void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
                                MemOperand dst) {
+  DCHECK_NE(kScratchReg, dst.rm());
   if (sz == 8) {
     VU.set(kScratchReg, E8, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);

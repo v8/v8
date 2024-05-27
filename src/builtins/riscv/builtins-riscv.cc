@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-arguments.h"
+#include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -25,6 +26,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -413,8 +415,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadStackLimit(kScratchReg,
-                    MacroAssembler::StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
   __ Branch(&stack_overflow, Uless, sp, Operand(kScratchReg));
 
   // ----------- S t a t e -------------
@@ -527,7 +528,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadStackLimit(scratch1, MacroAssembler::StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(scratch1, StackLimitKind::kRealStackLimit);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
   __ SubWord(scratch1, sp, scratch1);
@@ -1107,8 +1108,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register sp_minus_frame_size = temps.Acquire();
     __ SubWord(sp_minus_frame_size, sp, frame_size);
     Register interrupt_limit = temps.Acquire();
-    __ LoadStackLimit(interrupt_limit,
-                      MacroAssembler::StackLimitKind::kInterruptStackLimit);
+    __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
     __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
@@ -1231,7 +1231,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Do a stack check to ensure we don't go over the limit.
     __ SubWord(a5, sp, Operand(a4));
-    __ LoadStackLimit(a2, MacroAssembler::StackLimitKind::kRealStackLimit);
+    __ LoadStackLimit(a2, StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, Uless, a5, Operand(a2));
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1263,7 +1263,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  __ LoadStackLimit(a5, MacroAssembler::StackLimitKind::kInterruptStackLimit);
+  __ LoadStackLimit(a5, StackLimitKind::kInterruptStackLimit);
   __ Branch(&stack_check_interrupt, Uless, sp, Operand(a5),
             Label::Distance::kNear);
   __ bind(&after_stack_check_interrupt);
@@ -3044,19 +3044,96 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+namespace {
+static constexpr Register kOldSPRegister = t0;
+static constexpr Register kSwitchFlagRegister = t1;
+
+void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
+                                     Register target_input,
+                                     Register argv_input) {
+  using ER = ExternalReference;
+
+  __ li(kSwitchFlagRegister, 0);
+  __ mv(kOldSPRegister, sp);
+
+  // Using x2-x4 as temporary registers, because they will be rewritten
+  // before exiting to native code anyway.
+
+  ER on_central_stack_flag_loc = ER::Create(
+      IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
+  const Register& on_central_stack_flag = a2;
+  __ li(on_central_stack_flag, on_central_stack_flag_loc);
+  __ Lb(on_central_stack_flag, MemOperand(on_central_stack_flag));
+
+  Label do_not_need_to_switch;
+  __ Branch(&do_not_need_to_switch, ne, on_central_stack_flag,
+            Operand(zero_reg));
+  // Switch to central stack.
+
+  static constexpr Register central_stack_sp = a4;
+  DCHECK(!AreAliased(central_stack_sp, argc_input, argv_input, target_input));
+  {
+    __ Push(argc_input, target_input, argv_input);
+    __ PrepareCallCFunction(2, argc_input);
+    __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ mv(kCArgRegs[1], kOldSPRegister);
+    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
+                     SetIsolateDataSlots::kNo);
+    __ mv(central_stack_sp, kReturnRegister0);
+    __ Pop(argc_input, target_input, argv_input);
+  }
+
+  static constexpr int kReturnAddressSlotOffset = 1 * kSystemPointerSize;
+  static constexpr int kPadding = 1 * kSystemPointerSize;
+  __ SubWord(sp, central_stack_sp, kReturnAddressSlotOffset + kPadding);
+  __ li(kSwitchFlagRegister, 1);
+
+  // Update the sp saved in the frame.
+  // It will be used to calculate the callee pc during GC.
+  // The pc is going to be on the new stack segment, so rewrite it here.
+  __ AddWord(central_stack_sp, sp, kSystemPointerSize);
+  __ StoreWord(central_stack_sp, MemOperand(fp, ExitFrameConstants::kSPOffset));
+
+  __ bind(&do_not_need_to_switch);
+}
+
+void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
+  using ER = ExternalReference;
+
+  Label no_stack_change;
+  __ Branch(&no_stack_change, eq, kSwitchFlagRegister, Operand(zero_reg));
+
+  {
+    __ Push(kReturnRegister0, kReturnRegister1);
+    __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    DCHECK_NE(kReturnRegister1, kCArgRegs[0]);
+    __ PrepareCallCFunction(1, kReturnRegister1);
+    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
+                     SetIsolateDataSlots::kNo);
+    __ Pop(kReturnRegister0, kReturnRegister1);
+  }
+
+  __ mv(sp, kOldSPRegister);
+
+  __ bind(&no_stack_change);
+}
+}  // namespace
+
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                                ArgvMode argv_mode, bool builtin_exit_frame,
                                bool switch_to_central_stack) {
   // Called from JavaScript; parameters are on stack as if calling JS function
   // a0: number of arguments including receiver
-  // a1: pointer to builtin function
+  // a1: pointer to c++ function
   // fp: frame pointer    (restored after C call)
   // sp: stack pointer    (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
-  //
   // If argv_mode == ArgvMode::kRegister:
   // a2: pointer to the first argument
-
+  static constexpr Register argc_input = a0;
+  static constexpr Register target_input = a1;
+  // Initialized below if ArgvMode::kStack.
+  static constexpr Register argv_input = s1;
   if (argv_mode == ArgvMode::kRegister) {
     // Move argv into the correct register.
     __ Move(s1, a2);
@@ -3077,13 +3154,19 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Prepare arguments for C routine.
   // a0 = argc
-  __ Move(s3, a0);
-  __ Move(s2, a1);
+  __ Move(s3, argc_input);
+  __ Move(s2, target_input);
 
   // We are calling compiled C/C++ code. a0 and a1 hold our two arguments. We
   // also need to reserve the 4 argument slots on the stack.
 
   __ AssertStackIsAligned();
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchToTheCentralStackIfNeeded(masm, argc_input, target_input, argv_input);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // a0 = argc, a1 = argv, a2 = isolate
   __ li(a2, ExternalReference::isolate_address(masm->isolate()));
@@ -3092,6 +3175,11 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ StoreReturnAddressAndCall(s2);
 
   // Result returned in a0 or a1:a0 - do not destroy these registers!
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -3310,10 +3398,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
-void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
-  __ Trap();
-}
-
 void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   int required_stack_space = arraysize(wasm::kFpParamRegisters) * kDoubleSize;
   __ SubWord(sp, sp, Operand(required_stack_space));
@@ -3360,19 +3444,449 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ TailCallBuiltin(Builtin::kWasmTrapHandlerThrowTrap);
 }
 
-void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
-  // TODO(v8:12191): Implement for this platform.
-  __ Trap();
+namespace {
+// Check that the stack was in the old state (if generated code assertions are
+// enabled), and switch to the new state.
+void SwitchStackState(MacroAssembler* masm, Register jmpbuf, Register tmp,
+                      wasm::JumpBuffer::StackState old_state,
+                      wasm::JumpBuffer::StackState new_state) {
+  ASM_CODE_COMMENT(masm);
+  if (v8_flags.debug_code) {
+    __ Lw(tmp, MemOperand(jmpbuf, wasm::kJmpBufStateOffset));
+    Label ok;
+    // is branch32?
+    __ Branch(&ok, eq, tmp, Operand(old_state));
+    __ Trap();
+    __ bind(&ok);
+  }
+  __ li(tmp, new_state);
+  __ Sw(tmp, MemOperand(jmpbuf, wasm::kJmpBufStateOffset));
 }
 
-void Builtins::Generate_WasmResume(MacroAssembler* masm) {
-  // TODO(v8:12191): Implement for this platform.
+// Switch the stack pointer.
+void SwitchStackPointer(MacroAssembler* masm, Register jmpbuf, Register tmp) {
+  __ LoadWord(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  __ mv(sp, tmp);
+}
+
+void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc,
+                    Register tmp) {
+  ASM_CODE_COMMENT(masm);
+  __ mv(tmp, sp);
+  __ StoreWord(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  __ StoreWord(fp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  __ LoadStackLimit(tmp, StackLimitKind::kRealStackLimit);
+  __ StoreWord(tmp, MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset));
+  __ LoadAddress(tmp, pc);
+  __ StoreWord(tmp, MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
+}
+
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
+                    Register tmp) {
+  ASM_CODE_COMMENT(masm);
+  SwitchStackPointer(masm, jmpbuf, tmp);
+  __ LoadWord(fp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  SwitchStackState(masm, jmpbuf, tmp, wasm::JumpBuffer::Inactive,
+                   wasm::JumpBuffer::Active);
+  if (load_pc) {
+    __ LoadWord(tmp, MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
+    __ Jump(tmp);
+  }
+  // The stack limit in StackGuard is set separately under the ExecutionAccess
+  // lock.
+}
+void CallSyncStackLimit(MacroAssembler* masm, Register tmp) {
+  ASM_CODE_COMMENT(masm);
+  using ER = ExternalReference;
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ PrepareCallCFunction(1, tmp);
+    __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
+  }
+}
+
+void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
+                              Register return_value, Register context,
+                              Register tmp1, Register tmp2) {
+  ASM_CODE_COMMENT(masm);
+  Register active_continuation = tmp1;
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+
+  // Set a null pointer in the jump buffer's SP slot to indicate to the stack
+  // frame iterator that this stack is empty.
+  Register jmpbuf = tmp2;
+  __ LoadExternalPointerField(
+      jmpbuf,
+      FieldMemOperand(active_continuation,
+                      WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  __ StoreWord(zero_reg, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    SwitchStackState(masm, jmpbuf, scratch, wasm::JumpBuffer::Active,
+                     wasm::JumpBuffer::Retired);
+  }
+  Register parent = tmp2;
+  __ LoadTaggedField(parent,
+                     FieldMemOperand(active_continuation,
+                                     WasmContinuationObject::kParentOffset));
+
+  // Update active continuation root.
+  int32_t active_continuation_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
+  __ StoreWord(parent, MemOperand(kRootRegister, active_continuation_offset));
+  jmpbuf = parent;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldMemOperand(parent, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+
+  // Switch stack!
+  LoadJumpBuffer(masm, jmpbuf, false, tmp1);
+
+  __ Push(return_reg, return_value, context);
+  CallSyncStackLimit(masm, tmp1);
+  __ Pop(return_reg, return_value, context);
+}
+
+void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
+                            Register tmp2) {
+  ASM_CODE_COMMENT(masm);
+  Register suspender = tmp1;
+  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  MemOperand state_loc =
+      FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset);
+  __ Move(tmp2, Smi::FromInt(WasmSuspenderObject::kInactive));
+  __ StoreTaggedField(tmp2, state_loc);
+  __ LoadTaggedField(
+      suspender,
+      FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
+  Label undefined;
+  __ CompareRootAndBranch(suspender, RootIndex::kUndefinedValue, eq,
+                          &undefined);
+  if (v8_flags.debug_code) {
+    // Check that the parent suspender is active.
+    Label parent_inactive;
+    Register state = tmp2;
+    __ SmiUntag(state, state_loc);
+    __ Branch(&parent_inactive, eq, state,
+              Operand(WasmSuspenderObject::kActive));
+    __ Trap();
+    __ bind(&parent_inactive);
+  }
+  __ Move(tmp2, Smi::FromInt(WasmSuspenderObject::kActive));
+  __ StoreTaggedField(tmp2, state_loc);
+  __ bind(&undefined);
+  int32_t active_suspender_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
+  __ StoreWord(suspender, MemOperand(kRootRegister, active_suspender_offset));
+}
+
+void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
+  ASM_CODE_COMMENT(masm);
+  __ StoreWord(zero_reg,
+               MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
+  __ StoreWord(zero_reg,
+               MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+}
+
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
+                          Register tmp) {
+  ASM_CODE_COMMENT(masm);
+  Register target_jmpbuf = target_continuation;
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldMemOperand(target_continuation,
+                      WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  __ StoreWord(
+      zero_reg,
+      MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
+  // Switch stack!
+  LoadJumpBuffer(masm, target_jmpbuf, false, tmp);
+}
+}  // namespace
+
+void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
+  // Set up the stackframe.
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+
+  Register suspender = a0;  //  DEFINE_PINNED(suspender, x0);
+  // Register context = kContextRegister; //  DEFINE_PINNED(context,
+  // kContextRegister);
+
+  __ SubWord(
+      sp, sp,
+      Operand(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize));
+  // Set a sentinel value for the spill slots visited by the GC.
+  ResetStackSwitchFrameStackSlots(masm);
+
+  // -------------------------------------------
+  // Save current state in active jump buffer.
+  // -------------------------------------------
+  Label resume;
+  Register continuation = kScratchReg;  //  DEFINE_REG(continuation);
+  __ LoadRoot(continuation, RootIndex::kActiveContinuation);
+  Register jmpbuf = kScratchReg2;  //  DEFINE_REG(jmpbuf);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadExternalPointerField(
+      jmpbuf,
+      FieldMemOperand(continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  FillJumpBuffer(masm, jmpbuf, &resume, scratch);
+  SwitchStackState(masm, jmpbuf, scratch, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
+  __ Move(scratch, Smi::FromInt(WasmSuspenderObject::kSuspended));
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
+  temps.Include(scratch);
+  scratch = no_reg;
+
+  Register suspender_continuation = temps.Acquire();
+  __ LoadTaggedField(
+      suspender_continuation,
+      FieldMemOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+  if (v8_flags.debug_code) {
+    // -------------------------------------------
+    // Check that the suspender's continuation is the active continuation.
+    // -------------------------------------------
+    // TODO(thibaudm): Once we add core stack-switching instructions, this
+    // check will not hold anymore: it's possible that the active continuation
+    // changed (due to an internal switch), so we have to update the suspender.
+    Label ok;
+    __ Branch(&ok, eq, suspender_continuation, Operand(continuation));
+    __ Trap();
+    __ bind(&ok);
+  }
+  continuation = no_reg;
+  // -------------------------------------------
+  // Update roots.
+  // -------------------------------------------
+  Register caller = kScratchReg;  //   DEFINE_REG(caller);
+  __ LoadTaggedField(caller,
+                     FieldMemOperand(suspender_continuation,
+                                     WasmContinuationObject::kParentOffset));
+  int32_t active_continuation_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
+  __ StoreWord(caller, MemOperand(kRootRegister, active_continuation_offset));
+
+  temps.Include(suspender_continuation);
+  suspender_continuation = no_reg;
+
+  Register parent = temps.Acquire();
+  __ LoadTaggedField(
+      parent, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
+  int32_t active_suspender_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
+  __ StoreWord(parent, MemOperand(kRootRegister, active_suspender_offset));
+  temps.Include(parent);
+  parent = no_reg;
+  // -------------------------------------------
+  // Load jump buffer.
+  // -------------------------------------------
+  __ Push(caller, suspender);
+  CallSyncStackLimit(masm, caller);
+  __ Pop(caller, suspender);
+  __ LoadExternalPointerField(
+      jmpbuf, FieldMemOperand(caller, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  __ LoadTaggedField(
+      kReturnRegister0,
+      FieldMemOperand(suspender, WasmSuspenderObject::kPromiseOffset));
+  MemOperand GCScanSlotPlace =
+      MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
+  __ StoreWord(zero_reg, GCScanSlotPlace);
+  scratch = temps.Acquire();
+
+  LoadJumpBuffer(masm, jmpbuf, true, scratch);
   __ Trap();
+  __ bind(&resume);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ Ret();
+}
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+// Equivalent of SharedFunctionInfo::wasm_resume_data()
+static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
+                                                Register resume_data,
+                                                Register sfi) {
+  __ LoadTaggedField(
+      resume_data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+namespace {
+// Resume the suspender stored in the closure. We generate two variants of this
+// builtin: the onFulfilled variant resumes execution at the saved PC and
+// forwards the value, the onRejected variant throws the value.
+#define FREE_REG(x) \
+  temps.Include(x); \
+  x = no_reg;
+
+void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
+  UseScratchRegisterScope temps(masm);
+  temps.Include(t1, t2);
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+
+  Register closure = kJSFunctionRegister;  //  DEFINE_PINNED(closure,
+                                           //  kJSFunctionRegister);  // x1
+
+  __ SubWord(
+      sp, sp,
+      Operand(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize));
+  // Set a sentinel value for the spill slots visited by the GC.
+  ResetStackSwitchFrameStackSlots(masm);
+
+  // -------------------------------------------
+  // Load suspender from closure.
+  // -------------------------------------------
+  Register sfi = temps.Acquire();
+  __ LoadTaggedField(
+      sfi,
+      MemOperand(
+          closure,
+          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  closure = no_reg;
+  // Suspender should be ObjectRegister register to be used in
+  // RecordWriteField calls later.
+  Register suspender = WriteBarrierDescriptor::ObjectRegister();
+  Register resume_data = temps.Acquire();
+  GetSharedFunctionInfoWasmResumeData(masm, resume_data, sfi);
+  // The write barrier uses a fixed register for the host object (rdi). The next
+  // barrier is on the suspender, so load it in rdi directly.
+  __ LoadTaggedField(
+      suspender,
+      FieldMemOperand(resume_data, WasmResumeData::kSuspenderOffset));
+  FREE_REG(resume_data);
+  FREE_REG(sfi);
+  // Check the suspender state.
+  Label suspender_is_suspended;
+  Register state = temps.Acquire();
+  __ SmiUntag(state,
+              FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
+  __ Branch(&suspender_is_suspended, eq, state,
+            Operand(WasmSuspenderObject::kSuspended));
+  __ Trap();
+
+  __ bind(&suspender_is_suspended);
+  FREE_REG(state);
+  // -------------------------------------------
+  // Save current state.
+  // -------------------------------------------
+  Label suspend;
+  Register active_continuation = temps.Acquire();
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+  Register current_jmpbuf = temps.Acquire();
+  Register scratch = temps.Acquire();
+
+  __ LoadExternalPointerField(
+      current_jmpbuf,
+      FieldMemOperand(active_continuation,
+                      WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  FillJumpBuffer(masm, current_jmpbuf, &suspend, scratch);
+  SwitchStackState(masm, current_jmpbuf, scratch, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
+  FREE_REG(current_jmpbuf);
+  // -------------------------------------------
+  // Set the suspender and continuation parents and update the roots
+  // -------------------------------------------
+  Register active_suspender = kScratchReg;
+  __ LoadRoot(active_suspender, RootIndex::kActiveSuspender);
+  __ StoreTaggedField(
+      active_suspender,
+      FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
+  __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
+                      active_suspender, kRAHasBeenSaved,
+                      SaveFPRegsMode::kIgnore);
+  active_suspender = no_reg;
+
+  __ Move(scratch, Smi::FromInt(WasmSuspenderObject::kActive));
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
+  int32_t active_suspender_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveSuspender);
+  __ StoreWord(suspender, MemOperand(kRootRegister, active_suspender_offset));
+
+  // Next line we are going to load a field from suspender, but we have to use
+  // the same register for target_continuation to use it in RecordWriteField.
+  // So, free suspender here to use pinned reg, but load from it next line.
+  suspender = no_reg;
+  Register target_continuation = WriteBarrierDescriptor::ObjectRegister();
+  suspender = target_continuation;
+  __ LoadTaggedField(
+      target_continuation,
+      FieldMemOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+  suspender = no_reg;
+
+  __ StoreTaggedField(active_continuation,
+                      FieldMemOperand(target_continuation,
+                                      WasmContinuationObject::kParentOffset));
+  __ RecordWriteField(
+      target_continuation, WasmContinuationObject::kParentOffset,
+      active_continuation, kRAHasBeenSaved, SaveFPRegsMode::kIgnore);
+  FREE_REG(active_continuation);
+  int32_t active_continuation_offset =
+      MacroAssembler::RootRegisterOffsetForRootIndex(
+          RootIndex::kActiveContinuation);
+  __ StoreWord(target_continuation,
+               MemOperand(kRootRegister, active_continuation_offset));
+
+  __ Push(target_continuation);
+  CallSyncStackLimit(masm, scratch);
+  __ Pop(target_continuation);
+
+  // -------------------------------------------
+  // Load state from target jmpbuf (longjmp).
+  // -------------------------------------------
+  Register target_jmpbuf = temps.Acquire();
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldMemOperand(target_continuation,
+                      WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  // Move resolved value to return register.
+  __ LoadWord(kReturnRegister0, MemOperand(fp, 3 * kSystemPointerSize));
+  MemOperand GCScanSlotPlace =
+      MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
+  __ StoreWord(zero_reg, GCScanSlotPlace);
+  if (on_resume == wasm::OnResume::kThrow) {
+    // Switch to the continuation's stack without restoring the PC.
+    LoadJumpBuffer(masm, target_jmpbuf, false, scratch);
+    // Pop this frame now. The unwinder expects that the first STACK_SWITCH
+    // frame is the outermost one.
+    __ LeaveFrame(StackFrame::STACK_SWITCH);
+    // Forward the onRejected value to kThrow.
+    __ Push(kReturnRegister0);
+    __ CallRuntime(Runtime::kThrow);
+  } else {
+    // Resume the continuation normally.
+    LoadJumpBuffer(masm, target_jmpbuf, true, scratch);
+  }
+  __ Trap();
+  __ bind(&suspend);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  // Pop receiver + parameter.
+  // __ DropArguments(2, MacroAssembler::kCountIncludesReceiver);
+  __ AddWord(sp, sp, Operand(2 * kSystemPointerSize));
+  __ Ret();
+}
+}  // namespace
+
+void Builtins::Generate_WasmResume(MacroAssembler* masm) {
+  Generate_WasmResumeHelper(masm, wasm::OnResume::kContinue);
 }
 
 void Builtins::Generate_WasmReject(MacroAssembler* masm) {
-  // TODO(v8:12191): Implement for this platform.
-  __ Trap();
+  Generate_WasmResumeHelper(masm, wasm::OnResume::kThrow);
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
@@ -3380,7 +3894,415 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   __ Trap();
 }
 
-void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+namespace {
+
+void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
+               Label* suspend) {
+  ASM_CODE_COMMENT(masm);
+  Register jmpbuf = tmp;
+  __ LoadExternalPointerField(
+      jmpbuf,
+      FieldMemOperand(active_continuation,
+                      WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  FillJumpBuffer(masm, jmpbuf, suspend, scratch);
+}
+
+void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
+                            Register wrapper_buffer, Register original_fp,
+                            Register new_wrapper_buffer, Label* suspend) {
+  ASM_CODE_COMMENT(masm);
+  std::cout << "SwitchToAllocatedStack " << " " << wrapper_buffer << std::endl;
+  UseScratchRegisterScope temps(masm);
+
+  ResetStackSwitchFrameStackSlots(masm);
+  Register scratch = temps.Acquire();
+  Register target_continuation = temps.Acquire();
+  __ LoadRoot(target_continuation, RootIndex::kActiveContinuation);
+  Register parent_continuation = temps.Acquire();
+  __ LoadTaggedField(parent_continuation,
+                     FieldMemOperand(target_continuation,
+                                     WasmContinuationObject::kParentOffset));
+  SaveState(masm, parent_continuation, scratch, suspend);
+  __ Push(wasm_instance, wrapper_buffer);
+  CallSyncStackLimit(masm, scratch);
+  __ Pop(wasm_instance, wrapper_buffer);
+  FREE_REG(parent_continuation);
+  // Save the old stack's fp in x9, and use it to access the parameters in
+  // the parent frame.
+  __ mv(original_fp, fp);
+  __ LoadRoot(target_continuation, RootIndex::kActiveContinuation);
+  LoadTargetJumpBuffer(masm, target_continuation, scratch);
+  FREE_REG(target_continuation);
+  // Push the loaded fp. We know it is null, because there is no frame yet,
+  // so we could also push 0 directly. In any case we need to push it,
+  // because this marks the base of the stack segment for
+  // the stack frame iterator.
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+  int stack_space =
+      RoundUp(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize +
+                  JSToWasmWrapperFrameConstants::kWrapperBufferSize,
+              16);
+  __ SubWord(sp, sp, Operand(stack_space));
+  __ mv(new_wrapper_buffer, sp);
+  // Copy data needed for return handling from old wrapper buffer to new one.
+  // kWrapperBufferRefReturnCount will be copied too, because 8 bytes are copied
+  // at the same time.
+  std::cout << "SwitchToAllocatedStack " << scratch << " " << wrapper_buffer
+            << std::endl;
+  static_assert(JSToWasmWrapperFrameConstants::kWrapperBufferRefReturnCount ==
+                JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount + 4);
+  __ LoadWord(
+      scratch,
+      MemOperand(wrapper_buffer,
+                 JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount));
+  __ StoreWord(
+      scratch,
+      MemOperand(new_wrapper_buffer,
+                 JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount));
+  __ LoadWord(
+      scratch,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray));
+  __ StoreWord(
+      scratch,
+      MemOperand(
+          new_wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray));
+}
+
+void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
+  UseScratchRegisterScope temps(masm);
+  // The return value of the wasm function becomes the parameter of the
+  // FulfillPromise builtin, and the promise is the return value of this
+  // wrapper.
+  static const Builtin_FulfillPromise_InterfaceDescriptor desc;
+  Register promise = desc.GetRegisterParameter(0);
+  Register return_value = desc.GetRegisterParameter(1);
+  __ Move(return_value, kReturnRegister0);
+  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadTaggedField(
+      promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
+
+  __ LoadWord(kContextRegister,
+              MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
+
+  Register tmp = kScratchReg;
+  Register tmp2 = kScratchReg2;
+  ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
+                           tmp2);
+  RestoreParentSuspender(masm, tmp, tmp2);
+
+  __ li(tmp, 1);
+  __ StoreWord(
+      tmp, MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
+  FREE_REG(tmp);
+  FREE_REG(tmp2);
+  __ Push(promise);
+  __ CallBuiltin(Builtin::kFulfillPromise);
+  __ Pop(promise);
+
+  __ bind(return_promise);
+}
+
+void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
+                                         Label* return_promise) {
+  UseScratchRegisterScope temps(masm);
+  static const Builtin_RejectPromise_InterfaceDescriptor desc;
+  Register promise = desc.GetRegisterParameter(0);
+  Register reason = desc.GetRegisterParameter(1);
+  Register debug_event = desc.GetRegisterParameter(2);
+  int catch_handler = __ pc_offset();
+  {
+    Register thread_in_wasm_flag_addr = temps.Acquire();
+    // Unset thread_in_wasm_flag.
+    __ LoadWord(thread_in_wasm_flag_addr,
+                MemOperand(kRootRegister,
+                           Isolate::thread_in_wasm_flag_address_offset()));
+    __ StoreWord(zero_reg, MemOperand(thread_in_wasm_flag_addr, 0));
+  }
+  // The exception becomes the parameter of the RejectPromise builtin, and the
+  // promise is the return value of this wrapper.
+  __ mv(reason, kReturnRegister0);
+  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadTaggedField(
+      promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
+
+  __ LoadWord(kContextRegister,
+              MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
+
+  Register tmp = kScratchReg;
+  Register tmp2 = kScratchReg2;
+  ReloadParentContinuation(masm, promise, reason, kContextRegister, tmp, tmp2);
+  RestoreParentSuspender(masm, tmp, tmp2);
+
+  __ li(tmp, 1);
+  __ StoreWord(
+      tmp, MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
+  FREE_REG(tmp);
+  FREE_REG(tmp2);
+  __ Push(promise);
+  __ LoadRoot(debug_event, RootIndex::kTrueValue);
+  __ CallBuiltin(Builtin::kRejectPromise);
+  __ Pop(promise);
+
+  // Run the rest of the wrapper normally (deconstruct the frame, ...).
+  __ jmp(return_promise);
+
+  masm->isolate()->builtins()->SetJSPIPromptHandlerOffset(catch_handler);
+}
+
+void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
+  UseScratchRegisterScope temps(masm);
+  __ EnterFrame(stack_switch ? StackFrame::STACK_SWITCH
+                             : StackFrame::JS_TO_WASM);
+
+  __ SubWord(
+      sp, sp,
+      Operand(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize));
+
+  __ LoadWord(
+      kWasmInstanceRegister,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+
+  Register wrapper_buffer =
+      WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
+  Label suspend;
+  Register original_fp = kScratchReg;
+  Register new_wrapper_buffer = kScratchReg2;
+  std::cout << "JSToWasmWrapperHelper " << wrapper_buffer << std::endl;
+  if (stack_switch) {
+    SwitchToAllocatedStack(masm, kWasmInstanceRegister, wrapper_buffer,
+                           original_fp, new_wrapper_buffer, &suspend);
+  } else {
+    original_fp = fp;
+    new_wrapper_buffer = wrapper_buffer;
+  }
+
+  {
+    __ StoreWord(
+        new_wrapper_buffer,
+        MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
+    if (stack_switch) {
+      __ StoreWord(kWasmInstanceRegister,
+                   MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+      Register scratch = temps.Acquire();
+      __ LoadWord(
+          scratch,
+          MemOperand(original_fp,
+                     JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
+      __ StoreWord(
+          scratch,
+          MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
+    }
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    Register result_size = temps.Acquire();
+    __ LoadWord(
+        result_size,
+        MemOperand(wrapper_buffer, JSToWasmWrapperFrameConstants::
+                                       kWrapperBufferStackReturnBufferSize));
+    // // The `result_size` is the number of slots needed on the stack to store
+    // the
+    // // return values of the wasm function. If `result_size` is an odd number,
+    // we
+    // // have to add `1` to preserve stack pointer alignment.
+    // __ AddWord(result_size, result_size, 1);
+    // __ Bic(result_size, result_size, 1);
+    __ SllWord(result_size, result_size, kSystemPointerSizeLog2);
+    __ SubWord(sp, sp, Operand(result_size));
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ mv(scratch, sp);
+    __ StoreWord(scratch, MemOperand(new_wrapper_buffer,
+                                     JSToWasmWrapperFrameConstants::
+                                         kWrapperBufferStackReturnBufferStart));
+  }
+  original_fp = no_reg;
+  new_wrapper_buffer = no_reg;
+
+  // The first GP parameter is the instance, which we handle specially.
+  int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+
+  {
+    UseScratchRegisterScope temps(masm);
+    Register params_start = temps.Acquire();
+    __ LoadWord(
+        params_start,
+        MemOperand(wrapper_buffer,
+                   JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+    {
+      // Push stack parameters on the stack.
+      UseScratchRegisterScope temps(masm);
+      Register params_end = kScratchReg;
+      __ LoadWord(
+          params_end,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+      Register last_stack_param = kScratchReg2;
+
+      __ AddWord(last_stack_param, params_start, Operand(stack_params_offset));
+      Label loop_start;
+      __ bind(&loop_start);
+
+      Label finish_stack_params;
+      __ Branch(&finish_stack_params, ge, last_stack_param,
+                Operand(params_end));
+
+      // Push parameter
+      {
+        UseScratchRegisterScope temps(masm);
+        Register scratch = temps.Acquire();
+        __ SubWord(params_end, params_end, Operand(kSystemPointerSize));
+        __ LoadWord(scratch, MemOperand(params_end, 0));
+        __ Push(scratch);
+      }
+      __ Branch(&loop_start);
+
+      __ bind(&finish_stack_params);
+    }
+    int next_offset = 0;
+    for (size_t i = 1; i < arraysize(wasm::kGpParamRegisters); ++i) {
+      // Check that {params_start} does not overlap with any of the parameter
+      // registers, so that we don't overwrite it by accident with the loads
+      // below.
+      DCHECK_NE(params_start, wasm::kGpParamRegisters[i]);
+      __ LoadWord(wasm::kGpParamRegisters[i],
+                  MemOperand(params_start, next_offset));
+      next_offset += kSystemPointerSize;
+    }
+
+    for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); ++i) {
+      __ LoadDouble(wasm::kFpParamRegisters[i],
+                    MemOperand(params_start, next_offset));
+      next_offset += kDoubleSize;
+    }
+    DCHECK_EQ(next_offset, stack_params_offset);
+  }
+
+  {
+    UseScratchRegisterScope temps(masm);
+    Register thread_in_wasm_flag_addr = temps.Acquire();
+    __ LoadWord(thread_in_wasm_flag_addr,
+                MemOperand(kRootRegister,
+                           Isolate::thread_in_wasm_flag_address_offset()));
+    Register scratch = temps.Acquire();
+    __ li(scratch, 1);
+    __ StoreWord(scratch, MemOperand(thread_in_wasm_flag_addr, 0));
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    Register call_target = temps.Acquire();
+    __ LoadWord(
+        call_target,
+        MemOperand(wrapper_buffer,
+                   JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
+    __ Call(call_target);
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    Register thread_in_wasm_flag_addr = temps.Acquire();
+    __ LoadWord(thread_in_wasm_flag_addr,
+                MemOperand(kRootRegister,
+                           Isolate::thread_in_wasm_flag_address_offset()));
+    __ StoreWord(zero_reg, MemOperand(thread_in_wasm_flag_addr, 0));
+  }
+
+  wrapper_buffer = a2;
+  __ LoadWord(
+      wrapper_buffer,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
+
+  __ StoreDouble(
+      wasm::kFpReturnRegisters[0],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1));
+  __ StoreDouble(
+      wasm::kFpReturnRegisters[1],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2));
+  __ StoreWord(
+      wasm::kGpReturnRegisters[0],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1));
+  __ StoreWord(
+      wasm::kGpReturnRegisters[1],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2));
+  // Call the return value builtin with
+  // x0: wasm instance.
+  // x1: the result JSArray for multi-return.
+  // x2: pointer to the byte buffer which contains all parameters.
+  if (stack_switch) {
+    __ LoadWord(a1,
+                MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
+    __ LoadWord(a0, MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+  } else {
+    __ LoadWord(
+        a1,
+        MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
+    __ LoadWord(
+        a0, MemOperand(
+                fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+  }
+  __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
+
+  Label return_promise;
+  if (stack_switch) {
+    SwitchBackAndReturnPromise(masm, &return_promise);
+  }
+  __ bind(&suspend);
+
+  __ LeaveFrame(stack_switch ? StackFrame::STACK_SWITCH
+                             : StackFrame::JS_TO_WASM);
+  // Despite returning to the different location for regular and stack switching
+  // versions, incoming argument count matches both cases:
+  // instance and result array without suspend or
+  // or promise resolve/reject params for callback.
+  constexpr int64_t stack_arguments_in = 2;
+  // __ DropArguments(stack_arguments_in,
+  // MacroAssembler::kCountIncludesReceiver);
+  __ AddWord(sp, sp, Operand(stack_arguments_in * kSystemPointerSize));
+  __ Ret();
+
+  // Catch handler for the stack-switching wrapper: reject the promise with the
+  // thrown exception.
+  if (stack_switch) {
+    GenerateExceptionHandlingLandingPad(masm, &return_promise);
+  }
+}
+}  // namespace
+
+void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
+  JSToWasmWrapperHelper(masm, false);
+}
+void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
+  UseScratchRegisterScope temps(masm);
+  temps.Include(t1, t2);
+  DCHECK(!AreAliased(WasmJSToWasmWrapperDescriptor::WrapperBufferRegister(), t1,
+                     t2));
+  JSToWasmWrapperHelper(masm, true);
+}
 
 void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                             CallApiCallbackMode mode) {
