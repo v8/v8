@@ -30,8 +30,8 @@ constexpr uint64_t kExternalBufferTagMask = 0x40ff000000000000;
 constexpr uint64_t kExternalBufferTagMaskWithoutMarkBit = 0xff000000000000;
 constexpr uint64_t kExternalBufferTagShift = 48;
 
-#define TAG(i)                                                   \
-  ((kAllExternalPointerTypeTags[i] << kExternalBufferTagShift) | \
+#define TAG(i)                                                       \
+  ((kAllTagsForAndBasedTypeChecking[i] << kExternalBufferTagShift) | \
    kExternalBufferMarkBit)
 
 // clang-format off

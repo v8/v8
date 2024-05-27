@@ -465,7 +465,7 @@ static_assert((1 << (32 - kExternalBufferHandleShift)) ==
 // extension (MTE) which would use bits [56, 60).
 //
 // External pointer tables are also available even when the sandbox is off but
-// pointer compression is on. In that case, the mechanism can be used to easy
+// pointer compression is on. In that case, the mechanism can be used to ease
 // alignment requirements as it turns unaligned 64-bit raw pointers into
 // aligned 32-bit indices. To "opt-in" to the external pointer table mechanism
 // for this purpose, instead of using the ExternalPointer accessors one needs to
@@ -480,7 +480,7 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 // These are sorted so that tags can be grouped together and it can efficiently
 // be checked if a tag belongs to a given group. See for example the
 // IsSharedExternalPointerType routine.
-constexpr uint64_t kAllExternalPointerTypeTags[] = {
+constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
     0b00001111, 0b00010111, 0b00011011, 0b00011101, 0b00011110, 0b00100111,
     0b00101011, 0b00101101, 0b00101110, 0b00110011, 0b00110101, 0b00110110,
     0b00111001, 0b00111010, 0b00111100, 0b01000111, 0b01001011, 0b01001101,
@@ -494,8 +494,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
     0b11001100, 0b11010001, 0b11010010, 0b11010100, 0b11011000, 0b11100001,
     0b11100010, 0b11100100, 0b11101000, 0b11110000};
 
-#define TAG(i)                                                    \
-  ((kAllExternalPointerTypeTags[i] << kExternalPointerTagShift) | \
+#define TAG(i)                                                        \
+  ((kAllTagsForAndBasedTypeChecking[i] << kExternalPointerTagShift) | \
    kExternalPointerMarkBit)
 
 // clang-format off
