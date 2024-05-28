@@ -14,8 +14,8 @@ builder.addFunction("main", kSig_i_i).addBody([
     kExprIf, kWasmI32,
       kExprLocalGet, 0,
     kExprElse,
-      kExprI32Const, 42, // value
-      kExprI32Const, 0,  // index
+      kExprI32Const, 42, // index
+      kExprI32Const, 0,  // value
       kExprI32StoreMem, 0, 0,
       kExprI32Const, 11,
       kExprLocalGet, 0,

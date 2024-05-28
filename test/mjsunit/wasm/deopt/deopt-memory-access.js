@@ -8,38 +8,43 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-// The signal handler itself is completely unrelated to deopts. Still, when
-// performing a deopt, the g_thread_in_wasm_code needs to be unset when calling
-// into the deoptimizer.
-(function TestDeoptSignalHandler() {
+(function TestDeoptMemoryStart() {
   var builder = new WasmModuleBuilder();
   let funcRefT = builder.addType(kSig_i_ii);
+
+  builder.addMemory(1, 1);
 
   builder.addFunction("add", funcRefT)
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
     .exportFunc();
-  builder.addFunction("zero", funcRefT)
-    .addBody([kExprI32Const, 0])
+  builder.addFunction("mul", funcRefT)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul])
     .exportFunc();
 
 
   let mainSig =
     makeSig([kWasmI32, kWasmI32, wasmRefType(funcRefT)], [kWasmI32]);
   builder.addFunction("main", mainSig)
-    .addLocals(kWasmI32, 1)
     .addBody([
+      // Store some value in the memory.
+      kExprI32Const, 24,            // index
+      ...wasmI32Const(0x12345678),  // value
+      kExprI32StoreMem, 0, 0,
+      // Perform the call_ref with potential deopt.
       kExprLocalGet, 0,
       kExprLocalGet, 1,
       kExprLocalGet, 2,
       kExprCallRef, funcRefT,
-      kExprLocalTee, 3,
-      kExprI32Eqz,
+      // Load back the value and check that it's the same.
+      // Note that the cached memory start should have been invalidated by the
+      // call_ref, so this should reload the memory start.
+      kExprI32Const, 24,
+      kExprI32LoadMem, 0, 0,
+      ...wasmI32Const(0x12345678),
+      kExprI32Ne,
       kExprIf, kWasmVoid,
-        kExprRefNull, kArrayRefCode,
-        kGCPrefix, kExprArrayLen, // traps,
         kExprUnreachable,
       kExprEnd,
-      kExprLocalGet, 3,
   ]).exportFunc();
 
   let wasm = builder.instantiate().exports;
@@ -47,5 +52,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertTrue(%IsTurboFanFunction(wasm.main));
-  assertThrows(() => wasm.main(12, 30, wasm.zero));
+  assertEquals(360, wasm.main(12, 30, wasm.mul));
 })();

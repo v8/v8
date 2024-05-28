@@ -100,9 +100,6 @@ struct LiftoffFrameDescriptionForDeopt {
   std::vector<LiftoffVarState> var_state = {};
   // If the trusted_instance is cached in a register additionally to the stack
   // slot, this register needs to be updated as well.
-  // TODO(42204618): The memory start and memory instance are other fields that
-  // can be cached in liftoff and need to be initialized when performing a
-  // deopt.
   Register trusted_instance = no_reg;
   int total_frame_size = 0;
 };
