@@ -2700,12 +2700,7 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       };
   ForEachTransitionWithKey(
       &no_gc,
-      [&](Tagged<Name> key, Tagged<Map> target) {
-        if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-          return;
-        }
-        CheckTarget(target);
-      },
+      [&](Tagged<Name> key, Tagged<Map> target) { CheckTarget(target); },
       [&](Tagged<Map> target) {
 #ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
         CheckTarget(target);

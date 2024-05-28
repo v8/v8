@@ -590,9 +590,6 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   transitions.ForEachTransitionWithKey(
       &no_gc,
       [&](Tagged<Name> key, Tagged<Map> map) {
-        if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-          return;
-        }
         map->DeprecateTransitionTree(isolate);
       },
       [&](Tagged<Map> map) {

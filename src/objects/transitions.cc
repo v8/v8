@@ -628,7 +628,10 @@ void TransitionsAccessor::EnsureHasFullTransitionArray(Isolate* isolate,
 }
 
 void TransitionsAccessor::TraverseTransitionTreeInternal(
-    const TraverseCallback& callback, DisallowGarbageCollection* no_gc) {
+    const TraverseCallback& callback, DisallowGarbageCollection* no_gc,
+    IterationMode filter) {
+  DCHECK_NE(filter, IterationMode::kIncludeClearedSideStepTransitions);
+
   // Mostly arbitrary but more than enough to run the test suite in static
   // memory.
   static constexpr int kStaticStackSize = 16;
@@ -675,8 +678,19 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
             }
           }
         }
+        ReadOnlyRoots roots(isolate_);
         for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-          stack.emplace_back(transitions->GetTarget(i));
+          if (TransitionsAccessor::IsSpecialSidestepTransition(
+                  roots, transitions->GetKey(i))) {
+            if (filter == IterationMode::kIncludeSideStepTransitions) {
+              Tagged<Map> target;
+              if (transitions->GetTargetIfExists(i, isolate_, &target)) {
+                stack.emplace_back(target);
+              }
+            }
+          } else {
+            stack.emplace_back(transitions->GetTarget(i));
+          }
         }
         break;
       }

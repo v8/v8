@@ -3637,7 +3637,8 @@ void TransitionArray::PrintInternal(std::ostream& os) {
     os << "   Transition array #" << num_transitions << ":";
     for (int i = 0; i < num_transitions; i++) {
       Tagged<Name> key = GetKey(i);
-      Tagged<Map> target = GetTarget(i);
+      Tagged<Map> target;
+      GetTargetIfExists(i, GetIsolateFromWritableObject(*this), &target);
       TransitionsAccessor::PrintOneTransition(os, key, target);
     }
   }
@@ -3745,7 +3746,8 @@ void TransitionsAccessor::PrintTransitionTree(
         ShortPrint(target->prototype(), os);
         TransitionsAccessor transitions(isolate_, target);
         transitions.PrintTransitionTree(os, level + 1, no_gc);
-      });
+      },
+      TransitionsAccessor::IterationMode::kIncludeClearedSideStepTransitions);
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {

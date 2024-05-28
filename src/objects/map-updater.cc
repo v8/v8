@@ -1237,7 +1237,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
         &no_gc,
         [&](Tagged<Name> key, Tagged<Map> target) {
           if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-            if (target.is_null() || sidestep_transition.count(target)) {
+            if (sidestep_transition.count(target)) {
               return;
             }
             sidestep_transition.insert(target);
@@ -1248,7 +1248,8 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 #ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
           backlog.push(target);
 #endif
-        });
+        },
+        TransitionsAccessor::IterationMode::kIncludeSideStepTransitions);
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);

@@ -3368,6 +3368,8 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
       target_map->IsInobjectSlackTrackingInProgress()) {
     // Only if they belong to the same root map we can ensure that they end
     // slack tracking at the same time.
+    // TODO(olivf) Potentially this could be relieved by letting
+    // MapUpdater::CompleteInobjectSlackTracking follow side-step transitions.
     if (source_map->FindRootMap(isolate) != target_map->FindRootMap(isolate)) {
       return false;
     }

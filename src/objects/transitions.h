@@ -101,21 +101,30 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
+  enum class IterationMode {
+    kDefault,
+    kIncludeSideStepTransitions,
+    kIncludeClearedSideStepTransitions,
+  };
   template <typename Callback, typename ProtoCallback>
   void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
-                         ProtoCallback proto_transition_callback) {
+                         ProtoCallback proto_transition_callback,
+                         IterationMode filter = IterationMode::kDefault) {
     ForEachTransitionWithKey<Callback, ProtoCallback, false>(
-        no_gc, callback, proto_transition_callback);
+        no_gc, callback, proto_transition_callback, filter);
   }
 
   template <typename Callback>
-  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback) {
-    ForEachTransition(no_gc, callback, callback);
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
+                         IterationMode filter = IterationMode::kDefault) {
+    ForEachTransition(no_gc, callback, callback, filter);
   }
+
   template <typename Callback, typename ProtoCallback, bool with_key = true>
   void ForEachTransitionWithKey(DisallowGarbageCollection* no_gc,
                                 Callback callback,
-                                ProtoCallback proto_transition_callback);
+                                ProtoCallback proto_transition_callback,
+                                IterationMode filter = IterationMode::kDefault);
 
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
@@ -140,12 +149,13 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   using TraverseCallback = std::function<void(Tagged<Map>)>;
 
   // Traverse the transition tree in preorder.
-  void TraverseTransitionTree(const TraverseCallback& callback) {
+  void TraverseTransitionTree(const TraverseCallback& callback,
+                              IterationMode filter = IterationMode::kDefault) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
     base::SharedMutexGuardIf<base::kShared> scope(
         isolate_->full_transition_array_access(), concurrent_access_);
-    TraverseTransitionTreeInternal(callback, &no_gc);
+    TraverseTransitionTreeInternal(callback, &no_gc, filter);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -251,7 +261,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Tagged<Map> GetTargetMapFromWeakRef();
 
   void TraverseTransitionTreeInternal(const TraverseCallback& callback,
-                                      DisallowGarbageCollection* no_gc);
+                                      DisallowGarbageCollection* no_gc,
+                                      IterationMode filter);
 
   Isolate* isolate_;
   Tagged<Map> map_;

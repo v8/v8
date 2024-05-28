@@ -387,7 +387,7 @@ Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
 template <typename Callback, typename ProtoCallback, bool with_key>
 void TransitionsAccessor::ForEachTransitionWithKey(
     DisallowGarbageCollection* no_gc, Callback callback,
-    ProtoCallback proto_transition_callback) {
+    ProtoCallback proto_transition_callback, IterationMode filter) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
@@ -410,15 +410,25 @@ void TransitionsAccessor::ForEachTransitionWithKey(
       int num_transitions = transition_array->number_of_transitions();
       ReadOnlyRoots roots(isolate_);
       for (int i = 0; i < num_transitions; ++i) {
+        if (filter == IterationMode::kDefault &&
+            IsSpecialSidestepTransition(roots, transition_array->GetKey(i))) {
+          continue;
+        }
+        DCHECK_IMPLIES(
+            IsSpecialSidestepTransition(roots, transition_array->GetKey(i)),
+            filter == IterationMode::kIncludeSideStepTransitions ||
+                filter == IterationMode::kIncludeClearedSideStepTransitions);
         Tagged<MaybeObject> target = transition_array->GetRawTarget(i);
         if (target.IsCleared()) {
           DCHECK(
               IsSpecialSidestepTransition(roots, transition_array->GetKey(i)));
-          if constexpr (with_key) {
-            Tagged<Name> key = transition_array->GetKey(i);
-            callback(key, Tagged<Map>());
-          } else {
-            callback(Tagged<Map>());
+          if (filter == IterationMode::kIncludeClearedSideStepTransitions) {
+            if constexpr (with_key) {
+              Tagged<Name> key = transition_array->GetKey(i);
+              callback(key, Tagged<Map>());
+            } else {
+              callback(Tagged<Map>());
+            }
           }
           continue;
         }
