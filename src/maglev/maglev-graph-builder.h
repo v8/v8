@@ -1081,7 +1081,8 @@ class MaglevGraphBuilder {
   void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
                                    int slot_index, ValueNode* value);
 
-  void BuildStoreMap(ValueNode* object, compiler::MapRef map);
+  void BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                     StoreMap::Kind kind);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
@@ -1590,65 +1591,23 @@ class MaglevGraphBuilder {
     // Don't do anything for nodes without side effects.
     if constexpr (!NodeT::kProperties.can_write()) return;
 
-    // Simple field stores are stores which do nothing but change a field value
-    // (i.e. no map transitions or calls into user code).
-    static constexpr bool is_simple_field_store =
-        std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
-        std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreDoubleField> ||
-        std::is_same_v<NodeT, UpdateJSArrayLength> ||
-        std::is_same_v<NodeT, StoreFixedArrayElementWithWriteBarrier> ||
-        std::is_same_v<NodeT, StoreFixedArrayElementNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreFixedDoubleArrayElement>;
-
-    static constexpr bool is_elements_array_write =
-        std::is_same_v<NodeT, MaybeGrowFastElements> ||
-        std::is_same_v<NodeT, EnsureWritableFastElements>;
-
-    if constexpr (is_elements_array_write) {
-      // Clear Elements cache.
-      auto elements_properties = known_node_aspects().loaded_properties.find(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements());
-      if (elements_properties != known_node_aspects().loaded_properties.end()) {
-        elements_properties->second.clear();
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  * Removing non-constant cached [Elements]";
-        }
-      }
-    }
-
-    // Don't change known node aspects for:
-    //
-    //   * Simple field stores -- the only relevant side effect on these is
-    //     writes to objects which invalidate loaded properties and context
-    //     slots, and we invalidate these already as part of emitting the store.
-    //
-    //   * CheckMapsWithMigration -- this only migrates representations of
-    //     values, not the values themselves, so cached values are still valid.
-    static constexpr bool should_clear_unstable_node_aspects =
-        !is_simple_field_store && !is_elements_array_write &&
-        !std::is_same_v<NodeT, CheckMapsWithMigration>;
-
-    // Simple field stores can't possibly change or migrate the map.
-    static constexpr bool is_possible_map_change = !is_simple_field_store;
-
     // We only need to clear unstable node aspects on the current builder, not
     // the parent, since we'll anyway copy the known_node_aspects to the parent
     // once we finish the inlined function.
-    if constexpr (should_clear_unstable_node_aspects) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "  ! Clearing unstable node aspects" << std::endl;
-      }
-      known_node_aspects().ClearUnstableMaps();
-      // Side-effects can change object contents, so we have to clear
-      // our known loaded properties -- however, constant properties are known
-      // to not change (and we added a dependency on this), so we don't have to
-      // clear those.
-      known_node_aspects().loaded_properties.clear();
-      known_node_aspects().loaded_context_slots.clear();
-      known_node_aspects().may_have_aliasing_contexts =
-          KnownNodeAspects::ContextSlotLoadsAlias::None;
+
+    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
+      node->ClearElementsProperties(known_node_aspects());
+    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>)) {
+      // Don't change known node aspects for simple field stores. The only
+      // relevant side effect on these is writes to objects which invalidate
+      // loaded properties and context slots, and we invalidate these already as
+      // part of emitting the store.
+      node->ClearUnstableNodeAspects(known_node_aspects());
     }
+
+    // Simple field stores can't possibly change or migrate the map.
+    static constexpr bool is_possible_map_change =
+        !IsSimpleFieldStore(Node::opcode_of<NodeT>);
 
     // All user-observable side effects need to clear state that is cached on
     // the builder. This reset has to be propagated up through the parents.

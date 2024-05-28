@@ -2856,9 +2856,14 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
 
-  __ StoreTaggedFieldWithWriteBarrier(
-      object, HeapObject::kMapOffset, value, register_snapshot(),
-      MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
+  if (kind() == Kind::kInitializingYoung) {
+    __ StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, value);
+  } else {
+    __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
+                                        register_snapshot(),
+                                        MaglevAssembler::kValueIsCompressed,
+                                        MaglevAssembler::kValueCannotBeSmi);
+  }
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
@@ -7354,6 +7359,76 @@ void BranchIfUint32Compare::PrintParams(
 void BranchIfTypeOf::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
+}
+
+// Keeping track of the effects this instruction has on known node aspects.
+void NodeBase::ClearElementsProperties(KnownNodeAspects& known_node_aspects) {
+  DCHECK(IsElementsArrayWrite(opcode()));
+  // Clear Elements cache.
+  auto elements_properties = known_node_aspects.loaded_properties.find(
+      KnownNodeAspects::LoadedPropertyMapKey::Elements());
+  if (elements_properties != known_node_aspects.loaded_properties.end()) {
+    elements_properties->second.clear();
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Removing non-constant cached [Elements]";
+    }
+  }
+}
+
+void NodeBase::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+  DCHECK(properties().can_write());
+  DCHECK(!IsSimpleFieldStore(opcode()));
+  DCHECK(!IsElementsArrayWrite(opcode()));
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! Clearing unstable node aspects" << std::endl;
+  }
+  known_node_aspects.ClearUnstableMaps();
+  // Side-effects can change object contents, so we have to clear
+  // our known loaded properties -- however, constant properties are known
+  // to not change (and we added a dependency on this), so we don't have to
+  // clear those.
+  known_node_aspects.loaded_properties.clear();
+  known_node_aspects.loaded_context_slots.clear();
+  known_node_aspects.may_have_aliasing_contexts =
+      KnownNodeAspects::ContextSlotLoadsAlias::None;
+}
+
+void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+  switch (kind()) {
+    case Kind::kInitializing:
+    case Kind::kInitializingYoung:
+      return;
+    case Kind::kTransitioning: {
+      NodeInfo* node_info =
+          known_node_aspects.GetOrCreateInfoFor(object_input().node());
+      if (node_info->possible_maps_are_known() &&
+          node_info->possible_maps().size() == 1) {
+        compiler::MapRef old_map = node_info->possible_maps().at(0);
+        auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+          return map.equals(old_map);
+        };
+        known_node_aspects.ClearUnstableMapsIfAny(MaybeAliases);
+        if (v8_flags.trace_maglev_graph_building) {
+          std::cout << "  ! StoreMap: Clearing unstable map "
+                    << Brief(*old_map.object()) << std::endl;
+        }
+        return;
+      }
+      break;
+    }
+  }
+  // TODO(olivf): Only invalidate nodes with the same type.
+  known_node_aspects.ClearUnstableMaps();
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! StoreMap: Clearing unstable maps" << std::endl;
+  }
+}
+
+void CheckMapsWithMigration::ClearUnstableNodeAspects(
+    KnownNodeAspects& known_node_aspects) {
+  // This instruction only migrates representations of values, not the values
+  // themselves, so cached values are still valid.
 }
 
 }  // namespace maglev

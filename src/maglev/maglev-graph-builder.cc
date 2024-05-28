@@ -919,7 +919,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
 #endif
 
     if (v8_flags.trace_maglev_graph_building) {
-      std::cerr << "- Non-standard entrypoint @" << entrypoint_
+      std::cout << "- Non-standard entrypoint @" << entrypoint_
                 << " by OSR from @" << compilation_unit_->osr_offset().ToInt()
                 << std::endl;
     }
@@ -4264,9 +4264,9 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   return length;
 }
 
-void MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
-                                       compiler::MapRef map) {
-  AddNewNode<StoreMap>({object}, map);
+void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                                       StoreMap::Kind kind) {
+  AddNewNode<StoreMap>({object}, map, kind);
   NodeType object_type = StaticTypeForMap(map);
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (map.is_stable()) {
@@ -4355,7 +4355,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (access_info.HasTransitionMap()) {
-    BuildStoreMap(receiver, access_info.transition_map().value());
+    BuildStoreMap(receiver, access_info.transition_map().value(),
+                  StoreMap::Kind::kTransitioning);
   }
 
   return ReduceResult::Done();
@@ -10481,10 +10482,10 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       allocation_type, CapturedAllocation(number));
   AddNonEscapingUses(allocation, 2);
-  AddNewNode<StoreMap>({allocation}, broker()->heap_number_map());
+  BuildStoreMap(allocation, broker()->heap_number_map(),
+                StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(number)},
                            static_cast<int>(offsetof(HeapNumber, value_)));
-  EnsureType(allocation, NodeType::kNumber);
   return allocation;
 }
 
@@ -10493,7 +10494,8 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       allocation_type, CapturedAllocation(NewObjectId(), array));
   AddNonEscapingUses(allocation, array.length + 2);
-  AddNewNode<StoreMap>({allocation}, broker()->fixed_double_array_map());
+  BuildStoreMap(allocation, broker()->fixed_double_array_map(),
+                StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetSmiConstant(array.length)},
       FixedDoubleArray::kLengthOffset);
@@ -10533,7 +10535,8 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       allocation_type, CapturedAllocation(NewObjectId(), object));
   AddNonEscapingUses(allocation, object.slot_count());
-  BuildStoreMap(allocation, object.GetMap());
+  BuildStoreMap(allocation, object.GetMap(),
+                StoreMap::initializing_kind(allocation_type));
   for (int i = 1; i < object.slot_count(); i++) {
     BuildInitializeStoreTaggedField(allocation, values[i], i * kTaggedSize);
   }
