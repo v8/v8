@@ -158,19 +158,20 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
   const int kThreads = 4;
 
-  i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
-      [i_isolate, &threads]() {
-        for (int i = 0; i < kThreads; i++) {
-          auto thread =
-              std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
-          CHECK(thread->Start());
-          threads.push_back(std::move(thread));
-        }
+  {
+    ParkedScope scope(i_isolate->main_thread_local_isolate());
 
-        for (auto& thread : threads) {
-          thread->Join();
-        }
-      });
+    for (int i = 0; i < kThreads; i++) {
+      auto thread =
+          std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+      CHECK(thread->Start());
+      threads.push_back(std::move(thread));
+    }
+
+    for (auto& thread : threads) {
+      thread->Join();
+    }
+  }
 
   isolate->Dispose();
 }
@@ -205,16 +206,16 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
     }
 
     for (int i = 0; i < 300'000; i++) {
-      i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
-          []() { /* nothing */ });
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
     }
 
-    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
-        [&threads]() {
-          for (auto& thread : threads) {
-            thread->Join();
-          }
-        });
+    {
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+      for (auto& thread : threads) {
+        thread->Join();
+      }
+    }
   }
 
   isolate->Dispose();
@@ -255,12 +256,13 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
       i_isolate->main_thread_local_heap()->Safepoint();
     }
 
-    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
-        [&threads]() {
-          for (auto& thread : threads) {
-            thread->Join();
-          }
-        });
+    {
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+      for (auto& thread : threads) {
+        thread->Join();
+      }
+    }
   }
 
   i_isolate->main_thread_local_heap()->Safepoint();
@@ -352,10 +354,9 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
-        local_heap.BlockWhileParked([this]() {
-          sema_white_->Signal();
-          sema_marking_started_->Wait();
-        });
+        ParkedScope scope(&local_heap);
+        sema_white_->Signal();
+        sema_marking_started_->Wait();
       }
       Address address = local_heap.AllocateRawOrFail(
           kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,

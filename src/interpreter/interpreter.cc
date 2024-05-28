@@ -195,8 +195,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
     MaybePrintAst(parse_info(), compilation_info());
   }
 
-  local_isolate_->ExecuteWhileParkedOnBackground(
-      [this]() { generator()->GenerateBytecode(stack_limit()); });
+  ParkedScopeIfOnBackground parked_scope(local_isolate_);
+
+  generator()->GenerateBytecode(stack_limit());
 
   if (generator()->HasStackOverflow()) {
     return FAILED;

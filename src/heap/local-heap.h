@@ -171,8 +171,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool is_main_thread_for(Heap* heap) const {
     return is_main_thread() && heap_ == heap;
   }
-  V8_INLINE bool is_in_trampoline() const;
-
+  bool is_in_trampoline() const { return heap_->stack().IsMarkerSet(); }
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
@@ -359,7 +358,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   bool allocation_failed_;
   bool main_thread_parked_;
-  int nested_parked_scopes_;
 
   LocalHeap* prev_;
   LocalHeap* next_;

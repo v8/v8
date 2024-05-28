@@ -78,7 +78,7 @@ class V8_EXPORT_PRIVATE Stack final {
 
   template <typename Callback>
   V8_INLINE void SetMarkerIfNeededAndCallback(Callback callback) {
-    if (!IsMarkerSet()) {
+    if (current_segment_.top == nullptr) {
       TrampolineCallbackHelper(static_cast<void*>(&callback),
                                &SetMarkerAndCallbackImpl<Callback>);
     } else {
@@ -88,7 +88,6 @@ class V8_EXPORT_PRIVATE Stack final {
   }
 
   using ThreadId = int;
-
   template <typename Callback>
   V8_INLINE void SetMarkerForBackgroundThreadAndCallback(ThreadId thread,
                                                          Callback callback) {
@@ -107,12 +106,6 @@ class V8_EXPORT_PRIVATE Stack final {
   void IteratePointersForTesting(StackVisitor* visitor);
 
   bool IsMarkerSet() const { return current_segment_.top != nullptr; }
-  bool IsMarkerSetForBackgroundThread(ThreadId thread) const {
-    auto it = background_stacks_.find(thread);
-    if (it == background_stacks_.end()) return false;
-    DCHECK_NOT_NULL(it->second.top);
-    return true;
-  }
 
   // This method is only safe to use in a safepoint, as it does not take the
   // mutex for background_stacks_.
@@ -165,7 +158,7 @@ class V8_EXPORT_PRIVATE Stack final {
   template <typename Callback>
   static void SetMarkerAndCallbackImpl(Stack* stack, void* argument,
                                        const void* stack_end) {
-    Segment previous_segment = stack->current_segment_;
+    DCHECK_NULL(stack->current_segment_.top);
     stack->current_segment_.top = stack_end;
 #ifdef V8_USE_SAFE_STACK
     stack->current_segment_.unsafe_stack_top =
@@ -173,7 +166,10 @@ class V8_EXPORT_PRIVATE Stack final {
 #endif  // V8_USE_SAFE_STACK
     Callback* callback = static_cast<Callback*>(argument);
     (*callback)();
-    stack->current_segment_ = previous_segment;
+    stack->current_segment_.top = nullptr;
+#ifdef V8_USE_SAFE_STACK
+    stack->current_segment_.unsafe_stack_top = nullptr;
+#endif  // V8_USE_SAFE_STACK
   }
 
   template <typename Callback>
@@ -183,30 +179,20 @@ class V8_EXPORT_PRIVATE Stack final {
     auto [thread, callback] =
         *static_cast<std::pair<ThreadId, Callback*>*>(argument);
     auto& background_stacks = stack->background_stacks_;
-    Segment previous_segment;
     {
       v8::base::MutexGuard guard(&stack->lock_);
-      if (auto it = background_stacks.find(thread);
-          it != background_stacks.end()) {
-        previous_segment = it->second;
-        DCHECK_NOT_NULL(previous_segment.top);
-      } else {
-        DCHECK_NULL(previous_segment.top);
-      }
+      DCHECK_EQ(background_stacks.end(), background_stacks.find(thread));
       // This implicitly uses the current values (if applicable) for:
       // - asan_fake_start
       // - unsafe stack start
       // - unsafe stack top
-      background_stacks[thread] =
-          Segment(v8::base::Stack::GetStackStart(), stack_end);
+      background_stacks.emplace(
+          thread, Segment(v8::base::Stack::GetStackStart(), stack_end));
     }
     (*callback)();
     {
       v8::base::MutexGuard guard(&stack->lock_);
-      if (previous_segment.top)
-        background_stacks[thread] = previous_segment;
-      else
-        background_stacks.erase(thread);
+      background_stacks.erase(thread);
     }
   }
 
@@ -216,7 +202,7 @@ class V8_EXPORT_PRIVATE Stack final {
   std::vector<Segment> inactive_stacks_;
 
   mutable v8::base::Mutex lock_;
-  std::map<ThreadId, Segment> background_stacks_;
+  std::map<ThreadId, const Segment> background_stacks_;
 };
 
 }  // namespace heap::base
