@@ -49,6 +49,7 @@ in_category(
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     integration_builder(
         name = "V8 Blink Linux Debug",
@@ -97,7 +98,7 @@ in_category(
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     integration_builder(
         name = "V8 Android GN (dbg)",
@@ -156,7 +157,7 @@ in_category(
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     integration_builder(
         name = "Linux V8 FYI Release - pointer compression (NVIDIA)",
