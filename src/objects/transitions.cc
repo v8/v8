@@ -429,10 +429,6 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions)
     return false;
 
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-  target_map->SetBackPointer(*map);
-#endif
-
   const int header = TransitionArray::kProtoTransitionHeaderSize;
 
   Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map), isolate);
@@ -470,6 +466,10 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
       SetPrototypeTransitions(isolate, map, cache);
     }
   }
+
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+  target_map->SetBackPointer(*map);
+#endif
 
   // Reload number of transitions as they might have been compacted.
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);

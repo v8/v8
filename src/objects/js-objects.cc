@@ -5254,7 +5254,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);
 
-  DCHECK_IMPLIES(!new_map->is_dictionary_map() && !map->is_deprecated(),
+  DCHECK_IMPLIES(!new_map->is_dictionary_map() && !map->is_deprecated() &&
+                     !IsUndefined(new_map->GetBackPointer()),
                  size == object->Size());
   return Just(true);
 }
