@@ -52,7 +52,7 @@ class MachineGraph;
 class Schedule;
 class SourcePositionTable;
 struct WasmCompilationData;
-class TFPipelineData;
+class PipelineData;
 class ZoneStats;
 
 namespace turboshaft {
@@ -140,7 +140,9 @@ class Pipeline : public AllStatic {
 
   // Run the instruction selector on a turboshaft graph and generate code.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateTurboshaftCodeForTesting(
-      CallDescriptor* call_descriptor, turboshaft::PipelineData* data);
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      CallDescriptor* call_descriptor, PipelineData* data,
+      const AssemblerOptions& options);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static void AllocateRegistersForTesting(

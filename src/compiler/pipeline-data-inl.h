@@ -9,27 +9,20 @@
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/common/globals.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/register-allocator.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/phase.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/phase.h"
-#include "src/compiler/turboshaft/zone-with-name.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/zone-stats.h"
 #include "src/execution/isolate.h"
@@ -41,6 +34,12 @@
 #endif
 
 namespace v8::internal::compiler {
+
+static constexpr char kCodegenZoneName[] = "codegen-zone";
+static constexpr char kGraphZoneName[] = "graph-zone";
+static constexpr char kInstructionZoneName[] = "instruction-zone";
+static constexpr char kRegisterAllocationZoneName[] =
+    "register-allocation-zone";
 
 inline Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   Tagged<Context> current = info->closure()->context();
@@ -56,12 +55,12 @@ inline Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   return Nothing<OuterContext>();
 }
 
-class TFPipelineData {
+class PipelineData {
  public:
   // For main entry point.
-  TFPipelineData(ZoneStats* zone_stats, Isolate* isolate,
-                 OptimizedCompilationInfo* info,
-                 TurbofanPipelineStatistics* pipeline_statistics)
+  PipelineData(ZoneStats* zone_stats, Isolate* isolate,
+               OptimizedCompilationInfo* info,
+               TurbofanPipelineStatistics* pipeline_statistics)
       : isolate_(isolate),
         allocator_(isolate->allocator()),
         info_(info),
@@ -69,7 +68,8 @@ class TFPipelineData {
         may_have_unverifiable_graph_(v8_flags.turboshaft),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
-        graph_zone_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_stats_, kInstructionZoneName),
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
@@ -100,18 +100,18 @@ class TFPipelineData {
         info->node_observer()
             ? graph_zone_->New<ObserveNodeManager>(graph_zone_)
             : nullptr;
-    dependencies_ = info_->zone()->New<CompilationDependencies>(broker_.get(),
-                                                                info_->zone());
+    dependencies_ =
+        info_->zone()->New<CompilationDependencies>(broker_, info_->zone());
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   // For WebAssembly compile entry point.
-  TFPipelineData(ZoneStats* zone_stats, wasm::WasmEngine* wasm_engine,
-                 OptimizedCompilationInfo* info, MachineGraph* mcgraph,
-                 TurbofanPipelineStatistics* pipeline_statistics,
-                 SourcePositionTable* source_positions,
-                 NodeOriginTable* node_origins,
-                 const AssemblerOptions& assembler_options)
+  PipelineData(ZoneStats* zone_stats, wasm::WasmEngine* wasm_engine,
+               OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+               TurbofanPipelineStatistics* pipeline_statistics,
+               SourcePositionTable* source_positions,
+               NodeOriginTable* node_origins,
+               const AssemblerOptions& assembler_options)
       : isolate_(nullptr),
         wasm_engine_(wasm_engine),
         allocator_(wasm_engine->allocator()),
@@ -120,7 +120,8 @@ class TFPipelineData {
         may_have_unverifiable_graph_(v8_flags.turboshaft_wasm),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
-        graph_zone_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_(graph_zone_scope_.zone()),
         graph_(mcgraph->graph()),
         source_positions_(source_positions),
         node_origins_(node_origins),
@@ -143,13 +144,13 @@ class TFPipelineData {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // For CodeStubAssembler and machine graph testing entry point.
-  TFPipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
-                 Isolate* isolate, AccountingAllocator* allocator, Graph* graph,
-                 JSGraph* jsgraph, Schedule* schedule,
-                 SourcePositionTable* source_positions,
-                 NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
-                 const AssemblerOptions& assembler_options,
-                 const ProfileDataFromFile* profile_data)
+  PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
+               Isolate* isolate, AccountingAllocator* allocator, Graph* graph,
+               JSGraph* jsgraph, Schedule* schedule,
+               SourcePositionTable* source_positions,
+               NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
+               const AssemblerOptions& assembler_options,
+               const ProfileDataFromFile* profile_data)
       : isolate_(isolate),
 #if V8_ENABLE_WEBASSEMBLY
         // TODO(clemensb): Remove this field, use GetWasmEngine directly
@@ -160,7 +161,8 @@ class TFPipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
-        graph_zone_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_(graph_zone_scope_.zone()),
         graph_(graph),
         source_positions_(source_positions),
         node_origins_(node_origins),
@@ -195,14 +197,14 @@ class TFPipelineData {
   }
 
   // For register allocation testing entry point.
-  TFPipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
-                 Isolate* isolate, InstructionSequence* sequence)
+  PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
+               Isolate* isolate, InstructionSequence* sequence)
       : isolate_(isolate),
         allocator_(isolate->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
-        graph_zone_(zone_stats_, kGraphZoneName, kCompressGraphZone),
+        graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
         instruction_zone_scope_(zone_stats_, kInstructionZoneName),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
@@ -213,7 +215,7 @@ class TFPipelineData {
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         assembler_options_(AssemblerOptions::Default(isolate)) {}
 
-  ~TFPipelineData() {
+  ~PipelineData() {
     // Must happen before zones are destroyed.
     delete code_generator_;
     code_generator_ = nullptr;
@@ -224,8 +226,8 @@ class TFPipelineData {
     DeleteGraphZone();
   }
 
-  TFPipelineData(const TFPipelineData&) = delete;
-  TFPipelineData& operator=(const TFPipelineData&) = delete;
+  PipelineData(const PipelineData&) = delete;
+  PipelineData& operator=(const PipelineData&) = delete;
 
   Isolate* isolate() const { return isolate_; }
   AccountingAllocator* allocator() const { return allocator_; }
@@ -235,8 +237,7 @@ class TFPipelineData {
   TurbofanPipelineStatistics* pipeline_statistics() {
     return pipeline_statistics_;
   }
-  OsrHelper* osr_helper() { return osr_helper_.get(); }
-  std::shared_ptr<OsrHelper> osr_helper_ptr() const { return osr_helper_; }
+  OsrHelper* osr_helper() { return &(*osr_helper_); }
 
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
@@ -252,41 +253,25 @@ class TFPipelineData {
   // RawMachineAssembler generally produces graphs which cannot be verified.
   bool MayHaveUnverifiableGraph() const { return may_have_unverifiable_graph_; }
 
-  Zone* graph_zone() { return graph_zone_; }
+  Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
-  template <typename T>
-  using GraphZonePointer = turboshaft::ZoneWithNamePointer<T, kGraphZoneName>;
-  void InitializeWithGraphZone(
-      turboshaft::ZoneWithName<kGraphZoneName> graph_zone,
-      GraphZonePointer<SourcePositionTable> source_positions,
-      GraphZonePointer<NodeOriginTable> node_origins,
-      size_t node_count_hint = 0) {
-    // Delete the old zone first.
-    DeleteGraphZone();
-
-    // Take ownership of the new zone and the existing pointers.
-    graph_zone_ = std::move(graph_zone);
-    source_positions_ = source_positions;
-    node_origins_ = node_origins;
-
-    // Allocate a new graph and schedule.
-    graph_ = graph_zone_.New<Graph>(graph_zone_);
-    schedule_ = graph_zone_.New<Schedule>(graph_zone_, node_count_hint);
-
-    // Initialize node builders.
-    javascript_ = graph_zone_.New<JSOperatorBuilder>(graph_zone_);
-    common_ = graph_zone_.New<CommonOperatorBuilder>(graph_zone_);
-    simplified_ = graph_zone_.New<SimplifiedOperatorBuilder>(graph_zone_);
-    machine_ = graph_zone_.New<MachineOperatorBuilder>(
-        graph_zone_, MachineType::PointerRepresentation(),
-        InstructionSelector::SupportedMachineOperatorFlags(),
-        InstructionSelector::AlignmentRequirements());
+  turboshaft::PipelineData& GetTurboshaftPipelineData(
+      turboshaft::TurboshaftPipelineKind kind,
+      turboshaft::Graph* graph = nullptr) {
+    if (!ts_data_) {
+      ts_data_ = std::make_unique<turboshaft::PipelineData>(
+          kind, info_, schedule_, graph_zone_, info_->zone(), broker_, isolate_,
+          source_positions_, node_origins_, sequence_, frame_,
+          assembler_options_, &max_unoptimized_frame_height_,
+          &max_pushed_argument_count_, instruction_zone_, graph);
+    }
+    return *ts_data_;
+  }
+  turboshaft::PipelineData* turboshaft_data() {
+    return ts_data_ ? ts_data_.get() : nullptr;
   }
   SourcePositionTable* source_positions() const { return source_positions_; }
-  void set_source_positions(SourcePositionTable* source_positions) {
-    source_positions_ = source_positions;
-  }
   NodeOriginTable* node_origins() const { return node_origins_; }
   void set_node_origins(NodeOriginTable* node_origins) {
     node_origins_ = node_origins;
@@ -304,8 +289,12 @@ class TFPipelineData {
     return handle(info()->global_object(), isolate());
   }
 
-  JSHeapBroker* broker() const { return broker_.get(); }
-  std::shared_ptr<JSHeapBroker> broker_ptr() { return broker_; }
+  JSHeapBroker* broker() const { return broker_; }
+  std::unique_ptr<JSHeapBroker> ReleaseBroker() {
+    std::unique_ptr<JSHeapBroker> broker(broker_);
+    broker_ = nullptr;
+    return broker;
+  }
 
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
@@ -397,6 +386,7 @@ class TFPipelineData {
 
   void DeleteGraphZone() {
     if (graph_zone_ == nullptr) return;
+    graph_zone_ = nullptr;
     graph_ = nullptr;
     source_positions_ = nullptr;
     node_origins_ = nullptr;
@@ -407,7 +397,7 @@ class TFPipelineData {
     jsgraph_ = nullptr;
     mcgraph_ = nullptr;
     schedule_ = nullptr;
-    graph_zone_.Destroy();
+    graph_zone_scope_.Destroy();
   }
 
   void DeleteInstructionZone() {
@@ -422,7 +412,7 @@ class TFPipelineData {
     codegen_zone_scope_.Destroy();
     codegen_zone_ = nullptr;
     dependencies_ = nullptr;
-    broker_.reset();
+    delete broker_;
     broker_ = nullptr;
     frame_ = nullptr;
   }
@@ -456,7 +446,7 @@ class TFPipelineData {
           call_descriptor->CalculateFixedFrameSize(info()->code_kind());
     }
     frame_ = codegen_zone()->New<Frame>(fixed_frame_size, codegen_zone());
-    if (osr_helper_) osr_helper()->SetupFrame(frame());
+    if (osr_helper_.has_value()) osr_helper()->SetupFrame(frame());
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
@@ -469,8 +459,8 @@ class TFPipelineData {
   }
 
   void InitializeOsrHelper() {
-    DCHECK_NULL(osr_helper_);
-    osr_helper_ = std::make_shared<OsrHelper>(info());
+    DCHECK(!osr_helper_.has_value());
+    osr_helper_.emplace(info());
   }
 
   void set_start_source_position(int position) {
@@ -478,19 +468,15 @@ class TFPipelineData {
     start_source_position_ = position;
   }
 
-  int start_source_position() const { return start_source_position_; }
-
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
 #if V8_ENABLE_WEBASSEMBLY
     assembler_options_.is_wasm =
         this->info()->IsWasm() || this->info()->IsWasmBuiltin();
 #endif
-    base::Optional<OsrHelper> osr_helper;
-    if (osr_helper_) osr_helper = *osr_helper_;
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
-        std::move(osr_helper), start_source_position_, jump_optimization_info_,
+        osr_helper_, start_source_position_, jump_optimization_info_,
         assembler_options(), info_->builtin(), max_unoptimized_frame_height(),
         max_pushed_argument_count(),
         v8_flags.trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
@@ -558,7 +544,7 @@ class TFPipelineData {
   TurbofanPipelineStatistics* pipeline_statistics_ = nullptr;
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
-  std::shared_ptr<OsrHelper> osr_helper_;
+  base::Optional<OsrHelper> osr_helper_;
   MaybeHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
   Typer* typer_ = nullptr;
@@ -566,7 +552,8 @@ class TFPipelineData {
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
-  turboshaft::ZoneWithName<kGraphZoneName> graph_zone_;
+  ZoneStats::Scope graph_zone_scope_;
+  Zone* graph_zone_ = nullptr;
   Graph* graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
   NodeOriginTable* node_origins_ = nullptr;
@@ -593,7 +580,7 @@ class TFPipelineData {
   ZoneStats::Scope codegen_zone_scope_;
   Zone* codegen_zone_;
   CompilationDependencies* dependencies_ = nullptr;
-  std::shared_ptr<JSHeapBroker> broker_;
+  JSHeapBroker* broker_ = nullptr;
   Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
