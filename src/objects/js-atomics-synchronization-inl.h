@@ -138,7 +138,7 @@ JSAtomicsMutex::LockGuardBase::~LockGuardBase() {
 
 JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
                                      Handle<JSAtomicsMutex> mutex,
-                                     base::Optional<base::TimeDelta> timeout)
+                                     std::optional<base::TimeDelta> timeout)
     : LockGuardBase(isolate, mutex,
                     JSAtomicsMutex::Lock(isolate, mutex, timeout)) {}
 
@@ -148,7 +148,7 @@ JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
 
 // static
 bool JSAtomicsMutex::LockImpl(Isolate* requester, Handle<JSAtomicsMutex> mutex,
-                              base::Optional<base::TimeDelta> timeout,
+                              std::optional<base::TimeDelta> timeout,
                               LockSlowPathWrapper slow_path_wrapper) {
   DisallowGarbageCollection no_gc;
   // First try to lock an uncontended mutex, which should be the common case. If
@@ -175,7 +175,7 @@ bool JSAtomicsMutex::LockImpl(Isolate* requester, Handle<JSAtomicsMutex> mutex,
 
 // static
 bool JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex,
-                          base::Optional<base::TimeDelta> timeout) {
+                          std::optional<base::TimeDelta> timeout) {
   return LockImpl(requester, mutex, timeout, [=](std::atomic<StateT>* state) {
     return LockSlowPath(requester, mutex, state, timeout);
   });
