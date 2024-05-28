@@ -119,11 +119,6 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   // it can be inlined and doesn't require an additional call.
   const CppHeapPointerHandle handle =
       Internals::ReadRawField<CppHeapPointerHandle>(heap_object_ptr, offset);
-  // TODO(saelo): can we remove this check since we should just fail the type
-  // check for the null entry, in which case we can also just return nullptr?
-  if (handle == 0) {
-    return reinterpret_cast<T*>(kNullAddress);
-  }
   const uint32_t index = handle >> kExternalPointerIndexShift;
   const Address* table = GetCppHeapPointerTableBase(isolate);
   const std::atomic<Address>* ptr =
@@ -133,18 +128,26 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   Address pointer = entry;
   if (V8_LIKELY(tag_range.CheckTagOf(entry))) {
     pointer = entry >> kCppHeapPointerPayloadShift;
-  }
-#ifdef V8_TARGET_ARCH_ARM64
-  // On Arm64, we potentially have top byte ignore, and so we cannot rely on a
-  // pointer access crashing if some of the top 16 bits are set (only if the
-  // second most significant byte is non-zero). In addition, there shouldn't be
-  // a different on Arm64 between returning nullptr or the original entry, since
-  // it will simply compile to a `csel x0, x8, xzr, lo` instead of a
-  // `csel x0, x10, x8, lo` instruction.
-  else {
+  } else {
+    // If the type check failed, we simply return nullptr here. That way:
+    //  1. The null handle always results in nullptr being returned here, which
+    //     is a desired property. Otherwise, we would need an explicit check for
+    //     the null handle above, and therefore an additional branch. This
+    //     works because the 0th entry of the table always contains nullptr
+    //     tagged with the null tag (i.e. an all-zeros entry). As such,
+    //     regardless of whether the type check succeeds, the result will
+    //     always be nullptr.
+    //  2. The returned pointer is guaranteed to crash even on platforms with
+    //     top byte ignore (TBI), such as Arm64. The alternative would be to
+    //     simply return the original entry with the left-shifted payload.
+    //     However, due to TBI, an access to that may not always result in a
+    //     crash (specifically, if the second most significant byte happens to
+    //     be zero). In addition, there shouldn't be a difference on Arm64
+    //     between returning nullptr or the original entry, since it will
+    //     simply compile to a `csel x0, x8, xzr, lo` instead of a
+    //     `csel x0, x10, x8, lo` instruction.
     pointer = 0;
   }
-#endif
   return reinterpret_cast<T*>(pointer);
 #else   // !V8_COMPRESS_POINTERS
   return reinterpret_cast<T*>(

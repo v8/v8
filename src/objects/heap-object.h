@@ -305,13 +305,11 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
-  // Same as `ReadExternalPointerField()` with returning kNullAddress on
-  // encountering a 0-handle (instead of crashing). Will use the
-  // CppHeapPointerTable for access.
+  // Similar to `ReadExternalPointerField()` but uses the CppHeapPointerTable.
   template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-  inline Address TryReadCppHeapPointerField(
+  inline Address ReadCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate) const;
-  inline Address TryReadCppHeapPointerField(
+  inline Address ReadCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate,
       CppHeapPointerTagRange tag_range) const;
   template <ExternalPointerTag tag>

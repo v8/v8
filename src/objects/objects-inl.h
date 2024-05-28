@@ -814,17 +814,16 @@ Address HeapObject::ReadExternalPointerField(size_t offset,
 }
 
 template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-Address HeapObject::TryReadCppHeapPointerField(
+Address HeapObject::ReadCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate) const {
-  return i::TryReadCppHeapPointerField<lower_bound, upper_bound>(
+  return i::ReadCppHeapPointerField<lower_bound, upper_bound>(
       field_address(offset), isolate);
 }
 
-Address HeapObject::TryReadCppHeapPointerField(
+Address HeapObject::ReadCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate,
     CppHeapPointerTagRange tag_range) const {
-  return i::TryReadCppHeapPointerField(field_address(offset), isolate,
-                                       tag_range);
+  return i::ReadCppHeapPointerField(field_address(offset), isolate, tag_range);
 }
 
 template <ExternalPointerTag tag>

@@ -18,7 +18,7 @@ namespace internal {
 // TODO(saelo): consider passing a CppHeapPointerTagRange as template parameter
 // once C++20 is supported everywhere.
 template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-V8_INLINE Address TryReadCppHeapPointerField(
+V8_INLINE Address ReadCppHeapPointerField(
     Address field_address, IsolateForPointerCompression isolate) {
   CppHeapPointerSlot slot(field_address);
   CppHeapPointerTagRange tag_range(lower_bound, upper_bound);
@@ -29,20 +29,15 @@ V8_INLINE Address TryReadCppHeapPointerField(
   // between the two loads and therefore use relaxed memory ordering, but
   // technically we should use memory_order_consume here.
   CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
-  // TODO(saelo): can this be removed? We can probably make the table always
-  // return nullptr for the null handle without any additional branches.
-  if (handle == 0) {
-    return kNullAddress;
-  }
   return isolate.GetCppHeapPointerTable().Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
   return slot.try_load(isolate, tag_range);
 #endif  // !V8_COMPRESS_POINTERS
 }
 
-V8_INLINE Address TryReadCppHeapPointerField(
-    Address field_address, IsolateForPointerCompression isolate,
-    CppHeapPointerTagRange tag_range) {
+V8_INLINE Address ReadCppHeapPointerField(Address field_address,
+                                          IsolateForPointerCompression isolate,
+                                          CppHeapPointerTagRange tag_range) {
   CppHeapPointerSlot slot(field_address);
 #ifdef V8_COMPRESS_POINTERS
   // Handles may be written to objects from other threads so the handle needs
@@ -51,9 +46,6 @@ V8_INLINE Address TryReadCppHeapPointerField(
   // between the two loads and therefore use relaxed memory ordering, but
   // technically we should use memory_order_consume here.
   CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
-  if (handle == 0) {
-    return kNullAddress;
-  }
   return isolate.GetCppHeapPointerTable().Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
   return slot.try_load(isolate, tag_range);

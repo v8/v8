@@ -307,11 +307,6 @@ Address CppHeapPointerSlot::try_load(IsolateForPointerCompression isolate,
 #ifdef V8_COMPRESS_POINTERS
   const CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
   CppHeapPointerHandle handle = Relaxed_LoadHandle();
-  // TODO(saelo): can this be removed? We can probably make the table always
-  // return nullptr for the null handle without any additional branches.
-  if (handle == kNullCppHeapPointerHandle) {
-    return kNullAddress;
-  }
   return table.Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
   return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));

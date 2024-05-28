@@ -629,14 +629,14 @@ template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
 void* JSApiWrapper::GetCppHeapWrappable(
     IsolateForPointerCompression isolate) const {
   return reinterpret_cast<void*>(
-      object_->TryReadCppHeapPointerField<lower_bound, upper_bound>(
+      object_->ReadCppHeapPointerField<lower_bound, upper_bound>(
           kCppHeapWrappableOffset, isolate));
 }
 
 void* JSApiWrapper::GetCppHeapWrappable(
     IsolateForPointerCompression isolate,
     CppHeapPointerTagRange tag_range) const {
-  return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField(
+  return reinterpret_cast<void*>(object_->ReadCppHeapPointerField(
       kCppHeapWrappableOffset, isolate, tag_range));
 }
 
