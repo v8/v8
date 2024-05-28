@@ -219,29 +219,11 @@ class ReducerTest : public TestWithNativeContextAndZone {
 
   void SetUp() override {
     pipeline_data_.reset(new turboshaft::PipelineData(
-        TurboshaftPipelineKind::kJS, info_, schedule_, graph_zone_,
-        this->zone(), broker_, isolate_, source_positions_, node_origins_,
-        sequence_, frame_, assembler_options_, &max_unoptimized_frame_height_,
-        &max_pushed_argument_count_, instruction_zone_));
+        &zone_stats_, TurboshaftPipelineKind::kJS, this->isolate(), nullptr));
   }
   void TearDown() override { pipeline_data_.reset(); }
 
-  // We use some dummy data to initialize the PipelineData::Scope.
-  // TODO(nicohartmann@): Clean this up once PipelineData is reorganized.
-  OptimizedCompilationInfo* info_ = nullptr;
-  Schedule* schedule_ = nullptr;
-  Zone* graph_zone_ = this->zone();
-  JSHeapBroker* broker_ = nullptr;
-  Isolate* isolate_ = this->isolate();
-  SourcePositionTable* source_positions_ = nullptr;
-  NodeOriginTable* node_origins_ = nullptr;
-  InstructionSequence* sequence_ = nullptr;
-  Frame* frame_ = nullptr;
-  AssemblerOptions assembler_options_;
-  size_t max_unoptimized_frame_height_ = 0;
-  size_t max_pushed_argument_count_ = 0;
-  Zone* instruction_zone_ = this->zone();
-
+  ZoneStats zone_stats_{this->zone()->allocator()};
   std::unique_ptr<turboshaft::PipelineData> pipeline_data_;
 };
 

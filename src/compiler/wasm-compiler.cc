@@ -9139,6 +9139,7 @@ AssemblerOptions WasmAssemblerOptions() {
   // Relocation info required to serialize {WasmCode} for proper functions.
   options.record_reloc_info_for_serialization = true;
   options.enable_root_relative_access = false;
+  options.is_wasm = true;
 #ifdef USE_SIMULATOR
   options.enable_simulator_code = true;
 #endif
@@ -9150,6 +9151,7 @@ AssemblerOptions WasmStubAssemblerOptions() {
   // Relocation info not necessary because stubs are not serialized.
   options.record_reloc_info_for_serialization = false;
   options.enable_root_relative_access = false;
+  options.is_wasm = true;
 #ifdef USE_SIMULATOR
   options.enable_simulator_code = true;
 #endif

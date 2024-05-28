@@ -3797,6 +3797,9 @@ void MaglevGraphBuildingPhase::Run(PipelineData* data, Zone* temp_zone) {
     PrintMaglevGraph(*data, compilation_info.get(), maglev_graph);
   }
 
+  // TODO(nicohartmann): Should we have source positions here?
+  data->InitializeGraphComponent(nullptr);
+
   maglev::GraphProcessor<NodeProcessorBase, true> builder(
       data, data->graph(), temp_zone,
       compilation_info->toplevel_compilation_unit());
