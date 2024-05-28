@@ -1597,7 +1597,8 @@ class MaglevGraphBuilder {
 
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       node->ClearElementsProperties(known_node_aspects());
-    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>)) {
+    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
+                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
       // Don't change known node aspects for simple field stores. The only
       // relevant side effect on these is writes to objects which invalidate
       // loaded properties and context slots, and we invalidate these already as

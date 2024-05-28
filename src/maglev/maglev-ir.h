@@ -497,6 +497,7 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
   return opcode == Opcode::kStoreTaggedFieldWithWriteBarrier ||
          opcode == Opcode::kStoreTaggedFieldNoWriteBarrier ||
          opcode == Opcode::kStoreDoubleField ||
+         opcode == Opcode::kStoreFloat64 ||
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
@@ -505,6 +506,10 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
 constexpr bool IsElementsArrayWrite(Opcode opcode) {
   return opcode == Opcode::kMaybeGrowFastElements ||
          opcode == Opcode::kEnsureWritableFastElements;
+}
+constexpr bool IsTypedArrayStore(Opcode opcode) {
+  return opcode == Opcode::kStoreIntTypedArrayElement ||
+         opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
 // Forward-declare NodeBase sub-hierarchies.
