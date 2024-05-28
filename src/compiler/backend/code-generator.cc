@@ -203,6 +203,21 @@ void CodeGenerator::MaybeEmitOutOfLineConstantPool() {
 
 void CodeGenerator::AssembleCode() {
   OptimizedCompilationInfo* info = this->info();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+
+  // Compute incoming parameter count for code using JS linkage. This will
+  // ultimately set the parameter count on the resulting Code object.
+  if (call_descriptor->IsJSFunctionCall()) {
+    parameter_count_ = call_descriptor->ParameterSlotCount();
+#ifdef DEBUG
+    if (Builtins::IsBuiltinId(info->builtin())) {
+      DCHECK_EQ(parameter_count_,
+                Builtins::GetStackParameterCount(info->builtin()));
+    } else if (info->has_bytecode_array()) {
+      DCHECK_EQ(parameter_count_, info->bytecode_array()->parameter_count());
+    }
+#endif  // DEBUG
+  }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -238,7 +253,7 @@ void CodeGenerator::AssembleCode() {
   // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
   if (info->IsOptimizing()) {
-    DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+    DCHECK(call_descriptor->IsJSFunctionCall());
     masm()->RecordComment("-- Prologue: check for deoptimization --");
     BailoutIfDeoptimized();
   }
@@ -322,7 +337,7 @@ void CodeGenerator::AssembleCode() {
       // avoid clobbering callee saved registers in case of C linkage and
       // using the roots.
       // TODO(mtrofin): investigate how we can avoid doing this repeatedly.
-      if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+      if (call_descriptor->InitializeRootRegister()) {
         masm()->InitializeRootRegister();
       }
     }
@@ -517,6 +532,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   Factory::CodeBuilder builder(isolate(), desc, info()->code_kind());
   builder.set_builtin(info()->builtin())
       .set_inlined_bytecode_size(info()->inlined_bytecode_size())
+      .set_parameter_count(parameter_count_)
       .set_source_position_table(source_positions)
       .set_is_turbofanned()
       .set_stack_slots(frame()->GetTotalFrameSlotCount())
@@ -526,7 +542,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
     DCHECK(info()->has_bytecode_array());
-    builder.set_parameter_count(info()->bytecode_array()->parameter_count());
   }
 
   MaybeHandle<Code> maybe_code = builder.TryBuild();
