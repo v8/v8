@@ -5113,10 +5113,6 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         GlobalMemorySizeFromV8Size(min_old_generation_size_);
   }
 
-  if (v8_flags.semi_space_growth_factor < 2) {
-    v8_flags.semi_space_growth_factor = 2;
-  }
-
   initial_max_old_generation_size_ = max_old_generation_size();
   ResetOldGenerationAndGlobalAllocationLimit();
 

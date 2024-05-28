@@ -155,13 +155,11 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     // changes. So specifying the same flag with the same value multiple times
     // is allowed.
     // For other flags, we disallow specifying them explicitly or in the
-    // presence of an implication even if the value is the same.
+    // presence of an implication if the value is not the same.
     // This is to simplify the rules describing conflicts in variants.py: A
-    // repeated non-boolean flag is considered an error independently of its
-    // value.
+    // repeated non-boolean flag is considered an error.
     bool is_bool_flag = type_ == TYPE_MAYBE_BOOL || type_ == TYPE_BOOL;
     bool check_implications = change_flag;
-    bool check_command_line_flags = change_flag || !is_bool_flag;
     switch (set_by_) {
       case SetBy::kDefault:
         break;
@@ -182,7 +180,7 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
         }
         break;
       case SetBy::kCommandLine:
-        if (new_set_by == SetBy::kImplication && check_command_line_flags) {
+        if (new_set_by == SetBy::kImplication && check_implications) {
           // Exit instead of abort for certain testing situations.
           if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
@@ -194,8 +192,7 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
                          << FlagName{implied_by}
                          << " but also specified explicitly";
           }
-        } else if (new_set_by == SetBy::kCommandLine &&
-                   check_command_line_flags) {
+        } else if (new_set_by == SetBy::kCommandLine && check_implications) {
           // Exit instead of abort for certain testing situations.
           if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
@@ -495,7 +492,9 @@ uint32_t ComputeFlagListHash() {
         flag.PointsTo(&v8_flags.memory_reducer) ||
         flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
         flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||
-        flag.PointsTo(&v8_flags.single_threaded_gc)) {
+        flag.PointsTo(&v8_flags.single_threaded_gc) ||
+        flag.PointsTo(&v8_flags.fuzzing_and_concurrent_recompilation) ||
+        flag.PointsTo(&v8_flags.predictable_and_random_seed_is_0)) {
 #ifdef DEBUG
       if (flag.ImpliedBy(&v8_flags.predictable)) {
         flags_ignored_because_of_predictable.insert(flag.name());
