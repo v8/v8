@@ -46,6 +46,9 @@ struct TrustedPointerTableEntry {
   // This entry must not be a freelist entry.
   inline void SetPointer(Address pointer, IndirectPointerTag tag);
 
+  // Returns true if this entry contains a pointer with the given tag.
+  inline bool HasPointer(IndirectPointerTag tag) const;
+
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
 

@@ -47,6 +47,7 @@ void ExternalPointerTableEntry::SetExternalPointer(Address value,
 bool ExternalPointerTableEntry::HasExternalPointer(
     ExternalPointerTag tag) const {
   auto payload = payload_.load(std::memory_order_relaxed);
+  if (!payload.ContainsPointer()) return false;
   return tag == kAnyExternalPointerTag || payload.IsTaggedWith(tag);
 }
 
