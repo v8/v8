@@ -172,7 +172,6 @@
   V(_, add_string, "add")                                                     \
   V(_, AggregateError_string, "AggregateError")                               \
   V(_, always_string, "always")                                               \
-  V(_, anonymous_function_string, "(anonymous function)")                     \
   V(_, anonymous_string, "anonymous")                                         \
   V(_, apply_string, "apply")                                                 \
   V(_, Arguments_string, "Arguments")                                         \
@@ -188,7 +187,6 @@
   V(_, AtomicsCondition_string, "Atomics.Condition")                          \
   V(_, AtomicsMutex_string, "Atomics.Mutex")                                  \
   V(_, auto_string, "auto")                                                   \
-  V(_, await_string, "await")                                                 \
   V(_, BigInt_string, "BigInt")                                               \
   V(_, bigint_string, "bigint")                                               \
   V(_, BigInt64Array_string, "BigInt64Array")                                 \
@@ -368,7 +366,6 @@
   V(_, object_string, "object")                                               \
   V(_, object_to_string, "[object Object]")                                   \
   V(_, Object_prototype_string, "Object.prototype")                           \
-  V(_, of_string, "of")                                                       \
   V(_, offset_string, "offset")                                               \
   V(_, offsetNanoseconds_string, "offsetNanoseconds")                         \
   V(_, ok_string, "ok")                                                       \

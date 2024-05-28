@@ -235,7 +235,6 @@ using AstRawStringMap =
 // For generating constants.
 #define AST_STRING_CONSTANTS(F)                    \
   F(anonymous, "anonymous")                        \
-  F(anonymous_function, "(anonymous function)")    \
   F(arguments, "arguments")                        \
   F(as, "as")                                      \
   F(assert, "assert")                              \
@@ -261,7 +260,6 @@ using AstRawStringMap =
   F(eval, "eval")                                  \
   F(from, "from")                                  \
   F(function, "function")                          \
-  F(get, "get")                                    \
   F(get_space, "get ")                             \
   F(length, "length")                              \
   F(let, "let")                                    \
@@ -271,12 +269,10 @@ using AstRawStringMap =
   F(next, "next")                                  \
   F(number, "number")                              \
   F(object, "object")                              \
-  F(of, "of")                                      \
   F(private_constructor, "#constructor")           \
   F(proto, "__proto__")                            \
   F(prototype, "prototype")                        \
   F(return, "return")                              \
-  F(set, "set")                                    \
   F(set_space, "set ")                             \
   F(string, "string")                              \
   F(symbol, "symbol")                              \
