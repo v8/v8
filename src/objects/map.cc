@@ -2264,8 +2264,7 @@ bool Map::EquivalentToForTransition(const Tagged<Map> other,
     Tagged<DescriptorArray> that_descriptors =
         IsConcurrent(cmode) ? other->instance_descriptors(kAcquireLoad)
                             : other->instance_descriptors();
-    return this_descriptors->IsCompatibleForTransitionUpTo(that_descriptors,
-                                                           nof);
+    return this_descriptors->IsEqualUpTo(that_descriptors, nof);
   }
   return true;
 }

@@ -140,8 +140,7 @@ class DescriptorArray
   V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Tagged<Name> name,
                                           Tagged<Map> map);
 
-  bool IsCompatibleForTransitionUpTo(Tagged<DescriptorArray> desc,
-                                     int nof_descriptors);
+  bool IsEqualUpTo(Tagged<DescriptorArray> desc, int nof_descriptors);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.

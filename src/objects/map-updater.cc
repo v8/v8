@@ -687,6 +687,13 @@ MapUpdater::State MapUpdater::FindRootMap() {
     // that prototype transitions always connect to a more generic map.
     if (!root_map_->is_dictionary_map() && !is_cached) {
       root_map_->instance_descriptors()->GeneralizeAllFields(true);
+      // Transitions between JSFunctions require that all fields have the same
+      // representation.
+      if (IsJSFunctionMap(*old_map_) &&
+          !old_map_->EquivalentToForTransition(
+              *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
+        old_map_->instance_descriptors()->GeneralizeAllFields(true);
+      }
     }
   }
   root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);

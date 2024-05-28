@@ -3688,8 +3688,8 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   return copy_handle;
 }
 
-bool DescriptorArray::IsCompatibleForTransitionUpTo(
-    Tagged<DescriptorArray> desc, int nof_descriptors) {
+bool DescriptorArray::IsEqualUpTo(Tagged<DescriptorArray> desc,
+                                  int nof_descriptors) {
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     if (GetKey(i) != desc->GetKey(i) || GetValue(i) != desc->GetValue(i)) {
       return false;
@@ -3698,8 +3698,7 @@ bool DescriptorArray::IsCompatibleForTransitionUpTo(
     PropertyDetails other_details = desc->GetDetails(i);
     if (details.kind() != other_details.kind() ||
         details.location() != other_details.location() ||
-        !details.representation().IsCompatibleForLoad(
-            other_details.representation())) {
+        !details.representation().Equals(other_details.representation())) {
       return false;
     }
   }
