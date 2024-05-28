@@ -4245,7 +4245,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   return value;
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
+ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
+                                                      NodeType length_type) {
   // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
   // searching the constant values.
   ReduceResult known_length =
@@ -4257,7 +4258,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
 
   ValueNode* length =
       AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
-  known_node_aspects().GetOrCreateInfoFor(length)->CombineType(NodeType::kSmi);
+  known_node_aspects().GetOrCreateInfoFor(length)->CombineType(length_type);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -6877,6 +6878,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   base::SmallVector<compiler::MapRef, 4> maps;
   if (iterated_object->Is<InlinedAllocation>()) {
     auto maybe_array = iterated_object->Cast<InlinedAllocation>()->GetObject();
+    // TODO(victorgomes): Remove this once we track changes in the inlined
+    // allocated object.
+    if (iterated_object->Cast<InlinedAllocation>()->IsEscaping()) {
+      FAIL("allocation is escaping, map could have been changed");
+    }
     if (!maybe_array) {
       FAIL("not a valid iterated object");
     }
@@ -6910,16 +6916,18 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     FAIL("no elements protector");
   }
 
-  // Load the [[NextIndex]] from the {iterator} and leverage the fact
-  // that we definitely know that it's a positive Smi since the
-  // {iterated_object} is a JSArray.
-  ValueNode* smi_index = AddNewNode<LoadTaggedField>(
+  // Load the [[NextIndex]] from the {iterator}.
+  // We can assume index and length fit in Uint32.
+  ValueNode* index = AddNewNode<LoadTaggedField>(
       {receiver}, JSArrayIterator::kNextIndexOffset);
-  EnsureType(smi_index, NodeType::kSmi);
-  ValueNode* int32_index = GetInt32(smi_index);
-  ValueNode* uint32_index = AddNewNode<UnsafeInt32ToUint32>({int32_index});
-  ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>(
-      {GetInt32(BuildLoadJSArrayLength(iterated_object))});
+  ValueNode* uint32_index;
+  GET_VALUE_OR_ABORT(uint32_index, GetUint32ElementIndex(index));
+  ValueNode* uint32_length;
+  GET_VALUE_OR_ABORT(uint32_length,
+                     GetUint32ElementIndex(BuildLoadJSArrayLength(
+                         iterated_object, IsFastElementsKind(elements_kind)
+                                              ? NodeType::kSmi
+                                              : NodeType::kNumber)));
 
   // Check next index is below length
   MaglevSubGraphBuilder subgraph(this, 2);
@@ -6931,11 +6939,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       &else_branch, {uint32_index, uint32_length}, Operation::kLessThan);
 
   // Index is below length.
+  ValueNode* int32_index = GetInt32(uint32_index);
   subgraph.set(is_done, GetBooleanConstant(false));
   IterationKind iteration_kind = static_cast<IterationKind>(
       iterator.get(JSArrayIterator::kKindOffset).smi);
   if (iteration_kind == IterationKind::kKeys) {
-    subgraph.set(ret_value, smi_index);
+    subgraph.set(ret_value, index);
   } else {
     ValueNode* value;
     GET_VALUE_OR_ABORT(
@@ -6943,7 +6952,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
                    iterated_object, int32_index, base::VectorOf(maps),
                    elements_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
     if (iteration_kind == IterationKind::kEntries) {
-      subgraph.set(ret_value, BuildAndAllocateKeyValueArray(smi_index, value));
+      subgraph.set(ret_value, BuildAndAllocateKeyValueArray(index, value));
     } else {
       subgraph.set(ret_value, value);
     }
