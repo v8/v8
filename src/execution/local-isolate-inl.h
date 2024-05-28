@@ -37,6 +37,15 @@ V8_INLINE void LocalIsolate::BlockMainThreadWhileParked(Callback callback) {
   heap_.BlockMainThreadWhileParked(callback);
 }
 
+template <typename Callback>
+V8_INLINE void LocalIsolate::ExecuteWhileParkedOnBackground(Callback callback) {
+  if (is_main_thread()) {
+    callback();
+  } else {
+    heap_.BlockBackgroundThreadWhileParked(callback);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 
