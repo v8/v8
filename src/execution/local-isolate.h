@@ -158,6 +158,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   template <typename Callback>
   V8_INLINE void BlockMainThreadWhileParked(Callback callback);
 
+  template <typename Callback>
+  V8_INLINE void ExecuteWhileParkedOnBackground(Callback callback);
+
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
   const std::string& DefaultLocale();

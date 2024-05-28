@@ -700,7 +700,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (flags().is_eval()) {
       DCHECK(parsing_on_main_thread_);
-      DCHECK(!overall_parse_is_parked_);
+      DCHECK(!isolate->main_thread_local_heap()->IsParked());
       info->ast_value_factory()->Internalize(isolate);
     }
     CheckConflictingVarDeclarations(scope);
@@ -2887,10 +2887,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     bool uses_super_property;
     if (stack_overflow()) return true;
     {
-      base::Optional<UnparkedScopeIfOnBackground> unparked_scope;
-      if (overall_parse_is_parked_) {
-        unparked_scope.emplace(local_isolate_);
-      }
+      UnparkedScopeIfOnBackground unparked_scope(local_isolate_);
       *produced_preparse_data =
           consumed_preparse_data_->GetDataForSkippableFunction(
               main_zone(), function_scope->start_position(), &end_position,
@@ -3493,12 +3490,12 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
 
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
-  {
-    // We can park the isolate while parsing, it doesn't need to allocate or
-    // access the main thread.
-    ParkedScopeIfOnBackground parked_scope(isolate);
-    overall_parse_is_parked_ = true;
 
+  // We can park the isolate while parsing, it doesn't need to allocate or
+  // access the main thread.
+  isolate->ExecuteWhileParkedOnBackground([this, start_position, end_position,
+                                           function_literal_id, info,
+                                           &result]() {
     scanner_.Initialize();
 
     DCHECK(original_scope_);
@@ -3529,7 +3526,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
                                info->function_name());
     }
     MaybeProcessSourceRanges(info, result, stack_limit_);
-  }
+  });
   // We need to unpark by now though, to be able to internalize.
   PostProcessParseResult(isolate, info, result);
   if (flags().is_toplevel()) {

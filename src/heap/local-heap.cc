@@ -53,6 +53,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       state_(ThreadState::Parked()),
       allocation_failed_(false),
       main_thread_parked_(false),
+      nested_parked_scopes_(0),
       prev_(nullptr),
       next_(nullptr),
       handles_(new LocalHandles),
@@ -372,16 +373,22 @@ void LocalHeap::SleepInSafepoint() {
 
 #ifdef DEBUG
 bool LocalHeap::IsSafeForConservativeStackScanning() const {
-  if (is_main_thread()) {
-    // The main thread of a client isolate must be in the trampoline.
-    if (heap()->isolate()->has_shared_space() && !is_in_trampoline())
-      return false;
 #ifdef V8_ENABLE_DIRECT_HANDLE
-  } else {
-    // Background threads must not use direct handles.
-    if (DirectHandleBase::NumberOfHandles() > 0) return false;
+  // There must be no direct handles on the stack below the stack marker.
+  if (DirectHandleBase::NumberOfHandles() > 0) return false;
 #endif
+  // Check if we are inside at least one ParkedScope.
+  if (nested_parked_scopes_ > 0) {
+    // The main thread can avoid the trampoline, if it's not the main thread of
+    // a client isolate.
+    if (is_main_thread() && (heap()->isolate()->is_shared_space_isolate() ||
+                             !heap()->isolate()->has_shared_space()))
+      return true;
+    // Otherwise, require that we're inside the trampoline.
+    return is_in_trampoline();
   }
+  // Otherwise, we are reaching the initial parked state and the stack should
+  // not be interesting.
   return true;
 }
 #endif  // DEBUG
