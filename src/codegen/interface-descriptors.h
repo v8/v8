@@ -2421,7 +2421,7 @@ class WasmFloat64ToTaggedDescriptor final
 class WasmJSToWasmWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmJSToWasmWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kWrapperBuffer, kInstance, kResultJSArray)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::IntPtr(),     // ParamBuffer
@@ -2443,7 +2443,7 @@ class WasmJSToWasmWrapperDescriptor final
 class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kWasmEntrypointTag)
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::IntPtr(),     // GP return 1
