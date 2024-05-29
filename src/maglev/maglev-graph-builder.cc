@@ -4016,6 +4016,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 
 void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
     InlinedAllocation* object, ValueNode* value, int offset) {
+  DCHECK(value->is_tagged());
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
     auto deps = graph()->allocations().find(object);
     CHECK(deps != graph()->allocations().end());
@@ -10449,7 +10450,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
       default:
         node = GetValueNodeFromCapturedValue(value);
     }
-    values[i] = node;
+    values[i] = GetTaggedValue(node);
   }
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       allocation_type, CapturedAllocation(NewObjectId(), object));
