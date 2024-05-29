@@ -1210,8 +1210,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  InternalIndex descriptor, Handle<Name> name,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
-                                 const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(IsSmi(*new_wrapped_type) || IsWeak(*new_wrapped_type));
+                                 Handle<FieldType> new_type) {
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowGarbageCollection no_gc;
   PropertyDetails details =
@@ -1250,24 +1249,48 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 #endif
         },
         TransitionsAccessor::IterationMode::kIncludeSideStepTransitions);
+
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);
 
+    PropertyConstness cur_new_constness = new_constness;
+    Representation cur_new_representation = new_representation;
+    Handle<FieldType> cur_new_type = new_type;
+    // Through side-steps we can reach transition trees which are already more
+    // generalized. Ensure we don't re-concretize them.
+    if (!sidestep_transition.empty()) {
+      cur_new_constness =
+          GeneralizeConstness(new_constness, details.constness());
+      cur_new_representation =
+          new_representation.generalize(details.representation());
+      cur_new_type = GeneralizeFieldType(
+          details.representation(),
+          handle(descriptors->GetFieldType(descriptor), isolate),
+          cur_new_representation, new_type, isolate);
+      DCHECK(new_representation.fits_into(cur_new_representation));
+    }
+
     // It is allowed to change representation here only from None
     // to something or from Smi or HeapObject to Tagged.
-    DCHECK(details.representation().Equals(new_representation) ||
-           details.representation().CanBeInPlaceChangedTo(new_representation));
+    CHECK(
+        details.representation().Equals(cur_new_representation) ||
+        details.representation().CanBeInPlaceChangedTo(cur_new_representation));
 
-    // Skip if already updated the shared descriptor.
-    if (new_constness != details.constness() ||
-        !new_representation.Equals(details.representation()) ||
-        descriptors->GetFieldType(descriptor) != *new_wrapped_type.object()) {
-      Descriptor d = Descriptor::DataField(
-          name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-          new_constness, new_representation, new_wrapped_type);
-      descriptors->Replace(descriptor, &d);
+    // Skip if we already updated the shared descriptor or the target was more
+    // general in the first place.
+    if (cur_new_constness == details.constness() &&
+        cur_new_representation.Equals(details.representation()) &&
+        FieldType::Equals(descriptors->GetFieldType(descriptor),
+                          *cur_new_type)) {
+      continue;
     }
+
+    MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_type));
+    Descriptor d = Descriptor::DataField(
+        name, descriptors->GetFieldIndex(descriptor), details.attributes(),
+        cur_new_constness, cur_new_representation, wrapped_type);
+    descriptors->Replace(descriptor, &d);
   }
 }
 
@@ -1320,9 +1343,8 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index), isolate);
 
-  MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_field_type));
   UpdateFieldType(isolate, field_owner, modify_index, name, new_constness,
-                  new_representation, wrapped_type);
+                  new_representation, new_field_type);
 
   DCHECK_IMPLIES(IsClass(*new_field_type), new_representation.IsHeapObject());
 

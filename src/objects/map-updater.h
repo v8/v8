@@ -210,7 +210,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
                               Handle<Name> name,
                               PropertyConstness new_constness,
                               Representation new_representation,
-                              const MaybeObjectHandle& new_wrapped_type);
+                              Handle<FieldType> new_type);
 
   void GeneralizeField(Handle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,

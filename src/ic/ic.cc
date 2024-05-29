@@ -3306,6 +3306,26 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, bool null_proto_literal,
   return mode;
 }
 
+bool CanCacheCloneTargetMapTransition(Handle<Map> source_map,
+                                      std::optional<Handle<Map>> target_map,
+                                      bool null_proto_literal) {
+  if (!v8_flags.clone_object_sidestep_transitions || null_proto_literal) {
+    return false;
+  }
+  // As of now any R/O source object should end up in the kEmptyObject case, but
+  // there is not really a way of ensuring it. Thus, we also check it below.
+  DCHECK(!InReadOnlySpace(*source_map));
+  if (InReadOnlySpace(*source_map) || source_map->is_deprecated() ||
+      source_map->is_prototype_map()) {
+    return false;
+  }
+  if (!target_map) {
+    return true;
+  }
+  CHECK(!InReadOnlySpace(**target_map));
+  return !(*target_map)->is_deprecated();
+}
+
 bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
                                          Handle<Map> target_map,
                                          bool null_proto_literal,
@@ -3385,7 +3405,8 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
     // In the case the clone also involves a proto transition, we do not cache
     // the target and thus cannot keep track of representation dependencies. We
     // can only allow the most generic target representation.
-    if ((null_proto_literal || !v8_flags.clone_object_sidestep_transitions) &&
+    if (!CanCacheCloneTargetMapTransition(source_map, target_map,
+                                          null_proto_literal) &&
         !details.representation().MostGenericInPlaceChange().Equals(
             target_details.representation())) {
       return false;
@@ -3487,6 +3508,7 @@ std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
 void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
                        Handle<Map> new_target_map) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
+  DCHECK(CanCacheCloneTargetMapTransition(source_map, new_target_map, false));
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
 #ifdef DEBUG
@@ -3507,6 +3529,7 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
 
 void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
+  DCHECK(CanCacheCloneTargetMapTransition(source_map, {}, false));
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
 #ifdef DEBUG
@@ -3564,8 +3587,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
               : GetCloneModeForMap(source_map, null_proto_literal, isolate);
       auto UpdateState = [&](Handle<Map> target_map) {
         UpdateNexus(target_map);
-        if (!null_proto_literal && !InReadOnlySpace(*source_map) &&
-            !InReadOnlySpace(*target_map)) {
+        if (CanCacheCloneTargetMapTransition(source_map, target_map,
+                                             null_proto_literal)) {
           SetCloneTargetMap(isolate, source_map, target_map);
         }
       };
@@ -3595,8 +3618,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
                       result_map->GetInObjectProperties());
             UpdateState(result_map);
           } else {
-            if (!null_proto_literal && !InReadOnlySpace(*source_map) &&
-                !source_map->is_prototype_map()) {
+            if (CanCacheCloneTargetMapTransition(source_map, {},
+                                                 null_proto_literal)) {
               SetCloneTargetMapUnsupported(isolate, source_map);
             }
             if (nexus) {
