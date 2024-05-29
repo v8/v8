@@ -268,15 +268,18 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
           LoadTrustedDataFromInstance(
               UnsafeCast<WasmInstanceObject>(ref.instance));
       const converted = JSToWasmObject(context, trustedData, retType, retVal);
-      let toRef = locationAllocator.GetGPSlot();
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the
         // result buffer.
+        let toRef = locationAllocator.GetGPSlot();
         *toRef = BitcastTaggedToWord(converted);
       } else {
-        // There may be other parameters that could still trigger a GC when they
-        // get transformed. For now we just store the converted value back in
-        // the FixedArray.
+        // Storing the converted value back in the FixedArray serves two
+        // purposes:
+        // (1) There may be other parameters that could still trigger a GC when
+        //     they get transformed.
+        // (2) Tagged values are reordered to the end, so we can't assign their
+        //     locations yet.
         hasTagged = true;
         resultFixedArray.objects[nextIndex] = converted;
       }
@@ -284,26 +287,13 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     nextIndex++;
   }
   if (hasTagged) {
+    locationAllocator.StartRefs();
     returnIt = returnTypes.Iterator();
     nextIndex = 0;
-    locationAllocator =
-        LocationAllocatorForReturns(gpRegSlots, fpRegSlots, stackSlots);
     while (!returnIt.Empty()) {
       const retType = returnIt.NextNotEmpty();
-      if (retType == kWasmI32Type) {
-        locationAllocator.GetGPSlot();
-      } else if (retType == kWasmF32Type) {
-        locationAllocator.GetFP32Slot();
-      } else if (retType == kWasmF64Type) {
-        locationAllocator.GetFP64Slot();
-      } else if (retType == kWasmI64Type) {
-        if constexpr (Is64()) {
-          locationAllocator.GetGPSlot();
-        } else {
-          locationAllocator.GetGPSlot();
-          locationAllocator.GetGPSlot();
-        }
-      } else {
+      const retKind = retType & kValueTypeKindBitsMask;
+      if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
         let toRef = locationAllocator.GetGPSlot();
         const value = resultFixedArray.objects[nextIndex];
         *toRef = BitcastTaggedToWord(value);
