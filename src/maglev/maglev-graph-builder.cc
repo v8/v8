@@ -7742,98 +7742,17 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
 
 ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     compiler::JSFunctionRef target, CallArguments& args) {
+  // TODO(jialu): optimize for heap const receiver.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return ReduceResult::Fail();
   }
-
-  // We can constant-fold the {receiver.hasOwnProperty(name)} builtin call to
-  // the {True} node in this case:
-
-  //   for (name in receiver) {
-  //     if (receiver.hasOwnProperty(name)) {
-  //        ...
-  //     }
-  //   }
-
+  if (args.receiver() != current_for_in_state.receiver) {
+    return ReduceResult::Fail();
+  }
   if (args.count() != 1 || args[0] != current_for_in_state.key) {
     return ReduceResult::Fail();
   }
-  ValueNode* receiver = args.receiver();
-  if (receiver == current_for_in_state.receiver) {
-    if (current_for_in_state.receiver_needs_map_check) {
-      auto* receiver_map =
-          AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
-      AddNewNode<CheckDynamicValue>(
-          {receiver_map, current_for_in_state.cache_type});
-      current_for_in_state.receiver_needs_map_check = false;
-    }
-    return GetRootConstant(RootIndex::kTrueValue);
-  }
-
-  // We can also optimize for this case below:
-
-  // receiver(is a heap constant with fast map)
-  //  ^
-  //  |    object(all keys are enumerable)
-  //  |      ^
-  //  |      |
-  //  |   JSForInNext
-  //  |      ^
-  //  +----+ |
-  //       | |
-  //  JSCall[hasOwnProperty]
-
-  // We can replace the {JSCall} with several internalized string
-  // comparisons.
-
-  compiler::OptionalMapRef maybe_receiver_map;
-  compiler::OptionalHeapObjectRef receiver_ref = TryGetConstant(receiver);
-  if (receiver_ref.has_value()) {
-    compiler::HeapObjectRef receiver_object = receiver_ref.value();
-    compiler::MapRef receiver_map = receiver_object.map(broker());
-    maybe_receiver_map = receiver_map;
-  } else {
-    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(receiver);
-    if (known_info->possible_maps_are_known()) {
-      compiler::ZoneRefSet<Map> possible_maps = known_info->possible_maps();
-      if (possible_maps.size() == 1) {
-        compiler::MapRef receiver_map = *(possible_maps.begin());
-        maybe_receiver_map = receiver_map;
-      }
-    }
-  }
-  if (!maybe_receiver_map.has_value()) {
-    return ReduceResult::Fail();
-  }
-
-  compiler::MapRef receiver_map = maybe_receiver_map.value();
-  InstanceType instance_type = receiver_map.instance_type();
-  int const nof = receiver_map.NumberOfOwnDescriptors();
-  // We set a heuristic value to limit the compare instructions number.
-  if (nof > 4 || IsSpecialReceiverInstanceType(instance_type) ||
-      receiver_map.is_dictionary_map()) {
-    return ReduceResult::Fail();
-  }
-  RETURN_IF_ABORT(BuildCheckMaps(receiver, base::VectorOf({receiver_map})));
-  //  Replace builtin call with several internalized string comparisons.
-  MaglevSubGraphBuilder sub_graph(this, 1);
-  MaglevSubGraphBuilder::Variable var_result(0);
-  MaglevSubGraphBuilder::Label done(
-      &sub_graph, nof + 1,
-      std::initializer_list<MaglevSubGraphBuilder::Variable*>{&var_result});
-  const compiler::DescriptorArrayRef descriptor_array =
-      receiver_map.instance_descriptors(broker());
-  for (InternalIndex key_index : InternalIndex::Range(nof)) {
-    compiler::NameRef receiver_key =
-        descriptor_array.GetPropertyKey(broker(), key_index);
-    ValueNode* lhs = GetConstant(receiver_key);
-    sub_graph.set(var_result, GetRootConstant(RootIndex::kTrueValue));
-    sub_graph.GotoIfTrue<BranchIfReferenceEqual>(&done, {lhs, args[0]});
-  }
-  sub_graph.set(var_result, GetRootConstant(RootIndex::kFalseValue));
-  sub_graph.Goto(&done);
-  sub_graph.Bind(&done);
-  return sub_graph.get(var_result);
+  return GetRootConstant(RootIndex::kTrueValue);
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
