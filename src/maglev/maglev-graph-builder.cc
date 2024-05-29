@@ -6885,6 +6885,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     if (iterated_object->Cast<InlinedAllocation>()->IsEscaping()) {
       FAIL("allocation is escaping, map could have been changed");
     }
+    // TODO(victorgomes): This effectively disable the optimization for `for-of`
+    // loops. We need to figure it out a way to re-enable this.
+    if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) !=
+        -1) {
+      FAIL("we're inside a loop, iterated object map could change");
+    }
     if (!maybe_array) {
       FAIL("not a valid iterated object");
     }
