@@ -157,7 +157,8 @@ RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
-RECLIENT_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
+DEPRECATED_RBE_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
+RECLIENT_CFG_RE = re.compile(r"\nreclient_cfg_dir = \"[^\"]+\"")
 
 class Reclient(IntEnum):
   NONE = 0
@@ -233,7 +234,7 @@ BUILD_DISTRIBUTION_LINE = ""
 if RECLIENT_MODE:
   BUILD_DISTRIBUTION_LINE = "\nuse_remoteexec = true"
   if RECLIENT_MODE == Reclient.CUSTOM:
-    BUILD_DISTRIBUTION_LINE += f"\nrbe_cfg_dir = \"{RECLIENT_CFG_REL}\""
+    BUILD_DISTRIBUTION_LINE += f"\nreclient_cfg_dir = \"{RECLIENT_CFG_REL}\""
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
@@ -399,7 +400,8 @@ class RawConfig:
       gn_args = f.read()
     # Remove custom reclient config path (it will be added again as part of
     # the config line below if needed).
-    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
+    new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
+    new_gn_args = RECLIENT_CFG_RE.sub("", new_gn_args)
     new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
                                             new_gn_args)
     # Remove stale goma_dir to silence GN warnings about unused options.
