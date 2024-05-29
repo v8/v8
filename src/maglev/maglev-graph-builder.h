@@ -438,6 +438,10 @@ class MaglevGraphBuilder {
   NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   NodeType GetType(ValueNode* node);
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(node, broker(),
+                                                   local_isolate());
+  }
 
   // Returns true if we statically know that {lhs} and {rhs} have different
   // types.

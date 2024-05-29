@@ -351,10 +351,13 @@ struct KnownNodeAspects {
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
   }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node, compiler::JSHeapBroker* broker,
+                               LocalIsolate* isolate) {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
-    return &node_infos.emplace(node, NodeInfo()).first->second;
+    auto res = &node_infos.emplace(node, NodeInfo()).first->second;
+    res->CombineType(StaticTypeForNode(broker, isolate, node));
+    return res;
   }
 
   NodeType NodeTypeFor(ValueNode* node) const {

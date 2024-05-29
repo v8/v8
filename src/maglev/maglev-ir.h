@@ -9804,6 +9804,9 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   iterate_inputs(InputAllocationPolicy::kAny);
 }
 
+NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
+                           LocalIsolate* isolate, ValueNode* node);
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

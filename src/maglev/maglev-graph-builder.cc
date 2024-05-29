@@ -1399,7 +1399,7 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) return value;
 
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.tagged()) {
@@ -1441,7 +1441,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
     RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
   }
 
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -1504,7 +1504,7 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
   NodeType old_type;
   if (CheckType(node, NodeType::kInternalizedString, &old_type)) return node;
   if (!NodeTypeIs(old_type, NodeType::kString)) {
-    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+    NodeInfo* known_info = GetOrCreateInfoFor(node);
     known_info->CombineType(NodeType::kString);
   }
   node = AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type));
@@ -1584,7 +1584,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
       break;
   }
 
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
   // If there is an int32_alternative, then that works as a truncated value
@@ -1663,7 +1663,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
       break;
   }
 
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.int32()) {
@@ -1742,7 +1742,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
       break;
   }
 
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.float64()) {
@@ -3511,7 +3511,7 @@ bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type,
 bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
                                     NodeType* old_type) {
   if (CheckStaticType(node, type, old_type)) return true;
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  NodeInfo* known_info = GetOrCreateInfoFor(node);
   if (old_type) *old_type = known_info->type();
   if (NodeTypeIs(known_info->type(), type)) return true;
   known_info->CombineType(type);
@@ -3522,7 +3522,7 @@ template <typename Function>
 bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
                                     Function ensure_new_type) {
   if (CheckStaticType(node, type)) return true;
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  NodeInfo* known_info = GetOrCreateInfoFor(node);
   if (NodeTypeIs(known_info->type(), type)) return true;
   ensure_new_type(known_info->type());
   known_info->CombineType(type);
@@ -3533,7 +3533,7 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
                                        NodeType new_node_type) {
   DCHECK(!node->Is<Constant>());
   DCHECK(!node->Is<RootConstant>());
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  NodeInfo* known_info = GetOrCreateInfoFor(node);
   // ref type should be compatible with type.
   DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
   known_info->CombineType(new_node_type);
@@ -3567,6 +3567,8 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   if (!known_node_aspects().IsValid(it)) {
     return StaticTypeForNode(broker(), local_isolate(), node);
   }
+  DCHECK(NodeTypeIs(it->second.type(),
+                    StaticTypeForNode(broker(), local_isolate(), node)));
   return it->second.type();
 }
 
@@ -3724,7 +3726,8 @@ class KnownMapsMerger {
   void UpdateKnownNodeAspects(ValueNode* object,
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
-    auto node_info = known_node_aspects.GetOrCreateInfoFor(object);
+    auto node_info = known_node_aspects.GetOrCreateInfoFor(
+        object, broker_, broker_->local_isolate());
     node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_,
                                node_type_);
     // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
@@ -3818,8 +3821,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     }
   }
 
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
+  NodeInfo* known_info = GetOrCreateInfoFor(object);
 
   // Calculates if known maps are a subset of maps, their map intersection and
   // whether we should emit check with migration.
@@ -3880,8 +3882,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
     CHECK(!transition_source.is_migration_target());
   }
 
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
+  NodeInfo* known_info = GetOrCreateInfoFor(object);
 
   AddNewNode<TransitionElementsKindOrCheckMap>(
       {object}, transition_sources, transition_target,
@@ -3903,10 +3904,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     ValueNode* heap_object, base::Optional<ValueNode*> object_map_opt,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(heap_object);
-  known_info->CombineType(
-      StaticTypeForNode(broker(), local_isolate(), heap_object));
-
+  GetOrCreateInfoFor(heap_object);
   KnownMapsMerger merger(broker(), maps);
   merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
 
@@ -3954,9 +3952,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
     base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   DCHECK(!transition_target.is_migration_target());
 
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(heap_object);
-  known_info->CombineType(
-      StaticTypeForNode(broker(), local_isolate(), heap_object));
+  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
 
   // TODO(pthier): Calculate and use the intersection of known maps with
   // (transition_sources union transition_target).
@@ -4228,10 +4224,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
-    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+    NodeInfo* known_info = GetOrCreateInfoFor(value);
     known_info->CombineType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
-    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+    NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
@@ -4259,7 +4255,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
 
   ValueNode* length =
       AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
-  known_node_aspects().GetOrCreateInfoFor(length)->CombineType(length_type);
+  GetOrCreateInfoFor(length)->CombineType(length_type);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -4269,7 +4265,7 @@ void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
                                        StoreMap::Kind kind) {
   AddNewNode<StoreMap>({object}, map, kind);
   NodeType object_type = StaticTypeForMap(map);
-  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
+  NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
     node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type);
     broker()->dependencies()->DependOnStableMap(map);
@@ -4714,8 +4710,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         return GetInt32Constant(constant->value().value());
       } else if (CheckType(object, NodeType::kSmi, &old_type)) {
-        auto& alternative =
-            known_node_aspects().GetOrCreateInfoFor(object)->alternative();
+        auto& alternative = GetOrCreateInfoFor(object)->alternative();
         return alternative.get_or_set_int32(
             [&]() { return BuildSmiUntag(object); });
       } else {

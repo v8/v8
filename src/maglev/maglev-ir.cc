@@ -7415,20 +7415,21 @@ void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
     case Kind::kInitializingYoung:
       return;
     case Kind::kTransitioning: {
-      NodeInfo* node_info =
-          known_node_aspects.GetOrCreateInfoFor(object_input().node());
-      if (node_info->possible_maps_are_known() &&
-          node_info->possible_maps().size() == 1) {
-        compiler::MapRef old_map = node_info->possible_maps().at(0);
-        auto MaybeAliases = [&](compiler::MapRef map) -> bool {
-          return map.equals(old_map);
-        };
-        known_node_aspects.ClearUnstableMapsIfAny(MaybeAliases);
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  ! StoreMap: Clearing unstable map "
-                    << Brief(*old_map.object()) << std::endl;
+      if (NodeInfo* node_info =
+              known_node_aspects.TryGetInfoFor(object_input().node())) {
+        if (node_info->possible_maps_are_known() &&
+            node_info->possible_maps().size() == 1) {
+          compiler::MapRef old_map = node_info->possible_maps().at(0);
+          auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+            return map.equals(old_map);
+          };
+          known_node_aspects.ClearUnstableMapsIfAny(MaybeAliases);
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  ! StoreMap: Clearing unstable map "
+                      << Brief(*old_map.object()) << std::endl;
+          }
+          return;
         }
-        return;
       }
       break;
     }
