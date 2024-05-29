@@ -3085,7 +3085,7 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   __ Zero(MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset),
-          MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+          MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
 }
 
 // TODO(irezvov): Consolidate with arm64 RegisterAllocator.
@@ -3217,6 +3217,24 @@ class RegisterAllocator {
   RegisterAllocator::Scoped scope_##Name(&regs, &Name);
 
 #define FREE_REG(Name) regs.Free(&Name);
+
+// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// depending on the ref's type, and places the result in the input register.
+void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
+  __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
+  __ CompareInstanceType(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
+  Label instance;
+  Label end;
+  __ b(eq, &instance);
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ jmp(&end);
+  __ bind(&instance);
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+  __ bind(&end);
+}
+
 }  // namespace
 
 void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
@@ -3608,11 +3626,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ ldr(kContextRegister,
-         MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldMemOperand(kContextRegister,
-                      WasmTrustedInstanceData::kNativeContextOffset));
+         MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+  GetContextFromRef(masm, kContextRegister, tmp);
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
@@ -3656,15 +3671,11 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ LoadTaggedField(
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
-  __ ldr(kContextRegister,
-         MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldMemOperand(kContextRegister,
-                      WasmTrustedInstanceData::kNativeContextOffset));
-
   DEFINE_SCOPED(tmp);
   DEFINE_SCOPED(tmp2);
+  __ ldr(kContextRegister,
+         MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+  GetContextFromRef(masm, kContextRegister, tmp);
   ReloadParentContinuation(masm, promise, reason, kContextRegister, tmp, tmp2);
   RestoreParentSuspender(masm, tmp, tmp2);
 
@@ -3691,10 +3702,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
 
-  DEFINE_PINNED(wasm_instance_data, kWasmInstanceRegister);
-  __ ldr(
-      wasm_instance_data,
-      MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+  DEFINE_PINNED(ref, kWasmInstanceRegister);
+  __ ldr(ref, MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
 
   DEFINE_PINNED(wrapper_buffer,
                 WasmJSToWasmWrapperDescriptor::WrapperBufferRegister());
@@ -3703,22 +3712,20 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Register original_fp = no_reg;
   Register new_wrapper_buffer = no_reg;
   if (stack_switch) {
-    SwitchToAllocatedStack(masm, regs, wasm_instance_data, wrapper_buffer,
-                           original_fp, new_wrapper_buffer, &suspend);
+    SwitchToAllocatedStack(masm, regs, ref, wrapper_buffer, original_fp,
+                           new_wrapper_buffer, &suspend);
   } else {
     original_fp = fp;
     new_wrapper_buffer = wrapper_buffer;
   }
 
-  regs.ResetExcept(original_fp, wrapper_buffer, wasm_instance_data,
-                   new_wrapper_buffer);
+  regs.ResetExcept(original_fp, wrapper_buffer, ref, new_wrapper_buffer);
 
   {
     __ str(new_wrapper_buffer,
            MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
     if (stack_switch) {
-      __ str(wasm_instance_data,
-             MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+      __ str(ref, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
       DEFINE_SCOPED(scratch)
       __ ldr(
           scratch,
@@ -3745,7 +3752,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     FREE_REG(new_wrapper_buffer)
   }
-  FREE_REG(wasm_instance_data)
+  FREE_REG(ref)
   for (auto reg : wasm::kGpParamRegisters) {
     regs.Reserve(reg);
   }
@@ -3863,14 +3870,14 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // r2: pointer to the byte buffer which contains all parameters.
   if (stack_switch) {
     __ ldr(r1, MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ ldr(r0, MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+    __ ldr(r0, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
   } else {
     __ ldr(r1, MemOperand(
                    fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
-    __ ldr(r0,
-           MemOperand(fp,
-                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+    __ ldr(r0, MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
   }
+  Register scratch = r3;
+  GetContextFromRef(masm, r0, scratch);
 
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 

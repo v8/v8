@@ -3311,6 +3311,24 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   SyncStackLimit(masm, promise, return_value, context);
 }
 
+// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// depending on the ref's type, and places the result in the input register.
+void GetContextFromRef(MacroAssembler* masm, Register ref) {
+  __ LoadTaggedField(kScratchRegister,
+                     FieldOperand(ref, HeapObject::kMapOffset));
+  __ CmpInstanceType(kScratchRegister, WASM_TRUSTED_INSTANCE_DATA_TYPE);
+  Label instance;
+  Label end;
+  __ j(equal, &instance);
+  __ LoadTaggedField(
+      ref, FieldOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ jmp(&end);
+  __ bind(&instance);
+  __ LoadTaggedField(
+      ref, FieldOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+  __ bind(&end);
+}
+
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
                             Register tmp2) {
   Register suspender = tmp1;
@@ -3343,7 +3361,7 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   __ Move(kScratchRegister, Smi::zero());
-  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset),
+  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kRefOffset),
           kScratchRegister);
   __ movq(MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset),
           kScratchRegister);
@@ -3415,11 +3433,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldOperand(kContextRegister,
-                   WasmTrustedInstanceData::kNativeContextOffset));
+          MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
+  GetContextFromRef(masm, kContextRegister);
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp1,
                            tmp2);
@@ -3464,11 +3479,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldOperand(kContextRegister,
-                   WasmTrustedInstanceData::kNativeContextOffset));
+          MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
+  GetContextFromRef(masm, kContextRegister);
 
   ReloadParentContinuation(masm, promise, reason, kContextRegister, r8, rdi);
   RestoreParentSuspender(masm, r8, rdi);
@@ -3496,9 +3508,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register wrapper_buffer =
       WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
-  __ movq(
-      kWasmInstanceRegister,
-      MemOperand(rbp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+  __ movq(kWasmInstanceRegister,
+          MemOperand(rbp, JSToWasmWrapperFrameConstants::kRefParamOffset));
 
   Register original_fp = stack_switch ? r9 : rbp;
   Register new_wrapper_buffer = stack_switch ? rbx : wrapper_buffer;
@@ -3511,7 +3522,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ movq(MemOperand(rbp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset),
           new_wrapper_buffer);
   if (stack_switch) {
-    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset),
+    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kRefOffset),
             kWasmInstanceRegister);
     Register result_array = kScratchRegister;
     __ movq(result_array,
@@ -3550,7 +3561,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register last_stack_param = rcx;
 
-  // The first GP parameter is the instance, which we handle specially.
+  // The first GP parameter is the ref, which we handle specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
@@ -3633,15 +3644,15 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     __ movq(rbx,
             MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ movq(rax, MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset));
+    __ movq(rax, MemOperand(rbp, StackSwitchFrameConstants::kRefOffset));
   } else {
     __ movq(rbx,
             MemOperand(rbp,
                        JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ movq(rax,
-            MemOperand(
-                rbp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+            MemOperand(rbp, JSToWasmWrapperFrameConstants::kRefParamOffset));
   }
+  GetContextFromRef(masm, rax);
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 
   Label return_promise;

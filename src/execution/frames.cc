@@ -3219,7 +3219,7 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
                        spill_slot_limit);
   // Also visit fixed spill slots that contain references.
   FullObjectSlot instance_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kInstanceOffset));
+      &Memory<Address>(fp() + StackSwitchFrameConstants::kRefOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
   FullObjectSlot result_array_slot(
       &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));

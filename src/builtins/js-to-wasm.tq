@@ -14,9 +14,9 @@ extern runtime WasmAllocateSuspender(Context): JSAny;
 
 namespace wasm {
 extern builtin JSToWasmWrapperAsm(
-    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
-    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -457,6 +457,8 @@ macro JSToWasmWrapperHelper(
   }
 
   const sig = functionData.sig_ptr;
+  const ref: WasmApiFunctionRef|WasmTrustedInstanceData =
+      functionData.func_ref.internal.ref;
   const trustedInstanceData: WasmTrustedInstanceData =
       LoadTrustedDataFromInstance(functionData.instance);
 
@@ -677,11 +679,9 @@ macro JSToWasmWrapperHelper(
   // Torque builtin.
   let result: JSAny;
   if constexpr (switchStack) {
-    result = WasmReturnPromiseOnSuspendAsm(
-        wrapperBuffer, trustedInstanceData, resultArray);
+    result = WasmReturnPromiseOnSuspendAsm(wrapperBuffer, ref, resultArray);
   } else {
-    result =
-        JSToWasmWrapperAsm(wrapperBuffer, trustedInstanceData, resultArray);
+    result = JSToWasmWrapperAsm(wrapperBuffer, ref, resultArray);
   }
 
   // The normal return sequence of Torque-generated JavaScript builtins does not
@@ -755,7 +755,7 @@ macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
 }
 
 builtin JSToWasmHandleReturns(
-    trustedData: WasmTrustedInstanceData, resultArray: JSArray,
+    jsContext: NativeContext, resultArray: JSArray,
     wrapperBuffer: RawPtr<intptr>): JSAny {
   const returnCount = *GetRefAt<int32>(
       wrapperBuffer, kWrapperBufferReturnCount);
@@ -796,8 +796,7 @@ builtin JSToWasmHandleReturns(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
       const value = BitcastWordToTagged(rawRef);
-      return WasmToJSObject(
-          LoadContextFromInstanceData(trustedData), value, retType);
+      return WasmToJSObject(jsContext, value, retType);
     }
   }
 
@@ -882,8 +881,7 @@ builtin JSToWasmHandleReturns(
     } else {
       locationAllocator.GetGPSlot();
       const value = fixedArray.objects[k];
-      fixedArray.objects[k] = WasmToJSObject(
-          LoadContextFromInstanceData(trustedData), value, retType);
+      fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
     }
   }
 
