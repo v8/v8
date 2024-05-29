@@ -969,7 +969,7 @@ T* Object::Unwrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
   auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
 #if !defined(V8_ENABLE_CHECKS)
   return internal::ReadCppHeapPointerField<T>(
-      isolate, obj, internal::Internals::kJSObjectHeaderSize);
+      isolate, obj, internal::Internals::kJSObjectHeaderSize, tag_range);
 #else   // defined(V8_ENABLE_CHECKS)
   return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
 #endif  // defined(V8_ENABLE_CHECKS)
