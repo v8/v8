@@ -6364,13 +6364,10 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
-                         CppHeapPointerTag tag) {
-  // TODO(saelo): we probably need a variant of this that takes a
-  // CppHeapPointerTagRange. Then we can just forward to that variant here with
-  // a CppHeapPointerTagRange(tag, tag).
+                         CppHeapPointerTagRange tag_range) {
+  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
   return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(wrapper_obj)))
-      .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
-                           CppHeapPointerTagRange(tag, tag));
+      .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
 
 // static

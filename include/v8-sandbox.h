@@ -110,17 +110,13 @@ V8_INLINE static Address* GetCppHeapPointerTableBase(v8::Isolate* isolate) {
 }
 #endif  // V8_COMPRESS_POINTERS
 
-template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound,
-          typename T>
+template <typename T>
 V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
-                                            Address heap_object_ptr,
-                                            int offset) {
+                                            Address heap_object_ptr, int offset,
+                                            CppHeapPointerTagRange tag_range) {
 #ifdef V8_COMPRESS_POINTERS
   // See src/sandbox/cppheap-pointer-table-inl.h. Logic duplicated here so
   // it can be inlined and doesn't require an additional call.
-  static_assert(lower_bound <= upper_bound);
-  CppHeapPointerTagRange tag_range(lower_bound, upper_bound);
-
   const CppHeapPointerHandle handle =
       Internals::ReadRawField<CppHeapPointerHandle>(heap_object_ptr, offset);
   // TODO(saelo): can we remove this check since we should just fail the type
@@ -154,13 +150,6 @@ V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
   return reinterpret_cast<T*>(
       Internals::ReadRawField<Address>(heap_object_ptr, offset));
 #endif  // !V8_COMPRESS_POINTERS
-}
-
-template <CppHeapPointerTag tag, typename T>
-V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
-                                            Address heap_object_ptr,
-                                            int offset) {
-  return ReadCppHeapPointerField<tag, tag, T>(isolate, heap_object_ptr, offset);
 }
 
 }  // namespace internal
