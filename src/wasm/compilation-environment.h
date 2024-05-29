@@ -186,6 +186,9 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   size_t EstimateCurrentMemoryConsumption() const;
 
+  std::vector<WasmCode*> PublishCode(
+      base::Vector<std::unique_ptr<WasmCode>> unpublished_code);
+
  private:
   // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;

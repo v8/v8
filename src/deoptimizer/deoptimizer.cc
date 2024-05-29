@@ -858,8 +858,8 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   // into a function that now needs to deopt them while the optimized function
   // might have taken different inlining decisions.
   // TODO(mliedtke): The code cache should also be invalidated.
-  wasm::WasmCode* wasm_code =
-      native_module->PublishCode(std::move(compiled_code));
+  wasm::WasmCode* wasm_code = native_module->compilation_state()->PublishCode(
+      base::VectorOf(&compiled_code, 1))[0];
   return {wasm_code, std::move(result.liftoff_frame_descriptions)};
 }
 }  // anonymous namespace
@@ -1118,13 +1118,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     FILE* file = trace_scope()->file();
     PrintF(file,
            "[bailout (kind: %s, reason: %s, type: Wasm): begin. deoptimizing "
-           "%s, bytecode offset %d, deopt exit %d, FP to SP delta %d, "
+           "%s, function index %d, bytecode offset %d, deopt exit %d, FP to SP "
+           "delta %d, "
            "pc " V8PRIxPTR_FMT "]\n",
            MessageFor(deopt_kind_),
            DeoptimizeReasonToString(DeoptimizeReason::kWrongCallTarget),
-           code->DebugName().c_str(), deopt_entry.bytecode_offset.ToInt(),
-           deopt_entry.translation_index, fp_to_sp_delta_,
-           PointerAuthentication::StripPAC(from_));
+           code->DebugName().c_str(), code->index(),
+           deopt_entry.bytecode_offset.ToInt(), deopt_entry.translation_index,
+           fp_to_sp_delta_, PointerAuthentication::StripPAC(from_));
   }
 
   base::Vector<const uint8_t> off_heap_translations =
@@ -1178,6 +1179,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     // TransitiveFeedbackProcessor from the module for all inlined functions.
     // This is required to prevent deopt loops as new feedback is ignored
     // otherwise.
+    // TODO(mliedtke): What happens if there is a job scheduled that thinks this
+    // feedback has been processed? (The job should probably be cancelled in
+    // that case.)
     wasm::TypeFeedbackStorage& feedback =
         native_module->module()->type_feedback;
     base::SharedMutexGuard<base::kShared> mutex_guard(&feedback.mutex);
