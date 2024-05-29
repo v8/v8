@@ -3385,7 +3385,7 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
     // In the case the clone also involves a proto transition, we do not cache
     // the target and thus cannot keep track of representation dependencies. We
     // can only allow the most generic target representation.
-    if (null_proto_literal &&
+    if ((null_proto_literal || !v8_flags.clone_object_sidestep_transitions) &&
         !details.representation().MostGenericInPlaceChange().Equals(
             target_details.representation())) {
       return false;
@@ -3449,7 +3449,7 @@ namespace {
 
 std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
                                              Handle<Map> source_map) {
-  if (!v8_flags.clone_object_sidestep_transitions) Handle<Map>();
+  if (!v8_flags.clone_object_sidestep_transitions) return {};
   ReadOnlyRoots roots(isolate);
   auto maybe_target =
       TransitionsAccessor(isolate, *source_map)
@@ -3489,26 +3489,37 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
   if (!v8_flags.clone_object_sidestep_transitions) return;
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
-  DCHECK(!GetCloneTargetMap(isolate, source_map));
+#ifdef DEBUG
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(!cur || (*cur)->is_deprecated());
+#endif  // DEBUG
   DCHECK(IsSmiOrObjectElementsKind(new_target_map->elements_kind()));
   TransitionsAccessor::Insert(
       isolate, source_map,
       ReadOnlyRoots(isolate).object_clone_transition_symbol_handle(),
       new_target_map, TransitionKindFlag::SPECIAL_TRANSITION);
-  DCHECK(GetCloneTargetMap(isolate, source_map));
-  DCHECK_EQ(*GetCloneTargetMap(isolate, source_map), *new_target_map);
+#ifdef DEBUG
+  cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(cur);
+  DCHECK_EQ(*cur, *new_target_map);
+#endif  // DEBUG
 }
 
 void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
-  DCHECK(!GetCloneTargetMap(isolate, source_map));
+#ifdef DEBUG
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(!cur || (*cur)->is_deprecated());
+#endif  // DEBUG
   TransitionsAccessor::InsertNoneSentinel(
       isolate, source_map,
       ReadOnlyRoots(isolate).object_clone_transition_symbol_handle());
-  DCHECK(GetCloneTargetMap(isolate, source_map));
-  DCHECK(GetCloneTargetMap(isolate, source_map)->is_null());
+#ifdef DEBUG
+  cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(cur && cur->is_null());
+#endif  // DEBUG
 }
 
 }  // namespace
@@ -3530,13 +3541,18 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
     if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
       bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
       Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(), isolate);
+      auto UpdateNexus = [&](Handle<Object> target_map) {
+        if (!nexus) return;
+        nexus->ConfigureCloneObject(source_map, MaybeObjectHandle(target_map));
+      };
       ReadOnlyRoots roots(isolate);
       bool unsupported = false;
       if (!null_proto_literal) {
         if (auto maybe_target = GetCloneTargetMap(isolate, source_map)) {
           if (maybe_target->is_null()) {
             unsupported = true;
-          } else {
+          } else if (!(*maybe_target)->is_deprecated()) {
+            UpdateNexus(handle(*maybe_target, isolate));
             return *maybe_target;
           }
         }
@@ -3547,10 +3563,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
               ? FastCloneObjectMode::kNotSupported
               : GetCloneModeForMap(source_map, null_proto_literal, isolate);
       auto UpdateState = [&](Handle<Map> target_map) {
-        if (nexus) {
-          nexus->ConfigureCloneObject(source_map,
-                                      MaybeObjectHandle(target_map));
-        }
+        UpdateNexus(target_map);
         if (!null_proto_literal && !InReadOnlySpace(*source_map) &&
             !InReadOnlySpace(*target_map)) {
           SetCloneTargetMap(isolate, source_map, target_map);
@@ -3563,10 +3576,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           return *source_map;
         }
         case FastCloneObjectMode::kEmptyObject: {
-          if (nexus) {
-            nexus->ConfigureCloneObject(
-                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
-          }
+          UpdateNexus(handle(Smi::zero(), isolate));
           RETURN_RESULT_OR_FAILURE(isolate,
                                    CloneObjectSlowPath(isolate, source, flags));
         }
