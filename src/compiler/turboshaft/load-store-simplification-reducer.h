@@ -188,9 +188,10 @@ class LoadStoreSimplificationReducer : public Next,
   bool is_wasm_ = __ data() -> is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||   \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||    \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
   bool lowering_enabled_ =
       (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
       (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
