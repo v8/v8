@@ -561,6 +561,10 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
       V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      if (pnode->is_force_pack()) {
+        return Adapter::ReduceInputGraphSimd128LoadTransform(ig_index,
+                                                             load_transform);
+      }
       V<Simd256> og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
       if (!og_index.valid()) {
@@ -921,8 +925,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                   idx, current_input_block);
             }
 
-            OpIndex og_right =
-                Continuation{this}.ReduceInputGraph(pnode->Nodes()[1], op);
+            OpIndex right_ig_index = pnode->Nodes()[1];
+            const Op& right_ig_op =
+                Asm().input_graph().Get(right_ig_index).template Cast<Op>();
+            OpIndex og_right = Continuation{this}.ReduceInputGraph(
+                right_ig_index, right_ig_op);
             og_index = __ SimdPack128To256(og_left, og_right);
             pnode->set_force_packed_pair(og_left, og_right);
             pnode->SetRevectorizedNode(og_index);

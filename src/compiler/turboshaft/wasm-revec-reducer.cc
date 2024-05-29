@@ -205,8 +205,8 @@ void SLPTree::Print(const char* info) {
 }
 
 PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
-  Operation& op = graph_.Get(node_group[0]);
-  TRACE("PackNode %s(#%d, #%d)\n", GetSimdOpcodeName(op).c_str(),
+  TRACE("PackNode %s(#%d, #%d)\n",
+        GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
         node_group[0].id(), node_group[1].id());
   PackNode* pnode = phase_zone_->New<PackNode>(phase_zone_, node_group);
   for (OpIndex node : node_group) {
@@ -218,6 +218,9 @@ PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
 PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
                                     PackNode::ForcePackType type,
                                     const Graph& graph) {
+  TRACE("ForcePackNode %s(#%d, #%d)\n",
+        GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
+        node_group[0].id(), node_group[1].id());
   PackNode* pnode = NewPackNode(node_group);
   pnode->set_force_pack_type(type);
   if (type == PackNode::ForcePackType::kGeneral) {
@@ -592,33 +595,47 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     case Opcode::kSimd128LoadTransform: {
-      const Simd128LoadTransformOp& transform_op =
+      const Simd128LoadTransformOp& transform_op0 =
           op0.Cast<Simd128LoadTransformOp>();
-      if (IsLoadSplat(transform_op)) {
+      const Simd128LoadTransformOp& transform_op1 =
+          op1.Cast<Simd128LoadTransformOp>();
+      StoreLoadInfo<Simd128LoadTransformOp> info0(&graph_, &transform_op0);
+      StoreLoadInfo<Simd128LoadTransformOp> info1(&graph_, &transform_op1);
+      auto stride = info1 - info0;
+      if (IsLoadSplat(transform_op0)) {
         TRACE("Simd128LoadTransform: LoadSplat\n");
-        if (!IsSplat(node_group)) {
-          return nullptr;
+        if (IsSplat(node_group) ||
+            (stride.has_value() && stride.value() == 0)) {
+          return NewPackNode(node_group);
         }
-      } else if (IsLoadExtend(transform_op)) {
+        return NewForcePackNode(node_group, PackNode::ForcePackType::kGeneral,
+                                graph_);
+      } else if (IsLoadExtend(transform_op0)) {
         TRACE("Simd128LoadTransform: LoadExtend\n");
-        if (!LoadStrideEqualTo<Simd128LoadTransformOp,
-                               StoreLoadInfo<Simd128LoadTransformOp>>(
-                graph_, node_group, kSimd128Size / 2)) {
-          TRACE("Wrong Access stride\n");
-          return nullptr;
+        if (stride.has_value()) {
+          const int value = stride.value();
+          if (value == kSimd128Size / 2) {
+            return NewPackNode(node_group);
+          } else if (value == 0) {
+            return NewForcePackNode(node_group, PackNode::ForcePackType::kSplat,
+                                    graph_);
+          }
         }
+        return NewForcePackNode(node_group, PackNode::ForcePackType::kGeneral,
+                                graph_);
       } else {
         TRACE("Load Transfrom k64Zero/k32Zero!\n");
-        DCHECK(transform_op.transform_kind ==
+        DCHECK(transform_op0.transform_kind ==
                    Simd128LoadTransformOp::TransformKind::k32Zero ||
-               transform_op.transform_kind ==
+               transform_op0.transform_kind ==
                    Simd128LoadTransformOp::TransformKind::k64Zero);
-        // k64Zero/k32Zero is not supported
-        TRACE("Simd128LoadTransform: unsupported  k64Zero/k32Zero\n");
-        return nullptr;
+        if (stride.has_value() && stride.value() == 0) {
+          return NewForcePackNode(node_group, PackNode::ForcePackType::kSplat,
+                                  graph_);
+        }
+        return NewForcePackNode(node_group, PackNode::ForcePackType::kGeneral,
+                                graph_);
       }
-      PackNode* p = NewPackNode(node_group);
-      return p;
     }
 
     case Opcode::kLoad: {
@@ -640,12 +657,10 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           PackNode* p = NewPackNode(node_group);
           return p;
         } else if (value == 0) {
-          TRACE("Force pack splat load");
           return NewForcePackNode(node_group, PackNode::ForcePackType::kSplat,
                                   graph_);
         }
       }
-      TRACE("Force pack incontinuous load\n");
       return NewForcePackNode(node_group, PackNode::ForcePackType::kGeneral,
                               graph_);
     }
