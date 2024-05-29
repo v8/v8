@@ -78,7 +78,7 @@ class SharedOldSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<std::unique_ptr<SharedOldSpaceAllocationThread>> threads;
         const int kThreads = 4;
@@ -122,7 +122,7 @@ class SharedTrustedSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedSpace) {
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<std::unique_ptr<SharedTrustedSpaceAllocationThread>>
             threads;
@@ -170,7 +170,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedLargeOldSpace) {
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<std::unique_ptr<SharedLargeOldSpaceAllocationThread>>
             threads;
@@ -218,7 +218,7 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedLargeObjectSpace) {
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<
             std::unique_ptr<SharedTrustedLargeObjectSpaceAllocationThread>>
@@ -264,7 +264,7 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<std::unique_ptr<SharedMapSpaceAllocationThread>> threads;
         const int kThreads = 4;
@@ -325,7 +325,7 @@ void AllocateInSharedHeap(int iterations = 100) {
 
 TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
   v8_flags.max_old_space_size = 8;
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       []() { AllocateInSharedHeap(); });
 }
 
@@ -343,7 +343,7 @@ class SharedFixedArrayAllocationThread final : public ParkingThread {
 TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
   v8_flags.max_old_space_size = 8;
 
-  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
         std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
         const int kThreads = 4;
@@ -425,7 +425,7 @@ class ConcurrentThread final : public ParkingThread {
       if (wait_while_parked_) {
         // Park and wait.
         i_client_isolate_->main_thread_local_isolate()
-            ->BlockMainThreadWhileParked(
+            ->ExecuteMainThreadWhileParked(
                 [this]() { sema_execute_start_->Wait(); });
       } else {
         // Do not park, but enter a safepoint every now and then.

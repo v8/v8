@@ -372,7 +372,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   // The shared heap is verified on Heap teardown, which performs a global
   // safepoint. Both isolate and new_isolate are running in the same thread, so
   // park isolate before running new_isolate to avoid deadlock.
-  isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [&serialized_data]() {
         // Test deserialization.
         Isolate* new_isolate = Isolate::New();

@@ -88,20 +88,21 @@ V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
+V8_INLINE void LocalHeap::ExecuteWhileParked(Callback callback) {
   ExecuteWithStackMarker(
       [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
+V8_INLINE void LocalHeap::ExecuteMainThreadWhileParked(Callback callback) {
   DCHECK(is_main_thread());
   heap()->stack().SetMarkerAndCallback(
       [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::BlockBackgroundThreadWhileParked(Callback callback) {
+V8_INLINE void LocalHeap::ExecuteBackgroundThreadWhileParked(
+    Callback callback) {
   DCHECK(!is_main_thread());
   heap()->stack().SetMarkerForBackgroundThreadAndCallback(
       ThreadId::Current().ToInteger(),

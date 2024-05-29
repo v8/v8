@@ -33,16 +33,16 @@ Handle<Object> LocalIsolate::root_handle(RootIndex index) const {
 }
 
 template <typename Callback>
-V8_INLINE void LocalIsolate::BlockMainThreadWhileParked(Callback callback) {
-  heap_.BlockMainThreadWhileParked(callback);
+V8_INLINE void LocalIsolate::ExecuteMainThreadWhileParked(Callback callback) {
+  heap_.ExecuteMainThreadWhileParked(callback);
 }
 
 template <typename Callback>
-V8_INLINE void LocalIsolate::ExecuteWhileParkedOnBackground(Callback callback) {
+V8_INLINE void LocalIsolate::ParkIfOnBackgroundAndExecute(Callback callback) {
   if (is_main_thread()) {
     callback();
   } else {
-    heap_.BlockBackgroundThreadWhileParked(callback);
+    heap_.ExecuteBackgroundThreadWhileParked(callback);
   }
 }
 

@@ -158,7 +158,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
   const int kThreads = 4;
 
-  i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [i_isolate, &threads]() {
         for (int i = 0; i < kThreads; i++) {
           auto thread =
@@ -205,11 +205,11 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
     }
 
     for (int i = 0; i < 300'000; i++) {
-      i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
           []() { /* nothing */ });
     }
 
-    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+    i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
         [&threads]() {
           for (auto& thread : threads) {
             thread->Join();
@@ -255,7 +255,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
       i_isolate->main_thread_local_heap()->Safepoint();
     }
 
-    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+    i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
         [&threads]() {
           for (auto& thread : threads) {
             thread->Join();
@@ -352,7 +352,7 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
-        local_heap.BlockWhileParked([this]() {
+        local_heap.ExecuteWhileParked([this]() {
           sema_white_->Signal();
           sema_marking_started_->Wait();
         });

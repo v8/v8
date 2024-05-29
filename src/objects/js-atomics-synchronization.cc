@@ -173,7 +173,7 @@ class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
 
   void Wait() {
     AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->BlockWhileParked([this]() {
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this]() {
       base::MutexGuard guard(&wait_lock_);
       while (should_wait_) {
         wait_cond_var_.Wait(&wait_lock_);
@@ -185,8 +185,8 @@ class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
   bool WaitFor(const base::TimeDelta& rel_time) {
     bool result;
     AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->BlockWhileParked([this, rel_time,
-                                                            &result]() {
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this, rel_time,
+                                                              &result]() {
       base::MutexGuard guard(&wait_lock_);
       base::TimeTicks current_time = base::TimeTicks::Now();
       base::TimeTicks timeout_time = current_time + rel_time;

@@ -3493,9 +3493,8 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
 
   // We can park the isolate while parsing, it doesn't need to allocate or
   // access the main thread.
-  isolate->ExecuteWhileParkedOnBackground([this, start_position, end_position,
-                                           function_literal_id, info,
-                                           &result]() {
+  isolate->ParkIfOnBackgroundAndExecute([this, start_position, end_position,
+                                         function_literal_id, info, &result]() {
     scanner_.Initialize();
 
     DCHECK(original_scope_);

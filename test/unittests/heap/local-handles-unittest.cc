@@ -54,7 +54,7 @@ class LocalHandlesThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    local_heap.BlockWhileParked([this]() { sema_gc_finished_->Wait(); });
+    local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
     for (Handle<HeapNumber> handle : handles) {
       CHECK_EQ(42.0, handle->value());

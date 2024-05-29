@@ -136,7 +136,7 @@ class BackgroundThread final : public v8::base::Thread {
     if (park_and_wait_) {
       // Parking a background thread through the trampoline while holding a
       // direct handle is also allowed.
-      isolate.heap()->BlockWhileParked([]() {
+      isolate.heap()->ExecuteWhileParked([]() {
         // nothing
       });
     }

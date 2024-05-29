@@ -4098,7 +4098,7 @@ void Isolate::Deinit() {
 
   if (has_shared_space() && !is_shared_space_isolate()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
-    main_thread_local_heap()->BlockMainThreadWhileParked([this]() {
+    main_thread_local_heap()->ExecuteMainThreadWhileParked([this]() {
       shared_space_isolate()->global_safepoint()->clients_mutex_.Lock();
     });
   }

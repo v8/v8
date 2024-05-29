@@ -195,19 +195,17 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SetUpMainThreadForTesting();
 
   // Execute the callback while the local heap is parked. All threads must
-  // always park via this method, not directly with `ParkedScope`. The callback
-  // is only allowed to execute blocking operations.
-  //
+  // always park via these methods, not directly with `ParkedScope`.
   // The callback must be a callable object, expecting either no parameters or a
   // const ParkedScope&, which serves as a witness for parking. The first
   // variant checks if we are on the main thread or not. Use the other two
   // variants if this already known.
   template <typename Callback>
-  V8_INLINE void BlockWhileParked(Callback callback);
+  V8_INLINE void ExecuteWhileParked(Callback callback);
   template <typename Callback>
-  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
   template <typename Callback>
-  V8_INLINE void BlockBackgroundThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteBackgroundThreadWhileParked(Callback callback);
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;

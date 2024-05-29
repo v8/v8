@@ -3061,7 +3061,7 @@ void Shell::WorkerTerminateAndWait(
 
   reinterpret_cast<i::Isolate*>(isolate)
       ->main_thread_local_isolate()
-      ->BlockMainThreadWhileParked([worker](const i::ParkedScope& parked) {
+      ->ExecuteMainThreadWhileParked([worker](const i::ParkedScope& parked) {
         worker->TerminateAndWaitForThread(parked);
       });
 }
@@ -3085,7 +3085,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
   // When disposing the shared space isolate, the workers (client isolates) need
   // to be terminated first.
   if (i_isolate->is_shared_space_isolate()) {
-    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+    i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
         [](const i::ParkedScope& parked) { WaitForRunningWorkers(parked); });
   }
 
@@ -5275,7 +5275,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
 
   // Park the main thread here to prevent deadlocks in shared GCs when
   // waiting in JoinThread.
-  i_isolate->main_thread_local_heap()->BlockMainThreadWhileParked(
+  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
       [last_run](const i::ParkedScope& parked) {
         for (int i = 1; i < options.num_isolates; ++i) {
           if (last_run) {
@@ -6118,7 +6118,7 @@ int Shell::Main(int argc, char* argv[]) {
         // a shared GC to prevent a deadlock.
         reinterpret_cast<i::Isolate*>(isolate)
             ->main_thread_local_isolate()
-            ->BlockMainThreadWhileParked([&result]() {
+            ->ExecuteMainThreadWhileParked([&result]() {
               printf("============ Run: Produce code cache ============\n");
               // First run to produce the cache
               Isolate::CreateParams create_params2;

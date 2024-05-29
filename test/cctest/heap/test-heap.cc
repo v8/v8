@@ -7147,7 +7147,7 @@ TEST(GarbageCollectionWithLocalHeap) {
   LocalHeap* local_heap = CcTest::i_isolate()->main_thread_local_heap();
 
   heap::InvokeMajorGC(CcTest::heap());
-  local_heap->BlockWhileParked([]() { /* nothing */ });
+  local_heap->ExecuteWhileParked([]() { /* nothing */ });
   heap::InvokeMajorGC(CcTest::heap());
 }
 

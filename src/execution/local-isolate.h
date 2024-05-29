@@ -156,10 +156,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   int NextOptimizationId() { return isolate_->NextOptimizationId(); }
 
   template <typename Callback>
-  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
 
   template <typename Callback>
-  V8_INLINE void ExecuteWhileParkedOnBackground(Callback callback);
+  V8_INLINE void ParkIfOnBackgroundAndExecute(Callback callback);
 
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
