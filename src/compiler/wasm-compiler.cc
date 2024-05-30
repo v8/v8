@@ -7877,7 +7877,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* is_on_central_stack_flag =
         gasm_->Load(MachineType::Uint8(), isolate_root,
                     IsolateData::is_on_central_stack_flag_offset());
-    gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kNone,
+    gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kTrue,
                   gasm_->IntPtrConstant(0));
 
     Node* old_sp = BuildSwitchToTheCentralStack(receiver);
@@ -8031,7 +8031,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     BuildModifyThreadInWasmFlag(true);
 
     auto done = gasm_->MakeLabel();
-    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done);
+    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done,
+                  BranchHint::kTrue);
     BuildSwitchBackFromCentralStack(old_sp, callable_node);
     gasm_->Goto(&done);
     gasm_->Bind(&done);
