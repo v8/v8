@@ -2330,12 +2330,7 @@ DEFINE_BOOL(
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
-
-DEFINE_BOOL(soft_abort, false,
-            "exit cleanly on fatal errors and ignore DCHECK failures entirely. "
-            "Useful when \"safe\" crashes should be ignored, for example for "
-            "fuzzing the sandbox.")
-DEFINE_IMPLICATION(hole_fuzzing, soft_abort)
+DEFINE_NEG_IMPLICATION(sandbox_fuzzing, hard_abort)
 
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
@@ -2674,12 +2669,6 @@ DEFINE_BOOL_READONLY(
     "enables the sandbox crash filter, causing all crashes that are not "
     "sandbox violations to be ignored.")
 #endif
-
-// Sandbox testing mode requires soft abort so that DCHECKs are skipped over
-// and other fatal errors lead to normal process termination as they do not
-// represent sandbox violations.
-DEFINE_IMPLICATION(sandbox_testing, soft_abort)
-DEFINE_IMPLICATION(sandbox_fuzzing, soft_abort)
 
 // Only one of these can be enabled.
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)

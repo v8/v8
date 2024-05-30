@@ -176,7 +176,7 @@ void V8_Fatal(const char* format, ...) {
   fflush(stderr);
 
   // Print the formatted message to stdout without cropping the output.
-  if (v8::base::g_abort_mode == v8::base::AbortMode::kSoft) {
+  if (v8::base::ControlledCrashesAreHarmless()) {
     // In this case, instead of crashing the process will be terminated
     // normally by OS::Abort. Make this clear in the output printed to stderr.
     v8::base::OS::PrintError(
@@ -206,7 +206,7 @@ void V8_Fatal(const char* format, ...) {
 }
 
 void V8_Dcheck(const char* file, int line, const char* message) {
-  if (v8::base::g_abort_mode == v8::base::AbortMode::kSoft) {
+  if (v8::base::DcheckFailuresAreIgnored()) {
     // In this mode, DCHECK failures don't lead to process termination.
     v8::base::OS::PrintError(
         "# Ignoring debug check failure in %s, line %d: %s\n", file, line,

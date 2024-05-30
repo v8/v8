@@ -163,10 +163,19 @@ void V8::Initialize() {
 
   base::AbortMode abort_mode = base::AbortMode::kDefault;
 
-  if (v8_flags.soft_abort) {
-    abort_mode = base::AbortMode::kSoft;
+  if (v8_flags.sandbox_fuzzing || v8_flags.hole_fuzzing) {
+    // In this mode, controlled crashes are harmless. Furthermore, DCHECK
+    // failures should be ignored (and execution should continue past them) as
+    // they may otherwise hide issues.
+    abort_mode = base::AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
+  } else if (v8_flags.sandbox_testing) {
+    // Similar to the above case, but here we want to exit with a status
+    // indicating success (e.g. zero on unix). This is useful for example for
+    // sandbox regression tests, which should "pass" if they crash in a
+    // controlled fashion (e.g. in a SBXCHECK).
+    abort_mode = base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
   } else if (v8_flags.hard_abort) {
-    abort_mode = base::AbortMode::kHard;
+    abort_mode = base::AbortMode::kImmediateCrash;
   }
 
   base::OS::Initialize(abort_mode, v8_flags.gc_fake_mmap);
