@@ -14,6 +14,7 @@
 #include "src/base/functional.h"
 #include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
+#include "src/codegen/register.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-linkage.h"
