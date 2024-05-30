@@ -167,8 +167,12 @@ Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
 void TransitionArray::SetRawTarget(int transition_number,
                                    Tagged<MaybeObject> value) {
   DCHECK(transition_number < number_of_transitions());
-  DCHECK(value.IsWeak());
-  DCHECK(IsMap(value.GetHeapObjectAssumeWeak()));
+  DCHECK(value.IsWeakOrCleared());
+  DCHECK(value.IsCleared() || IsMap(value.GetHeapObjectAssumeWeak()));
+  DCHECK_IMPLIES(value.IsCleared(),
+                 TransitionsAccessor::IsSpecialSidestepTransition(
+                     ReadOnlyRoots(GetIsolateFromWritableObject(*this)),
+                     GetKey(transition_number)));
   WeakFixedArray::set(ToTargetIndex(transition_number), value);
 }
 

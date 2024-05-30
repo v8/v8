@@ -706,21 +706,26 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   Tagged<TransitionArray> old_transitions = GetTransitionArray(isolate, map);
   DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, old_transitions));
   Tagged<TransitionArray> new_transitions = TransitionArray::cast(transitions);
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < old_transitions->number_of_transitions(); i++) {
-    Tagged<Map> target = old_transitions->GetTarget(i);
-    if (target->instance_descriptors(isolate) ==
-        map->instance_descriptors(isolate)) {
-      Tagged<Name> key = old_transitions->GetKey(i);
-      int new_target_index;
-      if (IsSpecialTransition(ReadOnlyRoots(isolate), key)) {
-        new_target_index = new_transitions->SearchSpecial(Symbol::cast(key));
-      } else {
-        PropertyDetails details = GetTargetDetails(key, target);
-        new_target_index =
-            new_transitions->Search(details.kind(), key, details.attributes());
+    Tagged<Map> target;
+    if (old_transitions->GetTargetIfExists(i, isolate, &target)) {
+      if (target->instance_descriptors(isolate) ==
+          map->instance_descriptors(isolate)) {
+        Tagged<Name> key = old_transitions->GetKey(i);
+        int new_target_index;
+        if (IsSpecialTransition(roots, key)) {
+          new_target_index = new_transitions->SearchSpecial(Symbol::cast(key));
+        } else {
+          PropertyDetails details = GetTargetDetails(key, target);
+          new_target_index = new_transitions->Search(details.kind(), key,
+                                                     details.attributes());
+        }
+        DCHECK_NE(TransitionArray::kNotFound, new_target_index);
+        DCHECK_EQ(target, new_transitions->GetTarget(new_target_index));
       }
-      DCHECK_NE(TransitionArray::kNotFound, new_target_index);
-      DCHECK_EQ(target, new_transitions->GetTarget(new_target_index));
+    } else {
+      DCHECK(IsSpecialTransition(roots, old_transitions->GetKey(i)));
     }
   }
 }
