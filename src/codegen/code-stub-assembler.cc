@@ -10178,6 +10178,16 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
 }
 
 template <>
+constexpr int CodeStubAssembler::MaxNumberOfEntries<TransitionArray>() {
+  return TransitionsAccessor::kMaxNumberOfTransitions;
+}
+
+template <>
+constexpr int CodeStubAssembler::MaxNumberOfEntries<DescriptorArray>() {
+  return kMaxNumberOfDescriptors;
+}
+
+template <>
 TNode<Uint32T> CodeStubAssembler::NumberOfEntries<DescriptorArray>(
     TNode<DescriptorArray> descriptors) {
   return Unsigned(LoadNumberOfDescriptors(descriptors));
@@ -10274,14 +10284,23 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
   // Assume non-empty array.
   CSA_DCHECK(this, Uint32LessThanOrEqual(var_low.value(), var_high.value()));
 
+  int max_entries = MaxNumberOfEntries<Array>();
+
+  auto calculate_mid = [&](TNode<Uint32T> low, TNode<Uint32T> high) {
+    if (max_entries < kMaxInt31) {
+      // mid = (low + high) / 2.
+      return Unsigned(Word32Shr(Int32Add(low, high), 1));
+    } else {
+      // mid = low + (high - low) / 2.
+      return Unsigned(Int32Add(low, Word32Shr(Int32Sub(high, low), 1)));
+    }
+  };
+
   Label binary_loop(this, {&var_high, &var_low});
   Goto(&binary_loop);
   BIND(&binary_loop);
   {
-    // mid = low + (high - low) / 2 (to avoid overflow in "(low + high) / 2").
-    TNode<Uint32T> mid = Unsigned(
-        Int32Add(var_low.value(),
-                 Word32Shr(Int32Sub(var_high.value(), var_low.value()), 1)));
+    TNode<Uint32T> mid = calculate_mid(var_low.value(), var_high.value());
     // mid_name = array->GetSortedKey(mid).
     TNode<Uint32T> sorted_key_index = GetSortedKeyIndex<Array>(array, mid);
     TNode<Name> mid_name = GetKey<Array>(array, sorted_key_index);
