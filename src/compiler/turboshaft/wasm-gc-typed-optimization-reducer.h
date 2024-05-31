@@ -71,6 +71,7 @@ class WasmGCTypeAnalyzer {
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
+  void ProcessArrayGet(const ArrayGetOp& array_get);
   void ProcessArrayLength(const ArrayLengthOp& array_length);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);

@@ -150,6 +150,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kStructSet:
         ProcessStructSet(op.Cast<StructSetOp>());
         break;
+      case Opcode::kArrayGet:
+        ProcessArrayGet(op.Cast<ArrayGetOp>());
+        break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op.Cast<ArrayLengthOp>());
         break;
@@ -224,6 +227,15 @@ void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
   // struct.set performs a null check.
   wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_set.object());
   input_type_map_[graph_.Index(struct_set)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessArrayGet(const ArrayGetOp& array_get) {
+  // array.get traps on null. (Typically already on the array length access
+  // needed for the bounds check.)
+  RefineTypeKnowledgeNotNull(array_get.array());
+  // The result type is at least the static array element type.
+  RefineTypeKnowledge(graph_.Index(array_get),
+                      array_get.array_type->element_type().Unpacked());
 }
 
 void WasmGCTypeAnalyzer::ProcessArrayLength(const ArrayLengthOp& array_length) {
