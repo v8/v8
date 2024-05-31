@@ -1160,27 +1160,22 @@ void Sweeper::EnsurePageIsSwept(PageMetadata* page) {
       heap_->tracer(), scope_id, ThreadKind::kMain,
       GetTraceIdForFlowEvent(scope_id),
       TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-  switch (concurrent_sweeping_state) {
-    case PageMetadata::ConcurrentSweepingState::kPendingSweeping:
-      if (TryRemoveSweepingPageSafe(space, page)) {
-        // Page was successfully removed and can now be swept.
-        main_thread_local_sweeper_.ParallelSweepPage(
-            page, space, SweepingMode::kLazyOrConcurrent);
-      }
-      break;
-    case PageMetadata::ConcurrentSweepingState::kPendingIteration:
-      if (TryRemovePromotedPageSafe(page)) {
-        // Page was successfully removed and can now be iterated.
-        main_thread_local_sweeper_.ParallelIteratePromotedPage(page);
-      }
-      break;
-    case PageMetadata::ConcurrentSweepingState::kInProgress:
-      // Some sweeper task already took ownership of that page, wait until
-      // sweeping is finished.
-      WaitForPageToBeSwept(page);
-      break;
-    case PageMetadata::ConcurrentSweepingState::kDone:
-      UNREACHABLE();
+  if ((concurrent_sweeping_state ==
+       PageMetadata::ConcurrentSweepingState::kPendingSweeping) &&
+      TryRemoveSweepingPageSafe(space, page)) {
+    // Page was successfully removed and can now be swept.
+    main_thread_local_sweeper_.ParallelSweepPage(
+        page, space, SweepingMode::kLazyOrConcurrent);
+
+  } else if ((concurrent_sweeping_state ==
+              PageMetadata::ConcurrentSweepingState::kPendingIteration) &&
+             TryRemovePromotedPageSafe(page)) {
+    // Page was successfully removed and can now be iterated.
+    main_thread_local_sweeper_.ParallelIteratePromotedPage(page);
+  } else {
+    // Some sweeper task already took ownership of that page, wait until
+    // sweeping is finished.
+    WaitForPageToBeSwept(page);
   }
 
   CHECK(page->SweepingDone());
