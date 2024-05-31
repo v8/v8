@@ -51,8 +51,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   LoadNewAllocationTop(masm, new_top, object, size_in_bytes);
   __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
   // Otherwise call runtime.
-  __ JumpToDeferredIf(greater_equal, AllocateSlow<T>, register_snapshot, object,
-                      AllocateBuiltin(alloc_type), size_in_bytes, done);
+  __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
+                      register_snapshot, object, AllocateBuiltin(alloc_type),
+                      size_in_bytes, done);
   // Store new top and tag object.
   __ movq(__ ExternalReferenceAsOperand(top), new_top);
   __ addq(object, Immediate(kHeapObjectTag));
