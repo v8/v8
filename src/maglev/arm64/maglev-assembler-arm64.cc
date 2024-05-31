@@ -55,8 +55,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   __ Ldr(scratch, __ ExternalReferenceAsOperand(limit, scratch));
   __ Cmp(new_top, scratch);
   // Otherwise call runtime.
-  __ JumpToDeferredIf(ge, AllocateSlow<T>, register_snapshot, object,
-                      AllocateBuiltin(alloc_type), size_in_bytes, done);
+  __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
+                      register_snapshot, object, AllocateBuiltin(alloc_type),
+                      size_in_bytes, done);
   // Store new top and tag object.
   __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
   SubSizeAndTagObject(masm, object, size_in_bytes);
