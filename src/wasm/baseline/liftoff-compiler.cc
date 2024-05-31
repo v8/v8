@@ -4164,14 +4164,16 @@ class LiftoffCompiler {
     LiftoffRegister src3 = __ PopToRegister();
     LiftoffRegister src2 = __ PopToRegister(LiftoffRegList{src3});
     LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src3, src2});
-    static constexpr RegClass src_rc = reg_class_for(src_kind);
     static constexpr RegClass result_rc = reg_class_for(result_kind);
     // Reusing src1 and src2 will complicate codegen for select for some
     // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
-    LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {src3},
-                                                     LiftoffRegList{src1, src2})
-                              : __ GetUnusedRegister(result_rc, {});
+    // Additionally, only reuse src3 if it does not alias src2, otherwise dst
+    // will also alias src2.
+    LiftoffRegister dst =
+        src2 == src3
+            ? __ GetUnusedRegister(result_rc, LiftoffRegList{src1, src2})
+            : __ GetUnusedRegister(result_rc, {src3},
+                                   LiftoffRegList{src1, src2});
     EmitTerOp<src_kind, result_kind, result_lane_kind, EmitFn>(fn, dst, src1,
                                                                src2, src3);
   }
