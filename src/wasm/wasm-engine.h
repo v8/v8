@@ -221,11 +221,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void LeaveDebuggingForIsolate(Isolate* isolate);
 
-  // Exports the sharable parts of the given module object so that they can be
-  // transferred to a different Context/Isolate using the same engine.
-  std::shared_ptr<NativeModule> ExportNativeModule(
-      Handle<WasmModuleObject> module_object);
-
   // Imports the shared part of a module from a different Context/Isolate using
   // the the same engine, recreating a full module object in the given Isolate.
   Handle<WasmModuleObject> ImportNativeModule(

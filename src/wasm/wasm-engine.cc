@@ -961,11 +961,6 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
   }
 }
 
-std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
-    Handle<WasmModuleObject> module_object) {
-  return module_object->shared_native_module();
-}
-
 namespace {
 Handle<Script> CreateWasmScript(Isolate* isolate,
                                 std::shared_ptr<NativeModule> native_module,
