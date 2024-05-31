@@ -28,6 +28,7 @@
 #include "include/v8-unwinder-state.h"
 #include "include/v8-util.h"
 #include "include/v8-wasm.h"
+#include "src/api/api-arguments.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/functional.h"
@@ -11779,28 +11780,33 @@ void InvokeAccessorGetterCallback(
 
 namespace {
 
+inline Tagged<FunctionTemplateInfo> GetTargetFunctionTemplateInfo(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Tagged<Object> target = FunctionCallbackArguments::GetTarget(info);
+  CHECK(IsFunctionTemplateInfo(target));
+  return FunctionTemplateInfo::cast(target);
+}
+
 inline void InvokeFunctionCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info, CallApiCallbackMode mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kFunctionCallback);
 
+  Tagged<FunctionTemplateInfo> fti = GetTargetFunctionTemplateInfo(info);
+  v8::FunctionCallback callback =
+      reinterpret_cast<v8::FunctionCallback>(fti->callback(i_isolate));
   switch (mode) {
     case CallApiCallbackMode::kGeneric: {
       if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
-        // TODO(crbug.com/326505377): load target FunctionTemplateInfo from
-        // info.implicit_args_[kTargetIndex].
-        // Load FunctionTemplateInfo from API_CALLBACK_EXIT frame.
-        // If this ever becomes a performance bottleneck, one can pass function
-        // template info here explicitly.
-        StackFrameIterator it(i_isolate);
-        CHECK(it.frame()->is_api_callback_exit());
-        ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
-        Tagged<FunctionTemplateInfo> fti =
-            FunctionTemplateInfo::cast(frame->target());
         if (!i_isolate->debug()->PerformSideEffectCheckForCallback(
                 handle(fti, i_isolate))) {
           // Failed side effect check.
           return;
+        }
+        if (DEBUG_BOOL) {
+          // Clear raw pointer to ensure it's not accidentally used after
+          // potential GC in PerformSideEffectCheckForCallback.
+          fti = {};
         }
       }
       break;
@@ -11816,11 +11822,6 @@ inline void InvokeFunctionCallback(
       UNREACHABLE();
   }
 
-  Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
-  if (USE_SIMULATOR_BOOL) {
-    arg = ExternalReference::UnwrapRedirection(arg);
-  }
-  v8::FunctionCallback callback = reinterpret_cast<v8::FunctionCallback>(arg);
   ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(callback));
   callback(info);
 }

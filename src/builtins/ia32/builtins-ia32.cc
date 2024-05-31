@@ -4626,9 +4626,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), scratch);
 
   ExternalReference thunk_ref = ER::invoke_function_callback(mode);
-  // Pass api function address to thunk wrapper in case profiler or side-effect
-  // checking is enabled.
-  Register thunk_arg = api_function_address;
+  Register no_thunk_arg = no_reg;
 
   Operand return_value_operand = ExitFrameCallerStackSlotOperand(
       FCA::kReturnValueIndex + exit_frame_params_count);
@@ -4639,7 +4637,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kUseStackSpaceOperand,
+                           thunk_ref, no_thunk_arg, kUseStackSpaceOperand,
                            &stack_space_operand, return_value_operand);
 }
 

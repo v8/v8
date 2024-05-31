@@ -215,6 +215,13 @@ class FunctionCallbackArguments
    */
   inline Handle<Object> Call(Tagged<FunctionTemplateInfo> function);
 
+  // Unofficial way of getting target FunctionTemplateInfo from
+  // v8::FunctionCallbackInfo<T>.
+  template <typename T>
+  static Tagged<Object> GetTarget(const FunctionCallbackInfo<T>& info) {
+    return Tagged<Object>(info.implicit_args_[kTargetIndex]);
+  }
+
  private:
   inline Tagged<JSReceiver> holder() const;
 

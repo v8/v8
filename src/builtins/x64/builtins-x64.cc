@@ -4545,11 +4545,12 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   constexpr int kBytesToDropOffset = FCA::kLengthOffset + kSystemPointerSize;
   static_assert(kBytesToDropOffset ==
                 (kApiStackSpace - 1) * kSystemPointerSize);
+  Operand stack_space_operand = ExitFrameStackSlotOperand(kBytesToDropOffset);
   __ leaq(kScratchRegister,
           Operand(argc, times_system_pointer_size,
                   (FCA::kArgsLengthWithReceiver + exit_frame_params_count) *
                       kSystemPointerSize));
-  __ movq(ExitFrameStackSlotOperand(kBytesToDropOffset), kScratchRegister);
+  __ movq(stack_space_operand, kScratchRegister);
 
   __ RecordComment("v8::FunctionCallback's argument.");
   __ leaq(function_callback_info_arg,
@@ -4558,19 +4559,16 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
   ExternalReference thunk_ref = ER::invoke_function_callback(mode);
-  // Pass api function address to thunk wrapper in case profiler or side-effect
-  // checking is enabled.
-  Register thunk_arg = api_function_address;
+  Register no_thunk_arg = no_reg;
 
   Operand return_value_operand = ExitFrameCallerStackSlotOperand(
       FCA::kReturnValueIndex + exit_frame_params_count);
-  static constexpr int kUseExitFrameStackSlotOperand = 0;
-  Operand stack_space_operand = ExitFrameStackSlotOperand(kBytesToDropOffset);
+  static constexpr int kUseStackSpaceOperand = 0;
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kUseExitFrameStackSlotOperand,
+                           thunk_ref, no_thunk_arg, kUseStackSpaceOperand,
                            &stack_space_operand, return_value_operand);
 }
 
