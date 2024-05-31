@@ -443,6 +443,8 @@ constexpr bool is_numeric(ValueKind kind) {
   }
 }
 
+constexpr bool is_valid(ValueKind kind) { return kind <= kBottom; }
+
 constexpr bool is_reference(ValueKind kind) {
   return kind == kRef || kind == kRefNull || kind == kRtt;
 }

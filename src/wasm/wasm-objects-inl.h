@@ -105,7 +105,15 @@ ACCESSORS(WasmGlobalObject, tagged_buffer, Tagged<FixedArray>,
           kTaggedBufferOffset)
 
 wasm::ValueType WasmGlobalObject::type() const {
-  return wasm::ValueType::FromRawBitField(static_cast<uint32_t>(raw_type()));
+  // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
+  // value as index into a global array. As such, if the index is corrupted
+  // (which must be assumed, as it comes from within the sandbox), this can
+  // lead to out-of-bounds reads outside the sandbox. While these are not
+  // technically sandbox violations, we should still try to avoid them to keep
+  // fuzzers happy. This SBXCHECK accomplishes that.
+  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type());
+  SBXCHECK(is_valid(type.kind()));
+  return type;
 }
 void WasmGlobalObject::set_type(wasm::ValueType value) {
   set_raw_type(static_cast<int>(value.raw_bit_field()));
@@ -429,7 +437,15 @@ EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  return wasm::ValueType::FromRawBitField(raw_type());
+  // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
+  // value as index into a global array. As such, if the index is corrupted
+  // (which must be assumed, as it comes from within the sandbox), this can
+  // lead to out-of-bounds reads outside the sandbox. While these are not
+  // technically sandbox violations, we should still try to avoid them to keep
+  // fuzzers happy. This SBXCHECK accomplishes that.
+  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type());
+  SBXCHECK(is_valid(type.kind()));
+  return type;
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
