@@ -177,7 +177,13 @@ void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
+  // TODO(saelo): This works for now, but once we actually free the external
+  // object here, this will probably become awkward: it's likely not intuitive
+  // that a set_foo() call on some object causes another object to be freed.
+  // Probably at that point we should instead just forbid re-setting the
+  // external pointers if they are managed (via a DCHECK).
   FreeManagedResourceIfPresent(index);
+  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   at(index).SetExternalPointer(value, tag);
 }
 
@@ -209,19 +215,8 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
   at(index).MakeExternalPointerEntry(initial_value, tag);
-
   ExternalPointerHandle handle = IndexToHandle(index);
-
-  // If we allocated the entry for a managed resource, we need to also
-  // initialize that resource's back reference to the table entry.
-  if (IsManagedExternalPointerType(tag) && initial_value != kNullAddress) {
-    ManagedResource* resource =
-        reinterpret_cast<ManagedResource*>(initial_value);
-    DCHECK_EQ(resource->ept_entry_, kNullExternalPointerHandle);
-    resource->owning_table_ = this;
-    resource->ept_entry_ = handle;
-  }
-
+  TakeOwnershipOfManagedResourceIfNecessary(initial_value, handle, tag);
   return handle;
 }
 
@@ -353,6 +348,16 @@ void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
     owning_table_->Zap(ept_entry_);
   }
   ept_entry_ = kNullExternalPointerHandle;
+}
+
+void ExternalPointerTable::TakeOwnershipOfManagedResourceIfNecessary(
+    Address value, ExternalPointerHandle handle, ExternalPointerTag tag) {
+  if (IsManagedExternalPointerType(tag) && value != kNullAddress) {
+    ManagedResource* resource = reinterpret_cast<ManagedResource*>(value);
+    DCHECK_EQ(resource->ept_entry_, kNullExternalPointerHandle);
+    resource->owning_table_ = this;
+    resource->ept_entry_ = handle;
+  }
 }
 
 void ExternalPointerTable::FreeManagedResourceIfPresent(uint32_t entry_index) {

@@ -386,6 +386,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   static inline uint32_t HandleToIndex(ExternalPointerHandle handle);
   static inline ExternalPointerHandle IndexToHandle(uint32_t index);
 
+  inline void TakeOwnershipOfManagedResourceIfNecessary(
+      Address value, ExternalPointerHandle handle, ExternalPointerTag tag);
   inline void FreeManagedResourceIfPresent(uint32_t entry_index);
 
   void ResolveEvacuationEntryDuringSweeping(
