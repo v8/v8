@@ -1925,8 +1925,8 @@ Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
                                         InternalIndex descriptor,
                                         PropertyConstness constness,
                                         Handle<Object> value) {
-  // Update to the newest map before storing the property.
-  map = Update(isolate, map);
+  // The map should already be fully updated before storing the property.
+  DCHECK(!map->is_deprecated());
   // Dictionaries can store any property value.
   DCHECK(!map->is_dictionary_map());
   return UpdateDescriptorForValue(isolate, map, descriptor, constness, value);
