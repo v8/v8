@@ -215,8 +215,9 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
   // struct.get performs a null check.
   wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_get.object());
   input_type_map_[graph_.Index(struct_get)] = type;
-  RefineTypeKnowledge(graph_.Index(struct_get),
-                      struct_get.type->field(struct_get.field_index));
+  RefineTypeKnowledge(
+      graph_.Index(struct_get),
+      struct_get.type->field(struct_get.field_index).Unpacked());
 }
 
 void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
