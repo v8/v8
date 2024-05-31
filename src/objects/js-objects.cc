@@ -3547,7 +3547,12 @@ bool TryFastAddDataProperty(Isolate* isolate, Handle<JSObject> object,
   DCHECK(!map->is_dictionary_map());
 
   Handle<Map> new_map = handle(map, isolate);
-  InternalIndex descriptor = map->LastAdded();
+  if (map->is_deprecated()) {
+    new_map = Map::Update(isolate, new_map);
+    if (new_map->is_dictionary_map()) return false;
+  }
+
+  InternalIndex descriptor = new_map->LastAdded();
   new_map = Map::PrepareForDataProperty(isolate, new_map, descriptor,
                                         PropertyConstness::kConst, value);
   JSObject::MigrateToMap(isolate, object, new_map);
