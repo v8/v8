@@ -1463,8 +1463,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
 #endif  // DEBUG
 
-DEFINE_BOOL(profile_guided_optimization, false, "profile guided optimization")
-DEFINE_BOOL(profile_guided_optimization_for_empty_feedback_vector, false,
+DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
+DEFINE_BOOL(profile_guided_optimization_for_empty_feedback_vector, true,
             "profile guided optimization for empty feedback vector")
 DEFINE_INT(invocation_count_for_early_optimization, 30,
            "invocation count threshold for early optimization")
