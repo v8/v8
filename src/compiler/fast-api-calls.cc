@@ -265,8 +265,10 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   const int kFastTargetAddressInputIndex = 0;
   const int kFastTargetAddressInputCount = 1;
 
-  int extra_input_count = FastApiCallNode::kEffectAndControlInputCount +
-                          (c_signature->HasOptions() ? 1 : 0);
+  const int kEffectAndControlInputCount = 2;
+
+  int extra_input_count =
+      kEffectAndControlInputCount + (c_signature->HasOptions() ? 1 : 0);
 
   Node** const inputs = graph()->zone()->AllocateArray<Node*>(
       kFastTargetAddressInputCount + c_arg_count + extra_input_count);
