@@ -960,15 +960,6 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   }
 }
 
-void Scope::ReplaceOuterScope(Scope* outer) {
-  DCHECK_NOT_NULL(outer);
-  DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(!already_resolved_);
-  outer_scope_->RemoveInnerScope(this);
-  outer->AddInnerScope(this);
-  outer_scope_ = outer;
-}
-
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
