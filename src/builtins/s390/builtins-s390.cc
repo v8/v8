@@ -3303,7 +3303,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ LeaveExitFrame(scratch);
   if (argv_mode == ArgvMode::kStack) {
     DCHECK(!AreAliased(scratch, argc_sav));
-    __ ShiftLeftU64(scratch, argc_sav, Operand(kPointerSizeLog2));
+    __ ShiftLeftU64(scratch, argc_sav, Operand(kSystemPointerSizeLog2));
     __ AddS64(sp, sp, scratch);
   }
 
