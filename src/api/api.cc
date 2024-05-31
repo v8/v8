@@ -11523,6 +11523,33 @@ const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
   return arg_info_[index];
 }
 
+namespace api_internal {
+V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::DirectHandle<i::Object> target = Utils::OpenDirectHandle(*raw_target);
+  if (i::IsFunctionTemplateInfo(*target)) {
+    i::Handle<i::Object> data(
+        i::FunctionTemplateInfo::cast(*target)->callback_data(kAcquireLoad),
+        i_isolate);
+    return Utils::ToLocal(data);
+
+  } else if (i::IsJSFunction(*target)) {
+    i::DirectHandle<i::JSFunction> target_func =
+        i::DirectHandle<i::JSFunction>::cast(target);
+    if (target_func->shared()->IsApiFunction()) {
+      i::Handle<i::Object> data(
+          target_func->shared()->api_func_data()->callback_data(kAcquireLoad),
+          i_isolate);
+      return Utils::ToLocal(data);
+    }
+  }
+  Utils::ApiCheck(false, "api_internal::GetFunctionTemplateData",
+                  "Target function is not an Api function");
+  UNREACHABLE();
+}
+}  // namespace api_internal
+
 void FastApiTypedArrayBase::ValidateIndex(size_t index) const {
   DCHECK_LT(index, length_);
 }
@@ -11760,6 +11787,8 @@ inline void InvokeFunctionCallback(
   switch (mode) {
     case CallApiCallbackMode::kGeneric: {
       if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
+        // TODO(crbug.com/326505377): load target FunctionTemplateInfo from
+        // info.implicit_args_[kTargetIndex].
         // Load FunctionTemplateInfo from API_CALLBACK_EXIT frame.
         // If this ever becomes a performance bottleneck, one can pass function
         // template info here explicitly.

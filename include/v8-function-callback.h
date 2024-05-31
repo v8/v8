@@ -32,6 +32,11 @@ namespace debug {
 class ConsoleCallArguments;
 }  // namespace debug
 
+namespace api_internal {
+V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
+}  // namespace api_internal
+
 template <typename T>
 class ReturnValue {
  public:
@@ -163,7 +168,7 @@ class FunctionCallbackInfo {
   static constexpr int kIsolateIndex = 1;
   static constexpr int kUnusedIndex = 2;
   static constexpr int kReturnValueIndex = 3;
-  static constexpr int kDataIndex = 4;
+  static constexpr int kTargetIndex = 4;
   static constexpr int kNewTargetIndex = 5;
   static constexpr int kArgsLength = 6;
 
@@ -598,7 +603,8 @@ Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
-  return Local<Value>::FromSlot(&implicit_args_[kDataIndex]);
+  auto target = Local<v8::Data>::FromSlot(&implicit_args_[kTargetIndex]);
+  return GetFunctionTemplateData(GetIsolate(), target);
 }
 
 template <typename T>

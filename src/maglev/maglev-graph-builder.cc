@@ -8144,6 +8144,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
+  // Check if the function has an associated C++ code to execute.
   compiler::OptionalObjectRef maybe_callback_data =
       api_callback.callback_data(broker());
   if (!maybe_callback_data.has_value()) {
@@ -8151,7 +8152,6 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
     // instead of failing.
     return ReduceResult::Fail();
   }
-  compiler::ObjectRef callback_data = maybe_callback_data.value();
 
   size_t input_count = args.count() + CallKnownApiFunction::kFixedInputCount;
   ValueNode* receiver;
@@ -8176,7 +8176,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      mode, api_callback, callback_data, api_holder, GetContext(), receiver);
+      mode, api_callback, api_holder, GetContext(), receiver);
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(

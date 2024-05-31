@@ -104,9 +104,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   }
 
   if (fun_data->has_callback(isolate)) {
-    Tagged<Object> data_obj = fun_data->callback_data(kAcquireLoad);
-    FunctionCallbackArguments custom(isolate, data_obj, raw_holder, *new_target,
-                                     argv, argc);
+    FunctionCallbackArguments custom(isolate, *fun_data, raw_holder,
+                                     *new_target, argv, argc);
     Handle<Object> result = custom.Call(*fun_data);
 
     RETURN_EXCEPTION_IF_EXCEPTION(isolate, Object);
@@ -240,9 +239,9 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   Tagged<Object> result;
   {
     HandleScope scope(isolate);
-    FunctionCallbackArguments custom(
-        isolate, templ->callback_data(kAcquireLoad), obj, new_target,
-        args.address_of_first_argument(), args.length() - 1);
+    FunctionCallbackArguments custom(isolate, templ, obj, new_target,
+                                     args.address_of_first_argument(),
+                                     args.length() - 1);
     Handle<Object> result_handle = custom.Call(templ);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();

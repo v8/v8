@@ -4435,16 +4435,12 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                             CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
-  // CallApiCallbackMode::kGeneric mode:
-  //  -- ecx                 : arguments count (not including the receiver)
-  //  -- edx                 : call handler info
-  //  -- edi                 : holder
   // CallApiCallbackMode::kOptimizedNoProfiling/kOptimized modes:
   //  -- eax                 : api function address
-  //  -- ecx                 : arguments count (not including the receiver)
-  //  -- edx                 : call data
-  //  -- edi                 : holder
   // Both modes:
+  //  -- ecx                 : arguments count (not including the receiver)
+  //  -- edx                 : FunctionTemplateInfo
+  //  -- edi                 : holder
   //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[8]              : argument 0 (receiver)
@@ -4456,8 +4452,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   Register api_function_address = no_reg;
   Register argc = no_reg;
-  Register call_data = no_reg;
-  Register callback = no_reg;
+  Register func_templ = no_reg;
   Register holder = no_reg;
   Register topmost_script_having_context = no_reg;
 
@@ -4466,7 +4461,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback =
+      func_templ =
           CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
@@ -4479,19 +4474,20 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
       argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
-      call_data = CallApiCallbackOptimizedDescriptor::CallDataRegister();
+      func_templ =
+          CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackOptimizedDescriptor::HolderRegister();
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     call_data, callback, holder));
+                     func_templ, holder));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
 
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kDataIndex == 4);
+  static_assert(FCA::kTargetIndex == 4);
   static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kUnusedIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
@@ -4508,7 +4504,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //   esp[2 * kSystemPointerSize]: kIsolate
   //   esp[3 * kSystemPointerSize]: kUnused
   //   esp[4 * kSystemPointerSize]: undefined (kReturnValue)
-  //   esp[5 * kSystemPointerSize]: kData
+  //   esp[5 * kSystemPointerSize]: kTarget
   //   esp[6 * kSystemPointerSize]: undefined (kNewTarget)
   // Existing state:
   //   esp[7 * kSystemPointerSize]:          <= FCA:::values_
@@ -4525,17 +4521,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   __ PopReturnAddressTo(argc);
   __ PushRoot(RootIndex::kUndefinedValue);  // kNewTarget
-  switch (mode) {
-    case CallApiCallbackMode::kGeneric:
-      __ push(
-          FieldOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
-      break;
-
-    case CallApiCallbackMode::kOptimizedNoProfiling:
-    case CallApiCallbackMode::kOptimized:
-      __ Push(call_data);
-      break;
-  }
+  __ Push(func_templ);                      // kTarget
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(Smi::zero());                     // kUnused
 
@@ -4582,12 +4568,12 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ push(callback);
+    __ push(func_templ);
 
     __ PushReturnAddressFrom(argc);
 
     __ mov(api_function_address,
-           FieldOperand(callback,
+           FieldOperand(func_templ,
                         FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
 
     __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::API_CALLBACK_EXIT,

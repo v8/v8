@@ -183,7 +183,7 @@ class FunctionCallbackArguments
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kUnusedIndex = T::kUnusedIndex;
-  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kTargetIndex = T::kTargetIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
   static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
@@ -199,7 +199,8 @@ class FunctionCallbackArguments
   static_assert(T::kValuesOffset == offsetof(T, values_));
   static_assert(T::kLengthOffset == offsetof(T, length_));
 
-  FunctionCallbackArguments(Isolate* isolate, Tagged<Object> data,
+  FunctionCallbackArguments(Isolate* isolate,
+                            Tagged<FunctionTemplateInfo> target,
                             Tagged<Object> holder,
                             Tagged<HeapObject> new_target, Address* argv,
                             int argc);
@@ -217,7 +218,7 @@ class FunctionCallbackArguments
  private:
   inline Tagged<JSReceiver> holder() const;
 
-  internal::Address* argv_;
+  Address* argv_;
   int const argc_;
 };
 

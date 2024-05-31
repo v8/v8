@@ -5629,7 +5629,7 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
           kContextRegister,
           CallApiCallbackOptimizedDescriptor::HolderRegister(),
           CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
-          CallApiCallbackOptimizedDescriptor::CallDataRegister(),
+          CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
   DCHECK_EQ(kContextRegister, ToRegister(context()));
 
@@ -5650,13 +5650,9 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
   __ Move(CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
           num_args());  // not including receiver
 
-  if (data_.IsSmi()) {
-    __ Move(CallApiCallbackOptimizedDescriptor::CallDataRegister(),
-            Smi::FromInt(data_.AsSmi()));
-  } else {
-    __ Move(CallApiCallbackOptimizedDescriptor::CallDataRegister(),
-            Handle<HeapObject>::cast(data_.object()));
-  }
+  __ Move(CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
+          Handle<HeapObject>::cast(function_template_info_.object()));
+
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   ApiFunction function(function_template_info_.callback(broker));
   ExternalReference reference =
@@ -5688,7 +5684,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kDataIndex == 4);
+  static_assert(FCA::kTargetIndex == 4);
   static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kUnusedIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
@@ -5701,7 +5697,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   //   sp[1 * kSystemPointerSize]: kIsolate
   //   sp[2 * kSystemPointerSize]: undefined (padding, unused)
   //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
-  //   sp[4 * kSystemPointerSize]: kData
+  //   sp[4 * kSystemPointerSize]: kTarget
   //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
   // Existing state:
   //   sp[6 * kSystemPointerSize]:          <= FCA:::values_
@@ -5711,13 +5707,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   ASM_CODE_COMMENT_STRING(masm, "inlined CallApiCallbackOptimized builtin");
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  // kNewTarget, kData, kReturnValue, kUnused
-  if (data_.IsSmi()) {
-    __ Push(scratch, Smi::FromInt(data_.AsSmi()), scratch, scratch);
-  } else {
-    __ Push(scratch, Handle<HeapObject>::cast(data_.object()), scratch,
-            scratch);
-  }
+  // kNewTarget, kTarget, kReturnValue, kUnused
+  __ Push(scratch, Handle<HeapObject>::cast(function_template_info_.object()),
+          scratch, scratch);
   __ Move(scratch, ER::isolate_address(masm->isolate()));
   // kIsolate, kHolder
   if (api_holder_.has_value()) {

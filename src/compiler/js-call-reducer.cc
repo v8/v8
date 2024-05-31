@@ -686,7 +686,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // look like:
     // [receiver, ... C arguments, callback data,
     //  slow call code, external constant for function, argc,
-    //  callback data, holder, receiver, ... JS arguments,
+    //  FunctionTemplateInfo, holder, receiver, ... JS arguments,
     //  context, new frame state].
     bool no_profiling =
         broker()->dependencies()->DependOnNoProfilingProtector();
@@ -720,8 +720,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     inputs[cursor++] = HeapConstant(call_api_callback.code());
     inputs[cursor++] = ExternalConstant(function_reference);
     inputs[cursor++] = NumberConstant(arity_);
-    inputs[cursor++] =
-        Constant(function_template_info_.callback_data(broker()).value());
+    inputs[cursor++] = HeapConstant(function_template_info_.object());
     inputs[cursor++] = holder_;
     inputs[cursor++] = receiver_;
     for (int i = 0; i < arity_; ++i) {
@@ -4113,7 +4112,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   // JSNativeContextSpecialization::InlineApiCall method a bit.
   compiler::OptionalObjectRef maybe_callback_data =
       function_template_info.callback_data(broker());
+  // Check if the function has an associated C++ code to execute.
   if (!maybe_callback_data.has_value()) {
+    // TODO(ishell): consider generating "return undefined" for empty function
+    // instead of failing.
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
     return NoChange();
@@ -4158,7 +4160,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   node->InsertInput(graph()->zone(), 2, jsgraph()->ConstantNoHole(argc));
   node->InsertInput(
       graph()->zone(), 3,
-      jsgraph()->ConstantNoHole(maybe_callback_data.value(), broker()));
+      jsgraph()->HeapConstantNoHole(function_template_info.object()));
   node->InsertInput(graph()->zone(), 4, holder);
   node->ReplaceInput(5, receiver);  // Update receiver input.
   // 6 + argc is context input.

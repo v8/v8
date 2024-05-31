@@ -38,12 +38,11 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Tagged<internal::Object> data,
-    internal::Tagged<internal::Object> holder,
-    internal::Tagged<internal::HeapObject> new_target, internal::Address* argv,
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<Object> holder, Tagged<HeapObject> new_target, Address* argv,
     int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
-  slot_at(T::kDataIndex).store(data);
+  slot_at(T::kTargetIndex).store(target);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kNewTargetIndex).store(new_target);
   slot_at(T::kIsolateIndex)
