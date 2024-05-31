@@ -6463,7 +6463,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(), current_source_position_));
-  if (feedback_vector->object()->invocation_count_before_stable() >
+  if (feedback_vector->object()->invocation_count_before_stable(kRelaxedLoad) >
       v8_flags.invocation_count_for_early_optimization) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
   }

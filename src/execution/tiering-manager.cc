@@ -461,7 +461,7 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
         } else {
           vector->set_invocation_count_before_stable(
-              new_invocation_count_before_stable);
+              new_invocation_count_before_stable, kRelaxedStore);
         }
       }
     }

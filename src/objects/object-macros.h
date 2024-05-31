@@ -137,6 +137,9 @@
 #define DECL_RELAXED_UINT16_ACCESSORS(name) \
   DECL_RELAXED_PRIMITIVE_ACCESSORS(name, uint16_t)
 
+#define DECL_RELAXED_UINT8_ACCESSORS(name) \
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(name, uint8_t)
+
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
   inline type name(PtrComprCageBase cage_base) const;
@@ -266,6 +269,14 @@
   }                                                          \
   void holder::set_##name(uint16_t value, RelaxedStoreTag) { \
     RELAXED_WRITE_UINT16_FIELD(*this, offset, value);        \
+  }
+
+#define RELAXED_UINT8_ACCESSORS(holder, name, offset)       \
+  uint8_t holder::name(RelaxedLoadTag) const {              \
+    return RELAXED_READ_UINT8_FIELD(*this, offset);         \
+  }                                                         \
+  void holder::set_##name(uint8_t value, RelaxedStoreTag) { \
+    RELAXED_WRITE_UINT8_FIELD(*this, offset, value);        \
   }
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
@@ -830,6 +841,13 @@
                       static_cast<base::Atomic8>(value));
 #define RELAXED_READ_INT8_FIELD(p, offset) \
   static_cast<int8_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
+
+#define RELAXED_WRITE_UINT8_FIELD(p, offset, value)                            \
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
+#define RELAXED_READ_UINT8_FIELD(p, offset) \
+  static_cast<uint8_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define RELAXED_READ_UINT16_FIELD(p, offset) \
