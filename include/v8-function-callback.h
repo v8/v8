@@ -280,9 +280,10 @@ class PropertyCallbackInfo {
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "This is a temporary workaround to ease migration of Chromium bindings "
-      "code to the new interceptors Api")
+      "code to the new interceptors Api. This constructor will be removed in "
+      "V8 12.8.")
   explicit PropertyCallbackInfo(const PropertyCallbackInfo<void>& info)
       : PropertyCallbackInfo(info.args_) {}
 

@@ -152,16 +152,18 @@ enum PropertyAttribute {
  * a particular data property. See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorGetterCallback V8_DEPRECATE_SOON(
-    "Use AccessorNameGetterCallback signature instead") =
-    void (*)(Local<String> property, const PropertyCallbackInfo<Value>& info);
+using AccessorGetterCallback V8_DEPRECATED(
+    "Use AccessorNameGetterCallback signature instead. This type will be "
+    "removed in V8 12.8.") = void (*)(Local<String> property,
+                                      const PropertyCallbackInfo<Value>& info);
 using AccessorNameGetterCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
-using AccessorSetterCallback V8_DEPRECATE_SOON(
-    "Use AccessorNameSetterCallback signature instead") =
-    void (*)(Local<String> property, Local<Value> value,
-             const PropertyCallbackInfo<void>& info);
+using AccessorSetterCallback V8_DEPRECATED(
+    "Use AccessorNameSetterCallback signature instead. This type will be "
+    "removed in V8 12.8.") = void (*)(Local<String> property,
+                                      Local<Value> value,
+                                      const PropertyCallbackInfo<void>& info);
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);
@@ -343,7 +345,10 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
                                            uint32_t index);
 
-  V8_DEPRECATED("Use SetNativeDataProperty instead")
+  V8_DEPRECATED(
+      "Use SetNativeDataProperty or SetAccessorProperty instead depending on "
+      "the required semantics. See http://crbug.com/336325111. This method "
+      "will be removed in V8 12.8.")
   V8_WARN_UNUSED_RESULT Maybe<bool> SetAccessor(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,

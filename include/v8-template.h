@@ -60,6 +60,22 @@ class V8_EXPORT Template : public Data {
   V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
                      PropertyAttribute attributes = None);
 
+  /**
+   * Sets an "accessor property" on the object template, see
+   * https://tc39.es/ecma262/#sec-object-type.
+   *
+   * Whenever the property with the given name is accessed on objects
+   * created from this ObjectTemplate the getter and setter functions
+   * are called.
+   *
+   * \param name The name of the property for which an accessor is added.
+   * \param getter The callback to invoke when getting the property.
+   * \param setter The callback to invoke when setting the property.
+   * \param data A piece of data that will be passed to the getter and setter
+   *   callbacks whenever they are invoked.
+   * \param attribute The attributes of the property for which an accessor
+   *   is added.
+   */
   void SetAccessorProperty(
       Local<Name> name,
       Local<FunctionTemplate> getter = Local<FunctionTemplate>(),
@@ -67,12 +83,18 @@ class V8_EXPORT Template : public Data {
       PropertyAttribute attribute = None);
 
   /**
+   * Sets a "data property" on the object template, see
+   * https://tc39.es/ecma262/#sec-object-type.
+   *
    * Whenever the property with the given name is accessed on objects
    * created from this Template the getter and setter callbacks
    * are called instead of getting and setting the property directly
    * on the JavaScript object.
+   * Note that in case a property is written via a "child" object, the setter
+   * will not be called according to the JavaScript specification. See
+   * https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver.
    *
-   * \param name The name of the property for which an accessor is added.
+   * \param name The name of the data property for which an accessor is added.
    * \param getter The callback to invoke when getting the property.
    * \param setter The callback to invoke when setting the property.
    * \param data A piece of data that will be passed to the getter and setter
@@ -1042,7 +1064,10 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
-  V8_DEPRECATE_SOON("Use SetNativeDataProperty instead")
+  V8_DEPRECATED(
+      "Use SetNativeDataProperty or SetAccessorProperty instead depending on "
+      "the required semantics. See http://crbug.com/336325111. This method "
+      "will be removed in V8 12.8.")
   void SetAccessor(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
