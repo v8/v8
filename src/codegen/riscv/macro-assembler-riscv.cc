@@ -1577,10 +1577,9 @@ void MacroAssembler::Sll64(Register rd, Register rs, const Operand& rt) {
 void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {  
   if (CpuFeatures::IsSupported(ZBB)) {
     if (rs.is_reg()) {
-      andi(rd, rt.rm(), 31);
-      ror(rd, rs, rd);
+      rorw(rd, rs, rt.rm());
     } else {
-      rori(rd, rs, rt.immediate() % 32);
+      roriw(rd, rs, rt.immediate() % 32);
     }
     return;
   }
