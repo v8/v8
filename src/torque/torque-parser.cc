@@ -543,6 +543,12 @@ base::Optional<ParseResult> MakeAssertStatement(
     kind = AssertStatement::AssertKind::kDcheck;
   } else if (kind_string == "check") {
     kind = AssertStatement::AssertKind::kCheck;
+  } else if (kind_string == "sbxcheck") {
+#ifdef V8_ENABLE_SANDBOX
+    kind = AssertStatement::AssertKind::kSbxCheck;
+#else
+    kind = AssertStatement::AssertKind::kDcheck;
+#endif  // V8_ENABLE_SANDBOX
   } else if (kind_string == "static_assert") {
     kind = AssertStatement::AssertKind::kStaticAssert;
   } else {
@@ -2760,7 +2766,7 @@ struct TorqueGrammar : Grammar {
           MakeTypeswitchStatement),
       Rule({Token("try"), &block, List<TryHandler*>(&tryHandler)},
            MakeTryLabelExpression),
-      Rule({OneOf({"dcheck", "check", "static_assert"}), Token("("),
+      Rule({OneOf({"dcheck", "check", "sbxcheck", "static_assert"}), Token("("),
             &expressionWithSource, Token(")"), Token(";")},
            MakeAssertStatement),
       Rule({Token("while"), Token("("), expression, Token(")"), &statement},

@@ -1238,6 +1238,9 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
                            {}});
     return TypeOracle::GetVoidType();
   }
+  // When the sandbox is off, sbxchecks become dchecks.
+  DCHECK_IMPLIES(stmt->kind == AssertStatement::AssertKind::kSbxCheck,
+                 V8_ENABLE_SANDBOX_BOOL);
   bool do_check = stmt->kind != AssertStatement::AssertKind::kDcheck ||
                   GlobalContext::force_assert_statements();
 #if defined(DEBUG)

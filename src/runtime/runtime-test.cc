@@ -1524,9 +1524,19 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     return CrashUnlessFuzzing(isolate);
   }
   Handle<String> message = args.at<String>(0);
-  base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
-                       message->ToCString().get());
-  isolate->PrintStack(stderr);
+  if (base::ControlledCrashesAreHarmless()) {
+    base::OS::PrintError(
+        "Safely terminating process due to CSA check failure\n");
+    // Also prefix the error message (printed below). This has two purposes:
+    // (1) it makes it clear that this error is deemed "safe" (2) it causes
+    // fuzzers that pattern-match on stderr output to ignore these failures.
+    base::OS::PrintError("The following harmless failure was encountered: %s\n",
+                         message->ToCString().get());
+  } else {
+    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
+                         message->ToCString().get());
+    isolate->PrintStack(stderr);
+  }
   base::OS::Abort();
   UNREACHABLE();
 }
