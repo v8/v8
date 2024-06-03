@@ -3419,9 +3419,7 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
             target_details.representation())) {
       return false;
     }
-    if (!details.representation().IsCompatibleForLoad(
-            target_details.representation()) ||
-        !details.representation().fits_into(target_details.representation())) {
+    if (!details.representation().fits_into(target_details.representation())) {
       return false;
     }
   }
@@ -3501,6 +3499,7 @@ std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
           DCHECK_EQ(*source_map, *maybe_target);
           break;
         case FastCloneObjectMode::kDifferentMap:
+          if ((*maybe_target)->is_deprecated()) break;
           DCHECK(CanFastCloneObjectWithDifferentMaps(
               source_map, handle(*maybe_target, isolate), false, isolate));
           break;
