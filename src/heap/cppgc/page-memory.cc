@@ -135,7 +135,7 @@ void NormalPageMemoryPool::Add(PageMemoryRegion* pmr) {
     AsanUnpoisonScope unpoison_for_memset(base, size);
     std::memset(base, 0, size);
   }
-  pool_.push_back({pmr, false});
+  pool_.emplace_back(PooledPageMemoryRegion(pmr));
 }
 
 PageMemoryRegion* NormalPageMemoryPool::Take() {
@@ -154,12 +154,22 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
         base, size, v8::PageAllocator::kReadWrite));
     CHECK(entry.region->allocator().SetPermissions(
         base, size, v8::PageAllocator::kReadWrite));
-    entry.is_decommitted = false;
   }
 #if DEBUG
   CheckMemoryIsZero(base, size);
 #endif
   return entry.region;
+}
+
+size_t NormalPageMemoryPool::PooledMemory() const {
+  size_t total_size = 0;
+  for (auto& entry : pool_) {
+    if (entry.is_decommitted || entry.is_discarded) {
+      continue;
+    }
+    total_size += entry.region->GetPageMemory().writeable_region().size();
+  }
+  return total_size;
 }
 
 void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
@@ -176,7 +186,11 @@ void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
       CHECK(page_allocator.DecommitPages(base, size));
       entry.is_decommitted = true;
     } else {
+      if (entry.is_discarded) {
+        continue;
+      }
       CHECK(TryDiscard(page_allocator, entry.region->GetPageMemory()));
+      entry.is_discarded = true;
     }
   }
 }

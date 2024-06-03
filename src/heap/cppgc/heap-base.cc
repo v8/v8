@@ -299,9 +299,16 @@ void HeapBase::Terminate() {
 HeapStatistics HeapBase::CollectStatistics(
     HeapStatistics::DetailLevel detail_level) {
   if (detail_level == HeapStatistics::DetailLevel::kBrief) {
-    return {stats_collector_->allocated_memory_size(),
-            stats_collector_->resident_memory_size(),
+    const size_t pooled_memory = page_backend_->page_pool().PooledMemory();
+    const size_t committed_memory =
+        stats_collector_->allocated_memory_size() + pooled_memory;
+    const size_t resident_memory =
+        stats_collector_->resident_memory_size() + pooled_memory;
+
+    return {committed_memory,
+            resident_memory,
             stats_collector_->allocated_object_size(),
+            pooled_memory,
             HeapStatistics::DetailLevel::kBrief,
             {},
             {}};

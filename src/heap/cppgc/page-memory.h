@@ -127,6 +127,9 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 
   // Returns the number of entries pooled.
   size_t pooled() const { return pool_.size(); }
+  // Memory in the pool which is neither discarded nor decommitted, i.e. the
+  // actual cost of pooled memory.
+  size_t PooledMemory() const;
 
   void DiscardPooledPages(PageAllocator& allocator);
 
@@ -139,10 +142,13 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
   // The pool of pages that are not returned to the OS. Bounded by
   // `primary_pool_capacity_`.
   struct PooledPageMemoryRegion {
-    PooledPageMemoryRegion(PageMemoryRegion* region, bool is_decommitted)
-        : region(region), is_decommitted(is_decommitted) {}
+    explicit PooledPageMemoryRegion(PageMemoryRegion* region)
+        : region(region) {}
     PageMemoryRegion* region;
-    bool is_decommitted;
+    // When a page enters the pool, it's from the heap, so it's neither
+    // decommitted nor discarded.
+    bool is_decommitted = false;
+    bool is_discarded = false;
   };
   std::vector<PooledPageMemoryRegion> pool_;
   bool decommit_pooled_pages_ = kDefaultDecommitPooledPage;
