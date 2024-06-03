@@ -40,13 +40,13 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   EmbedderNode(const HeapObjectHeader* header_address,
                cppgc::internal::HeapObjectName name, size_t size)
-      : header_address_(header_address), name_(name), size_(size) {
-    USE(size_);
-  }
+      : header_address_(header_address),
+        name_(name.value),
+        size_(name.name_was_hidden ? 0 : size) {}
   ~EmbedderNode() override = default;
 
-  const char* Name() final { return name_.value; }
-  size_t SizeInBytes() final { return name_.name_was_hidden ? 0 : size_; }
+  const char* Name() final { return name_; }
+  size_t SizeInBytes() final { return size_; }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     // An embedder node may only be merged with a single wrapper node, as
@@ -81,7 +81,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
 
  private:
   const void* header_address_;
-  cppgc::internal::HeapObjectName name_;
+  const char* name_;
   size_t size_;
   Node* wrapper_node_ = nullptr;
   Detachedness detachedness_ = Detachedness::kUnknown;
@@ -405,7 +405,7 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
   }
   // Wrapper using cpp_heap_wrappable field.
   return JSApiWrapper(*js_object)
-      .GetCppHeapWrappable<kAnyExternalPointerTag>(isolate);
+      .GetCppHeapWrappable(isolate, kAnyCppHeapPointer);
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also

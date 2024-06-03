@@ -3728,6 +3728,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
+  DCHECK_NE(dst, acc);
   QwNeonRegister dest = liftoff::GetSimd128Register(dst);
   QwNeonRegister left = liftoff::GetSimd128Register(lhs);
   QwNeonRegister right = liftoff::GetSimd128Register(rhs);

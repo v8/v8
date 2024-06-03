@@ -764,8 +764,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       info_->AddInlinedFunction(shared_info->object(), bytecode_array.object(),
                                 source_positions_->GetSourcePosition(node));
   if (v8_flags.profile_guided_optimization &&
-      FeedbackVector::cast(feedback_cell.object()->value())
-              ->invocation_count_before_stable() >
+      feedback_cell.feedback_vector(broker()).has_value() &&
+      feedback_cell.feedback_vector(broker())
+              .value()
+              .object()
+              ->invocation_count_before_stable(kRelaxedLoad) >
           v8_flags.invocation_count_for_early_optimization) {
     info_->set_could_not_inline_all_candidates();
   }

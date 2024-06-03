@@ -113,6 +113,27 @@ class MachineLoweringReducer : public Next {
 
         return i32;
       }
+      case ChangeOrDeoptOp::Kind::kFloat64ToUint32: {
+        V<Float64> f64_input = V<Float64>::Cast(input);
+        V<Word32> ui32 = __ TruncateFloat64ToUint32OverflowUndefined(f64_input);
+        __ DeoptimizeIfNot(
+            __ Float64Equal(__ ChangeUint32ToFloat64(ui32), f64_input),
+            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
+
+        if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+          // Check if {value} is -0.
+          IF (UNLIKELY(__ Word32Equal(ui32, 0))) {
+            // In case of 0, we need to check the high bits for the IEEE -0
+            // pattern.
+            V<Word32> check_negative =
+                __ Int32LessThan(__ Float64ExtractHighWord32(f64_input), 0);
+            __ DeoptimizeIf(check_negative, frame_state,
+                            DeoptimizeReason::kMinusZero, feedback);
+          }
+        }
+
+        return ui32;
+      }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt64: {
         V<Float64> f64_input = V<Float64>::Cast(input);
         V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(f64_input);
@@ -2968,7 +2989,7 @@ class MachineLoweringReducer : public Next {
     return input;
   }
 
-  OpIndex REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
+  V<None> REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
                                                 V<Object> value,
                                                 V<FrameState> frame_state) {
     Label<> done(this);
@@ -3024,7 +3045,7 @@ class MachineLoweringReducer : public Next {
     GOTO(done);
 
     BIND(done);
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
@@ -3032,10 +3053,10 @@ class MachineLoweringReducer : public Next {
         offset, AccessBuilder::ForExternalIntPtr()));
   }
 
-  OpIndex REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
+  V<None> REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
     __ StoreField(offset, AccessBuilder::ForExternalIntPtr(),
                   __ BitcastTaggedToWordPtr(object));
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   V<Boolean> REDUCE(SameValue)(OpIndex left, OpIndex right,

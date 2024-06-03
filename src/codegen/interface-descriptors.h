@@ -71,7 +71,6 @@ namespace internal {
   V(ConstructStub)                                   \
   V(ConstructVarargs)                                \
   V(ConstructWithArrayLike)                          \
-  V(ConstructWithArrayLike_WithFeedback)             \
   V(Construct_WithFeedback)                          \
   V(ConstructWithSpread)                             \
   V(ConstructWithSpread_Baseline)                    \
@@ -1797,11 +1796,9 @@ class ConstructWithSpread_BaselineDescriptor
           ConstructWithSpread_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  // Note: kSlot comes before kSpread since as an untagged value it must be
-  // passed in a register.
-  DEFINE_JS_PARAMETERS_NO_CONTEXT(kSlot, kSpread)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
-                            MachineType::AnyTagged())  // kSpread
+  DEFINE_JS_PARAMETERS_NO_CONTEXT(kSpread, kSlot)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSpread
+                            MachineType::AnyTagged())  // kSlot
   DECLARE_DESCRIPTOR(ConstructWithSpread_BaselineDescriptor)
 };
 
@@ -1810,12 +1807,10 @@ class ConstructWithSpread_WithFeedbackDescriptor
           ConstructWithSpread_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  // Note: kSlot comes before kSpread since as an untagged value it must be
-  // passed in a register.
-  DEFINE_JS_PARAMETERS(kSlot, kSpread, kFeedbackVector)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
-                            MachineType::AnyTagged(),  // kSpread
-                            MachineType::AnyTagged())  // kFeedbackVector
+  DEFINE_JS_PARAMETERS(kSpread, kSlot, kVector)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSpread
+                            MachineType::AnyTagged(),  // kSlot
+                            MachineType::AnyTagged())  // kVector
   DECLARE_DESCRIPTOR(ConstructWithSpread_WithFeedbackDescriptor)
 };
 
@@ -1830,20 +1825,6 @@ class ConstructWithArrayLikeDescriptor
   DECLARE_DESCRIPTOR(ConstructWithArrayLikeDescriptor)
 
   static constexpr inline auto registers();
-};
-
-class ConstructWithArrayLike_WithFeedbackDescriptor
-    : public StaticCallInterfaceDescriptor<
-          ConstructWithArrayLike_WithFeedbackDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsList, kSlot, kFeedbackVector)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
-                         MachineType::AnyTagged(),  // kNewTarget
-                         MachineType::AnyTagged(),  // kArgumentsList
-                         MachineType::UintPtr(),    // kSlot
-                         MachineType::AnyTagged())  // kFeedbackVector
-  DECLARE_DESCRIPTOR(ConstructWithArrayLike_WithFeedbackDescriptor)
 };
 
 class ConstructForwardAllArgsDescriptor
@@ -1866,7 +1847,7 @@ class ConstructForwardAllArgs_BaselineDescriptor
   DEFINE_PARAMETERS(kTarget, kNewTarget, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
-                         MachineType::UintPtr())    // kSlot
+                         MachineType::AnyTagged())  // kSlot
   DECLARE_DESCRIPTOR(ConstructForwardAllArgs_BaselineDescriptor)
 };
 
@@ -1878,7 +1859,7 @@ class ConstructForwardAllArgs_WithFeedbackDescriptor
   DEFINE_PARAMETERS(kTarget, kNewTarget, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
-                         MachineType::UintPtr(),    // kSlot
+                         MachineType::AnyTagged(),  // kSlot
                          MachineType::AnyTagged())  // kVector
   DECLARE_DESCRIPTOR(ConstructForwardAllArgs_WithFeedbackDescriptor)
 };
@@ -2440,7 +2421,7 @@ class WasmFloat64ToTaggedDescriptor final
 class WasmJSToWasmWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmJSToWasmWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kWrapperBuffer, kInstance, kResultJSArray)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::IntPtr(),     // ParamBuffer
@@ -2462,7 +2443,7 @@ class WasmJSToWasmWrapperDescriptor final
 class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kWasmEntrypointTag)
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::IntPtr(),     // GP return 1

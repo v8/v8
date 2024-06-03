@@ -140,8 +140,6 @@ namespace internal {
   TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \
   TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
   TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
-  TFC(ConstructWithArrayLike_WithFeedback,                                     \
-      ConstructWithArrayLike_WithFeedback)                                     \
   ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
   ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                        \
   TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)      \

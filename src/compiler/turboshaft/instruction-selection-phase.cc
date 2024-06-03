@@ -313,7 +313,7 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
                                    "before instruction selection");
 
   // Initialize an instruction sequence.
-  data->InitializeInstructionSequence(call_descriptor);
+  data->InitializeInstructionComponent(call_descriptor);
 
   // Run the actual instruction selection.
   InstructionSelector selector = InstructionSelector::ForTurboshaft(
@@ -323,8 +323,7 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
           ? InstructionSelector::kEnableSwitchJumpTable
           : InstructionSelector::kDisableSwitchJumpTable,
       &data->info()->tick_counter(), data->broker(),
-      data->address_of_max_unoptimized_frame_height(),
-      data->address_of_max_pushed_argument_count(),
+      &data->max_unoptimized_frame_height(), &data->max_pushed_argument_count(),
       data->info()->source_positions()
           ? InstructionSelector::kAllSourcePositions
           : InstructionSelector::kCallSourcePositions,

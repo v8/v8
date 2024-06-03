@@ -212,9 +212,10 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   }
 
   // Objects referenced via indirect pointers are currently never allocated in
-  // the young generation or the shared heap. If they ever are, then some of
-  // these write barriers need to be adjusted.
-  DCHECK(!MemoryChunk::FromHeapObject(value)->IsYoungOrSharedChunk());
+  // the young generation.
+  if (!v8_flags.sticky_mark_bits) {
+    DCHECK(!MemoryChunk::FromHeapObject(value)->InYoungGeneration());
+  }
 
   WriteBarrier::Marking(host, slot);
 }

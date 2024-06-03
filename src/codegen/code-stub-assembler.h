@@ -4824,6 +4824,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename Array>
   TNode<Uint32T> NumberOfEntries(TNode<Array> array);
 
+  template <typename Array>
+  constexpr int MaxNumberOfEntries();
+
   // Implements [Descriptor/Transition]Array::GetSortedKeyIndex.
   template <typename Array>
   TNode<Uint32T> GetSortedKeyIndex(TNode<Array> descriptors,

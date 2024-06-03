@@ -3547,7 +3547,12 @@ bool TryFastAddDataProperty(Isolate* isolate, Handle<JSObject> object,
   DCHECK(!map->is_dictionary_map());
 
   Handle<Map> new_map = handle(map, isolate);
-  InternalIndex descriptor = map->LastAdded();
+  if (map->is_deprecated()) {
+    new_map = Map::Update(isolate, new_map);
+    if (new_map->is_dictionary_map()) return false;
+  }
+
+  InternalIndex descriptor = new_map->LastAdded();
   new_map = Map::PrepareForDataProperty(isolate, new_map, descriptor,
                                         PropertyConstness::kConst, value);
   JSObject::MigrateToMap(isolate, object, new_map);
@@ -4440,9 +4445,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   Handle<Map> old_map(object->map(), isolate);
   old_map = Map::Update(isolate, old_map);
   Handle<Map> transition_map;
-  MaybeHandle<Map> maybe_transition_map =
-      TransitionsAccessor::SearchSpecial(isolate, old_map, *transition_marker);
-  if (maybe_transition_map.ToHandle(&transition_map)) {
+  if (auto maybe_transition_map = TransitionsAccessor::SearchSpecial(
+          isolate, old_map, *transition_marker)) {
+    transition_map = *maybe_transition_map;
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_typed_array_or_rab_gsab_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
@@ -5254,7 +5259,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);
 
-  DCHECK_IMPLIES(!new_map->is_dictionary_map() && !map->is_deprecated(),
+  DCHECK_IMPLIES(!new_map->is_dictionary_map() && !map->is_deprecated() &&
+                     !IsUndefined(new_map->GetBackPointer()),
                  size == object->Size());
   return Just(true);
 }

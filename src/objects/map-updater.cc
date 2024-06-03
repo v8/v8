@@ -414,19 +414,21 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
 
   // Replay the transitions as they were before the integrity level transition.
-  Tagged<Map> result = root_map->TryReplayPropertyTransitions(
+  Tagged<Map> replay = root_map->TryReplayPropertyTransitions(
       isolate, info.integrity_level_source_map, cmode);
-  if (result.is_null()) return {};
+  if (replay.is_null()) return {};
 
+  std::optional<Tagged<Map>> result = replay;
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
+    result = TransitionsAccessor(isolate, *result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
-  if (result.is_null()) return {};
 
-  DCHECK_EQ(old_map->elements_kind(), result->elements_kind());
-  DCHECK_EQ(old_map->instance_type(), result->instance_type());
+  if (result) {
+    DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+    DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
+  }
   return result;
 }
 
@@ -685,6 +687,13 @@ MapUpdater::State MapUpdater::FindRootMap() {
     // that prototype transitions always connect to a more generic map.
     if (!root_map_->is_dictionary_map() && !is_cached) {
       root_map_->instance_descriptors()->GeneralizeAllFields(true);
+      // Transitions between JSFunctions require that all fields have the same
+      // representation.
+      if (IsJSFunctionMap(*old_map_) &&
+          !old_map_->EquivalentToForTransition(
+              *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
+        old_map_->instance_descriptors()->GeneralizeAllFields(true);
+      }
     }
   }
   root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
@@ -788,9 +797,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 
     // We try to replay the integrity level transition here.
-    MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-        isolate_, target_map_, *integrity_level_symbol_);
-    if (maybe_transition.ToHandle(&result_map_)) {
+    if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
+            isolate_, target_map_, *integrity_level_symbol_)) {
+      result_map_ = *maybe_transition;
       state_ = kEnd;
       return state_;  // Done.
     }
@@ -1201,8 +1210,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  InternalIndex descriptor, Handle<Name> name,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
-                                 const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(IsSmi(*new_wrapped_type) || IsWeak(*new_wrapped_type));
+                                 Handle<FieldType> new_type) {
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowGarbageCollection no_gc;
   PropertyDetails details =
@@ -1216,37 +1224,73 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 
   std::queue<Tagged<Map>> backlog;
   backlog.push(*map);
+  std::unordered_set<Tagged<Map>, Object::Hasher> sidestep_transition;
 
+  ReadOnlyRoots roots(isolate);
   while (!backlog.empty()) {
     Tagged<Map> current = backlog.front();
     backlog.pop();
 
     TransitionsAccessor transitions(isolate, current);
-    transitions.ForEachTransition(
-        &no_gc, [&backlog](Tagged<Map> target) { backlog.push(target); }
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-        ,
-        nullptr
+    transitions.ForEachTransitionWithKey(
+        &no_gc,
+        [&](Tagged<Name> key, Tagged<Map> target) {
+          if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
+            if (sidestep_transition.count(target)) {
+              return;
+            }
+            sidestep_transition.insert(target);
+          }
+          backlog.push(target);
+        },
+        [&](Tagged<Map> target) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+          backlog.push(target);
 #endif
-    );
+        },
+        TransitionsAccessor::IterationMode::kIncludeSideStepTransitions);
+
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);
 
+    PropertyConstness cur_new_constness = new_constness;
+    Representation cur_new_representation = new_representation;
+    Handle<FieldType> cur_new_type = new_type;
+    // Through side-steps we can reach transition trees which are already more
+    // generalized. Ensure we don't re-concretize them.
+    if (!sidestep_transition.empty()) {
+      cur_new_constness =
+          GeneralizeConstness(new_constness, details.constness());
+      cur_new_representation =
+          new_representation.generalize(details.representation());
+      cur_new_type = GeneralizeFieldType(
+          details.representation(),
+          handle(descriptors->GetFieldType(descriptor), isolate),
+          cur_new_representation, new_type, isolate);
+      DCHECK(new_representation.fits_into(cur_new_representation));
+    }
+
     // It is allowed to change representation here only from None
     // to something or from Smi or HeapObject to Tagged.
-    DCHECK(details.representation().Equals(new_representation) ||
-           details.representation().CanBeInPlaceChangedTo(new_representation));
+    CHECK(
+        details.representation().Equals(cur_new_representation) ||
+        details.representation().CanBeInPlaceChangedTo(cur_new_representation));
 
-    // Skip if already updated the shared descriptor.
-    if (new_constness != details.constness() ||
-        !new_representation.Equals(details.representation()) ||
-        descriptors->GetFieldType(descriptor) != *new_wrapped_type.object()) {
-      Descriptor d = Descriptor::DataField(
-          name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-          new_constness, new_representation, new_wrapped_type);
-      descriptors->Replace(descriptor, &d);
+    // Skip if we already updated the shared descriptor or the target was more
+    // general in the first place.
+    if (cur_new_constness == details.constness() &&
+        cur_new_representation.Equals(details.representation()) &&
+        FieldType::Equals(descriptors->GetFieldType(descriptor),
+                          *cur_new_type)) {
+      continue;
     }
+
+    MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_type));
+    Descriptor d = Descriptor::DataField(
+        name, descriptors->GetFieldIndex(descriptor), details.attributes(),
+        cur_new_constness, cur_new_representation, wrapped_type);
+    descriptors->Replace(descriptor, &d);
   }
 }
 
@@ -1299,9 +1343,8 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index), isolate);
 
-  MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_field_type));
   UpdateFieldType(isolate, field_owner, modify_index, name, new_constness,
-                  new_representation, wrapped_type);
+                  new_representation, new_field_type);
 
   DCHECK_IMPLIES(IsClass(*new_field_type), new_representation.IsHeapObject());
 

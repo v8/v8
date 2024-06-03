@@ -6245,16 +6245,16 @@ UNINITIALIZED_TEST(SharedStrings) {
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   CHECK_EQ(i_isolate1->string_table(), i_isolate2->string_table());
-  i_isolate2->main_thread_local_heap()->BlockMainThreadWhileParked(
+  i_isolate2->main_thread_local_heap()->ExecuteMainThreadWhileParked(
       [i_isolate1]() { CheckObjectsAreInSharedHeap(i_isolate1); });
 
-  i_isolate1->main_thread_local_heap()->BlockMainThreadWhileParked(
+  i_isolate1->main_thread_local_heap()->ExecuteMainThreadWhileParked(
       [i_isolate2]() { CheckObjectsAreInSharedHeap(i_isolate2); });
 
   // Because both isolate1 and isolate2 are considered running on the main
   // thread, one must be parked to avoid deadlock in the shared heap
   // verification that may happen on client heap disposal.
-  i_isolate1->main_thread_local_heap()->BlockMainThreadWhileParked(
+  i_isolate1->main_thread_local_heap()->ExecuteMainThreadWhileParked(
       [isolate2]() { isolate2->Dispose(); });
   isolate1->Dispose();
 

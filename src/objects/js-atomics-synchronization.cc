@@ -173,7 +173,7 @@ class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
 
   void Wait() {
     AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->BlockWhileParked([this]() {
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this]() {
       base::MutexGuard guard(&wait_lock_);
       while (should_wait_) {
         wait_cond_var_.Wait(&wait_lock_);
@@ -185,8 +185,8 @@ class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
   bool WaitFor(const base::TimeDelta& rel_time) {
     bool result;
     AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->BlockWhileParked([this, rel_time,
-                                                            &result]() {
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this, rel_time,
+                                                              &result]() {
       base::MutexGuard guard(&wait_lock_);
       base::TimeTicks current_time = base::TimeTicks::Now();
       base::TimeTicks timeout_time = current_time + rel_time;
@@ -730,7 +730,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
 bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
                                   Handle<JSAtomicsMutex> mutex,
                                   std::atomic<StateT>* state,
-                                  base::Optional<base::TimeDelta> timeout) {
+                                  std::optional<base::TimeDelta> timeout) {
   for (;;) {
     // Spin for a little bit to try to acquire the lock, so as to be fast under
     // microcontention.
@@ -814,7 +814,7 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
 // static
 MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     Isolate* requester, Handle<JSAtomicsMutex> mutex, Handle<Object> callback,
-    base::Optional<base::TimeDelta> timeout) {
+    std::optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_locked_promise =
       requester->factory()->NewJSPromise();
   Handle<JSPromise> waiting_for_callback_promise;
@@ -860,7 +860,7 @@ bool JSAtomicsMutex::LockAsync(Isolate* requester, Handle<JSAtomicsMutex> mutex,
                                Handle<JSPromise> internal_locked_promise,
                                MaybeHandle<JSPromise> unlocked_promise,
                                LockAsyncWaiterQueueNode** waiter_node,
-                               base::Optional<base::TimeDelta> timeout) {
+                               std::optional<base::TimeDelta> timeout) {
   bool locked =
       LockImpl(requester, mutex, timeout, [=](std::atomic<StateT>* state) {
         return LockAsyncSlowPath(requester, mutex, state,
@@ -901,7 +901,7 @@ bool JSAtomicsMutex::LockAsyncSlowPath(
     Handle<JSPromise> internal_locked_promise,
     MaybeHandle<JSPromise> unlocked_promise,
     LockAsyncWaiterQueueNode** waiter_node,
-    base::Optional<base::TimeDelta> timeout) {
+    std::optional<base::TimeDelta> timeout) {
   // Spin for a little bit to try to acquire the lock, so as to be fast under
   // microcontention.
   if (BackoffTryLock(isolate, mutex, state)) {
@@ -1150,7 +1150,7 @@ void JSAtomicsCondition::QueueWaiter(Isolate* requester,
 bool JSAtomicsCondition::WaitFor(Isolate* requester,
                                  Handle<JSAtomicsCondition> cv,
                                  Handle<JSAtomicsMutex> mutex,
-                                 base::Optional<base::TimeDelta> timeout) {
+                                 std::optional<base::TimeDelta> timeout) {
   DisallowGarbageCollection no_gc;
 
   bool rv;
@@ -1259,7 +1259,7 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
 // static
 MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
     Isolate* requester, Handle<JSAtomicsCondition> cv,
-    Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout) {
+    Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_waiting_promise =
       requester->factory()->NewJSPromise();
   Handle<Context> handler_context = requester->factory()->NewBuiltinContext(

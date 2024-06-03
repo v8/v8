@@ -1013,25 +1013,6 @@ class CallSiteBuilder {
   Handle<FixedArray> elements_;
 };
 
-bool GetStackTraceLimit(Isolate* isolate, int* result) {
-  if (v8_flags.correctness_fuzzer_suppressions) return false;
-  Handle<JSObject> error = isolate->error_function();
-
-  Handle<String> key = isolate->factory()->stackTraceLimit_string();
-  Handle<Object> stack_trace_limit =
-      JSReceiver::GetDataProperty(isolate, error, key);
-  if (!IsNumber(*stack_trace_limit)) return false;
-
-  // Ensure that limit is not negative.
-  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
-
-  if (*result != v8_flags.stack_trace_limit) {
-    isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
-  }
-
-  return true;
-}
-
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                             CallSiteBuilder* builder) {
   while (!builder->Full()) {
@@ -1522,6 +1503,25 @@ Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
+}
+
+bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
+  if (v8_flags.correctness_fuzzer_suppressions) return false;
+  Handle<JSObject> error = isolate->error_function();
+
+  Handle<String> key = isolate->factory()->stackTraceLimit_string();
+  Handle<Object> stack_trace_limit =
+      JSReceiver::GetDataProperty(isolate, error, key);
+  if (!IsNumber(*stack_trace_limit)) return false;
+
+  // Ensure that limit is not negative.
+  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
+
+  if (*result != v8_flags.stack_trace_limit) {
+    isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
+  }
+
+  return true;
 }
 
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
@@ -4098,10 +4098,14 @@ void Isolate::Deinit() {
 
   if (has_shared_space() && !is_shared_space_isolate()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
-    main_thread_local_heap()->BlockMainThreadWhileParked([this]() {
+    main_thread_local_heap()->ExecuteMainThreadWhileParked([this]() {
       shared_space_isolate()->global_safepoint()->clients_mutex_.Lock();
     });
   }
+
+  // We start with the heap tear down so that releasing managed objects does
+  // not cause a GC.
+  heap_.StartTearDown();
 
   DisallowGarbageCollection no_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
@@ -4145,10 +4149,6 @@ void Isolate::Deinit() {
   v8_file_logger_->StopProfilerThread();
 
   FreeThreadResources();
-
-  // We start with the heap tear down so that releasing managed objects does
-  // not cause a GC.
-  heap_.StartTearDown();
 
   // Stop concurrent tasks before destroying resources since they might still
   // use those.

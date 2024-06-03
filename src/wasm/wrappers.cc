@@ -668,7 +668,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
     }
     BuildModifyThreadInWasmFlag(__ phase_zone(), true);
-    IF_NOT (__ WordPtrEqual(old_sp, __ IntPtrConstant(0))) {
+    IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
       BuildSwitchBackFromCentralStack(old_sp, callable_node);
     }
     if (sig_->return_count() <= 1) {
@@ -1171,7 +1171,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
         IsolateData::is_on_central_stack_flag_offset());
     ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
-    IF_NOT (is_on_central_stack_flag) {
+    // The stack switch performs a C call which causes some spills that would
+    // not be needed otherwise. Add a branch hint such that we don't spill if we
+    // are already on the central stack.
+    // TODO(thibaudm): Look into ways to optimize the switching case as well.
+    // Can we avoid the C call? Can we avoid spilling callee-saved registers?
+    IF_NOT (LIKELY(is_on_central_stack_flag)) {
       OpIndex old_sp = BuildSwitchToTheCentralStack(receiver);
       old_sp_var = old_sp;
     }

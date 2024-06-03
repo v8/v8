@@ -438,7 +438,7 @@ struct BuiltinCallDescriptor {
   struct ToObject : public Descriptor<ToObject> {
     static constexpr auto kFunction = Builtin::kToObject;
     using arguments_t = std::tuple<V<JSPrimitive>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<JSReceiver>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
@@ -557,7 +557,7 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
@@ -1094,7 +1094,7 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects = base_effects.CanReadMemory();
   };
 
@@ -1105,7 +1105,7 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects = base_effects.CanReadMemory();
   };
 

@@ -170,6 +170,9 @@ void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
     // Unpoison the memory before giving back to the OS.
     ASAN_UNPOISON_MEMORY_REGION(base, size);
     if (decommit_pooled_pages_) {
+      if (entry.is_decommitted) {
+        continue;
+      }
       CHECK(page_allocator.DecommitPages(base, size));
       entry.is_decommitted = true;
     } else {

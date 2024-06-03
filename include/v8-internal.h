@@ -359,6 +359,33 @@ using CppHeapPointer_t = Address;
 constexpr CppHeapPointer_t kNullCppHeapPointer = 0;
 constexpr CppHeapPointerHandle kNullCppHeapPointerHandle = 0;
 
+constexpr uint64_t kCppHeapPointerMarkBit = 1ULL;
+constexpr uint64_t kCppHeapPointerTagShift = 1;
+constexpr uint64_t kCppHeapPointerPayloadShift = 16;
+
+#ifdef V8_COMPRESS_POINTERS
+// CppHeapPointers use a dedicated pointer table. These constants control the
+// size and layout of the table. See the corresponding constants for the
+// external pointer table for further details.
+constexpr size_t kCppHeapPointerTableReservationSize =
+    kExternalPointerTableReservationSize;
+constexpr uint32_t kCppHeapPointerIndexShift = kExternalPointerIndexShift;
+
+constexpr int kCppHeapPointerTableEntrySize = 8;
+constexpr int kCppHeapPointerTableEntrySizeLog2 = 3;
+constexpr size_t kMaxCppHeapPointers =
+    kCppHeapPointerTableReservationSize / kCppHeapPointerTableEntrySize;
+static_assert((1 << (32 - kCppHeapPointerIndexShift)) == kMaxCppHeapPointers,
+              "kCppHeapPointerTableReservationSize and "
+              "kCppHeapPointerIndexShift don't match");
+
+#else  // !V8_COMPRESS_POINTERS
+
+// Needed for the V8.SandboxedCppHeapPointersCount histogram.
+constexpr size_t kMaxCppHeapPointers = 0;
+
+#endif  // V8_COMPRESS_POINTERS
+
 // See `ExternalPointerHandle` for the main documentation. The difference to
 // `ExternalPointerHandle` is that the handle always refers to a
 // (external pointer, size) tuple. The handles are used in combination with a
@@ -465,7 +492,7 @@ static_assert((1 << (32 - kExternalBufferHandleShift)) ==
 // extension (MTE) which would use bits [56, 60).
 //
 // External pointer tables are also available even when the sandbox is off but
-// pointer compression is on. In that case, the mechanism can be used to easy
+// pointer compression is on. In that case, the mechanism can be used to ease
 // alignment requirements as it turns unaligned 64-bit raw pointers into
 // aligned 32-bit indices. To "opt-in" to the external pointer table mechanism
 // for this purpose, instead of using the ExternalPointer accessors one needs to
@@ -480,7 +507,7 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 // These are sorted so that tags can be grouped together and it can efficiently
 // be checked if a tag belongs to a given group. See for example the
 // IsSharedExternalPointerType routine.
-constexpr uint64_t kAllExternalPointerTypeTags[] = {
+constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
     0b00001111, 0b00010111, 0b00011011, 0b00011101, 0b00011110, 0b00100111,
     0b00101011, 0b00101101, 0b00101110, 0b00110011, 0b00110101, 0b00110110,
     0b00111001, 0b00111010, 0b00111100, 0b01000111, 0b01001011, 0b01001101,
@@ -494,8 +521,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
     0b11001100, 0b11010001, 0b11010010, 0b11010100, 0b11011000, 0b11100001,
     0b11100010, 0b11100100, 0b11101000, 0b11110000};
 
-#define TAG(i)                                                    \
-  ((kAllExternalPointerTypeTags[i] << kExternalPointerTagShift) | \
+#define TAG(i)                                                        \
+  ((kAllTagsForAndBasedTypeChecking[i] << kExternalPointerTagShift) | \
    kExternalPointerMarkBit)
 
 // clang-format off

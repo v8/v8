@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace {
 
-base::Optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
+std::optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
   double ms = Object::Number(*timeout_obj);
   if (!std::isnan(ms)) {
     if (ms < 0) ms = 0;
@@ -18,7 +18,7 @@ base::Optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
       return base::TimeDelta::FromMilliseconds(static_cast<int64_t>(ms));
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Handle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(Isolate* isolate) {
@@ -148,7 +148,7 @@ BUILTIN(AtomicsMutexLockWithTimeout) {
   }
 
   Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
-  base::Optional<base::TimeDelta> timeout;
+  std::optional<base::TimeDelta> timeout;
   if (!IsNumber(*timeout_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIsNotNumber, timeout_obj,
@@ -207,7 +207,7 @@ BUILTIN(AtomicsMutexLockAsync) {
   }
 
   Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
-  base::Optional<base::TimeDelta> timeout = base::nullopt;
+  std::optional<base::TimeDelta> timeout = std::nullopt;
   if (!IsUndefined(*timeout_obj, isolate)) {
     if (!IsNumber(*timeout_obj)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
@@ -276,7 +276,7 @@ BUILTIN(AtomicsConditionWait) {
                                   method_name)));
   }
 
-  base::Optional<base::TimeDelta> timeout = base::nullopt;
+  std::optional<base::TimeDelta> timeout = std::nullopt;
   if (!IsUndefined(*timeout_obj, isolate)) {
     if (!IsNumber(*timeout_obj)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
@@ -358,7 +358,7 @@ BUILTIN(AtomicsConditionWaitAsync) {
   }
 
   Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
-  base::Optional<base::TimeDelta> timeout = base::nullopt;
+  std::optional<base::TimeDelta> timeout = std::nullopt;
   if (!IsUndefined(*timeout_obj, isolate)) {
     if (!IsNumber(*timeout_obj)) {
       THROW_NEW_ERROR_RETURN_FAILURE(

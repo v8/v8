@@ -856,8 +856,12 @@ Tagged<Map> Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
 // static
 Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
                                        ConcurrencyMode cmode) {
-  return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
-      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
+  if (auto res = TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
+                     .SearchSpecial(
+                         ReadOnlyRoots(isolate).elements_transition_symbol())) {
+    return *res;
+  }
+  return Map();
 }
 
 ACCESSORS(Map, dependent_code, Tagged<DependentCode>, kDependentCodeOffset)

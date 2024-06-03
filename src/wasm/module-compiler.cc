@@ -710,6 +710,9 @@ class CompilationStateImpl {
   // been compiled to the top tier in the meantime.
   void TriggerCachingAfterTimeout();
 
+  std::vector<WasmCode*> PublishCode(
+      base::Vector<std::unique_ptr<WasmCode>> codes);
+
  private:
   void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
                                   int function_index,
@@ -725,7 +728,6 @@ class CompilationStateImpl {
 
   void PublishCompilationResults(
       std::vector<std::unique_ptr<WasmCode>> unpublished_code);
-  void PublishCode(base::Vector<std::unique_ptr<WasmCode>> codes);
 
   NativeModule* const native_module_;
   std::weak_ptr<NativeModule> const native_module_weak_;
@@ -946,6 +948,11 @@ DynamicTiering CompilationState::dynamic_tiering() const {
 
 size_t CompilationState::EstimateCurrentMemoryConsumption() const {
   return Impl(this)->EstimateCurrentMemoryConsumption();
+}
+
+std::vector<WasmCode*> CompilationState::PublishCode(
+    base::Vector<std::unique_ptr<WasmCode>> unpublished_code) {
+  return Impl(this)->PublishCode(unpublished_code);
 }
 
 // static
@@ -4103,6 +4110,12 @@ void CompilationStateImpl::OnFinishedUnits(
       if (code->tier() > reached_tier) {
         compilation_progress_[slot_index] = ReachedTierField::update(
             compilation_progress_[slot_index], code->tier());
+      } else if (v8_flags.wasm_deopt && code->tier() != reached_tier) {
+        DCHECK_EQ(reached_tier, ExecutionTier::kTurbofan);
+        DCHECK_EQ(code->tier(), ExecutionTier::kLiftoff);
+        compilation_progress_[slot_index] = ReachedTierField::update(
+            compilation_progress_[slot_index], code->tier());
+        compilation_unit_queues_.AllowAnotherTopTierJob(code->index());
       }
       DCHECK_LE(0, outstanding_baseline_units_);
     }
@@ -4360,7 +4373,7 @@ void CompilationStateImpl::PublishCompilationResults(
   PublishCode(base::VectorOf(unpublished_code));
 }
 
-void CompilationStateImpl::PublishCode(
+std::vector<WasmCode*> CompilationStateImpl::PublishCode(
     base::Vector<std::unique_ptr<WasmCode>> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code =
@@ -4370,7 +4383,8 @@ void CompilationStateImpl::PublishCode(
     GetWasmEngine()->LogCode(base::VectorOf(published_code));
   }
 
-  OnFinishedUnits(base::VectorOf(std::move(published_code)));
+  OnFinishedUnits(base::VectorOf(published_code));
+  return published_code;
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(

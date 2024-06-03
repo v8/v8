@@ -639,7 +639,7 @@ class LiftoffCompiler {
     return asm_.ReleaseBuffer();
   }
 
-  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> ReleaseFrameDescriptions() {
+  std::unique_ptr<LiftoffFrameDescriptionForDeopt> ReleaseFrameDescriptions() {
     return std::move(frame_description_);
   }
 
@@ -4164,14 +4164,16 @@ class LiftoffCompiler {
     LiftoffRegister src3 = __ PopToRegister();
     LiftoffRegister src2 = __ PopToRegister(LiftoffRegList{src3});
     LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src3, src2});
-    static constexpr RegClass src_rc = reg_class_for(src_kind);
     static constexpr RegClass result_rc = reg_class_for(result_kind);
     // Reusing src1 and src2 will complicate codegen for select for some
     // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
-    LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {src3},
-                                                     LiftoffRegList{src1, src2})
-                              : __ GetUnusedRegister(result_rc, {});
+    // Additionally, only reuse src3 if it does not alias src2, otherwise dst
+    // will also alias src2.
+    LiftoffRegister dst =
+        src2 == src3
+            ? __ GetUnusedRegister(result_rc, LiftoffRegList{src1, src2})
+            : __ GetUnusedRegister(result_rc, {src3},
+                                   LiftoffRegList{src1, src2});
     EmitTerOp<src_kind, result_kind, result_lane_kind, EmitFn>(fn, dst, src1,
                                                                src2, src3);
   }
@@ -4821,7 +4823,16 @@ class LiftoffCompiler {
         LiftoffRegister acc = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
-        LiftoffRegister dst = __ GetUnusedRegister(res_rc, {lhs, rhs, acc}, {});
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+        // x86 platforms save a move when dst == acc, so prefer that.
+        LiftoffRegister dst =
+            __ GetUnusedRegister(res_rc, {acc}, LiftoffRegList{lhs, rhs});
+#else
+        // On other platforms, for simplicity, we ensure that none of the
+        // registers alias. (If we cared, it would probably be feasible to
+        // allow {dst} to alias with {lhs} or {rhs}, but that'd be brittle.)
+        LiftoffRegister dst = __ GetUnusedRegister(res_rc, pinned);
+#endif
 
         __ emit_i32x4_dot_i8x16_i7x16_add_s(dst, lhs, rhs, acc);
         __ PushRegister(kS128, dst);
@@ -8044,17 +8055,12 @@ class LiftoffCompiler {
         __ CallNativeWasmCode(addr);
         if (v8_flags.wasm_deopt &&
             env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
+          DCHECK_EQ(env_->deopt_location_kind,
+                    LocationKindForDeopt::kInlinedCall);
           // TODO(mliedtke): We need to do the same for all other inlineable
           // call targets and provide test coverage for them.
-          DCHECK(!frame_description_);
-          frame_description_ =
-              std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-          frame_description_->description = LiftoffFrameDescription(
-              {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
-               std::vector<LiftoffVarState>(
-                   __ cache_state()->stack_state.begin(),
-                   __ cache_state()->stack_state.end()),
-               __ cache_state()->cached_instance_data});
+          // TODO(mliedtke): Should we do this in `FinishCall` instead?
+          StoreFrameDescriptionForDeopt(decoder);
         }
         FinishCall(decoder, &sig, call_descriptor);
       }
@@ -8374,6 +8380,17 @@ class LiftoffCompiler {
     }
   }
 
+  void StoreFrameDescriptionForDeopt(FullDecoder* decoder) {
+    DCHECK(v8_flags.wasm_deopt);
+    DCHECK(!frame_description_);
+    frame_description_ = std::make_unique<LiftoffFrameDescriptionForDeopt>(
+        LiftoffFrameDescriptionForDeopt{
+            decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+            std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
+                                         __ cache_state()->stack_state.end()),
+            __ cache_state()->cached_instance_data});
+  }
+
   void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
                    const FunctionSig* type_sig, TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, type_sig);
@@ -8389,15 +8406,9 @@ class LiftoffCompiler {
 
     if (inlining_enabled(decoder)) {
       if (v8_flags.wasm_deopt &&
-          env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
-        DCHECK(!frame_description_);
-        frame_description_ =
-            std::make_unique<LiftoffFrameDescriptionsForDeopt>();
-        frame_description_->description = LiftoffFrameDescription(
-            {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
-             std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
-                                          __ cache_state()->stack_state.end()),
-             __ cache_state()->cached_instance_data});
+          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+          env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
+        StoreFrameDescriptionForDeopt(decoder);
       }
       LiftoffRegList pinned;
       LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
@@ -8472,6 +8483,12 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(&sig, call_descriptor, target_reg);
+
+      if (v8_flags.wasm_deopt &&
+          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+          env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
+        StoreFrameDescriptionForDeopt(decoder);
+      }
 
       FinishCall(decoder, &sig, call_descriptor);
     }
@@ -8851,7 +8868,7 @@ class LiftoffCompiler {
   int32_t* max_steps_;
   int32_t* nondeterminism_;
 
-  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> frame_description_;
+  std::unique_ptr<LiftoffFrameDescriptionForDeopt> frame_description_;
 
   const compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL

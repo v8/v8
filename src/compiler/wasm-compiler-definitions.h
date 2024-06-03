@@ -9,12 +9,13 @@
 #ifndef V8_COMPILER_WASM_COMPILER_DEFINITIONS_H_
 #define V8_COMPILER_WASM_COMPILER_DEFINITIONS_H_
 
-#include <cstdint>
 #include <ostream>
 
 #include "src/base/functional.h"
 #include "src/base/vector.h"
-#include "src/compiler/linkage.h"
+#include "src/codegen/linkage-location.h"
+#include "src/codegen/register.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/zone/zone.h"
@@ -106,8 +107,9 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
                                        sig->parameter_count() + extra_params);
 
   // Add register and/or stack parameter(s).
+  constexpr int kParamsSlotOffset = 0;
   wasm::LinkageLocationAllocator params(
-      wasm::kGpParamRegisters, wasm::kFpParamRegisters, 0 /* no slot offset */);
+      wasm::kGpParamRegisters, wasm::kFpParamRegisters, kParamsSlotOffset);
 
   // The instance object.
   locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
@@ -125,8 +127,7 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
       has_tagged_param = true;
       continue;
     }
-    auto l = params.Next(param);
-    locations.AddParamAt(i + param_offset, l);
+    locations.AddParamAt(i + param_offset, params.Next(param));
   }
 
   // End the untagged area, so tagged slots come after.
@@ -137,8 +138,7 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
       MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
       // Skip untagged parameters.
       if (!IsAnyTagged(param)) continue;
-      auto l = params.Next(param);
-      locations.AddParamAt(i + param_offset, l);
+      locations.AddParamAt(i + param_offset, params.Next(param));
     }
   }
 
@@ -156,9 +156,26 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
       wasm::kGpReturnRegisters, wasm::kFpReturnRegisters, *parameter_slots);
 
   const size_t return_count = locations.return_count_;
+  // For efficient signature verification, order results by taggedness, such
+  // that all untagged results appear first in registers and on the stack,
+  // followed by tagged results. That way, we can simply check the size of
+  // each section, rather than needing a bit map.
+  bool has_tagged_result = false;
   for (size_t i = 0; i < return_count; i++) {
     MachineRepresentation ret = GetMachineRepresentation(sig->GetReturn(i));
-    locations.AddReturn(rets.Next(ret));
+    if (IsAnyTagged(ret)) {
+      has_tagged_result = true;
+      continue;
+    }
+    locations.AddReturnAt(i, rets.Next(ret));
+  }
+  rets.EndSlotArea();  // End the untagged area.
+  if (has_tagged_result) {
+    for (size_t i = 0; i < return_count; i++) {
+      MachineRepresentation ret = GetMachineRepresentation(sig->GetReturn(i));
+      if (!IsAnyTagged(ret)) continue;
+      locations.AddReturnAt(i, rets.Next(ret));
+    }
   }
 
   *return_slots = rets.NumStackSlots();

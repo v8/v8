@@ -693,9 +693,11 @@ void OS::Sleep(TimeDelta interval) {
 
 void OS::Abort() {
   switch (g_abort_mode) {
-    case AbortMode::kSoft:
+    case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
+      _exit(0);
+    case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
       _exit(-1);
-    case AbortMode::kHard:
+    case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
       break;

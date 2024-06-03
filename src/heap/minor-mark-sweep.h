@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
@@ -22,6 +23,8 @@
 
 namespace v8 {
 namespace internal {
+
+class MinorMarkSweepCollector;
 
 using YoungGenerationMainMarkingVisitor = YoungGenerationMarkingVisitor<
     YoungGenerationMarkingVisitationMode::kParallel>;
@@ -114,7 +117,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
 class YoungGenerationRootMarkingVisitor final : public RootVisitor {
  public:
   explicit YoungGenerationRootMarkingVisitor(
-      YoungGenerationMainMarkingVisitor* main_marking_visitor);
+      MinorMarkSweepCollector* collector);
   ~YoungGenerationRootMarkingVisitor();
 
   V8_INLINE void VisitRootPointer(Root root, const char* description,
@@ -127,6 +130,11 @@ class YoungGenerationRootMarkingVisitor final : public RootVisitor {
   GarbageCollector collector() const override {
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
+
+  YoungGenerationRootMarkingVisitor(const YoungGenerationRootMarkingVisitor&) =
+      delete;
+  YoungGenerationRootMarkingVisitor& operator=(
+      const YoungGenerationRootMarkingVisitor&) = delete;
 
  private:
   template <typename TSlot>
@@ -181,6 +189,8 @@ class MinorMarkSweepCollector final {
     return use_background_threads_in_cycle_.value();
   }
 
+  void DrainMarkingWorklistForTesting() { DrainMarkingWorklist(); }
+
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -191,7 +201,7 @@ class MinorMarkSweepCollector final {
   void MarkLiveObjects();
   void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor,
                  bool was_marked_incrementally);
-  void DrainMarkingWorklist();
+  V8_EXPORT_PRIVATE void DrainMarkingWorklist();
   void MarkRootsFromTracedHandles(
       YoungGenerationRootMarkingVisitor& root_visitor);
   void MarkRootsFromConservativeStack(

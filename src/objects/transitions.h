@@ -55,7 +55,14 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary. This can trigger GC.
   static void Insert(Isolate* isolate, Handle<Map> map, Handle<Name> name,
-                     Handle<Map> target, TransitionKindFlag flag);
+                     Handle<Map> target, TransitionKindFlag flag) {
+    Insert(isolate, map, name, std::optional<Handle<Map>>(target), flag);
+  }
+  static void InsertNoneSentinel(Isolate* isolate, Handle<Map> map,
+                                 Handle<Name> name) {
+    Insert(isolate, map, name, std::optional<Handle<Map>>(),
+           TransitionKindFlag::SPECIAL_TRANSITION);
+  }
 
   Tagged<Map> SearchTransition(Tagged<Name> name, PropertyKind kind,
                                PropertyAttributes attributes);
@@ -63,14 +70,22 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
       Isolate* isolate, Handle<Map> map, Tagged<Name> name, PropertyKind kind,
       PropertyAttributes attributes);
 
-  Tagged<Map> SearchSpecial(Tagged<Symbol> name);
-  static inline MaybeHandle<Map> SearchSpecial(Isolate* isolate,
-                                               Handle<Map> map,
-                                               Tagged<Symbol> name);
+  // Searches for a transition with a special symbol. The emtpy result |{}| is
+  // used to indicate that the transition does not exist. The nullptr |{Map()}|
+  // is used to indicate that the transition exists but is a negative sentinel
+  // value inserted by |InsertNoneSentinel| (internally this is represented by
+  // the weak reference being a ClearedValue).
+  std::optional<Tagged<Map>> SearchSpecial(Tagged<Symbol> name);
+  static inline std::optional<Handle<Map>> SearchSpecial(Isolate* isolate,
+                                                         Handle<Map> map,
+                                                         Tagged<Symbol> name);
 
   // Returns true for non-property transitions like elements kind, or
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(ReadOnlyRoots roots, Tagged<Name> name);
+  // Additional dependencies crossing between branches of the transition tree.
+  static bool IsSpecialSidestepTransition(ReadOnlyRoots roots,
+                                          Tagged<Name> name);
 
   MaybeHandle<Map> FindTransitionToField(Handle<String> name);
 
@@ -86,14 +101,30 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
+  enum class IterationMode {
+    kDefault,
+    kIncludeSideStepTransitions,
+    kIncludeClearedSideStepTransitions,
+  };
   template <typename Callback, typename ProtoCallback>
   void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
-                         ProtoCallback proto_transition_callback);
+                         ProtoCallback proto_transition_callback,
+                         IterationMode filter = IterationMode::kDefault) {
+    ForEachTransitionWithKey<Callback, ProtoCallback, false>(
+        no_gc, callback, proto_transition_callback, filter);
+  }
 
   template <typename Callback>
-  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback) {
-    ForEachTransition(no_gc, callback, callback);
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
+                         IterationMode filter = IterationMode::kDefault) {
+    ForEachTransition(no_gc, callback, callback, filter);
   }
+
+  template <typename Callback, typename ProtoCallback, bool with_key = true>
+  void ForEachTransitionWithKey(DisallowGarbageCollection* no_gc,
+                                Callback callback,
+                                ProtoCallback proto_transition_callback,
+                                IterationMode filter = IterationMode::kDefault);
 
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
@@ -118,12 +149,13 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   using TraverseCallback = std::function<void(Tagged<Map>)>;
 
   // Traverse the transition tree in preorder.
-  void TraverseTransitionTree(const TraverseCallback& callback) {
+  void TraverseTransitionTree(const TraverseCallback& callback,
+                              IterationMode filter = IterationMode::kDefault) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
     base::SharedMutexGuardIf<base::kShared> scope(
         isolate_->full_transition_array_access(), concurrent_access_);
-    TraverseTransitionTreeInternal(callback, &no_gc);
+    TraverseTransitionTreeInternal(callback, &no_gc, filter);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -214,6 +246,10 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   static Tagged<WeakFixedArray> GetPrototypeTransitions(Isolate* isolate,
                                                         Tagged<Map> map);
 
+  static void Insert(Isolate* isolate, Handle<Map> map, Handle<Name> name,
+                     std::optional<Handle<Map>> target,
+                     TransitionKindFlag flag);
+
   static inline void ReplaceTransitions(Isolate* isolate, Handle<Map> map,
                                         Tagged<MaybeObject> new_transitions);
   static inline void ReplaceTransitions(
@@ -225,7 +261,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Tagged<Map> GetTargetMapFromWeakRef();
 
   void TraverseTransitionTreeInternal(const TraverseCallback& callback,
-                                      DisallowGarbageCollection* no_gc);
+                                      DisallowGarbageCollection* no_gc,
+                                      IterationMode filter);
 
   Isolate* isolate_;
   Tagged<Map> map_;

@@ -585,15 +585,18 @@ Map::FieldCounts Map::GetFieldCounts() const {
 void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (is_deprecated()) return;
   DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots(isolate);
   TransitionsAccessor transitions(isolate, *this);
-  transitions.ForEachTransition(
+  transitions.ForEachTransitionWithKey(
       &no_gc,
-      [isolate](Tagged<Map> map) { map->DeprecateTransitionTree(isolate); }
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-      ,
-      nullptr
+      [&](Tagged<Name> key, Tagged<Map> map) {
+        map->DeprecateTransitionTree(isolate);
+      },
+      [&](Tagged<Map> map) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+        map->DeprecateTransitionTree(isolate);
 #endif
-  );
+      });
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
@@ -1279,7 +1282,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
       fresh->set_elements_kind(new_elements_kind);
       if (!new_prototype.is_null()) {
-        fresh->set_prototype(*new_prototype);
+        Map::SetPrototype(isolate, fresh, new_prototype);
       }
 
       static_assert(Map::kPrototypeValidityCellOffset ==
@@ -1321,7 +1324,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
     new_map->set_elements_kind(new_elements_kind);
     if (!new_prototype.is_null()) {
-      new_map->set_prototype(*new_prototype);
+      Map::SetPrototype(isolate, new_map, new_prototype);
+      DCHECK(new_map->is_dictionary_map() && !new_map->is_deprecated());
     }
     if (use_cache) {
       cache->Set(fast_map, new_map);
@@ -1697,10 +1701,9 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
   DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
-  MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-      isolate, initial_map, *transition_symbol);
-  if (!maybe_transition.is_null()) {
-    return maybe_transition.ToHandleChecked();
+  if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
+          isolate, initial_map, *transition_symbol)) {
+    return *maybe_transition;
   }
   initial_map->NotifyLeafMapLayoutChange(isolate);
 
@@ -1925,8 +1928,8 @@ Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
                                         InternalIndex descriptor,
                                         PropertyConstness constness,
                                         Handle<Object> value) {
-  // Update to the newest map before storing the property.
-  map = Update(isolate, map);
+  // The map should already be fully updated before storing the property.
+  DCHECK(!map->is_deprecated());
   // Dictionaries can store any property value.
   DCHECK(!map->is_dictionary_map());
   return UpdateDescriptorForValue(isolate, map, descriptor, constness, value);

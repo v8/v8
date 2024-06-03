@@ -3294,16 +3294,25 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If argv_mode == ArgvMode::kRegister:
   // r5: pointer to the first argument
 
-  __ mr(r15, r4);
+  using ER = ExternalReference;
+
+  // Move input arguments to more convenient registers.
+  static constexpr Register argc_input = r3;
+  static constexpr Register target_fun = r15;  // C callee-saved
+  static constexpr Register argv = r4;
+  static constexpr Register scratch = ip;
+  static constexpr Register argc_sav = r14;  // C callee-saved
+
+  __ mr(target_fun, argv);
 
   if (argv_mode == ArgvMode::kRegister) {
     // Move argv into the correct register.
-    __ mr(r4, r5);
+    __ mr(argv, r5);
   } else {
     // Compute the argv pointer.
-    __ ShiftLeftU64(r4, r3, Operand(kSystemPointerSizeLog2));
-    __ add(r4, r4, sp);
-    __ subi(r4, r4, Operand(kSystemPointerSize));
+    __ ShiftLeftU64(argv, argc_input, Operand(kSystemPointerSizeLog2));
+    __ add(argv, argv, sp);
+    __ subi(argv, argv, Operand(kSystemPointerSize));
   }
 
   // Enter the exit frame that transitions from JavaScript to C++.
@@ -3319,14 +3328,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     arg_stack_space += result_size;
   }
 
-  __ EnterExitFrame(arg_stack_space, builtin_exit_frame
-                                         ? StackFrame::BUILTIN_EXIT
-                                         : StackFrame::EXIT);
+  __ EnterExitFrame(
+      scratch, arg_stack_space,
+      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
   // Store a copy of argc in callee-saved registers for later.
-  __ mr(r14, r3);
+  __ mr(argc_sav, argc_input);
 
-  // r3, r14: number of arguments including receiver  (C callee-saved)
+  // r3: number of arguments including receiver
+  // r14: number of arguments including receiver (C callee-saved)
   // r4: pointer to the first argument
   // r15: pointer to builtin function  (C callee-saved)
 
@@ -3346,9 +3356,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Call C built-in.
   __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
-
-  Register target = r15;
-  __ StoreReturnAddressAndCall(target);
+  __ StoreReturnAddressAndCall(target_fun);
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
@@ -3365,11 +3373,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // should have returned the exception sentinel.
   if (v8_flags.debug_code) {
     Label okay;
-    ExternalReference exception_address = ExternalReference::Create(
-        IsolateAddressId::kExceptionAddress, masm->isolate());
-    __ LoadU64(r6, masm->ExternalReferenceAsOperand(exception_address, ip), r0);
+    ER exception_address =
+        ER::Create(IsolateAddressId::kExceptionAddress, masm->isolate());
+    __ LoadU64(scratch,
+               __ ExternalReferenceAsOperand(exception_address, no_reg));
     __ LoadRoot(r0, RootIndex::kTheHoleValue);
-    __ CompareTagged(r0, r6);
+    __ CompareTagged(r0, scratch);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay);
     __ stop();
@@ -3380,42 +3389,40 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // r3:r4: result
   // sp: stack pointer
   // fp: frame pointer
-  Register argc = argv_mode == ArgvMode::kRegister
-                      // We don't want to pop arguments so set argc to no_reg.
-                      ? no_reg
-                      // r14: still holds argc (callee-saved).
-                      : r14;
-  __ LeaveExitFrame(argc, false);
+  // r14: still holds argc (C caller-saved).
+  __ LeaveExitFrame(scratch);
+  if (argv_mode == ArgvMode::kStack) {
+    DCHECK(!AreAliased(scratch, argc_sav));
+    __ ShiftLeftU64(scratch, argc_sav, Operand(kSystemPointerSizeLog2));
+    __ AddS64(sp, sp, scratch);
+  }
+
   __ blr();
 
   // Handling of exception.
   __ bind(&exception_returned);
 
-  ExternalReference pending_handler_context_address = ExternalReference::Create(
+  ER pending_handler_context_address = ER::Create(
       IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ExternalReference pending_handler_entrypoint_address =
-      ExternalReference::Create(
-          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ExternalReference pending_handler_constant_pool_address =
-      ExternalReference::Create(
-          IsolateAddressId::kPendingHandlerConstantPoolAddress,
-          masm->isolate());
-  ExternalReference pending_handler_fp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ExternalReference pending_handler_sp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
+  ER pending_handler_entrypoint_address = ER::Create(
+      IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
+  ER pending_handler_constant_pool_address = ER::Create(
+      IsolateAddressId::kPendingHandlerConstantPoolAddress, masm->isolate());
+  ER pending_handler_fp_address =
+      ER::Create(IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
+  ER pending_handler_sp_address =
+      ER::Create(IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
   // Ask the runtime for help to determine the handler. This will set r3 to
   // contain the current exception, don't clobber it.
-  ExternalReference find_handler =
-      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(3, 0, r3);
-    __ li(r3, Operand::Zero());
-    __ li(r4, Operand::Zero());
-    __ Move(r5, ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
+    __ li(kCArgRegs[0], Operand::Zero());
+    __ li(kCArgRegs[1], Operand::Zero());
+    __ Move(kCArgRegs[2], ExternalReference::isolate_address(masm->isolate()));
+    __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
+                     SetIsolateDataSlots::kNo);
   }
 
   // Retrieve the handler context, SP and FP.
@@ -3435,23 +3442,23 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ bind(&skip);
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
-  {
-    UseScratchRegisterScope temps(masm);
-    __ Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                          masm->isolate()));
-    __ mov(r0, Operand::Zero());
-    __ StoreU64(r0, MemOperand(ip));
-  }
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  __ mov(scratch, Operand::Zero());
+  __ StoreU64(scratch,
+              __ ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
 
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-  __ Move(ip, pending_handler_entrypoint_address);
-  __ LoadU64(ip, MemOperand(ip));
+  __ LoadU64(
+      scratch,
+      __ ExternalReferenceAsOperand(pending_handler_entrypoint_address, no_reg),
+      r0);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     __ Move(kConstantPoolRegister, pending_handler_constant_pool_address);
     __ LoadU64(kConstantPoolRegister, MemOperand(kConstantPoolRegister));
   }
-  __ Jump(ip);
+  __ Jump(scratch);
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
@@ -3750,9 +3757,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                         FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
         kFunctionTemplateInfoCallbackTag, no_reg, scratch);
 
-    __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
+    __ EnterExitFrame(scratch, kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
   } else {
-    __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
+    __ EnterExitFrame(scratch, kApiStackSpace, StackFrame::EXIT);
   }
 
   {
@@ -3903,7 +3910,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   constexpr int kStackUnwindSpace = PCA::kArgsLength + kNameOnStackSize;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(apiStackSpace, StackFrame::EXIT);
+  __ EnterExitFrame(scratch, apiStackSpace, StackFrame::EXIT);
 
   if (!ABI_PASSES_HANDLES_IN_REGS) {
     // pass 1st arg by reference

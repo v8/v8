@@ -6438,9 +6438,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
   node_t hi = bitcast.high_word32();
   node_t lo = bitcast.low_word32();
 
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kArm64Float64FromWord32Pair, g.DefineAsRegister(node), g.Use(hi),
-       g.Use(lo), arraysize(temps), temps);
+  int vreg = g.AllocateVirtualRegister();
+  Emit(kArm64Bfi, g.DefineSameAsFirstForVreg(vreg), g.UseRegister(lo),
+       g.UseRegister(hi), g.TempImmediate(32), g.TempImmediate(32));
+  Emit(kArm64Float64MoveU64, g.DefineAsRegister(node),
+       g.UseRegisterForVreg(vreg));
 }
 
 template <typename Adapter>

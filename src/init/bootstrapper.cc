@@ -2367,6 +2367,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, object_function, "values",
                           Builtin::kObjectValues, 1, true);
 
+    SimpleInstallFunction(isolate_, object_function, "groupBy",
+                          Builtin::kObjectGroupBy, 2, true);
+
     SimpleInstallFunction(isolate_, isolate_->initial_object_prototype(),
                           "__defineGetter__", Builtin::kObjectDefineGetter, 2,
                           true);
@@ -3032,6 +3035,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallConstant(isolate_, symbol_fun, "unscopables",
                     factory->unscopables_symbol());
     InstallConstant(isolate_, symbol_fun, "dispose", factory->dispose_symbol());
+    InstallConstant(isolate_, symbol_fun, "asyncDispose",
+                    factory->async_dispose_symbol());
 
     // Setup %SymbolPrototype%.
     Handle<JSObject> prototype(JSObject::cast(symbol_fun->instance_prototype()),
@@ -4428,6 +4433,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->DontAdaptArguments();
     shared->set_length(0);
 
+    SimpleInstallFunction(isolate_, js_map_fun, "groupBy", Builtin::kMapGroupBy,
+                          2, true);
+
     // Setup %MapPrototype%.
     Handle<JSObject> prototype(JSObject::cast(js_map_fun->instance_prototype()),
                                isolate());
@@ -5427,6 +5435,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_attributes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_modifiers)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_duplicate_named_groups)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -5751,19 +5760,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
     SimpleInstallFunction(isolate(), condition_fun, "waitAsync",
                           Builtin::kAtomicsConditionWaitAsync, 2, false);
   }
-}
-
-void Genesis::InitializeGlobal_harmony_array_grouping() {
-  if (!v8_flags.harmony_array_grouping) return;
-
-  Handle<JSFunction> object_function(native_context()->object_function(),
-                                     isolate());
-  Handle<JSFunction> map_function(native_context()->js_map_fun(), isolate());
-
-  SimpleInstallFunction(isolate_, object_function, "groupBy",
-                        Builtin::kObjectGroupBy, 2, true);
-  SimpleInstallFunction(isolate_, map_function, "groupBy", Builtin::kMapGroupBy,
-                        2, true);
 }
 
 void Genesis::InitializeGlobal_sharedarraybuffer() {

@@ -47,16 +47,7 @@ class TracedNode final {
   bool is_droppable() const { return IsDroppable::decode(flags_); }
   void set_droppable(bool v) { flags_ = IsDroppable::update(flags_, v); }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool is_in_use() const {
-    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
-      return IsInUse::decode(flags_);
-    }
-    const auto flags =
-        reinterpret_cast<const std::atomic<uint8_t>&>(flags_).load(
-            std::memory_order_relaxed);
-    return IsInUse::decode(flags);
-  }
+  bool is_in_use() const { return IsInUse::decode(flags_); }
   void set_is_in_use(bool v) { flags_ = IsInUse::update(flags_, v); }
 
   bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
@@ -69,33 +60,13 @@ class TracedNode final {
     next_free_index_ = next_free_index;
   }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  void set_markbit() {
-    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
-      flags_ = Markbit::update(flags_, true);
-      return;
-    }
-    std::atomic<uint8_t>& atomic_flags =
-        reinterpret_cast<std::atomic<uint8_t>&>(flags_);
-    const uint8_t new_value =
-        Markbit::update(atomic_flags.load(std::memory_order_relaxed), true);
-    atomic_flags.fetch_or(new_value, std::memory_order_relaxed);
-  }
+  void set_markbit() { is_marked_.store(true, std::memory_order_relaxed); }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool markbit() const {
-    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
-      return Markbit::decode(flags_);
-    }
-    const auto flags =
-        reinterpret_cast<const std::atomic<uint8_t>&>(flags_).load(
-            std::memory_order_relaxed);
-    return Markbit::decode(flags);
-  }
+  bool markbit() const { return is_marked_.load(std::memory_order_relaxed); }
 
-  bool FlagsAreCleared() const { return flags_ == 0; }
+  bool IsMetadataCleared() const { return flags_ == 0 && !markbit(); }
 
-  void clear_markbit() { flags_ = Markbit::update(flags_, false); }
+  void clear_markbit() { is_marked_.store(false, std::memory_order_relaxed); }
 
   bool has_old_host() const { return HasOldHost::decode(flags_); }
   void set_has_old_host(bool v) { flags_ = HasOldHost::update(flags_, v); }
@@ -117,24 +88,27 @@ class TracedNode final {
                                    bool needs_young_bit_update,
                                    bool needs_black_allocation,
                                    bool has_old_host, bool is_droppable);
-  void Release();
+  void Release(Address zap_value);
 
  private:
   using IsInUse = base::BitField8<bool, 0, 1>;
   using IsInYoungList = IsInUse::Next<bool, 1>;
   using IsWeak = IsInYoungList::Next<bool, 1>;
   using IsDroppable = IsWeak::Next<bool, 1>;
-  // The markbit is the exception as it can be set from the main and marker
-  // threads at the same time.
-  using Markbit = IsDroppable::Next<bool, 1>;
-  using HasOldHost = Markbit::Next<bool, 1>;
+  using HasOldHost = IsDroppable::Next<bool, 1>;
 
   Address object_ = kNullAddress;
   // When a node is not in use, this index is used to build the free list.
   IndexType next_free_index_;
   IndexType index_;
   uint8_t flags_ = 0;
+  // Marking bit could be stored in flags_ as well but is kept separately for
+  // clarity.
+  std::atomic<bool> is_marked_ = false;
 };
+
+// TracedNode should not take more than 2 words.
+static_assert(sizeof(TracedNode) <= 2 * kSystemPointerSize);
 
 class TracedNodeBlock final {
   class NodeIteratorImpl final
@@ -238,7 +212,7 @@ class TracedNodeBlock final {
   static const TracedNodeBlock& From(const TracedNode& node);
 
   V8_INLINE TracedNode* AllocateNode();
-  void FreeNode(TracedNode*);
+  void FreeNode(TracedNode* node, Address zap_value);
 
   TracedNode* at(TracedNode::IndexType index) {
     return &(reinterpret_cast<TracedNode*>(this + 1)[index]);
@@ -346,7 +320,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
  private:
   V8_INLINE std::pair<TracedNodeBlock*, TracedNode*> AllocateNode();
   V8_NOINLINE V8_PRESERVE_MOST void RefillUsableNodeBlocks();
-  void FreeNode(TracedNode*);
+  void FreeNode(TracedNode* node, Address zap_value);
 
   V8_INLINE bool NeedsToBeRemembered(Tagged<Object> value, TracedNode* node,
                                      Address* slot,

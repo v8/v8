@@ -228,27 +228,38 @@ ElementAccessFeedback::transition_groups() const {
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
     JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const {
+  if (inferred_maps.empty()) {
+    return *broker->zone()->New<ElementAccessFeedback>(
+        broker->zone(), keyed_mode(), slot_kind());
+  }
+
+  ZoneRefSet<Map> inferred(inferred_maps.begin(), inferred_maps.end(),
+                           broker->zone());
+  return Refine(broker, inferred, false);
+}
+
+ElementAccessFeedback const& ElementAccessFeedback::Refine(
+    JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+    bool always_keep_group_target) const {
   ElementAccessFeedback& refined_feedback =
       *broker->zone()->New<ElementAccessFeedback>(broker->zone(), keyed_mode(),
                                                   slot_kind());
-  if (inferred_maps.empty()) return refined_feedback;
-
-  ZoneRefUnorderedSet<MapRef> inferred(broker->zone());
-  inferred.insert(inferred_maps.begin(), inferred_maps.end());
+  if (inferred_maps.size() == 0) return refined_feedback;
 
   for (auto const& group : transition_groups()) {
     DCHECK(!group.empty());
     TransitionGroup new_group(broker->zone());
     for (size_t i = 1; i < group.size(); ++i) {
       MapRef source = group[i];
-      if (inferred.find(source) != inferred.end()) {
+      if (inferred_maps.contains(source)) {
         new_group.push_back(source);
       }
     }
 
     MapRef target = group.front();
-    bool const keep_target =
-        inferred.find(target) != inferred.end() || new_group.size() > 1;
+    bool const keep_target = always_keep_group_target ||
+                             inferred_maps.contains(target) ||
+                             new_group.size() > 1;
     if (keep_target) {
       new_group.push_back(target);
       // The target must be at the front, the order of sources doesn't matter.

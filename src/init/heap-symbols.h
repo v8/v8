@@ -172,7 +172,6 @@
   V(_, add_string, "add")                                                     \
   V(_, AggregateError_string, "AggregateError")                               \
   V(_, always_string, "always")                                               \
-  V(_, anonymous_function_string, "(anonymous function)")                     \
   V(_, anonymous_string, "anonymous")                                         \
   V(_, apply_string, "apply")                                                 \
   V(_, Arguments_string, "Arguments")                                         \
@@ -188,7 +187,6 @@
   V(_, AtomicsCondition_string, "Atomics.Condition")                          \
   V(_, AtomicsMutex_string, "Atomics.Mutex")                                  \
   V(_, auto_string, "auto")                                                   \
-  V(_, await_string, "await")                                                 \
   V(_, BigInt_string, "BigInt")                                               \
   V(_, bigint_string, "bigint")                                               \
   V(_, BigInt64Array_string, "BigInt64Array")                                 \
@@ -368,7 +366,6 @@
   V(_, object_string, "object")                                               \
   V(_, object_to_string, "[object Object]")                                   \
   V(_, Object_prototype_string, "Object.prototype")                           \
-  V(_, of_string, "of")                                                       \
   V(_, offset_string, "offset")                                               \
   V(_, offsetNanoseconds_string, "offsetNanoseconds")                         \
   V(_, ok_string, "ok")                                                       \
@@ -489,6 +486,7 @@
   V(_, uninitialized_symbol)                          \
   V(_, megamorphic_symbol)                            \
   V(_, elements_transition_symbol)                    \
+  V(_, object_clone_transition_symbol)                \
   V(_, mega_dom_symbol)
 
 #define NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
@@ -537,7 +535,8 @@
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
   V(_, unscopables_symbol, Symbol.unscopables)            \
-  V(_, dispose_symbol, Symbol.dispose)
+  V(_, dispose_symbol, Symbol.dispose)                    \
+  V(_, async_dispose_symbol, Symbol.asyncDispose)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
 // them to produce an undefined value when a load results in a failed access

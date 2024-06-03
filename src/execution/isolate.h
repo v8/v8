@@ -173,6 +173,9 @@ class Interpreter;
 namespace compiler {
 class NodeObserver;
 class PerIsolateCompilerCache;
+namespace turboshaft {
+class WasmRevecVerifier;
+}  // namespace turboshaft
 }  // namespace compiler
 
 namespace win64_unwindinfo {
@@ -980,6 +983,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
   Handle<String> CurrentScriptNameOrSourceURL();
+  bool GetStackTraceLimit(Isolate* isolate, int* result);
 
   Address GetAbstractPC(int* line, int* column);
 
@@ -2095,11 +2099,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  ExternalPointerTable& cpp_heap_pointer_table() {
+  CppHeapPointerTable& cpp_heap_pointer_table() {
     return isolate_data_.cpp_heap_pointer_table_;
   }
 
-  const ExternalPointerTable& cpp_heap_pointer_table() const {
+  const CppHeapPointerTable& cpp_heap_pointer_table() const {
     return isolate_data_.cpp_heap_pointer_table_;
   }
 
@@ -2226,6 +2230,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  void set_wasm_revec_verifier_for_test(
+      compiler::turboshaft::WasmRevecVerifier* verifier) {
+    wasm_revec_verifier_for_test_ = verifier;
+  }
+
+  compiler::turboshaft::WasmRevecVerifier* wasm_revec_verifier_for_test()
+      const {
+    return wasm_revec_verifier_for_test_;
+  }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
  private:
   explicit Isolate(IsolateGroup* isolate_group);
@@ -2708,6 +2724,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // predefined set of data as crash keys to be used in postmortem debugging
   // in case of a crash.
   AddCrashKeyCallback add_crash_key_callback_ = nullptr;
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  compiler::turboshaft::WasmRevecVerifier* wasm_revec_verifier_for_test_ =
+      nullptr;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.

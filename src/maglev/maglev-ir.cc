@@ -765,6 +765,39 @@ bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
          reg == interpreter::Register(result_location_.index() + 1);
 }
 
+bool LazyDeoptInfo::InReturnValues(interpreter::Register reg,
+                                   interpreter::Register result_location,
+                                   int result_size) {
+  if (result_size == 0 || !result_location.is_valid()) {
+    return false;
+  }
+  return base::IsInRange(reg.index(), result_location.index(),
+                         result_location.index() + result_size - 1);
+}
+
+int InterpretedDeoptFrame::ComputeReturnOffset(
+    interpreter::Register result_location, int result_size) const {
+  // Return offsets are counted from the end of the translation frame,
+  // which is the array [parameters..., locals..., accumulator]. Since
+  // it's the end, we don't need to worry about earlier frames.
+  if (result_location == interpreter::Register::virtual_accumulator()) {
+    return 0;
+  } else if (result_location.is_parameter()) {
+    // This is slightly tricky to reason about because of zero indexing
+    // and fence post errors. As an example, consider a frame with 2
+    // locals and 2 parameters, where we want argument index 1 -- looking
+    // at the array in reverse order we have:
+    //   [acc, r1, r0, a1, a0]
+    //                  ^
+    // and this calculation gives, correctly:
+    //   2 + 2 - 1 = 3
+    return unit().register_count() + unit().parameter_count() -
+           result_location.ToParameterIndex();
+  } else {
+    return unit().register_count() - result_location.index();
+  }
+}
+
 void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                      bool skip_targets) const {
   switch (opcode()) {
@@ -2292,7 +2325,6 @@ void ForInPrepare::GenerateCode(MaglevAssembler* masm,
       TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
       feedback().vector                             // feedback vector
   );
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 int ForInNext::MaxCallStackArgs() const {
@@ -2824,9 +2856,14 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
 
-  __ StoreTaggedFieldWithWriteBarrier(
-      object, HeapObject::kMapOffset, value, register_snapshot(),
-      MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
+  if (kind() == Kind::kInitializingYoung) {
+    __ StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, value);
+  } else {
+    __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
+                                        register_snapshot(),
+                                        MaglevAssembler::kValueIsCompressed,
+                                        MaglevAssembler::kValueCannotBeSmi);
+  }
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
@@ -3564,6 +3601,7 @@ int ConvertReceiver::MaxCallStackArgs() const {
 }
 void ConvertReceiver::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  static_assert(D::GetRegisterParameter(D::kInput) == kReturnRegister0);
   UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
   DefineAsFixed(this, kReturnRegister0);
 }
@@ -3574,6 +3612,10 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ JumpIfSmi(
       receiver, &convert_to_object,
       v8_flags.debug_code ? Label::Distance::kFar : Label::Distance::kNear);
+
+  // If {receiver} is not primitive, no need to move it to {result}, since
+  // they share the same register.
+  DCHECK_EQ(receiver, ToRegister(result()));
   __ JumpIfJSAnyIsNotPrimitive(receiver, &done);
 
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
@@ -4557,6 +4599,16 @@ void Float64Round::SetValueLocationConstraints() {
   if (kind_ == Kind::kNearest) {
     set_double_temporaries_needed(1);
   }
+}
+
+void Int32AbsWithOverflow::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void Float64Abs::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
 }
 
 void CheckedSmiTagFloat64::SetValueLocationConstraints() {
@@ -6037,14 +6089,14 @@ void ConstructWithSpread::SetValueLocationConstraints() {
 void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CallBuiltin<Builtin::kConstructWithSpread_WithFeedback>(
-      context(),             // context
-      function(),            // target
-      new_target(),          // new target
-      num_args_no_spread(),  // actual arguments count
-      feedback().index(),    // feedback slot
-      spread(),              // spread
-      feedback().vector,     // feedback vector
-      args_no_spread()       // args
+      context(),                                    // context
+      function(),                                   // target
+      new_target(),                                 // new target
+      num_args_no_spread(),                         // actual arguments count
+      spread(),                                     // spread
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector,                            // feedback vector
+      args_no_spread()                              // args
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -6184,6 +6236,7 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
 
   Register map = temps.Acquire();
   __ LoadMapForCompare(map, object);
+  __ CompareTaggedAndJumpIf(map, transition_target_.object(), kEqual, *done);
 
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
@@ -6956,6 +7009,16 @@ void CheckMaps::PrintParams(std::ostream& os,
   os << ")";
 }
 
+void TransitionElementsKindOrCheckMap::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Node::input(0).node() << ", [";
+  os << *transition_target().object();
+  for (compiler::MapRef source : transition_sources()) {
+    os << ", " << *source.object();
+  }
+  os << "]-->" << *transition_target().object() << ")";
+}
+
 void CheckValue::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *value().object() << ")";
@@ -7083,9 +7146,24 @@ void StoreTaggedFieldNoWriteBarrier::PrintParams(
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
+  switch (kind) {
+    case StoreMap::Kind::kInitializing:
+      os << "Initializing";
+      break;
+    case StoreMap::Kind::kInitializingYoung:
+      os << "InitializingYoung";
+      break;
+    case StoreMap::Kind::kTransitioning:
+      os << "Transitioning";
+      break;
+  }
+  return os;
+}
+
 void StoreMap::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *map_.object() << ")";
+  os << "(" << *map_.object() << ", " << kind() << ")";
 }
 
 void StoreTaggedFieldWithWriteBarrier::PrintParams(
@@ -7296,6 +7374,77 @@ void BranchIfUint32Compare::PrintParams(
 void BranchIfTypeOf::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
+}
+
+// Keeping track of the effects this instruction has on known node aspects.
+void NodeBase::ClearElementsProperties(KnownNodeAspects& known_node_aspects) {
+  DCHECK(IsElementsArrayWrite(opcode()));
+  // Clear Elements cache.
+  auto elements_properties = known_node_aspects.loaded_properties.find(
+      KnownNodeAspects::LoadedPropertyMapKey::Elements());
+  if (elements_properties != known_node_aspects.loaded_properties.end()) {
+    elements_properties->second.clear();
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Removing non-constant cached [Elements]";
+    }
+  }
+}
+
+void NodeBase::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+  DCHECK(properties().can_write());
+  DCHECK(!IsSimpleFieldStore(opcode()));
+  DCHECK(!IsElementsArrayWrite(opcode()));
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! Clearing unstable node aspects" << std::endl;
+  }
+  known_node_aspects.ClearUnstableMaps();
+  // Side-effects can change object contents, so we have to clear
+  // our known loaded properties -- however, constant properties are known
+  // to not change (and we added a dependency on this), so we don't have to
+  // clear those.
+  known_node_aspects.loaded_properties.clear();
+  known_node_aspects.loaded_context_slots.clear();
+  known_node_aspects.may_have_aliasing_contexts =
+      KnownNodeAspects::ContextSlotLoadsAlias::None;
+}
+
+void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
+  switch (kind()) {
+    case Kind::kInitializing:
+    case Kind::kInitializingYoung:
+      return;
+    case Kind::kTransitioning: {
+      if (NodeInfo* node_info =
+              known_node_aspects.TryGetInfoFor(object_input().node())) {
+        if (node_info->possible_maps_are_known() &&
+            node_info->possible_maps().size() == 1) {
+          compiler::MapRef old_map = node_info->possible_maps().at(0);
+          auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+            return map.equals(old_map);
+          };
+          known_node_aspects.ClearUnstableMapsIfAny(MaybeAliases);
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  ! StoreMap: Clearing unstable map "
+                      << Brief(*old_map.object()) << std::endl;
+          }
+          return;
+        }
+      }
+      break;
+    }
+  }
+  // TODO(olivf): Only invalidate nodes with the same type.
+  known_node_aspects.ClearUnstableMaps();
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! StoreMap: Clearing unstable maps" << std::endl;
+  }
+}
+
+void CheckMapsWithMigration::ClearUnstableNodeAspects(
+    KnownNodeAspects& known_node_aspects) {
+  // This instruction only migrates representations of values, not the values
+  // themselves, so cached values are still valid.
 }
 
 }  // namespace maglev

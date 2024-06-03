@@ -71,7 +71,7 @@ class OperationMatcher {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kFloat32) return false;
-    *constant = op->float32();
+    *constant = op->storage.float32;
     return true;
   }
 
@@ -79,7 +79,7 @@ class OperationMatcher {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kFloat64) return false;
-    *constant = op->float64();
+    *constant = op->storage.float64;
     return true;
   }
 
@@ -87,10 +87,10 @@ class OperationMatcher {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind == ConstantOp::Kind::kFloat64) {
-      *value = op->float64();
+      *value = op->storage.float64;
       return true;
     } else if (op->kind == ConstantOp::Kind::kFloat32) {
-      *value = op->float32();
+      *value = op->storage.float32;
       return true;
     }
     return false;

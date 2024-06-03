@@ -189,7 +189,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a trusted byte array in trusted space, initialized with zeros.
-  Handle<TrustedByteArray> NewTrustedByteArray(int length);
+  Handle<TrustedByteArray> NewTrustedByteArray(
+      int length, AllocationType allocation_type = AllocationType::kTrusted);
 
   Handle<ExternalPointerArray> NewExternalPointerArray(
       int length, AllocationType allocation = AllocationType::kYoung);

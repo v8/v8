@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -948,14 +949,17 @@ void ByteArray::set_int(int offset, uint32_t value) {
 
 // static
 template <class IsolateT>
-Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length) {
+Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
+                                               AllocationType allocation_type) {
+  DCHECK(allocation_type == AllocationType::kTrusted ||
+         allocation_type == AllocationType::kSharedTrusted);
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d", length);
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedByteArray> result = Handle<TrustedByteArray>::cast(
-      Allocate(isolate, length, &no_gc, AllocationType::kTrusted));
+      Allocate(isolate, length, &no_gc, allocation_type));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(result->AddressOfElementAt(length), 0, padding_size);

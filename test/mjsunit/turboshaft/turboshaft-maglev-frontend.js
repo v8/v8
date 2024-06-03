@@ -1966,22 +1966,24 @@ let glob_b = 3.35;
   assertOptimized(delete_prop_sloppy);
 }
 
-// Testing Uint32->Int32 conversion.
+// Testing Uint32->Int32/Float64 conversion.
 {
   const arr = new Uint32Array(2);
-  function uint_to_int() {
-    return arr[0] - 2;
+  function uint_to_i32_f64() {
+    let v1 = arr[0] + 7; // requires Uint32->Int32 conversion
+    let v2 = arr[1] + 3.47; // requires Uint32->Float64 conversion
+    return v1 + v2;
   }
 
-  %PrepareFunctionForOptimization(uint_to_int);
-  assertEquals(-2, uint_to_int());
-  %OptimizeFunctionOnNextCall(uint_to_int),
-  assertEquals(-2, uint_to_int());
-  assertOptimized(uint_to_int);
+  %PrepareFunctionForOptimization(uint_to_i32_f64);
+  assertEquals(10.47, uint_to_i32_f64());
+  %OptimizeFunctionOnNextCall(uint_to_i32_f64),
+  assertEquals(10.47, uint_to_i32_f64());
+  assertOptimized(uint_to_i32_f64);
 
   arr[0] = 0xffffff35; // Does not fit in a signed Int32
-  assertEquals(0xffffff33, uint_to_int());
-  assertUnoptimized(uint_to_int);
+  assertEquals(0xffffff35+7+3.47, uint_to_i32_f64());
+  assertUnoptimized(uint_to_i32_f64);
 }
 
 // Testing loops in inner functions.
@@ -2059,4 +2061,138 @@ let glob_b = 3.35;
   new_derived_obj();
   %OptimizeFunctionOnNextCall(new_derived_obj);
   new_derived_obj();
+}
+
+// Testing constructors (when it doesn't throw anything).
+{
+  class A extends Object {
+    constructor(b) {
+      super();
+      this.x = b;
+      this.y = 42;
+    }
+  }
+
+  class B extends A {
+    constructor(b) {
+      super(b);
+      this.z = 12;
+    }
+  }
+
+  %PrepareFunctionForOptimization(B);
+  let o = new B();
+  %OptimizeFunctionOnNextCall(B);
+  assertEquals(o, new B());
+  assertOptimized(B);
+}
+
+// Testing various throws in constructors.
+{
+  // Testing ThrowIfNotSuperConstructor (which triggers because the base class
+  // of A1 is "null", which doesn't have a constructor).
+  class A1 extends null {
+    constructor() {
+      super();
+    }
+  }
+
+  %PrepareFunctionForOptimization(A1);
+  assertThrows(() => new A1(), TypeError,
+               "Super constructor null of A1 is not a constructor");
+  %OptimizeFunctionOnNextCall(A1);
+  assertThrows(() => new A1(), TypeError,
+               "Super constructor null of A1 is not a constructor");
+  assertOptimized(A1);
+
+
+  // Testing ThrowSuperAlreadyCalledIfNotHole (which triggers because we call
+  // super() twice).
+  class A2 extends Object {
+    constructor() {
+      super();
+      super();
+    }
+  }
+
+  %PrepareFunctionForOptimization(A2);
+  assertThrows(() => new A2(), ReferenceError,
+               "Super constructor may only be called once");
+  %OptimizeFunctionOnNextCall(A2);
+  assertThrows(() => new A2(), ReferenceError,
+               "Super constructor may only be called once");
+  assertOptimized(A2);
+
+
+  // Testing ThrowSuperNotCalledIfHole (which triggers because we call
+  // don't call super()).
+  class A3 extends Object {
+    constructor() {
+    }
+  }
+
+  %PrepareFunctionForOptimization(A3);
+  assertThrows(() => new A3(), ReferenceError,
+               "Must call super constructor in derived class before " +
+               "accessing 'this' or returning from derived constructor");
+  %OptimizeFunctionOnNextCall(A3);
+  assertThrows(() => new A3(), ReferenceError,
+               "Must call super constructor in derived class before " +
+               "accessing 'this' or returning from derived constructor");
+  assertOptimized(A3);
+}
+
+// Testing closures as object properties.
+{
+  function create_closure(v) {
+    let o = {};
+    let x = 4;
+    o.x = (c) => v + x++ + 2 + c;
+    return o;
+  }
+
+  %PrepareFunctionForOptimization(create_closure);
+  create_closure(7);
+  %OptimizeFunctionOnNextCall(create_closure);
+  let o = create_closure(7);
+  assertEquals(7+4+2+2, o.x(2));
+  assertEquals(7+5+2+5, o.x(5));
+  assertOptimized(create_closure);
+}
+
+// Testing CreateShallowObjectLiteral.
+{
+  function g(o) { return o.u; }
+
+  function create_shallow_obj(x) {
+    var o = {u: x};
+    return g(o);
+  }
+
+  %PrepareFunctionForOptimization(create_shallow_obj);
+  assertEquals(42, create_shallow_obj(42));
+  assertEquals(3.56, create_shallow_obj(3.56));
+  %OptimizeFunctionOnNextCall(create_shallow_obj);
+  assertEquals(42, create_shallow_obj(42));
+  assertEquals(3.56, create_shallow_obj(3.56));
+}
+
+// Testing CheckedSmiTagFloat64.
+{
+  function store_f64_to_smi_field(v) {
+    return {some_unique_name_U5d8Xe: Math.floor((v + 0xffffffff) - 0xfffffffe)}
+           .some_unique_name_U5d8Xe;
+  }
+
+  %PrepareFunctionForOptimization(store_f64_to_smi_field);
+  assertEquals(1, store_f64_to_smi_field(0));
+  assertEquals(2, store_f64_to_smi_field(1));
+  %OptimizeFunctionOnNextCall(store_f64_to_smi_field);
+  assertEquals(2, store_f64_to_smi_field(1));
+  assertOptimized(store_f64_to_smi_field);
+
+  // Won't fit in Smi anymore, which should trigger a deopt
+  assertEquals(0xffffffff+0xffffffff-0xfffffffe,
+               store_f64_to_smi_field(0xffffffff));
+  assertUnoptimized(store_f64_to_smi_field);
 }

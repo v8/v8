@@ -253,7 +253,7 @@ class FeedbackVector
   inline void clear_invocation_count(RelaxedStoreTag tag);
   using TorqueGeneratedFeedbackVector::invocation_count_before_stable;
   using TorqueGeneratedFeedbackVector::set_invocation_count_before_stable;
-  DECL_UINT8_ACCESSORS(invocation_count_before_stable)
+  DECL_RELAXED_UINT8_ACCESSORS(invocation_count_before_stable)
 
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the

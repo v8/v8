@@ -2210,6 +2210,28 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
   Format(instr, nfd.Mnemonic(mnemonic), nfd.Substitute(form));
 }
 
+void DisassemblingDecoder::VisitNEON3Extension(Instruction* instr) {
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";
+  const char* mnemonic = "unimplemented";
+
+  switch (instr->Mask(NEON3ExtensionMask)) {
+    case NEON_SDOT:
+      if (instr->NEONSize() != 2) {
+        VisitUnallocated(instr);
+        return;
+      }
+
+      form = instr->Bit(30) == 1 ? "'Vd.4s, 'Vn.16b, 'Vm.16b"
+                                 : "'Vd.2s, 'Vn.8b, 'Vm.8b";
+      mnemonic = "sdot";
+      break;
+    default:
+      form = "(NEON3Extension)";
+  }
+
+  Format(instr, mnemonic, form);
+}
+
 void DisassemblingDecoder::VisitNEONAcrossLanes(Instruction* instr) {
   const char* mnemonic = "unimplemented";
   const char* form = "%sd, 'Vn.%s";

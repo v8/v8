@@ -1025,16 +1025,16 @@ class JSApiWrapper {
  public:
   V8_INLINE explicit JSApiWrapper(Tagged<JSObject> object);
 
-  template <ExternalPointerTag tag>
+  template <CppHeapPointerTag tag>
   V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
                                      void*);
   V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                     void*, ExternalPointerTag tag);
-  template <ExternalPointerTag tag>
+                                     void*, CppHeapPointerTag tag);
+  template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
   V8_INLINE void* GetCppHeapWrappable(
       IsolateForPointerCompression isolate) const;
   V8_INLINE void* GetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                      ExternalPointerTag tag) const;
+                                      CppHeapPointerTagRange tag_range) const;
 
  private:
   static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==

@@ -314,7 +314,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(IsArray)                             \
   V(IsJSProxy)                           \
   V(IsJSReceiver)                        \
-  V(IsRegExp)                            \
   V(IsSmi)                               \
   /* Loads */                            \
   V(LoadLookupSlotForCall)               \
@@ -342,7 +341,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(StringToNumber)                      \
   /* BigInts */                          \
   V(BigIntEqualToBigInt)                 \
-  V(BigIntToBoolean)                     \
   V(BigIntToNumber)                      \
   /* Literals */                         \
   V(CreateArrayLiteral)                  \
@@ -356,7 +354,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(ArrayIndexOf)                        \
   V(ArrayIsArray)                        \
   V(GetFunctionName)                     \
-  V(GetOwnPropertyDescriptor)            \
   V(GlobalPrint)                         \
   V(HasProperty)                         \
   V(ObjectCreate)                        \

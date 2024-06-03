@@ -76,11 +76,14 @@ class ConcurrentMarkingVisitor final
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value) {
-    if (IsMarked(key)) {
-      if (MarkObject(key, value)) {
+    if (marking_state()->IsMarked(key)) {
+      const auto target_worklist =
+          MarkingHelper::ShouldMarkObject(heap_, value);
+      DCHECK(target_worklist.has_value());
+      if (MarkObject(key, value, target_worklist.value())) {
         return true;
       }
-    } else if (IsUnmarked(value)) {
+    } else if (marking_state()->IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;

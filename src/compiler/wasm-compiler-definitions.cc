@@ -5,7 +5,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 
 #include "src/base/strings.h"
-#include "src/codegen/signature.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"

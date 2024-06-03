@@ -330,8 +330,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    // No need to check value page flags with the indirect pointer write barrier
+    // because the value is always an ExposedTrustedObject.
+    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+      __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask,
+                       eq, exit());
+    }
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -1133,8 +1137,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           &unwinding_info_writer_, tag);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+      __ JumpIfMarking(ool->entry());
       __ Bind(ool->exit());
       break;
     }
@@ -1982,12 +1985,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64ExtractHighWord32:
       __ Umov(i.OutputRegister32(), i.InputFloat64Register(0).V2S(), 1);
       break;
-    case kArm64Float64FromWord32Pair:
-      __ uxtw(i.TempRegister(0), i.InputRegister64(1));
-      __ orr(i.TempRegister(0), i.TempRegister(0),
-             Operand(i.InputRegister64(0), LSL, 32));
-      __ Fmov(i.OutputFloat64Register(), i.TempRegister(0));
-      break;
     case kArm64Float64InsertLowWord32:
       DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 0, i.InputRegister32(1));
@@ -2712,6 +2709,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64I32x4DotI8x16AddS: {
       if (CpuFeatures::IsSupported(DOTPROD)) {
+        CpuFeatureScope scope(masm(), DOTPROD);
+
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
         __ Sdot(i.InputSimd128Register(2).V4S(),
                 i.InputSimd128Register(0).V16B(),

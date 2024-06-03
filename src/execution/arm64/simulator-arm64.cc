@@ -5016,6 +5016,27 @@ void Simulator::VisitNEON3Different(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEON3Extension(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& rn = vreg(instr->Rn());
+  VectorFormat vf = nfd.GetVectorFormat();
+
+  switch (instr->Mask(NEON3ExtensionMask)) {
+    case NEON_SDOT:
+      if (vf == kFormat4S || vf == kFormat2S) {
+        sdot(vf, rd, rn, rm);
+      } else {
+        VisitUnallocated(instr);
+      }
+
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
 void Simulator::VisitNEONAcrossLanes(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
 

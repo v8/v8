@@ -220,12 +220,9 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!slow_dchecks": ["--enable-slow-asserts"],
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
     "!has_maglev": ["--maglev"],
-    "!has_turbofan":
-        kIncompatibleFlagsForNoTurbofan,
-    "has_jitless":
-        INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "lite_mode": ["--max-semi-space-size=*"] +
-                 INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+    "!has_turbofan": kIncompatibleFlagsForNoTurbofan,
+    "has_jitless": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+    "lite_mode": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
@@ -247,7 +244,6 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
     "--parallel-compile-tasks-for-lazy": ["--predictable"],
     "--gc-interval=*": ["--gc-interval=*"],
-    "--optimize-for-size": ["--max-semi-space-size=*"],
     "--stress_concurrent_allocation":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_allocation"],
     "--stress-concurrent-inlining":

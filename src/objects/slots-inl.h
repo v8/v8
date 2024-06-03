@@ -16,6 +16,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/objects/tagged.h"
+#include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
@@ -301,26 +302,23 @@ void CppHeapPointerSlot::Release_StoreHandle(
 }
 #endif  // V8_COMPRESS_POINTERS
 
-Address CppHeapPointerSlot::try_load(
-    IsolateForPointerCompression isolate) const {
+Address CppHeapPointerSlot::try_load(IsolateForPointerCompression isolate,
+                                     CppHeapPointerTagRange tag_range) const {
 #ifdef V8_COMPRESS_POINTERS
-  const ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
+  const CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
   CppHeapPointerHandle handle = Relaxed_LoadHandle();
-  if (handle == kNullCppHeapPointerHandle) {
-    return kNullAddress;
-  }
-  return table.Get(handle, tag_);
+  return table.Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
   return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
 #endif  // !V8_COMPRESS_POINTERS
 }
 
 void CppHeapPointerSlot::store(IsolateForPointerCompression isolate,
-                               Address value) const {
+                               Address value, CppHeapPointerTag tag) const {
 #ifdef V8_COMPRESS_POINTERS
-  ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
+  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
   CppHeapPointerHandle handle = Relaxed_LoadHandle();
-  table.Set(handle, value, tag_);
+  table.Set(handle, value, tag);
 #else   // !V8_COMPRESS_POINTERS
   base::AsAtomicPointer::Relaxed_Store(location(), value);
 #endif  // !V8_COMPRESS_POINTERS

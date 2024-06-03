@@ -6721,7 +6721,6 @@ int MacroAssembler::CallCFunctionHelper(
 
   int stack_passed_arguments =
       CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
-
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
   } else {

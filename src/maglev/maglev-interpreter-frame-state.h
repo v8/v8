@@ -197,6 +197,17 @@ class NodeInfo {
     any_map_is_unstable_ = false;
   }
 
+  template <typename Function>
+  void ClearUnstableMapsIfAny(const Function& condition) {
+    if (!any_map_is_unstable_) return;
+    for (auto map : possible_maps_) {
+      if (condition(map)) {
+        ClearUnstableMaps();
+        return;
+      }
+    }
+  }
+
   bool possible_maps_are_known() const { return possible_maps_are_known_; }
 
   const PossibleMaps& possible_maps() const {
@@ -311,6 +322,14 @@ struct KnownNodeAspects {
     any_map_for_any_node_is_unstable = false;
   }
 
+  template <typename Function>
+  void ClearUnstableMapsIfAny(const Function& condition) {
+    if (!any_map_for_any_node_is_unstable) return;
+    for (auto& it : node_infos) {
+      it.second.ClearUnstableMapsIfAny(condition);
+    }
+  }
+
   void ClearAvailableExpressions() { available_expressions.clear(); }
 
   NodeInfos::iterator FindInfo(ValueNode* node) {
@@ -332,10 +351,13 @@ struct KnownNodeAspects {
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
   }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node, compiler::JSHeapBroker* broker,
+                               LocalIsolate* isolate) {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
-    return &node_infos.emplace(node, NodeInfo()).first->second;
+    auto res = &node_infos.emplace(node, NodeInfo()).first->second;
+    res->CombineType(StaticTypeForNode(broker, isolate, node));
+    return res;
   }
 
   NodeType NodeTypeFor(ValueNode* node) const {

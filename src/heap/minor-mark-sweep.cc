@@ -263,8 +263,8 @@ void YoungGenerationRememberedSetsMarkingWorklist::TearDown() {
 }
 
 YoungGenerationRootMarkingVisitor::YoungGenerationRootMarkingVisitor(
-    YoungGenerationMainMarkingVisitor* main_marking_visitor)
-    : main_marking_visitor_(main_marking_visitor) {}
+    MinorMarkSweepCollector* collector)
+    : main_marking_visitor_(collector->main_marking_visitor()) {}
 
 YoungGenerationRootMarkingVisitor::~YoungGenerationRootMarkingVisitor() =
     default;
@@ -621,8 +621,7 @@ void VisitObjectWithEmbedderFields(Isolate* isolate, Tagged<JSObject> js_object,
 
   // Wrapper using cpp_heap_wrappable field.
   void* wrappable =
-      JSApiWrapper(js_object).GetCppHeapWrappable<kAnyExternalPointerTag>(
-          isolate);
+      JSApiWrapper(js_object).GetCppHeapWrappable(isolate, kAnyCppHeapPointer);
   if (wrappable) {
     worklist.cpp_marking_state()->MarkAndPush(wrappable);
   }
@@ -700,7 +699,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   DCHECK_NOT_NULL(marking_worklists_);
   DCHECK_NOT_NULL(main_marking_visitor_);
 
-  YoungGenerationRootMarkingVisitor root_visitor(main_marking_visitor_.get());
+  YoungGenerationRootMarkingVisitor root_visitor(this);
 
   MarkRoots(root_visitor, was_marked_incrementally);
 

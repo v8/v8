@@ -6451,7 +6451,7 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   gasm_->Bind(&bailout);
   gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
                          Builtin::kWasmStringViewWtf16GetCodeUnit,
-                         Operator::kPure, string, offset));
+                         Operator::kEliminatable, string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating
@@ -6524,8 +6524,8 @@ Node* WasmGraphBuilder::StringCodePointAt(Node* string, CheckForNull null_check,
 
   gasm_->Bind(&bailout);
   gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
-                         Builtin::kWasmStringCodePointAt, Operator::kPure,
-                         string, offset));
+                         Builtin::kWasmStringCodePointAt,
+                         Operator::kEliminatable, string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating
@@ -7877,7 +7877,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* is_on_central_stack_flag =
         gasm_->Load(MachineType::Uint8(), isolate_root,
                     IsolateData::is_on_central_stack_flag_offset());
-    gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kNone,
+    gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kTrue,
                   gasm_->IntPtrConstant(0));
 
     Node* old_sp = BuildSwitchToTheCentralStack(receiver);
@@ -8031,7 +8031,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     BuildModifyThreadInWasmFlag(true);
 
     auto done = gasm_->MakeLabel();
-    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done);
+    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done,
+                  BranchHint::kTrue);
     BuildSwitchBackFromCentralStack(old_sp, callable_node);
     gasm_->Goto(&done);
     gasm_->Bind(&done);
@@ -9139,6 +9140,7 @@ AssemblerOptions WasmAssemblerOptions() {
   // Relocation info required to serialize {WasmCode} for proper functions.
   options.record_reloc_info_for_serialization = true;
   options.enable_root_relative_access = false;
+  options.is_wasm = true;
 #ifdef USE_SIMULATOR
   options.enable_simulator_code = true;
 #endif
@@ -9150,6 +9152,7 @@ AssemblerOptions WasmStubAssemblerOptions() {
   // Relocation info not necessary because stubs are not serialized.
   options.record_reloc_info_for_serialization = false;
   options.enable_root_relative_access = false;
+  options.is_wasm = true;
 #ifdef USE_SIMULATOR
   options.enable_simulator_code = true;
 #endif

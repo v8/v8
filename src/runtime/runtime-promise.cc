@@ -92,13 +92,6 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseStatus) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  return Smi::FromInt(promise->status());
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

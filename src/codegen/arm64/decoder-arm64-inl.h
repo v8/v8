@@ -702,7 +702,11 @@ void Decoder<V>::DecodeNEONVectorDataProcessing(Instruction* instr) {
             }
           }
         } else {
-          V::VisitUnallocated(instr);
+          if (instr->Bit(10) == 1) {
+            V::VisitNEON3Extension(instr);
+          } else {
+            V::VisitUnallocated(instr);
+          }
         }
       } else {
         if (instr->Bit(10) == 0) {

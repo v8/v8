@@ -201,7 +201,7 @@ class JSAtomicsMutex
   class V8_NODISCARD LockGuard final : public LockGuardBase {
    public:
     inline LockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
-                     base::Optional<base::TimeDelta> timeout = base::nullopt);
+                     std::optional<base::TimeDelta> timeout = std::nullopt);
   };
 
   // The mutex is attempted to be locked via `TryLock` when a `TryLockGuard`
@@ -224,7 +224,7 @@ class JSAtomicsMutex
   // Returns false if the lock times out, true otherwise.
   static inline bool Lock(
       Isolate* requester, Handle<JSAtomicsMutex> mutex,
-      base::Optional<base::TimeDelta> timeout = base::nullopt);
+      std::optional<base::TimeDelta> timeout = std::nullopt);
 
   V8_WARN_UNUSED_RESULT inline bool TryLock();
 
@@ -232,12 +232,11 @@ class JSAtomicsMutex
   // a LockAsyncWaiterQueueNode and enqueue it in the mutex's waiter queue.
   // The `internal_locked_promise` is resolved when the node is notified.
   // Returns true if the lock was acquired, false otherwise.
-  static bool LockAsync(
-      Isolate* requester, Handle<JSAtomicsMutex> mutex,
-      Handle<JSPromise> internal_locked_promise,
-      MaybeHandle<JSPromise> unlocked_promise,
-      AsyncWaiterNodeType** waiter_node,
-      base::Optional<base::TimeDelta> timeout = base::nullopt);
+  static bool LockAsync(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+                        Handle<JSPromise> internal_locked_promise,
+                        MaybeHandle<JSPromise> unlocked_promise,
+                        AsyncWaiterNodeType** waiter_node,
+                        std::optional<base::TimeDelta> timeout = std::nullopt);
 
   // A wrapper for LockAsync called when an asyncWait call returns control
   // to the lockAsync callback. It calls `LockAsync` without setting all the
@@ -250,7 +249,7 @@ class JSAtomicsMutex
   // promise is unlocked or times out.
   static MaybeHandle<JSPromise> LockOrEnqueuePromise(
       Isolate* isolate, Handle<JSAtomicsMutex> mutex, Handle<Object> callback,
-      base::Optional<base::TimeDelta> timeout);
+      std::optional<base::TimeDelta> timeout);
 
   // Try to take the lock or requeue an existing node.
   static bool LockOrEnqueueAsyncNode(Isolate* isolate,
@@ -312,13 +311,13 @@ class JSAtomicsMutex
 
   V8_EXPORT_PRIVATE static bool LockSlowPath(
       Isolate* requester, Handle<JSAtomicsMutex> mutex,
-      std::atomic<StateT>* state, base::Optional<base::TimeDelta> timeout);
+      std::atomic<StateT>* state, std::optional<base::TimeDelta> timeout);
   static bool LockAsyncSlowPath(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
                                 std::atomic<StateT>* state,
                                 Handle<JSPromise> internal_locked_promise,
                                 MaybeHandle<JSPromise> unlocked_promise,
                                 AsyncWaiterNodeType** waiter_node,
-                                base::Optional<base::TimeDelta> timeout);
+                                std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE void UnlockSlowPath(Isolate* requester,
                                         std::atomic<StateT>* state);
@@ -352,7 +351,7 @@ class JSAtomicsMutex
   using LockSlowPathWrapper = std::function<bool(std::atomic<StateT>* state)>;
 
   static inline bool LockImpl(Isolate* requester, Handle<JSAtomicsMutex> mutex,
-                              base::Optional<base::TimeDelta> timeout,
+                              std::optional<base::TimeDelta> timeout,
                               LockSlowPathWrapper slow_path_wrapper);
 
   using TorqueGeneratedJSAtomicsMutex<
@@ -406,13 +405,14 @@ class JSAtomicsCondition
   DECL_PRINTER(JSAtomicsCondition)
   EXPORT_DECL_VERIFIER(JSAtomicsCondition)
 
-  V8_EXPORT_PRIVATE static bool WaitFor(
-      Isolate* requester, Handle<JSAtomicsCondition> cv,
-      Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
+  V8_EXPORT_PRIVATE static bool WaitFor(Isolate* requester,
+                                        Handle<JSAtomicsCondition> cv,
+                                        Handle<JSAtomicsMutex> mutex,
+                                        std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> WaitAsync(
       Isolate* requester, Handle<JSAtomicsCondition> cv,
-      Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
+      Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout);
 
   static void HandleAsyncNotify(WaitAsyncWaiterQueueNode* node);
   static void HandleAsyncTimeout(WaitAsyncWaiterQueueNode* node);

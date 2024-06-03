@@ -109,6 +109,15 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
         }
         break;
       }
+      case 8: {
+        // This allows Fuzzilli to check that DEBUG is defined, which should be
+        // the case if dcheck_always_on is set. This is useful for fuzzing as
+        // there are some integrity checks behind DEBUG.
+#ifdef DEBUG
+        IMMEDIATE_CRASH();
+#endif
+        break;
+      }
       default:
         break;
     }

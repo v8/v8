@@ -764,8 +764,14 @@ class Heap final {
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
   TrustedSpace* trusted_space() const { return trusted_space_; }
+  SharedTrustedSpace* shared_trusted_space() const {
+    return shared_trusted_space_;
+  }
   TrustedLargeObjectSpace* trusted_lo_space() const {
     return trusted_lo_space_;
+  }
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space() const {
+    return shared_trusted_lo_space_;
   }
 
   PagedSpace* shared_allocation_space() const {
@@ -794,7 +800,7 @@ class Heap final {
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
   }
-  ExternalPointerTable::Space* cpp_heap_pointer_space() {
+  CppHeapPointerTable::Space* cpp_heap_pointer_space() {
     return &cpp_heap_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
@@ -2162,7 +2168,7 @@ class Heap final {
   ExternalPointerTable::Space read_only_external_pointer_space_;
   // Space in the ExternalPointerTable containing entries owned by objects in
   // this heap. The entries exclusively point to CppHeap objects.
-  ExternalPointerTable::Space cpp_heap_pointer_space_;
+  CppHeapPointerTable::Space cpp_heap_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
@@ -2413,7 +2419,6 @@ class Heap final {
   friend class HeapVerifier;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
-  friend class IncrementalMarkingRootMarkingVisitor;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class LocalHeap;

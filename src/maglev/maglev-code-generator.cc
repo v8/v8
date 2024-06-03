@@ -1094,15 +1094,6 @@ class MaglevFrameTranslationBuilder {
         masm_->GetFramePointerOffsetForStackSlot(operand));
   }
 
-  bool InReturnValues(interpreter::Register reg,
-                      interpreter::Register result_location, int result_size) {
-    if (result_size == 0 || !result_location.is_valid()) {
-      return false;
-    }
-    return base::IsInRange(reg.index(), result_location.index(),
-                           result_location.index() + result_size - 1);
-  }
-
   void BuildBeginDeopt(DeoptInfo* deopt_info) {
     object_ids_.clear();
     auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
@@ -1145,27 +1136,7 @@ class MaglevFrameTranslationBuilder {
                              const InputLocation*& current_input_location,
                              interpreter::Register result_location,
                              int result_size) {
-    // Return offsets are counted from the end of the translation frame,
-    // which is the array [parameters..., locals..., accumulator]. Since
-    // it's the end, we don't need to worry about earlier frames.
-    int return_offset;
-    if (result_location == interpreter::Register::virtual_accumulator()) {
-      return_offset = 0;
-    } else if (result_location.is_parameter()) {
-      // This is slightly tricky to reason about because of zero indexing
-      // and fence post errors. As an example, consider a frame with 2
-      // locals and 2 parameters, where we want argument index 1 -- looking
-      // at the array in reverse order we have:
-      //   [acc, r1, r0, a1, a0]
-      //                  ^
-      // and this calculation gives, correctly:
-      //   2 + 2 - 1 = 3
-      return_offset = frame.unit().register_count() +
-                      frame.unit().parameter_count() -
-                      result_location.ToParameterIndex();
-    } else {
-      return_offset = frame.unit().register_count() - result_location.index();
-    }
+    int return_offset = frame.ComputeReturnOffset(result_location, result_size);
     translation_array_builder_->BeginInterpretedFrame(
         frame.bytecode_position(),
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
@@ -1494,7 +1465,8 @@ class MaglevFrameTranslationBuilder {
       checkpoint_state->ForEachParameter(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
-            if (InReturnValues(reg, result_location, result_size)) {
+            if (LazyDeoptInfo::InReturnValues(reg, result_location,
+                                              result_size)) {
               translation_array_builder_->StoreOptimizedOut();
             } else {
               BuildDeoptFrameSingleValue(value, input_location);
@@ -1513,7 +1485,9 @@ class MaglevFrameTranslationBuilder {
       checkpoint_state->ForEachLocal(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
-            if (InReturnValues(reg, result_location, result_size)) return;
+            if (LazyDeoptInfo::InReturnValues(reg, result_location,
+                                              result_size))
+              return;
             while (i < reg.index()) {
               translation_array_builder_->StoreOptimizedOut();
               i++;
@@ -1531,8 +1505,9 @@ class MaglevFrameTranslationBuilder {
     // Accumulator
     {
       if (checkpoint_state->liveness()->AccumulatorIsLive() &&
-          !InReturnValues(interpreter::Register::virtual_accumulator(),
-                          result_location, result_size)) {
+          !LazyDeoptInfo::InReturnValues(
+              interpreter::Register::virtual_accumulator(), result_location,
+              result_size)) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
         BuildDeoptFrameSingleValue(value, input_location);
       } else {

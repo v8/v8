@@ -305,15 +305,13 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
-  // Same as `ReadExternalPointerField()` with returning kNullAddress on
-  // encountering a 0-handle (instead of crashing). Will use the
-  // CppHeapPointerTable for access.
-  template <ExternalPointerTag tag>
-  inline Address TryReadCppHeapPointerField(
+  // Similar to `ReadExternalPointerField()` but uses the CppHeapPointerTable.
+  template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
+  inline Address ReadCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate) const;
-  inline Address TryReadCppHeapPointerField(
+  inline Address ReadCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate,
-      ExternalPointerTag tag) const;
+      CppHeapPointerTagRange tag_range) const;
   template <ExternalPointerTag tag>
   inline void WriteExternalPointerField(size_t offset,
                                         IsolateForSandbox isolate,
@@ -326,12 +324,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void SetupLazilyInitializedExternalPointerField(size_t offset);
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
 
-  template <ExternalPointerTag tag>
+  template <CppHeapPointerTag tag>
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value);
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value,
-      ExternalPointerTag tag);
+      CppHeapPointerTag tag);
 
   //
   // Indirect pointers.
@@ -398,8 +396,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline InstructionStreamSlot RawInstructionStreamField(int byte_offset) const;
   inline ExternalPointerSlot RawExternalPointerField(
       int byte_offset, ExternalPointerTag tag) const;
-  inline CppHeapPointerSlot RawCppHeapPointerField(
-      int byte_offset, ExternalPointerTag tag) const;
+  inline CppHeapPointerSlot RawCppHeapPointerField(int byte_offset) const;
   inline IndirectPointerSlot RawIndirectPointerField(
       int byte_offset, IndirectPointerTag tag) const;
 

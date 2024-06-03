@@ -13,6 +13,7 @@
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -434,8 +435,13 @@ class MaglevGraphBuilder {
 
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   NodeType GetType(ValueNode* node);
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(node, broker(),
+                                                   local_isolate());
+  }
 
   // Returns true if we statically know that {lhs} and {rhs} have different
   // types.
@@ -1070,7 +1076,8 @@ class MaglevGraphBuilder {
   void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
                                    int slot_index, ValueNode* value);
 
-  void BuildStoreMap(ValueNode* object, compiler::MapRef map);
+  void BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                     StoreMap::Kind kind);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
@@ -1579,65 +1586,24 @@ class MaglevGraphBuilder {
     // Don't do anything for nodes without side effects.
     if constexpr (!NodeT::kProperties.can_write()) return;
 
-    // Simple field stores are stores which do nothing but change a field value
-    // (i.e. no map transitions or calls into user code).
-    static constexpr bool is_simple_field_store =
-        std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
-        std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreDoubleField> ||
-        std::is_same_v<NodeT, UpdateJSArrayLength> ||
-        std::is_same_v<NodeT, StoreFixedArrayElementWithWriteBarrier> ||
-        std::is_same_v<NodeT, StoreFixedArrayElementNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreFixedDoubleArrayElement>;
-
-    static constexpr bool is_elements_array_write =
-        std::is_same_v<NodeT, MaybeGrowFastElements> ||
-        std::is_same_v<NodeT, EnsureWritableFastElements>;
-
-    if constexpr (is_elements_array_write) {
-      // Clear Elements cache.
-      auto elements_properties = known_node_aspects().loaded_properties.find(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements());
-      if (elements_properties != known_node_aspects().loaded_properties.end()) {
-        elements_properties->second.clear();
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  * Removing non-constant cached [Elements]";
-        }
-      }
-    }
-
-    // Don't change known node aspects for:
-    //
-    //   * Simple field stores -- the only relevant side effect on these is
-    //     writes to objects which invalidate loaded properties and context
-    //     slots, and we invalidate these already as part of emitting the store.
-    //
-    //   * CheckMapsWithMigration -- this only migrates representations of
-    //     values, not the values themselves, so cached values are still valid.
-    static constexpr bool should_clear_unstable_node_aspects =
-        !is_simple_field_store && !is_elements_array_write &&
-        !std::is_same_v<NodeT, CheckMapsWithMigration>;
-
-    // Simple field stores can't possibly change or migrate the map.
-    static constexpr bool is_possible_map_change = !is_simple_field_store;
-
     // We only need to clear unstable node aspects on the current builder, not
     // the parent, since we'll anyway copy the known_node_aspects to the parent
     // once we finish the inlined function.
-    if constexpr (should_clear_unstable_node_aspects) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "  ! Clearing unstable node aspects" << std::endl;
-      }
-      known_node_aspects().ClearUnstableMaps();
-      // Side-effects can change object contents, so we have to clear
-      // our known loaded properties -- however, constant properties are known
-      // to not change (and we added a dependency on this), so we don't have to
-      // clear those.
-      known_node_aspects().loaded_properties.clear();
-      known_node_aspects().loaded_context_slots.clear();
-      known_node_aspects().may_have_aliasing_contexts =
-          KnownNodeAspects::ContextSlotLoadsAlias::None;
+
+    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
+      node->ClearElementsProperties(known_node_aspects());
+    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
+                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
+      // Don't change known node aspects for simple field stores. The only
+      // relevant side effect on these is writes to objects which invalidate
+      // loaded properties and context slots, and we invalidate these already as
+      // part of emitting the store.
+      node->ClearUnstableNodeAspects(known_node_aspects());
     }
+
+    // Simple field stores can't possibly change or migrate the map.
+    static constexpr bool is_possible_map_change =
+        !IsSimpleFieldStore(Node::opcode_of<NodeT>);
 
     // All user-observable side effects need to clear state that is cached on
     // the builder. This reset has to be propagated up through the parents.
@@ -1769,6 +1735,7 @@ class MaglevGraphBuilder {
 #define MAGLEV_REDUCED_BUILTIN(V)  \
   V(ArrayForEach)                  \
   V(ArrayIsArray)                  \
+  V(ArrayIteratorPrototypeNext)    \
   V(ArrayPrototypeEntries)         \
   V(ArrayPrototypeKeys)            \
   V(ArrayPrototypeValues)          \
@@ -1787,11 +1754,13 @@ class MaglevGraphBuilder {
   V(ObjectGetPrototypeOf)          \
   V(ReflectGetPrototypeOf)         \
   V(ObjectPrototypeHasOwnProperty) \
+  V(NumberParseInt)                \
   V(MathCeil)                      \
   V(MathFloor)                     \
   V(MathPow)                       \
   V(ArrayPrototypePush)            \
   V(ArrayPrototypePop)             \
+  V(MathAbs)                       \
   V(MathRound)                     \
   V(StringConstructor)             \
   V(StringFromCharCode)            \
@@ -1898,6 +1867,7 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  ValueNode* BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ValueNode* BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, CapturedValue elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
@@ -2034,7 +2004,8 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
 
-  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array);
+  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
+                                    NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
   ReduceResult TryBuildPropertyLoad(
@@ -2079,7 +2050,7 @@ class MaglevGraphBuilder {
       compiler::KeyedAccessMode const& keyed_mode);
   ReduceResult TryBuildElementLoadOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index,
-      const compiler::ElementAccessInfo& access_info,
+      base::Vector<const compiler::MapRef> maps, ElementsKind kind,
       KeyedAccessLoadMode load_mode);
   ReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index_object, ValueNode* value,
@@ -2227,6 +2198,11 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   void VisitCompareOperation();
+
+  using TypeOfLiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  template <typename Function>
+  ReduceResult TryReduceTypeOf(ValueNode* value, const Function& GetResult);
+  ReduceResult TryReduceTypeOf(ValueNode* value);
 
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);

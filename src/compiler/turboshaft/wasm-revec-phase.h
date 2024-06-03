@@ -13,6 +13,19 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+class WasmRevecVerifier {
+ public:
+  explicit WasmRevecVerifier(std::function<void(const Graph&)> handler)
+      : handler_(handler) {}
+
+  void Verify(const Graph& graph) {
+    if (handler_) handler_(graph);
+  }
+
+ private:
+  std::function<void(const Graph&)> handler_ = nullptr;
+};
+
 struct WasmRevecPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(WasmRevec)
 

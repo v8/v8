@@ -876,34 +876,37 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     JumpIfSmi(value, &done);
   }
 
+  if (slot.contains_indirect_pointer()) {
+    // The indirect pointer write barrier is only enabled during marking.
+    JumpIfNotMarking(&done);
+  } else {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-  DCHECK(!AreAliased(kScratchRegister, object, slot_address, value));
-  Label stub_call;
+    DCHECK(!AreAliased(kScratchRegister, object, slot_address, value));
+    Label stub_call;
 
-  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
-        Immediate(static_cast<uint8_t>(1)));
-  j(not_zero, &stub_call, Label::kFar);
+    JumpIfMarking(&stub_call);
 
-  // Save the slot_address in the xmm scratch register.
-  movq(kScratchDoubleReg, slot_address);
-  Register scratch0 = slot_address;
-  CheckMarkBit(object, kScratchRegister, scratch0, carry, &done);
-  CheckPageFlag(value, kScratchRegister, MemoryChunk::kIsInReadOnlyHeapMask,
-                not_zero, &done, Label::kFar);
-  CheckMarkBit(value, kScratchRegister, scratch0, carry, &done);
-  movq(slot_address, kScratchDoubleReg);
-  bind(&stub_call);
+    // Save the slot_address in the xmm scratch register.
+    movq(kScratchDoubleReg, slot_address);
+    Register scratch0 = slot_address;
+    CheckMarkBit(object, kScratchRegister, scratch0, carry, &done);
+    CheckPageFlag(value, kScratchRegister, MemoryChunk::kIsInReadOnlyHeapMask,
+                  not_zero, &done, Label::kFar);
+    CheckMarkBit(value, kScratchRegister, scratch0, carry, &done);
+    movq(slot_address, kScratchDoubleReg);
+    bind(&stub_call);
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-  CheckPageFlag(value,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
-                Label::kNear);
+    CheckPageFlag(value,
+                  value,  // Used as scratch.
+                  MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
+                  Label::kNear);
 
-  CheckPageFlag(object,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
-                Label::kNear);
+    CheckPageFlag(object,
+                  value,  // Used as scratch.
+                  MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
+                  Label::kNear);
 #endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
+  }
 
   if (slot.contains_direct_pointer()) {
     CallRecordWriteStub(object, slot_address, fp_mode,
@@ -4242,6 +4245,20 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     testl(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
+}
+
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+        Immediate(static_cast<uint8_t>(1)));
+  j(not_zero, is_marking, condition_met_distance);
+}
+
+void MacroAssembler::JumpIfNotMarking(Label* not_marking,
+                                      Label::Distance condition_met_distance) {
+  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+        Immediate(static_cast<uint8_t>(1)));
+  j(zero, not_marking, condition_met_distance);
 }
 
 void MacroAssembler::CheckMarkBit(Register object, Register scratch0,

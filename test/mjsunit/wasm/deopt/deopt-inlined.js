@@ -10,64 +10,79 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDeoptInlined() {
-  var builder = new WasmModuleBuilder();
-  let funcRefT = builder.addType(kSig_i_ii);
+  let inlineeIndex = 2;
+  let sig = 1;
+  let tests = [
+    {name: "callDirect", ops: [kExprCallFunction, inlineeIndex]},
+    {name: "callRef", ops: [kExprRefFunc, inlineeIndex, kExprCallRef, sig]},
+    {name: "returnCall", ops: [kExprReturnCall, inlineeIndex]},
+    {name: "returnCallRef",
+     ops: [kExprRefFunc, inlineeIndex, kExprReturnCallRef, sig]},
+  ];
 
-  builder.addFunction("add", funcRefT)
+  for (let test of tests) {
+    print(`test ${test.name}`);
+    var builder = new WasmModuleBuilder();
+    let funcRefT = builder.addType(kSig_i_ii);
+
+    builder.addFunction("add", funcRefT)
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
     .exportFunc();
-  builder.addFunction("mul", funcRefT)
+    builder.addFunction("mul", funcRefT)
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul])
     .exportFunc();
 
-  // TODO(mliedtke): This should all break with parameter stack slots as
-  // currently both the outer frame state as well as the inner frame state push
-  // them onto the stack (meaning they are there twice).
-  let mainSig = makeSig([kWasmI32, kWasmI32, wasmRefType(funcRefT)], [kWasmI32]);
-  let inlinee = builder.addFunction("inlinee", mainSig)
-    .addBody([
-      kExprLocalGet, 1,
-      kExprI32Const, 1,
-      kExprI32Add,
-      kExprLocalTee, 1,
-      kExprLocalGet, 0,
-      kExprI32Const, 1,
-      kExprI32Add,
-      kExprLocalTee, 0,
-      kExprLocalGet, 2,
-      kExprCallRef, funcRefT,
-  ]).exportFunc();
+    let mainSig = builder.addType(makeSig([kWasmI32, kWasmI32,
+      wasmRefType(funcRefT)], [kWasmI32]));
+    assertEquals(sig, mainSig);
+    let inlinee = builder.addFunction("inlinee", mainSig)
+      .addBody([
+        kExprLocalGet, 1,
+        kExprI32Const, 1,
+        kExprI32Add,
+        kExprLocalTee, 1,
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kExprI32Add,
+        kExprLocalTee, 0,
+        kExprLocalGet, 2,
+        kExprCallRef, funcRefT,
+    ]).exportFunc();
+    assertEquals(inlinee.index, inlineeIndex);
 
-  builder.addFunction("main", mainSig)
-    .addLocals(kWasmI32, 1)
-    .addBody([
-      kExprLocalGet, 0,
-      kExprI32Const, 1,
-      kExprI32Add,
-      kExprLocalGet, 1,
-      kExprI32Const, 1,
-      kExprI32Add,
-      kExprLocalGet, 2,
-      kExprCallFunction, inlinee.index,
-  ]).exportFunc();
+    builder.addFunction(test.name, mainSig)
+      .addLocals(kWasmI32, 1)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kExprI32Add,
+        kExprLocalGet, 1,
+        kExprI32Const, 1,
+        kExprI32Add,
+        kExprLocalGet, 2,
+        ...test.ops,
+    ]).exportFunc();
 
-  let wasm = builder.instantiate().exports;
-  assertEquals(46, wasm.main(12, 30, wasm.add));
-  // Tier up.
-  %WasmTierUpFunction(wasm.main);
-  assertEquals(46, wasm.main(12, 30, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
-  // Cause deopt.
-  assertEquals(14 * 32, wasm.main(12, 30, wasm.mul));
-  // Deopt happened.
-  assertFalse(%IsTurboFanFunction(wasm.main));
-  assertEquals(46, wasm.main(12, 30, wasm.add));
-  // Trigger re-opt.
-  %WasmTierUpFunction(wasm.main);
-  // Both call targets are used in the re-optimized function, so they don't
-  // trigger new deopts.
-  assertEquals(46, wasm.main(12, 30, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
-  assertEquals(14 * 32, wasm.main(12, 30, wasm.mul));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+    let wasm = builder.instantiate().exports;
+
+    let fct = wasm[test.name];
+    assertEquals(46, fct(12, 30, wasm.add));
+    // Tier up.
+    %WasmTierUpFunction(fct);
+    assertEquals(46, fct(12, 30, wasm.add));
+    assertTrue(%IsTurboFanFunction(fct));
+    // Cause deopt.
+    assertEquals(14 * 32, fct(12, 30, wasm.mul));
+    // Deopt happened.
+    assertFalse(%IsTurboFanFunction(fct));
+    assertEquals(46, fct(12, 30, wasm.add));
+    // Trigger re-opt.
+    %WasmTierUpFunction(fct);
+    // Both call targets are used in the re-optimized function, so they don't
+    // trigger new deopts.
+    assertEquals(46, fct(12, 30, wasm.add));
+    assertTrue(%IsTurboFanFunction(fct));
+    assertEquals(14 * 32, fct(12, 30, wasm.mul));
+    assertTrue(%IsTurboFanFunction(fct));
+  }
 })();

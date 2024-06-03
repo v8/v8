@@ -355,11 +355,27 @@ class V8_TRIVIAL_ABI DirectHandleBase :
   V8_INLINE Address address() const { return obj_; }
 
 #ifdef DEBUG
-  // Counts the number of allocated handles for the current thread.
-  // The number is only accurate if V8_HAS_ATTRIBUTE_TRIVIAL_ABI,
-  // otherwise it's zero.
+  // Counts the number of allocated handles for the current thread that are
+  // below the stack marker. The number is only accurate if
+  // V8_HAS_ATTRIBUTE_TRIVIAL_ABI, otherwise it's zero.
   V8_INLINE static int NumberOfHandles() { return number_of_handles_; }
-#endif
+
+  // Scope to temporarily reset the number of allocated handles.
+  class V8_NODISCARD ResetNumberOfHandlesScope {
+   public:
+    ResetNumberOfHandlesScope() : saved_number_of_handles_(number_of_handles_) {
+      number_of_handles_ = 0;
+    }
+    ~ResetNumberOfHandlesScope() {
+      number_of_handles_ = saved_number_of_handles_;
+    }
+
+   private:
+    int saved_number_of_handles_;
+  };
+#else
+  class V8_NODISCARD ResetNumberOfHandlesScope {};
+#endif  // DEBUG
 
  protected:
   friend class HandleBase;

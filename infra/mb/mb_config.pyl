@@ -94,6 +94,7 @@
       'V8 Win64 - builder (reclient compare)': 'release_x64_minimal_symbols_reclient',
       'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug builder': 'debug_x64_minimal_symbols',
+      'V8 Win64 - drumbrake - debug builder': 'debug_x64_drumbrake',
       'V8 Win64 - msvc - builder': 'release_x64_msvc',
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
@@ -325,6 +326,7 @@
       'v8_win64_asan_compile_rel': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_light_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_dbg': 'debug_x64_minimal_symbols',
+      'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_rel': 'release_x64_trybot',
       'v8_mac_arm64_compile_rel': 'release_arm64',
@@ -675,6 +677,8 @@
       'debug_bot', 'x64', 'clang_coverage'],
     'debug_x64_custom': [
       'debug_bot', 'x64', 'v8_snapshot_custom'],
+    'debug_x64_drumbrake': [
+      'debug_bot', 'x64', 'v8_enable_drumbrake'],
     'debug_x64_external_code_space': [
       'debug_bot', 'x64', 'external_code_space'],
     'debug_x64_fuchsia': [
@@ -1056,6 +1060,10 @@
 
     'v8_disable_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=false',
+    },
+
+    'v8_enable_drumbrake': {
+      'gn_args': 'v8_enable_drumbrake=true',
     },
 
     'v8_enable_memory_corruption_api': {

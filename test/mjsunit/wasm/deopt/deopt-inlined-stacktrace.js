@@ -20,7 +20,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32DivS])
     .exportFunc();
 
-  let mainSig = makeSig([kWasmI32, kWasmI32, wasmRefType(funcRefT)], [kWasmI32]);
+  let mainSig =
+    makeSig([kWasmI32, kWasmI32, wasmRefType(funcRefT)], [kWasmI32]);
   let inlinee = builder.addFunction("inlinee", mainSig)
     .addBody([
       kExprLocalGet, 0,

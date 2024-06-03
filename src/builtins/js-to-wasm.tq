@@ -14,9 +14,9 @@ extern runtime WasmAllocateSuspender(Context): JSAny;
 
 namespace wasm {
 extern builtin JSToWasmWrapperAsm(
-    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
-    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -234,6 +234,14 @@ struct ReturnSlotAllocator {
       return this.stackSlots - 1;
     } else {
       return this.stackSlots;
+    }
+  }
+
+  // For references we start a new section on the stack, no old slots are
+  // filled.
+  macro StartRefs(): void {
+    if (!this.smallSlotLast) {
+      this.hasSmallSlot = false;
     }
   }
 
@@ -466,6 +474,8 @@ macro JSToWasmWrapperHelper(
   }
 
   const sig = functionData.sig;
+  const ref: WasmApiFunctionRef|WasmTrustedInstanceData =
+      functionData.internal.ref;
   const trustedInstanceData: WasmTrustedInstanceData =
       functionData.instance_data;
 
@@ -495,9 +505,9 @@ macro JSToWasmWrapperHelper(
     const returnTypes =
         Subslice(sigTypes, Convert<intptr>(0), Convert<intptr>(returnCount))
         otherwise unreachable;
-    let retIt = returnTypes.Iterator();
     let allocator = NewReturnSlotAllocator();
 
+    let retIt = returnTypes.Iterator();
     while (!retIt.Empty()) {
       const retType = retIt.NextNotEmpty();
       if (retType == kWasmI32Type) {
@@ -515,10 +525,20 @@ macro JSToWasmWrapperHelper(
       } else {
         const retKind = retType & kValueTypeKindBitsMask;
         dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
-        // Also check if there are any reference return values, as this allows
-        // us to skip code when we process return values.
+        // Reference return values will be processed later.
         hasRefReturns = true;
-        allocator.AllocGP();
+      }
+    }
+    // Second round: reference values.
+    if (hasRefReturns) {
+      allocator.StartRefs();
+      retIt = returnTypes.Iterator();
+      while (!retIt.Empty()) {
+        const retType = retIt.NextNotEmpty();
+        const retKind = retType & kValueTypeKindBitsMask;
+        if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
+          allocator.AllocGP();
+        }
       }
     }
     returnSize = allocator.GetSize();
@@ -689,11 +709,9 @@ macro JSToWasmWrapperHelper(
   // Torque builtin.
   let result: JSAny;
   if constexpr (switchStack) {
-    result = WasmReturnPromiseOnSuspendAsm(
-        wrapperBuffer, trustedInstanceData, resultArray);
+    result = WasmReturnPromiseOnSuspendAsm(wrapperBuffer, ref, resultArray);
   } else {
-    result =
-        JSToWasmWrapperAsm(wrapperBuffer, trustedInstanceData, resultArray);
+    result = JSToWasmWrapperAsm(wrapperBuffer, ref, resultArray);
   }
 
   // The normal return sequence of Torque-generated JavaScript builtins does not
@@ -776,7 +794,7 @@ macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
 }
 
 builtin JSToWasmHandleReturns(
-    trustedData: WasmTrustedInstanceData, resultArray: JSArray,
+    jsContext: NativeContext, resultArray: JSArray,
     wrapperBuffer: RawPtr<intptr>): JSAny {
   const returnCount = *GetRefAt<int32>(
       wrapperBuffer, kWrapperBufferReturnCount);
@@ -817,12 +835,11 @@ builtin JSToWasmHandleReturns(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
       const value = BitcastWordToTagged(rawRef);
-      return WasmToJSObject(
-          LoadContextFromInstanceData(trustedData), value, retType);
+      return WasmToJSObject(jsContext, value, retType);
     }
   }
 
-  // Multi return;
+  // Multi return.
   const fixedArray: FixedArray = UnsafeCast<FixedArray>(resultArray.elements);
   const returnBuffer = *GetRefAt<RawPtr>(
       wrapperBuffer, kWrapperBufferStackReturnBufferStart);
@@ -845,8 +862,9 @@ builtin JSToWasmHandleReturns(
     // references does not trigger a GC, but the allocation of HeapNumbers and
     // BigInts for primitive types may trigger a GC.
 
+    // First skip over the locations of non-ref return values:
     for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
-      const retType = *retTypes.UncheckedAtIndex(Convert<intptr>(k));
+      const retType = *retTypes.UncheckedAtIndex(k);
       if (retType == kWasmI32Type) {
         locationAllocator.GetGPSlot();
       } else if (retType == kWasmF32Type) {
@@ -858,11 +876,17 @@ builtin JSToWasmHandleReturns(
         }
       } else if (retType == kWasmF64Type) {
         locationAllocator.GetFP64Slot();
-      } else {
-        let value: Object;
+      }
+    }
+    // Then copy the references.
+    locationAllocator.StartRefs();
+    for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
+      const retType = *retTypes.UncheckedAtIndex(k);
+      const retKind = retType & kValueTypeKindBitsMask;
+      if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
         const slot = locationAllocator.GetGPSlot();
         const rawRef = *slot;
-        value = BitcastWordToTagged(rawRef);
+        const value: Object = BitcastWordToTagged(rawRef);
         // Store the wasm object in the JSArray to make it GC safe. The
         // transformation will happen later in a second loop.
         fixedArray.objects[k] = value;
@@ -875,7 +899,7 @@ builtin JSToWasmHandleReturns(
       wrapperBuffer + kWrapperBufferFPReturnRegister1, returnBuffer);
 
   for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
-    const retType = *retTypes.UncheckedAtIndex(Convert<intptr>(k));
+    const retType = *retTypes.UncheckedAtIndex(k);
     if (retType == kWasmI32Type) {
       const slot = locationAllocator.GetGPSlot();
       const val = *RefCast<int32>(slot);
@@ -901,10 +925,8 @@ builtin JSToWasmHandleReturns(
       const val = *RefCast<float64>(slot);
       fixedArray.objects[k] = Convert<Number>(val);
     } else {
-      locationAllocator.GetGPSlot();
       const value = fixedArray.objects[k];
-      fixedArray.objects[k] = WasmToJSObject(
-          LoadContextFromInstanceData(trustedData), value, retType);
+      fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
     }
   }
 

@@ -59,15 +59,7 @@ struct TaggedPayload {
   }
 
   bool ContainsFreelistLink() const {
-    if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
       return IsTaggedWith(PayloadTaggingScheme::kFreeEntryTag);
-    } else {
-      // TODO(saelo): This is specific to TrustedPointerTable which uses tags
-      // that cannot be tested with AND-based type checks. Consider
-      // reusing `IsTaggedWith` when tags are manually assigned for the table.
-      return (encoded_word_ & PayloadTaggingScheme::kFreeEntryTag) ==
-             PayloadTaggingScheme::kFreeEntryTag;
-    }
   }
 
   bool ContainsEvacuationEntry() const {

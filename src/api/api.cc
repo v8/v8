@@ -2408,7 +2408,7 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Module, InstantiateModule, i::HandleScope);
   has_exception = !i::Module::Instantiate(i_isolate, Utils::OpenHandle(this),
-                                          context, callback, nullptr);
+                                          context, callback);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -6364,10 +6364,10 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
-                         CppHeapPointerTag tag) {
+                         CppHeapPointerTagRange tag_range) {
+  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
   return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(wrapper_obj)))
-      .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
-                           static_cast<i::ExternalPointerTag>(tag));
+      .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
 
 // static
@@ -6375,7 +6375,7 @@ void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                       CppHeapPointerTag tag, void* wrappable) {
   return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(wrapper_obj)))
       .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
-                           static_cast<i::ExternalPointerTag>(tag));
+                           tag);
 }
 
 // --- E n v i r o n m e n t ---
@@ -9871,6 +9871,15 @@ void Isolate::SetHostCreateShadowRealmContextCallback(
 void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetPrepareStackTraceCallback(callback);
+}
+
+int Isolate::GetStackTraceLimit() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  int stack_trace_limit = 0;
+  if (!i_isolate->GetStackTraceLimit(i_isolate, &stack_trace_limit)) {
+    return i::v8_flags.stack_trace_limit;
+  }
+  return stack_trace_limit;
 }
 
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(

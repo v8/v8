@@ -3615,6 +3615,8 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   } else if (key == roots.elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
+  } else if (key == roots.object_clone_transition_symbol()) {
+    os << "(clone object dependency transition)";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
@@ -3635,7 +3637,8 @@ void TransitionArray::PrintInternal(std::ostream& os) {
     os << "   Transition array #" << num_transitions << ":";
     for (int i = 0; i < num_transitions; i++) {
       Tagged<Name> key = GetKey(i);
-      Tagged<Map> target = GetTarget(i);
+      Tagged<Map> target;
+      GetTargetIfExists(i, GetIsolateFromWritableObject(*this), &target);
       TransitionsAccessor::PrintOneTransition(os, key, target);
     }
   }
@@ -3712,6 +3715,8 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
+        } else if (key == roots.object_clone_transition_symbol()) {
+          os << "clone object dependency";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);
@@ -3741,7 +3746,8 @@ void TransitionsAccessor::PrintTransitionTree(
         ShortPrint(target->prototype(), os);
         TransitionsAccessor transitions(isolate_, target);
         transitions.PrintTransitionTree(os, level + 1, no_gc);
-      });
+      },
+      TransitionsAccessor::IterationMode::kIncludeClearedSideStepTransitions);
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {

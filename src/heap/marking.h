@@ -9,6 +9,7 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
+#include "src/heap/marking-worklist.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/utils/utils.h"
@@ -274,6 +275,40 @@ class LiveObjectRange final {
 
  private:
   const PageMetadata* const page_;
+};
+
+struct MarkingHelper final : public AllStatic {
+  // TODO(340989496): Add on hold as target in ShouldMarkObject() and
+  // TryMarkAndPush().
+  enum class WorklistTarget : uint8_t {
+    kRegular,
+  };
+
+  enum class LivenessMode : uint8_t {
+    kMarkbit,
+    kAlwaysLive,
+  };
+
+  // Returns whether an object should be marked and if so also returns the
+  // worklist that must be used to do so.
+  //
+  //  Can be used with full GC and young GC using sticky markbits.
+  static V8_INLINE std::optional<WorklistTarget> ShouldMarkObject(
+      Heap* heap, Tagged<HeapObject> object);
+
+  // Returns whether the markbit of an object should be considered or whether
+  // the object is always considered as live.
+  static V8_INLINE LivenessMode GetLivenessMode(Heap* heap,
+                                                Tagged<HeapObject> object);
+
+  // Convenience helper around marking and pushing an object.
+  //
+  //  Can be used with full GC and young GC using sticky markbits.
+  template <typename MarkingState>
+  static V8_INLINE bool TryMarkAndPush(
+      Heap* heap, MarkingWorklists::Local* marking_worklist,
+      MarkingState* marking_state, WorklistTarget target_worklis,
+      Tagged<HeapObject> object);
 };
 
 }  // namespace v8::internal

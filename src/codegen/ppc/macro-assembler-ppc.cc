@@ -1648,11 +1648,14 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // in the fp register (r31)
 // Then - we buy a new frame
 
-void MacroAssembler::EnterExitFrame(int stack_space,
+void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
+
+  using ER = ExternalReference;
+
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1678,12 +1681,12 @@ void MacroAssembler::EnterExitFrame(int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  Move(r8, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                     isolate()));
-  StoreU64(fp, MemOperand(r8));
-  Move(r8,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreU64(cp, MemOperand(r8));
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  StoreU64(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  StoreU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   AddS64(sp, sp, Operand(-stack_space * kSystemPointerSize));
 
@@ -1722,38 +1725,28 @@ int MacroAssembler::ActivationFrameAlignment() {
 #endif
 }
 
-void MacroAssembler::LeaveExitFrame(Register argument_count,
-                                    bool argument_count_is_length) {
+void MacroAssembler::LeaveExitFrame(Register scratch) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
 
-  // Clear top frame.
-  li(r6, Operand::Zero());
-  Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                     isolate()));
-  StoreU64(r6, MemOperand(ip));
+  using ER = ExternalReference;
 
   // Restore current context from top and clear it in debug mode.
-  Move(ip,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  LoadU64(cp, MemOperand(ip));
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  LoadU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
 #ifdef DEBUG
-  mov(r6, Operand(Context::kInvalidContext));
-  Move(ip,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreU64(r6, MemOperand(ip));
+  mov(scratch, Operand(Context::kInvalidContext));
+  StoreU64(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
+
+  // Clear the top frame.
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  mov(scratch, Operand::Zero());
+  StoreU64(scratch, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
 
   // Tear down the exit frame, pop the arguments, and return.
   LeaveFrame(StackFrame::EXIT);
-
-  if (argument_count.is_valid()) {
-    if (!argument_count_is_length) {
-      ShiftLeftU64(argument_count, argument_count,
-                   Operand(kSystemPointerSizeLog2));
-    }
-    add(sp, sp, argument_count);
-  }
 }
 
 void MacroAssembler::MovFromFloatResult(const DoubleRegister dst) {
@@ -5892,14 +5885,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ RecordComment("Leave the API exit frame.");
   __ bind(&leave_exit_frame);
-  // LeaveExitFrame expects unwind space to be in a register.
   Register stack_space_reg = prev_limit_reg;
   if (stack_space_operand != nullptr) {
+    // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
     __ LoadU64(stack_space_reg, *stack_space_operand);
-  } else {
-    __ mov(stack_space_reg, Operand(stack_space));
   }
-  __ LeaveExitFrame(stack_space_reg, stack_space_operand != nullptr);
+  __ LeaveExitFrame(scratch);
 
   {
     ASM_CODE_COMMENT_STRING(masm,
@@ -5922,6 +5913,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
+
+  if (stack_space_operand == nullptr) {
+    DCHECK_NE(stack_space, 0);
+    __ AddS64(sp, sp, Operand(stack_space * kSystemPointerSize));
+
+  } else {
+    DCHECK_EQ(stack_space, 0);
+    // {stack_space_operand} was loaded into {stack_space_reg} above.
+    __ AddS64(sp, sp, stack_space_reg);
+  }
 
   __ blr();
 

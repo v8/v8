@@ -432,7 +432,7 @@ declare_args() {
 
   # Always move prototype transitions to the start of the transition tree
   # (see issue 332914927).
-  v8_move_prototype_transitions_first = false
+  v8_move_prototype_transitions_first = true
 }
 
 # Derived defaults.
@@ -3467,10 +3467,12 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/opmasks.h",
     "src/compiler/turboshaft/optimize-phase.h",
     "src/compiler/turboshaft/phase.h",
+    "src/compiler/turboshaft/pipelines.h",
     "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
     "src/compiler/turboshaft/recreate-schedule-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/turboshaft/reducer-traits.h",
+    "src/compiler/turboshaft/register-allocation-phase.h",
     "src/compiler/turboshaft/representations.h",
     "src/compiler/turboshaft/required-optimization-reducer.h",
     "src/compiler/turboshaft/runtime-call-descriptors.h",
@@ -3501,6 +3503,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/turboshaft/variable-reducer.h",
     "src/compiler/turboshaft/wasm-dead-code-elimination-phase.h",
+    "src/compiler/turboshaft/zone-with-name.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
@@ -4070,6 +4073,9 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer.h",
     "src/sandbox/compactible-external-entity-table-inl.h",
     "src/sandbox/compactible-external-entity-table.h",
+    "src/sandbox/cppheap-pointer-inl.h",
+    "src/sandbox/cppheap-pointer-table-inl.h",
+    "src/sandbox/cppheap-pointer-table.h",
     "src/sandbox/external-buffer-inl.h",
     "src/sandbox/external-buffer-table-inl.h",
     "src/sandbox/external-buffer-table.h",
@@ -5131,6 +5137,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimize-phase.cc",
     "src/compiler/turboshaft/phase.cc",
+    "src/compiler/turboshaft/pipelines.cc",
     "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
     "src/compiler/turboshaft/recreate-schedule-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
@@ -5623,6 +5630,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/sandbox/code-pointer-table.cc",
+    "src/sandbox/cppheap-pointer-table.cc",
     "src/sandbox/external-buffer-table.cc",
     "src/sandbox/external-pointer-table.cc",
     "src/sandbox/sandbox.cc",
@@ -6443,6 +6451,7 @@ v8_component("v8_libbase") {
     "src/base/template-meta-programming/algorithm.h",
     "src/base/template-meta-programming/functional.h",
     "src/base/template-meta-programming/list.h",
+    "src/base/template-meta-programming/string-literal.h",
     "src/base/template-utils.h",
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",

@@ -2104,6 +2104,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt32,
     kUint64ToInt64,
     kFloat64ToInt32,
+    kFloat64ToUint32,
     kFloat64ToInt64,
     kFloat64NotHole,
   };
@@ -2118,6 +2119,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kInt64ToInt32:
       case Kind::kUint64ToInt32:
       case Kind::kFloat64ToInt32:
+      case Kind::kFloat64ToUint32:
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kUint64ToInt64:
       case Kind::kFloat64ToInt64:
@@ -2137,6 +2139,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kUint64ToInt64:
         return MaybeRepVector<MaybeRegisterRepresentation::Word64()>();
       case Kind::kFloat64ToInt32:
+      case Kind::kFloat64ToUint32:
       case Kind::kFloat64ToInt64:
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
@@ -2414,6 +2417,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   RegisterRepresentation rep = Representation(kind);
   union Storage {
     uint64_t integral;
+    // TODO(42204049): To prevent signaling NaNs converting to quiet NaNs we
+    // should use Float32 and Float64.
     float float32;
     double float64;
     ExternalReference external;
@@ -5866,10 +5871,10 @@ struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<Object> input() const { return Base::input<Object>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  CheckedClosureOp(OpIndex input, OpIndex frame_state,
+  CheckedClosureOp(V<Object> input, V<FrameState> frame_state,
                    Handle<FeedbackCell> feedback_cell)
       : Base(input, frame_state), feedback_cell(feedback_cell) {}
 
@@ -5898,12 +5903,12 @@ struct CheckEqualsInternalizedStringOp
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex expected() const { return Base::input(0); }
-  OpIndex value() const { return Base::input(1); }
-  OpIndex frame_state() const { return Base::input(2); }
+  V<Object> expected() const { return Base::input<Object>(0); }
+  V<Object> value() const { return Base::input<Object>(1); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
 
-  CheckEqualsInternalizedStringOp(OpIndex expected, OpIndex value,
-                                  OpIndex frame_state)
+  CheckEqualsInternalizedStringOp(V<Object> expected, V<Object> value,
+                                  V<FrameState> frame_state)
       : Base(expected, value, frame_state) {}
 
   void Validate(const Graph& graph) const {
@@ -5927,9 +5932,9 @@ struct LoadMessageOp : FixedArityOperationT<1, LoadMessageOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  OpIndex offset() const { return Base::input(0); }
+  V<WordPtr> offset() const { return Base::input<WordPtr>(0); }
 
-  explicit LoadMessageOp(OpIndex offset) : Base(offset) {}
+  explicit LoadMessageOp(V<WordPtr> offset) : Base(offset) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -5950,10 +5955,10 @@ struct StoreMessageOp : FixedArityOperationT<2, StoreMessageOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex offset() const { return Base::input(0); }
-  OpIndex object() const { return Base::input(1); }
+  V<WordPtr> offset() const { return Base::input<WordPtr>(0); }
+  V<Object> object() const { return Base::input<Object>(1); }
 
-  explicit StoreMessageOp(OpIndex offset, OpIndex object)
+  explicit StoreMessageOp(V<WordPtr> offset, V<Object> object)
       : Base(offset, object) {}
 
   void Validate(const Graph& graph) const {
@@ -7930,6 +7935,7 @@ struct Simd256Extract128LaneOp
   }
 
   auto options() const { return std::tuple{lane}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 #define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \

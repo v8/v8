@@ -171,7 +171,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool is_main_thread_for(Heap* heap) const {
     return is_main_thread() && heap_ == heap;
   }
-  bool is_in_trampoline() const { return heap_->stack().IsMarkerSet(); }
+  V8_INLINE bool is_in_trampoline() const;
+
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
@@ -194,19 +195,17 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SetUpMainThreadForTesting();
 
   // Execute the callback while the local heap is parked. All threads must
-  // always park via this method, not directly with `ParkedScope`. The callback
-  // is only allowed to execute blocking operations.
-  //
+  // always park via these methods, not directly with `ParkedScope`.
   // The callback must be a callable object, expecting either no parameters or a
   // const ParkedScope&, which serves as a witness for parking. The first
   // variant checks if we are on the main thread or not. Use the other two
   // variants if this already known.
   template <typename Callback>
-  V8_INLINE void BlockWhileParked(Callback callback);
+  V8_INLINE void ExecuteWhileParked(Callback callback);
   template <typename Callback>
-  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
   template <typename Callback>
-  V8_INLINE void BlockBackgroundThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteBackgroundThreadWhileParked(Callback callback);
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -358,6 +357,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   bool allocation_failed_;
   bool main_thread_parked_;
+  int nested_parked_scopes_;
 
   LocalHeap* prev_;
   LocalHeap* next_;

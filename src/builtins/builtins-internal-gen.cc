@@ -243,14 +243,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   void IndirectPointerWriteBarrier(SaveFPRegsMode fp_mode) {
-    // Currently, only objects living in (local) old space are referenced
-    // through a pointer table indirection and we have DCHECKs in the CPP write
-    // barrier code to check that. This simplifies the write barrier code for
-    // these cases.
-    Label marking_is_on(this), next(this);
-    Branch(IsMarking(), &marking_is_on, &next);
-
-    BIND(&marking_is_on);
+    CSA_DCHECK(this, IsMarking());
 
     // For this barrier, the slot contains an index into a pointer table and not
     // directly a pointer to a HeapObject. Further, the slot address is tagged
@@ -271,9 +264,6 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
         std::make_pair(MachineTypeOf<IntPtrT>::value, object),
         std::make_pair(MachineTypeOf<IntPtrT>::value, slot),
         std::make_pair(MachineTypeOf<IntPtrT>::value, tag));
-    Goto(&next);
-
-    BIND(&next);
   }
 
   void GenerationalOrSharedBarrierSlow(TNode<IntPtrT> slot, Label* next,

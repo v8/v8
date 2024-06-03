@@ -70,15 +70,13 @@ namespace internal {
   F(AtomicsSychronizationNumAsyncWaitersInIsolateForTesting, 0, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I) \
-  F(BigIntBinaryOp, 3, 1)               \
-  F(BigIntCompareToBigInt, 3, 1)        \
   F(BigIntCompareToNumber, 3, 1)        \
   F(BigIntCompareToString, 3, 1)        \
   F(BigIntEqualToBigInt, 2, 1)          \
   F(BigIntEqualToNumber, 2, 1)          \
   F(BigIntEqualToString, 2, 1)          \
+  F(BigIntExponentiate, 2, 1)           \
   F(BigIntMaxLengthBits, 0, 1)          \
-  F(BigIntToBoolean, 1, 1)              \
   F(BigIntToNumber, 1, 1)               \
   F(BigIntUnaryOp, 2, 1)                \
   F(ToBigInt, 1, 1)                     \
@@ -319,7 +317,6 @@ namespace internal {
   F(DisposeDisposableStack, 3, 1)                                      \
   F(GetDerivedMap, 2, 1)                                               \
   F(GetFunctionName, 1, 1)                                             \
-  F(GetOwnPropertyDescriptor, 2, 1)                                    \
   F(GetOwnPropertyDescriptorObject, 2, 1)                              \
   F(GetOwnPropertyKeys, 2, 1)                                          \
   F(GetPrivateMember, 2, 1)                                            \
@@ -396,7 +393,6 @@ namespace internal {
   F(PromiseHookInit, 2, 1)               \
   F(PromiseRejectEventFromStack, 2, 1)   \
   F(PromiseRevokeReject, 1, 1)           \
-  F(PromiseStatus, 1, 1)                 \
   F(RejectPromise, 3, 1)                 \
   F(ResolvePromise, 2, 1)                \
   F(PromiseRejectAfterResolved, 2, 1)    \
@@ -415,7 +411,6 @@ namespace internal {
   F(SetPropertyWithReceiver, 4, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)                          \
-  F(IsRegExp, 1, 1)                                              \
   F(RegExpBuildIndices, 3, 1)                                    \
   F(RegExpExec, 4, 1)                                            \
   F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \

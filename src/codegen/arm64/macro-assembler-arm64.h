@@ -1001,6 +1001,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void JumpIfEqual(Register x, int32_t y, Label* dest);
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfNotMarking(Label* not_marking,
+                        Label::Distance condition_met_distance = Label::kFar);
+
   void LoadMap(Register dst, Register object);
   void LoadCompressedMap(Register dst, Register object);
 

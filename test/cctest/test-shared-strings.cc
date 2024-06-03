@@ -47,7 +47,8 @@ struct V8_NODISCARD IsolateParkOnDisposeWrapper {
   ~IsolateParkOnDisposeWrapper() {
     auto main_isolate = reinterpret_cast<Isolate*>(isolate_to_park)
                             ->main_thread_local_isolate();
-    main_isolate->BlockMainThreadWhileParked([this]() { isolate->Dispose(); });
+    main_isolate->ExecuteMainThreadWhileParked(
+        [this]() { isolate->Dispose(); });
   }
 
   v8::Isolate* const isolate;
@@ -232,7 +233,7 @@ UNINITIALIZED_TEST(YoungInternalization) {
   Handle<String> young_two_byte_seq1;
   Handle<String> one_byte_intern1;
   Handle<String> two_byte_intern1;
-  i_isolate2->main_thread_local_isolate()->BlockMainThreadWhileParked([&]() {
+  i_isolate2->main_thread_local_isolate()->ExecuteMainThreadWhileParked([&]() {
     young_one_byte_seq1 = factory1->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     young_two_byte_seq1 =

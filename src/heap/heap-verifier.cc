@@ -17,6 +17,7 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -218,7 +219,9 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
   explicit VerifySharedHeapObjectVisitor(Heap* heap)
       : VerifyPointersVisitor(heap),
         shared_space_(heap->shared_space()),
-        shared_lo_space_(heap->shared_lo_space()) {
+        shared_trusted_space_(heap->shared_trusted_space()),
+        shared_lo_space_(heap->shared_lo_space()),
+        shared_trusted_lo_space_(heap->shared_trusted_lo_space()) {
     DCHECK_NOT_NULL(shared_space_);
     DCHECK_NOT_NULL(shared_lo_space_);
   }
@@ -235,16 +238,22 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
     for (MaybeObjectSlot current = start; current < end; ++current) {
       Tagged<HeapObject> heap_object;
       if ((*current).GetHeapObject(&heap_object)) {
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(heap_object);
+        CHECK(chunk->InReadOnlySpace() || chunk->InWritableSharedSpace());
         CHECK(ReadOnlyHeap::Contains(heap_object) ||
               shared_space_->Contains(heap_object) ||
-              shared_lo_space_->Contains(heap_object));
+              shared_lo_space_->Contains(heap_object) ||
+              shared_trusted_space_->Contains(heap_object) ||
+              shared_trusted_lo_space_->Contains(heap_object));
       }
     }
   }
 
  private:
   SharedSpace* shared_space_;
+  SharedTrustedSpace* shared_trusted_space_;
   SharedLargeObjectSpace* shared_lo_space_;
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space_;
 };
 
 class HeapVerification final : public SpaceVerificationVisitor {
@@ -281,8 +290,14 @@ class HeapVerification final : public SpaceVerificationVisitor {
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
   NewLargeObjectSpace* new_lo_space() const { return heap_->new_lo_space(); }
   TrustedSpace* trusted_space() const { return heap_->trusted_space(); }
+  SharedTrustedSpace* shared_trusted_space() const {
+    return heap_->shared_trusted_space();
+  }
   TrustedLargeObjectSpace* trusted_lo_space() const {
     return heap_->trusted_lo_space();
+  }
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space() const {
+    return heap_->shared_trusted_lo_space();
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -349,7 +364,9 @@ void HeapVerification::Verify() {
   VerifySpace(code_lo_space());
 
   VerifySpace(trusted_space());
+  VerifySpace(shared_trusted_space());
   VerifySpace(trusted_lo_space());
+  VerifySpace(shared_trusted_lo_space());
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
@@ -413,13 +430,22 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
     }
 
     case SHARED_SPACE:
-    case SHARED_LO_SPACE: {
+    case SHARED_TRUSTED_SPACE:
+    case SHARED_LO_SPACE:
+    case SHARED_TRUSTED_LO_SPACE: {
       VerifySharedHeapObjectVisitor visitor(heap());
       object->Iterate(cage_base_, &visitor);
       break;
     }
 
-    default: {
+    case NEW_SPACE:
+    case OLD_SPACE:
+    case TRUSTED_SPACE:
+    case CODE_SPACE:
+    case LO_SPACE:
+    case NEW_LO_SPACE:
+    case CODE_LO_SPACE:
+    case TRUSTED_LO_SPACE: {
       VerifyPointersVisitor visitor(heap());
       object->Iterate(cage_base_, &visitor);
       break;
