@@ -167,7 +167,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(x1);
   __ Ret();
 
   __ Bind(&stack_overflow);
@@ -339,7 +339,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Leave construct frame.
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(x1);
   __ Ret();
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -2372,7 +2372,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Peek(arg_array, 2 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc);
   __ PushArgument(this_arg);
 
   // ----------- S t a t e -------------
@@ -2508,7 +2508,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Peek(arguments_list, 3 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc);
   __ PushArgument(this_argument);
 
   // ----------- S t a t e -------------
@@ -2565,7 +2565,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  __ DropArguments(argc, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(argc);
 
   // Push receiver (undefined).
   __ PushArgument(undefined_value);
@@ -4005,7 +4005,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Bind(&suspend, BranchTargetIdentifier::kBtiJump);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   // Pop receiver + parameter.
-  __ DropArguments(2, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(2);
   __ Ret(lr);
 }
 }  // namespace
@@ -4381,7 +4381,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // instance and result array without suspend or
   // or promise resolve/reject params for callback.
   constexpr int64_t stack_arguments_in = 2;
-  __ DropArguments(stack_arguments_in, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(stack_arguments_in);
   __ Ret();
 
   // Catch handler for the stack-switching wrapper: reject the promise with the

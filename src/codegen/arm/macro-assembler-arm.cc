@@ -1375,26 +1375,15 @@ void MacroAssembler::StubPrologue(StackFrame::Type type) {
 
 void MacroAssembler::Prologue() { PushStandardFrame(r1); }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
-  int receiver_bytes = (mode == kCountExcludesReceiver) ? kPointerSize : 0;
+void MacroAssembler::DropArguments(Register count) {
   add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC);
-  if (receiver_bytes != 0) {
-    add(sp, sp, Operand(receiver_bytes), LeaveCC);
-  }
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
-                                                     Register receiver,
-                                                     ArgumentsCountMode mode) {
+                                                     Register receiver) {
   DCHECK(!AreAliased(argc, receiver));
-  if (mode == kCountExcludesReceiver) {
-    // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, kCountIncludesReceiver);
-    str(receiver, MemOperand(sp, 0));
-  } else {
-    DropArguments(argc, mode);
-    push(receiver);
-  }
+  DropArguments(argc);
+  push(receiver);
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,

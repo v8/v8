@@ -127,7 +127,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(edx, ecx, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(edx, ecx);
   __ ret(0);
 
   __ bind(&stack_overflow);
@@ -265,7 +265,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(edx, ecx, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(edx, ecx);
   __ ret(0);
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -756,8 +756,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2,
-                   MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, scratch2);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -2121,8 +2120,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ DropArgumentsAndPushNewReceiver(eax, edi, ecx,
-                                       MacroAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(eax, edi, ecx);
 
     // Restore receiver to edi.
     __ movd(edi, xmm0);
@@ -2228,8 +2226,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     // Spill argumentsList to use edx as a scratch register.
     __ movd(xmm0, edx);
 
-    __ DropArgumentsAndPushNewReceiver(eax, ecx, edx,
-                                       MacroAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(eax, ecx, edx);
 
     // Restore argumentsList.
     __ movd(edx, xmm0);
@@ -2285,8 +2282,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ movd(xmm0, ecx);
 
     __ DropArgumentsAndPushNewReceiver(
-        eax, masm->RootAsOperand(RootIndex::kUndefinedValue), ecx,
-        MacroAssembler::kCountIncludesReceiver);
+        eax, masm->RootAsOperand(RootIndex::kUndefinedValue), ecx);
 
     // Restore argumentsList.
     __ movd(ecx, xmm0);

@@ -128,7 +128,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(rbx, rcx, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(rbx, rcx);
 
   __ ret(0);
 
@@ -268,7 +268,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, ConstructFrameConstants::kLengthOffset));
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ DropArguments(rbx, rcx, MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(rbx, rcx);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -961,8 +961,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2,
-                   MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, scratch2);
 }
 
 // Tail-call |function_id| if |actual_state| == |expected_state|
@@ -2106,8 +2105,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       MacroAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx);
   }
 
   // ----------- S t a t e -------------
@@ -2209,8 +2207,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       MacroAssembler::kCountIncludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx);
   }
 
   // ----------- S t a t e -------------
@@ -2259,8 +2256,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ movq(rdx, args[3]);  // new.target
     __ bind(&done);
     __ DropArgumentsAndPushNewReceiver(
-        rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx,
-        MacroAssembler::kCountIncludesReceiver);
+        rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx);
   }
 
   // ----------- S t a t e -------------
