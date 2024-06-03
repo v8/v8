@@ -1290,6 +1290,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
     Descriptor d = Descriptor::DataField(
         name, descriptors->GetFieldIndex(descriptor), details.attributes(),
         cur_new_constness, cur_new_representation, wrapped_type);
+    DCHECK_EQ(descriptors->GetKey(descriptor), *d.key_);
     descriptors->Replace(descriptor, &d);
   }
 }

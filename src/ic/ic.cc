@@ -3403,6 +3403,9 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
   Tagged<DescriptorArray> target_descriptors =
       target_map->instance_descriptors();
   for (InternalIndex i : target_map->IterateOwnDescriptors()) {
+    if (descriptors->GetKey(i) != target_descriptors->GetKey(i)) {
+      return false;
+    }
     PropertyDetails details = descriptors->GetDetails(i);
     PropertyDetails target_details = target_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), PropertyKind::kData);
