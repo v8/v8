@@ -24,7 +24,7 @@
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page-inl.h"
-#include "src/heap/page-inl.h"
+#include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"

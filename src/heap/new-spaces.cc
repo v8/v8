@@ -19,7 +19,7 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/page-inl.h"
+#include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"

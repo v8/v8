@@ -9,7 +9,7 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page.h"
+#include "src/heap/large-page-metadata.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/mutable-page-inl.h"

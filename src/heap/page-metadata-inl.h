@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_PAGE_INL_H_
-#define V8_HEAP_PAGE_INL_H_
+#ifndef V8_HEAP_PAGE_METADATA_INL_H_
+#define V8_HEAP_PAGE_METADATA_INL_H_
 
 #include "src/heap/memory-chunk-inl.h"
-#include "src/heap/page.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
@@ -61,4 +61,4 @@ void PageMetadata::ClearEvacuationCandidate() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_PAGE_INL_H_
+#endif  // V8_HEAP_PAGE_METADATA_INL_H_

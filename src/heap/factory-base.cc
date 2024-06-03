@@ -12,7 +12,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/large-page-inl.h"
+#include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"

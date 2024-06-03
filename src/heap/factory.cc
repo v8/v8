@@ -24,7 +24,7 @@
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page-inl.h"
+#include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page.h"

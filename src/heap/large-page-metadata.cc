@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/large-page.h"
+#include "src/heap/large-page-metadata.h"
 
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"

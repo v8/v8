@@ -21,7 +21,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page.h"
-#include "src/heap/page.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"

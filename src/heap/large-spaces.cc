@@ -13,7 +13,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page.h"
+#include "src/heap/large-page-metadata.h"
 #include "src/heap/list.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking.h"

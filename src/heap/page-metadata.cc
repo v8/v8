@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/page-metadata-inl.h"
+
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/page-inl.h"
 #include "src/heap/paged-spaces.h"
 
 namespace v8 {
