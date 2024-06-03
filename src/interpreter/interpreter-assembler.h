@@ -105,9 +105,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // - Resume copies only the registers from the generator, the arguments
   //   are copied by the ResumeGenerator trampoline.
   TNode<FixedArray> ExportParametersAndRegisterFile(
-      TNode<FixedArray> array, const RegListNodePair& registers);
+      TNode<FixedArray> array, const RegListNodePair& registers,
+      TNode<Int32T> formal_parameter_count);
   TNode<FixedArray> ImportRegisterFile(TNode<FixedArray> array,
-                                       const RegListNodePair& registers);
+                                       const RegListNodePair& registers,
+                                       TNode<Int32T> formal_parameter_count);
 
   // Loads from and stores to the interpreter register file.
   TNode<Object> LoadRegister(Register reg);
@@ -295,7 +297,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
   void AbortIfRegisterCountInvalid(TNode<FixedArray> parameters_and_registers,
-                                   TNode<IntPtrT> parameter_count,
+                                   TNode<IntPtrT> formal_parameter_count,
                                    TNode<UintPtrT> register_count);
 
   // Attempts to OSR.
@@ -329,9 +331,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Load the bytecode at |bytecode_offset|.
   TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
-
-  // Load the parameter count of the current function from its BytecodeArray.
-  TNode<IntPtrT> LoadParameterCountWithoutReceiver();
 
  private:
   // Returns a pointer to the current function's BytecodeArray object.
