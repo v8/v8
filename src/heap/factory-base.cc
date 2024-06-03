@@ -334,7 +334,8 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    uint16_t parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
+    uint16_t parameter_count, uint16_t max_arguments,
+    DirectHandle<TrustedFixedArray> constant_pool,
     DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
@@ -350,6 +351,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
+  instance->set_max_arguments(max_arguments);
   instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
   instance->set_constant_pool(*constant_pool);

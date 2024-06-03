@@ -57,6 +57,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Get the number of parameters expected by function.
   uint16_t parameter_count() const { return parameter_count_; }
+  uint16_t max_arguments() const { return max_arguments_; }
+
+  void UpdateMaxArguments(uint16_t max_arguments) {
+    max_arguments_ = std::max(max_arguments_, max_arguments);
+  }
 
   // Get the number of locals required for bytecode array.
   int locals_count() const {
@@ -659,6 +664,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
   uint16_t parameter_count_;
+  uint16_t max_arguments_;
   int local_register_count_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;

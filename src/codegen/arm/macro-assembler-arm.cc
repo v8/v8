@@ -1388,10 +1388,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       add(sp, sp, Operand(count, LSL, kPointerSizeLog2 - kSmiTagSize), LeaveCC);
       break;
     }
-    case kCountIsBytes: {
-      add(sp, sp, count, LeaveCC);
-      break;
-    }
   }
   if (receiver_bytes != 0) {
     add(sp, sp, Operand(receiver_bytes), LeaveCC);

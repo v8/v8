@@ -1469,8 +1469,8 @@ class FrameStateDescriptor : public ZoneObject {
  public:
   FrameStateDescriptor(
       Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-      OutputFrameStateCombine state_combine, size_t parameters_count,
-      size_t locals_count, size_t stack_count,
+      OutputFrameStateCombine state_combine, uint16_t parameters_count,
+      uint16_t max_arguments, size_t locals_count, size_t stack_count,
       MaybeHandle<SharedFunctionInfo> shared_info,
       FrameStateDescriptor* outer_state = nullptr,
       uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max(),
@@ -1479,7 +1479,8 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateType type() const { return type_; }
   BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  size_t parameters_count() const { return parameters_count_; }
+  uint16_t parameters_count() const { return parameters_count_; }
+  uint16_t max_arguments() const { return max_arguments_; }
   size_t locals_count() const { return locals_count_; }
   size_t stack_count() const { return stack_count_; }
   MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -1536,7 +1537,8 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateType type_;
   BytecodeOffset bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
-  const size_t parameters_count_;
+  const uint16_t parameters_count_;
+  const uint16_t max_arguments_;
   const size_t locals_count_;
   const size_t stack_count_;
   const size_t total_conservative_frame_size_in_bytes_;
@@ -1552,7 +1554,7 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
   JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
                                BytecodeOffset bailout_id,
                                OutputFrameStateCombine state_combine,
-                               size_t parameters_count, size_t locals_count,
+                               uint16_t parameters_count, size_t locals_count,
                                size_t stack_count,
                                MaybeHandle<SharedFunctionInfo> shared_info,
                                FrameStateDescriptor* outer_state,

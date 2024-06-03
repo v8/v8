@@ -2776,6 +2776,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
   copy->set_length(raw_source->length());
   copy->set_frame_size(raw_source->frame_size());
   copy->set_parameter_count(raw_source->parameter_count());
+  copy->set_max_arguments(raw_source->max_arguments());
   copy->set_incoming_new_target_or_generator_register(
       raw_source->incoming_new_target_or_generator_register());
   copy->set_constant_pool(raw_source->constant_pool());

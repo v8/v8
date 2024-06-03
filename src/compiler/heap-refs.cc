@@ -1528,8 +1528,11 @@ int BytecodeArrayRef::length() const { return object()->length(); }
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();
 }
-int BytecodeArrayRef::parameter_count() const {
+uint16_t BytecodeArrayRef::parameter_count() const {
   return object()->parameter_count();
+}
+uint16_t BytecodeArrayRef::max_arguments() const {
+  return object()->max_arguments();
 }
 interpreter::Register
 BytecodeArrayRef::incoming_new_target_or_generator_register() const {

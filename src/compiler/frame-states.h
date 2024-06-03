@@ -90,13 +90,14 @@ enum class FrameStateType {
 
 class FrameStateFunctionInfo {
  public:
-  FrameStateFunctionInfo(FrameStateType type, int parameter_count,
-                         int local_count,
+  FrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
+                         uint16_t max_arguments, int local_count,
                          Handle<SharedFunctionInfo> shared_info,
                          uint32_t wasm_liftoff_frame_size = 0,
                          uint32_t wasm_function_index = -1)
       : type_(type),
         parameter_count_(parameter_count),
+        max_arguments_(max_arguments),
         local_count_(local_count),
 #if V8_ENABLE_WEBASSEMBLY
         wasm_liftoff_frame_size_(wasm_liftoff_frame_size),
@@ -106,7 +107,8 @@ class FrameStateFunctionInfo {
   }
 
   int local_count() const { return local_count_; }
-  int parameter_count() const { return parameter_count_; }
+  uint16_t parameter_count() const { return parameter_count_; }
+  uint16_t max_arguments() const { return max_arguments_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
   uint32_t wasm_liftoff_frame_size() const {
@@ -124,7 +126,8 @@ class FrameStateFunctionInfo {
 
  private:
   const FrameStateType type_;
-  const int parameter_count_;
+  const uint16_t parameter_count_;
+  const uint16_t max_arguments_;
   const int local_count_;
 #if V8_ENABLE_WEBASSEMBLY
   const uint32_t wasm_liftoff_frame_size_ = 0;
@@ -139,11 +142,12 @@ class FrameStateFunctionInfo {
 #if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  public:
-  JSToWasmFrameStateFunctionInfo(FrameStateType type, int parameter_count,
+  JSToWasmFrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
                                  int local_count,
                                  Handle<SharedFunctionInfo> shared_info,
                                  const wasm::FunctionSig* signature)
-      : FrameStateFunctionInfo(type, parameter_count, local_count, shared_info),
+      : FrameStateFunctionInfo(type, parameter_count, 0, local_count,
+                               shared_info),
         signature_(signature) {
     DCHECK_NOT_NULL(signature);
   }
@@ -174,8 +178,11 @@ class FrameStateInfo final {
     return info_ == nullptr ? MaybeHandle<SharedFunctionInfo>()
                             : info_->shared_info();
   }
-  int parameter_count() const {
+  uint16_t parameter_count() const {
     return info_ == nullptr ? 0 : info_->parameter_count();
+  }
+  uint16_t max_arguments() const {
+    return info_ == nullptr ? 0 : info_->max_arguments();
   }
   int local_count() const {
     return info_ == nullptr ? 0 : info_->local_count();

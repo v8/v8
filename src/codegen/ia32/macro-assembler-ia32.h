@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Helpers for argument handling
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi };
   void DropArguments(Register count, Register scratch, ArgumentsCountType type,
                      ArgumentsCountMode mode);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,

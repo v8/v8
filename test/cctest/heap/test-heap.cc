@@ -626,6 +626,7 @@ TEST(BytecodeArray) {
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int32_t kFrameSize = 32;
   static const uint16_t kParameterCount = 2;
+  static const uint16_t kMaxArguments = 0;
 
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -646,9 +647,9 @@ TEST(BytecodeArray) {
   Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(3);
 
   // Allocate and initialize BytecodeArray
-  Handle<BytecodeArray> array =
-      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
-                                kParameterCount, constant_pool, handler_table);
+  Handle<BytecodeArray> array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
 
   CHECK(IsBytecodeArray(*array));
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));

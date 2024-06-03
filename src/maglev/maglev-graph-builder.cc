@@ -576,7 +576,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     MaglevGraphBuilder* builder, int variable_count)
     : builder_(builder),
       compilation_unit_(MaglevCompilationUnit::NewDummy(
-          builder->zone(), builder->compilation_unit(), variable_count, 0)),
+          builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
       pseudo_frame_(*compilation_unit_, nullptr) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.

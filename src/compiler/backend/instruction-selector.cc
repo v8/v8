@@ -5678,7 +5678,8 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(
     Zone* zone, turboshaft::Graph* graph,
     const turboshaft::FrameStateOp& state) {
   const FrameStateInfo& state_info = state.data->frame_state_info;
-  int parameters = state_info.parameter_count();
+  uint16_t parameters = state_info.parameter_count();
+  uint16_t max_arguments = state_info.max_arguments();
   int locals = state_info.local_count();
   int stack = state_info.stack_count();
 
@@ -5703,7 +5704,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(
 
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
-      state_info.state_combine(), parameters, locals, stack,
+      state_info.state_combine(), parameters, max_arguments, locals, stack,
       state_info.shared_info(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
@@ -5714,7 +5715,8 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
   DCHECK_EQ(FrameState::kFrameStateInputCount, state->InputCount());
   const FrameStateInfo& state_info = FrameStateInfoOf(state->op());
-  int parameters = state_info.parameter_count();
+  uint16_t parameters = state_info.parameter_count();
+  uint16_t max_arguments = state_info.max_arguments();
   int locals = state_info.local_count();
   int stack = state_info.stack_count();
 
@@ -5737,7 +5739,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
 
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
-      state_info.state_combine(), parameters, locals, stack,
+      state_info.state_combine(), parameters, max_arguments, locals, stack,
       state_info.shared_info(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
@@ -5756,7 +5758,8 @@ InstructionSelectorT<TurboshaftAdapter>::GetFrameStateDescriptor(node_t node) {
                                                this->turboshaft_graph(), state);
   *max_unoptimized_frame_height_ =
       std::max(*max_unoptimized_frame_height_,
-               desc->total_conservative_frame_size_in_bytes());
+               desc->total_conservative_frame_size_in_bytes() +
+                   (desc->max_arguments() * kSystemPointerSize));
   return desc;
 }
 
@@ -5767,7 +5770,8 @@ InstructionSelectorT<TurbofanAdapter>::GetFrameStateDescriptor(node_t node) {
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(), state);
   *max_unoptimized_frame_height_ =
       std::max(*max_unoptimized_frame_height_,
-               desc->total_conservative_frame_size_in_bytes());
+               desc->total_conservative_frame_size_in_bytes() +
+                   (desc->max_arguments() * kSystemPointerSize));
   return desc;
 }
 

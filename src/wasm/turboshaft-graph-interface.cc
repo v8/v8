@@ -5437,7 +5437,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     Zone* zone = Asm().data()->shared_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
-        static_cast<int>(param_count), static_cast<int>(local_count),
+        static_cast<uint16_t>(param_count), 0, static_cast<int>(local_count),
         shared_info, GetLiftoffFrameSize(decoder), func_index_);
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),

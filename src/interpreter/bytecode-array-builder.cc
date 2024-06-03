@@ -52,6 +52,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       constant_array_builder_(zone),
       handler_table_builder_(zone),
       parameter_count_(parameter_count),
+      max_arguments_(0),
       local_register_count_(locals_count),
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
@@ -99,8 +100,9 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(IsolateT* isolate) {
 
   Handle<TrustedByteArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
-  return bytecode_array_writer_.ToBytecodeArray(
-      isolate, register_count, parameter_count(), handler_table);
+  return bytecode_array_writer_.ToBytecodeArray(isolate, register_count,
+                                                parameter_count(),
+                                                max_arguments(), handler_table);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

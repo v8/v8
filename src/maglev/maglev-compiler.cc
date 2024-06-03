@@ -116,12 +116,14 @@ class MaxCallDepthProcessor {
  private:
   void UpdateMaxDeoptedStackSize(DeoptInfo* deopt_info) {
     const DeoptFrame* deopt_frame = &deopt_info->top_frame();
+    int frame_size = 0;
     if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
       if (&deopt_frame->as_interpreted().unit() == last_seen_unit_) return;
       last_seen_unit_ = &deopt_frame->as_interpreted().unit();
+      frame_size = deopt_frame->as_interpreted().unit().max_arguments() *
+                   kSystemPointerSize;
     }
 
-    int frame_size = 0;
     do {
       frame_size += ConservativeFrameSize(deopt_frame);
       deopt_frame = deopt_frame->parent();

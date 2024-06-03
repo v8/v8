@@ -2768,14 +2768,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       leaq(rsp, Operand(rsp, index.reg, index.scale, receiver_bytes));
       break;
     }
-    case kCountIsBytes: {
-      if (receiver_bytes == 0) {
-        addq(rsp, count);
-      } else {
-        leaq(rsp, Operand(rsp, count, times_1, receiver_bytes));
-      }
-      break;
-    }
   }
 }
 

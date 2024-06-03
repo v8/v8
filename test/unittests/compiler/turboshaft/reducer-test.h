@@ -118,7 +118,7 @@ class TestInstance {
 
     FrameStateFunctionInfo* function_info =
         zone_->template New<FrameStateFunctionInfo>(
-            FrameStateType::kUnoptimizedFunction, 0, 0,
+            FrameStateType::kUnoptimizedFunction, 0, 0, 0,
             Handle<SharedFunctionInfo>{});
     const FrameStateInfo* frame_state_info =
         zone_->template New<FrameStateInfo>(BytecodeOffset(0),

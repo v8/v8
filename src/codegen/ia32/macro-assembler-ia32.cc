@@ -1104,14 +1104,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
           Operand(esp, count, times_half_system_pointer_size, receiver_bytes));
       break;
     }
-    case kCountIsBytes: {
-      if (receiver_bytes == 0) {
-        add(esp, count);
-      } else {
-        lea(esp, Operand(esp, count, times_1, receiver_bytes));
-      }
-      break;
-    }
   }
 }
 

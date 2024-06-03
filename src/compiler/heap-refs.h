@@ -977,7 +977,8 @@ class BytecodeArrayRef : public HeapObjectRef {
   int length() const;
 
   int register_count() const;
-  int parameter_count() const;
+  uint16_t parameter_count() const;
+  uint16_t max_arguments() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
   Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;

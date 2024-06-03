@@ -1066,8 +1066,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
               : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kUnoptimizedFunction,
-          bytecode_array().parameter_count(), bytecode_array().register_count(),
-          shared_info.object())),
+          bytecode_array().parameter_count(), bytecode_array().max_arguments(),
+          bytecode_array().register_count(), shared_info.object())),
       source_position_iterator_(std::make_unique<SourcePositionTableIterator>(
           bytecode_array().SourcePositionTable(broker))),
       bytecode_iterator_(bytecode_array().object()),

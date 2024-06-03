@@ -249,8 +249,9 @@ FrameState JSInliner::CreateArtificialFrameState(
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
   const FrameStateFunctionInfo* state_info =
-      common()->CreateFrameStateFunctionInfo(
-          frame_state_type, parameter_count_with_receiver, 0, shared.object());
+      common()->CreateFrameStateFunctionInfo(frame_state_type,
+                                             parameter_count_with_receiver, 0,
+                                             0, shared.object());
 
   const Operator* op = common()->FrameState(
       BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), state_info);

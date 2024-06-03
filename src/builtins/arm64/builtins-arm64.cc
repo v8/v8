@@ -1059,14 +1059,13 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Get the size of the formal parameters + receiver (in bytes).
   __ Ldr(params_size,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ Ldr(params_size.W(),
-         FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
+  __ Ldrh(params_size.W(),
+          FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ Ldr(actual_params_size,
          MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ lsl(actual_params_size, actual_params_size, kSystemPointerSizeLog2);
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -1077,11 +1076,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  if (v8_flags.debug_code) {
-    __ Tst(params_size, kSystemPointerSize - 1);
-    __ Check(eq, AbortReason::kUnexpectedValue);
-  }
-  __ Lsr(params_size, params_size, kSystemPointerSizeLog2);
   __ DropArguments(params_size);
 }
 
@@ -1419,9 +1413,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size from the BytecodeArray object.
     __ Ldr(w11, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                 BytecodeArray::kFrameSizeOffset));
+    __ Ldrh(w12, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                 BytecodeArray::kMaxArgumentsOffset));
+    __ Add(w12, w11, Operand(w12, LSL, kSystemPointerSizeLog2));
 
     // Do a stack check to ensure we don't go over the limit.
-    __ Sub(x10, sp, Operand(x11));
+    __ Sub(x10, sp, Operand(x12));
     {
       UseScratchRegisterScope temps(masm);
       Register scratch = temps.AcquireX();
@@ -1592,8 +1589,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
                                         Register first_arg_index,
                                         Register spread_arg_out,
                                         ConvertReceiverMode receiver_mode,
-                                        InterpreterPushArgsMode mode,
-                                        bool stack_check_already_done = false) {
+                                        InterpreterPushArgsMode mode) {
   ASM_CODE_COMMENT(masm);
   Register last_arg_addr = x10;
   Register stack_addr = x11;
@@ -1614,17 +1610,6 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
   // Round up to an even number of slots.
   __ Add(slots_to_claim, num_args, 1);
   __ Bic(slots_to_claim, slots_to_claim, 1);
-
-  if (!stack_check_already_done) {
-    // Add a stack check before pushing arguments.
-    Label stack_overflow, done;
-    __ StackOverflowCheck(slots_to_claim, &stack_overflow);
-    __ B(&done);
-    __ Bind(&stack_overflow);
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-    __ Unreachable();
-    __ Bind(&done);
-  }
 
   __ Claim(slots_to_claim);
   {
@@ -1859,10 +1844,6 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ TestAndBranchIfAllClear(x2, Map::Bits1::IsConstructorBit::kMask,
                              &non_constructor);
 
-  // Add a stack check before pushing arguments.
-  Label stack_overflow;
-  __ StackOverflowCheck(x0, &stack_overflow);
-
   // Enter a construct frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
@@ -1881,7 +1862,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   // Push arguments + implicit receiver.
   GenerateInterpreterPushArgs(masm, x0, x4, Register::no_reg(),
                               ConvertReceiverMode::kNullOrUndefined,
-                              InterpreterPushArgsMode::kOther, true);
+                              InterpreterPushArgsMode::kOther);
   __ Poke(x2, 0 * kSystemPointerSize);
 
   // Check if it is a builtin call.
@@ -1962,10 +1943,6 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   // Restore the context from the frame.
   __ Ldr(cp, MemOperand(fp, FastConstructFrameConstants::kContextOffset));
   __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-  __ Unreachable();
-
-  __ Bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
   __ Unreachable();
 
   // Called Construct on an Object that doesn't have a [[Construct]] internal

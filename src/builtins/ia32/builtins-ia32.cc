@@ -747,14 +747,12 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Get the size of the formal parameters (in bytes).
   __ mov(params_size,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(params_size,
-         FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
+  __ movzx_w(params_size,
+             FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters (in bytes).
   __ mov(actual_params_size, Operand(ebp, StandardFrameConstants::kArgCOffset));
-  __ lea(actual_params_size,
-         Operand(actual_params_size, times_system_pointer_size, 0));
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -765,7 +763,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsBytes,
+  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsInteger,
                    MacroAssembler::kCountIncludesReceiver);
 }
 

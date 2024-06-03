@@ -3321,12 +3321,13 @@ class GraphBuilder {
       maglev::InterpretedDeoptFrame& maglev_frame,
       OutputFrameStateCombine combine) {
     FrameStateType type = FrameStateType::kUnoptimizedFunction;
-    int parameter_count = maglev_frame.unit().parameter_count();
+    uint16_t parameter_count = maglev_frame.unit().parameter_count();
+    uint16_t max_arguments = maglev_frame.unit().max_arguments();
     int local_count = maglev_frame.unit().register_count();
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, local_count, shared_info);
+        type, parameter_count, max_arguments, local_count, shared_info);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              combine, info);
@@ -3335,12 +3336,14 @@ class GraphBuilder {
   const FrameStateInfo* MakeFrameStateInfo(
       maglev::InlinedArgumentsDeoptFrame& maglev_frame) {
     FrameStateType type = FrameStateType::kInlinedExtraArguments;
-    int parameter_count = static_cast<int>(maglev_frame.arguments().size());
+    uint16_t parameter_count =
+        static_cast<uint16_t>(maglev_frame.arguments().size());
+    uint16_t max_arguments = 0;
     int local_count = 0;
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, local_count, shared_info);
+        type, parameter_count, max_arguments, local_count, shared_info);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              OutputFrameStateCombine::Ignore(),
@@ -3352,10 +3355,11 @@ class GraphBuilder {
     FrameStateType type = FrameStateType::kConstructInvokeStub;
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
-    constexpr int kParameterCount = 1;  // Only 1 parameter: the receiver.
+    constexpr uint16_t kParameterCount = 1;  // Only 1 parameter: the receiver.
+    constexpr uint16_t kMaxArguments = 0;
     constexpr int kLocalCount = 0;
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, kParameterCount, kLocalCount, shared_info);
+        type, kParameterCount, kMaxArguments, kLocalCount, shared_info);
 
     return graph_zone()->New<FrameStateInfo>(
         BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), info);
@@ -3366,7 +3370,8 @@ class GraphBuilder {
     FrameStateType type = maglev_frame.is_javascript()
                               ? FrameStateType::kJavaScriptBuiltinContinuation
                               : FrameStateType::kBuiltinContinuation;
-    int parameter_count = maglev_frame.parameters().length();
+    uint16_t parameter_count =
+        static_cast<uint16_t>(maglev_frame.parameters().length());
     constexpr int kExtraFixedJSFrameParameters = 3;
     if (maglev_frame.is_javascript()) {
       parameter_count += kExtraFixedJSFrameParameters;
@@ -3374,8 +3379,9 @@ class GraphBuilder {
     Handle<SharedFunctionInfo> shared_info =
         GetSharedFunctionInfo(maglev_frame).object();
     constexpr int kLocalCount = 0;
+    constexpr uint16_t kMaxArguments = 0;
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, kLocalCount, shared_info);
+        type, parameter_count, kMaxArguments, kLocalCount, shared_info);
 
     return graph_zone()->New<FrameStateInfo>(
         Builtins::GetContinuationBytecodeOffset(maglev_frame.builtin_id()),
