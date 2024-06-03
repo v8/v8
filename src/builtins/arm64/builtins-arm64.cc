@@ -5107,7 +5107,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(kApiStackSpace * kSystemPointerSize == sizeof(PCI));
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(x10, kApiStackSpace, StackFrame::EXIT);
+  __ EnterExitFrame(x10, kApiStackSpace, StackFrame::API_ACCESSOR_EXIT);
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
   // Initialize v8::PropertyCallbackInfo::args_ field.

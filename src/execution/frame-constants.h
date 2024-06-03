@@ -415,8 +415,8 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
 // passed to the JS function (receiver and etc.).
 class ApiCallbackExitFrameConstants : public ExitFrameConstants {
  public:
-  // The following two constants must be in sync with v8::FunctionCallbackInfo's
-  // layout.
+  // The following constants must be in sync with v8::FunctionCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
   static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
   static constexpr int kFunctionCallbackInfoArgsLength = 6;
 
@@ -436,7 +436,7 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kAdditionalParametersCount = 3;
 #endif  // V8_TARGET_ARCH_ARM64
 
-  // FunctionCallbackInfo.
+  // v8::FunctionCallbackInfo.
   static constexpr int kFunctionCallbackInfoOffset =
       kOptionalPaddingOffset + kOptionalPaddingSize;
   static constexpr int kNewTargetOffset =
@@ -446,6 +446,31 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kFirstArgumentOffset =
       kFunctionCallbackInfoOffset +
       kFunctionCallbackInfoArgsLength * kSystemPointerSize;
+};
+
+// Behaves like an exit frame but with v8::PropertyCallbackInfo's arguments
+// allocated in GC-ed area of the exit frame.
+class ApiAccessorExitFrameConstants : public ExitFrameConstants {
+ public:
+  // The following constants must be in sync with v8::PropertyCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
+  static constexpr int kPropertyCallbackInfoReceiverIndex = 6;
+  static constexpr int kPropertyCallbackInfoHolderIndex = 1;
+  static constexpr int kPropertyCallbackInfoArgsLength = 7;
+
+  // Storage for v8::Local<Name> parameter.
+  static constexpr int kPropertyNameOffset =
+      kCallerPCOffset + 1 * kSystemPointerSize;
+
+  // v8::PropertyCallbackInfo.
+  static constexpr int kPropertyCallbackInfoOffset =
+      kPropertyNameOffset + 1 * kSystemPointerSize;
+  static constexpr int kReceiverOffset =
+      kPropertyCallbackInfoOffset +
+      kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
+  static constexpr int kHolderOffset =
+      kPropertyCallbackInfoOffset +
+      kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

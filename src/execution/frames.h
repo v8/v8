@@ -136,6 +136,7 @@ class StackHandler {
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
   V(API_CALLBACK_EXIT, ApiCallbackExitFrame)                              \
+  V(API_ACCESSOR_EXIT, ApiAccessorExitFrame)                              \
   V(NATIVE, NativeFrame)                                                  \
   V(IRREGEXP, IrregexpFrame)
 
@@ -266,6 +267,7 @@ class StackFrame {
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_fast_construct() const { return type() == FAST_CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
+  bool is_api_accessor_exit() const { return type() == API_ACCESSOR_EXIT; }
   bool is_api_callback_exit() const { return type() == API_CALLBACK_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
 
@@ -888,8 +890,9 @@ class BuiltinExitFrame : public ExitFrame {
 
 // Api callback exit frames are a special case of exit frames, which are used
 // whenever an Api functions (such as v8::Function or v8::FunctionTemplate) are
-// called. Their main purpose is to allow these functions to appear in stack
-// traces.
+// called. Their main purpose is to support preprocessing of exceptions thrown
+// from Api functions and to allow these functions to appear in stack traces
+// (see v8_flags.experimental_stack_trace_frames).
 class ApiCallbackExitFrame : public ExitFrame {
  public:
   Type type() const override { return API_CALLBACK_EXIT; }
@@ -932,6 +935,41 @@ class ApiCallbackExitFrame : public ExitFrame {
   inline FullObjectSlot context_slot() const;
   inline FullObjectSlot target_slot() const;
   inline FullObjectSlot new_target_slot() const;
+
+  friend class StackFrameIteratorBase;
+};
+
+// Api accessor exit frames are a special case of exit frames, which are used
+// whenever an Api property accessor callbacks (v8::AccessorGetterCallback or
+// v8::AccessorSetterCallback) are called. Their main purpose is to support
+// preprocessing of exceptions thrown from these callbacks.
+class ApiAccessorExitFrame : public ExitFrame {
+ public:
+  Type type() const override { return API_ACCESSOR_EXIT; }
+
+  inline Tagged<Name> property_name() const;
+
+  inline Tagged<Object> receiver() const;
+  inline Tagged<Object> holder() const;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  // Summarize Frame
+  void Summarize(std::vector<FrameSummary>* frames) const override;
+
+  static ApiAccessorExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_api_accessor_exit());
+    return static_cast<ApiAccessorExitFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ApiAccessorExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  inline FullObjectSlot property_name_slot() const;
+  inline FullObjectSlot receiver_slot() const;
+  inline FullObjectSlot holder_slot() const;
 
   friend class StackFrameIteratorBase;
 };

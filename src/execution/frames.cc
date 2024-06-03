@@ -612,7 +612,7 @@ void StackFrameIteratorForProfiler::Advance() {
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     if (frame_->is_exit() || frame_->is_builtin_exit() ||
-        frame_->is_api_callback_exit()) {
+        frame_->is_api_accessor_exit() || frame_->is_api_callback_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
@@ -734,6 +734,7 @@ StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
 StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
   DCHECK_LE(static_cast<uintptr_t>(candidate), StackFrame::NUMBER_OF_TYPES);
   switch (candidate) {
+    case StackFrame::API_ACCESSOR_EXIT:
     case StackFrame::API_CALLBACK_EXIT:
     case StackFrame::BUILTIN_CONTINUATION:
     case StackFrame::BUILTIN_EXIT:
@@ -1037,6 +1038,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
+    case API_ACCESSOR_EXIT:
     case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
@@ -1221,6 +1223,23 @@ void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   frames->push_back(summary);
 }
 
+// Ensure layout of v8::PropertyCallbackInfo is in sync with
+// ApiAccessorExitFrameConstants.
+static_assert(
+    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReceiverIndex ==
+    PropertyCallbackArguments::kThisIndex);
+static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoHolderIndex ==
+              PropertyCallbackArguments::kHolderIndex);
+static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoArgsLength ==
+              PropertyCallbackArguments::kArgsLength);
+
+void ApiAccessorExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
+  // This frame is not supposed to appear in exception stack traces.
+  DCHECK(IsName(property_name()));
+  DCHECK(IsJSReceiver(receiver()));
+  DCHECK(IsJSReceiver(holder()));
+}
+
 namespace {
 void PrintIndex(StringStream* accumulator, StackFrame::PrintMode mode,
                 int index) {
@@ -1292,6 +1311,19 @@ void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
   }
 
   accumulator->Add(")\n\n");
+}
+
+void ApiAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                                 int index) const {
+  DisallowGarbageCollection no_gc;
+
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("api accessor exit frame: ");
+
+  Tagged<Name> name = property_name();
+  Tagged<Object> receiver = this->receiver();
+  Tagged<Object> holder = this->holder();
+  accumulator->Add("(this=%o, holder=%o, name=%o)\n", receiver, holder, name);
 }
 
 Address CommonFrame::GetExpressionAddress(int n) const {

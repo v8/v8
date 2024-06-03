@@ -537,7 +537,12 @@ static void StackCheck(Local<Name> name,
   i::StackFrameIterator iter(isolate);
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
-    CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
+    if (i == 0) {
+      // The topmost frame could be either EXIT frame in case the callback
+      // was called from IC miss or API_ACCESSOR_EXIT in case the callback
+      // was called via CallApiGetter builtin.
+      CHECK(frame->is_exit() || frame->is_api_accessor_exit());
+    }
     i::Tagged<i::Code> code = frame->LookupCode();
     CHECK(code->contains(isolate, frame->pc()));
     iter.Advance();

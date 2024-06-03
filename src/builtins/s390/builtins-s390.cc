@@ -3800,7 +3800,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   }
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(scratch, apiStackSpace, StackFrame::EXIT);
+  __ EnterExitFrame(scratch, apiStackSpace, StackFrame::API_ACCESSOR_EXIT);
 
   if (!ABI_PASSES_HANDLES_IN_REGS) {
     // pass 1st arg by reference

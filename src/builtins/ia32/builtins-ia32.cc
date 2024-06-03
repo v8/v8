@@ -4739,7 +4739,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static constexpr int kApiStackSpace = 1;
   static_assert(kApiStackSpace * kSystemPointerSize == sizeof(PCI));
 
-  __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::EXIT,
+  __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::API_ACCESSOR_EXIT,
                     api_function_address);
   if (v8_flags.debug_code) {
     __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
