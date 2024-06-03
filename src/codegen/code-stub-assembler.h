@@ -1958,6 +1958,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       TNode<SharedFunctionInfo> sfi);
 
+  TNode<Int32T> LoadBytecodeArrayParameterCount(
+      TNode<BytecodeArray> bytecode_array);
+  TNode<Int32T> LoadBytecodeArrayParameterCountWithoutReceiver(
+      TNode<BytecodeArray> bytecode_array);
+
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);
 

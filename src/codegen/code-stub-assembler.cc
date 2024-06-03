@@ -3534,6 +3534,20 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   return CAST(var_result.value());
 }
 
+TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCount(
+    TNode<BytecodeArray> bytecode_array) {
+  TNode<Int32T> parameter_size = LoadObjectField<Int32T>(
+      bytecode_array, BytecodeArray::kParameterSizeOffset);
+  return Signed(
+      Word32Shr(parameter_size, Int32Constant(kSystemPointerSizeLog2)));
+}
+
+TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCountWithoutReceiver(
+    TNode<BytecodeArray> bytecode_array) {
+  return Int32Sub(LoadBytecodeArrayParameterCount(bytecode_array),
+                  Int32Constant(kJSArgcReceiverSlots));
+}
+
 void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
                                                       int offset,
                                                       TNode<Word32T> value) {
