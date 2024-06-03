@@ -20,27 +20,4 @@
 #   3. Remove the override in this file again to ensure there is a single
 #      configuration only.
 
-{
-  'v8_linux32_perf': {
-    'swarming_bot_ids': [
-        'lin-95-e504',
-        'lin-96-e504',
-        'lin-98-e504',
-        'lin-99-e504',
-    ],
-  },
-  'v8_linux64_perf': {
-    'swarming_bot_ids': [
-        'lin-77-e504',
-        'lin-92-e504',
-        'lin-93-e504',
-        'lin-94-e504',
-        'lin-97-e504',
-    ],
-  },
-  'v8_linux64_fastlane_perf': {
-    'swarming_bot_ids': [
-      'lin-100-e504',
-    ],
-  },
-}
+{}
