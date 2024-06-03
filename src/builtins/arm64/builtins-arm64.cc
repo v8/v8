@@ -87,8 +87,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     }
 
     // Push number of arguments.
-    __ SmiTag(x11, argc);
-    __ Push(x11, padreg);
+    __ Push(argc, padreg);
 
     // Round up to maintain alignment.
     Register slot_count = x2;
@@ -142,7 +141,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  -- sp[(n+0)*kSystemPointerSize]: argument n
     //  -- sp[(n+1)*kSystemPointerSize]: padding
     //  -- sp[(n+2)*kSystemPointerSize]: padding
-    //  -- sp[(n+3)*kSystemPointerSize]: number of arguments (tagged)
+    //  -- sp[(n+3)*kSystemPointerSize]: number of arguments
     //  -- sp[(n+4)*kSystemPointerSize]: context (pushed by FrameScope)
     // If argc is even:
     //  --     sp[0*kSystemPointerSize]: the hole (receiver)
@@ -151,7 +150,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  -- sp[(n-1)*kSystemPointerSize]: argument (n - 1)
     //  -- sp[(n+0)*kSystemPointerSize]: argument n
     //  -- sp[(n+1)*kSystemPointerSize]: padding
-    //  -- sp[(n+2)*kSystemPointerSize]: number of arguments (tagged)
+    //  -- sp[(n+2)*kSystemPointerSize]: number of arguments
     //  -- sp[(n+3)*kSystemPointerSize]: context (pushed by FrameScope)
     // -----------------------------------
 
@@ -160,10 +159,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
     // Restore the context from the frame.
     __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
-    // Restore smi-tagged arguments count from the frame. Use fp relative
+    // Restore arguments count from the frame. Use fp relative
     // addressing to avoid the circular dependency between padding existence and
     // argc parity.
-    __ SmiUntag(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
 
@@ -207,14 +206,13 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   }
 
   // Preserve the incoming parameters on the stack.
-  __ SmiTag(x0);
   __ Push(x0, x1, padreg, x3);
 
   // ----------- S t a t e -------------
   //  --        sp[0*kSystemPointerSize]: new target
   //  --        sp[1*kSystemPointerSize]: padding
   //  -- x1 and sp[2*kSystemPointerSize]: constructor function
-  //  --        sp[3*kSystemPointerSize]: number of arguments (tagged)
+  //  --        sp[3*kSystemPointerSize]: number of arguments
   //  --        sp[4*kSystemPointerSize]: context (pushed by FrameScope)
   // -----------------------------------
 
@@ -241,7 +239,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  -- Slot 4 / sp[0*kSystemPointerSize]: new target
   //  -- Slot 3 / sp[1*kSystemPointerSize]: padding
   //  -- Slot 2 / sp[2*kSystemPointerSize]: constructor function
-  //  -- Slot 1 / sp[3*kSystemPointerSize]: number of arguments (tagged)
+  //  -- Slot 1 / sp[3*kSystemPointerSize]: number of arguments
   //  -- Slot 0 / sp[4*kSystemPointerSize]: context
   // -----------------------------------
   // Deoptimizer enters here.
@@ -255,7 +253,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Restore constructor function and argument count.
   __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-  __ SmiUntag(x12, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+  __ Ldr(x12, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
   // Copy arguments to the expression stack. The called function pops the
   // receiver along with its arguments, so we need an extra receiver on the
@@ -281,7 +279,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  --        sp[2*kSystemPointerSize]: implicit receiver
   //  --        sp[3*kSystemPointerSize]: padding
   //  -- x1 and sp[4*kSystemPointerSize]: constructor function
-  //  --        sp[5*kSystemPointerSize]: number of arguments (tagged)
+  //  --        sp[5*kSystemPointerSize]: number of arguments
   //  --        sp[6*kSystemPointerSize]: context
   // -----------------------------------
 
@@ -336,8 +334,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ B(eq, &do_throw);
 
   __ Bind(&leave_and_return);
-  // Restore smi-tagged arguments count from the frame.
-  __ SmiUntag(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+  // Restore arguments count from the frame.
+  __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
   // Leave construct frame.
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.

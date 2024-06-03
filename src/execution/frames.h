@@ -1380,6 +1380,8 @@ class ConstructFrame : public InternalFrame {
     return static_cast<ConstructFrame*>(frame);
   }
 
+  void Iterate(RootVisitor* v) const override;
+
  protected:
   inline explicit ConstructFrame(StackFrameIteratorBase* iterator);
 

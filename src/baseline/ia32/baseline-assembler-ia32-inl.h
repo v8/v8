@@ -528,7 +528,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   DCHECK(!AreAliased(weight, params_size, scratch));
 
   Register actual_params_size = scratch;
-  // Compute the size of the actual parameters + receiver (in bytes).
+  // Compute the size of the actual parameters + receiver.
   __ masm()->mov(actual_params_size,
                  MemOperand(ebp, StandardFrameConstants::kArgCOffset));
 
@@ -542,7 +542,6 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->DropArguments(params_size, scratch,
-                           MacroAssembler::kCountIsInteger,
                            MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }

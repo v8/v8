@@ -79,11 +79,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Prologue();
 
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi };
-  void DropArguments(Register count, ArgumentsCountType type,
-                     ArgumentsCountMode mode);
+  void DropArguments(Register count, ArgumentsCountMode mode);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountType type,
                                        ArgumentsCountMode mode);
 
   // Push a standard frame, consisting of lr, fp, context and JS function

@@ -2754,40 +2754,27 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
   PushReturnAddressFrom(scratch);
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
   int receiver_bytes =
       (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
-  switch (type) {
-    case kCountIsInteger: {
-      leaq(rsp, Operand(rsp, count, times_system_pointer_size, receiver_bytes));
-      break;
-    }
-    case kCountIsSmi: {
-      SmiIndex index = SmiToIndex(count, count, kSystemPointerSizeLog2);
-      leaq(rsp, Operand(rsp, index.reg, index.scale, receiver_bytes));
-      break;
-    }
-  }
+  leaq(rsp, Operand(rsp, count, times_system_pointer_size, receiver_bytes));
 }
 
 void MacroAssembler::DropArguments(Register count, Register scratch,
-                                   ArgumentsCountType type,
                                    ArgumentsCountMode mode) {
   DCHECK(!AreAliased(count, scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(count, type, mode);
+  DropArguments(count, mode);
   PushReturnAddressFrom(scratch);
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
                                                      Register scratch,
-                                                     ArgumentsCountType type,
                                                      ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver, scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(argc, type, mode);
+  DropArguments(argc, mode);
   Push(receiver);
   PushReturnAddressFrom(scratch);
 }
@@ -2795,12 +2782,11 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Operand receiver,
                                                      Register scratch,
-                                                     ArgumentsCountType type,
                                                      ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, scratch));
   DCHECK(!receiver.AddressUsesRegister(scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(argc, type, mode);
+  DropArguments(argc, mode);
   Push(receiver);
   PushReturnAddressFrom(scratch);
 }

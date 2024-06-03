@@ -1916,7 +1916,7 @@ void Deoptimizer::DoComputeConstructCreateStubFrame(
 
   // Number of incoming arguments.
   const uint32_t argc = parameters_count;
-  frame_writer.PushRawObject(Smi::FromInt(argc), "argc\n");
+  frame_writer.PushRawValue(argc, "argc\n");
 
   // The constructor function was mentioned explicitly in the
   // CONSTRUCT_STUB_FRAME.

@@ -248,6 +248,21 @@ void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
 
 // -------------------------------------------------------------------------
 
+void ConstructFrame::Iterate(RootVisitor* v) const {
+  // The frame contains the actual argument count (intptr) that should not
+  // be visited.
+  FullObjectSlot argc(
+      &Memory<Address>(fp() + ConstructFrameConstants::kLengthOffset));
+  const int last_object_offset = ConstructFrameConstants::kLastObjectOffset;
+  FullObjectSlot base(&Memory<Address>(sp()));
+  FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, base, argc);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, argc + 1, limit);
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
+}
+
+// -------------------------------------------------------------------------
+
 void JavaScriptStackFrameIterator::Advance() {
   do {
     iterator_.Advance();
@@ -3536,20 +3551,21 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   FullObjectSlot base(&Memory<Address>(sp()));
   FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
-  if (StackFrame::IsTypeMarker(marker)) {
-    v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
-  } else {
-    // The frame contains the actual argument count (intptr) that should not be
-    // visited.
-    FullObjectSlot argc(
-        &Memory<Address>(fp() + StandardFrameConstants::kArgCOffset));
-    v->VisitRootPointers(Root::kStackRoots, nullptr, base, argc);
-    v->VisitRootPointers(Root::kStackRoots, nullptr, argc + 1, limit);
-  }
+  CHECK(StackFrame::IsTypeMarker(marker));
+  v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
-  IterateExpressions(v);
+  // The frame contains the actual argument count (intptr) that should not be
+  // visited.
+  FullObjectSlot argc(
+      &Memory<Address>(fp() + StandardFrameConstants::kArgCOffset));
+  const int last_object_offset = StandardFrameConstants::kLastObjectOffset;
+  FullObjectSlot base(&Memory<Address>(sp()));
+  FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, base, argc);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, argc + 1, limit);
   IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 

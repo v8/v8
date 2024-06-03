@@ -97,9 +97,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ SmiTag(rcx, rax);
     __ Push(rsi);
-    __ Push(rcx);
+    __ Push(rax);
 
     // TODO(victorgomes): When the arguments adaptor is completely removed, we
     // should get the formal parameter count and copy the arguments in its
@@ -122,15 +121,14 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // rdx: new target
     __ InvokeFunction(rdi, rdx, rax, InvokeType::kCall);
 
-    // Restore smi-tagged arguments count from the frame.
+    // Restore arguments count from the frame.
     __ movq(rbx, Operand(rbp, ConstructFrameConstants::kLengthOffset));
 
     // Leave construct frame.
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(rbx, rcx, MacroAssembler::kCountIncludesReceiver);
 
   __ ret(0);
 
@@ -160,9 +158,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
   // Preserve the incoming parameters on the stack.
-  __ SmiTag(rcx, rax);
   __ Push(rsi);
-  __ Push(rcx);
+  __ Push(rax);
   __ Push(rdi);
   __ PushRoot(RootIndex::kTheHoleValue);
   __ Push(rdx);
@@ -199,7 +196,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  -- Slot 4 / sp[0*kSystemPointerSize]  new target
   //  -- Slot 3 / sp[1*kSystemPointerSize]  padding
   //  -- Slot 2 / sp[2*kSystemPointerSize]  constructor function
-  //  -- Slot 1 / sp[3*kSystemPointerSize]  number of arguments (tagged)
+  //  -- Slot 1 / sp[3*kSystemPointerSize]  number of arguments
   //  -- Slot 0 / sp[4*kSystemPointerSize]  context
   // -----------------------------------
   // Deoptimizer enters here.
@@ -226,8 +223,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Restore constructor function and argument count.
   __ movq(rdi, Operand(rbp, ConstructFrameConstants::kConstructorOffset));
-  __ SmiUntagUnsigned(rax,
-                      Operand(rbp, ConstructFrameConstants::kLengthOffset));
+  __ movq(rax, Operand(rbp, ConstructFrameConstants::kLengthOffset));
 
   // Check if we have enough stack space to push all arguments.
   // Argument count in rax.
@@ -272,8 +268,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, ConstructFrameConstants::kLengthOffset));
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(rbx, rcx, MacroAssembler::kCountIncludesReceiver);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -966,7 +961,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsInteger,
+  __ DropArguments(params_size, scratch2,
                    MacroAssembler::kCountIncludesReceiver);
 }
 
@@ -2112,7 +2107,6 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     }
     __ bind(&no_this_arg);
     __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       MacroAssembler::kCountIsInteger,
                                        MacroAssembler::kCountIncludesReceiver);
   }
 
@@ -2216,7 +2210,6 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
     __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
-                                       MacroAssembler::kCountIsInteger,
                                        MacroAssembler::kCountIncludesReceiver);
   }
 
@@ -2267,7 +2260,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
     __ DropArgumentsAndPushNewReceiver(
         rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx,
-        MacroAssembler::kCountIsInteger,
         MacroAssembler::kCountIncludesReceiver);
   }
 

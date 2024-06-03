@@ -214,6 +214,7 @@ class ConstructFrameConstants : public TypedFrameConstants {
   static constexpr int kNewTargetOrImplicitReceiverOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
   DEFINE_TYPED_FRAME_SIZES(5);
+  static constexpr int kLastObjectOffset = kContextOffset;
 };
 
 class FastConstructFrameConstants : public TypedFrameConstants {

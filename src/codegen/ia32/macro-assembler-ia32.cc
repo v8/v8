@@ -1085,45 +1085,27 @@ void MacroAssembler::Prologue() {
   push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
   int receiver_bytes =
       (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
-  switch (type) {
-    case kCountIsInteger: {
-      lea(esp, Operand(esp, count, times_system_pointer_size, receiver_bytes));
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      // SMIs are stored shifted left by 1 byte with the tag being 0.
-      // This is equivalent to multiplying by 2. To convert SMIs to bytes we
-      // can therefore just multiply the stored value by half the system pointer
-      // size.
-      lea(esp,
-          Operand(esp, count, times_half_system_pointer_size, receiver_bytes));
-      break;
-    }
-  }
+  lea(esp, Operand(esp, count, times_system_pointer_size, receiver_bytes));
 }
 
 void MacroAssembler::DropArguments(Register count, Register scratch,
-                                   ArgumentsCountType type,
                                    ArgumentsCountMode mode) {
   DCHECK(!AreAliased(count, scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(count, type, mode);
+  DropArguments(count, mode);
   PushReturnAddressFrom(scratch);
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
                                                      Register scratch,
-                                                     ArgumentsCountType type,
                                                      ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver, scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(argc, type, mode);
+  DropArguments(argc, mode);
   Push(receiver);
   PushReturnAddressFrom(scratch);
 }
@@ -1131,12 +1113,11 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Operand receiver,
                                                      Register scratch,
-                                                     ArgumentsCountType type,
                                                      ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, scratch));
   DCHECK(!receiver.is_reg(scratch));
   PopReturnAddressTo(scratch);
-  DropArguments(argc, type, mode);
+  DropArguments(argc, mode);
   Push(receiver);
   PushReturnAddressFrom(scratch);
 }
