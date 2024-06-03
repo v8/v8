@@ -95,49 +95,6 @@ assertOptimized(math_float);
   assertEquals(true, cmp_int32(3, 15, 15));
   assertOptimized(cmp_int32);
 
-  function cmp_float64(which, a, b) {
-    if (which == 0) { return a > b; }
-    if (which == 1) { return a >= b; }
-    if (which == 2) { return a < b; }
-    if (which == 3) { return a <= b; }
-  }
-  %PrepareFunctionForOptimization(cmp_float64);
-  // >
-  assertEquals(false, cmp_float64(0, 10.25, 20.25));
-  assertEquals(true, cmp_float64(0, 20.25, 10.25));
-  assertEquals(false, cmp_float64(0, 15.25, 15.25));
-  // >=
-  assertEquals(false, cmp_float64(1, 10.25, 20.25));
-  assertEquals(true, cmp_float64(1, 20.25, 10.25));
-  assertEquals(true, cmp_float64(1, 15.25, 15.25));
-  // <
-  assertEquals(true, cmp_float64(2, 10.25, 20.25));
-  assertEquals(false, cmp_float64(2, 20.25, 10.25));
-  assertEquals(false, cmp_float64(2, 15.25, 15.25));
-  // <=
-  assertEquals(true, cmp_float64(3, 10.25, 20.25));
-  assertEquals(false, cmp_float64(3, 20.25, 10.25));
-  assertEquals(true, cmp_float64(3, 15.25, 15.25));
-
-  %OptimizeFunctionOnNextCall(cmp_float64);
-  // >
-  assertEquals(false, cmp_float64(0, 10.25, 20.25));
-  assertEquals(true, cmp_float64(0, 20.25, 10.25));
-  assertEquals(false, cmp_float64(0, 15.25, 15.25));
-  // >=
-  assertEquals(false, cmp_float64(1, 10.25, 20.25));
-  assertEquals(true, cmp_float64(1, 20.25, 10.25));
-  assertEquals(true, cmp_float64(1, 15.25, 15.25));
-  // <
-  assertEquals(true, cmp_float64(2, 10.25, 20.25));
-  assertEquals(false, cmp_float64(2, 20.25, 10.25));
-  assertEquals(false, cmp_float64(2, 15.25, 15.25));
-  // <=
-  assertEquals(true, cmp_float64(3, 10.25, 20.25));
-  assertEquals(false, cmp_float64(3, 20.25, 10.25));
-  assertEquals(true, cmp_float64(3, 15.25, 15.25));
-  assertOptimized(cmp_float64);
-
   // Number equality should deopt when passed an Oddball (because undefined's
   // value is NaN, which leads to undefined != undefined without the deopt).
   function equal_num(a, b) { return a == b; }

@@ -2252,10 +2252,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::BranchIfFloat64ToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> condition = __ Float64Equal(Map(node->condition_input()), 0.0);
-    // Swapping if_true and if_false because we the real condition is "!= 0"
-    // rather than "== 0" (but Turboshaft doesn't have Float64NotEqual).
-    __ Branch(condition, Map(node->if_false()), Map(node->if_true()));
+    V<Word32> condition = Float64ToBit(Map(node->condition_input()));
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::BranchIfFloat64IsHole* node,
@@ -2689,11 +2687,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::Float64ToBoolean* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> condition = __ Float64Equal(Map(node->value()), 0.0);
-    // {condition} is 0 if the input is truthy, and false otherwise (because we
-    // compared "== 0" rather than "!= 0"), so we need to negate `flip` in the
-    // call to ConvertWord32ToJSBool.
-    SetMap(node, ConvertWord32ToJSBool(condition, !node->flip()));
+    V<Word32> condition = Float64ToBit(Map(node->value()));
+    SetMap(node, ConvertWord32ToJSBool(condition, node->flip()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
@@ -3660,6 +3655,12 @@ class GraphBuilder {
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
                      BranchHint::kNone, SelectOp::Implementation::kBranch);
+  }
+
+  // Converts a Float64 to a Word32 boolean, correctly producing 0 for NaN, by
+  // relying on the fact that "0.0 < abs(x)" is only false for NaN and 0.
+  V<Word32> Float64ToBit(V<Float64> input) {
+    return __ Float64LessThan(0.0, __ Float64Abs(input));
   }
 
   class ThrowingScope {
