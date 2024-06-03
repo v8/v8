@@ -814,7 +814,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Prologue(Register base, int prologue_offset = 0);
 
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi };
   void DropArguments(Register count, ArgumentsCountType type,
                      ArgumentsCountMode mode);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,

@@ -1442,10 +1442,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       AddS64(sp, sp, count);
       break;
     }
-    case kCountIsBytes: {
-      AddS64(sp, sp, count);
-      break;
-    }
   }
   if (receiver_bytes != 0) {
     AddS64(sp, sp, Operand(receiver_bytes));

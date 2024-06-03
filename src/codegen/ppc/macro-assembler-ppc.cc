@@ -1560,10 +1560,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       add(sp, sp, count);
       break;
     }
-    case kCountIsBytes: {
-      add(sp, sp, count);
-      break;
-    }
   }
   if (receiver_bytes != 0) {
     addi(sp, sp, Operand(receiver_bytes));
