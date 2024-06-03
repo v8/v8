@@ -3189,17 +3189,11 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
   TNode<FixedArray> array = CAST(LoadObjectField(
       generator, JSGeneratorObject::kParametersAndRegistersOffset));
-  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
   TNode<Smi> suspend_id = BytecodeOperandUImmSmi(3);
 
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count =
-      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared);
-
-  ExportParametersAndRegisterFile(array, registers, formal_parameter_count);
+  ExportParametersAndRegisterFile(array, registers);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
                    suspend_id);
@@ -3265,18 +3259,12 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 // state as executing.
 IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<JSFunction> closure = LoadFunctionClosure();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
-
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count =
-      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared);
 
   ImportRegisterFile(
       CAST(LoadObjectField(generator,
                            JSGeneratorObject::kParametersAndRegistersOffset)),
-      registers, formal_parameter_count);
+      registers);
 
   // Return the generator's input_or_debug_pos in the accumulator.
   SetAccumulator(
