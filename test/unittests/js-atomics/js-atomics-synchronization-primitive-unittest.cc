@@ -213,7 +213,8 @@ class WaitOnConditionThread final : public ParkingThread {
     while (keep_waiting) {
       (*waiting_threads_count_)++;
       EXPECT_TRUE(JSAtomicsCondition::WaitFor(isolate, condition_, mutex_,
-                                              base::nullopt));
+                                              base::nullopt)
+                      .FromJust());
       (*waiting_threads_count_)--;
     }
     mutex_->Unlock(isolate);

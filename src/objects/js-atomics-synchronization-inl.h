@@ -133,7 +133,21 @@ JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
     : isolate_(isolate), mutex_(mutex), locked_(locked) {}
 
 JSAtomicsMutex::LockGuardBase::~LockGuardBase() {
-  if (locked_) mutex_->Unlock(isolate_);
+  if (locked_) {
+    // It is possible to reach this state with the mutex unlocked.
+    // Consider the following senario: If we execute the code
+    // Atomics.Mutex.lock(mutex, () => {Atomics.Condition.wait(cond, mutex);}).
+    // The locked_ value is set when entering the critical section, but can't be
+    // changed when we start waiting. If the thread termination signal is sent
+    // while waiting or after the notification is sent but before the lock is
+    // reacquired, then the execution may be terminated without the lock
+    // being reacquired by this thread. Unlock the mutex only if this thread
+    // owns it.
+    if (!isolate_->is_execution_terminating() ||
+        mutex_->IsCurrentThreadOwner()) {
+      mutex_->Unlock(isolate_);
+    }
+  }
 }
 
 JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,

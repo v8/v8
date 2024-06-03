@@ -405,10 +405,9 @@ class JSAtomicsCondition
   DECL_PRINTER(JSAtomicsCondition)
   EXPORT_DECL_VERIFIER(JSAtomicsCondition)
 
-  V8_EXPORT_PRIVATE static bool WaitFor(Isolate* requester,
-                                        Handle<JSAtomicsCondition> cv,
-                                        Handle<JSAtomicsMutex> mutex,
-                                        std::optional<base::TimeDelta> timeout);
+  V8_EXPORT_PRIVATE static Maybe<bool> WaitFor(
+      Isolate* requester, Handle<JSAtomicsCondition> cv,
+      Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> WaitAsync(
       Isolate* requester, Handle<JSAtomicsCondition> cv,

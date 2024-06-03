@@ -10,6 +10,19 @@
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+bool WasInterruptedWithoutException(Isolate* requester, bool interrupted) {
+  if (interrupted) {
+    return !IsException(requester->stack_guard()->HandleInterrupts(),
+                        requester);
+  }
+  return false;
+}
+
+}  // namespace
+
 namespace detail {
 
 WaiterQueueNode::WaiterQueueNode(Isolate* requester) : requester_(requester) {}
@@ -165,6 +178,105 @@ void WaiterQueueNode::SetNotInListForVerification() {
 #ifdef DEBUG
   next_ = prev_ = nullptr;
 #endif
+}
+
+SyncWaiterQueueNode::WaitResult SyncWaiterQueueNode::Wait() {
+  AllowGarbageCollection allow_before_parking;
+  should_wait_ = true;
+  // Outer loop checks for interruptions.
+  for (;;) {
+    WaitResult result;
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this, &result]() {
+      base::MutexGuard guard(&wait_lock_);
+      // Check for interruptions first so that we don't drop any
+      // interrupts that came while the lock wasn't held.
+      while (should_wait_ && !thread_interrupted_) {
+        wait_cond_var_.Wait(&wait_lock_);
+      }
+      if (thread_interrupted_) {
+        result = WaitResult::kThreadTerminated;
+        thread_interrupted_ = false;
+        return;
+      }
+      result = WaitResult::kNotified;
+    });
+    // This must be outside of the critical section to prevent deadlock from
+    // lock ordering between `wait_lock` and mutexes locked by HandleInterrupts.
+    if (WasInterruptedWithoutException(
+            requester_, result == WaitResult::kThreadTerminated)) {
+      // An interrupt signal was received but no exception was thrown. Likely
+      // due to GC.
+      continue;
+    }
+    return result;
+  }
+}
+
+SyncWaiterQueueNode::WaitResult SyncWaiterQueueNode::WaitFor(
+    const base::TimeDelta& rel_time) {
+  AllowGarbageCollection allow_before_parking;
+  should_wait_ = true;
+  // Outer loop checks for interruptions.
+  for (;;) {
+    WaitResult result;
+    requester_->main_thread_local_heap()->ExecuteWhileParked([this, rel_time,
+                                                              &result]() {
+      base::MutexGuard guard(&wait_lock_);
+      base::TimeTicks current_time = base::TimeTicks::Now();
+      base::TimeTicks timeout_time = current_time + rel_time;
+      for (;;) {
+        // Check for interruptions first so that we don't drop any
+        // interrupts that came while the lock wasn't held.
+        if (thread_interrupted_) {
+          result = WaitResult::kThreadTerminated;
+          thread_interrupted_ = false;
+          return;
+        }
+        if (!should_wait_) {
+          result = WaitResult::kNotified;
+          return;
+        }
+        current_time = base::TimeTicks::Now();
+        if (current_time >= timeout_time) {
+          result = WaitResult::kTimedOut;
+          return;
+        }
+        base::TimeDelta time_until_timeout = timeout_time - current_time;
+        bool wait_res = wait_cond_var_.WaitFor(&wait_lock_, time_until_timeout);
+        USE(wait_res);
+        // The wake up may have been spurious, so loop again.
+      }
+    });
+    // This must be outside of the critical section to prevent deadlock from
+    // lock ordering between `wait_lock` and mutexes locked by HandleInterrupts.
+    if (WasInterruptedWithoutException(
+            requester_, result == WaitResult::kThreadTerminated)) {
+      // An interrupt signal was received but no exception was thrown. Likely
+      // due to GC.
+      continue;
+    }
+    return result;
+  }
+}
+
+void SyncWaiterQueueNode::Notify() {
+  base::MutexGuard guard(&wait_lock_);
+  should_wait_ = false;
+  wait_cond_var_.NotifyOne();
+  SetNotInListForVerification();
+}
+
+void SyncWaiterQueueNode::NotifyInterrupted() {
+  base::MutexGuard guard(&wait_lock_);
+  thread_interrupted_ = true;
+  wait_cond_var_.NotifyOne();
+}
+
+bool SyncWaiterQueueNode::IsSameIsolateForAsyncCleanup(Isolate* isolate) {
+  // Sync waiters are only queued while the thread is sleeping, so there
+  // should not be sync nodes while cleaning up the isolate.
+  DCHECK_NE(requester_, isolate);
+  return false;
 }
 
 }  // namespace detail

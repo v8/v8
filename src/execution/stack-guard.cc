@@ -11,6 +11,7 @@
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/waiter-queue-node.h"
 #include "src/roots/roots-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
@@ -168,6 +169,9 @@ void StackGuard::RequestInterrupt(InterruptFlag flag) {
 
   // If this isolate is waiting in a futex, notify it to wake up.
   isolate_->futex_wait_list_node()->NotifyWake();
+  if (v8_flags.harmony_struct) {
+    isolate_->blocking_sync_waiter_queue_node()->NotifyInterrupted();
+  }
 }
 
 void StackGuard::ClearInterrupt(InterruptFlag flag) {

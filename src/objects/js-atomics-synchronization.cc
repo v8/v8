@@ -166,75 +166,6 @@ class V8_NODISCARD WaiterQueueLockGuard final {
   StateT new_state_;
 };
 
-class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
- public:
-  explicit SyncWaiterQueueNode(Isolate* requester)
-      : WaiterQueueNode(requester), should_wait_(true) {}
-
-  void Wait() {
-    AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->ExecuteWhileParked([this]() {
-      base::MutexGuard guard(&wait_lock_);
-      while (should_wait_) {
-        wait_cond_var_.Wait(&wait_lock_);
-      }
-    });
-  }
-
-  // Returns false if timed out, true otherwise.
-  bool WaitFor(const base::TimeDelta& rel_time) {
-    bool result;
-    AllowGarbageCollection allow_before_parking;
-    requester_->main_thread_local_heap()->ExecuteWhileParked([this, rel_time,
-                                                              &result]() {
-      base::MutexGuard guard(&wait_lock_);
-      base::TimeTicks current_time = base::TimeTicks::Now();
-      base::TimeTicks timeout_time = current_time + rel_time;
-      for (;;) {
-        if (!should_wait_) {
-          result = true;
-          return;
-        }
-        current_time = base::TimeTicks::Now();
-        if (current_time >= timeout_time) {
-          result = false;
-          return;
-        }
-        base::TimeDelta time_until_timeout = timeout_time - current_time;
-        bool wait_res = wait_cond_var_.WaitFor(&wait_lock_, time_until_timeout);
-        USE(wait_res);
-        // The wake up may have been spurious, so loop again.
-      }
-    });
-    return result;
-  }
-
-  void Notify() override {
-    base::MutexGuard guard(&wait_lock_);
-    should_wait_ = false;
-    wait_cond_var_.NotifyOne();
-    SetNotInListForVerification();
-  }
-
-  bool IsSameIsolateForAsyncCleanup(Isolate* isolate) override {
-    // Sync waiters are only queued while the thread is sleeping, so there
-    // should not be sync nodes while cleaning up the isolate.
-    DCHECK_NE(requester_, isolate);
-    return false;
-  }
-
-  void CleanupMatchingAsyncWaiters(const DequeueMatcher& matcher) override {
-    UNREACHABLE();
-  }
-
- private:
-  void SetReadyForAsyncCleanup() override { UNREACHABLE(); }
-
-  base::Mutex wait_lock_;
-  base::ConditionVariable wait_cond_var_;
-  bool should_wait_;
-};
-
 template <typename T>
 class AsyncWaiterNotifyTask : public CancelableTask {
  public:
@@ -423,6 +354,7 @@ void JSSynchronizationPrimitive::IsolateDeinit(Isolate* isolate) {
   });
 }
 
+// static
 void JSSynchronizationPrimitive::CleanupAsyncWaiterLists(
     Isolate* isolate, DequeueMatcher matcher) {
   DisallowGarbageCollection no_gc;
@@ -731,6 +663,9 @@ bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
                                   Handle<JSAtomicsMutex> mutex,
                                   std::atomic<StateT>* state,
                                   std::optional<base::TimeDelta> timeout) {
+  // Get the global sync waiter queue node for this isolate.
+  SyncWaiterQueueNode* this_waiter =
+      requester->blocking_sync_waiter_queue_node();
   for (;;) {
     // Spin for a little bit to try to acquire the lock, so as to be fast under
     // microcontention.
@@ -738,31 +673,25 @@ bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
 
     // At this point the lock is considered contended, so try to go to sleep and
     // put the requester thread on the waiter queue.
-
-    // Allocate a waiter queue node on-stack, since this thread is going to
-    // sleep and will be blocked anyway.
-    SyncWaiterQueueNode this_waiter(requester);
-    if (!MaybeEnqueueNode(requester, mutex, state, &this_waiter)) return true;
-
-    bool rv;
+    if (!MaybeEnqueueNode(requester, mutex, state, this_waiter)) return true;
+    SyncWaiterQueueNode::WaitResult rv;
     // Wait for another thread to release the lock and wake us up.
     if (timeout) {
-      rv = this_waiter.WaitFor(*timeout);
-      // Reload the state pointer after wake up in case of shared GC while
-      // blocked.
-      state = mutex->AtomicStatePtr();
-      if (!rv) {
-        // If timed out, remove ourself from the waiter list, which is usually
-        // done by the thread performing the notifying.
-        rv = mutex->LockJSMutexOrDequeueTimedOutWaiter(requester, state,
-                                                       &this_waiter);
-        return rv;
-      }
+      rv = this_waiter->WaitFor(*timeout);
     } else {
-      this_waiter.Wait();
-      // Reload the state pointer after wake up in case of shared GC while
-      // blocked.
-      state = mutex->AtomicStatePtr();
+      // The return value can be false if the thread is being terminated.
+      rv = this_waiter->Wait();
+    }
+    // Reload the state pointer after wake up in case of shared GC while
+    // blocked.
+    state = mutex->AtomicStatePtr();
+    if (rv != SyncWaiterQueueNode::WaitResult::kNotified) {
+      // If timed out or the thread is being terminated, remove ourself from the
+      // waiter list, which is usually done by the thread performing the
+      // notifying.
+      bool locked = mutex->LockJSMutexOrDequeueTimedOutWaiter(requester, state,
+                                                              this_waiter);
+      return locked;
     }
 
     // After wake up we try to acquire the lock again by spinning, as the
@@ -1147,44 +1076,46 @@ void JSAtomicsCondition::QueueWaiter(Isolate* requester,
 }
 
 // static
-bool JSAtomicsCondition::WaitFor(Isolate* requester,
-                                 Handle<JSAtomicsCondition> cv,
-                                 Handle<JSAtomicsMutex> mutex,
-                                 std::optional<base::TimeDelta> timeout) {
+Maybe<bool> JSAtomicsCondition::WaitFor(
+    Isolate* requester, Handle<JSAtomicsCondition> cv,
+    Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout) {
   DisallowGarbageCollection no_gc;
 
-  bool rv;
+  SyncWaiterQueueNode::WaitResult rv;
   {
-    // Allocate a waiter queue node on-stack, since this thread is going to
-    // sleep and will be blocked anyway.
-    SyncWaiterQueueNode this_waiter(requester);
+    // Get the global sync waiter queue node for this isolate.
+    SyncWaiterQueueNode* this_waiter =
+        requester->blocking_sync_waiter_queue_node();
 
-    JSAtomicsCondition::QueueWaiter(requester, cv, &this_waiter);
+    JSAtomicsCondition::QueueWaiter(requester, cv, this_waiter);
 
     // Release the mutex and wait for another thread to wake us up, reacquiring
     // the mutex upon wakeup.
     mutex->Unlock(requester);
     if (timeout) {
-      rv = this_waiter.WaitFor(*timeout);
-      if (!rv) {
-        // If timed out, remove ourself from the waiter list, which is usually
-        // done by the thread performing the notifying.
-        std::atomic<StateT>* state = cv->AtomicStatePtr();
-        DequeueExplicit(
-            requester, cv, state, [&](WaiterQueueNode** waiter_head) {
-              WaiterQueueNode* dequeued = WaiterQueueNode::DequeueMatching(
-                  waiter_head,
-                  [&](WaiterQueueNode* node) { return node == &this_waiter; });
-              return dequeued ? 1 : 0;
-            });
-      }
+      rv = this_waiter->WaitFor(*timeout);
     } else {
-      this_waiter.Wait();
-      rv = true;
+      rv = this_waiter->Wait();
+    }
+    if (rv != SyncWaiterQueueNode::WaitResult::kNotified) {
+      // If timed out or the thread is being terminated, remove ourself from the
+      // waiter list, which is usually done by the thread performing the
+      // notifying.
+      std::atomic<StateT>* state = cv->AtomicStatePtr();
+      DequeueExplicit(requester, cv, state, [&](WaiterQueueNode** waiter_head) {
+        WaiterQueueNode* dequeued = WaiterQueueNode::DequeueMatching(
+            waiter_head,
+            [&](WaiterQueueNode* node) { return node == this_waiter; });
+        return dequeued ? 1 : 0;
+      });
     }
   }
-  JSAtomicsMutex::Lock(requester, mutex);
-  return rv;
+  if (rv == SyncWaiterQueueNode::WaitResult::kThreadTerminated ||
+      !JSAtomicsMutex::Lock(requester, mutex)) {
+    return Nothing<bool>();
+  }
+  return rv == SyncWaiterQueueNode::WaitResult::kNotified ? Just(true)
+                                                          : Just(false);
 }
 
 // static
