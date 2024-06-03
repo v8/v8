@@ -171,7 +171,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, length_object,
           Object::GetLengthFromArrayLike(isolate_, object), Object);
-      double length = Object::Number(*length_object);
+      double length = Object::NumberValue(*length_object);
       if (pass_source_to_reviver) {
         Handle<FixedArray> val_nodes_and_snapshots =
             Handle<FixedArray>::cast(val_node);
@@ -1357,7 +1357,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
     Tagged<FixedDoubleArray> elements =
         FixedDoubleArray::cast(array->elements());
     for (int i = 0; i < length; i++) {
-      elements->set(i, Object::Number(*element_stack_[start + i]));
+      elements->set(i, Object::NumberValue(*element_stack_[start + i]));
     }
   } else {
     DisallowGarbageCollection no_gc;

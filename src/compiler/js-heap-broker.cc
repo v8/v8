@@ -575,7 +575,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   if (IsSmi(*feedback_value)) {
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
-    int const number = Object::Number(*feedback_value);
+    int const number = Object::NumberValue(*feedback_value);
     int const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);

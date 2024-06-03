@@ -2077,7 +2077,7 @@ void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
       Tagged<Object> k = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, k)) continue;
       DCHECK(IsNumber(k));
-      uint32_t index = static_cast<uint32_t>(Object::Number(k));
+      uint32_t index = static_cast<uint32_t>(Object::NumberValue(k));
       SetElementReference(entry, index, dictionary->ValueAt(i));
     }
   }

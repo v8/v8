@@ -138,8 +138,8 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
-  if (IsNaN(*value_num) || Object::Number(*value_num) < min ||
-      Object::Number(*value_num) > max) {
+  if (IsNaN(*value_num) || Object::NumberValue(*value_num) < min ||
+      Object::NumberValue(*value_num) > max) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
@@ -151,7 +151,7 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
   // int conversion safe.
   //
   // c. Return floor(value).
-  return Just(FastD2I(floor(Object::Number(*value_num))));
+  return Just(FastD2I(floor(Object::NumberValue(*value_num))));
 }
 
 // ecma402/#sec-getnumberoption
@@ -196,7 +196,7 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   }
 
   // 7. Return value.
-  return Just(Object::Number(*value));
+  return Just(Object::NumberValue(*value));
 }
 
 }  // namespace internal

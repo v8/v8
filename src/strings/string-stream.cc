@@ -387,7 +387,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
         if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length = static_cast<uint32_t>(
-              Object::Number(JSArray::cast(array)->length()));
+              Object::NumberValue(JSArray::cast(array)->length()));
           if (length < limit) limit = length;
           PrintFixedArray(FixedArray::cast(array->elements()), limit);
         }

@@ -4049,7 +4049,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   Handle<Object> input = isolate->factory()->NewNumber(8);
   MaybeHandle<Object> result = ft.Call(input);
   CHECK(IsSmi(*result.ToHandleChecked()));
-  CHECK_EQ(Object::Number(*result.ToHandleChecked()), 13);
+  CHECK_EQ(Object::NumberValue(*result.ToHandleChecked()), 13);
 
   v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
@@ -4176,7 +4176,7 @@ TEST(WasmFloat32ToNumber) {
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
-          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
@@ -4216,7 +4216,7 @@ TEST(WasmFloat64ToNumber) {
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
-          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }

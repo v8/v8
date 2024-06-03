@@ -1027,7 +1027,7 @@ BUILTIN(PluralRulesPrototypeSelect) {
   Handle<Object> number = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number,
                                      Object::ToNumber(isolate, number));
-  double number_double = Object::Number(*number);
+  double number_double = Object::NumberValue(*number);
 
   // 4. Return ! ResolvePlural(pr, n).
   RETURN_RESULT_OR_FAILURE(isolate, JSPluralRules::ResolvePlural(
@@ -1079,9 +1079,9 @@ BUILTIN(PluralRulesPrototypeSelectRange) {
   }
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSPluralRules::ResolvePluralRange(
-          isolate, plural_rules, Object::Number(*x), Object::Number(*y)));
+      isolate, JSPluralRules::ResolvePluralRange(isolate, plural_rules,
+                                                 Object::NumberValue(*x),
+                                                 Object::NumberValue(*y)));
 }
 
 BUILTIN(PluralRulesSupportedLocalesOf) {
@@ -1246,7 +1246,7 @@ BUILTIN(SegmentsPrototypeContaining) {
   // 6. Let n be ? ToInteger(index).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, index,
                                      Object::ToInteger(isolate, index));
-  double const n = Object::Number(*index);
+  double const n = Object::NumberValue(*index);
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSSegments::Containing(isolate, segments, n));

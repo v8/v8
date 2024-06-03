@@ -533,7 +533,7 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
   if (materialization_state() == kFinished) {
     int smi;
     if (IsHeapNumber(*storage_) &&
-        DoubleToSmiInteger(Object::Number(*storage_), &smi)) {
+        DoubleToSmiInteger(Object::NumberValue(*storage_), &smi)) {
       return Smi::FromInt(smi);
     }
     return *storage_;
@@ -680,7 +680,7 @@ Handle<Object> TranslatedValue::GetValue() {
     // just always allocate a HeapNumber and later extract the Smi again if we
     // don't need a HeapObject.
     set_initialized_storage(
-        isolate()->factory()->NewHeapNumber(Object::Number(*value)));
+        isolate()->factory()->NewHeapNumber(Object::NumberValue(*value)));
     return value;
   }
 
@@ -2060,7 +2060,7 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
              frame->values_[*value_index].kind());
     Handle<Object> value = frame->values_[*value_index].GetValue();
     if (IsNumber(*value)) {
-      array->set(i, Object::Number(*value));
+      array->set(i, Object::NumberValue(*value));
     } else {
       CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
       array->set_the_hole(isolate(), i);
@@ -2078,7 +2078,7 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
   Handle<Object> value = frame->values_[*value_index].GetValue();
   CHECK(IsNumber(*value));
   Handle<HeapNumber> box =
-      isolate()->factory()->NewHeapNumber(Object::Number(*value));
+      isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
   (*value_index)++;
   slot->set_storage(box);
 }
@@ -2447,7 +2447,7 @@ void TranslatedState::InitializeJSObjectAt(
       CHECK_EQ(kStoreTagged, marker);
       Handle<Object> field_value = slot->GetValue();
       DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(Object::Number(*field_value)));
+                     !IsSmiDouble(Object::NumberValue(*field_value)));
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     }
@@ -2499,7 +2499,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
       CHECK(marker == kStoreTagged || i == 1);
       field_value = slot->GetValue();
       DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(Object::Number(*field_value)));
+                     !IsSmiDouble(Object::NumberValue(*field_value)));
     }
     WRITE_FIELD(*object_storage, offset, *field_value);
     WRITE_BARRIER(*object_storage, offset, *field_value);
@@ -2621,14 +2621,16 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     } else {
       if (*previous_value == *marker) {
         if (IsSmi(*value)) {
-          value = isolate()->factory()->NewHeapNumber(Object::Number(*value));
+          value =
+              isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
         }
         previously_materialized_objects->set(i, *value);
         value_changed = true;
       } else {
         CHECK(*previous_value == *value ||
               (IsHeapNumber(*previous_value) && IsSmi(*value) &&
-               Object::Number(*previous_value) == Object::Number(*value)));
+               Object::NumberValue(*previous_value) ==
+                   Object::NumberValue(*value)));
       }
     }
   }

@@ -449,7 +449,7 @@ void CopyObjectToDoubleElements(Tagged<FixedArrayBase> from_base,
     if (hole_or_object == the_hole) {
       to->set_the_hole(to_start);
     } else {
-      to->set(to_start, Object::Number(hole_or_object));
+      to->set(to_start, Object::NumberValue(hole_or_object));
     }
   }
 }
@@ -478,7 +478,7 @@ void CopyDictionaryToDoubleElements(Isolate* isolate,
   for (int i = 0; i < copy_size; i++) {
     InternalIndex entry = from->FindEntry(isolate, i + from_start);
     if (entry.is_found()) {
-      to->set(i + to_start, Object::Number(from->ValueAt(entry)));
+      to->set(i + to_start, Object::NumberValue(from->ValueAt(entry)));
     } else {
       to->set_the_hole(i + to_start);
     }
@@ -507,7 +507,7 @@ void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
       if (!IsSmi(b) && IsUndefined(b, isolate)) {
         return true;
       }
-      return Object::Number(a) < Object::Number(b);
+      return Object::NumberValue(a) < Object::NumberValue(b);
     }
     return !IsSmi(b) && IsUndefined(b, isolate);
   });
@@ -1331,7 +1331,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       if (convert == GetKeysConversion::kConvertToString) {
         for (uint32_t i = 0; i < nof_indices; i++) {
           Handle<Object> index_string = isolate->factory()->Uint32ToString(
-              Object::Number(combined_keys->get(i)));
+              Object::NumberValue(combined_keys->get(i)));
           combined_keys->set(i, *index_string);
         }
       }
@@ -1525,7 +1525,8 @@ class DictionaryElementsAccessor
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
-              uint32_t number = static_cast<uint32_t>(Object::Number(index));
+              uint32_t number =
+                  static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
                 PropertyDetails details = dict->DetailsAt(entry);
                 if (!details.IsConfigurable()) length = number + 1;
@@ -1543,7 +1544,8 @@ class DictionaryElementsAccessor
           for (InternalIndex entry : dict->IterateEntries()) {
             Tagged<Object> index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
-              uint32_t number = static_cast<uint32_t>(Object::Number(index));
+              uint32_t number =
+                  static_cast<uint32_t>(Object::NumberValue(index));
               if (length <= number && number < old_length) {
                 dict->ClearEntry(entry);
                 removed_entries++;
@@ -1721,11 +1723,11 @@ class DictionaryElementsAccessor
                             InternalIndex entry, Tagged<Object> raw_key,
                             PropertyFilter filter) {
     DCHECK(IsNumber(raw_key));
-    DCHECK_LE(Object::Number(raw_key), kMaxUInt32);
+    DCHECK_LE(Object::NumberValue(raw_key), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
     PropertyAttributes attr = details.attributes();
     if ((int{attr} & filter) != 0) return kMaxUInt32;
-    return static_cast<uint32_t>(Object::Number(raw_key));
+    return static_cast<uint32_t>(Object::NumberValue(raw_key));
   }
 
   static uint32_t GetKeyForEntryImpl(Isolate* isolate,
@@ -2007,8 +2009,9 @@ class DictionaryElementsAccessor
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k;
       if (!dictionary->ToKey(roots, i, &k)) continue;
-      DCHECK_LE(0.0, Object::Number(k));
-      if (Object::Number(k) > NumberDictionary::kRequiresSlowElementsLimit) {
+      DCHECK_LE(0.0, Object::NumberValue(k));
+      if (Object::NumberValue(k) >
+          NumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;
       } else {
         max_key = std::max(max_key, Smi::ToInt(k));
@@ -2447,7 +2450,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       }
     } else {
       if (!IsNaN(value)) {
-        double search_number = Object::Number(value);
+        double search_number = Object::NumberValue(value);
         if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
@@ -2471,7 +2474,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           for (size_t k = start_from; k < length; ++k) {
             Tagged<Object> element_k = elements->get(static_cast<int>(k));
             if (IsNumber(element_k) &&
-                Object::Number(element_k) == search_number) {
+                Object::NumberValue(element_k) == search_number) {
               return Just(true);
             }
           }
@@ -3099,14 +3102,14 @@ class FastDoubleElementsAccessor
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value) {
     FixedDoubleArray::cast(backing_store)
-        ->set(entry.as_int(), Object::Number(value));
+        ->set(entry.as_int(), Object::NumberValue(value));
   }
 
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value,
                              WriteBarrierMode mode) {
     FixedDoubleArray::cast(backing_store)
-        ->set(entry.as_int(), Object::Number(value));
+        ->set(entry.as_int(), Object::NumberValue(value));
   }
 
   static void CopyElementsImpl(Isolate* isolate, Tagged<FixedArrayBase> from,
@@ -3197,7 +3200,7 @@ class FastDoubleElementsAccessor
     if (IsNaN(value)) {
       return Just<int64_t>(-1);
     }
-    double numeric_search_value = Object::Number(value);
+    double numeric_search_value = Object::NumberValue(value);
     Tagged<FixedDoubleArray> elements =
         FixedDoubleArray::cast(receiver->elements());
 
@@ -3590,7 +3593,7 @@ class TypedElementsAccessor
       if (!lossless) return Just(false);
     } else {
       if (!IsNumber(*value)) return Just(false);
-      double search_value = Object::Number(*value);
+      double search_value = Object::NumberValue(*value);
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
         if (!IsFloatTypedArrayElementsKind(Kind)) {
@@ -3659,7 +3662,7 @@ class TypedElementsAccessor
       if (!lossless) return Just<int64_t>(-1);
     } else {
       if (!IsNumber(*value)) return Just<int64_t>(-1);
-      double search_value = Object::Number(*value);
+      double search_value = Object::NumberValue(*value);
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
         if (!IsFloatTypedArrayElementsKind(Kind)) {
@@ -3702,7 +3705,7 @@ class TypedElementsAccessor
       if (!lossless) return Just<int64_t>(-1);
     } else {
       if (!IsNumber(*value)) return Just<int64_t>(-1);
-      double search_value = Object::Number(*value);
+      double search_value = Object::NumberValue(*value);
       if (!std::isfinite(search_value)) {
         if (!IsFloat16TypedArrayElementsKind(Kind) &&
             std::is_integral<ElementType>::value) {
@@ -5568,7 +5571,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(
       Handle<FixedDoubleArray> double_elms =
           Handle<FixedDoubleArray>::cast(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {
-        double_elms->set(entry, Object::Number((*args)[entry]));
+        double_elms->set(entry, Object::NumberValue((*args)[entry]));
       }
       break;
     }

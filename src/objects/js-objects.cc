@@ -2791,7 +2791,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_ARRAY_TYPE: {
       double length = IsUndefined(JSArray::cast(*this)->length())
                           ? 0
-                          : Object::Number(JSArray::cast(*this)->length());
+                          : Object::NumberValue(JSArray::cast(*this)->length());
       accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
       break;
     }
@@ -4791,7 +4791,7 @@ Tagged<Object> JSObject::SlowReverseLookup(Tagged<Object> value) {
         if (field_index.is_double()) {
           DCHECK(IsHeapNumber(property));
           if (value_is_number &&
-              Object::Number(property) == Object::Number(value)) {
+              Object::NumberValue(property) == Object::NumberValue(value)) {
             return descs->GetKey(i);
           }
         } else if (property == value) {
@@ -5667,8 +5667,8 @@ Tagged<Object> JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
     Tagged<Object> stamp = cache_stamp();
     if (stamp != date_cache->stamp() && IsSmi(stamp)) {
       // Since the stamp is not NaN, the value is also not NaN.
-      int64_t local_time_ms =
-          date_cache->ToLocal(static_cast<int64_t>(Object::Number(value())));
+      int64_t local_time_ms = date_cache->ToLocal(
+          static_cast<int64_t>(Object::NumberValue(value())));
       SetCachedFields(local_time_ms, date_cache);
     }
     switch (index) {
@@ -5692,10 +5692,10 @@ Tagged<Object> JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
   }
 
   if (index >= kFirstUTCField) {
-    return GetUTCField(index, Object::Number(value()), date_cache);
+    return GetUTCField(index, Object::NumberValue(value()), date_cache);
   }
 
-  double time = Object::Number(value());
+  double time = Object::NumberValue(value());
   if (std::isnan(time)) return GetReadOnlyRoots().nan_value();
 
   int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));

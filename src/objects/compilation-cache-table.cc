@@ -159,7 +159,7 @@ class EvalCacheKey : public HashTableKey {
     DisallowGarbageCollection no_gc;
     if (!IsFixedArray(other)) {
       DCHECK(IsNumber(other));
-      uint32_t other_hash = static_cast<uint32_t>(Object::Number(other));
+      uint32_t other_hash = static_cast<uint32_t>(Object::NumberValue(other));
       return Hash() == other_hash;
     }
     Tagged<FixedArray> other_array = FixedArray::cast(other);

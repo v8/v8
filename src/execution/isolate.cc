@@ -1514,7 +1514,8 @@ bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   if (!IsNumber(*stack_trace_limit)) return false;
 
   // Ensure that limit is not negative.
-  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
+  *result =
+      std::max(FastD2IChecked(Object::NumberValue(*stack_trace_limit)), 0);
 
   if (*result != v8_flags.stack_trace_limit) {
     isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);

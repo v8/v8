@@ -24370,7 +24370,7 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
   CHECK(completion_value->IsUndefined());
-  CHECK_EQ(42, i::Object::Number(test_export_cell->value()));
+  CHECK_EQ(42, i::Object::NumberValue(test_export_cell->value()));
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
 

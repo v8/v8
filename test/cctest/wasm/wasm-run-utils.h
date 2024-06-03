@@ -545,7 +545,7 @@ class WasmRunner : public WasmRunnerBase {
 
     // Otherwise it must be a number (Smi or HeapNumber).
     CHECK(IsNumber(*result));
-    double value = Object::Number(*result);
+    double value = Object::NumberValue(*result);
     // The JS API interprets all Wasm values as signed, hence we cast via the
     // signed equivalent type to avoid undefined behaviour in the casting.
     if constexpr (std::is_integral_v<ReturnType> &&

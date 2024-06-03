@@ -240,8 +240,8 @@ Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
         !IsNumber(actual_expected)) {
       return old_value;
     }
-    if (!Object::SameNumberValue(Object::Number(old_value),
-                                 Object::Number(actual_expected))) {
+    if (!Object::SameNumberValue(Object::NumberValue(old_value),
+                                 Object::NumberValue(actual_expected))) {
       return old_value;
     }
     // The pointer comparison failed, but the numbers are equal. This can
@@ -551,7 +551,7 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
 // static
-double Object::Number(Tagged<Object> obj) {
+double Object::NumberValue(Tagged<Object> obj) {
   DCHECK(IsNumber(obj));
   return IsSmi(obj)
              ? static_cast<double>(Tagged<Smi>::unchecked_cast(obj).value())

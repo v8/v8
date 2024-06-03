@@ -2099,7 +2099,7 @@ bool InstanceBuilder::ProcessImportedTable(
       return false;
     }
     int64_t imported_maximum_size =
-        Object::Number(table_object->maximum_length());
+        Object::NumberValue(table_object->maximum_length());
     if (imported_maximum_size < 0) {
       thrower_->LinkError("table import %d has no maximum length, expected %u",
                           import_index, table.maximum_size);
@@ -2295,7 +2295,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
   }
 
   if (IsNumber(*value) && global.type != kWasmI64) {
-    double number_value = Object::Number(*value);
+    double number_value = Object::NumberValue(*value);
     // The Wasm-BigInt proposal currently says that i64 globals may
     // only be initialized with BigInts. See:
     // https://github.com/WebAssembly/JS-BigInt-integration/issues/12

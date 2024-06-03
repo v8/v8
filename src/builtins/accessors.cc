@@ -183,7 +183,7 @@ void Accessors::ArrayLengthSetter(
     // its property descriptor. Don't perform this check if "length" was
     // previously readonly, as this may have been called during
     // DefineOwnPropertyIgnoreAttributes().
-    if (length == Object::Number(array->length())) {
+    if (length == Object::NumberValue(array->length())) {
       info.GetReturnValue().Set(true);
     } else if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();

@@ -240,7 +240,7 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
     // Ensure that all bits of the double value are preserved.
     result->set_value_as_bits(HeapNumber::cast(*object)->value_as_bits());
   } else {
-    result->set_value(Object::Number(*object));
+    result->set_value(Object::NumberValue(*object));
   }
   return result;
 }
@@ -347,7 +347,8 @@ MaybeHandle<Object> Object::ConvertToInteger(Isolate* isolate,
       isolate, input,
       ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
   if (IsSmi(*input)) return input;
-  return isolate->factory()->NewNumber(DoubleToInteger(Object::Number(*input)));
+  return isolate->factory()->NewNumber(
+      DoubleToInteger(Object::NumberValue(*input)));
 }
 
 // static
@@ -358,7 +359,7 @@ MaybeHandle<Object> Object::ConvertToInt32(Isolate* isolate,
       ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
   if (IsSmi(*input)) return input;
   return isolate->factory()->NewNumberFromInt(
-      DoubleToInt32(Object::Number(*input)));
+      DoubleToInt32(Object::NumberValue(*input)));
 }
 
 // static
@@ -370,7 +371,7 @@ MaybeHandle<Object> Object::ConvertToUint32(Isolate* isolate,
   if (IsSmi(*input))
     return handle(Smi::ToUint32Smi(Smi::cast(*input)), isolate);
   return isolate->factory()->NewNumberFromUint(
-      DoubleToUint32(Object::Number(*input)));
+      DoubleToUint32(Object::NumberValue(*input)));
 }
 
 // static
@@ -662,7 +663,7 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
     int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
   }
-  double len = DoubleToInteger(Object::Number(*input));
+  double len = DoubleToInteger(Object::NumberValue(*input));
   if (len <= 0.0) {
     return handle(Smi::zero(), isolate);
   } else if (len >= kMaxSafeInteger) {
@@ -678,7 +679,7 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   if (IsUndefined(*input, isolate)) return handle(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return input;
-  double len = DoubleToInteger(Object::Number(*input));
+  double len = DoubleToInteger(Object::NumberValue(*input));
   Handle<Object> js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
@@ -736,7 +737,7 @@ bool StrictNumberEquals(double x, double y) {
 }
 
 bool StrictNumberEquals(const Tagged<Object> x, const Tagged<Object> y) {
-  return StrictNumberEquals(Object::Number(x), Object::Number(y));
+  return StrictNumberEquals(Object::NumberValue(x), Object::NumberValue(y));
 }
 
 bool StrictNumberEquals(Handle<Object> x, Handle<Object> y) {
@@ -791,7 +792,8 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
   bool x_is_number = IsNumber(*x);
   bool y_is_number = IsNumber(*y);
   if (x_is_number && y_is_number) {
-    return Just(StrictNumberCompare(Object::Number(*x), Object::Number(*y)));
+    return Just(
+        StrictNumberCompare(Object::NumberValue(*x), Object::NumberValue(*y)));
   } else if (!x_is_number && !y_is_number) {
     return Just(BigInt::CompareToBigInt(Handle<BigInt>::cast(x),
                                         Handle<BigInt>::cast(y)));
@@ -938,8 +940,8 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
 MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
                                 Handle<Object> rhs) {
   if (IsNumber(*lhs) && IsNumber(*rhs)) {
-    return isolate->factory()->NewNumber(Object::Number(*lhs) +
-                                         Object::Number(*rhs));
+    return isolate->factory()->NewNumber(Object::NumberValue(*lhs) +
+                                         Object::NumberValue(*rhs));
   } else if (IsString(*lhs) && IsString(*rhs)) {
     return isolate->factory()->NewConsString(Handle<String>::cast(lhs),
                                              Handle<String>::cast(rhs));
@@ -960,8 +962,8 @@ MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
                              Object);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(isolate, lhs),
                              Object);
-  return isolate->factory()->NewNumber(Object::Number(*lhs) +
-                                       Object::Number(*rhs));
+  return isolate->factory()->NewNumber(Object::NumberValue(*lhs) +
+                                       Object::NumberValue(*rhs));
 }
 
 // static
@@ -1667,7 +1669,8 @@ bool Object::SameValue(Tagged<Object> obj, Tagged<Object> other) {
   if (other == obj) return true;
 
   if (IsNumber(obj) && IsNumber(other)) {
-    return SameNumberValue(Object::Number(obj), Object::Number(other));
+    return SameNumberValue(Object::NumberValue(obj),
+                           Object::NumberValue(other));
   }
   if (IsString(obj) && IsString(other)) {
     return String::cast(obj)->Equals(String::cast(other));
@@ -1683,8 +1686,8 @@ bool Object::SameValueZero(Tagged<Object> obj, Tagged<Object> other) {
   if (other == obj) return true;
 
   if (IsNumber(obj) && IsNumber(other)) {
-    double this_value = Object::Number(obj);
-    double other_value = Object::Number(other);
+    double this_value = Object::NumberValue(obj);
+    double other_value = Object::NumberValue(other);
     // +0 == -0 is true
     return this_value == other_value ||
            (std::isnan(this_value) && std::isnan(other_value));
@@ -3143,7 +3146,7 @@ bool JSArray::AnythingToArrayLength(Isolate* isolate,
     return false;
   }
   // 7. If newLen != numberLen, throw a RangeError exception.
-  if (Object::Number(*uint32_v) != Object::Number(*number_v)) {
+  if (Object::NumberValue(*uint32_v) != Object::NumberValue(*number_v)) {
     Handle<Object> exception =
         isolate->factory()->NewRangeError(MessageTemplate::kInvalidArrayLength);
     isolate->Throw(*exception);
@@ -4234,7 +4237,7 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
     oddball->set_to_number_raw_as_bits(
         Handle<HeapNumber>::cast(to_number)->value_as_bits());
   } else {
-    oddball->set_to_number_raw(Object::Number(*to_number));
+    oddball->set_to_number_raw(Object::NumberValue(*to_number));
   }
   oddball->set_to_number(*to_number);
   oddball->set_to_string(*internalized_to_string);

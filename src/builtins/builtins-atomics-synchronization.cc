@@ -11,7 +11,7 @@ namespace internal {
 namespace {
 
 std::optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
-  double ms = Object::Number(*timeout_obj);
+  double ms = Object::NumberValue(*timeout_obj);
   if (!std::isnan(ms)) {
     if (ms < 0) ms = 0;
     if (ms <= static_cast<double>(std::numeric_limits<int64_t>::max())) {
@@ -342,7 +342,7 @@ BUILTIN(AtomicsConditionNotify) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_obj,
                                        Object::ToInteger(isolate, count_obj));
-    double count_double = Object::Number(*count_obj);
+    double count_double = Object::NumberValue(*count_obj);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > JSAtomicsCondition::kAllWaiters) {

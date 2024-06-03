@@ -3755,7 +3755,7 @@ bool Value::IsInt32() const {
   i::Tagged<i::Object> obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return true;
   if (i::IsNumber(obj)) {
-    return i::IsInt32Double(i::Object::Number(obj));
+    return i::IsInt32Double(i::Object::NumberValue(obj));
   }
   return false;
 }
@@ -3764,7 +3764,7 @@ bool Value::IsUint32() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return i::Smi::ToInt(obj) >= 0;
   if (i::IsNumber(obj)) {
-    double value = i::Object::Number(obj);
+    double value = i::Object::NumberValue(obj);
     return !i::IsMinusZero(value) && value >= 0 && value <= i::kMaxUInt32 &&
            value == i::FastUI2D(i::FastD2UI(value));
   }
@@ -4282,13 +4282,13 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (i::IsNumber(*obj)) return Just(i::Object::Number(*obj));
+  if (i::IsNumber(*obj)) return Just(i::Object::NumberValue(*obj));
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, NumberValue, i::HandleScope);
   i::Handle<i::Object> num;
   has_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
-  return Just(i::Object::Number(*num));
+  return Just(i::Object::NumberValue(*num));
 }
 
 Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
@@ -4313,7 +4313,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   has_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
   return Just(IsSmi(*num) ? i::Smi::ToInt(*num)
-                          : static_cast<int32_t>(i::Object::Number(*num)));
+                          : static_cast<int32_t>(i::Object::NumberValue(*num)));
 }
 
 Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
@@ -4324,8 +4324,9 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   i::Handle<i::Object> num;
   has_exception = !i::Object::ToUint32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
-  return Just(IsSmi(*num) ? static_cast<uint32_t>(i::Smi::ToInt(*num))
-                          : static_cast<uint32_t>(i::Object::Number(*num)));
+  return Just(IsSmi(*num)
+                  ? static_cast<uint32_t>(i::Smi::ToInt(*num))
+                  : static_cast<uint32_t>(i::Object::NumberValue(*num)));
 }
 
 MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
@@ -6234,7 +6235,7 @@ Local<Value> Private::Name() const {
 }
 
 double Number::Value() const {
-  return i::Object::Number(*Utils::OpenDirectHandle(this));
+  return i::Object::NumberValue(*Utils::OpenDirectHandle(this));
 }
 
 bool Boolean::Value() const {
@@ -6246,7 +6247,7 @@ int64_t Integer::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<int64_t>(i::Object::Number(obj));
+    return static_cast<int64_t>(i::Object::NumberValue(obj));
   }
 }
 
@@ -6255,7 +6256,7 @@ int32_t Int32::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<int32_t>(i::Object::Number(obj));
+    return static_cast<int32_t>(i::Object::NumberValue(obj));
   }
 }
 
@@ -6264,7 +6265,7 @@ uint32_t Uint32::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<uint32_t>(i::Object::Number(obj));
+    return static_cast<uint32_t>(i::Object::NumberValue(obj));
   }
 }
 
@@ -7840,7 +7841,7 @@ double v8::NumberObject::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto js_primitive_wrapper = i::DirectHandle<i::JSPrimitiveWrapper>::cast(obj);
   API_RCS_SCOPE(js_primitive_wrapper->GetIsolate(), NumberObject, NumberValue);
-  return i::Object::Number(js_primitive_wrapper->value());
+  return i::Object::NumberValue(js_primitive_wrapper->value());
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* v8_isolate, int64_t value) {
@@ -7963,7 +7964,7 @@ double v8::Date::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
   API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
-  return i::Object::Number(jsdate->value());
+  return i::Object::NumberValue(jsdate->value());
 }
 
 v8::Local<v8::String> v8::Date::ToISOString() const {
@@ -7971,9 +7972,9 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
   auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
   i::Isolate* i_isolate = jsdate->GetIsolate();
   API_RCS_SCOPE(i_isolate, Date, NumberValue);
-  i::DateBuffer buffer = i::ToDateString(i::Object::Number(jsdate->value()),
-                                         i_isolate->date_cache(),
-                                         i::ToDateStringMode::kISODateAndTime);
+  i::DateBuffer buffer = i::ToDateString(
+      i::Object::NumberValue(jsdate->value()), i_isolate->date_cache(),
+      i::ToDateStringMode::kISODateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -7985,9 +7986,9 @@ v8::Local<v8::String> v8::Date::ToUTCString() const {
   auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
   i::Isolate* i_isolate = jsdate->GetIsolate();
   API_RCS_SCOPE(i_isolate, Date, NumberValue);
-  i::DateBuffer buffer = i::ToDateString(i::Object::Number(jsdate->value()),
-                                         i_isolate->date_cache(),
-                                         i::ToDateStringMode::kUTCDateAndTime);
+  i::DateBuffer buffer = i::ToDateString(
+      i::Object::NumberValue(jsdate->value()), i_isolate->date_cache(),
+      i::ToDateStringMode::kUTCDateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -8145,7 +8146,7 @@ namespace internal {
 uint32_t GetLength(Tagged<JSArray> array) {
   Tagged<Object> length = array->length();
   if (IsSmi(length)) return Smi::ToInt(length);
-  return static_cast<uint32_t>(Object::Number(length));
+  return static_cast<uint32_t>(Object::NumberValue(length));
 }
 
 }  // namespace internal
@@ -8255,7 +8256,7 @@ FastIterateResult FastIterateArray(Handle<JSArray> array, Isolate* isolate,
       for (InternalIndex i : dict->IterateEntries()) {
         Tagged<Object> key = dict->KeyAt(isolate, i);
         if (!dict->IsKey(roots, key)) continue;
-        uint32_t index = static_cast<uint32_t>(Object::Number(key));
+        uint32_t index = static_cast<uint32_t>(Object::NumberValue(key));
         sorted.push_back({index, i});
       }
       std::sort(

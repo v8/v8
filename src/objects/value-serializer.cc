@@ -846,7 +846,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
 
 void ValueSerializer::WriteJSDate(Tagged<JSDate> date) {
   WriteTag(SerializationTag::kDate);
-  WriteDouble(Object::Number(date->value()));
+  WriteDouble(Object::NumberValue(date->value()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
@@ -861,7 +861,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
       WriteTag(SerializationTag::kFalseObject);
     } else if (IsNumber(inner_value, cage_base)) {
       WriteTag(SerializationTag::kNumberObject);
-      WriteDouble(Object::Number(inner_value));
+      WriteDouble(Object::NumberValue(inner_value));
     } else if (IsBigInt(inner_value, cage_base)) {
       WriteTag(SerializationTag::kBigIntObject);
       WriteBigIntContents(BigInt::cast(inner_value));

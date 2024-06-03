@@ -350,7 +350,7 @@ MaybeHandle<T> FormatCommon(
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Object::ToNumber(isolate, value_obj), T);
-  double number = Object::Number(*value);
+  double number = Object::NumberValue(*value);
   // 4. Let unit be ? ToString(unit).
   Handle<String> unit;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, unit, Object::ToString(isolate, unit_obj),

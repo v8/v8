@@ -272,7 +272,8 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
                                        Nothing<bool>());
       if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
-            0.0, DoubleToInteger(Object::Number(*target_length)) - arg_count));
+            0.0,
+            DoubleToInteger(Object::NumberValue(*target_length)) - arg_count));
       }
     }
     LookupIterator it(isolate, function, isolate->factory()->length_string(),

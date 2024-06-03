@@ -1746,7 +1746,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   Tagged<Object> write_result =
       EncodeWtf8(isolate, unibrow::Utf8Variant::kLossyUtf8, string,
                  get_writable_bytes, 0, MessageTemplate::kNone);
-  DCHECK(IsNumber(write_result) && Object::Number(write_result) == length);
+  DCHECK(IsNumber(write_result) && Object::NumberValue(write_result) == length);
   USE(write_result);
   return *array;
 }

@@ -136,8 +136,8 @@ class Object : public AllStatic {
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
-  // Extract the number.
-  static inline double Number(Tagged<Object> obj);
+  // Extract the double value of a Number (Smi or HeapNumber).
+  static inline double NumberValue(Tagged<Object> obj);
   V8_EXPORT_PRIVATE static bool ToInt32(Tagged<Object> obj, int32_t* value);
   static inline bool ToUint32(Tagged<Object> obj, uint32_t* value);
 

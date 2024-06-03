@@ -266,17 +266,17 @@ TEST(HeapObjects) {
   Handle<Object> value = factory->NewNumber(1.000123);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.000123, Object::Number(*value));
+  CHECK_EQ(1.000123, Object::NumberValue(*value));
 
   value = factory->NewNumber(1.0);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.0, Object::Number(*value));
+  CHECK_EQ(1.0, Object::NumberValue(*value));
 
   value = factory->NewNumberFromInt(1024);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1024.0, Object::Number(*value));
+  CHECK_EQ(1024.0, Object::NumberValue(*value));
 
   value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(IsSmi(*value));
@@ -293,24 +293,25 @@ TEST(HeapObjects) {
   value = factory->NewNumberFromInt(Smi::kMinValue - 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), Object::Number(*value));
+  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1),
+           Object::NumberValue(*value));
 #endif
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
-           Object::Number(*value));
+           Object::NumberValue(*value));
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(1) << 31);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
-           Object::Number(*value));
+           Object::NumberValue(*value));
 
   // nan oddball checks
   CHECK(IsNumber(*factory->nan_value()));
-  CHECK(std::isnan(Object::Number(*factory->nan_value())));
+  CHECK(std::isnan(Object::NumberValue(*factory->nan_value())));
 
   Handle<String> s = factory->NewStringFromStaticChars("fisk hest ");
   CHECK(IsString(*s));

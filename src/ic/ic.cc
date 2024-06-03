@@ -1287,7 +1287,7 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
 bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
-    length = Object::Number(JSArray::cast(*receiver)->length());
+    length = Object::NumberValue(JSArray::cast(*receiver)->length());
   } else if (IsJSTypedArray(*receiver)) {
     length = JSTypedArray::cast(*receiver)->GetLength();
   } else if (IsJSObject(*receiver)) {

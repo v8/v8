@@ -838,7 +838,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
   // don't happen in practice (and would be very slow if they do), we'll keep
   // the code simple for now by using a saturating to-uint32 conversion.
-  double raw_length = Object::Number(*length_obj);
+  double raw_length = Object::NumberValue(*length_obj);
   uint32_t len =
       raw_length >= kMaxUInt32 ? kMaxUInt32 : static_cast<uint32_t>(raw_length);
   // 6. Let k be 0.

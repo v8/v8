@@ -2748,7 +2748,7 @@ TEST(CodeSerializerExternalString) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(15.0, Object::Number(*copy_result));
+  CHECK_EQ(15.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(one_byte_string)
@@ -2814,7 +2814,7 @@ TEST(CodeSerializerLargeExternalString) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(42.0, Object::Number(*copy_result));
+  CHECK_EQ(42.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
@@ -2870,7 +2870,7 @@ TEST(CodeSerializerExternalScriptName) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(10.0, Object::Number(*copy_result));
+  CHECK_EQ(10.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,

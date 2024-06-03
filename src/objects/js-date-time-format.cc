@@ -1198,7 +1198,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, x_obj,
                                      Object::ToNumber(isolate, x_obj),
                                      Nothing<DateTimeValueRecord>());
-    x = Object::Number(*x_obj);
+    x = Object::NumberValue(*x_obj);
   }
   // 6. Set x to TimeClip(x).
   x = DateCache::TimeClip(x);
@@ -1516,7 +1516,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
                                String);
     DCHECK(IsNumber(*date));
-    x = Object::Number(*date);
+    x = Object::NumberValue(*date);
   }
   // 5. Return FormatDateTime(dtf, x).
   icu::SimpleDateFormat* format =
@@ -1553,7 +1553,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
                                  factory->Date_string()),
                     String);
   }
-  double const x = Object::Number(Handle<JSDate>::cast(date)->value());
+  double const x = Object::NumberValue(Handle<JSDate>::cast(date)->value());
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
     return factory->Invalid_Date_string();
@@ -2818,7 +2818,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
                                JSArray);
   }
 
-  double date_value = DateCache::TimeClip(Object::Number(*x));
+  double date_value = DateCache::TimeClip(Object::NumberValue(*x));
   if (std::isnan(date_value)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
                     JSArray);
@@ -3146,11 +3146,11 @@ MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
   // 4. Let x be ? ToNumber(startDate).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj, Object::ToNumber(isolate, x_obj),
                              T);
-  double x = Object::Number(*x_obj);
+  double x = Object::NumberValue(*x_obj);
   // 5. Let y be ? ToNumber(endDate).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj, Object::ToNumber(isolate, y_obj),
                              T);
-  double y = Object::Number(*y_obj);
+  double y = Object::NumberValue(*y_obj);
 
   base::Optional<MaybeHandle<T>> result =
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,

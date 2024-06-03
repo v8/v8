@@ -550,7 +550,7 @@ CompileTimeImports ArgumentToCompileOptions(
         i::Object::GetLengthFromArrayLike(
             isolate, i::Handle<i::JSReceiver>::cast(builtins)),
         {});
-    double raw_length = i::Object::Number(*length_obj);
+    double raw_length = i::Object::NumberValue(*length_obj);
     // Technically we should probably iterate up to 2^53-1 if {length_obj} says
     // so, but lengths above 2^32 probably don't happen in practice (and would
     // be very slow if they do), so just use a saturating to-uint32 conversion
@@ -2658,7 +2658,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   EXTRACT_THIS(table, WasmTableObject);
   base::Optional<uint32_t> max_size;
   if (!IsUndefined(table->maximum_length())) {
-    uint64_t max_size64 = i::Object::Number(table->maximum_length());
+    uint64_t max_size64 = i::Object::NumberValue(table->maximum_length());
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }

@@ -940,7 +940,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // The -0 value must be set before NewNumber works.
   set_minus_zero_value(
       *factory->NewHeapNumber<AllocationType::kReadOnly>(-0.0));
-  DCHECK(std::signbit(Object::Number(roots.minus_zero_value())));
+  DCHECK(std::signbit(Object::NumberValue(roots.minus_zero_value())));
 
   set_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
       std::numeric_limits<double>::quiet_NaN()));

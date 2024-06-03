@@ -273,7 +273,7 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::Tagged<i::FixedArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = i::Object::Number(elements->get(static_cast<int>(i)));
+    double value = i::Object::NumberValue(elements->get(static_cast<int>(i)));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);

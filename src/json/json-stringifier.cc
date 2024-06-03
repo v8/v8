@@ -581,7 +581,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       gap_[gap_length] = '\0';
     }
   } else if (IsNumber(*gap)) {
-    double value = std::min(Object::Number(*gap), 10.0);
+    double value = std::min(Object::NumberValue(*gap), 10.0);
     if (value > 0) {
       int gap_length = DoubleToInt32(value);
       gap_ = NewArray<base::uc16>(gap_length + 1);

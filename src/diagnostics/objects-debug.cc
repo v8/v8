@@ -1673,29 +1673,29 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
 void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
   CHECK(IsCallable(predicate()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorTakeHelperVerify(*this, isolate);
-  CHECK_GE(Object::Number(remaining()), 0);
+  CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorDropHelperVerify(*this, isolate);
-  CHECK_GE(Object::Number(remaining()), 0);
+  CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -1750,16 +1750,16 @@ void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayIteratorVerify(*this, isolate);
 
-  CHECK_GE(Object::Number(next_index()), 0);
-  CHECK_LE(Object::Number(next_index()), kMaxSafeInteger);
+  CHECK_GE(Object::NumberValue(next_index()), 0);
+  CHECK_LE(Object::NumberValue(next_index()), kMaxSafeInteger);
 
   if (IsJSTypedArray(iterated_object())) {
     // JSTypedArray::length is limited to Smi range.
     CHECK(IsSmi(next_index()));
-    CHECK_LE(Object::Number(next_index()), Smi::kMaxValue);
+    CHECK_LE(Object::NumberValue(next_index()), Smi::kMaxValue);
   } else if (IsJSArray(iterated_object())) {
     // JSArray::length is limited to Uint32 range.
-    CHECK_LE(Object::Number(next_index()), kMaxUInt32);
+    CHECK_LE(Object::NumberValue(next_index()), kMaxUInt32);
   }
 }
 
