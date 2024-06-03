@@ -877,7 +877,9 @@
   'intl402/Temporal/Calendar/prototype/mergeFields/gregorian-mutually-exclusive-fields': [FAIL],
   'intl402/Temporal/Calendar/prototype/mergeFields/japanese-mutually-exclusive-fields': [FAIL],
   'intl402/Temporal/Calendar/prototype/monthDayFromFields/reference-year-1972': [FAIL],
-  'intl402/Temporal/Calendar/prototype/yearMonthFromFields/reference-day': [FAIL],
+  'intl402/Temporal/Calendar/prototype/yearMonthFromFields/reference-day-chinese': [FAIL],
+  'intl402/Temporal/Calendar/prototype/yearMonthFromFields/reference-day-gregory': [FAIL],
+  'intl402/Temporal/Calendar/prototype/yearMonthFromFields/reference-day-hebrew': [FAIL],
   'intl402/Temporal/PlainDate/prototype/with/cross-era-boundary': [FAIL],
 
   'intl402/Temporal/Calendar/prototype/dateFromFields/one-of-era-erayear-undefined': [FAIL],
