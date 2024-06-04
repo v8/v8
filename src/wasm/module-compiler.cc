@@ -3795,7 +3795,9 @@ void CompilationStateImpl::InitializeCompilationProgress(
   // compilation hint.
   if (V8_UNLIKELY(v8_flags.wasm_eager_tier_up_function >= 0 &&
                   static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
-                      module->num_imported_functions)) {
+                      module->num_imported_functions &&
+                  static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) <
+                      module->functions.size())) {
     uint32_t func_idx =
         v8_flags.wasm_eager_tier_up_function - module->num_imported_functions;
     WasmCompilationHint hint{WasmCompilationHintStrategy::kEager,
