@@ -473,10 +473,14 @@ class NfaInterpreter {
           active_threads_.Rewind(0);
           return;
         case RegExpInstruction::SET_REGISTER_TO_CP:
+          SBXCHECK_GE(inst.payload.register_index, 0);
+          SBXCHECK_LT(inst.payload.register_index, register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] = input_index_;
           ++t.pc;
           break;
         case RegExpInstruction::CLEAR_REGISTER:
+          SBXCHECK_GE(inst.payload.register_index, 0);
+          SBXCHECK_LT(inst.payload.register_index, register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] =
               kUndefinedRegisterValue;
           ++t.pc;
