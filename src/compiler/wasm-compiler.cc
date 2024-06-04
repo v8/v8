@@ -3664,6 +3664,15 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
           converted_index, Int64Constant(memory->GetMemory64GuardsSize()));
       gasm_->GotoIf(cond, &done, BranchHint::kTrue, converted_index);
 
+      if (static_cast<bool>(alignment_check) && align_mask != 0 &&
+          ((offset & align_mask) != 0)) {
+        // The index will be set to max_memory_size, and it is certainly
+        // aligned; if offset is unaligned we need to directly trap because we
+        // might cause a spurious unaligned access and a DCHECK failure if we
+        // are running in the simulator.
+        TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
+      }
+
       // This will cause a memory access at memory[max_memory_size + offset],
       // which is guaranteeed to cause an access to hit the memory guard region
       // because we checked that offset < max_memory_size.
