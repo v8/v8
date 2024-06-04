@@ -26,6 +26,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/sandbox.h"
+#include "src/sandbox/testing.h"
 #include "src/snapshot/snapshot.h"
 #if defined(V8_USE_PERFETTO)
 #include "src/tracing/code-data-source.h"
@@ -187,13 +188,28 @@ void V8::Initialize() {
 
   if (v8_flags.print_flag_values) FlagList::PrintValues();
 
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
   GetProcessWideCodePointerTable()->Initialize();
-#endif
+
+  // Enable sandbox testing mode if requested.
+  //
+  // This will install the sandbox crash filter to ignore all crashes that do
+  // not represent sandbox violations.
+  //
+  // Note: this should happen before the Wasm trap handler is installed, so that
+  // the wasm trap handler is invoked first (and can handle Wasm OOB accesses),
+  // then forwards all "real" crashes to the sandbox crash filter.
+  if (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) {
+    SandboxTesting::Mode mode = v8_flags.sandbox_testing
+                                    ? SandboxTesting::Mode::kForTesting
+                                    : SandboxTesting::Mode::kForFuzzing;
+    SandboxTesting::Enable(mode);
+  }
+#endif  // V8_ENABLE_SANDBOX
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {

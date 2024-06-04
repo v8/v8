@@ -66,7 +66,6 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
-#include "src/sandbox/testing.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/ostreams.h"
@@ -6005,23 +6004,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
-
-#ifdef V8_ENABLE_SANDBOX
-  // Enable sandbox testing mode if requested.
-  //
-  // This will install the sandbox crash filter to ignore all crashes that do
-  // not represent sandbox violations.
-  //
-  // Note: this must happen before the Wasm trap handler is installed, so that
-  // the wasm trap handler is invoked first (and can handle Wasm OOB accesses),
-  // then forwards all "real" crashes to the sandbox crash filter.
-  if (i::v8_flags.sandbox_testing || i::v8_flags.sandbox_fuzzing) {
-    i::SandboxTesting::Mode mode = i::v8_flags.sandbox_testing
-                                       ? i::SandboxTesting::Mode::kForTesting
-                                       : i::SandboxTesting::Mode::kForFuzzing;
-    i::SandboxTesting::Enable(mode);
-  }
-#endif  // V8_ENABLE_SANDBOX
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {
