@@ -574,6 +574,7 @@ TEST_F(HeapTest, Regress341769455) {
     CHECK(heap->incremental_marking()->IsMinorMarking());
     heap->minor_mark_sweep_collector()->DrainMarkingWorklistForTesting();
     ab->EnsureExtension();
+    heap->AppendArrayBufferExtension(*ab, ab->extension());
   }
   // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
   CHECK(Heap::InYoungGeneration(*ab));

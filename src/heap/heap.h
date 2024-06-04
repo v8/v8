@@ -594,8 +594,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void AutomaticallyRestoreInitialHeapLimit(
       double threshold_percent);
 
-  void AppendArrayBufferExtension(Tagged<JSArrayBuffer> object,
-                                  ArrayBufferExtension* extension);
+  V8_EXPORT_PRIVATE void AppendArrayBufferExtension(
+      Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
   void DetachArrayBufferExtension(Tagged<JSArrayBuffer> object,
                                   ArrayBufferExtension* extension);
 
