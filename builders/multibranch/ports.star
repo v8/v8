@@ -83,32 +83,6 @@ in_category(
         barrier = BARRIER.TREE_CLOSER,
         tester_barrier = BARRIER.NONE,
     ),
-    multibranch_builder(
-        name = "V8 Arm",
-        parent_builder = "V8 Arm - builder",
-        execution_timeout = 28800,
-        properties = {"builder_group": "client.v8.ports"},
-        barrier = BARRIER.NONE,
-        notifies = ["V8 Flake Sheriff"],
-        disable_resultdb_exports = True,
-    ),
-    multibranch_builder(
-        name = "V8 Arm - debug",
-        parent_builder = "V8 Arm - debug builder",
-        execution_timeout = 27000,
-        properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
-        disable_resultdb_exports = True,
-        barrier = BARRIER.TREE_CLOSER,
-    ),
-    multibranch_builder(
-        name = "V8 Arm GC Stress",
-        parent_builder = "V8 Arm - debug builder",
-        execution_timeout = 30600,
-        properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
-        disable_resultdb_exports = True,
-    ),
 )
 
 in_category(
