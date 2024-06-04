@@ -60,22 +60,20 @@ inline MaybeHandle<Object> JSDisposableStack::CheckValueAndGetDisposeMethod(
   //    i. If V is not an Object, throw a TypeError exception.
   if (!IsJSReceiver(*value)) {
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kExpectAnObjectWithUsing),
-                    Object);
+                    NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
   }
 
   //   ii. Set method to ? GetDisposeMethod(V, hint).
   Handle<Object> method;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, method,
-      Object::GetProperty(isolate, value, isolate->factory()->dispose_symbol()),
-      Object);
+      Object::GetProperty(isolate, value,
+                          isolate->factory()->dispose_symbol()));
   //   (GetMethod)3. If IsCallable(func) is false, throw a TypeError exception.
   if (!IsJSFunction(*method)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kNotCallable,
-                                 isolate->factory()->dispose_symbol()),
-                    Object);
+                                 isolate->factory()->dispose_symbol()));
   }
 
   //   iii. If method is undefined, throw a TypeError exception.

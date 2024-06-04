@@ -211,8 +211,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   // 4. Let options be ? GetOptionsObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, GetOptionsObject(isolate, input_options, method_name),
-      JSDurationFormat);
+      isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
@@ -860,7 +859,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
             icu::UnicodeString sep(SeparatorToChar(separator));
             Handle<String> separator_string;
             ASSIGN_RETURN_ON_EXCEPTION(isolate, separator_string,
-                                       Intl::ToString(isolate, sep), JSArray);
+                                       Intl::ToString(isolate, sep));
             Intl::AddElement(isolate, array, index++, factory->literal_string(),
                              separator_string);
           } break;
@@ -878,14 +877,13 @@ MaybeHandle<JSArray> FormattedListToJSArray(
       Handle<String> substring;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
-          Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()),
-          JSArray);
+          Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()));
       Intl::AddElement(isolate, array, index++, factory->literal_string(),
                        substring);
     }
   }
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   JSObject::ValidateElements(*array);
   return array;

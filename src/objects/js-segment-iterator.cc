@@ -148,8 +148,8 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
         JSSegments::CreateSegmentDataObject(
             isolate, segment_iterator->granularity(), icu_break_iterator,
             handle(segment_iterator->raw_string(), isolate),
-            *segment_iterator->unicode_string()->raw(), start_index, end_index),
-        JSReceiver);
+            *segment_iterator->unicode_string()->raw(), start_index,
+            end_index));
   }
 
   // 10. Return ! CreateIterResultObject(segmentData, false).

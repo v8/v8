@@ -203,7 +203,7 @@ MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
-      JSFunction::GetDerivedMap(isolate, constructor, constructor), T);
+      JSFunction::GetDerivedMap(isolate, constructor, constructor));
   return T::New(isolate, map, locales, options, method_name);
 }
 }  // namespace
@@ -273,8 +273,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
     // Case conversion can increase the string length (e.g. sharp-S => SS) so
     // that we have to handle RangeError exceptions here.
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawTwoByteString(dest_length),
-        String);
+        isolate, result, isolate->factory()->NewRawTwoByteString(dest_length));
     DisallowGarbageCollection no_gc;
     DCHECK(s->IsFlat());
     String::FlatContent flat = s->GetFlatContent(no_gc);
@@ -434,8 +433,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
     // in the Latin-1 range.
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        isolate->factory()->NewRawOneByteString(length + sharp_s_count),
-        String);
+        isolate->factory()->NewRawOneByteString(length + sharp_s_count));
     DisallowGarbageCollection no_gc;
     String::FlatContent flat = s->GetFlatContent(no_gc);
     if (flat.IsOneByte()) {
@@ -643,7 +641,7 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   Handle<Object> obj_ordinary_has_instance;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, obj_ordinary_has_instance,
-      Object::OrdinaryHasInstance(isolate, constructor, receiver), Object);
+      Object::OrdinaryHasInstance(isolate, constructor, receiver));
   bool ordinary_has_instance =
       Object::BooleanValue(*obj_ordinary_has_instance, isolate);
 
@@ -655,8 +653,7 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, new_receiver,
         JSReceiver::GetProperty(isolate, receiver,
-                                isolate->factory()->intl_fallback_symbol()),
-        Object);
+                                isolate->factory()->intl_fallback_symbol()));
     return new_receiver;
   }
 
@@ -1484,7 +1481,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                const char* method_name) {
   Handle<Object> numeric_obj;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
-                             Object::ToNumeric(isolate, num), String);
+                             Object::ToNumeric(isolate, num));
 
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
@@ -1518,8 +1515,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   }
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
-      New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
-      String);
+      New<JSNumberFormat>(isolate, constructor, locales, options, method_name));
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -2110,7 +2106,7 @@ MaybeHandle<JSObject> SupportedLocales(
   Handle<JSReceiver> options_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options_obj,
-      CoerceOptionsToObject(isolate, options, method_name), JSObject);
+      CoerceOptionsToObject(isolate, options, method_name));
 
   // 2. Let matcher be ? GetOption(options, "localeMatcher", "string",
   //       « "lookup", "best fit" », "best fit").
@@ -2161,8 +2157,7 @@ MaybeHandle<JSArray> AvailableCollations(Isolate* isolate) {
   std::unique_ptr<icu::StringEnumeration> enumeration(
       icu::Collator::getKeywordValues("collation", status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   return Intl::ToJSArray(isolate, "co", enumeration.get(),
                          Intl::RemoveCollation, true);
@@ -2243,8 +2238,7 @@ MaybeHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
   std::unique_ptr<icu::StringEnumeration> enumeration(
       icu::NumberingSystem::getAvailableNames(status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   // Need to filter out isAlgorithmic
   return Intl::ToJSArray(
@@ -2265,8 +2259,7 @@ MaybeHandle<JSArray> AvailableTimeZones(Isolate* isolate) {
       icu::TimeZone::createTimeZoneIDEnumeration(
           UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
 }
@@ -2293,7 +2286,7 @@ MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
   // 1. 1. Let key be ? ToString(key).
   Handle<String> key_str;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, key_str,
-                             Object::ToString(isolate, key_obj), JSArray);
+                             Object::ToString(isolate, key_obj));
   // 2. If key is "calendar", then
   if (factory->calendar_string()->Equals(*key_str)) {
     // a. Let list be ! AvailableCalendars( ).
@@ -2331,8 +2324,7 @@ MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
   THROW_NEW_ERROR(
       isolate,
       NewRangeError(MessageTemplate::kInvalid,
-                    factory->NewStringFromStaticChars("key"), key_str),
-      JSArray);
+                    factory->NewStringFromStaticChars("key"), key_str));
 }
 
 // ECMA 402 Intl.*.supportedLocalesOf
@@ -2608,7 +2600,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
   } else {
     Handle<String> form;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, form,
-                               Object::ToString(isolate, form_input), String);
+                               Object::ToString(isolate, form_input));
 
     if (String::Equals(isolate, form, isolate->factory()->NFC_string())) {
       form_name = "nfc";
@@ -2630,8 +2622,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
           isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
       THROW_NEW_ERROR(
           isolate,
-          NewRangeError(MessageTemplate::kNormalizationForm, valid_forms),
-          String);
+          NewRangeError(MessageTemplate::kNormalizationForm, valid_forms));
     }
   }
 
@@ -2658,7 +2649,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
   normalizer->normalizeSecondAndAppend(result, unnormalized, status);
 
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   return Intl::ToString(isolate, result);
@@ -2874,7 +2865,7 @@ MaybeHandle<String> Intl::FormattedToString(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Intl::ToString(isolate, result);
 }

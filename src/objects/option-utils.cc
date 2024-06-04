@@ -25,8 +25,7 @@ MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
     return Handle<JSReceiver>::cast(options);
   }
   // 3. Throw a TypeError exception.
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                  JSReceiver);
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
 }
 
 // ecma402/#sec-coerceoptionstoobject
@@ -40,8 +39,7 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
   }
   // 2. Return ? ToObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, options, method_name),
-                             JSReceiver);
+                             Object::ToObject(isolate, options, method_name));
   return Handle<JSReceiver>::cast(options);
 }
 

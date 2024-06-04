@@ -483,7 +483,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
     if (overflowed_ || current_index_ > String::kMaxLength) {
-      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
+      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
     }
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       return isolate_->factory()
@@ -601,15 +601,14 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   Handle<Object> fun;
   LookupIterator it(isolate_, object, factory()->toJSON_string(),
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it));
   if (!IsCallable(*fun)) return object;
 
   // Call toJSON function.
   if (IsSmi(*key)) key = factory()->NumberToString(key);
   Handle<Object> argv[] = {key};
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, object,
-                             Execution::Call(isolate_, fun, object, 1, argv),
-                             Object);
+                             Execution::Call(isolate_, fun, object, 1, argv));
   return scope.CloseAndEscape(object);
 }
 
@@ -621,7 +620,7 @@ MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
   Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, value,
-      Execution::Call(isolate_, replacer_function_, holder, 2, argv), Object);
+      Execution::Call(isolate_, replacer_function_, holder, 2, argv));
   return scope.CloseAndEscape(value);
 }
 

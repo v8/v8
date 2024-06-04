@@ -58,12 +58,13 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (IsCell(*object)) return Handle<Cell>::cast(object);
 
-  if (!must_resolve) return MaybeHandle<Cell>();
+  if (!must_resolve) return kNullMaybeHandle;
 
-  return isolate->ThrowAt<Cell>(
+  isolate->ThrowAt(
       isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                          module_specifier, export_name),
       &loc);
+  return kNullMaybeHandle;
 }
 
 // Implements Synthetic Module Record's Instantiate concrete method :

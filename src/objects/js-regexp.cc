@@ -258,8 +258,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
         isolate,
-        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
-        JSRegExp);
+        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
   return Initialize(regexp, source, flags.value());
 }
@@ -396,14 +395,12 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
   if (one_byte) {
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(length),
-                               String);
+                               isolate->factory()->NewRawOneByteString(length));
     return WriteEscapedRegExpSource<uint8_t>(source, result);
   } else {
     Handle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawTwoByteString(length),
-                               String);
+                               isolate->factory()->NewRawTwoByteString(length));
     return WriteEscapedRegExpSource<base::uc16>(source, result);
   }
 }
@@ -422,15 +419,13 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   source = String::Flatten(isolate, source);
 
-  RETURN_ON_EXCEPTION(
-      isolate,
-      RegExp::Compile(isolate, regexp, source, JSRegExp::AsRegExpFlags(flags),
-                      backtrack_limit),
-      JSRegExp);
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source,
+                                               JSRegExp::AsRegExpFlags(flags),
+                                               backtrack_limit));
 
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
-                             EscapeRegExpSource(isolate, source), JSRegExp);
+                             EscapeRegExpSource(isolate, source));
 
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
@@ -449,8 +444,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
         isolate,
         Object::SetProperty(
             isolate, regexp, factory->lastIndex_string(),
-            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)),
-        JSRegExp);
+            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)));
   }
 
   return regexp;

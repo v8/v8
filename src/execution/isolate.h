@@ -222,8 +222,8 @@ class WasmOrphanedGlobalHandle;
 #define RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, detector, value) \
   RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
-#define RETURN_EXCEPTION_IF_EXCEPTION(isolate, T) \
-  RETURN_VALUE_IF_EXCEPTION(isolate, MaybeHandle<T>())
+#define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
+  RETURN_VALUE_IF_EXCEPTION(isolate, kNullMaybeHandle)
 
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                        \
@@ -278,14 +278,8 @@ class WasmOrphanedGlobalHandle;
                                      ReadOnlyRoots(__isolate__).exception()); \
   } while (false)
 
-#define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
-
-#define THROW_NEW_ERROR(isolate, call, T)                                \
-  do {                                                                   \
-    auto* __isolate__ = (isolate);                                       \
-    return __isolate__->template Throw<T>(__isolate__->factory()->call); \
-  } while (false)
+#define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, kNullMaybeHandle)
 
 #define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
   do {                                                        \
@@ -299,6 +293,9 @@ class WasmOrphanedGlobalHandle;
     __isolate__->Throw(*__isolate__->factory()->call);     \
     return value;                                          \
   } while (false)
+
+#define THROW_NEW_ERROR(isolate, call) \
+  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, kNullMaybeHandle)
 
 /**
  * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
@@ -385,8 +382,8 @@ class WasmOrphanedGlobalHandle;
  * If inside a function with return type
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
  */
-#define RETURN_ON_EXCEPTION(isolate, call, T) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
+#define RETURN_ON_EXCEPTION(isolate, call) \
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, kNullMaybeHandle)
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
@@ -1000,19 +997,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                        MessageLocation* location = nullptr);
   Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
-
-  template <typename T>
-  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(Handle<Object> exception) {
-    Throw(*exception);
-    return MaybeHandle<T>();
-  }
-
-  template <typename T>
-  V8_WARN_UNUSED_RESULT MaybeHandle<T> ThrowAt(Handle<JSObject> exception,
-                                               MessageLocation* location) {
-    ThrowAt(exception, location);
-    return MaybeHandle<T>();
-  }
 
   void FatalProcessOutOfHeapMemory(const char* location) {
     heap()->FatalProcessOutOfMemory(location);

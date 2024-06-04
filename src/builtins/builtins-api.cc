@@ -75,8 +75,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
-                                      Handle<JSReceiver>::cast(new_target)),
-        Object);
+                                      Handle<JSReceiver>::cast(new_target)));
     argv[BuiltinArguments::kReceiverArgsOffset] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
@@ -88,8 +87,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       DCHECK(IsJSObject(*js_receiver));
       Handle<JSObject> js_object = Handle<JSObject>::cast(js_receiver);
       if (!isolate->MayAccess(isolate->native_context(), js_object)) {
-        RETURN_ON_EXCEPTION(
-            isolate, isolate->ReportFailedAccessCheck(js_object), Object);
+        RETURN_ON_EXCEPTION(isolate,
+                            isolate->ReportFailedAccessCheck(js_object));
         UNREACHABLE();
       }
     }
@@ -98,8 +97,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
     if (raw_holder.is_null()) {
       // This function cannot be called with the given receiver.  Abort!
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kIllegalInvocation));
     }
   }
 
@@ -108,7 +107,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
                                      *new_target, argv, argc);
     Handle<Object> result = custom.Call(*fun_data);
 
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     if (result.is_null()) {
       if (is_construct) return js_receiver;
       return isolate->factory()->undefined_value();
@@ -175,8 +174,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   // We assume that all lazy accessor pairs have been instantiated when setting

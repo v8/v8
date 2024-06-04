@@ -3146,10 +3146,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
   if (source.is_null()) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
-    THROW_NEW_ERROR(
-        isolate,
-        NewEvalError(MessageTemplate::kCodeGenFromStrings, error_message),
-        JSFunction);
+    THROW_NEW_ERROR(isolate, NewEvalError(MessageTemplate::kCodeGenFromStrings,
+                                          error_message));
   }
 
   // Compile source string in the native context.
@@ -3869,7 +3867,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
                                                  maybe_outer_scope_info,
                                                  isolate, &is_compiled_scope);
     if (maybe_result.is_null()) isolate->ReportPendingMessages();
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result, JSFunction);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result);
 
     SharedFunctionInfo::ScriptIterator infos(isolate, *script);
     for (Tagged<SharedFunctionInfo> info = infos.Next(); !info.is_null();

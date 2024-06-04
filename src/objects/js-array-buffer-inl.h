@@ -372,7 +372,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  const char* method_name) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
-    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
   Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
@@ -380,14 +380,14 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
   // spec describes to return `buffer`, but it may disrupt current

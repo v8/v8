@@ -783,11 +783,10 @@ class ArrayConcatVisitor {
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
-        isolate_,
-        Object::SetProperty(
-            isolate_, result, isolate_->factory()->length_string(), length,
-            StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError)),
-        JSReceiver);
+        isolate_, Object::SetProperty(isolate_, result,
+                                      isolate_->factory()->length_string(),
+                                      length, StoreOrigin::kMaybeKeyed,
+                                      Just(ShouldThrow::kThrowOnError)));
     return result;
   }
   bool has_simple_elements() const {
@@ -1547,8 +1546,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
           FixedArray::kMaxLength < result_len) {
         AllowGarbageCollection gc;
         THROW_NEW_ERROR(isolate,
-                        NewRangeError(MessageTemplate::kInvalidArrayLength),
-                        JSArray);
+                        NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
     }
   }

@@ -39,8 +39,7 @@ MaybeHandle<JSPromise> PerformPromiseThen(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, then_result,
       Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
-                             arraysize(argv), argv),
-      JSPromise);
+                             arraysize(argv), argv));
 
   return Handle<JSPromise>::cast(then_result);
 }
@@ -75,8 +74,7 @@ MaybeHandle<Context> SetAsyncUnlockHandlers(
 
   RETURN_ON_EXCEPTION(isolate,
                       PerformPromiseThen(isolate, waiting_for_callback_promise,
-                                         resolver_callback, reject_callback),
-                      Context);
+                                         resolver_callback, reject_callback));
   return handlers_context;
 }
 
@@ -750,8 +748,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, waiting_for_callback_promise,
       PerformPromiseThen(requester, internal_locked_promise,
-                         Handle<JSFunction>::cast(callback)),
-      JSPromise);
+                         Handle<JSFunction>::cast(callback)));
   Handle<JSPromise> unlocked_promise = requester->factory()->NewJSPromise();
   // Set the async unlock handlers here so we can throw without any additional
   // cleanup if the inner `promise_then` call fails. Keep a reference to
@@ -761,8 +758,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, handlers_context,
       SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,
-                             unlocked_promise),
-      JSPromise);
+                             unlocked_promise));
   LockAsyncWaiterQueueNode* waiter_node = nullptr;
   bool locked = LockAsync(requester, mutex, internal_locked_promise,
                           unlocked_promise, &waiter_node, timeout);
@@ -1209,8 +1205,7 @@ MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
 
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, lock_promise,
-      PerformPromiseThen(requester, internal_waiting_promise, lock_function),
-      JSPromise);
+      PerformPromiseThen(requester, internal_waiting_promise, lock_function));
 
   // Create a new async waiter node in the C++ heap. Its lifetime is managed by
   // the requester's `async_waiter_queue_nodes` list.

@@ -1047,8 +1047,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
-                                 IsJSNumberFormat(*format_holder)),
-      JSNumberFormat);
+                                 IsJSNumberFormat(*format_holder)));
   // 4. If ... or nf does not have an [[InitializedNumberFormat]] internal slot,
   // then
   if (!IsJSNumberFormat(*object)) {
@@ -1056,8 +1055,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
-                                     "UnwrapNumberFormat")),
-                    JSNumberFormat);
+                                     "UnwrapNumberFormat")));
   }
   // 5. Return nf.
   return Handle<JSNumberFormat>::cast(object);
@@ -1081,8 +1079,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
-      JSNumberFormat);
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
 
   // 3. Let opt be a new Record.
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string", «
@@ -1113,8 +1110,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSNumberFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -1192,15 +1188,13 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
                         factory->NewStringFromStaticChars("currency code"),
-                        factory->NewStringFromAsciiChecked(currency.c_str())),
-          JSNumberFormat);
+                        factory->NewStringFromAsciiChecked(currency.c_str())));
     }
   } else {
     // 7. If style is "currency" and currency is undefined, throw a TypeError
     // exception.
     if (style == Style::CURRENCY) {
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode),
-                      JSNumberFormat);
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode));
     }
   }
   // 8. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
@@ -1246,8 +1240,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
           isolate,
           NewRangeError(MessageTemplate::kInvalidUnit,
                         factory->NewStringFromAsciiChecked(service),
-                        factory->NewStringFromAsciiChecked(unit.c_str())),
-          JSNumberFormat);
+                        factory->NewStringFromAsciiChecked(unit.c_str())));
     }
     unit_pair = maybe_wellformed_unit.FromJust();
   } else {
@@ -1257,8 +1250,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kInvalidUnit,
                                    factory->NewStringFromAsciiChecked(service),
-                                   factory->empty_string()),
-                      JSNumberFormat);
+                                   factory->empty_string()));
     }
   }
 
@@ -1276,8 +1268,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   if (style == Style::CURRENCY) {
     // 14.a. If currency is undefined, throw a TypeError exception.
     if (!found_currency.FromJust()) {
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode),
-                      JSNumberFormat);
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode));
     }
     // 14.a. Let currency be the result of converting currency to upper case as
     //    specified in 6.1
@@ -1288,8 +1279,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     if (!currency_ustr.isEmpty()) {
       Handle<String> currency_string;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, currency_string,
-                                 Intl::ToString(isolate, currency_ustr),
-                                 JSNumberFormat);
+                                 Intl::ToString(isolate, currency_ustr));
 
       settings =
           settings.unit(icu::CurrencyUnit(currency_ustr.getBuffer(), status));
@@ -2066,7 +2056,7 @@ MaybeHandle<String> FormatToString(Isolate* isolate,
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Intl::ToString(isolate, result);
 }

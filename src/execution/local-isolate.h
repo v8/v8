@@ -106,10 +106,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   void RegisterDeserializerFinished();
   bool has_active_deserializer() const;
 
-  template <typename T>
-  Handle<T> Throw(Handle<Object> exception) {
-    UNREACHABLE();
-  }
+  void Throw(Tagged<Object> exception) { UNREACHABLE(); }
   [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location) {
     UNREACHABLE();
   }

@@ -136,8 +136,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   Handle<String> segment;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
-      Intl::ToString(isolate, unicode_string, start_index, end_index),
-      JSSegmentDataObject);
+      Intl::ToString(isolate, unicode_string, start_index, end_index));
   Handle<Object> index = factory->NewNumberFromInt(start_index);
 
   // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).

@@ -418,8 +418,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 4. Let options be ? GetOptionsObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             GetOptionsObject(isolate, input_options, service),
-                             JSDisplayNames);
+                             GetOptionsObject(isolate, input_options, service));
 
   // Note: No need to create a record. It's not observable.
   // 5. Let opt be a new Record.
@@ -445,8 +444,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
       Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSDisplayNames);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -476,8 +474,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 13. If type is undefined, throw a TypeError exception.
   if (type_enum == Type::kUndefined) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                    JSDisplayNames);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
   }
 
   // 14. Set displayNames.[[Type]] to type.
@@ -533,8 +530,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
       icu_locale, style_enum, type_enum, fallback_enum == Fallback::kCode,
       language_display_enum == LanguageDisplay::kDialect);
   if (internal == nullptr) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
-                    JSDisplayNames);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   Handle<Managed<DisplayNamesInternal>> managed_internal =
@@ -609,8 +605,8 @@ MaybeHandle<Object> JSDisplayNames::Of(Isolate* isolate,
                                        Handle<JSDisplayNames> display_names,
                                        Handle<Object> code_obj) {
   Handle<String> code;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, code, Object::ToString(isolate, code_obj),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
+                             Object::ToString(isolate, code_obj));
   DisplayNamesInternal* internal = display_names->internal()->raw();
   Maybe<icu::UnicodeString> maybe_result =
       internal->of(isolate, code->ToCString().get());

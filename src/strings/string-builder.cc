@@ -211,8 +211,8 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
   if (is_one_byte_) {
     DirectHandle<SeqOneByteString> seq;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, seq, isolate->factory()->NewRawOneByteString(character_count_),
-        String);
+        isolate, seq,
+        isolate->factory()->NewRawOneByteString(character_count_));
 
     DisallowGarbageCollection no_gc;
     uint8_t* char_buffer = seq->GetChars(no_gc);
@@ -223,8 +223,8 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     // Two-byte.
     DirectHandle<SeqTwoByteString> seq;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, seq, isolate->factory()->NewRawTwoByteString(character_count_),
-        String);
+        isolate, seq,
+        isolate->factory()->NewRawTwoByteString(character_count_));
 
     DisallowGarbageCollection no_gc;
     base::uc16* char_buffer = seq->GetChars(no_gc);
@@ -300,7 +300,7 @@ MaybeDirectHandle<String> IncrementalStringBuilder::Finish() {
   ShrinkCurrentPart();
   Accumulate(current_part());
   if (overflowed_) {
-    THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
   }
   if (isolate()->serializer_enabled()) {
     return factory()->InternalizeString(

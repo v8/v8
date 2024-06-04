@@ -765,8 +765,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
-                      NewReferenceError(MessageTemplate::kNotDefined, name),
-                      Object);
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
@@ -780,8 +779,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value, Object::GetProperty(isolate, holder, name), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetProperty(isolate, holder, name));
     if (receiver_return) {
       *receiver_return =
           (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))
@@ -793,8 +792,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
 
   if (should_throw == kThrowOnError) {
     // The property doesn't exist - throw exception.
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(MessageTemplate::kNotDefined, name));
   }
 
   // The property doesn't exist - return undefined.
@@ -877,8 +876,8 @@ MaybeHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
                                       index, value);
     } else {
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kConstAssign, name));
     }
     return value;
   }
@@ -888,8 +887,7 @@ MaybeHandle<Object> StoreLookupSlot(
     if (flag == kNeedsInitialization &&
         IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
-                      NewReferenceError(MessageTemplate::kNotDefined, name),
-                      Object);
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
       if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
@@ -898,8 +896,8 @@ MaybeHandle<Object> StoreLookupSlot(
       }
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kConstAssign, name));
     }
     return value;
   }
@@ -913,16 +911,15 @@ MaybeHandle<Object> StoreLookupSlot(
     object = Handle<JSReceiver>::cast(holder);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(MessageTemplate::kNotDefined, name));
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = handle(context->global_object(), isolate);
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Object::SetProperty(isolate, object, name, value),
-                             Object);
+                             Object::SetProperty(isolate, object, name, value));
   return value;
 }
 

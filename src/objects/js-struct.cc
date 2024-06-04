@@ -487,8 +487,7 @@ MaybeHandle<Map> SharedStructTypeRegistry::Register(
   if (canonical_map.is_null()) {
     THROW_NEW_ERROR(
         isolate,
-        NewTypeError(MessageTemplate::kSharedStructTypeRegistryMismatch, key),
-        Map);
+        NewTypeError(MessageTemplate::kSharedStructTypeRegistryMismatch, key));
   }
   return canonical_map;
 }

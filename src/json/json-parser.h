@@ -168,8 +168,7 @@ class JsonParser final {
     MaybeHandle<Object> val_node;
     {
       JsonParser parser(isolate, source);
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result, parser.ParseJson(reviver),
-                                 Object);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, result, parser.ParseJson(reviver));
       val_node = parser.parsed_val_node_;
     }
     if (IsCallable(*reviver)) {

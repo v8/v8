@@ -1341,8 +1341,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
       this,
       Object::SetProperty(this, error_object, factory()->error_stack_symbol(),
                           error_stack, StoreOrigin::kMaybeKeyed,
-                          Just(ShouldThrow::kThrowOnError)),
-      JSObject);
+                          Just(ShouldThrow::kThrowOnError)));
   return error_object;
 }
 
@@ -1582,7 +1581,7 @@ void Isolate::SetFailedAccessCheckCallback(
 MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
     Handle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
-    THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
+    THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
   }
 
   DCHECK(IsAccessCheckNeeded(*receiver));
@@ -1597,7 +1596,7 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
         AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) {
       no_gc.Release();
-      THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
+      THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
     }
     data = handle(access_check_info->data(), this);
   }
@@ -1610,7 +1609,7 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
   }
   RETURN_VALUE_IF_EXCEPTION(this, {});
   // Throw exception even the callback forgot to do so.
-  THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
+  THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
 }
 
 bool Isolate::MayAccess(Handle<NativeContext> accessing_context,

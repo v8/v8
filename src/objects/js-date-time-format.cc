@@ -1444,8 +1444,7 @@ MaybeHandle<String> FormatDateTime(Isolate* isolate,
                                    double x) {
   double date_value = DateCache::TimeClip(x);
   if (std::isnan(date_value)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    String);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
   icu::UnicodeString result;
@@ -1513,8 +1512,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
   } else {
     // 4. Else,
     //    a. Let x be ? ToNumber(date).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
-                               String);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date));
     DCHECK(IsNumber(*date));
     x = Object::NumberValue(*date);
   }
@@ -1550,8 +1548,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   if (!IsJSDate(*date)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
-                                 factory->Date_string()),
-                    String);
+                                 factory->Date_string()));
   }
   double const x = Object::NumberValue(Handle<JSDate>::cast(date)->value());
   // 2. If x is NaN, return "Invalid Date"
@@ -1582,13 +1579,12 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
-      JSFunction::GetDerivedMap(isolate, constructor, constructor), String);
+      JSFunction::GetDerivedMap(isolate, constructor, constructor));
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
       JSDateTimeFormat::CreateDateTimeFormat(isolate, map, locales, options,
-                                             required, defaults, method_name),
-      String);
+                                             required, defaults, method_name));
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -1614,8 +1610,7 @@ MaybeHandle<String> JSDateTimeFormat::TemporalToLocaleString(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, options, method_name),
-      String);
+      JSDateTimeFormat::New(isolate, map, locales, options, method_name));
 
   // 5. Return FormatDateTime(dateFormat, x).
   return FormatDateTimeWithTemporalSupport(isolate, date_time_format, x,
@@ -1633,8 +1628,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, dtf,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
-                                 IsJSDateTimeFormat(*format_holder)),
-      JSDateTimeFormat);
+                                 IsJSDateTimeFormat(*format_holder)));
   // 2. If Type(dtf) is not Object or dtf does not have an
   //    [[InitializedDateTimeFormat]] internal slot, then
   if (!IsJSDateTimeFormat(*dtf)) {
@@ -1643,8 +1637,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "UnwrapDateTimeFormat"),
-                                 format_holder),
-                    JSDateTimeFormat);
+                                 format_holder));
   }
   // 3. Return dtf.
   return Handle<JSDateTimeFormat>::cast(dtf);
@@ -2194,8 +2187,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 2. Let options be ? CoerceOptionsToObject(_options_).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
-      JSDateTimeFormat);
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service));
 
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
@@ -2217,10 +2209,9 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     icu::Locale default_locale;
     if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
       THROW_NEW_ERROR(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid, factory->calendar_string(),
-                        factory->NewStringFromAsciiChecked(calendar_str.get())),
-          JSDateTimeFormat);
+          isolate, NewRangeError(
+                       MessageTemplate::kInvalid, factory->calendar_string(),
+                       factory->NewStringFromAsciiChecked(calendar_str.get())));
     }
   }
 
@@ -2264,8 +2255,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
       locale_matcher, relevant_extension_keys);
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSDateTimeFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -2352,15 +2342,13 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, time_zone_obj,
       Object::GetPropertyOrElement(isolate, options,
-                                   isolate->factory()->timeZone_string()),
-      JSDateTimeFormat);
+                                   isolate->factory()->timeZone_string()));
 
   std::unique_ptr<icu::TimeZone> tz;
   if (!IsUndefined(*time_zone_obj, isolate)) {
     Handle<String> time_zone;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
-                               Object::ToString(isolate, time_zone_obj),
-                               JSDateTimeFormat);
+                               Object::ToString(isolate, time_zone_obj));
     tz = JSDateTimeFormat::CreateTimeZone(isolate, time_zone);
   } else {
     // 19.a. Else / Let timeZone be DefaultTimeZone().
@@ -2368,10 +2356,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   }
 
   if (tz.get() == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidTimeZone, time_zone_obj),
-        JSDateTimeFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeZone,
+                                           time_zone_obj));
   }
 
   std::unique_ptr<icu::Calendar> calendar(
@@ -2380,10 +2366,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   // 18.b If the result of IsValidTimeZoneName(timeZone) is false, then
   // i. Throw a RangeError exception.
   if (calendar.get() == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidTimeZone, time_zone_obj),
-        JSDateTimeFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeZone,
+                                           time_zone_obj));
   }
 
   DateTimeStyle date_style = DateTimeStyle::kUndefined;
@@ -2491,11 +2475,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     // a. If hasExplicitFormatComponents is true, then
     if (explicit_format_components != 0) {
       // i. Throw a TypeError exception.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalid,
-                                   factory->NewStringFromStaticChars("option"),
-                                   factory->NewStringFromStaticChars("option")),
-                      JSDateTimeFormat);
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kInvalid,
+                                factory->NewStringFromStaticChars("option"),
+                                factory->NewStringFromStaticChars("option")));
     }
     // b. If required is ~date~ and timeStyle is not *undefined*, then
     if (required == RequiredOption::kDate &&
@@ -2504,8 +2487,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kInvalid,
                                    factory->NewStringFromStaticChars("option"),
-                                   factory->timeStyle_string()),
-                      JSDateTimeFormat);
+                                   factory->timeStyle_string()));
     }
     // c. If required is ~time~ and dateStyle is not *undefined*, then
     if (required == RequiredOption::kTime &&
@@ -2514,8 +2496,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kInvalid,
                                    factory->NewStringFromStaticChars("option"),
-                                   factory->dateStyle_string()),
-                      JSDateTimeFormat);
+                                   factory->dateStyle_string()));
     }
     // b. Let pattern be DateTimeStylePattern(dateStyle, timeStyle,
     // dataLocaleData, hc).
@@ -2526,8 +2507,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
         DateTimeStylePattern(date_style, time_style, icu_locale,
                              dateTimeFormatHourCycle, generator.get());
     if (icu_date_format.get() == nullptr) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                      JSDateTimeFormat);
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
     }
   } else {
     // a. Let needDefaults be *true*.
@@ -2608,8 +2588,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       icu_date_format = CreateICUDateFormatFromCache(
           icu_locale, skeleton_ustr, generator.get(), dateTimeFormatHourCycle);
       if (icu_date_format.get() == nullptr) {
-        THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                        JSDateTimeFormat);
+        THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
       }
     }
   }
@@ -2752,7 +2731,7 @@ MaybeHandle<JSArray> FormatMillisecondsByKindToArray(
   icu::UnicodeString formatted =
       CallICUFormat(date_format, kind, x, &fp_iter, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return FieldPositionIteratorToArray(isolate, formatted, fp_iter,
                                       output_source);
@@ -2791,7 +2770,7 @@ MaybeHandle<JSArray> FormatMillisecondsToArray(
   UErrorCode status = U_ZERO_ERROR;
   format.format(value, formatted, &fp_iter, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return FieldPositionIteratorToArray(isolate, formatted, fp_iter,
                                       output_source);
@@ -2814,14 +2793,12 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
   if (IsUndefined(*x, isolate)) {
     x = factory->NewNumberFromInt64(JSDate::CurrentTimeValue(isolate));
   } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x),
-                               JSArray);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x));
   }
 
   double date_value = DateCache::TimeClip(Object::NumberValue(*x));
   if (std::isnan(date_value)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
   return FormatMillisecondsToArray(
       isolate, *(date_time_format->icu_simple_date_format()->raw()), date_value,
@@ -2848,8 +2825,7 @@ MaybeHandle<JSArray> FieldPositionIteratorToArray(
     if (previous_end_pos < begin_pos) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
-          Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
-          JSArray);
+          Intl::ToString(isolate, formatted, previous_end_pos, begin_pos));
       if (output_source) {
         Intl::AddElement(isolate, result, index,
                          IcuDateFieldIdToDateType(-1, isolate), substring,
@@ -2863,7 +2839,7 @@ MaybeHandle<JSArray> FieldPositionIteratorToArray(
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, formatted, begin_pos, end_pos), JSArray);
+        Intl::ToString(isolate, formatted, begin_pos, end_pos));
     if (output_source) {
       Intl::AddElement(isolate, result, index,
                        IcuDateFieldIdToDateType(fp.getField(), isolate),
@@ -2880,7 +2856,7 @@ MaybeHandle<JSArray> FieldPositionIteratorToArray(
   if (previous_end_pos < length) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, formatted, previous_end_pos, length), JSArray);
+        Intl::ToString(isolate, formatted, previous_end_pos, length));
     if (output_source) {
       Intl::AddElement(isolate, result, index,
                        IcuDateFieldIdToDateType(-1, isolate), substring,
@@ -2943,7 +2919,7 @@ base::Optional<MaybeHandle<String>> FormattedToString(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   icu::ConstrainedFieldPosition cfpos;
   while (formatted.nextPosition(cfpos, status)) {
@@ -3009,7 +2985,7 @@ base::Optional<MaybeHandle<JSArray>> FormattedDateIntervalToJSArray(
   }
 
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   JSObject::ValidateElements(*array);
@@ -3033,21 +3009,19 @@ base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
   x = DateCache::TimeClip(x);
   // 2. If x is NaN, throw a RangeError exception.
   if (std::isnan(x)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    T);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
   // 3. Let y be TimeClip(y).
   y = DateCache::TimeClip(y);
   // 4. If y is NaN, throw a RangeError exception.
   if (std::isnan(y)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    T);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
   std::unique_ptr<icu::DateIntervalFormat> format(LazyCreateDateIntervalFormat(
       isolate, date_time_format, PatternKind::kDate));
   if (format.get() == nullptr) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   icu::SimpleDateFormat* date_format =
@@ -3074,7 +3048,7 @@ base::Optional<MaybeHandle<T>> CallICUFormatRange(
   icu::FormattedDateInterval formatted =
       format->formatToValue(*c1, *c2, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Format(isolate, formatted);
 }
@@ -3094,7 +3068,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
     if (!SameTemporalType(x_obj, y_obj)) {
       THROW_NEW_ERROR(
           isolate,
-          NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, y_obj), T);
+          NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, y_obj));
     }
   }
   // 6. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
@@ -3120,7 +3094,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   std::unique_ptr<icu::DateIntervalFormat> format(
       LazyCreateDateIntervalFormat(isolate, date_time_format, x_record.kind));
   if (format.get() == nullptr) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
   const icu::Calendar* calendar =
@@ -3144,12 +3118,10 @@ MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
                                  Handle<Object> x_obj, Handle<Object> y_obj,
                                  const char* method_name) {
   // 4. Let x be ? ToNumber(startDate).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj, Object::ToNumber(isolate, x_obj),
-                             T);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj, Object::ToNumber(isolate, x_obj));
   double x = Object::NumberValue(*x_obj);
   // 5. Let y be ? ToNumber(endDate).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj, Object::ToNumber(isolate, y_obj),
-                             T);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj, Object::ToNumber(isolate, y_obj));
   double y = Object::NumberValue(*y_obj);
 
   base::Optional<MaybeHandle<T>> result =

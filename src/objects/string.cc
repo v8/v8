@@ -1438,8 +1438,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         bool capture_exists;
         Handle<String> capture;
         ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, capture, match->GetCapture(scaled_index, &capture_exists),
-            String);
+            isolate, capture, match->GetCapture(scaled_index, &capture_exists));
         if (capture_exists) builder.AppendString(capture);
         continue_from_ix = peek_ix + advance;
         break;
@@ -1471,7 +1470,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         CaptureState capture_state;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, capture,
-            match->GetNamedCapture(capture_name, &capture_state), String);
+            match->GetNamedCapture(capture_name, &capture_state));
 
         if (capture_state == CaptureState::MATCHED) {
           builder.AppendString(capture);

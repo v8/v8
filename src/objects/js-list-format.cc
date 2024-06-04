@@ -71,8 +71,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
   const char* service = "Intl.ListFormat";
   // 4. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             GetOptionsObject(isolate, input_options, service),
-                             JSListFormat);
+                             GetOptionsObject(isolate, input_options, service));
 
   // Note: No need to create a record. It's not observable.
   // 6. Let opt be a new Record.
@@ -92,8 +91,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
       Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
                           requested_locales, matcher, {});
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSListFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
   Handle<String> locale_str =
@@ -121,8 +119,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
       icu_locale, GetIcuType(type_enum), GetIcuWidth(style_enum), status);
   if (U_FAILURE(status) || formatter == nullptr) {
     delete formatter;
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSListFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   Handle<Managed<icu::ListFormatter>> managed_formatter =
@@ -230,7 +227,7 @@ MaybeHandle<T> FormatListCommon(
   icu::FormattedList formatted = formatter->formatStringsToValue(
       array.data(), static_cast<int32_t>(array.size()), status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return formatToResult(isolate, formatted);
 }
@@ -260,13 +257,12 @@ MaybeHandle<JSArray> FormattedListToJSArray(
   while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()),
-        JSArray);
+        Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()));
     Intl::AddElement(isolate, array, index++,
                      IcuFieldIdToType(isolate, cfpos.getField()), substring);
   }
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   JSObject::ValidateElements(*array);
   return array;

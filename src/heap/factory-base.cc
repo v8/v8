@@ -825,7 +825,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
                  RefineAllocationTypeForInPlaceInternalizableString(
                      allocation, map) == allocation);
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqStringT);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   int size = SeqStringT::SizeFor(length);
@@ -900,7 +900,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -998,8 +998,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
   if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                             NewRawOneByteString(string.length(), allocation),
-                             String);
+                             NewRawOneByteString(string.length(), allocation));
 
   DisallowGarbageCollection no_gc;
   // Copy the characters into the new object.

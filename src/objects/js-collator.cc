@@ -288,8 +288,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
-      JSCollator);
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
 
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
@@ -364,8 +363,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
       Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSCollator);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -429,8 +427,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
         icu::Collator::createInstance(no_extension_locale, status));
 
     if (U_FAILURE(status) || icu_collator == nullptr) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                      JSCollator);
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
     }
   }
   DCHECK(U_SUCCESS(status));

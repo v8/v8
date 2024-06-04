@@ -58,11 +58,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(
-              MessageTemplate::kDetachedOperation,
-              isolate->factory()->NewStringFromAsciiChecked(method_name)),
-          JSTypedArray);
+          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                                isolate->factory()->NewStringFromAsciiChecked(
+                                    method_name)));
     }
 
     if (only_int32_and_big_int64) {
@@ -79,12 +77,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
   }
 
   THROW_NEW_ERROR(
-      isolate,
-      NewTypeError(only_int32_and_big_int64
-                       ? MessageTemplate::kNotInt32OrBigInt64TypedArray
-                       : MessageTemplate::kNotIntegerTypedArray,
-                   object),
-      JSTypedArray);
+      isolate, NewTypeError(only_int32_and_big_int64
+                                ? MessageTemplate::kNotInt32OrBigInt64TypedArray
+                                : MessageTemplate::kNotIntegerTypedArray,
+                            object));
 }
 
 // https://tc39.es/ecma262/#sec-validateatomicaccess

@@ -378,8 +378,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
     // here accessing uninitialized variable error should be throwed.
     THROW_NEW_ERROR(isolate,
                     NewReferenceError(
-                        MessageTemplate::kAccessedUninitializedVariable, name),
-                    Object);
+                        MessageTemplate::kAccessedUninitializedVariable, name));
   }
 
   return value;

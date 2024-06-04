@@ -618,7 +618,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
           isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
           skip_indices_);
     }
-    ASSIGN_RETURN_ON_EXCEPTION(isolate_, own_keys, maybe_own_keys, FixedArray);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, own_keys, maybe_own_keys);
   } else {
     own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
         isolate_, Handle<JSObject>::cast(receiver_));

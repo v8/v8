@@ -180,8 +180,7 @@ ELEMENTS_LIST(ELEMENTS_TRAITS)
 
 V8_WARN_UNUSED_RESULT
 MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
-  THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidArrayLength),
-                  Object);
+  THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
 }
 
 WriteBarrierMode GetWriteBarrierMode(Tagged<FixedArrayBase> elements,
@@ -904,15 +903,15 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     if (IsDoubleElementsKind(kind())) {
       if (!isolate->context().is_null() &&
           !base::IsInRange(capacity, 0, FixedDoubleArray::kMaxLength)) {
-        return isolate->Throw<FixedArrayBase>(isolate->factory()->NewRangeError(
-            MessageTemplate::kInvalidArrayLength));
+        THROW_NEW_ERROR(isolate,
+                        NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
       if (!isolate->context().is_null() &&
           !base::IsInRange(capacity, 0, FixedArray::kMaxLength)) {
-        return isolate->Throw<FixedArrayBase>(isolate->factory()->NewRangeError(
-            MessageTemplate::kInvalidArrayLength));
+        THROW_NEW_ERROR(isolate,
+                        NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
       new_elements = isolate->factory()->NewFixedArray(capacity);
     }
@@ -1287,8 +1286,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         Subclass::GetMaxNumberOfEntries(*object, *backing_store);
 
     if (initial_list_length > FixedArray::kMaxLength - nof_property_keys) {
-      return isolate->Throw<FixedArray>(isolate->factory()->NewRangeError(
-          MessageTemplate::kInvalidArrayLength));
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kInvalidArrayLength));
     }
     initial_list_length += nof_property_keys;
 

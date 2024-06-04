@@ -238,8 +238,8 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
       if (eval_script->compilation_type() == Script::CompilationType::kEval) {
         // Eval script originated from another eval.
         Handle<String> str;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, str, FormatEvalOrigin(isolate, eval_script), String);
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, str,
+                                   FormatEvalOrigin(isolate, eval_script));
         builder.AppendString(str);
       } else {
         // eval script originated from "real" source.

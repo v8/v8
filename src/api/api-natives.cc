@@ -84,8 +84,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, getter,
         InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(getter)),
-        Object);
+                            Handle<FunctionTemplateInfo>::cast(getter)));
     Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
@@ -94,15 +93,12 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, setter,
         InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(setter)),
-        Object);
+                            Handle<FunctionTemplateInfo>::cast(setter)));
     Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
-  RETURN_ON_EXCEPTION(isolate,
-                      JSObject::DefineOwnAccessorIgnoreAttributes(
-                          object, name, getter, setter, attributes),
-                      Object);
+  RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
+                                   object, name, getter, setter, attributes));
   return object;
 }
 
@@ -113,7 +109,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
                                        PropertyAttributes attributes) {
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Instantiate(isolate, prop_data, name), Object);
+                             Instantiate(isolate, prop_data, name));
 
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -124,8 +120,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   if (it.IsFound()) {
     THROW_NEW_ERROR(
         isolate,
-        NewTypeError(MessageTemplate::kDuplicateTemplateProperty, name),
-        Object);
+        NewTypeError(MessageTemplate::kDuplicateTemplateProperty, name));
   }
 #endif
 
@@ -251,17 +246,14 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
       if (kind == PropertyKind::kData) {
         auto prop_data = handle(properties->get(i++), isolate);
-        RETURN_ON_EXCEPTION(
-            isolate,
-            DefineDataProperty(isolate, obj, name, prop_data, attributes),
-            JSObject);
+        RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                        prop_data, attributes));
       } else {
         auto getter = handle(properties->get(i++), isolate);
         auto setter = handle(properties->get(i++), isolate);
-        RETURN_ON_EXCEPTION(isolate,
-                            DefineAccessorProperty(isolate, obj, name, getter,
-                                                   setter, attributes),
-                            JSObject);
+        RETURN_ON_EXCEPTION(
+            isolate, DefineAccessorProperty(isolate, obj, name, getter, setter,
+                                            attributes));
       }
     } else {
       // Intrinsic data property --- Get appropriate value from the current
@@ -274,10 +266,8 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
           static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
-      RETURN_ON_EXCEPTION(
-          isolate,
-          DefineDataProperty(isolate, obj, name, prop_data, attributes),
-          JSObject);
+      RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                      prop_data, attributes));
     }
   }
   return obj;
@@ -332,8 +322,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
           FunctionTemplateInfo::cast(maybe_constructor_info), isolate);
       Handle<JSFunction> tmp_constructor;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, tmp_constructor,
-                                 InstantiateFunction(isolate, cons_templ),
-                                 JSObject);
+                                 InstantiateFunction(isolate, cons_templ));
       constructor = scope.CloseAndEscape(tmp_constructor);
     }
 
@@ -349,13 +338,12 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
       JSObject::New(constructor, new_target, Handle<AllocationSite>::null(),
-                    new_js_object_type),
-      JSObject);
+                    new_js_object_type));
 
   if (is_prototype) JSObject::OptimizeAsPrototype(object);
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, ConfigureInstance(isolate, object, info), JSObject);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             ConfigureInstance(isolate, object, info));
   if (info->immutable_proto()) {
     JSObject::SetImmutableProto(object);
   }
@@ -384,15 +372,13 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, parent_instance,
       InstantiateFunction(
-          isolate, Handle<FunctionTemplateInfo>::cast(function_template)),
-      JSFunction);
+          isolate, Handle<FunctionTemplateInfo>::cast(function_template)));
   Handle<Object> instance_prototype;
   // TODO(cbruni): decide what to do here.
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, instance_prototype,
       JSObject::GetProperty(isolate, parent_instance,
-                            isolate->factory()->prototype_string()),
-      JSFunction);
+                            isolate->factory()->prototype_string()));
   return scope.CloseAndEscape(instance_prototype);
 }
 }  // namespace
@@ -422,22 +408,20 @@ MaybeHandle<JSFunction> InstantiateFunction(
       } else {
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, prototype,
-            GetInstancePrototype(isolate, protoype_provider_templ), JSFunction);
+            GetInstancePrototype(isolate, protoype_provider_templ));
       }
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
           InstantiateObject(isolate,
                             Handle<ObjectTemplateInfo>::cast(prototype_templ),
-                            Handle<JSReceiver>(), true),
-          JSFunction);
+                            Handle<JSReceiver>(), true));
     }
     Handle<Object> parent(data->GetParentTemplate(), isolate);
     if (!IsUndefined(*parent, isolate)) {
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
-                                 GetInstancePrototype(isolate, parent),
-                                 JSFunction);
+                                 GetInstancePrototype(isolate, parent));
       CHECK(IsHeapObject(*parent_prototype));
       JSObject::ForceSetPrototype(isolate, Handle<JSObject>::cast(prototype),
                                   Handle<HeapObject>::cast(parent_prototype));

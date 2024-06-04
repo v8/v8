@@ -338,8 +338,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
   // Concatenate the "bound " up to the last non-bound target.
   while (IsJSBoundFunction(function->bound_target_function())) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
-                               factory->NewConsString(prefix, target_name),
-                               String);
+                               factory->NewConsString(prefix, target_name));
     function = handle(JSBoundFunction::cast(function->bound_target_function()),
                       isolate);
   }
@@ -347,8 +346,8 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
     Handle<JSWrappedFunction> target(
         JSWrappedFunction::cast(function->bound_target_function()), isolate);
     Handle<String> name;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, name, JSWrappedFunction::GetName(isolate, target), String);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, name,
+                               JSWrappedFunction::GetName(isolate, target));
     return factory->NewConsString(target_name, name);
   }
   if (IsJSFunction(function->bound_target_function())) {
@@ -1086,7 +1085,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, prototype,
-        JSReceiver::GetProperty(isolate, new_target, prototype_string), Map);
+        JSReceiver::GetProperty(isolate, new_target, prototype_string));
     // The above prototype lookup might change the constructor and its
     // prototype, hence we have to reload the initial map.
     EnsureHasInitialMap(constructor);
@@ -1100,7 +1099,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   if (!IsJSReceiver(*prototype)) {
     Handle<NativeContext> native_context;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, native_context,
-                               JSReceiver::GetFunctionRealm(new_target), Map);
+                               JSReceiver::GetFunctionRealm(new_target));
     Handle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());

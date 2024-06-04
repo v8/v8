@@ -657,8 +657,7 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                isolate->factory()->NewRawOneByteString(
-                                   decoder.utf16_length(), allocation),
-                               String);
+                                   decoder.utf16_length(), allocation));
 
     DisallowGarbageCollection no_gc;
     decoder.Decode(result->GetChars(no_gc), peek_bytes());
@@ -669,8 +668,7 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                              isolate->factory()->NewRawTwoByteString(
-                                 decoder.utf16_length(), allocation),
-                             String);
+                                 decoder.utf16_length(), allocation));
 
   DisallowGarbageCollection no_gc;
   decoder.Decode(result->GetChars(no_gc), peek_bytes());
@@ -710,7 +708,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   if (string.size() > kMaxInt) {
     // The Utf8Decode can't handle longer inputs, and we couldn't create
     // strings from them anyway.
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
@@ -822,7 +820,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        NewRawOneByteString(decoder.utf16_length(), allocation), String);
+        NewRawOneByteString(decoder.utf16_length(), allocation));
     DisallowGarbageCollection no_gc;
     // Update pointer references, since the original string may have moved after
     // allocation.
@@ -836,7 +834,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result,
-      NewRawTwoByteString(decoder.utf16_length(), allocation), String);
+      NewRawTwoByteString(decoder.utf16_length(), allocation));
 
   DisallowGarbageCollection no_gc;
   // Update pointer references, since the original string may have moved after
@@ -855,14 +853,14 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
     if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               NewRawOneByteString(length, allocation), String);
+                               NewRawOneByteString(length, allocation));
     DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string, length);
     return result;
   } else {
     Handle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               NewRawTwoByteString(length, allocation), String);
+                               NewRawTwoByteString(length, allocation));
     DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string, length);
     return result;
@@ -1114,7 +1112,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
     const ExternalOneByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   if (length == 0) return empty_string();
 
@@ -1138,7 +1136,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   if (length == 0) return empty_string();
 
@@ -3522,8 +3520,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {
     THROW_NEW_ERROR(isolate(),
-                    NewRangeError(MessageTemplate::kTooManyArguments),
-                    JSBoundFunction);
+                    NewRangeError(MessageTemplate::kTooManyArguments));
   }
 
   SaveAndSwitchContext save(isolate(),

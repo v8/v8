@@ -150,10 +150,8 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
           .ToHandleChecked();
   Handle<String> flag_string =
       JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
-  THROW_NEW_ERROR(isolate,
-                  NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern,
-                                 flag_string, error_text),
-                  Object);
+  THROW_NEW_ERROR(isolate, NewSyntaxError(MessageTemplate::kMalformedRegExp,
+                                          pattern, flag_string, error_text));
 }
 
 void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
@@ -264,7 +262,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     Handle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
-        isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
+        isolate->factory()->NewStringFromTwoByte(atom_pattern));
     if (!IsIgnoreCase(flags) && !HasFewDifferentCharacters(atom_string)) {
       RegExpImpl::AtomCompile(isolate, re, pattern, flags, atom_string);
       has_been_compiled = true;

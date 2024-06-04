@@ -38,8 +38,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
   const char* service = "Intl.Segmenter";
   // 5. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             GetOptionsObject(isolate, input_options, service),
-                             JSSegmenter);
+                             GetOptionsObject(isolate, input_options, service));
 
   // 7. Let opt be a new Record.
   // 8. Let matcher be ? GetOption(options, "localeMatcher", "string",
@@ -58,8 +57,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
                           requested_locales, matcher, {});
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSSegmenter);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 

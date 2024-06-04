@@ -135,8 +135,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
     Handle<String> cons1;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons1, isolate->factory()->NewConsString(first, replace),
-        String);
+        isolate, cons1, isolate->factory()->NewConsString(first, replace));
     Handle<String> second =
         isolate->factory()->NewSubString(subject, index + 1, subject->length());
     return isolate->factory()->NewConsString(cons1, second);

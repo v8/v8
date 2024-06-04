@@ -170,7 +170,7 @@ MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   if (v8_flags.correctness_fuzzer_suppressions) {
     FATAL("Aborting on invalid BigInt length");
   }
-  THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig), T);
+  THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig));
 }
 
 template <typename IsolateT>
@@ -363,8 +363,7 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
                                          Handle<BigInt> exponent) {
   // 1. If exponent is < 0, throw a RangeError exception.
   if (exponent->sign()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kMustBePositive),
-                    BigInt);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kMustBePositive));
   }
   // 2. If base is 0n and exponent is 0n, return 1n.
   if (exponent->is_zero()) {
@@ -455,8 +454,7 @@ MaybeHandle<BigInt> BigInt::Divide(Isolate* isolate, Handle<BigInt> x,
                                    Handle<BigInt> y) {
   // 1. If y is 0n, throw a RangeError exception.
   if (y->is_zero()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntDivZero),
-                    BigInt);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntDivZero));
   }
   // 2. Let quotient be the mathematical value of x divided by y.
   // 3. Return a BigInt representing quotient rounded towards 0 to the next
@@ -489,8 +487,7 @@ MaybeHandle<BigInt> BigInt::Remainder(Isolate* isolate, Handle<BigInt> x,
                                       Handle<BigInt> y) {
   // 1. If y is 0n, throw a RangeError exception.
   if (y->is_zero()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntDivZero),
-                    BigInt);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntDivZero));
   }
   // 2. Return the BigInt representing x modulo y.
   // See https://github.com/tc39/proposal-bigint/issues/84 though.
@@ -877,7 +874,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
         bigint::ToStringResultLength(bigint->digits(), radix, sign);
     if (chars_allocated > String::kMaxLength) {
       if (should_throw == kThrowOnError) {
-        THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+        THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
       } else {
         return {};
       }
@@ -952,8 +949,7 @@ MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
   double value = HeapNumber::cast(*number)->value();
   if (!std::isfinite(value) || (DoubleToInteger(value) != value)) {
     THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kBigIntFromNumber, number),
-                    BigInt);
+                    NewRangeError(MessageTemplate::kBigIntFromNumber, number));
   }
   return MutableBigInt::NewFromDouble(isolate, value);
 }
@@ -963,8 +959,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(obj),
-                                ToPrimitiveHint::kNumber),
-        BigInt);
+                                ToPrimitiveHint::kNumber));
   }
 
   if (IsBoolean(*obj)) {
@@ -991,16 +986,15 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
           ellipsis->SeqTwoByteStringSet(0, 0x2026);
           str = factory->NewConsString(prefix, ellipsis).ToHandleChecked();
         }
-        THROW_NEW_ERROR(isolate,
-                        NewSyntaxError(MessageTemplate::kBigIntFromObject, str),
-                        BigInt);
+        THROW_NEW_ERROR(
+            isolate, NewSyntaxError(MessageTemplate::kBigIntFromObject, str));
       }
     }
     return n;
   }
 
-  THROW_NEW_ERROR(
-      isolate, NewTypeError(MessageTemplate::kBigIntFromObject, obj), BigInt);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kBigIntFromObject, obj));
 }
 
 Handle<Object> BigInt::ToNumber(Isolate* isolate, Handle<BigInt> x) {

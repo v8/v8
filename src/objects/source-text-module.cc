@@ -199,11 +199,11 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     } else if (name_set->count(export_name)) {
       // Cycle detected.
       if (must_resolve) {
-        return isolate->ThrowAt<Cell>(
-            isolate->factory()->NewSyntaxError(
-                MessageTemplate::kCyclicModuleDependency, export_name,
-                module_specifier),
-            &loc);
+        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                             MessageTemplate::kCyclicModuleDependency,
+                             export_name, module_specifier),
+                         &loc);
+        return MaybeHandle<Cell>();
       }
       return MaybeHandle<Cell>();
     }
@@ -288,10 +288,11 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
-          return isolate->ThrowAt<Cell>(isolate->factory()->NewSyntaxError(
-                                            MessageTemplate::kAmbiguousExport,
-                                            module_specifier, export_name),
-                                        &loc);
+          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                               MessageTemplate::kAmbiguousExport,
+                               module_specifier, export_name),
+                           &loc);
+          return MaybeHandle<Cell>();
         }
       } else if (isolate->has_exception()) {
         return MaybeHandle<Cell>();
@@ -310,10 +311,11 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
   // Unresolvable.
   if (must_resolve) {
-    return isolate->ThrowAt<Cell>(
+    isolate->ThrowAt(
         isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                            module_specifier, export_name),
         &loc);
+    return MaybeHandle<Cell>();
   }
   return MaybeHandle<Cell>();
 }
@@ -1080,8 +1082,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
           SourceTextModule::cast(*requested_module), isolate);
       RETURN_ON_EXCEPTION(
           isolate,
-          InnerModuleEvaluation(isolate, required_module, stack, dfs_index),
-          Object);
+          InnerModuleEvaluation(isolate, required_module, stack, dfs_index));
       int required_module_status = required_module->status();
 
       //    i. Assert: requiredModule.[[Status]] is either "evaluating" or
@@ -1139,8 +1140,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
         AddAsyncParentModule(isolate, required_module, module);
       }
     } else {
-      RETURN_ON_EXCEPTION(isolate, Module::Evaluate(isolate, requested_module),
-                          Object);
+      RETURN_ON_EXCEPTION(isolate, Module::Evaluate(isolate, requested_module));
     }
   }
 

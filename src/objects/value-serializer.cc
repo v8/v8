@@ -2079,7 +2079,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
              ->GetSharedArrayBufferFromId(
                  reinterpret_cast<v8::Isolate*>(isolate_), clone_id)
              .ToLocal(&sab_value)) {
-      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSArrayBuffer);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
       return MaybeHandle<JSArrayBuffer>();
     }
     Handle<JSArrayBuffer> array_buffer = Utils::OpenHandle(*sab_value);
@@ -2351,7 +2351,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
            ->GetWasmModuleFromId(reinterpret_cast<v8::Isolate*>(isolate_),
                                  transfer_id)
            .ToLocal(&module_value)) {
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     return MaybeHandle<JSObject>();
   }
   uint32_t id = next_id_++;
@@ -2408,7 +2408,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     return MaybeHandle<HeapObject>();
   }
 
@@ -2421,7 +2421,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
     const v8::SharedValueConveyor* conveyor = delegate_->GetSharedValueConveyor(
         reinterpret_cast<v8::Isolate*>(isolate_));
     if (!conveyor) {
-      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
       return MaybeHandle<HeapObject>();
     }
     shared_object_conveyor_ = conveyor->private_.get();
@@ -2440,7 +2440,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Local<v8::Object> object;
   if (!delegate_->ReadHostObject(v8_isolate).ToLocal(&object)) {
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     return MaybeHandle<JSObject>();
   }
   Handle<JSObject> js_object =

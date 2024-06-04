@@ -581,12 +581,11 @@ class ContextProxyPrototype {
         Handle<Object> delegate;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, delegate,
-            JSObject::GetProperty(isolate, receiver, delegate_name), Object);
+            JSObject::GetProperty(isolate, receiver, delegate_name));
         if (!IsUndefined(*delegate, isolate)) {
           Handle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, Object::GetProperty(isolate, delegate, name),
-              Object);
+              isolate, value, Object::GetProperty(isolate, delegate, name));
           if (!IsUndefined(*value, isolate)) return value;
         }
       }

@@ -305,13 +305,13 @@ void IC::UpdateState(Handle<Object> lookup_start_object, Handle<Object> name) {
 MaybeHandle<Object> IC::TypeError(MessageTemplate index, Handle<Object> object,
                                   Handle<Object> key) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object), Object);
+  THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object));
 }
 
 MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(
-      isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+  THROW_NEW_ERROR(isolate(),
+                  NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
 void IC::OnFeedbackChanged(const char* reason) {
@@ -417,8 +417,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     }
 
     if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
-      return isolate()->Throw<Object>(
-          ErrorUtils::NewIteratorError(isolate(), object));
+      isolate()->Throw(*ErrorUtils::NewIteratorError(isolate(), object));
+      return MaybeHandle<Object>();
     }
 
     if (IsAnyHas()) {
@@ -467,8 +467,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     // Get the property.
     Handle<Object> result;
 
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Object::GetProperty(&it, IsLoadGlobalIC()), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                               Object::GetProperty(&it, IsLoadGlobalIC()));
     if (it.IsFound()) {
       return result;
     } else if (!ShouldThrowReferenceError()) {
@@ -501,8 +501,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
         THROW_NEW_ERROR(
             isolate(),
             NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
-                              name),
-            Object);
+                              name));
       }
 
       bool use_ic =
@@ -1542,13 +1541,11 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
         Runtime::GetObjectProperty(isolate(), object, key, Handle<Object>(),
-                                   is_found),
-        Object);
+                                   is_found));
   } else {
     DCHECK(IsKeyedHasIC());
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               Runtime::HasProperty(isolate(), object, key),
-                               Object);
+                               Runtime::HasProperty(isolate(), object, key));
   }
   return result;
 }
@@ -1557,8 +1554,8 @@ MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<Object> object,
                                           Handle<Object> key,
                                           Handle<Name> name) {
   Handle<Object> load_handle;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle, LoadIC::Load(object, name),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
+                             LoadIC::Load(object, name));
 
   if (vector_needs_update()) {
     ConfigureVectorState(MEGAMORPHIC, key);
@@ -1733,8 +1730,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       THROW_NEW_ERROR(
           isolate(),
           NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
-                            name),
-          Object);
+                            name));
     }
 
     if (lookup_result.mode == VariableMode::kLet &&
@@ -2566,8 +2562,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
             ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                                StoreOrigin::kMaybeKeyed)
             : Runtime::SetObjectProperty(isolate(), object, key, value,
-                                         StoreOrigin::kMaybeKeyed),
-        Object);
+                                         StoreOrigin::kMaybeKeyed));
     return result;
   }
 
@@ -2580,8 +2575,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   if (key_type == kName) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), store_handle,
-        StoreIC::Store(object, maybe_name, value, StoreOrigin::kMaybeKeyed),
-        Object);
+        StoreIC::Store(object, maybe_name, value, StoreOrigin::kMaybeKeyed));
     if (vector_needs_update()) {
       if (ConfigureVectorState(MEGAMORPHIC, key)) {
         set_slow_stub_reason("unhandled internalized string key");

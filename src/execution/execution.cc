@@ -222,10 +222,10 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
           MessageLocation location(script, 0, 1);
-          return isolate->ThrowAt<Context>(
-              isolate->factory()->NewSyntaxError(
-                  MessageTemplate::kVarRedeclaration, name),
-              &location);
+          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                               MessageTemplate::kVarRedeclaration, name),
+                           &location);
+          return MaybeHandle<Context>();
         }
       }
     }
@@ -244,10 +244,10 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
         // ES#sec-globaldeclarationinstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
-        return isolate->ThrowAt<Context>(
-            isolate->factory()->NewSyntaxError(
-                MessageTemplate::kVarRedeclaration, name),
-            &location);
+        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                             MessageTemplate::kVarRedeclaration, name),
+                         &location);
+        return MaybeHandle<Context>();
       }
 
       JSGlobalObject::InvalidatePropertyCell(global_object, name);

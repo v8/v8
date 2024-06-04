@@ -352,8 +352,7 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
   MAYBE_RETURN(maybe_apply, MaybeHandle<JSLocale>());
   if (!maybe_apply.FromJust()) {
     THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kLocaleBadParameters),
-                    JSLocale);
+                    NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
 
   Maybe<bool> maybe_insert =
@@ -366,8 +365,7 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
 
   if (!maybe_insert.FromJust() || U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kLocaleBadParameters),
-                    JSLocale);
+                    NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
 
   // 31. Set locale.[[Locale]] to r.[[locale]].
@@ -395,7 +393,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
-      JSFunction::GetDerivedMap(isolate, constructor, constructor), JSLocale);
+      JSFunction::GetDerivedMap(isolate, constructor, constructor));
 
   Handle<JSLocale> locale = Handle<JSLocale>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
@@ -435,8 +433,7 @@ MaybeHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
     // Due to https://unicode-org.atlassian.net/browse/ICU-21639
     // Valid but super long locale will fail. Just throw here for now.
     THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kLocaleBadParameters),
-                    JSLocale);
+                    NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
   return Construct(isolate, result);
 }
@@ -470,8 +467,7 @@ MaybeHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
     // Due to https://unicode-org.atlassian.net/browse/ICU-21639
     // Valid but super long locale will fail. Just throw here for now.
     THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kLocaleBadParameters),
-                    JSLocale);
+                    NewRangeError(MessageTemplate::kLocaleBadParameters));
   }
   return Construct(isolate, result);
 }
@@ -497,8 +493,7 @@ MaybeHandle<JSArray> GetKeywordValuesFromLocale(Isolate* isolate,
   std::unique_ptr<icu::StringEnumeration> enumeration(
       T::getKeywordValuesForLocale(key, locale, commonly_used, status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   return Intl::ToJSArray(isolate, unicode_key, enumeration.get(), removes,
                          sort);
@@ -562,14 +557,12 @@ MaybeHandle<JSArray> JSLocale::GetHourCycles(Isolate* isolate,
   std::unique_ptr<icu::DateTimePatternGenerator> generator(
       icu::DateTimePatternGenerator::createInstance(icu_locale, status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   UDateFormatHourCycle hc = generator->getDefaultHourCycle(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Handle<String> hour_cycle;
 
@@ -657,8 +650,7 @@ MaybeHandle<Object> JSLocale::GetTimeZones(Isolate* isolate,
       icu::TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL,
                                                  region, nullptr, status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSArray);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
 }
@@ -708,8 +700,7 @@ MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
   std::unique_ptr<icu::Calendar> calendar(
       icu::Calendar::createInstance(*(locale->icu_locale()->raw()), status));
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSObject);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   // Let fd be the weekday value indicating which day of the week is considered
@@ -734,8 +725,7 @@ MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
   Handle<JSArray> we = factory->NewJSArrayWithElements(wi);
 
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSObject);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   // Let md be the minimal days required in the first week of a month or year,

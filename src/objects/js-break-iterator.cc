@@ -38,8 +38,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
     options = factory->NewJSObjectWithNullProto();
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               Object::ToObject(isolate, options_obj, service),
-                               JSV8BreakIterator);
+                               Object::ToObject(isolate, options_obj, service));
   }
 
   // Extract locale string
@@ -52,8 +51,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
       Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
                           requested_locales, matcher, {});
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSV8BreakIterator);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -96,8 +94,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
 
   // Error handling for break_iterator
   if (U_FAILURE(status) || break_iterator == nullptr) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSV8BreakIterator);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
 

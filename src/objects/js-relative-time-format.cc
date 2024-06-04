@@ -80,8 +80,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Handle<JSReceiver> options;
   const char* service = "Intl.RelativeTimeFormat";
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
-      JSRelativeTimeFormat);
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service));
 
   // 4. Let opt be a new Record.
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
@@ -114,8 +113,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
                           requested_locales, matcher, {"nu"});
   if (maybe_resolve_locale.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSRelativeTimeFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
@@ -185,8 +183,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     }
     if (U_FAILURE(status) || number_format == nullptr) {
       delete number_format;
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                      JSRelativeTimeFormat);
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
     }
   }
 
@@ -206,8 +203,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
                                          UDISPCTX_CAPITALIZATION_NONE, status);
   if (U_FAILURE(status) || icu_formatter == nullptr) {
     delete icu_formatter;
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSRelativeTimeFormat);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   Handle<String> numbering_system_string =
@@ -349,19 +345,18 @@ MaybeHandle<T> FormatCommon(
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Object::ToNumber(isolate, value_obj), T);
+                             Object::ToNumber(isolate, value_obj));
   double number = Object::NumberValue(*value);
   // 4. Let unit be ? ToString(unit).
   Handle<String> unit;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, unit, Object::ToString(isolate, unit_obj),
-                             T);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, unit,
+                             Object::ToString(isolate, unit_obj));
   // 4. If isFinite(value) is false, then throw a RangeError exception.
   if (!std::isfinite(number)) {
     THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kNotFiniteNumber,
-                      isolate->factory()->NewStringFromAsciiChecked(func_name)),
-        T);
+        isolate, NewRangeError(
+                     MessageTemplate::kNotFiniteNumber,
+                     isolate->factory()->NewStringFromAsciiChecked(func_name)));
   }
   icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
@@ -371,8 +366,7 @@ MaybeHandle<T> FormatCommon(
         isolate,
         NewRangeError(MessageTemplate::kInvalidUnit,
                       isolate->factory()->NewStringFromAsciiChecked(func_name),
-                      unit),
-        T);
+                      unit));
   }
   UErrorCode status = U_ZERO_ERROR;
   icu::FormattedRelativeDateTime formatted =
@@ -380,7 +374,7 @@ MaybeHandle<T> FormatCommon(
           ? formatter->formatNumericToValue(number, unit_enum, status)
           : formatter->formatToValue(number, unit_enum, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return formatToResult(isolate, formatted, UnitAsString(isolate, unit_enum),
                         IsNaN(*value));
@@ -392,7 +386,7 @@ MaybeHandle<String> FormatToString(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   return Intl::ToString(isolate, result);
 }
@@ -480,7 +474,7 @@ MaybeHandle<JSArray> FormatToJSArray(
     }
   }
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
   if (string.length() > previous_end) {
     Maybe<bool> maybe_added = AddLiteral(isolate, array, string, index,

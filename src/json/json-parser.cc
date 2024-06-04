@@ -152,8 +152,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name),
-      Object);
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name));
 
   // When with_source == kWithSource, the source text is passed to the reviver
   // if the reviver has not mucked with the originally parsed value.
@@ -170,7 +169,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       Handle<Object> length_object;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, length_object,
-          Object::GetLengthFromArrayLike(isolate_, object), Object);
+          Object::GetLengthFromArrayLike(isolate_, object));
       double length = Object::NumberValue(*length_object);
       if (pass_source_to_reviver) {
         Handle<FixedArray> val_nodes_and_snapshots =
@@ -215,8 +214,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           isolate_, contents,
           KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
-                                  GetKeysConversion::kConvertToString),
-          Object);
+                                  GetKeysConversion::kConvertToString));
       if (pass_source_to_reviver) {
         Handle<ObjectTwoHashTable> val_nodes_and_snapshots =
             Handle<ObjectTwoHashTable>::cast(val_node);
@@ -266,9 +264,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     Handle<Object> argv[] = {name, value, context};
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv),
-        Object);
-  return outer_scope.CloseAndEscape(result);
+        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv));
+    return outer_scope.CloseAndEscape(result);
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -535,11 +532,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
   bool reviver_is_callable = IsCallable(*reviver);
   bool should_track_json_source = reviver_is_callable;
   if (V8_UNLIKELY(should_track_json_source)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>(),
-                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>());
   } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive(),
-                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
   }
 
   if (!Check(JsonToken::EOS)) {
