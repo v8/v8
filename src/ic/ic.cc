@@ -3407,14 +3407,29 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
     // In the case the clone also involves a proto transition, we do not cache
     // the target and thus cannot keep track of representation dependencies. We
     // can only allow the most generic target representation.
-    if (!CanCacheCloneTargetMapTransition(source_map, target_map,
-                                          null_proto_literal, isolate) &&
-        !details.representation().MostGenericInPlaceChange().Equals(
-            target_details.representation())) {
-      return false;
-    }
-    if (!details.representation().fits_into(target_details.representation())) {
-      return false;
+    // The same goes for field types.
+    Tagged<FieldType> type = descriptors->GetFieldType(i);
+    Tagged<FieldType> target_type = target_descriptors->GetFieldType(i);
+    if (CanCacheCloneTargetMapTransition(source_map, target_map,
+                                         null_proto_literal, isolate)) {
+      if (!details.representation().fits_into(
+              target_details.representation()) ||
+          (target_details.representation().IsDouble() &&
+           details.representation().IsSmi())) {
+        return false;
+      }
+      if (IsNone(target_type) ||
+          (IsClass(type) && IsClass(target_type) &&
+           !FieldType::Equals(type, target_type)) ||
+          (IsAny(type) && IsClass(target_type))) {
+        return false;
+      }
+    } else {
+      if (!details.representation().MostGenericInPlaceChange().Equals(
+              target_details.representation()) ||
+          !IsAny(target_type)) {
+        return false;
+      }
     }
   }
   return true;
