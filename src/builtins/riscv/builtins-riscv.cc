@@ -864,15 +864,14 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Get the size of the formal parameters + receiver (in bytes).
   __ LoadWord(params_size,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ Lw(params_size,
-        FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
+  __ Lhu(params_size,
+         FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
   Register actual_params_size = scratch2;
   Label L1;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ LoadWord(actual_params_size,
               MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ SllWord(actual_params_size, actual_params_size, kSystemPointerSizeLog2);
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   __ Branch(&L1, le, actual_params_size, Operand(params_size),
@@ -884,7 +883,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, MacroAssembler::kCountIsBytes,
+  __ DropArguments(params_size, MacroAssembler::kCountIsInteger,
                    MacroAssembler::kCountIncludesReceiver);
 }
 
@@ -3589,8 +3588,7 @@ void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   ASM_CODE_COMMENT(masm);
   __ StoreWord(zero_reg,
                MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-  __ StoreWord(zero_reg,
-               MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+  __ StoreWord(zero_reg, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
@@ -3914,7 +3912,6 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
                             Register wrapper_buffer, Register original_fp,
                             Register new_wrapper_buffer, Label* suspend) {
   ASM_CODE_COMMENT(masm);
-  std::cout << "SwitchToAllocatedStack " << " " << wrapper_buffer << std::endl;
   UseScratchRegisterScope temps(masm);
 
   ResetStackSwitchFrameStackSlots(masm);
@@ -3974,6 +3971,25 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
           JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray));
 }
 
+// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// depending on the ref's type, and places the result in the input register.
+void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
+  __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
+  Label instance;
+  Label end;
+  __ GetInstanceTypeRange(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE,
+                          scratch);
+  // __ CompareInstanceType(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
+  __ Branch(&instance, eq, scratch, Operand(zero_reg));
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ Branch(&end);
+  __ bind(&instance);
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+  __ bind(&end);
+}
+
 void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
   UseScratchRegisterScope temps(masm);
   // The return value of the wasm function becomes the parameter of the
@@ -3982,20 +3998,17 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
   static const Builtin_FulfillPromise_InterfaceDescriptor desc;
   Register promise = desc.GetRegisterParameter(0);
   Register return_value = desc.GetRegisterParameter(1);
+  Register tmp = kScratchReg;
+  Register tmp2 = kScratchReg2;
   __ Move(return_value, kReturnRegister0);
   __ LoadRoot(promise, RootIndex::kActiveSuspender);
   __ LoadTaggedField(
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ LoadWord(kContextRegister,
-              MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldMemOperand(kContextRegister,
-                      WasmTrustedInstanceData::kNativeContextOffset));
+              MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+  GetContextFromRef(masm, kContextRegister, tmp);
 
-  Register tmp = kScratchReg;
-  Register tmp2 = kScratchReg2;
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
   RestoreParentSuspender(masm, tmp, tmp2);
@@ -4036,14 +4049,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ LoadWord(kContextRegister,
-              MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(
-      kContextRegister,
-      FieldMemOperand(kContextRegister,
-                      WasmTrustedInstanceData::kNativeContextOffset));
-
+              MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
   Register tmp = kScratchReg;
   Register tmp2 = kScratchReg2;
+  GetContextFromRef(masm, kContextRegister, tmp);
   ReloadParentContinuation(masm, promise, reason, kContextRegister, tmp, tmp2);
   RestoreParentSuspender(masm, tmp, tmp2);
 
@@ -4072,19 +4081,18 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       sp, sp,
       Operand(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize));
 
-  __ LoadWord(
-      kWasmInstanceRegister,
-      MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+  Register ref = kWasmInstanceRegister;
+  __ LoadWord(ref,
+              MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
 
   Register wrapper_buffer =
       WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
   Label suspend;
   Register original_fp = kScratchReg;
   Register new_wrapper_buffer = kScratchReg2;
-  std::cout << "JSToWasmWrapperHelper " << wrapper_buffer << std::endl;
   if (stack_switch) {
-    SwitchToAllocatedStack(masm, kWasmInstanceRegister, wrapper_buffer,
-                           original_fp, new_wrapper_buffer, &suspend);
+    SwitchToAllocatedStack(masm, ref, wrapper_buffer, original_fp,
+                           new_wrapper_buffer, &suspend);
   } else {
     original_fp = fp;
     new_wrapper_buffer = wrapper_buffer;
@@ -4095,8 +4103,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
         new_wrapper_buffer,
         MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
     if (stack_switch) {
-      __ StoreWord(kWasmInstanceRegister,
-                   MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+      __ StoreWord(ref, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
       Register scratch = temps.Acquire();
       __ LoadWord(
           scratch,
@@ -4256,14 +4263,17 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     __ LoadWord(a1,
                 MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ LoadWord(a0, MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
+    __ LoadWord(a0, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
   } else {
     __ LoadWord(
         a1,
         MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
-    __ LoadWord(
-        a0, MemOperand(
-                fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
+    __ LoadWord(a0,
+                MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    GetContextFromRef(masm, a0, temps.Acquire());
   }
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 
@@ -4307,16 +4317,12 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
 void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                             CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
-  // CallApiCallbackMode::kGeneric mode:
-  //  -- a2                  : arguments count (not including the receiver)
-  //  -- a3                  : call handler info
-  //  -- a0                  : holder
   // CallApiCallbackMode::kOptimizedNoProfiling/kOptimized modes:
   //  -- a1                  : api function address
-  //  -- a2                  : arguments count
-  //  -- a3                  : call data
-  //  -- a0                  : holder
   // Both modes:
+  //  -- a2                  : arguments count
+  //  -- a3                  : FunctionTemplateInfo
+  //  -- a0                  : holder
   //  -- cp                  : context
   //  -- sp[0]               : receiver
   //  -- sp[8]               : first argument
@@ -4327,19 +4333,17 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   Register api_function_address = no_reg;
   Register argc = no_reg;
-  Register call_data = no_reg;
-  Register callback = no_reg;
+  Register func_templ = no_reg;
   Register holder = no_reg;
   Register topmost_script_having_context = no_reg;
   Register scratch = t0;
-  Register scratch2 = t1;
 
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
-      callback =
+      func_templ =
           CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
@@ -4352,19 +4356,20 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
       argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
-      call_data = CallApiCallbackOptimizedDescriptor::CallDataRegister();
+      func_templ =
+          CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackOptimizedDescriptor::HolderRegister();
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     holder, call_data, callback, scratch, scratch2));
+                     holder, func_templ, scratch));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
 
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kDataIndex == 4);
+  static_assert(FCA::kTargetIndex == 4);
   static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kUnusedIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
@@ -4399,7 +4404,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ StoreWord(scratch,
                MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
-  // kPadding
+  // kPadding.
   __ StoreWord(zero_reg,
                MemOperand(sp, FCA::kUnusedIndex * kSystemPointerSize));
 
@@ -4408,22 +4413,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ StoreWord(scratch,
                MemOperand(sp, FCA::kReturnValueIndex * kSystemPointerSize));
 
-  // kData.
-  switch (mode) {
-    case CallApiCallbackMode::kGeneric:
-      __ LoadTaggedField(
-          scratch2,
-          FieldMemOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
-      __ StoreWord(scratch2,
-                   MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      break;
-
-    case CallApiCallbackMode::kOptimizedNoProfiling:
-    case CallApiCallbackMode::kOptimized:
-      __ StoreWord(call_data,
-                   MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      break;
-  }
+  // kTarget.
+  __ StoreWord(func_templ,
+               MemOperand(sp, FCA::kTargetIndex * kSystemPointerSize));
 
   // kNewTarget.
   __ StoreWord(scratch,
@@ -4469,11 +4461,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ StoreWord(callback, MemOperand(sp, 0 * kSystemPointerSize));
+    __ StoreWord(func_templ, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ LoadExternalPointerField(
         api_function_address,
-        FieldMemOperand(callback,
+        FieldMemOperand(func_templ,
                         FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
         kFunctionTemplateInfoCallbackTag);
 
