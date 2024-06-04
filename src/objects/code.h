@@ -130,6 +130,7 @@ class Code : public ExposedTrustedObject {
   // out how to obtain the parameter count during code generation when no
   // BytecodeArray is available from which it can be copied.
   DECL_PRIMITIVE_ACCESSORS(parameter_count, uint16_t)
+  inline uint16_t parameter_count_without_receiver() const;
 
   // Whether this type of Code uses deoptimization data, in which case the
   // deoptimization_data field will be populated.

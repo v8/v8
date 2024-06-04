@@ -92,6 +92,9 @@ INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 UINT16_ACCESSORS(Code, parameter_count, kParameterCountOffset)
+inline uint16_t Code::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
+}
 
 inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
   DCHECK(uses_deoptimization_data());

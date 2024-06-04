@@ -1003,7 +1003,8 @@ class OptimizedFrame : public JavaScriptFrame {
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  Tagged<DeoptimizationData> GetDeoptimizationData(int* deopt_index) const;
+  Tagged<DeoptimizationData> GetDeoptimizationData(Tagged<Code> code,
+                                                   int* deopt_index) const;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 

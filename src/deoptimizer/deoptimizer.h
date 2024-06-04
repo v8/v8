@@ -193,8 +193,7 @@ class Deoptimizer : public Malloced {
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
 
-  static unsigned ComputeIncomingArgumentSize(
-      Tagged<SharedFunctionInfo> shared);
+  static unsigned ComputeIncomingArgumentSize(Tagged<Code> code);
 
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }

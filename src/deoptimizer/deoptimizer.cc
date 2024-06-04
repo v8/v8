@@ -614,14 +614,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                                      from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
-  const int parameter_count =
-      function->shared()->internal_formal_parameter_count_with_receiver();
-  // The parameter count from the (in-sandbox) SFI must match the actual
-  // parameter count of the Code that we are deoptimizing. For now, we use a
-  // SBXCHECK here to ensure that these values are always equal. In the future,
-  // we should change the deoptimizer to use the (trusted) parameter count from
-  // the Code object everywhere, at which point we could drop this again.
-  SBXCHECK_EQ(parameter_count, compiled_code_->parameter_count());
+  const int parameter_count = compiled_code_->parameter_count();
+  DCHECK_EQ(
+      parameter_count,
+      function->shared()->internal_formal_parameter_count_with_receiver());
   input_ = FrameDescription::Create(size, parameter_count, isolate_);
 
   DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
@@ -1267,14 +1263,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   DeoptimizationFrameTranslation::Iterator state_iterator(translations,
                                                           translation_index);
   DeoptimizationLiteralProvider literals(input_data->LiteralArray());
-  translated_state_.Init(
-      isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
-      literals, input_->GetRegisterValues(), trace_file,
-      IsHeapObject(function_)
-          ? function_->shared()
-                ->internal_formal_parameter_count_without_receiver()
-          : 0,
-      actual_argument_count_ - kJSArgcReceiverSlots);
+  translated_state_.Init(isolate_, input_->GetFramePointerAddress(), stack_fp_,
+                         &state_iterator, literals, input_->GetRegisterValues(),
+                         trace_file,
+                         compiled_code_->parameter_count_without_receiver(),
+                         actual_argument_count_ - kJSArgcReceiverSlots);
 
   bytecode_offset_in_outermost_frame_ =
       translated_state_.frames()[0].bytecode_offset();
@@ -2624,12 +2617,9 @@ void Deoptimizer::QueueFeedbackVectorForMaterialization(
 
 unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
   unsigned fixed_size = CommonFrameConstants::kFixedFrameSizeAboveFp;
-  // TODO(jkummerow): If {IsSmi(function_)} can indeed be true, then
-  // {function_} should not have type {JSFunction}.
   IF_WASM(DCHECK_IMPLIES, function_.is_null(), v8_flags.wasm_deopt);
-  if (!function_.is_null() && !IsSmi(function_)) {
-    fixed_size += ComputeIncomingArgumentSize(function_->shared());
-  }
+  DCHECK_IMPLIES(function_.is_null(), compiled_code_->parameter_count() == 0);
+  fixed_size += ComputeIncomingArgumentSize(compiled_code_);
   return fixed_size;
 }
 
@@ -2700,9 +2690,8 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 // static
-unsigned Deoptimizer::ComputeIncomingArgumentSize(
-    Tagged<SharedFunctionInfo> shared) {
-  int parameter_slots = shared->internal_formal_parameter_count_with_receiver();
+unsigned Deoptimizer::ComputeIncomingArgumentSize(Tagged<Code> code) {
+  int parameter_slots = code->parameter_count();
   return parameter_slots * kSystemPointerSize;
 }
 

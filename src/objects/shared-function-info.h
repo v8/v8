@@ -305,6 +305,11 @@ class SharedFunctionInfo
   // For subclass constructors, also includes new.target.
   // The size of function's frame is
   // internal_formal_parameter_count_with_receiver.
+  //
+  // NOTE: this API should be considered DEPRECATED. Please obtain the
+  // parameter count from the Code/BytecodeArray or another trusted source
+  // instead. See also crbug.com/40931165.
+  // TODO(saelo): mark as V8_DEPRECATE_SOON once the remaining users are fixed.
   inline void set_internal_formal_parameter_count(int value);
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;

@@ -1972,7 +1972,9 @@ Handle<JSFunction> MaglevFrame::GetInnermostFunction() const {
 
 BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
-  const Tagged<DeoptimizationData> data = GetDeoptimizationData(&deopt_index);
+  Tagged<Code> code = LookupCode();
+  const Tagged<DeoptimizationData> data =
+      GetDeoptimizationData(code, &deopt_index);
   if (deopt_index == SafepointEntry::kNoDeoptIndex) {
     CHECK(data.is_null());
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
@@ -2721,13 +2723,14 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  Handle<GcSafeCode> code(GcSafeLookupCode(), isolate());
+  Handle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
 
   int deopt_index = SafepointEntry::kNoDeoptIndex;
-  Tagged<DeoptimizationData> const data = GetDeoptimizationData(&deopt_index);
+  Tagged<DeoptimizationData> const data =
+      GetDeoptimizationData(*code, &deopt_index);
   if (deopt_index == SafepointEntry::kNoDeoptIndex) {
     // Hack: For maglevved function entry, we don't emit lazy deopt information,
     // so create an extra special summary here.
@@ -2882,23 +2885,12 @@ int TurbofanFrame::FindReturnPCForTrampoline(Tagged<Code> code,
 }
 
 Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
-    int* deopt_index) const {
+    Tagged<Code> code, int* deopt_index) const {
   DCHECK(is_optimized());
-
-  Tagged<JSFunction> opt_function = function();
-  Tagged<Code> code = opt_function->code(isolate());
 
   Address pc = maybe_unauthenticated_pc();
 
-  // The code object may have been replaced by lazy deoptimization. Fall back
-  // to a slow search in this case to find the original optimized code object.
-  if (!code->contains(isolate(), pc)) {
-    code = isolate()
-               ->heap()
-               ->GcSafeFindCodeForInnerPointer(pc)
-               ->UnsafeCastToCode();
-  }
-  DCHECK(!code.is_null());
+  DCHECK(code->contains(isolate(), pc));
   DCHECK(CodeKindCanDeoptimize(code->kind()));
 
   if (code->is_maglevved()) {
@@ -2933,7 +2925,8 @@ void OptimizedFrame::GetFunctions(
 
   DisallowGarbageCollection no_gc;
   int deopt_index = SafepointEntry::kNoDeoptIndex;
-  Tagged<DeoptimizationData> const data = GetDeoptimizationData(&deopt_index);
+  Tagged<DeoptimizationData> const data =
+      GetDeoptimizationData(code, &deopt_index);
   DCHECK(!data.is_null());
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
   Tagged<DeoptimizationLiteralArray> const literal_array = data->LiteralArray();
