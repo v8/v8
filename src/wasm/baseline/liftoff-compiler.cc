@@ -4167,10 +4167,10 @@ class LiftoffCompiler {
     static constexpr RegClass result_rc = reg_class_for(result_kind);
     // Reusing src1 and src2 will complicate codegen for select for some
     // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
-    // Additionally, only reuse src3 if it does not alias src2, otherwise dst
-    // will also alias src2.
+    // Additionally, only reuse src3 if it does not alias src1/src2,
+    // otherwise dst will also alias it src1/src2.
     LiftoffRegister dst =
-        src2 == src3
+        (src2 == src3 || src1 == src3)
             ? __ GetUnusedRegister(result_rc, LiftoffRegList{src1, src2})
             : __ GetUnusedRegister(result_rc, {src3},
                                    LiftoffRegList{src1, src2});
