@@ -593,9 +593,9 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
         map->DeprecateTransitionTree(isolate);
       },
       [&](Tagged<Map> map) {
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-        map->DeprecateTransitionTree(isolate);
-#endif
+        if (v8_flags.move_prototype_transitions_first) {
+          map->DeprecateTransitionTree(isolate);
+        }
       });
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   DCHECK(CanBeDeprecated());
@@ -1551,7 +1551,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       ConnectTransition(isolate, map, result, name, transition_kind);
       is_connected = true;
     } else if ((transition_kind == PROTOTYPE_TRANSITION &&
-                V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL) ||
+                v8_flags.move_prototype_transitions_first) ||
                isolate->bootstrapper()->IsActive()) {
       // Prototype transitions are always between root maps. UpdatePrototype
       // uses the MapUpdater and instance migration. Thus, field generalization
@@ -1561,7 +1561,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       result->InitializeDescriptors(isolate, *descriptors);
     } else {
       DCHECK_IMPLIES(transition_kind == PROTOTYPE_TRANSITION,
-                     !V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL);
+                     !v8_flags.move_prototype_transitions_first);
       descriptors->GeneralizeAllFields(transition_kind == PROTOTYPE_TRANSITION);
       result->InitializeDescriptors(isolate, *descriptors);
     }
@@ -2455,7 +2455,7 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
     Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype) {
   DCHECK(IsUndefined(map->GetBackPointer()));
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
-  if (!V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL &&
+  if (!v8_flags.move_prototype_transitions_first &&
       map->IsInobjectSlackTrackingInProgress()) {
     // Advance the construction count on the base map to keep it in sync with
     // the transitioned map.
@@ -2468,7 +2468,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
                                              Handle<HeapObject> prototype,
                                              bool* is_cached) {
   Handle<Map> new_map;
-  DCHECK_IMPLIES(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL,
+  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
                  IsUndefined(map->GetBackPointer()));
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {

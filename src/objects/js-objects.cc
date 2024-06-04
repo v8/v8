@@ -5235,14 +5235,12 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   isolate->UpdateProtectorsOnSetPrototype(real_receiver, value);
 
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
   Handle<Map> new_map =
-      MapUpdater(isolate, map)
-          .ApplyPrototypeTransition(Handle<HeapObject>::cast(value));
-#else
-  Handle<Map> new_map = Map::TransitionToUpdatePrototype(
-      isolate, map, Handle<HeapObject>::cast(value));
-#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+      v8_flags.move_prototype_transitions_first
+          ? MapUpdater(isolate, map)
+                .ApplyPrototypeTransition(Handle<HeapObject>::cast(value))
+          : Map::TransitionToUpdatePrototype(isolate, map,
+                                             Handle<HeapObject>::cast(value));
 
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);

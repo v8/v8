@@ -27,12 +27,11 @@ namespace internal {
 namespace compiler {
 namespace test_field_type_tracking {
 
-#ifndef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
 // all field representations (similar to crbug/448711 where elements kind
 // and observed transitions caused generalization of all fields).
-const bool IS_PROTO_TRANS_ISSUE_FIXED = false;
-#endif
+const bool IS_PROTO_TRANS_ISSUE_FIXED =
+    v8_flags.move_prototype_transitions_first;
 
 // TODO(ishell): fix this once TransitionToAccessorProperty is able to always
 // keep map in fast mode.
@@ -2111,8 +2110,6 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   checker.Check(isolate, map2, updated_map, expectations);
 }
 
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests involving special transitions (such as elements kind
 // transition, observed transition or prototype transition).
@@ -2139,6 +2136,7 @@ static void TestGeneralizeFieldWithSpecialTransition(
     TestConfig* config, const CRFTData& from, const CRFTData& to,
     const CRFTData& expected, ChangeAlertMechanism expected_alert,
     UpdateDirectionCheck direction = UpdateDirectionCheck::kFwd) {
+  if (!v8_flags.move_prototype_transitions_first) return;
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations_a(isolate);
@@ -2319,6 +2317,7 @@ void TestMultipleElementsKindTransitions(Isolate* isolate, TestConfig* config,
 }
 
 TEST(ElementsKindTransitionFromMapOwningDescriptor) {
+  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2361,6 +2360,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
 }
 
 TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
+  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2551,6 +2551,7 @@ void TestMultiplePrototypeTransitions(Isolate* isolate, TestConfig* config) {
 }
 
 TEST(PrototypeTransitionFromMapOwningDescriptor) {
+  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2574,6 +2575,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
 }
 
 TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
+  if (!v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2609,12 +2611,12 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   TestMultiplePrototypeTransitions(isolate, &config);
 }
 
-#else
-
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests involving special transitions (such as elements kind
 // transition, observed transition or prototype transition).
 //
+// The following legacy tests are for when
+// !v8_flags.move_prototype_transitions_first
 
 // This test ensures that field generalization is correctly propagated from one
 // branch of transition tree (|map2|) to another (|map|).
@@ -2632,9 +2634,11 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
 // IS_PROTO_TRANS_ISSUE_FIXED and IS_NON_EQUIVALENT_TRANSITION_SUPPORTED are
 // fixed.
 template <typename TestConfig>
-static void TestGeneralizeFieldWithSpecialTransition(
+static void TestGeneralizeFieldWithSpecialTransitionLegacy(
     TestConfig* config, const CRFTData& from, const CRFTData& to,
     const CRFTData& expected, ChangeAlertMechanism expected_alert) {
+  if (v8_flags.move_prototype_transitions_first) return;
+
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -2754,7 +2758,8 @@ static void TestGeneralizeFieldWithSpecialTransition(
   }
 }
 
-TEST(ElementsKindTransitionFromMapOwningDescriptor) {
+TEST(ElementsKindTransitionFromMapOwningDescriptorLegacy) {
+  if (v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2811,7 +2816,8 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   }
 }
 
-TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
+TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
+  if (v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2880,8 +2886,8 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   }
 }
 
-
-TEST(PrototypeTransitionFromMapOwningDescriptor) {
+TEST(PrototypeTransitionFromMapOwningDescriptorLegacy) {
+  if (v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2924,7 +2930,8 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       kFieldOwnerDependency);
 }
 
-TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
+TEST(PrototypeTransitionFromMapNotOwningDescriptorLegacy) {
+  if (v8_flags.move_prototype_transitions_first) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -2977,8 +2984,6 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
       kFieldOwnerDependency);
 }
-
-#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
 
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests for higher level transitioning mechanics.

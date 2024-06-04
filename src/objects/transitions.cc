@@ -420,7 +420,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  Handle<Map> map,
                                                  Handle<Object> prototype,
                                                  Handle<Map> target_map) {
-  DCHECK_IMPLIES(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL,
+  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
                  IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(HeapObject::cast(*prototype)->map()));
   // Don't cache prototype transition if this map is either shared, or a map of
@@ -467,9 +467,9 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
     }
   }
 
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-  target_map->SetBackPointer(*map);
-#endif
+  if (v8_flags.move_prototype_transitions_first) {
+    target_map->SetBackPointer(*map);
+  }
 
   // Reload number of transitions as they might have been compacted.
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);

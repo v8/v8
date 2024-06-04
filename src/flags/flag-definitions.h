@@ -2395,7 +2395,7 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
            "maximum number of valid maps to track in POLYMORPHIC state")
-DEFINE_BOOL_READONLY(
+DEFINE_BOOL(
     clone_object_sidestep_transitions, true,
     "support sidestep transitions for dependency tracking object clone maps")
 
@@ -2421,6 +2421,9 @@ DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 DEFINE_BOOL(log_maps, false, "Log map creation")
 DEFINE_BOOL(log_maps_details, true, "Also log map details")
 DEFINE_IMPLICATION(log_maps, log_code)
+DEFINE_EXPERIMENTAL_FEATURE(
+    move_prototype_transitions_first,
+    "Always move prototype transitions to the front of the tree")
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")

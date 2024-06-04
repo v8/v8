@@ -2702,9 +2702,9 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       &no_gc,
       [&](Tagged<Name> key, Tagged<Map> target) { CheckTarget(target); },
       [&](Tagged<Map> target) {
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-        CheckTarget(target);
-#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+        if (v8_flags.move_prototype_transitions_first) {
+          CheckTarget(target);
+        }
       });
   return success;
 }

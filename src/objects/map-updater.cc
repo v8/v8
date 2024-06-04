@@ -245,7 +245,7 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
 }
 
 Handle<Map> MapUpdater::ApplyPrototypeTransition(Handle<HeapObject> prototype) {
-  DCHECK(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL);
+  DCHECK(v8_flags.move_prototype_transitions_first);
   DCHECK_EQ(kInitialized, state_);
   DCHECK_NE(old_map_->prototype(), *prototype);
 
@@ -374,8 +374,8 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     return constructor->initial_map();
   }
 
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-  if (root_map->prototype() != old_map->prototype()) {
+  if (v8_flags.move_prototype_transitions_first &&
+      root_map->prototype() != old_map->prototype()) {
     auto maybe_transition = TransitionsAccessor::GetPrototypeTransition(
         isolate, root_map, old_map->prototype());
     if (!maybe_transition) {
@@ -383,7 +383,6 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     }
     root_map = *maybe_transition;
   }
-#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
 
   if (!old_map->EquivalentToForTransition(root_map, cmode)) return {};
 
@@ -611,7 +610,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // will deal with prototype transitions later.
   if (!old_map_->EquivalentToForTransition(
           *root_map_, ConcurrencyMode::kSynchronous,
-          V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL
+          v8_flags.move_prototype_transitions_first
               ? handle(root_map_->prototype(), isolate_)
               : Handle<HeapObject>())) {
     return Normalize("Normalize_NotEquivalent");
@@ -672,7 +671,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // From here on, use the map with correct elements kind and prototype as root
   // map.
   if (root_map_->prototype() != *new_prototype_) {
-    DCHECK(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL);
+    DCHECK(v8_flags.move_prototype_transitions_first);
     bool is_cached;
     Handle<Map> new_root_map_ = Map::TransitionToUpdatePrototype(
         isolate_, root_map_, new_prototype_, &is_cached);
@@ -1244,9 +1243,9 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
           backlog.push(target);
         },
         [&](Tagged<Map> target) {
-#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
-          backlog.push(target);
-#endif
+          if (v8_flags.move_prototype_transitions_first) {
+            backlog.push(target);
+          }
         },
         TransitionsAccessor::IterationMode::kIncludeSideStepTransitions);
 
