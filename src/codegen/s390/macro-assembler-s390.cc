@@ -1426,23 +1426,11 @@ void MacroAssembler::Prologue(Register base, int prologue_offset) {
   PushStandardFrame(r3);
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
   int receiver_bytes =
       (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
-  switch (type) {
-    case kCountIsInteger: {
-      ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
-      lay(sp, MemOperand(sp, ip));
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      SmiToPtrArrayOffset(count, count);
-      AddS64(sp, sp, count);
-      break;
-    }
-  }
+  ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
+  lay(sp, MemOperand(sp, ip));
   if (receiver_bytes != 0) {
     AddS64(sp, sp, Operand(receiver_bytes));
   }
@@ -1450,15 +1438,14 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
-                                                     ArgumentsCountType type,
                                                      ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver));
   if (mode == kCountExcludesReceiver) {
     // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, type, kCountIncludesReceiver);
+    DropArguments(argc, kCountIncludesReceiver);
     StoreU64(receiver, MemOperand(sp));
   } else {
-    DropArguments(argc, type, mode);
+    DropArguments(argc, mode);
     push(receiver);
   }
 }

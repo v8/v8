@@ -814,11 +814,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Prologue(Register base, int prologue_offset = 0);
 
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi };
-  void DropArguments(Register count, ArgumentsCountType type,
-                     ArgumentsCountMode mode);
+  void DropArguments(Register count, ArgumentsCountMode mode);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountType type,
                                        ArgumentsCountMode mode);
 
   // Get the actual activation frame alignment for target environment.
