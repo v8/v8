@@ -1495,7 +1495,8 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
 
 void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                             Handle<Map> child, Handle<Name> name,
-                            TransitionKindFlag transition_kind) {
+                            TransitionKindFlag transition_kind,
+                            bool force_connect) {
   DCHECK_EQ(parent->map(), child->map());
   DCHECK_IMPLIES(name->IsInteresting(isolate),
                  child->may_have_interesting_properties());
@@ -1509,7 +1510,7 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
               parent->instance_descriptors(isolate)->number_of_descriptors());
   }
-  if (parent->IsDetached(isolate)) {
+  if (parent->IsDetached(isolate) && !force_connect) {
     DCHECK(child->IsDetached(isolate));
     if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
@@ -1605,14 +1606,17 @@ Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
   Handle<Map> map = split_map;
   for (InternalIndex i : InternalIndex::Range(split_nof, nof_descriptors - 1)) {
     Handle<Map> new_map = CopyDropDescriptors(isolate, map);
-    InstallDescriptors(isolate, map, new_map, i, descriptors);
-
+    // Force connection of these maps to prevent split_map being a root map to
+    // be treated as detached.
+    InstallDescriptors(isolate, map, new_map, i, descriptors,
+                       /* force_connect */ true);
+    DCHECK_EQ(*new_map->GetBackPointer(), *map);
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange(isolate);
   last_map->set_may_have_interesting_properties(false);
   InstallDescriptors(isolate, map, last_map, InternalIndex(nof_descriptors - 1),
-                     descriptors);
+                     descriptors, true);
   return last_map;
 }
 
@@ -1620,7 +1624,8 @@ Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
 // always insert transitions without checking.
 void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<Map> child, InternalIndex new_descriptor,
-                             Handle<DescriptorArray> descriptors) {
+                             Handle<DescriptorArray> descriptors,
+                             bool force_connect) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   child->SetInstanceDescriptors(isolate, *descriptors,
@@ -1636,7 +1641,8 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
       name->IsInteresting(isolate)) {
     child->set_may_have_interesting_properties(true);
   }
-  ConnectTransition(isolate, parent, child, name, SIMPLE_PROPERTY_TRANSITION);
+  ConnectTransition(isolate, parent, child, name, SIMPLE_PROPERTY_TRANSITION,
+                    force_connect);
 }
 
 Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,

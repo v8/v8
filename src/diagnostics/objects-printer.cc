@@ -3739,7 +3739,7 @@ void TransitionsAccessor::PrintTransitionTree(
         os << std::endl
            << "  " << level << "/p" << proto_pos << ":"
            << std::setw(level * 2 + 2) << " ";
-        pos++;
+        proto_pos++;
         std::stringstream ss;
         ss << Brief(target);
         os << std::left << std::setw(50) << ss.str() << ": to proto ";

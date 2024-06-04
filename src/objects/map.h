@@ -974,7 +974,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static void ConnectTransition(Isolate* isolate, Handle<Map> parent,
                                 Handle<Map> child, Handle<Name> name,
-                                TransitionKindFlag transition_kind);
+                                TransitionKindFlag transition_kind,
+                                bool force_connect = false);
 
   bool EquivalentToForTransition(
       const Tagged<Map> other, ConcurrencyMode cmode,
@@ -991,7 +992,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static void InstallDescriptors(Isolate* isolate, Handle<Map> parent_map,
                                  Handle<Map> child_map,
                                  InternalIndex new_descriptor,
-                                 Handle<DescriptorArray> descriptors);
+                                 Handle<DescriptorArray> descriptors,
+                                 // force_connect is used when copying a map
+                                 // tree to enforce transitions being added even
+                                 // for (still) seemingly detached maps.
+                                 bool force_connect = false);
   static Handle<Map> CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
