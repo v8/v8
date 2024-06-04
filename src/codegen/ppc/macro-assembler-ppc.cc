@@ -1544,28 +1544,16 @@ void MacroAssembler::Prologue() {
   }
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
-  int receiver_bytes =
-      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
+void MacroAssembler::DropArguments(Register count) {
   ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
   add(sp, sp, ip);
-  if (receiver_bytes != 0) {
-    addi(sp, sp, Operand(receiver_bytes));
-  }
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
-                                                     Register receiver,
-                                                     ArgumentsCountMode mode) {
+                                                     Register receiver) {
   DCHECK(!AreAliased(argc, receiver));
-  if (mode == kCountExcludesReceiver) {
-    // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, kCountIncludesReceiver);
-    StoreU64(receiver, MemOperand(sp));
-  } else {
-    DropArguments(argc, mode);
-    push(receiver);
-  }
+  DropArguments(argc);
+  push(receiver);
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,

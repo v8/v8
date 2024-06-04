@@ -3606,7 +3606,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
       __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);
     }
-    __ DropArguments(argc_reg, MacroAssembler::kCountIncludesReceiver);
+    __ DropArguments(argc_reg);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);

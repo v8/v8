@@ -813,10 +813,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                     int prologue_offset = 0);
   void Prologue(Register base, int prologue_offset = 0);
 
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  void DropArguments(Register count, ArgumentsCountMode mode);
-  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountMode mode);
+  void DropArguments(Register count);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
