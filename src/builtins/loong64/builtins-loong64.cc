@@ -3280,16 +3280,12 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                             CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
-  // CallApiCallbackMode::kGeneric mode:
-  //  -- a2                  : arguments count (not including the receiver)
-  //  -- a3                  : call handler info
-  //  -- a0                  : holder
   // CallApiCallbackMode::kOptimizedNoProfiling/kOptimized modes:
   //  -- a1                  : api function address
-  //  -- a2                  : arguments count
-  //  -- a3                  : call data
-  //  -- a0                  : holder
   // Both modes:
+  //  -- a2                  : arguments count (not including the receiver)
+  //  -- a3                  : FunctionTemplateInfo
+  //  -- a0                  : holder
   //  -- cp                  : context
   //  -- sp[0]               : receiver
   //  -- sp[8]               : first argument
@@ -3301,20 +3297,17 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   Register api_function_address = no_reg;
   Register argc = no_reg;
-  Register call_data = no_reg;
-  Register callback = no_reg;
+  Register func_templ = no_reg;
   Register holder = no_reg;
   Register topmost_script_having_context = no_reg;
   Register scratch = t0;
-  Register scratch2 = t1;
-  Register base = t2;  // For addressing MemOperands on the stack.
 
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback =
+      func_templ =
           CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
@@ -3327,19 +3320,20 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
       argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
-      call_data = CallApiCallbackOptimizedDescriptor::CallDataRegister();
+      func_templ =
+          CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackOptimizedDescriptor::HolderRegister();
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     holder, call_data, callback, scratch, scratch2, base));
+                     holder, scratch));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
 
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kDataIndex == 4);
+  static_assert(FCA::kTargetIndex == 4);
   static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kUnusedIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
@@ -3363,10 +3357,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     api_function_address = ReassignRegister(topmost_script_having_context);
   }
 
-  // Set up the base register for addressing through MemOperands. It will point
-  // at the receiver (located at sp + argc * kSystemPointerSize).
-  __ Alsl_d(base, argc, sp, kSystemPointerSizeLog2, t7);
-
   // Reserve space on the stack.
   __ Sub_d(sp, sp, Operand(FCA::kArgsLength * kSystemPointerSize));
 
@@ -3377,27 +3367,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ li(scratch, ER::isolate_address(masm->isolate()));
   __ St_d(scratch, MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
-  // kUnused
+  // kUnused.
   __ St_d(zero_reg, MemOperand(sp, FCA::kUnusedIndex * kSystemPointerSize));
 
-  // kReturnValue
+  // kReturnValue.
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ St_d(scratch, MemOperand(sp, FCA::kReturnValueIndex * kSystemPointerSize));
 
-  // kData.
-  switch (mode) {
-    case CallApiCallbackMode::kGeneric:
-      __ LoadTaggedField(
-          scratch2,
-          FieldMemOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
-      __ St_d(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      break;
-
-    case CallApiCallbackMode::kOptimizedNoProfiling:
-    case CallApiCallbackMode::kOptimized:
-      __ St_d(call_data, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      break;
-  }
+  // kTarget.
+  __ St_d(func_templ, MemOperand(sp, FCA::kTargetIndex * kSystemPointerSize));
 
   // kNewTarget.
   __ St_d(scratch, MemOperand(sp, FCA::kNewTargetIndex * kSystemPointerSize));
@@ -3442,11 +3420,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ St_d(callback, MemOperand(sp, 0 * kSystemPointerSize));
+    __ St_d(func_templ, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ LoadExternalPointerField(
         api_function_address,
-        FieldMemOperand(callback,
+        FieldMemOperand(func_templ,
                         FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
         kFunctionTemplateInfoCallbackTag);
 
