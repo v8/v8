@@ -7,7 +7,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"

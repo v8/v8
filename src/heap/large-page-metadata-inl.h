@@ -6,7 +6,7 @@
 #define V8_HEAP_LARGE_PAGE_METADATA_INL_H_
 
 #include "src/heap/large-page-metadata.h"
-#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page-metadata-inl.h"
 
 namespace v8 {
 namespace internal {

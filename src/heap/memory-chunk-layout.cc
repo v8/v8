@@ -7,7 +7,7 @@
 #include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/objects/instruction-stream.h"
 
 namespace v8 {

@@ -6,7 +6,7 @@
 
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set.h"
 
 namespace v8 {

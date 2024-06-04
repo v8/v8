@@ -10,7 +10,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/objects/free-space.h"
 #include "src/objects/map.h"
 #include "src/utils/utils.h"

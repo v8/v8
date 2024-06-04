@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_OBJECT_LOCK_INL_H_
 #define V8_HEAP_OBJECT_LOCK_INL_H_
 
-#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/object-lock.h"
 
 namespace v8 {

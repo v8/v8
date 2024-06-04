@@ -14,7 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"

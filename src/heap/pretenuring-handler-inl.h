@@ -6,7 +6,7 @@
 #define V8_HEAP_PRETENURING_HANDLER_INL_H_
 
 #include "src/base/sanitizer/msan.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"

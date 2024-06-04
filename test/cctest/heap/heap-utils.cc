@@ -16,7 +16,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"

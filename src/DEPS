@@ -37,8 +37,8 @@ include_rules = [
   "+src/heap/local-heap-inl.h",
   "+src/heap/pretenuring-handler-inl.h",
   # TODO(v8:10496): Don't expose memory chunk outside of heap/.
-  "+src/heap/mutable-page.h",
-  "+src/heap/mutable-page-inl.h",
+  "+src/heap/mutable-page-metadata.h",
+  "+src/heap/mutable-page-metadata-inl.h",
   "+src/heap/memory-chunk.h",
   "+src/heap/page-metadata-inl.h",
   "+src/heap/paged-spaces-inl.h",

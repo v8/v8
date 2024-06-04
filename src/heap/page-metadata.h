@@ -7,7 +7,7 @@
 
 #include "src/heap/base-space.h"
 #include "src/heap/free-list.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {

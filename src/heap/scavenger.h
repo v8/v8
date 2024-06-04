@@ -10,7 +10,7 @@
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler.h"

@@ -9,7 +9,7 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
-#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"

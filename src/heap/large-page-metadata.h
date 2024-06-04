@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_LARGE_PAGE_METADATA_H_
 #define V8_HEAP_LARGE_PAGE_METADATA_H_
 
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 
 namespace v8 {
 namespace internal {
