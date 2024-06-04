@@ -316,7 +316,6 @@
       'v8_linux64_ubsan_compile_rel': 'release_x64_ubsan_minimal_symbols',
       'v8_linux64_verify_builtins_rel': 'release_x64_verify_builtins',
       'v8_linux64_verify_deterministic_rel': 'release_x64_verify_deterministic',
-      'v8_odroid_arm_compile_rel': 'release_arm',
       'v8_linux_torque_compare': 'torque_compare',
       'v8_win_arm64_compile_dbg': 'debug_arm64',
       # TODO(machenbach): Remove after switching to x64 on infra side.

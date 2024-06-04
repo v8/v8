@@ -889,24 +889,6 @@
     ],
   },
   ##############################################################################
-  # Odroids with native arm
-  'v8_odroid_arm_rel': {
-    'swarming_dimensions' : {
-      'cores': '8',
-      'cpu': 'armv7l-32-Hardkernel_ODROID-XU4',
-      'os': 'Ubuntu',
-    },
-    'swarming_task_attrs': {
-      # Use same prio as CI due to limited resources.
-      'priority': 25,
-    },
-    'tests': [
-      {'name': 'benchmarks'},
-      {'name': 'optimize_for_size'},
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
-  ##############################################################################
   # Win32
   'v8_win_dbg': {
     'swarming_dimensions' : {
@@ -2106,83 +2088,6 @@
       {'name': 'mozilla', 'variant': 'default'},
       {'name': 'test262', 'variant': 'default', 'shards': 12},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
-    ],
-  },
-  'V8 Arm': {
-    'swarming_dimensions': {
-      'cores': '8',
-      'cpu': 'armv7l-32-Hardkernel_ODROID-XU4',
-      'os': 'Ubuntu',
-    },
-    'swarming_task_attrs': {
-      'expiration': 21600,
-      'hard_timeout': 5400,
-    },
-    'tests': [
-      # Odroid.
-      {
-        'name': 'benchmarks',
-        'suffix': 'ODROID',
-        # Less parallelism to prevent OOMs in benchmarks.
-        'test_args': ['-j2'],
-      },
-      {
-        'name': 'optimize_for_size',
-        'suffix': 'ODROID',
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'ODROID',
-        'shards': 2,
-      },
-    ],
-  },
-  'V8 Arm - debug': {
-    'swarming_dimensions': {
-      'cores': '8',
-      'cpu': 'armv7l-32-Hardkernel_ODROID-XU4',
-      'os': 'Ubuntu',
-    },
-    'swarming_task_attrs': {
-      'expiration': 21600,
-      'hard_timeout': 3600,
-    },
-    'tests': [
-      # Odroid.
-      {
-        'name': 'optimize_for_size',
-        'suffix': 'ODROID',
-        'variant': 'default',
-        'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 2,
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'ODROID',
-        'variant': 'default',
-        'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 3,
-      },
-    ],
-  },
-  'V8 Arm GC Stress': {
-    'swarming_dimensions': {
-      'cores': '8',
-      'cpu': 'armv7l-32-Hardkernel_ODROID-XU4',
-      'os': 'Ubuntu',
-    },
-    'swarming_task_attrs': {
-      'expiration': 21600,
-      'hard_timeout': 7200,
-    },
-    'tests': [
-      {
-        'name': 'd8testing',
-        'suffix': 'ODROID',
-        'variant': 'default',
-        'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 3,
-      },
     ],
   },
   'V8 Linux - arm - sim': {
