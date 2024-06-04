@@ -4615,21 +4615,8 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode, Register scratch) {
-  switch (type) {
-    case kCountIsInteger: {
-      Dlsa(sp, sp, count, kPointerSizeLog2);
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      DCHECK_NE(scratch, no_reg);
-      SmiScale(scratch, count, kPointerSizeLog2);
-      Daddu(sp, sp, scratch);
-      break;
-    }
-  }
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
+  Dlsa(sp, sp, count, kPointerSizeLog2);
   if (mode == kCountExcludesReceiver) {
     Daddu(sp, sp, kSystemPointerSize);
   }
@@ -4637,16 +4624,14 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
-                                                     ArgumentsCountType type,
-                                                     ArgumentsCountMode mode,
-                                                     Register scratch) {
+                                                     ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver));
   if (mode == kCountExcludesReceiver) {
     // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    DropArguments(argc, kCountIncludesReceiver);
     Sd(receiver, MemOperand(sp));
   } else {
-    DropArguments(argc, type, mode, scratch);
+    DropArguments(argc, mode);
     push(receiver);
   }
 }

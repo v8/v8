@@ -3143,21 +3143,8 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode, Register scratch) {
-  switch (type) {
-    case kCountIsInteger: {
-      Alsl_d(sp, count, sp, kSystemPointerSizeLog2);
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      DCHECK_NE(scratch, no_reg);
-      SmiScale(scratch, count, kSystemPointerSizeLog2);
-      Add_d(sp, sp, scratch);
-      break;
-    }
-  }
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
+  Alsl_d(sp, count, sp, kSystemPointerSizeLog2);
   if (mode == kCountExcludesReceiver) {
     Add_d(sp, sp, kSystemPointerSize);
   }
@@ -3165,16 +3152,14 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
-                                                     ArgumentsCountType type,
-                                                     ArgumentsCountMode mode,
-                                                     Register scratch) {
+                                                     ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver));
   if (mode == kCountExcludesReceiver) {
     // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    DropArguments(argc, kCountIncludesReceiver);
     St_d(receiver, MemOperand(sp, 0));
   } else {
-    DropArguments(argc, type, mode, scratch);
+    DropArguments(argc, mode);
     Push(receiver);
   }
 }
