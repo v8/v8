@@ -3157,10 +3157,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       Add_d(sp, sp, scratch);
       break;
     }
-    case kCountIsBytes: {
-      Add_d(sp, sp, count);
-      break;
-    }
   }
   if (mode == kCountExcludesReceiver) {
     Add_d(sp, sp, kSystemPointerSize);

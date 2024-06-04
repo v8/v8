@@ -251,7 +251,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             const Operand& op = Operand(no_reg));
 
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi };
   void DropArguments(Register count, ArgumentsCountType type,
                      ArgumentsCountMode mode, Register scratch = no_reg);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,

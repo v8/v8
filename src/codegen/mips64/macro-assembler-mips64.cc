@@ -4629,10 +4629,6 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       Daddu(sp, sp, scratch);
       break;
     }
-    case kCountIsBytes: {
-      Daddu(sp, sp, count);
-      break;
-    }
   }
   if (mode == kCountExcludesReceiver) {
     Daddu(sp, sp, kSystemPointerSize);
