@@ -4,6 +4,7 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include "absl/container/btree_map.h"
 #include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
@@ -657,13 +658,144 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
+  // An analysis to determine whether a br_table should be lowered to a switch
+  // or a series of compare and branch. This can be for small tables or larger
+  // 'sparse' ones, which include many cases but few targets. A sparse table may
+  // look like this: br_table [ 1, 0, 0, 0, 0, 0, 2, 0 ] which can be lowered to
+  // two conditional branches followed by an unconditional one. The advantages
+  // of this are reducing the space required for the table and reducing the
+  // latency.
+  template <typename ValidationTag>
+  class BrTableAnalysis {
+   public:
+    static constexpr int32_t kMaxComparesPerTarget = 2;
+    static constexpr uint32_t kMaxTargets = 3;
+    static constexpr int32_t kMaxTableCount = 20;
+    using CaseVector = base::SmallVector<uint8_t, 8>;
+    using TargetMap = absl::btree_map<uint32_t, CaseVector>;
+
+    bool LowerToBranches(Decoder* decoder, const BranchTableImmediate& imm) {
+      BranchTableIterator<ValidationTag> iterator(decoder, imm);
+      while (iterator.has_next()) {
+        uint32_t i = iterator.cur_index();
+        uint32_t target = iterator.next();
+
+        if (i == imm.table_count) {
+          AddDefault(target);
+        } else if (!TryAddTarget(target, i)) {
+          return false;
+        }
+      }
+      primary_indices_ = other_targets_[primary_target()];
+      other_targets_.erase(primary_target());
+      size_t total_targets = other_targets_.size() + 1;
+      if (default_target() != primary_target() &&
+          !other_targets_.count(default_target())) {
+        total_targets++;
+      }
+      return total_targets <= kMaxTargets;
+    }
+    // The most often occurring target, or the default if there is no other
+    // target with multiple cases.
+    uint32_t primary_target() const { return primary_target_.value(); }
+    // The default target, for when the br_table index is out-of-range.
+    uint32_t default_target() const { return default_target_.value(); }
+    // other_targets doesn't include the primary target, nor the default if it
+    // isn't an in-range target.
+    const TargetMap& other_targets() const { return other_targets_; }
+    // All the indices which target the primary target.
+    const CaseVector& primary_indices() const { return primary_indices_; }
+
+   private:
+    bool TryAddTarget(uint32_t target, uint32_t index) {
+      DCHECK_LT(index, kMaxTableCount);
+      CaseVector& cases = other_targets_[target];
+      if (other_targets_.size() > kMaxTargets) {
+        return false;
+      }
+      if (cases.size() == kMaxComparesPerTarget) {
+        if (primary_target_.has_value() && target != primary_target()) {
+          return false;
+        }
+        primary_target_ = target;
+      }
+      cases.push_back(index);
+      return true;
+    }
+    void AddDefault(uint32_t target) {
+      default_target_ = target;
+      if (!primary_target_.has_value()) {
+        primary_target_ = default_target();
+      }
+    }
+
+    base::Optional<uint32_t> default_target_;
+    base::Optional<uint32_t> primary_target_;
+    CaseVector primary_indices_;
+    TargetMap other_targets_;
+  };
+
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
                const Value& key) {
+    if (imm.table_count < BrTableAnalysis<ValidationTag>::kMaxTableCount) {
+      BrTableAnalysis<ValidationTag> table_analysis;
+      if (table_analysis.LowerToBranches(decoder, imm)) {
+        auto generate_cond =
+            [this](const Value& key,
+                   const BrTableAnalysis<ValidationTag>::CaseVector& cases)
+            -> OpIndex {
+          switch (cases.size()) {
+            default:
+              static_assert(
+                  BrTableAnalysis<ValidationTag>::kMaxComparesPerTarget <= 2);
+              UNREACHABLE();
+            case 1:
+              return __ Word32Equal(key.op, __ Word32Constant(cases[0]));
+            case 2: {
+              return __ Word32BitwiseOr(__ Word32Equal(key.op, cases[0]),
+                                        __ Word32Equal(key.op, cases[1]));
+            }
+          }
+        };
+        auto insert_cond_branch = [this, &decoder](OpIndex cond,
+                                                   uint32_t depth) {
+          BranchHint hint = GetBranchHint(decoder);
+          if (depth == decoder->control_depth() - 1) {
+            IF ({cond, hint}) {
+              DoReturn(decoder, 0);
+            }
+          } else {
+            Control* target = decoder->control_at(depth);
+            SetupControlFlowEdge(decoder, target->merge_block);
+            TSBlock* non_branching = __ NewBlock();
+            __ Branch({cond, hint}, target->merge_block, non_branching);
+            __ Bind(non_branching);
+          }
+        };
+        // Insert conditional branches to the other targets.
+        for (auto const& [target, cases] : table_analysis.other_targets()) {
+          DCHECK_LE(cases.size(),
+                    BrTableAnalysis<ValidationTag>::kMaxComparesPerTarget);
+          insert_cond_branch(generate_cond(key, cases), target);
+        }
+        // If needed, insert the range check for the primary target.
+        if (table_analysis.primary_target() !=
+            table_analysis.default_target()) {
+          OpIndex lower = __ Word32Equal(__ Int32LessThan(key.op, 0), 0);
+          OpIndex upper =
+              __ Int32LessThan(key.op, __ Word32Constant(imm.table_count));
+          OpIndex cond = __ Word32BitwiseAnd(lower, upper);
+          insert_cond_branch(cond, table_analysis.primary_target());
+        }
+        // Always fallthrough and branch to the default case.
+        BrOrRet(decoder, table_analysis.default_target());
+        return;
+      }
+    }
     compiler::turboshaft::SwitchOp::Case* cases =
-        __ output_graph()
-            .graph_zone()
-            ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                imm.table_count);
+        __ output_graph().graph_zone()
+            -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                             imm.table_count);
     BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
     SmallZoneVector<TSBlock*, 16> intermediate_blocks(decoder->zone_);
     TSBlock* default_case = nullptr;
