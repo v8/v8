@@ -5,8 +5,16 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// gcc 10 defines __cplusplus to "an unspecified value strictly larger than
+// 201703L" for its experimental -std=gnu++2a config.
+// TODO(leszeks): Change to `__cplusplus <= 202002L` once we only support
+// compilers with full C++20 support.
+#if __cplusplus <= 201703L
+#error "C++20 or later required."
+#endif
+
 #ifdef V8_GN_HEADER
-#if __cplusplus >= 201703L && !__has_include("v8-gn.h")
+#if !__has_include("v8-gn.h")
 #error Missing v8-gn.h. The configuration for v8 is missing from the include \
 path. Add it with -I<path> to the command line
 #endif

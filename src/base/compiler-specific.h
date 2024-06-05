@@ -102,7 +102,7 @@
       !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC) &&    \
       !defined(V8_TARGET_ARCH_PPC64) && !defined(V8_TARGET_ARCH_RISCV64) && \
       !defined(V8_TARGET_ARCH_RISCV32)) ||                                  \
-     (defined(__clang__) && __cplusplus > 201300L))
+     defined(__clang__))
 #define V8_NOEXCEPT noexcept
 #else
 #define V8_NOEXCEPT

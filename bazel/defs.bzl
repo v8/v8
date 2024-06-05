@@ -123,7 +123,8 @@ def _default_args():
         }) + select({
             "@v8//bazel/config:is_clang": [
                 "-Wno-invalid-offsetof",
-                "-std=c++17",
+                "-Wno-deprecated-this-capture",
+                "-std=c++20",
             ],
             "@v8//bazel/config:is_gcc": [
                 "-Wno-extra",
@@ -138,12 +139,13 @@ def _default_args():
                 "-Wno-redundant-move",
                 "-Wno-return-type",
                 "-Wno-stringop-overflow",
+                "-Wno-deprecated-this-capture",
                 # Use GNU dialect, because GCC doesn't allow using
                 # ##__VA_ARGS__ when in standards-conforming mode.
-                "-std=gnu++17",
+                "-std=gnu++2a",
             ],
             "@v8//bazel/config:is_windows": [
-                "/std:c++17",
+                "/std:c++20",
             ],
             "//conditions:default": [],
         }) + select({
