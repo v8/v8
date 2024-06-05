@@ -165,10 +165,14 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
+
+#if V8_ENABLE_WEBASSEMBLY
   void DoComputeOutputFramesWasmImpl();
-  FrameDescription* DoComputeWasmLiftoffFrame(TranslatedFrame& frame,
-                                              wasm::NativeModule* native_module,
-                                              int frame_index);
+  FrameDescription* DoComputeWasmLiftoffFrame(
+      TranslatedFrame& frame, wasm::NativeModule* native_module,
+      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index);
+#endif
+
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,

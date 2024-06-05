@@ -859,14 +859,10 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   return {wasm_code, std::move(result.liftoff_frame_descriptions)};
 }
 }  // anonymous namespace
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     TranslatedFrame& frame, wasm::NativeModule* native_module,
-    int frame_index) {
-#if !V8_ENABLE_WEBASSEMBLY
-  UNREACHABLE();
-#else
+    Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index) {
   // Given inlined frames where function a calls b, b is considered the topmost
   // because b is on top of the call stack! This is aligned with the names used
   // by the JS deopt.
@@ -945,14 +941,6 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   DCHECK_EQ(output_frame_size, output_offset);
   int base_offset = output_frame_size;
 
-  // TODO(mliedtke): Move this outside the loop?
-  // Read the trusted instance data from the input frame.
-  Tagged<WasmTrustedInstanceData> wasm_trusted_instance =
-      Tagged<WasmTrustedInstanceData>::cast(
-          (Tagged<Object>(input_->GetFrameSlot(
-              input_->GetFrameSize() -
-              (2 + input_->parameter_count()) * kSystemPointerSize -
-              WasmLiftoffFrameConstants::kInstanceDataOffset))));
   // Set trusted instance data on output frame.
   output_frame->SetFrameSlot(
       base_offset - WasmLiftoffFrameConstants::kInstanceDataOffset,
@@ -1060,10 +1048,8 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
       wasm_trusted_instance->feedback_vectors();
   uint32_t feedback_offset =
       base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-  // There isn't feedback for imported functions, so feedback index 0 belongs to
-  // the first non-imported function etc.
-  uint32_t fct_feedback_index = frame.wasm_function_index() -
-                                native_module->module()->num_imported_functions;
+  uint32_t fct_feedback_index = wasm::declared_function_index(
+      native_module->module(), frame.wasm_function_index());
   CHECK_LT(fct_feedback_index, module_feedback->length());
   output_frame->SetFrameSlot(feedback_offset,
                              module_feedback->get(fct_feedback_index).ptr());
@@ -1089,16 +1075,12 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
                             isolate()->cage_base());
 #endif
   return output_frame;
-#endif  // !V8_ENABLE_WEBASSEMBLY
 }
 
 // Build up the output frames for a wasm deopt. This creates the
 // FrameDescription objects representing the output frames to be "materialized"
 // on the stack.
 void Deoptimizer::DoComputeOutputFramesWasmImpl() {
-#if !V8_ENABLE_WEBASSEMBLY
-  UNREACHABLE();
-#else
   CHECK(v8_flags.wasm_deopt);
   base::ElapsedTimer timer;
   // Lookup the deopt info for the input frame.
@@ -1165,9 +1147,18 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
                                       deopt_entry.bytecode_offset, false);
   }
 
+  // Read the trusted instance data from the input frame.
+  Tagged<WasmTrustedInstanceData> wasm_trusted_instance =
+      Tagged<WasmTrustedInstanceData>::cast(
+          (Tagged<Object>(input_->GetFrameSlot(
+              input_->GetFrameSize() -
+              (2 + input_->parameter_count()) * kSystemPointerSize -
+              WasmLiftoffFrameConstants::kInstanceDataOffset))));
+
   for (int i = 0; i < output_count_; ++i) {
     TranslatedFrame& frame = translated_state_.frames()[i];
-    output_[i] = DoComputeWasmLiftoffFrame(frame, native_module, i);
+    output_[i] = DoComputeWasmLiftoffFrame(frame, native_module,
+                                           wasm_trusted_instance, i);
   }
 
   {
@@ -1190,11 +1181,17 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     }
   }
 
+  // Reset tiering budget of the function that triggered the deopt.
+  int declared_func_index =
+      wasm::declared_function_index(native_module->module(), code->index());
+  wasm_trusted_instance->tiering_budget_array()[declared_func_index] =
+      v8_flags.wasm_tiering_budget;
+
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
-#endif
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
