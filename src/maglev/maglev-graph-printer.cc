@@ -763,6 +763,10 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     }
   }
   os_ << " → " << phi->result().operand();
+  if (phi->result().operand().IsAllocated() && phi->is_spilled() &&
+      phi->spill_slot() != phi->result().operand()) {
+    os_ << " (spilled: " << phi->spill_slot() << ")";
+  }
   if (phi->has_valid_live_range()) {
     os_ << ", live range: [" << phi->live_range().start << "-"
         << phi->live_range().end << "]";
