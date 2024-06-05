@@ -167,6 +167,11 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
       if (var.data().loop_invariant) {
         return predecessors[0];
       }
+      if (!predecessors[0].valid()) {
+        // This Variable was created inside the loop and thus has no
+        // corresponding PendingLoopPhi.
+        return OpIndex::Invalid();
+      }
       const OpIndex backedge_value = predecessors[1];
       if (!backedge_value.valid()) {
         return OpIndex::Invalid();
