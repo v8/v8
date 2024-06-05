@@ -519,11 +519,17 @@ class GraphBuilder {
       for (int i = 0; i < node->num_args(); i++) {
         arguments.push_back(Map(node->arg(i)));
       }
+      // Setting missing arguments to Undefined.
+      for (int i = actual_parameter_count; i < node->expected_parameter_count();
+           i++) {
+        arguments.push_back(__ HeapConstant(local_factory_->undefined_value()));
+      }
       arguments.push_back(Map(node->context()));
-      SetMap(node,
-             GenerateBuiltinCall(
-                 node, node->shared_function_info().builtin_id(), frame_state,
-                 base::VectorOf(arguments), actual_parameter_count));
+      SetMap(node, GenerateBuiltinCall(
+                       node, node->shared_function_info().builtin_id(),
+                       frame_state, base::VectorOf(arguments),
+                       std::max<int>(actual_parameter_count,
+                                     node->expected_parameter_count())));
     } else {
       ThrowingScope throwing_scope(this, node);
       base::SmallVector<OpIndex, 16> arguments;
@@ -531,12 +537,10 @@ class GraphBuilder {
       for (int i = 0; i < node->num_args(); i++) {
         arguments.push_back(Map(node->arg(i)));
       }
-      if (actual_parameter_count < node->expected_parameter_count()) {
-        for (int i = actual_parameter_count;
-             i < node->expected_parameter_count(); i++) {
-          arguments.push_back(
-              __ HeapConstant(local_factory_->undefined_value()));
-        }
+      // Setting missing arguments to Undefined.
+      for (int i = actual_parameter_count; i < node->expected_parameter_count();
+           i++) {
+        arguments.push_back(__ HeapConstant(local_factory_->undefined_value()));
       }
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
