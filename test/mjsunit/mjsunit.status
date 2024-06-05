@@ -1720,6 +1720,9 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
+  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
+  'wasm/deopt/deopt-non-inlined-target': [SKIP],
+  'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
   'wasm/generate-random-module': [SKIP],
   'wasm/js-to-js': [SKIP],
