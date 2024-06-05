@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --sandbox-testing
+// Flags: --wasm-staging --sandbox-testing --turboshaft-wasm
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -13,16 +13,13 @@ let $mem0 = builder.addMemory(1, 1);
 let $box = builder.addStruct([makeField(kWasmFuncRef, true)]);
 
 let $sig_i_l = builder.addType(kSig_i_l);
-builder.addFunction("func0", kSig_i_i).exportFunc().addBody([
-  kExprLocalGet, 0,
-  ...wasmI32Const(0x41414141),
-  kExprI32StoreMem, 0, 0,
+
+// func0 and func1 have no other job than to have incompatible signatures.
+builder.addFunction("func0", kSig_v_i).exportFunc().addBody([]);
+builder.addFunction("func1", $sig_i_l).exportFunc().addBody([
   kExprI32Const, 0,
 ]);
-builder.addFunction("func1", $sig_i_l).exportFunc().addBody([
-  kExprLocalGet, 0,
-  kExprI32ConvertI64,
-]);
+
 builder.addFunction("get_func0", kSig_r_v).exportFunc().addBody([
   kExprRefFunc, 0,
   kGCPrefix, kExprStructNew, $box,
@@ -73,4 +70,7 @@ let f1 = getField(f1_box, kStructField0Offset);
 
 setField(f1, kWasmInternalFunctionOffset, f0_int);
 
-assertTraps(kTrapMemOutOfBounds, () => instance.exports.boom(target));
+// Signature confusion should kill the process.
+instance.exports.boom(target);
+
+assertUnreachable("Process should have been killed.");

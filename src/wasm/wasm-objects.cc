@@ -20,6 +20,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/serialized-signature-inl.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -1425,8 +1426,16 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
       isolate);
 
+#if V8_ENABLE_SANDBOX
+  uint64_t signature_hash =
+      wasm::SignatureHasher::Hash(module->functions[function_index].sig);
+#else
+  uintptr_t signature_hash = 0;
+#endif
+
   Handle<WasmInternalFunction> internal_function =
-      isolate->factory()->NewWasmInternalFunction(ref, function_index);
+      isolate->factory()->NewWasmInternalFunction(ref, function_index,
+                                                  signature_hash);
   Handle<WasmFuncRef> func_ref =
       isolate->factory()->NewWasmFuncRef(internal_function, rtt);
   trusted_instance_data->func_refs()->set(function_index, *func_ref);
@@ -2173,7 +2182,8 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
 
 Handle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
-    Handle<PodArray<wasm::ValueType>> serialized_signature) {
+    Handle<PodArray<wasm::ValueType>> serialized_signature,
+    uintptr_t signature_hash) {
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
@@ -2186,7 +2196,7 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   Handle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
           call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt,
-          serialized_signature);
+          serialized_signature, signature_hash);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   Handle<JSFunction> result =
@@ -2372,9 +2382,15 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           ? isolate->builtins()->code_handle(Builtin::kJSToJSWrapper)
           : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
+#if V8_ENABLE_SANDBOX
+  uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
+#else
+  uintptr_t signature_hash = 0;
+#endif
+
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       callable, serialized_sig, js_to_js_wrapper_code, rtt, suspend,
-      wasm::kNoPromise);
+      wasm::kNoPromise, signature_hash);
   Handle<WasmInternalFunction> internal_function{function_data->internal(),
                                                  isolate};
 

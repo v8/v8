@@ -24,6 +24,7 @@
 #include "src/wasm/inlining-tree.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -2789,6 +2790,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                const FunctionSig* sig, const Value args[], Value returns[]) {
     feedback_slot_++;
     if (__ generating_unreachable_operations()) return;
+
+#if V8_ENABLE_SANDBOX
+    uint64_t signature_hash = SignatureHasher::Hash(sig);
+#else
+    uint64_t signature_hash = 0;
+#endif  // V8_ENABLE_SANDBOX
+
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
@@ -2892,8 +2900,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
         instance_cache_.RestoreFromSnapshot(saved_cache);
-        auto [target, ref] =
-            BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+        auto [target, ref] = BuildFunctionReferenceTargetAndRef(
+            func_ref.op, func_ref.type, signature_hash);
         SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
         BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
         for (size_t ret = 0; ret < ref_returns.size(); ret++) {
@@ -2914,8 +2922,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         instance_cache_.set_mutable_field_value(i, phi);
       }
     } else {
-      auto [target, ref] =
-          BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+      auto [target, ref] = BuildFunctionReferenceTargetAndRef(
+          func_ref.op, func_ref.type, signature_hash);
       BuildWasmCall(decoder, sig, target, ref, args, returns);
     }
   }
@@ -2923,6 +2931,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
+
+#if V8_ENABLE_SANDBOX
+    uint64_t signature_hash = SignatureHasher::Hash(sig);
+#else
+    uint64_t signature_hash = 0;
+#endif  // V8_ENABLE_SANDBOX
+
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
@@ -2983,8 +2998,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       TSBlock* no_inline_block = case_blocks.back();
       __ Bind(no_inline_block);
     }
-    auto [target, ref] =
-        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+    auto [target, ref] = BuildFunctionReferenceTargetAndRef(
+        func_ref.op, func_ref.type, signature_hash);
     BuildWasmMaybeReturnCall(decoder, sig, target, ref, args);
   }
 
@@ -7037,7 +7052,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Load the call target and ref (WasmTrustedInstanceData or
   // WasmApiFunctionRef) from a function reference.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>>
-  BuildFunctionReferenceTargetAndRef(V<WasmFuncRef> func_ref, ValueType type) {
+  BuildFunctionReferenceTargetAndRef(V<WasmFuncRef> func_ref, ValueType type,
+                                     uint64_t expected_sig_hash) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
       func_ref = V<WasmFuncRef>::Cast(
@@ -7059,6 +7075,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
             internal_function, LoadOp::Kind::TaggedBase().Immutable(),
             WasmInternalFunction::kProtectedRefOffset));
+
+#if V8_ENABLE_SANDBOX
+    V<Word64> actual_sig_hash =
+        __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Uint64(),
+                WasmInternalFunction::kSignatureHashOffset);
+    IF_NOT (LIKELY(__ Word64Equal(actual_sig_hash, expected_sig_hash))) {
+      auto sig = FixedSizeSignature<MachineType>::Params(
+          MachineType::AnyTagged(), MachineType::Uint64());
+      CallC(&sig, ExternalReference::wasm_signature_check_fail(),
+            {internal_function, __ Word64Constant(expected_sig_hash)});
+      __ Unreachable();
+    }
+#endif
 
     V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                                 MemoryRepresentation::UintPtr(),

@@ -814,7 +814,8 @@ class WasmCapiFunction : public JSFunction {
 
   static Handle<WasmCapiFunction> New(
       Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
-      Handle<PodArray<wasm::ValueType>> serialized_signature);
+      Handle<PodArray<wasm::ValueType>> serialized_signature,
+      uintptr_t signature_hash);
 
   Tagged<PodArray<wasm::ValueType>> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the

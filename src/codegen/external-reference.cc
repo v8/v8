@@ -570,8 +570,22 @@ FUNCTION_REFERENCE(wasm_array_copy, wasm::array_copy_wrapper)
 FUNCTION_REFERENCE(wasm_array_fill, wasm::array_fill_wrapper)
 FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
                              BUILTIN_FP_POINTER_CALL)
+
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
+
+void WasmSignatureCheckFail(Address raw_internal_function,
+                            uintptr_t expected_hash) {
+  // WasmInternalFunction::signature_hash doesn't exist in non-sandbox builds.
+#if V8_ENABLE_SANDBOX
+  Tagged<WasmInternalFunction> internal_function =
+      WasmInternalFunction::cast(Tagged<Object>(raw_internal_function));
+  PrintF("Wasm sandbox violation! Expected signature hash %lx, got %lx\n",
+         expected_hash, internal_function->signature_hash());
+  SBXCHECK_EQ(expected_hash, internal_function->signature_hash());
+#endif
+}
+FUNCTION_REFERENCE(wasm_signature_check_fail, WasmSignatureCheckFail)
 
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)

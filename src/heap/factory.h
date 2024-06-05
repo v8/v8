@@ -718,14 +718,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<ExposedTrustedObject> ref, int function_index);
+      DirectHandle<ExposedTrustedObject> ref, int function_index,
+      uintptr_t signature_hash);
   Handle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,
       DirectHandle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
+      DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
+      uintptr_t signature_hash);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       DirectHandle<Code> export_wrapper,
       DirectHandle<WasmInstanceObject> instance_object,
@@ -749,7 +751,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSReceiver> callable,
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      wasm::Suspend suspend, wasm::Promise promise);
+      wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash);
   Handle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,

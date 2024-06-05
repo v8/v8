@@ -37,6 +37,7 @@
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/serialized-signature-inl.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -1474,6 +1475,25 @@ class SignatureHelper : public i::AllStatic {
       i::Handle<i::JSFunction> function) {
     return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
   }
+
+#if V8_ENABLE_SANDBOX
+  // Wraps {FuncType} so it has the same interface as {v8::internal::Signature}.
+  struct FuncTypeAdapter {
+    const FuncType* type = nullptr;
+    size_t parameter_count() const { return type->params().size(); }
+    size_t return_count() const { return type->results().size(); }
+    i::wasm::ValueType GetParam(size_t i) const {
+      return WasmValKindToV8(type->params()[i]->kind());
+    }
+    i::wasm::ValueType GetReturn(size_t i) const {
+      return WasmValKindToV8(type->results()[i]->kind());
+    }
+  };
+  static uint64_t Hash(FuncType* type) {
+    FuncTypeAdapter adapter{type};
+    return i::wasm::SignatureHasher::Hash(&adapter);
+  }
+#endif
 };
 
 auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
@@ -1484,9 +1504,15 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   CheckAndHandleInterrupts(isolate);
   i::Handle<i::Managed<FuncData>> embedder_data =
       i::Managed<FuncData>::FromRawPtr(isolate, sizeof(FuncData), data);
+#if V8_ENABLE_SANDBOX
+  uint64_t signature_hash = SignatureHelper::Hash(data->type.get());
+#else
+  uintptr_t signature_hash = 0;
+#endif  // V8_ENABLE_SANDBOX
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
-      embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
+      embedder_data, SignatureHelper::Serialize(isolate, data->type.get()),
+      signature_hash);
   i::WasmApiFunctionRef::cast(
       function->shared()->wasm_capi_function_data()->internal()->ref())
       ->set_callable(*function);

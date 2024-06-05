@@ -28,6 +28,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-debug.h"
@@ -2143,16 +2144,15 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       with_suspender_param ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
                            : BUILTIN_CODE(i_isolate, WasmPromising);
 
-  int sig_index =
-      trusted_instance_data->module()->functions[func_index].sig_index;
+  const i::wasm::WasmModule* module = trusted_instance_data->module();
+  int sig_index = module->functions[func_index].sig_index;
   // TODO(14034): Create funcref RTTs lazily?
   i::Handle<i::Map> rtt =
       handle(i::Map::cast(
                  trusted_instance_data->managed_object_maps()->get(sig_index)),
              i_isolate);
 
-  int num_imported_functions =
-      trusted_instance_data->module()->num_imported_functions;
+  int num_imported_functions = module->num_imported_functions;
   i::Handle<i::ExposedTrustedObject> ref =
       func_index >= num_imported_functions
           ? trusted_instance_data
@@ -2163,8 +2163,16 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
                             ->ref(func_index)),
                     i_isolate)));
 
+#if V8_ENABLE_SANDBOX
+  uint64_t signature_hash =
+      i::wasm::SignatureHasher::Hash(module->functions[func_index].sig);
+#else
+  uintptr_t signature_hash = 0;
+#endif
+
   i::Handle<i::WasmInternalFunction> internal =
-      i_isolate->factory()->NewWasmInternalFunction(ref, func_index);
+      i_isolate->factory()->NewWasmInternalFunction(ref, func_index,
+                                                    signature_hash);
   i::Handle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
   internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));

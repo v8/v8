@@ -4305,6 +4305,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/object-access.h",
       "src/wasm/pgo.h",
       "src/wasm/serialized-signature-inl.h",
+      "src/wasm/signature-hashing.h",
       "src/wasm/simd-shuffle.h",
       "src/wasm/stacks.h",
       "src/wasm/std-object-sizes.h",

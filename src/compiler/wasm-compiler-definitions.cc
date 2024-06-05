@@ -46,14 +46,6 @@ base::Vector<const char> GetDebugName(Zone* zone,
   return base::Vector<const char>(index_name, name_len);
 }
 
-MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
-  return type.machine_representation();
-}
-
-MachineRepresentation GetMachineRepresentation(MachineType type) {
-  return type.representation();
-}
-
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
                                       WasmCallKind call_kind,

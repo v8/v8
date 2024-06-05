@@ -1699,7 +1699,8 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<ExposedTrustedObject> ref, int function_index) {
+    DirectHandle<ExposedTrustedObject> ref, int function_index,
+    uintptr_t signature_hash) {
   Tagged<WasmInternalFunction> internal =
       Tagged<WasmInternalFunction>::cast(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize, AllocationType::kTrusted,
@@ -1710,6 +1711,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     internal->set_call_target(kNullAddress);
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
     internal->set_ref(*ref);
+#if V8_ENABLE_SANDBOX
+    internal->set_signature_hash(signature_hash);
+#endif  // V8_ENABLE_SANDBOX
     // Default values, will be overwritten by the caller.
     internal->set_function_index(function_index);
     internal->set_external(*undefined_value());
@@ -1736,11 +1740,12 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     DirectHandle<JSReceiver> callable,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::Suspend suspend, wasm::Promise promise) {
+    wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       callable, suspend, undefined_value(), serialized_sig);
 
-  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, -1);
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(ref, -1, signature_hash);
   Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   Tagged<Map> map = *wasm_js_function_data_map();
@@ -1806,10 +1811,12 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
+    DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
+    uintptr_t signature_hash) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
-  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, -1);
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(ref, -1, signature_hash);
   Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   internal->set_call_target(call_target);

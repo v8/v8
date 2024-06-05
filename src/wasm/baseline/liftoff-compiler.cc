@@ -29,6 +29,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
@@ -8416,6 +8417,15 @@ class LiftoffCompiler {
       MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
       VarState func_ref_var(kRef, func_ref, 0);
 
+#if V8_ENABLE_SANDBOX
+      LiftoffRegister sig_hash_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadConstant(sig_hash_reg, WasmValue{SignatureHasher::Hash(type_sig)});
+      VarState sig_hash_var{kIntPtrKind, sig_hash_reg, 0};
+#else
+      VarState sig_hash_var{kIntPtrKind, 0, 0};  // Unused by callee.
+#endif
+
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
       // A constant `uint32_t` is sufficient for the vector slot index.
@@ -8430,11 +8440,13 @@ class LiftoffCompiler {
       VarState index_var(kI32, vector_slot, 0);
 
       // CallRefIC(vector: FixedArray, vectorIndex: int32,
+      //           signatureHash: uintptr,
       //           funcref: WasmFuncRef) -> <target, ref>
-      CallBuiltin(
-          Builtin::kCallRefIC,
-          MakeSig::Returns(kIntPtrKind, kIntPtrKind).Params(kRef, kI32, kRef),
-          {vector_var, index_var, func_ref_var}, decoder->position());
+      CallBuiltin(Builtin::kCallRefIC,
+                  MakeSig::Returns(kIntPtrKind, kIntPtrKind)
+                      .Params(kRef, kI32, kIntPtrKind, kRef),
+                  {vector_var, index_var, sig_hash_var, func_ref_var},
+                  decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       first_param_reg = kReturnRegister1;
     } else {  // inlining_enabled(decoder)
