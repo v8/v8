@@ -203,7 +203,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
     ExitPoint* exit_point) {
   if (!p->IsEnumeratedKeyedLoad()) return;
   Label no_enum_cache(this);
-  // p->cache_type() comes from the outer loop's ForIn state.
+  // |p->cache_type()| comes from the outer loop's ForIn state.
   GotoIf(TaggedNotEqual(p->cache_type(), lookup_start_object_map),
          &no_enum_cache);
 
@@ -214,12 +214,12 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
       descriptors, DescriptorArray::kEnumCacheOffset);
   TNode<FixedArray> enum_keys =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
-  // p->enum_index() comes from the outer loop's ForIn state.
+  // |p->enum_index()| comes from the outer loop's ForIn state.
   TNode<Object> key =
       LoadFixedArrayElement(enum_keys, TaggedIndexToSmi(p->enum_index()));
-  // Check if the key in parameters match the one in enum cache. Debugger might
-  // change the value in key register, in this case we should not use the field
-  // index in enum cache.
+  // Check if |p->name()| matches the key in enum cache. |p->name()| is the
+  // "each" variable of a for-in loop, but it can be modified by debugger or
+  // other bytecodes.
   GotoIf(TaggedNotEqual(key, p->name()), &no_enum_cache);
   TNode<FixedArray> enum_indices =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
