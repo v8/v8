@@ -147,6 +147,12 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
     DCHECK(shared_heap_worklists_.has_value());
     worklist = &*shared_heap_worklists_;
   } else {
+#ifdef DEBUG
+    const auto target_worklist =
+        MarkingHelper::ShouldMarkObject(heap_, descriptor_array);
+    DCHECK(target_worklist);
+    DCHECK_EQ(target_worklist.value(), MarkingHelper::WorklistTarget::kRegular);
+#endif  // DEBUG
     gc_epoch = major_collector_->epoch();
     worklist = current_worklists_.get();
   }
@@ -163,12 +169,6 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   // values corresponding to `number_of_own_descriptors`.
   if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
           gc_epoch, descriptor_array, number_of_own_descriptors)) {
-#ifdef DEBUG
-    const auto target_worklist =
-        MarkingHelper::ShouldMarkObject(heap_, descriptor_array);
-    DCHECK(target_worklist);
-    DCHECK_EQ(target_worklist.value(), MarkingHelper::WorklistTarget::kRegular);
-#endif  // DEBUG
     worklist->Push(descriptor_array);
   }
 }
