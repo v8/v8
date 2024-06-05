@@ -15,6 +15,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-properties.h"
@@ -2506,6 +2507,15 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
     }
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
+  } else {
+    if constexpr (Adapter::IsTurboshaft) {
+      if (call.ts_call_descriptor()->lazy_deopt_on_throw ==
+          LazyDeoptOnThrow::kYes) {
+        flags |= CallDescriptor::kHasExceptionHandler;
+        buffer.instruction_args.push_back(
+            g.UseImmediate(kLazyDeoptOnThrowSentinel));
+      }
+    }
   }
 
   // Select the appropriate opcode based on the call type.

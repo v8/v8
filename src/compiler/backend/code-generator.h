@@ -376,6 +376,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // ===========================================================================
 
   struct HandlerInfo {
+    // {handler} is nullptr if the Call should lazy deopt on exceptions.
     Label* handler;
     int pc_offset;
   };

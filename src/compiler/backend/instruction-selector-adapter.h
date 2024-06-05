@@ -769,6 +769,12 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
 
+    const turboshaft::TSCallDescriptor* ts_call_descriptor() const {
+      if (call_op_) return call_op_->descriptor;
+      if (tail_call_op_) return tail_call_op_->descriptor;
+      UNREACHABLE();
+    }
+
     operator node_t() const { return node_; }
 
    private:

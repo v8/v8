@@ -12,6 +12,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
@@ -248,7 +249,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     static const TSCallDescriptor* MakeSimpleTSCallDescriptor(
         Zone* zone, MachineSignature* msig) {
       return TSCallDescriptor::Create(MakeSimpleCallDescriptor(zone, msig),
-                                      CanThrow::kYes, zone);
+                                      CanThrow::kYes, LazyDeoptOnThrow::kNo,
+                                      zone);
     }
 
     CallDescriptor* call_descriptor() { return call_descriptor_; }

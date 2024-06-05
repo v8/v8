@@ -34,7 +34,8 @@ struct BuiltinCallDescriptor {
 #endif  // DEBUG
       bool can_throw = !(Derived::kProperties & Operator::kNoThrow);
       return TSCallDescriptor::Create(
-          descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo, zone);
+          descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo,
+          LazyDeoptOnThrow::kNo, zone);
     }
 
 #ifdef DEBUG

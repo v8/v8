@@ -290,6 +290,8 @@ inline size_t AtomicWidthSize(AtomicWidth width) {
   UNREACHABLE();
 }
 
+static constexpr int kLazyDeoptOnThrowSentinel = -1;
+
 // The InstructionCode is an opaque, target-specific integer that encodes what
 // code to emit for an instruction in the code generator. It is not interesting
 // to the register allocator, as the inputs and flags on the instructions

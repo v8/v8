@@ -44,6 +44,7 @@ inline Runtime::FunctionId GetBuiltinForStackCheckKind(StackCheckKind kind) {
 }
 
 enum class CanThrow : uint8_t { kNo, kYes };
+enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
   switch (kind) {

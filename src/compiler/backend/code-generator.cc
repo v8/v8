@@ -449,8 +449,9 @@ void CodeGenerator::AssembleCode() {
   if (!handlers_.empty()) {
     handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
     for (size_t i = 0; i < handlers_.size(); ++i) {
-      HandlerTable::EmitReturnEntry(masm(), handlers_[i].pc_offset,
-                                    handlers_[i].handler->pos());
+      int pos = handlers_[i].handler != nullptr ? handlers_[i].handler->pos()
+                                                : HandlerTable::kLazyDeopt;
+      HandlerTable::EmitReturnEntry(masm(), handlers_[i].pc_offset, pos);
     }
   }
 
@@ -1107,10 +1108,18 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     InstructionOperandConverter i(this, instr);
-    RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
-    DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
-    handlers_.push_back(
-        {GetLabel(handler_rpo), masm()->pc_offset_for_safepoint()});
+    Constant handler_input =
+        i.ToConstant(instr->InputAt(instr->InputCount() - 1));
+    if (handler_input.type() == Constant::Type::kRpoNumber) {
+      RpoNumber handler_rpo = handler_input.ToRpoNumber();
+      DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
+      handlers_.push_back(
+          {GetLabel(handler_rpo), masm()->pc_offset_for_safepoint()});
+    } else {
+      // We should lazy deopt on throw.
+      DCHECK_EQ(handler_input.ToInt32(), kLazyDeoptOnThrowSentinel);
+      handlers_.push_back({nullptr, masm()->pc_offset_for_safepoint()});
+    }
   }
 
   if (needs_frame_state) {

@@ -3709,18 +3709,24 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   base::Vector<const RegisterRepresentation> in_reps;
   base::Vector<const RegisterRepresentation> out_reps;
   CanThrow can_throw;
+  LazyDeoptOnThrow lazy_deopt_on_throw;
 
   TSCallDescriptor(const CallDescriptor* descriptor,
                    base::Vector<const RegisterRepresentation> in_reps,
                    base::Vector<const RegisterRepresentation> out_reps,
-                   CanThrow can_throw)
+                   CanThrow can_throw, LazyDeoptOnThrow lazy_deopt_on_throw)
       : descriptor(descriptor),
         in_reps(in_reps),
         out_reps(out_reps),
-        can_throw(can_throw) {}
+        can_throw(can_throw),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
   static const TSCallDescriptor* Create(const CallDescriptor* descriptor,
-                                        CanThrow can_throw, Zone* graph_zone) {
+                                        CanThrow can_throw,
+                                        LazyDeoptOnThrow lazy_deopt_on_throw,
+                                        Zone* graph_zone) {
+    DCHECK_IMPLIES(can_throw == CanThrow::kNo,
+                   lazy_deopt_on_throw == LazyDeoptOnThrow::kNo);
     base::Vector<RegisterRepresentation> in_reps =
         graph_zone->AllocateVector<RegisterRepresentation>(
             descriptor->ParameterCount());
@@ -3736,7 +3742,7 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
           descriptor->GetReturnType(i).representation());
     }
     return graph_zone->New<TSCallDescriptor>(descriptor, in_reps, out_reps,
-                                             can_throw);
+                                             can_throw, lazy_deopt_on_throw);
   }
 };
 

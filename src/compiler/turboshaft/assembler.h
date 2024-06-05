@@ -3214,7 +3214,8 @@ class TurboshaftAssemblerOpInterface
 
     return Call<Object>(
         stub_code, frame_state, arguments,
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kYes, graph_zone));
+        TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                                 LazyDeoptOnThrow::kNo, graph_zone));
   }
 
   V<Object> CallBuiltin_CallWithSpread(Isolate* isolate, Zone* graph_zone,
@@ -3726,8 +3727,8 @@ class TurboshaftAssemblerOpInterface
         CallDescriptor::kNoFlags, Operator::kNoThrow | Operator::kNoDeopt);
     DCHECK_EQ(call_descriptor->NeedsFrameState(), frame_state.valid());
 
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
 
     OpIndex callee = Asm().HeapConstant(callable.code());
 

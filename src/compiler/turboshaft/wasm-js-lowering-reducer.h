@@ -40,8 +40,9 @@ class WasmJSLoweringReducer : public Next {
     const CallDescriptor* tf_descriptor = GetBuiltinCallDescriptor(
         trap, Asm().graph_zone(), StubCallMode::kCallBuiltinPointer,
         needs_frame_state, Operator::kNoProperties);
-    const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
-        tf_descriptor, CanThrow::kYes, Asm().graph_zone());
+    const TSCallDescriptor* ts_descriptor =
+        TSCallDescriptor::Create(tf_descriptor, CanThrow::kYes,
+                                 LazyDeoptOnThrow::kNo, Asm().graph_zone());
 
     V<FrameState> new_frame_state =
         CreateFrameStateWithUpdatedBailoutId(frame_state.value());

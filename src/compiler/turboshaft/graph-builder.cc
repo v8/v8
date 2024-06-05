@@ -1285,8 +1285,8 @@ OpIndex GraphBuilder::Process(
       }
       CanThrow can_throw =
           op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
-      const TSCallDescriptor* ts_descriptor =
-          TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
+      const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
+          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
 
       OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
@@ -1336,8 +1336,8 @@ OpIndex GraphBuilder::Process(
 
       CanThrow can_throw =
           op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
-      const TSCallDescriptor* ts_descriptor =
-          TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
+      const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
+          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
 
       __ TailCall(callee, base::VectorOf(arguments), ts_descriptor);
       return OpIndex::Invalid();
@@ -1969,7 +1969,7 @@ OpIndex GraphBuilder::Process(
               slow_call_callee, dominating_frame_state,
               base::VectorOf(slow_call_arguments),
               TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                       __ graph_zone()));
+                                       LazyDeoptOnThrow::kNo, __ graph_zone()));
 
           if (is_final_control) {
             // The `__ Call()` before has already created exceptional
@@ -2013,11 +2013,11 @@ OpIndex GraphBuilder::Process(
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
 
-        V<Object> slow_call_result = V<Object>::Cast(
-            __ Call(slow_call_callee, dominating_frame_state,
-                    base::VectorOf(slow_call_arguments),
-                    TSCallDescriptor::Create(params.descriptor(),
-                                             CanThrow::kYes, __ graph_zone())));
+        V<Object> slow_call_result = V<Object>::Cast(__ Call(
+            slow_call_callee, dominating_frame_state,
+            base::VectorOf(slow_call_arguments),
+            TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
+                                     LazyDeoptOnThrow::kNo, __ graph_zone())));
         GOTO(done, slow_call_result);
       }
       BIND(done, result);
