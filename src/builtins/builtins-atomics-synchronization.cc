@@ -80,12 +80,6 @@ BUILTIN(AtomicsMutexLock) {
   Handle<Object> result;
   {
     JSAtomicsMutex::LockGuard lock_guard(isolate, js_mutex);
-    if (!lock_guard.locked()) {
-      // The lock_guard isn't locked only if the isolate is terminating.
-      // Return the termination exception that was already thrown.
-      DCHECK(isolate->is_execution_terminating());
-      return ReadOnlyRoots(isolate).termination_exception();
-    }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, run_under_lock,
@@ -309,17 +303,8 @@ BUILTIN(AtomicsConditionWait) {
         NewTypeError(MessageTemplate::kAtomicsMutexNotOwnedByCurrentThread));
   }
 
-  Maybe<bool> result =
-      JSAtomicsCondition::WaitFor(isolate, js_condition, js_mutex, timeout);
-
-  if (result.IsNothing()) {
-    // `JSAtomicsCondition::WaitFor` only fails when the isolate is terminating.
-    // Return the termination exception that was already thrown.
-    DCHECK(isolate->is_execution_terminating());
-    return ReadOnlyRoots(isolate).termination_exception();
-  }
-
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return isolate->heap()->ToBoolean(
+      JSAtomicsCondition::WaitFor(isolate, js_condition, js_mutex, timeout));
 }
 
 BUILTIN(AtomicsConditionNotify) {

@@ -25,10 +25,9 @@ namespace detail {
 
 // To manage waiting threads inside JSSynchronizationPrimitives, there is a
 // process-wide doubly-linked intrusive list per waiter (i.e. mutex or condition
-// variable). There is a per-thread node stored in the isolate that is reused
-// when the thread goes to sleep for synchronous locking and waiting.
-// And there is a per-call node allocated on the C++ heap for asynchronous
-// locking and waiting.
+// variable). There is a per-thread node allocated on the stack when the thread
+// goes to sleep for synchronous locking and waiting, and a per-call node
+// allocated on the C++ heap for asynchronous locking and waiting.
 //
 // When compressing pointers (including when sandboxing), the access to the
 // node is indirected through the shared external pointer table.
@@ -90,39 +89,6 @@ class V8_NODISCARD WaiterQueueNode {
  private:
   void DequeueUnchecked(WaiterQueueNode** head);
   void VerifyNotInList();
-};
-
-class V8_NODISCARD SyncWaiterQueueNode final : public WaiterQueueNode {
- public:
-  explicit SyncWaiterQueueNode(Isolate* requester)
-      : WaiterQueueNode(requester), should_wait_(false) {}
-
-  enum class WaitResult : uint8_t { kNotified, kTimedOut, kThreadTerminated };
-
-  WaitResult Wait();
-
-  // Returns false if timed out, true otherwise.
-  WaitResult WaitFor(const base::TimeDelta& rel_time);
-
-  void Notify() override;
-
-  void NotifyInterrupted();
-
-  void SetShouldWaitUnprotected();
-
-  bool IsSameIsolateForAsyncCleanup(Isolate* isolate) override;
-
-  void CleanupMatchingAsyncWaiters(const DequeueMatcher& matcher) override {
-    UNREACHABLE();
-  }
-
- private:
-  void SetReadyForAsyncCleanup() override { UNREACHABLE(); }
-
-  base::Mutex wait_lock_;
-  base::ConditionVariable wait_cond_var_;
-  bool should_wait_;
-  bool thread_interrupted_ = false;
 };
 
 }  // namespace detail

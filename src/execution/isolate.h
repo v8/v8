@@ -42,7 +42,6 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged.h"
-#include "src/objects/waiter-queue-node.h"
 #include "src/runtime/runtime.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-buffer-table.h"
@@ -191,6 +190,10 @@ namespace wasm {
 class WasmCodeLookupCache;
 class WasmOrphanedGlobalHandle;
 }
+
+namespace detail {
+class WaiterQueueNode;
+}  // namespace detail
 
 #define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
   do {                                               \
@@ -2212,8 +2215,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
-  detail::SyncWaiterQueueNode* blocking_sync_waiter_queue_node();
-
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   void set_wasm_revec_verifier_for_test(
       compiler::turboshaft::WasmRevecVerifier* verifier) {
@@ -2681,10 +2682,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // List to manage the lifetime of the WaiterQueueNodes used to track async
   // waiters for JSSynchronizationPrimitives.
   std::list<std::unique_ptr<detail::WaiterQueueNode>> async_waiter_queue_nodes_;
-  // The SyncWaiterQueueNode reused by all Atomics.Mutex.lock and
-  // Atomics.Condition.wait calls in this thread when the thread is put to
-  // sleep.
-  std::unique_ptr<detail::SyncWaiterQueueNode> blocking_sync_waiter_queue_node_;
 
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.

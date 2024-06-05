@@ -100,6 +100,7 @@
 #include "src/objects/source-text-module-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/visitors.h"
+#include "src/objects/waiter-queue-node.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
@@ -3884,10 +3885,7 @@ Isolate::Isolate(IsolateGroup* isolate_group)
       next_unique_sfi_id_(0),
       next_module_async_evaluating_ordinal_(
           SourceTextModule::kFirstAsyncEvaluatingOrdinal),
-      cancelable_task_manager_(new CancelableTaskManager()),
-      blocking_sync_waiter_queue_node_(
-          v8_flags.harmony_struct ? (new detail::SyncWaiterQueueNode(this))
-                                  : nullptr) {
+      cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
@@ -6978,11 +6976,6 @@ Tagged<Object> Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
 std::list<std::unique_ptr<detail::WaiterQueueNode>>&
 Isolate::async_waiter_queue_nodes() {
   return async_waiter_queue_nodes_;
-}
-
-detail::SyncWaiterQueueNode* Isolate::blocking_sync_waiter_queue_node() {
-  DCHECK_NOT_NULL(blocking_sync_waiter_queue_node_);
-  return blocking_sync_waiter_queue_node_.get();
 }
 
 void DefaultWasmAsyncResolvePromiseCallback(
