@@ -366,6 +366,13 @@ class V8_NODISCARD ScopedFullHeapCrashKey {
 void ScavengerCollector::CollectGarbage() {
   ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
 
+  SemiSpaceNewSpace::From(heap_->new_space())->EvacuatePrologue();
+
+  // We also flip the young generation large object space. All large objects
+  // will be in the from space.
+  heap_->new_lo_space()->Flip();
+  heap_->new_lo_space()->ResetPendingObject();
+
   DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
 
   DCHECK(surviving_new_large_objects_.empty());

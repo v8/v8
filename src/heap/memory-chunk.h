@@ -137,12 +137,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
 
-  // Page flags copied from from-space to to-space when flipping semispaces.
-  static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
-      MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
-      MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
-      MainThreadFlags(INCREMENTAL_MARKING);
-
   static constexpr MainThreadFlags kIsOnlyOldOrMajorGCInProgressMask =
       MainThreadFlags(CONTAINS_ONLY_OLD) |
       MainThreadFlags(IS_MAJOR_GC_IN_PROGRESS);

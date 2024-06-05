@@ -2351,9 +2351,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   PerformHeapVerification();
 
-  if (new_space()) new_space()->Prologue();
-
-  size_t start_young_generation_size =
+  const size_t start_young_generation_size =
       NewSpaceSize() + (new_lo_space() ? new_lo_space()->SizeOfObjects() : 0);
 
   // Make sure allocation observers are disabled until the new new space
@@ -2757,13 +2755,6 @@ void Heap::Scavenge() {
       incremental_marking());
 
   SetGCState(SCAVENGE);
-
-  SemiSpaceNewSpace::From(new_space())->EvacuatePrologue();
-
-  // We also flip the young generation large object space. All large objects
-  // will be in the from space.
-  new_lo_space()->Flip();
-  new_lo_space()->ResetPendingObject();
 
   // Implements Cheney's copying algorithm
   scavenger_collector_->CollectGarbage();

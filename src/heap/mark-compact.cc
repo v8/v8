@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -54,6 +55,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/page-metadata-inl.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/pretenuring-handler.h"
@@ -4001,22 +4003,20 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
 
 void MarkCompactCollector::EvacuatePrologue() {
   // New space.
-  NewSpace* new_space = heap_->new_space();
-
-  if (new_space) {
-    // Append the list of new space pages to be processed.
-    for (PageMetadata* p : *new_space) {
-      if (p->live_bytes() > 0) {
-        new_space_evacuation_pages_.push_back(p);
-      }
-    }
-    if (!v8_flags.minor_ms)
+  if (NewSpace* new_space = heap_->new_space()) {
+    DCHECK(new_space_evacuation_pages_.empty());
+    std::copy_if(new_space->begin(), new_space->end(),
+                 std::back_inserter(new_space_evacuation_pages_),
+                 [](PageMetadata* p) { return p->live_bytes() > 0; });
+    if (!v8_flags.minor_ms) {
       SemiSpaceNewSpace::From(new_space)->EvacuatePrologue();
+    }
   }
 
-  if (heap_->new_lo_space()) {
-    heap_->new_lo_space()->Flip();
-    heap_->new_lo_space()->ResetPendingObject();
+  // Large new space.
+  if (NewLargeObjectSpace* new_lo_space = heap_->new_lo_space()) {
+    new_lo_space->Flip();
+    new_lo_space->ResetPendingObject();
   }
 
   // Old space.

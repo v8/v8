@@ -32,9 +32,6 @@ constexpr MemoryChunk::MainThreadFlags MemoryChunk::kIsLargePageMask;
 constexpr MemoryChunk::MainThreadFlags
     MemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
-// static
-constexpr MemoryChunk::MainThreadFlags MemoryChunk::kCopyOnFlipFlagsMask;
-
 MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
     : main_thread_flags_(flags),
 #ifdef V8_ENABLE_SANDBOX
