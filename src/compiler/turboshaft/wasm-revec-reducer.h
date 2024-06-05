@@ -403,6 +403,9 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   PackNode* NewPackNodeAndRecurs(const NodeGroup& node_group, int start_index,
                                  int count, unsigned depth);
 
+  PackNode* NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
+                                            unsigned depth);
+
   ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
                                       ShufflePackNode::SpecificInfo::Kind kind);
 

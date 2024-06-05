@@ -18,6 +18,28 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+// Returns true if op in node_group have same kind.
+bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
+#define CASE(operation)                                \
+  case Opcode::k##operation: {                         \
+    using Op = operation##Op;                          \
+    return op0.Cast<Op>().kind == op1.Cast<Op>().kind; \
+  }
+  if (op0.opcode != op1.opcode) {
+    return false;
+  }
+  switch (op0.opcode) {
+    CASE(Simd128Unary)
+    CASE(Simd128Binop)
+    CASE(Simd128Shift)
+    CASE(Simd128Ternary)
+    CASE(Simd128Splat)
+    default:
+      return true;
+  }
+#undef CASE
+}
+
 std::string GetSimdOpcodeName(Operation const& op) {
   std::ostringstream oss;
   if (op.Is<Simd128BinopOp>() || op.Is<Simd128UnaryOp>() ||
@@ -254,6 +276,33 @@ PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
   return pnode;
 }
 
+PackNode* SLPTree::NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
+                                                   unsigned depth) {
+  PackNode* pnode = NewPackNode(node_group);
+
+  const Simd128BinopOp& op0 = graph_.Get(node_group[0]).Cast<Simd128BinopOp>();
+  const Simd128BinopOp& op1 = graph_.Get(node_group[1]).Cast<Simd128BinopOp>();
+
+  bool same_kind =
+      (op0.left() == op1.left()) ||
+      IsSameOpAndKind(graph_.Get(op0.left()), graph_.Get(op1.left()));
+  bool need_swap = Simd128BinopOp::IsCommutative(op0.kind) && !same_kind;
+  if (need_swap) {
+    TRACE("Change the order of binop operands\n");
+  }
+  for (int i = 0; i < 2; ++i) {
+    // Swap the left and right input if necessary
+    unsigned node1_input_index = need_swap ? 1 - i : i;
+    NodeGroup operands(graph_.Get(node_group[0]).input(i),
+                       graph_.Get(node_group[1]).input(node1_input_index));
+
+    if (!BuildTreeRec(operands, depth + 1)) {
+      return nullptr;
+    }
+  }
+  return pnode;
+}
+
 PackNode* SLPTree::NewPackNodeAndRecurs(const NodeGroup& node_group,
                                         int start_index, int count,
                                         unsigned depth) {
@@ -443,25 +492,6 @@ std::pair<bool, bool> IsPackableSignExtensionOp(Operation& op0,
   }
 #undef UNOP_CASE
 #undef BINOP_CASE
-}
-
-// Returns true if op in node_group have same kind.
-bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
-#define CASE(operation)                                           \
-  case Opcode::k##operation: {                                    \
-    using Op = opcode_to_operation_map<Opcode::k##operation>::Op; \
-    return op0.Cast<Op>().kind == op1.Cast<Op>().kind;            \
-  }
-  switch (op0.opcode) {
-    CASE(Simd128Unary)
-    CASE(Simd128Binop)
-    CASE(Simd128Shift)
-    CASE(Simd128Ternary)
-    CASE(Simd128Splat)
-    default:
-      return true;
-  }
-#undef CASE
 }
 
 bool SLPTree::CanBePacked(const NodeGroup& node_group) {
@@ -716,8 +746,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         }
         SIMD256_BINOP_SIMPLE_OP(BINOP_CASE) {
           TRACE("Added a vector of Binop\n");
-          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
-                                                 recursion_depth);
+          PackNode* pnode =
+              NewCommutativePackNodeAndRecurs(node_group, recursion_depth);
           return pnode;
         }
         default: {

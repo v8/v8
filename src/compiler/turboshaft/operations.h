@@ -7216,6 +7216,14 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
       case Kind::kI32x4Add:
       case Kind::kI16x8Add:
       case Kind::kI8x16Add:
+      case Kind::kF64x2Add:
+      case Kind::kF32x4Add:
+
+      case Kind::kI64x2Mul:
+      case Kind::kI32x4Mul:
+      case Kind::kI16x8Mul:
+      case Kind::kF64x2Mul:
+      case Kind::kF32x4Mul:
         return true;
       default:
         return false;
