@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -78,14 +79,16 @@ void DeepForEachInputSingleFrameImpl(
 }
 
 template <typename Function>
-void DeepForCapturedAllocation(const CapturedAllocation& alloc,
-                               InputLocation*& input_location, Function&& f) {
-  if (alloc.type != CapturedAllocation::kObject) return;
-  for (CapturedValue& value : alloc.object) {
-    DCHECK_NE(value.type, CapturedValue::kCapturedObject);
-    DCHECK_NE(value.type, CapturedValue::kFixedDoubleArray);
-    if (value.type == CapturedValue::kRuntimeValue) {
-      f(value.runtime_value, input_location, f);
+void DeepForVirtualObject(VirtualObject* vobject,
+                          InputLocation*& input_location, Function&& f) {
+  if (vobject->type() != VirtualObject::kDefault) return;
+  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
+    ValueNode* value = vobject->get_by_index(i);
+    if (!IsConstantNode(value->opcode()) &&
+        value->opcode() != Opcode::kArgumentsElements &&
+        value->opcode() != Opcode::kArgumentsLength &&
+        value->opcode() != Opcode::kRestLength) {
+      f(value, input_location, f);
     }
   }
 }
@@ -106,11 +109,10 @@ void DeepForEachInputAndDeoptObject(
               node->template TryCast<InlinedAllocation>()) {
         if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
           input_location++;  // Reserved for the inlined allocation.
-          return DeepForCapturedAllocation(alloc->captured_allocation(),
-                                           input_location, lambda);
+          return DeepForVirtualObject(alloc->object(), input_location, lambda);
         }
         input_locations_to_advance +=
-            alloc->captured_allocation().InputLocationSizeNeeded();
+            alloc->object()->InputLocationSizeNeeded();
       }
       f(node, input_location);
       input_location += input_locations_to_advance;

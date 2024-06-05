@@ -122,9 +122,8 @@ ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
   }
 
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-    auto value = alloc->captured_allocation().object.get(
+    return alloc->object()->get(
         Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-    return GetValueNodeFromCapturedValue(value);
   }
 
   if (CallRuntime* n = node->TryCast<CallRuntime>()) {
@@ -3433,7 +3432,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kNumberOrOddball;
     case Opcode::kAllocationBlock:
     case Opcode::kInlinedAllocation:
-      return StaticTypeForMap(node->Cast<InlinedAllocation>()->GetMap(broker));
+      return StaticTypeForMap(node->Cast<InlinedAllocation>()->object()->map());
     case Opcode::kRootConstant: {
       RootConstant* constant = node->Cast<RootConstant>();
       switch (constant->index()) {
@@ -6215,8 +6214,7 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
             HasValidInitialMap(new_target_function->AsJSFunction(),
                                current_function)) {
           object = BuildInlinedAllocation(
-              CapturedObject::CreateJSConstructor(
-                  zone(), broker(), new_target_function->AsJSFunction()),
+              CreateJSConstructor(new_target_function->AsJSFunction()),
               AllocationType::kYoung);
           ClearCurrentAllocationBlock();
         } else {
@@ -6859,22 +6857,17 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   if (!receiver) return ReduceResult::Fail();
 
   if (!receiver->Is<InlinedAllocation>()) return ReduceResult::Fail();
-  auto maybe_iterator = receiver->Cast<InlinedAllocation>()->GetObject();
-  if (!maybe_iterator.has_value()) {
-    FAIL("iterator is not an inlined allocation");
-  }
-
-  auto iterator = maybe_iterator.value();
-  if (!iterator.GetMap().IsJSArrayIteratorMap()) {
+  VirtualObject* iterator = receiver->Cast<InlinedAllocation>()->object();
+  if (!iterator->map().IsJSArrayIteratorMap()) {
     FAIL("iterator is not a JS array iterator object");
   }
-  ValueNode* iterated_object = GetValueNodeFromCapturedValue(
-      iterator.get(JSArrayIterator::kIteratedObjectOffset));
 
+  ValueNode* iterated_object =
+      iterator->get(JSArrayIterator::kIteratedObjectOffset);
   ElementsKind elements_kind;
   base::SmallVector<compiler::MapRef, 4> maps;
   if (iterated_object->Is<InlinedAllocation>()) {
-    auto maybe_array = iterated_object->Cast<InlinedAllocation>()->GetObject();
+    VirtualObject* array = iterated_object->Cast<InlinedAllocation>()->object();
     // TODO(victorgomes): Remove this once we track changes in the inlined
     // allocated object.
     if (iterated_object->Cast<InlinedAllocation>()->IsEscaping()) {
@@ -6886,10 +6879,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
         -1) {
       FAIL("we're inside a loop, iterated object map could change");
     }
-    if (!maybe_array) {
-      FAIL("not a valid iterated object");
-    }
-    auto map = maybe_array->GetMap();
+    auto map = array->map();
     if (!map.supports_fast_array_iteration(broker())) {
       FAIL("no fast array iteration support");
     }
@@ -6944,8 +6934,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   // Index is below length.
   ValueNode* int32_index = GetInt32(uint32_index);
   subgraph.set(is_done, GetBooleanConstant(false));
-  IterationKind iteration_kind = static_cast<IterationKind>(
-      iterator.get(JSArrayIterator::kKindOffset).smi);
+  DCHECK(iterator->get(JSArrayIterator::kKindOffset)->Is<Int32Constant>());
+  IterationKind iteration_kind =
+      static_cast<IterationKind>(iterator->get(JSArrayIterator::kKindOffset)
+                                     ->Cast<Int32Constant>()
+                                     ->value());
   if (iteration_kind == IterationKind::kKeys) {
     subgraph.set(ret_value, index);
   } else {
@@ -6979,8 +6972,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   subgraph.Bind(&done);
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
-  CapturedObject iter_result = CapturedObject::CreateJSIteratorResult(
-      zone(), map, subgraph.get(ret_value), subgraph.get(is_done));
+  VirtualObject* iter_result = CreateJSIteratorResult(
+      map, subgraph.get(ret_value), subgraph.get(is_done));
   ValueNode* allocation =
       BuildInlinedAllocation(iter_result, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -7111,8 +7104,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   BuildCheckString(receiver);
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
-  CapturedObject string_iterator =
-      CapturedObject::CreateJSStringIterator(zone(), map, receiver);
+  VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
   ValueNode* allocation =
       BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -8624,13 +8616,14 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
 
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     ValueNode* target_node, CallArguments& args,
-    CapturedObject& arguments_object) {
+    VirtualObject* arguments_object) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
-  DCHECK(arguments_object.IsArgumentsObject());
+  DCHECK(arguments_object->map().IsJSArgumentsObjectMap() ||
+         arguments_object->map().IsJSArrayMap());
   args.PopArrayLikeArgument();
-  CapturedValue elements_value =
-      arguments_object.get(JSArgumentsObject::kElementsOffset);
-  if (elements_value.type == CapturedValue::kArgumentsElements) {
+  ValueNode* elements_value =
+      arguments_object->get(JSArgumentsObject::kElementsOffset);
+  if (elements_value->Is<ArgumentsElements>()) {
     Call::TargetType target_type = Call::TargetType::kAny;
     // TODO(victorgomes): Add JSFunction node type in KNA and use the info here.
     if (compiler::OptionalHeapObjectRef maybe_constant =
@@ -8644,27 +8637,26 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
       }
     }
     int start_index = 0;
-    if (arguments_object.IsRestParameter()) {
-      ArgumentsElements* arguments_elements = elements_value.arguments_elements;
-      DCHECK_EQ(arguments_elements->type(),
-                CreateArgumentsType::kRestParameter);
-      start_index = arguments_elements->formal_parameter_count();
+    if (elements_value->Cast<ArgumentsElements>()->type() ==
+        CreateArgumentsType::kRestParameter) {
+      start_index =
+          elements_value->Cast<ArgumentsElements>()->formal_parameter_count();
     }
     return AddNewCallNode<CallForwardVarargs>(args, target_node, GetContext(),
                                               start_index, target_type);
   }
 
-  if (elements_value.type == CapturedValue::kRootConstant) {
-    // Elements is the empty fixed array.
-    DCHECK_EQ(elements_value.root_constant, RootIndex::kEmptyFixedArray);
+  if (elements_value->Is<RootConstant>()) {
+    // It is a RootConstant, Elements can only be the empty fixed array.
+    DCHECK_EQ(elements_value->Cast<RootConstant>()->index(),
+              RootIndex::kEmptyFixedArray);
     CallArguments new_args(ConvertReceiverMode::kAny, {args.receiver()});
     return ReduceCall(target_node, new_args);
   }
 
-  std::optional<CapturedObject> elements =
-      elements_value.GetObjectFromAllocation();
-  DCHECK(elements.has_value());
-  DCHECK(elements->IsFixedArray());
+  DCHECK(elements_value->Is<InlinedAllocation>());
+  InlinedAllocation* allocation = elements_value->Cast<InlinedAllocation>();
+  VirtualObject* elements = allocation->object();
 
   base::SmallVector<ValueNode*, 8> arg_list;
   DCHECK_NOT_NULL(args.receiver());
@@ -8672,17 +8664,26 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   for (int i = 0; i < static_cast<int>(args.count()); i++) {
     arg_list.push_back(args[i]);
   }
-  DCHECK_EQ(elements->get(FixedArray::kLengthOffset).type, CapturedValue::kSmi);
-  int length = elements->get(FixedArray::kLengthOffset).smi;
+  DCHECK(elements->get(FixedArray::kLengthOffset)->Is<Int32Constant>());
+  int length =
+      elements->get(FixedArray::kLengthOffset)->Cast<Int32Constant>()->value();
   for (int i = 0; i < length; i++) {
-    CapturedValue value = elements->get(FixedArray::OffsetOfElementAt(i));
-    arg_list.push_back(GetValueNodeFromCapturedValue(value));
+    arg_list.push_back(elements->get(FixedArray::OffsetOfElementAt(i)));
   }
   CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
   return ReduceCall(target_node, new_args);
 }
 
-std::optional<CapturedObject>
+namespace {
+bool IsSloppyMappedArgumentsObject(compiler::JSHeapBroker* broker,
+                                   compiler::MapRef map) {
+  return broker->target_native_context()
+      .fast_aliased_arguments_map(broker)
+      .equals(map);
+}
+}  // namespace
+
+std::optional<VirtualObject*>
 MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // Although the arguments object has not been changed so far, since it is not
   // escaping, it could be modified after this bytecode if it is inside a loop.
@@ -8694,13 +8695,15 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement if
   // we keep track of the arguments object changes so far.
   if (alloc->IsEscaping()) return {};
-  if (alloc->captured_allocation().type != CapturedAllocation::kObject) {
-    return {};
-  }
-  CapturedObject object = alloc->captured_allocation().object;
+  VirtualObject* object = alloc->object();
   // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
   // requirement if there is no stores to  the mapped arguments.
-  if (object.IsArgumentsObject() && !object.IsSloppyMappedArgumentsObject()) {
+  compiler::MapRef map = object->map();
+  if (map.IsJSArrayMap()) {
+    return object;
+  }
+  if (map.IsJSArgumentsObjectMap() &&
+      !IsSloppyMappedArgumentsObject(broker(), map)) {
     return object;
   }
   return {};
@@ -8711,7 +8714,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(ValueNode* target_node,
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
 
   // TODO(victorgomes): Add the case for JSArrays and Rest parameter.
-  if (std::optional<CapturedObject> arguments_object =
+  if (std::optional<VirtualObject*> arguments_object =
           TryGetNonEscapingArgumentsObject(args.array_like_argument())) {
     RETURN_IF_DONE(ReduceCallWithArrayLikeForArgumentsObject(
         target_node, args, *arguments_object));
@@ -8950,8 +8953,7 @@ void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
   ValueNode* done = GetTaggedValue(args[1]);
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
-  CapturedObject iter_result =
-      CapturedObject::CreateJSIteratorResult(zone(), map, value, done);
+  VirtualObject* iter_result = CreateJSIteratorResult(map, value, done);
   ValueNode* allocation =
       BuildInlinedAllocation(iter_result, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -9082,15 +9084,14 @@ ValueNode* MaglevGraphBuilder::BuildGenericConstruct(
 
 ValueNode* MaglevGraphBuilder::BuildAndAllocateKeyValueArray(ValueNode* key,
                                                              ValueNode* value) {
-  auto elements =
-      CapturedObject::CreateFixedArray(zone(), broker()->fixed_array_map(), 2);
-  elements.set(FixedArray::OffsetOfElementAt(0), key);
-  elements.set(FixedArray::OffsetOfElementAt(1), value);
+  VirtualObject* elements = CreateFixedArray(broker()->fixed_array_map(), 2);
+  elements->set(FixedArray::OffsetOfElementAt(0), key);
+  elements->set(FixedArray::OffsetOfElementAt(1), value);
   compiler::MapRef map =
       broker()->target_native_context().js_array_packed_elements_map(broker());
-  CapturedObject array = CapturedObject::CreateJSArray(
-      zone(), map, map.instance_size(), GetSmiConstant(2));
-  array.set(JSArray::kElementsOffset, elements);
+  VirtualObject* array =
+      CreateJSArray(map, map.instance_size(), GetInt32Constant(2));
+  array->set(JSArray::kElementsOffset, elements);
   ValueNode* allocation = BuildInlinedAllocation(array, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
   // next side effect clear it.
@@ -9099,15 +9100,16 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateKeyValueArray(ValueNode* key,
 }
 
 ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArray(
-    compiler::MapRef map, ValueNode* length, CapturedValue elements,
+    compiler::MapRef map, ValueNode* length, ValueNode* elements,
     const compiler::SlackTrackingPrediction& slack_tracking_prediction,
     AllocationType allocation_type) {
-  CapturedObject array = CapturedObject::CreateJSArray(
-      zone(), map, slack_tracking_prediction.instance_size(), length);
-  array.set(JSArray::kElementsOffset, elements);
+  VirtualObject* array =
+      CreateJSArray(map, slack_tracking_prediction.instance_size(), length);
+  array->set(JSArray::kElementsOffset, elements);
   for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
        i++) {
-    array.set(map.GetInObjectPropertyOffset(i), RootIndex::kUndefinedValue);
+    array->set(map.GetInObjectPropertyOffset(i),
+               GetRootConstant(RootIndex::kUndefinedValue));
   }
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -9120,8 +9122,7 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
     ValueNode* array, IterationKind iteration_kind) {
   compiler::MapRef map =
       broker()->target_native_context().initial_array_iterator_map(broker());
-  CapturedObject iterator =
-      CapturedObject::CreateJSArrayIterator(zone(), map, array, iteration_kind);
+  VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
   ValueNode* allocation =
       BuildInlinedAllocation(iterator, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -9147,11 +9148,11 @@ ReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   if (FixedArray::SizeFor(length) > kMaxRegularHeapObjectSize) {
     return ReduceResult::Fail();
   }
-  CapturedObject register_file = CapturedObject::CreateFixedArray(
-      zone(), broker()->fixed_array_map(), length);
+  auto undefined = GetRootConstant(RootIndex::kUndefinedValue);
+  VirtualObject* register_file =
+      CreateFixedArray(broker()->fixed_array_map(), length);
   for (int i = 0; i < length; i++) {
-    register_file.set(FixedArray::OffsetOfElementAt(i),
-                      RootIndex::kUndefinedValue);
+    register_file->set(FixedArray::OffsetOfElementAt(i), undefined);
   }
 
   // Create the JS[Async]GeneratorObject instance.
@@ -9159,16 +9160,14 @@ ReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           function);
   compiler::MapRef initial_map = function.initial_map(broker());
-  CapturedObject generator = CapturedObject::CreateJSGeneratorObject(
-      zone(), initial_map, slack_tracking_prediction.instance_size(),
-      GetContext(), GetTaggedValue(closure), GetTaggedValue(receiver),
-      register_file);
+  VirtualObject* generator = CreateJSGeneratorObject(
+      initial_map, slack_tracking_prediction.instance_size(), GetContext(),
+      GetTaggedValue(closure), GetTaggedValue(receiver), register_file);
 
   // Handle in-object properties.
   for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
        i++) {
-    generator.set(initial_map.GetInObjectPropertyOffset(i),
-                  RootIndex::kUndefinedValue);
+    generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
   }
 
   ValueNode* allocation =
@@ -9180,19 +9179,6 @@ ReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
 }
 
 namespace {
-CapturedValue BuildElementsArray(Zone* zone, compiler::JSHeapBroker* broker,
-                                 int length) {
-  if (length == 0) {
-    return CapturedValue(RootIndex::kEmptyFixedArray);
-  }
-  CapturedObject elements =
-      CapturedObject::CreateFixedArray(zone, broker->fixed_array_map(), length);
-  for (int i = 0; i < length; i++) {
-    elements.set(FixedArray::OffsetOfElementAt(i), RootIndex::kTheHoleValue);
-  }
-  return CapturedValue(elements);
-}
-
 std::optional<int> TryGetArrayContructorLength(CallArguments& args) {
   if (args.count() != 1) return {};
   ValueNode* length = args[0];
@@ -9222,6 +9208,19 @@ compiler::OptionalMapRef GetArrayConstructorInitialMap(
 
 }  // namespace
 
+ValueNode* MaglevGraphBuilder::BuildElementsArray(int length) {
+  if (length == 0) {
+    return GetRootConstant(RootIndex::kEmptyFixedArray);
+  }
+  VirtualObject* elements =
+      CreateFixedArray(broker()->fixed_array_map(), length);
+  auto hole = GetRootConstant(RootIndex::kTheHoleValue);
+  for (int i = 0; i < length; i++) {
+    elements->set(FixedArray::OffsetOfElementAt(i), hole);
+  }
+  return elements;
+}
+
 ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
     compiler::JSFunctionRef array_function, CallArguments& args,
     compiler::AllocationSiteRef allocation_site) {
@@ -9246,22 +9245,19 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
   if (args.count() == 0) {
     return BuildAndAllocateJSArray(
         initial_map, GetSmiConstant(0),
-        BuildElementsArray(zone(), broker(),
-                           JSArray::kPreallocatedArrayElements),
+        BuildElementsArray(JSArray::kPreallocatedArrayElements),
         slack_tracking_prediction, allocation_type);
   }
 
   if (maybe_length.has_value() && *maybe_length >= 0 &&
       *maybe_length < JSArray::kInitialMaxFastElementArray) {
-    return BuildAndAllocateJSArray(
-        initial_map, GetSmiConstant(*maybe_length),
-        BuildElementsArray(zone(), broker(), *maybe_length),
-        slack_tracking_prediction, allocation_type);
+    return BuildAndAllocateJSArray(initial_map, GetSmiConstant(*maybe_length),
+                                   BuildElementsArray(*maybe_length),
+                                   slack_tracking_prediction, allocation_type);
   }
 
   // TODO(victorgomes): If we know the argument cannot be a number, we should
   // allocate an array with one element.
-
   // We don't know anything about the length, so we rely on the allocation
   // site to avoid deopt loops.
   if (args.count() == 1 && allocation_site.CanInlineCall()) {
@@ -9273,9 +9269,8 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
                                            int32_length, GetInt32Constant(0));
         },
         [&] {
-          CapturedValue elements =
-              CapturedValue(AddNewNode<AllocateElementsArray>({int32_length},
-                                                              allocation_type));
+          ValueNode* elements = AddNewNode<AllocateElementsArray>(
+              {int32_length}, allocation_type);
           return BuildAndAllocateJSArray(initial_map, GetTaggedValue(args[0]),
                                          elements, slack_tracking_prediction,
                                          allocation_type);
@@ -9379,8 +9374,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         compiler::MapRef map = function.initial_map(broker());
         if (map.GetConstructor(broker()).equals(feedback_target)) {
           implicit_receiver = BuildInlinedAllocation(
-              CapturedObject::CreateJSConstructor(zone(), broker(), function),
-              AllocationType::kYoung);
+              CreateJSConstructor(function), AllocationType::kYoung);
           // TODO(leszeks): Don't eagerly clear the raw allocation, have the
           // next side effect clear it.
           ClearCurrentAllocationBlock();
@@ -10044,8 +10038,7 @@ void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
     compiler::MapRef map =
         native_context.regexp_function(broker()).initial_map(broker());
     SetAccumulator(BuildInlinedAllocation(
-        CapturedObject::CreateRegExpLiteral(zone(), broker(), map, literal),
-        AllocationType::kYoung));
+        CreateRegExpLiteralObject(map, literal), AllocationType::kYoung));
     // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
     // effect clear it.
     ClearCurrentAllocationBlock();
@@ -10114,15 +10107,14 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   // Initial JSArray map shouldn't have any in-object properties.
   SBXCHECK_EQ(map.GetInObjectProperties(), 0);
   SetAccumulator(BuildInlinedAllocation(
-      CapturedObject::CreateJSArray(zone(), map, map.instance_size(),
-                                    GetSmiConstant(0)),
+      CreateJSArray(map, map.instance_size(), GetSmiConstant(0)),
       AllocationType::kYoung));
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
   ClearCurrentAllocationBlock();
 }
 
-base::Optional<CapturedObject>
+base::Optional<VirtualObject*>
 MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     compiler::JSObjectRef boilerplate, AllocationType allocation, int max_depth,
     int* max_properties) {
@@ -10187,13 +10179,13 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       boilerplate, JSObject::kElementsOffset, boilerplate_elements);
   int const elements_length = boilerplate_elements.length();
 
-  CapturedObject fast_literal =
+  VirtualObject* fast_literal =
       boilerplate_map.IsJSArrayMap()
-          ? CapturedObject::CreateJSArray(
-                zone(), boilerplate_map, boilerplate_map.instance_size(),
+          ? CreateJSArray(
+                boilerplate_map, boilerplate_map.instance_size(),
                 GetConstant(
                     boilerplate.AsJSArray().GetBoilerplateLength(broker())))
-          : CapturedObject::CreateJSObject(zone(), boilerplate_map);
+          : CreateJSObject(boilerplate_map);
 
   int inobject_properties = boilerplate_map.GetInObjectProperties();
 
@@ -10239,22 +10231,22 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 
     if (boilerplate_value.IsJSObject()) {
       compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-      base::Optional<CapturedObject> maybe_object_value =
+      base::Optional<VirtualObject*> maybe_object_value =
           TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
                                            max_depth - 1, max_properties);
       if (!maybe_object_value.has_value()) return {};
-      fast_literal.set(offset, maybe_object_value.value());
+      fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
-      fast_literal.set(
-          offset,
-          Float64::FromBits(boilerplate_value.AsHeapNumber().value_as_bits()));
+      fast_literal->set(offset,
+                        GetFloat64Constant(Float64::FromBits(
+                            boilerplate_value.AsHeapNumber().value_as_bits())));
     } else {
       // It's fine to store the 'uninitialized' Oddball into a Smi field since
       // it will get overwritten anyway.
       DCHECK_IMPLIES(property_details.representation().IsSmi() &&
                          !boilerplate_value.IsSmi(),
                      IsUninitialized(*boilerplate_value.object()));
-      fast_literal.set(offset, boilerplate_value);
+      fast_literal->set(offset, GetConstant(boilerplate_value));
     }
     index++;
   }
@@ -10265,9 +10257,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
     // enabled.
     int offset = boilerplate_map.GetInObjectPropertyOffset(index);
-    fast_literal.set(
-        offset, MakeRef(broker(),
-                        local_isolate()->factory()->one_pointer_filler_map()));
+    fast_literal->set(offset, GetRootConstant(RootIndex::kOnePointerFillerMap));
   }
 
   DCHECK_EQ(JSObject::kElementsOffset, JSArray::kElementsOffset);
@@ -10283,20 +10273,22 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         !boilerplate.IsElementsTenured(boilerplate_elements)) {
       return {};
     }
-    fast_literal.set(JSObject::kElementsOffset, boilerplate_elements);
+    fast_literal->set(JSObject::kElementsOffset,
+                      GetConstant(boilerplate_elements));
   } else {
     // Compute the elements to store first (might have effects).
     if (boilerplate_elements.IsFixedDoubleArray()) {
       int const size = FixedDoubleArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
-      CapturedFixedDoubleArray elements = CapturedFixedDoubleArray(
-          zone(), boilerplate_elements.AsFixedDoubleArray(), elements_length);
-      fast_literal.set(JSObject::kElementsOffset, elements);
+      fast_literal->set(
+          JSObject::kElementsOffset,
+          CreateDoubleFixedArray(elements_length,
+                                 boilerplate_elements.AsFixedDoubleArray()));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
-      CapturedObject elements = CapturedObject::CreateFixedArray(
-          zone(), broker()->fixed_array_map(), elements_length);
+      VirtualObject* elements =
+          CreateFixedArray(broker()->fixed_array_map(), elements_length);
       compiler::FixedArrayRef boilerplate_elements_as_fixed_array =
           boilerplate_elements.AsFixedArray();
       for (int i = 0; i < elements_length; ++i) {
@@ -10305,27 +10297,257 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
             boilerplate_elements_as_fixed_array.TryGet(broker(), i);
         if (!element_value.has_value()) return {};
         if (element_value->IsJSObject()) {
-          base::Optional<CapturedObject> object =
+          base::Optional<VirtualObject*> object =
               TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
                                                allocation, max_depth - 1,
                                                max_properties);
           if (!object.has_value()) return {};
-          elements.set(FixedArray::OffsetOfElementAt(i), *object);
+          elements->set(FixedArray::OffsetOfElementAt(i), *object);
         } else {
-          elements.set(FixedArray::OffsetOfElementAt(i), *element_value);
+          elements->set(FixedArray::OffsetOfElementAt(i),
+                        GetConstant(*element_value));
         }
       }
 
-      fast_literal.set(JSObject::kElementsOffset, elements);
+      fast_literal->set(JSObject::kElementsOffset, elements);
     }
   }
 
   return fast_literal;
 }
 
+VirtualObject* MaglevGraphBuilder::CreateVirtualObject(
+    compiler::MapRef map, uint32_t slot_count_including_map) {
+  // VirtualObjects are not added to the Maglev graph.
+  DCHECK_GT(slot_count_including_map, 0);
+  uint32_t slot_count = slot_count_including_map - 1;
+  ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
+  return NodeBase::New<VirtualObject>(zone(), 0, map, slot_count, slots);
+}
+
+VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
+  // VirtualObjects are not added to the Maglev graph.
+  return NodeBase::New<VirtualObject>(zone(), 0, broker()->heap_number_map(),
+                                      value);
+}
+
+VirtualObject* MaglevGraphBuilder::CreateDoubleFixedArray(
+    uint32_t elements_length, compiler::FixedDoubleArrayRef elements) {
+  // VirtualObjects are not added to the Maglev graph.
+  return NodeBase::New<VirtualObject>(
+      zone(), 0, broker()->fixed_double_array_map(), elements_length, elements);
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
+  DCHECK(!map.is_dictionary_map());
+  DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_GE(slot_count, 3);
+  VirtualObject* object = CreateVirtualObject(map, slot_count);
+  object->set(JSObject::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSObject::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->ClearSlots(JSObject::kElementsOffset,
+                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
+                                                 int instance_size,
+                                                 ValueNode* length) {
+  int slot_count = instance_size / kTaggedSize;
+  SBXCHECK_GE(slot_count, 4);
+  VirtualObject* object = CreateVirtualObject(map, slot_count);
+  object->set(JSArray::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSArray::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSArray::kLengthOffset, length);
+  object->ClearSlots(JSArray::kLengthOffset,
+                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSArrayIterator(
+    compiler::MapRef map, ValueNode* iterated_object, IterationKind kind) {
+  int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_EQ(slot_count, 6);
+  VirtualObject* object = CreateVirtualObject(map, slot_count);
+  object->set(JSArrayIterator::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSArrayIterator::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
+  object->set(JSArrayIterator::kNextIndexOffset, GetInt32Constant(0));
+  object->set(JSArrayIterator::kKindOffset,
+              GetInt32Constant(static_cast<int>(kind)));
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
+    compiler::JSFunctionRef constructor) {
+  compiler::SlackTrackingPrediction prediction =
+      broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
+          constructor);
+  int slot_count = prediction.instance_size() / kTaggedSize;
+  VirtualObject* object =
+      CreateVirtualObject(constructor.initial_map(broker()), slot_count);
+  SBXCHECK_GE(slot_count, 3);
+  object->set(JSObject::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSObject::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->ClearSlots(JSObject::kElementsOffset,
+                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateFixedArray(compiler::MapRef map,
+                                                    int length) {
+  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
+  VirtualObject* array = CreateVirtualObject(map, slot_count);
+  array->set(FixedArray::kLengthOffset, GetInt32Constant(length));
+  array->ClearSlots(FixedArray::kLengthOffset,
+                    GetRootConstant(RootIndex::kOnePointerFillerMap));
+  return array;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateContext(
+    compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
+    ValueNode* previous_context, base::Optional<ValueNode*> extension) {
+  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
+  VirtualObject* context = CreateVirtualObject(map, slot_count);
+  context->set(Context::kLengthOffset, GetInt32Constant(length));
+  context->set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
+               GetConstant(scope_info));
+  context->set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
+               previous_context);
+  int index = Context::PREVIOUS_INDEX + 1;
+  if (extension.has_value()) {
+    context->set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
+                 extension.value());
+    index++;
+  }
+  for (; index < length; index++) {
+    context->set(Context::OffsetOfElementAt(index),
+                 GetRootConstant(RootIndex::kUndefinedValue));
+  }
+  return context;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateArgumentsObject(
+    compiler::MapRef map, ValueNode* length, ValueNode* elements,
+    base::Optional<ValueNode*> callee) {
+  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_EQ(slot_count, callee.has_value() ? 5 : 4);
+  VirtualObject* arguments = CreateVirtualObject(map, slot_count);
+  arguments->set(JSArray::kPropertiesOrHashOffset,
+                 GetRootConstant(RootIndex::kEmptyFixedArray));
+  arguments->set(JSArray::kElementsOffset, elements);
+  arguments->set(JSArray::kLengthOffset, length);
+  if (callee.has_value()) {
+    arguments->set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
+  }
+  DCHECK(arguments->map().IsJSArgumentsObjectMap() ||
+         arguments->map().IsJSArrayMap());
+  return arguments;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateMappedArgumentsElements(
+    compiler::MapRef map, int mapped_count, ValueNode* context,
+    ValueNode* unmapped_elements) {
+  int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
+  VirtualObject* elements = CreateVirtualObject(map, slot_count);
+  elements->set(SloppyArgumentsElements::kLengthOffset,
+                GetInt32Constant(mapped_count));
+  elements->set(SloppyArgumentsElements::kContextOffset, context);
+  elements->set(SloppyArgumentsElements::kArgumentsOffset, unmapped_elements);
+  return elements;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
+    compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal) {
+  DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
+  int slot_count = JSRegExp::Size() / kTaggedSize;
+  VirtualObject* regexp = CreateVirtualObject(map, slot_count);
+  regexp->set(JSRegExp::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  regexp->set(JSRegExp::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  regexp->set(JSRegExp::kDataOffset, GetConstant(literal.data(broker())));
+  regexp->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
+  regexp->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
+  regexp->set(JSRegExp::kLastIndexOffset,
+              GetInt32Constant(JSRegExp::kInitialLastIndexValue));
+  return regexp;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
+    compiler::MapRef map, int instance_size, ValueNode* context,
+    ValueNode* closure, ValueNode* receiver, ValueNode* register_file) {
+  int slot_count = instance_size / kTaggedSize;
+  InstanceType instance_type = map.instance_type();
+  DCHECK(instance_type == JS_GENERATOR_OBJECT_TYPE ||
+         instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+  SBXCHECK_GE(slot_count, instance_type == JS_GENERATOR_OBJECT_TYPE ? 10 : 12);
+  VirtualObject* object = CreateVirtualObject(map, slot_count);
+  object->set(JSGeneratorObject::kPropertiesOrHashOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSGeneratorObject::kElementsOffset,
+              GetRootConstant(RootIndex::kEmptyFixedArray));
+  object->set(JSGeneratorObject::kContextOffset, context);
+  object->set(JSGeneratorObject::kFunctionOffset, closure);
+  object->set(JSGeneratorObject::kReceiverOffset, receiver);
+  object->set(JSGeneratorObject::kInputOrDebugPosOffset,
+              GetRootConstant(RootIndex::kUndefinedValue));
+  object->set(JSGeneratorObject::kResumeModeOffset,
+              GetInt32Constant(JSGeneratorObject::kNext));
+  object->set(JSGeneratorObject::kContinuationOffset,
+              GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
+  object->set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
+  if (instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
+    object->set(JSAsyncGeneratorObject::kQueueOffset,
+                GetRootConstant(RootIndex::kUndefinedValue));
+    object->set(JSAsyncGeneratorObject::kIsAwaitingOffset, GetInt32Constant(0));
+  }
+  return object;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSIteratorResult(compiler::MapRef map,
+                                                          ValueNode* value,
+                                                          ValueNode* done) {
+  static_assert(JSIteratorResult::kSize == 5 * kTaggedSize);
+  int slot_count = JSIteratorResult::kSize / kTaggedSize;
+  VirtualObject* iter_result = CreateVirtualObject(map, slot_count);
+  iter_result->set(JSIteratorResult::kPropertiesOrHashOffset,
+                   GetRootConstant(RootIndex::kEmptyFixedArray));
+  iter_result->set(JSIteratorResult::kElementsOffset,
+                   GetRootConstant(RootIndex::kEmptyFixedArray));
+  iter_result->set(JSIteratorResult::kValueOffset, value);
+  iter_result->set(JSIteratorResult::kDoneOffset, done);
+  return iter_result;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
+                                                          ValueNode* string) {
+  static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);
+  int slot_count = JSStringIterator::kHeaderSize / kTaggedSize;
+  VirtualObject* string_iter = CreateVirtualObject(map, slot_count);
+  string_iter->set(JSStringIterator::kPropertiesOrHashOffset,
+                   GetRootConstant(RootIndex::kEmptyFixedArray));
+  string_iter->set(JSStringIterator::kElementsOffset,
+                   GetRootConstant(RootIndex::kEmptyFixedArray));
+  string_iter->set(JSStringIterator::kStringOffset, string);
+  string_iter->set(JSStringIterator::kIndexOffset, GetInt32Constant(0));
+  return string_iter;
+}
+
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
-    AllocationType allocation_type, CapturedAllocation value) {
-  DCHECK_LT(value.size(), kMaxRegularHeapObjectSize);
+    AllocationType allocation_type, VirtualObject* vobject) {
+  DCHECK_LT(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ ||
       current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new) {
@@ -10334,14 +10556,14 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   }
 
   int current_size = current_allocation_block_->size();
-  if (current_size + value.size() > kMaxRegularHeapObjectSize) {
+  if (current_size + vobject->size() > kMaxRegularHeapObjectSize) {
     current_allocation_block_ =
         AddNewNode<AllocationBlock>({}, allocation_type);
   }
 
   DCHECK_GE(current_size, 0);
   InlinedAllocation* allocation =
-      AddNewNode<InlinedAllocation>({current_allocation_block_}, value);
+      AddNewNode<InlinedAllocation>({current_allocation_block_}, vobject);
   graph()->allocations().emplace(allocation, zone());
   current_allocation_block_->Add(allocation);
   return allocation;
@@ -10361,146 +10583,124 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
   allocation->AddNonEscapingUses(use_count);
 }
 
-void MaglevGraphBuilder::AddDeoptUse(const CapturedAllocation& alloc) {
-  if (alloc.type != CapturedAllocation::kObject) return;
-  for (CapturedValue& value : alloc.object) {
-    DCHECK_NE(value.type, CapturedValue::kCapturedObject);
-    DCHECK_NE(value.type, CapturedValue::kFixedDoubleArray);
-    if (value.type == CapturedValue::kRuntimeValue) {
-      AddDeoptUse(value.runtime_value);
+void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
+  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
+    ValueNode* value = vobject->get_by_index(i);
+    if (!IsConstantNode(value->opcode()) &&
+        value->opcode() != Opcode::kArgumentsElements &&
+        value->opcode() != Opcode::kArgumentsLength &&
+        value->opcode() != Opcode::kRestLength) {
+      AddDeoptUse(value);
     }
   }
 }
 
-ValueNode* MaglevGraphBuilder::GetValueNodeFromCapturedValue(
-    CapturedValue& value) {
-  switch (value.type) {
-    case CapturedValue::kUninitalized:
-      return GetRootConstant(RootIndex::kOnePointerFillerMap);
-    case CapturedValue::kRuntimeValue:
-      return value.runtime_value;
-    case CapturedValue::kConstant:
-      return GetConstant(value.constant);
-    case CapturedValue::kRootConstant:
-      return GetRootConstant(value.root_constant);
-    case CapturedValue::kSmi:
-      return GetSmiConstant(value.smi);
-    case CapturedValue::kArgumentsElements:
-      return value.arguments_elements;
-    case CapturedValue::kArgumentsLength:
-      return value.arguments_length;
-    case CapturedValue::kRestLength:
-      return value.rest_length;
-    case CapturedValue::kCapturedObject:
-    case CapturedValue::kFixedDoubleArray:
-    case CapturedValue::kNumber:
-      UNREACHABLE();
-  }
-}
-
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
-    Float64 number, AllocationType allocation_type) {
-  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      allocation_type, CapturedAllocation(number));
+ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
+    VirtualObject* vobject, AllocationType allocation_type) {
+  DCHECK(vobject->map().IsHeapNumberMap());
+  InlinedAllocation* allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, 2);
   BuildStoreMap(allocation, broker()->heap_number_map(),
                 StoreMap::initializing_kind(allocation_type));
-  AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(number)},
+  AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(vobject->number())},
                            static_cast<int>(offsetof(HeapNumber, value_)));
   return allocation;
 }
 
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
-    CapturedFixedDoubleArray array, AllocationType allocation_type) {
-  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      allocation_type, CapturedAllocation(NewObjectId(), array));
-  AddNonEscapingUses(allocation, array.length + 2);
+ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
+    VirtualObject* vobject, AllocationType allocation_type) {
+  DCHECK(vobject->map().IsFixedDoubleArrayMap());
+  InlinedAllocation* allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+  int length = vobject->double_elements_length();
+  AddNonEscapingUses(allocation, length + 2);
   BuildStoreMap(allocation, broker()->fixed_double_array_map(),
                 StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-      {allocation, GetSmiConstant(array.length)},
-      FixedDoubleArray::kLengthOffset);
-  for (int i = 0; i < array.length; ++i) {
-    AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(array.values[i])},
-                             FixedDoubleArray::OffsetOfElementAt(i));
+      {allocation, GetSmiConstant(length)}, FixedDoubleArray::kLengthOffset);
+  for (int i = 0; i < length; ++i) {
+    AddNewNode<StoreFloat64>(
+        {allocation,
+         GetFloat64Constant(
+             vobject->double_elements().GetFromImmutableFixedDoubleArray(i))},
+        FixedDoubleArray::OffsetOfElementAt(i));
   }
   return allocation;
 }
 
 ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
-    CapturedObject object, AllocationType allocation_type) {
-  SmallZoneVector<ValueNode*, 8> values(object.slot_count(), zone());
-  for (int i = 0; i < object.slot_count(); i++) {
-    ValueNode* node;
-    int offset = i * kTaggedSize;
-    CapturedValue& value = object.get(offset);
-    switch (value.type) {
-      case CapturedValue::kCapturedObject:
-        node = BuildInlinedAllocation(value.captured_object, allocation_type);
-        object.set(offset, node);
-        break;
-      case CapturedValue::kFixedDoubleArray:
-        node =
-            BuildInlinedAllocation(value.fixed_double_array, allocation_type);
-        object.set(offset, node);
-        break;
-      case CapturedValue::kNumber:
-        node = BuildInlinedAllocation(value.number, allocation_type);
-        object.set(offset, node);
-        break;
-      default:
-        node = GetValueNodeFromCapturedValue(value);
-    }
-    values[i] = GetTaggedValue(node);
+    VirtualObject* vobject, AllocationType allocation_type) {
+  if (vobject->type() == VirtualObject::kHeapNumber) {
+    return BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
   }
-  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      allocation_type, CapturedAllocation(NewObjectId(), object));
-  AddNonEscapingUses(allocation, object.slot_count());
-  BuildStoreMap(allocation, object.GetMap(),
+  if (vobject->type() == VirtualObject::kFixedDoubleArray) {
+    return BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
+  }
+  SmallZoneVector<ValueNode*, 8> values(vobject->slot_count(), zone());
+  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
+    ValueNode* node = vobject->get_by_index(i);
+    if (node->Is<VirtualObject>()) {
+      VirtualObject* nested = node->Cast<VirtualObject>();
+      node = BuildInlinedAllocation(nested, allocation_type);
+    } else if (node->Is<Float64Constant>()) {
+      node = BuildInlinedAllocationForHeapNumber(
+          CreateHeapNumber(node->Cast<Float64Constant>()->value()),
+          allocation_type);
+    } else {
+      node = GetTaggedValue(node);
+    }
+    values[i] = node;
+  }
+  InlinedAllocation* allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+  AddNonEscapingUses(allocation, vobject->slot_count());
+  BuildStoreMap(allocation, vobject->map(),
                 StoreMap::initializing_kind(allocation_type));
-  for (int i = 1; i < object.slot_count(); i++) {
-    BuildInitializeStoreTaggedField(allocation, values[i], i * kTaggedSize);
+  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
+    BuildInitializeStoreTaggedField(allocation, values[i],
+                                    (i + 1) * kTaggedSize);
   }
   return allocation;
 }
 
-CapturedValue MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
-                                                                int length) {
+ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
+                                                             int length) {
   DCHECK(is_inline());
   if (length == 0) {
-    return CapturedValue(RootIndex::kEmptyFixedArray);
+    return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
-  auto elements = CapturedObject::CreateFixedArray(
-      zone(), broker()->fixed_array_map(), length);
+  VirtualObject* elements =
+      CreateFixedArray(broker()->fixed_array_map(), length);
   for (int i = 0; i < length; i++) {
-    elements.set(FixedArray::OffsetOfElementAt(i),
-                 GetInlinedTaggedArgument(i + start_index + 1));
+    elements->set(FixedArray::OffsetOfElementAt(i),
+                  GetInlinedTaggedArgument(i + start_index + 1));
   }
-  return CapturedValue(elements);
+  return elements;
 }
 
-CapturedValue MaglevGraphBuilder::BuildInlinedUnmappedArgumentsElements(
+ValueNode* MaglevGraphBuilder::BuildInlinedUnmappedArgumentsElements(
     int mapped_count) {
   int length = argument_count_without_receiver();
   if (length == 0) {
-    return CapturedValue(RootIndex::kEmptyFixedArray);
+    return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
-  auto unmapped_elements = CapturedObject::CreateFixedArray(
-      zone(), broker()->fixed_array_map(), length);
+  VirtualObject* unmapped_elements =
+      CreateFixedArray(broker()->fixed_array_map(), length);
   int i = 0;
   for (; i < mapped_count; i++) {
-    unmapped_elements.set(FixedArray::OffsetOfElementAt(i),
-                          RootIndex::kTheHoleValue);
+    unmapped_elements->set(FixedArray::OffsetOfElementAt(i),
+                           GetRootConstant(RootIndex::kTheHoleValue));
   }
   for (; i < length; i++) {
-    unmapped_elements.set(FixedArray::OffsetOfElementAt(i),
-                          GetInlinedTaggedArgument(i + 1));
+    unmapped_elements->set(FixedArray::OffsetOfElementAt(i),
+                           GetInlinedTaggedArgument(i + 1));
   }
-  return CapturedValue(unmapped_elements);
+  return unmapped_elements;
 }
 
 template <CreateArgumentsType type>
-CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
+VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
   switch (type) {
     case CreateArgumentsType::kMappedArguments:
       if (parameter_count_without_receiver() == 0) {
@@ -10508,22 +10708,19 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
         // special in any way, we can just return an unmapped backing store.
         if (is_inline()) {
           int length = argument_count_without_receiver();
-          CapturedValue elements = BuildInlinedArgumentsElements(0, length);
-          return CapturedObject::CreateArgumentsObject(
-              zone(), CapturedObject::kSloppyUnmappedArgumentsObject,
+          ValueNode* elements = BuildInlinedArgumentsElements(0, length);
+          return CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
-              CapturedValue(length), elements, GetClosure());
+              GetInt32Constant(length), elements, GetClosure());
         } else {
           ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
           ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
               {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
               parameter_count_without_receiver());
-          return CapturedObject::CreateArgumentsObject(
-              zone(), CapturedObject::kSloppyUnmappedArgumentsObject,
+          return CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
-              CapturedValue(GetTaggedValue(length)), CapturedValue(elements),
-              GetClosure());
+              GetTaggedValue(length), elements, GetClosure());
         }
       } else {
         // If the parameter count is zero, we should have used the unmapped
@@ -10542,30 +10739,29 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
         if (is_inline()) {
           int length = argument_count_without_receiver();
           int mapped_count = std::min(param_count, length);
-          CapturedValue unmapped_elements =
+          ValueNode* unmapped_elements =
               BuildInlinedUnmappedArgumentsElements(mapped_count);
-          auto elements = CapturedObject::CreateMappedArgumentsElements(
-              zone(), broker()->sloppy_arguments_elements_map(), mapped_count,
-              GetContext(), CapturedValue(unmapped_elements));
+          VirtualObject* elements = CreateMappedArgumentsElements(
+              broker()->sloppy_arguments_elements_map(), mapped_count,
+              GetContext(), unmapped_elements);
           for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
-            elements.set(
+            elements->set(
                 SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
-                param_idx_in_ctxt);
+                GetInt32Constant(param_idx_in_ctxt));
           }
-          return CapturedObject::CreateArgumentsObject(
-              zone(), CapturedObject::kSloppyMappedArgumentsObject,
+          return CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
-              CapturedValue(length), CapturedValue(elements), GetClosure());
+              GetInt32Constant(length), elements, GetClosure());
         } else {
           ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
           ArgumentsElements* unmapped_elements = AddNewNode<ArgumentsElements>(
               {GetTaggedValue(length)}, CreateArgumentsType::kMappedArguments,
               param_count);
-          auto elements = CapturedObject::CreateMappedArgumentsElements(
-              zone(), broker()->sloppy_arguments_elements_map(), param_count,
-              GetContext(), CapturedValue(unmapped_elements));
+          VirtualObject* elements = CreateMappedArgumentsElements(
+              broker()->sloppy_arguments_elements_map(), param_count,
+              GetContext(), unmapped_elements);
           ValueNode* the_hole_value = GetConstant(broker()->the_hole_value());
           for (int i = 0; i < param_count; i++, param_idx_in_ctxt--) {
             ValueNode* value = Select(
@@ -10576,49 +10772,44 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
                 },
                 [&] { return GetSmiConstant(param_idx_in_ctxt); },
                 [&] { return the_hole_value; });
-            elements.set(
+            elements->set(
                 SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
                 value);
           }
-          return CapturedObject::CreateArgumentsObject(
-              zone(), CapturedObject::kSloppyMappedArgumentsObject,
+          return CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
-              CapturedValue(GetTaggedValue(length)), CapturedValue(elements),
-              GetClosure());
+              GetTaggedValue(length), elements, GetClosure());
         }
       }
     case CreateArgumentsType::kUnmappedArguments:
       if (is_inline()) {
         int length = argument_count_without_receiver();
-        CapturedValue elements = BuildInlinedArgumentsElements(0, length);
-        return CapturedObject::CreateArgumentsObject(
-            zone(), CapturedObject::kStrictArgumentsObject,
+        ValueNode* elements = BuildInlinedArgumentsElements(0, length);
+        return CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
-            CapturedValue(length), elements);
+            GetInt32Constant(length), elements);
       } else {
         ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
         ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
             {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
             parameter_count_without_receiver());
-        return CapturedObject::CreateArgumentsObject(
-            zone(), CapturedObject::kStrictArgumentsObject,
+        return CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
-            CapturedValue(GetTaggedValue(length)), CapturedValue(elements));
+            GetTaggedValue(length), elements);
       }
     case CreateArgumentsType::kRestParameter:
       if (is_inline()) {
         int start_index = parameter_count_without_receiver();
         int length =
             std::max(0, argument_count_without_receiver() - start_index);
-        CapturedValue elements =
+        ValueNode* elements =
             BuildInlinedArgumentsElements(start_index, length);
-        return CapturedObject::CreateArgumentsObject(
-            zone(), CapturedObject::kRestParameter,
+        return CreateArgumentsObject(
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
-            CapturedValue(length), elements);
+            GetInt32Constant(length), elements);
       } else {
         ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
@@ -10627,18 +10818,17 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
             parameter_count_without_receiver());
         RestLength* rest_length =
             AddNewNode<RestLength>({}, parameter_count_without_receiver());
-        return CapturedObject::CreateArgumentsObject(
-            zone(), CapturedObject::kRestParameter,
+        return CreateArgumentsObject(
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
-            CapturedValue(rest_length), CapturedValue(elements));
+            rest_length, elements);
       }
   }
 }
 
 template <CreateArgumentsType type>
 ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
-  auto arguments = BuildCapturedArgumentsObject<type>();
+  auto arguments = BuildVirtualArgumentsObject<type>();
   ValueNode* allocation =
       BuildInlinedAllocation(arguments, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
@@ -10657,7 +10847,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
   // First try to extract out the shape and values of the boilerplate, bailing
   // out on complex boilerplates.
   int max_properties = compiler::kMaxFastLiteralProperties;
-  base::Optional<CapturedObject> maybe_value = TryReadBoilerplateForFastLiteral(
+  base::Optional<VirtualObject*> maybe_value = TryReadBoilerplateForFastLiteral(
       *site.boilerplate(broker()), allocation_type,
       compiler::kMaxFastLiteralDepth, &max_properties);
   if (!maybe_value.has_value()) return ReduceResult::Fail();
@@ -10712,8 +10902,8 @@ void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
       native_context.object_function(broker()).initial_map(broker());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  SetAccumulator(BuildInlinedAllocation(
-      CapturedObject::CreateJSObject(zone(), map), AllocationType::kYoung));
+  SetAccumulator(
+      BuildInlinedAllocation(CreateJSObject(map), AllocationType::kYoung));
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
   ClearCurrentAllocationBlock();
@@ -10774,8 +10964,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
     return ReduceResult::Fail();
   }
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-  auto context = CapturedObject::CreateContext(zone(), map, context_length,
-                                               scope, GetContext());
+  auto context = CreateContext(map, context_length, scope, GetContext());
   ValueNode* result = BuildInlinedAllocation(context, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
@@ -10809,8 +10998,8 @@ void MaglevGraphBuilder::VisitCreateCatchContext() {
   // CreateCatchContext <exception> <scope_info_idx>
   ValueNode* exception = LoadRegisterTagged(0);
   compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
-  auto context = CapturedObject::CreateContext(
-      zone(), broker()->target_native_context().catch_context_map(broker()),
+  auto context = CreateContext(
+      broker()->target_native_context().catch_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
   graph()->record_scope_info(GetRawAccumulator(), scope_info);
@@ -10868,8 +11057,8 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
   // CreateWithContext <register> <scope_info_idx>
   ValueNode* object = LoadRegisterTagged(0);
   compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
-  auto context = CapturedObject::CreateContext(
-      zone(), broker()->target_native_context().with_context_map(broker()),
+  auto context = CreateContext(
+      broker()->target_native_context().with_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
   graph()->record_scope_info(GetRawAccumulator(), scope_info);

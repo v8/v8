@@ -338,337 +338,32 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 }
 #endif
 
+size_t NestedInputLocationSizeNeeded(ValueNode* node) {
+  if (IsConstantNode(node->opcode()) ||
+      node->opcode() == Opcode::kArgumentsElements ||
+      node->opcode() == Opcode::kArgumentsLength ||
+      node->opcode() == Opcode::kRestLength) {
+    return 0;
+  }
+  return node->GetInputLocationsArraySize();
+}
+
 }  // namespace
 
-bool CapturedValue::IsValidRuntimeValue() const {
-  if (type != kRuntimeValue) return false;
-  // We should not use a generic runtime value for any of the following specific
-  // ValueNodes.
-  if (IsConstantNode(runtime_value->opcode())) return false;
-  switch (runtime_value->opcode()) {
-    case Opcode::kConstant:
-    case Opcode::kRootConstant:
-    case Opcode::kSmiConstant:
-    case Opcode::kInt32Constant:
-    case Opcode::kFloat64Constant:
-    case Opcode::kArgumentsElements:
-    case Opcode::kArgumentsLength:
-    case Opcode::kRestLength:
-      return false;
-    default:
-      return true;
-  }
-}
-
-size_t CapturedValue::InputLocationSizeNeeded() const {
-  switch (type) {
-    case kRuntimeValue:
-      return runtime_value->GetInputLocationsArraySize();
-    default:
-      return 0;
-  }
-}
-
-std::optional<CapturedObject> CapturedValue::GetObjectFromAllocation() const {
-  if (type != kRuntimeValue) return {};
-  if (!runtime_value->Is<InlinedAllocation>()) return {};
-  const CapturedAllocation& allocation =
-      runtime_value->Cast<InlinedAllocation>()->captured_allocation();
-  if (allocation.type != CapturedAllocation::kObject) return {};
-  return allocation.object;
-}
-
-void CapturedObject::set(unsigned int index, ValueNode* value) {
-  // We unwrap any constant or special ValueNodes.
-  switch (value->opcode()) {
-    case Opcode::kConstant:
-      set(index, CapturedValue(value->Cast<Constant>()->object()));
-      break;
-    case Opcode::kRootConstant:
-      set(index, CapturedValue(value->Cast<RootConstant>()->index()));
-      break;
-    case Opcode::kSmiConstant:
-      set(index, CapturedValue(value->Cast<SmiConstant>()->value().value()));
-      break;
-    case Opcode::kInt32Constant:
-      set(index, CapturedValue(value->Cast<Int32Constant>()->value()));
-      break;
-    case Opcode::kFloat64Constant:
-      set(index, CapturedValue(value->Cast<Float64Constant>()->value()));
-      break;
-    case Opcode::kInlinedAllocation:
-      set(index, CapturedValue(value->Cast<InlinedAllocation>()));
-      break;
-    case Opcode::kArgumentsElements:
-      set(index, CapturedValue(value->Cast<ArgumentsElements>()));
-      break;
-    case Opcode::kArgumentsLength:
-      set(index, CapturedValue(value->Cast<ArgumentsLength>()));
-      break;
-    case Opcode::kRestLength:
-      set(index, CapturedValue(value->Cast<RestLength>()));
-      break;
-    default:
-      // Generic runtime value.
-      set(index, CapturedValue(value));
-      break;
-  }
-}
-
-void CapturedObject::ClearSlots(int last_init_slot) {
-  int last_init_index = last_init_slot / kTaggedSize;
-  for (int i = last_init_index + 1; i < slot_count_; i++) {
-    slots_[i] = CapturedValue();
-  }
-}
-
-compiler::MapRef CapturedObject::GetMap() const {
-  DCHECK_EQ(slots_[0].type, CapturedValue::kConstant);
-  DCHECK(slots_[0].constant.IsMap());
-  return slots_[0].constant.AsMap();
-}
-
-size_t CapturedObject::InputLocationSizeNeeded() const {
+size_t VirtualObject::InputLocationSizeNeeded() const {
+  if (type() != kDefault) return 0;
   size_t size = 0;
-  // We skip the first slot, since it is always a MapRef.
-  for (int i = 1; i < slot_count_; i++) {
-    size += slots_[i].InputLocationSizeNeeded();
+  for (uint32_t i = 0; i < slot_count(); i++) {
+    size += NestedInputLocationSizeNeeded(slots_.data[i]);
   }
   return size;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSObject(Zone* zone,
-                                              compiler::MapRef map) {
-  DCHECK(!map.is_dictionary_map());
-  DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_GE(slot_count, 3);
-  CapturedObject object(zone, slot_count);
-  object.set(JSObject::kMapOffset, map);
-  object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSObject::kElementsOffset, RootIndex::kEmptyFixedArray);
-  object.ClearSlots(JSObject::kElementsOffset);
-  return object;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSArrayIterator(Zone* zone,
-                                                     compiler::MapRef map,
-                                                     ValueNode* iterated_object,
-                                                     IterationKind kind) {
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_EQ(slot_count, 6);
-  CapturedObject object(zone, slot_count);
-  object.set(JSArrayIterator::kMapOffset, map);
-  object.set(JSArrayIterator::kPropertiesOrHashOffset,
-             RootIndex::kEmptyFixedArray);
-  object.set(JSArrayIterator::kElementsOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
-  object.set(JSArrayIterator::kNextIndexOffset, 0);
-  object.set(JSArrayIterator::kKindOffset, static_cast<int>(kind));
-  return object;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSConstructor(
-    Zone* zone, compiler::JSHeapBroker* broker,
-    compiler::JSFunctionRef constructor) {
-  compiler::SlackTrackingPrediction prediction =
-      broker->dependencies()->DependOnInitialMapInstanceSizePrediction(
-          constructor);
-  int slot_count = prediction.instance_size() / kTaggedSize;
-  CapturedObject object(zone, slot_count);
-  SBXCHECK_GE(slot_count, 3);
-  object.set(JSObject::kMapOffset, constructor.initial_map(broker));
-  object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSObject::kElementsOffset, RootIndex::kEmptyFixedArray);
-  object.ClearSlots(JSObject::kElementsOffset);
-  return object;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSArray(Zone* zone, compiler::MapRef map,
-                                             int instance_size,
-                                             ValueNode* length) {
-  int slot_count = instance_size / kTaggedSize;
-  SBXCHECK_GE(slot_count, 4);
-  CapturedObject object(zone, slot_count);
-  object.set(JSArray::kMapOffset, map);
-  object.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSArray::kElementsOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSArray::kLengthOffset, length);
-  object.ClearSlots(JSArray::kLengthOffset);
-  return object;
-}
-
-// static
-CapturedObject CapturedObject::CreateFixedArray(Zone* zone,
-                                                compiler::MapRef map,
-                                                int length) {
-  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
-  CapturedObject array(zone, slot_count, kFixedArray);
-  array.set(FixedArray::kMapOffset, map);
-  array.set(FixedArray::kLengthOffset, length);
-  array.ClearSlots(FixedArray::kLengthOffset);
-  return array;
-}
-
-// static
-CapturedObject CapturedObject::CreateContext(
-    Zone* zone, compiler::MapRef map, int length,
-    compiler::ScopeInfoRef scope_info, ValueNode* previous_context,
-    base::Optional<ValueNode*> extension) {
-  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
-  CapturedObject context(zone, slot_count);
-  context.set(Context::kMapOffset, map);
-  context.set(Context::kLengthOffset, length);
-  context.set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
-              scope_info);
-  context.set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-              previous_context);
-  int index = Context::PREVIOUS_INDEX + 1;
-  if (extension.has_value()) {
-    context.set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
-                extension.value());
-    index++;
-  }
-  for (; index < length; index++) {
-    context.set(Context::OffsetOfElementAt(index), RootIndex::kUndefinedValue);
-  }
-  return context;
-}
-
-// static
-CapturedObject CapturedObject::CreateArgumentsObject(
-    Zone* zone, CapturedObject::Tag argument_type, compiler::MapRef map,
-    CapturedValue length, CapturedValue elements,
-    base::Optional<ValueNode*> callee) {
-  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
-  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_EQ(slot_count, callee.has_value() ? 5 : 4);
-  CapturedObject arguments(zone, slot_count, argument_type);
-  arguments.set(JSArray::kMapOffset, map);
-  arguments.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
-  arguments.set(JSArray::kElementsOffset, elements);
-  arguments.set(JSArray::kLengthOffset, length);
-  if (callee.has_value()) {
-    arguments.set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
-  }
-  DCHECK(arguments.IsArgumentsObject());
-  return arguments;
-}
-
-// static
-CapturedObject CapturedObject::CreateMappedArgumentsElements(
-    Zone* zone, compiler::MapRef map, int mapped_count, ValueNode* context,
-    CapturedValue unmapped_elements) {
-  int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
-  CapturedObject elements(zone, slot_count);
-  elements.set(SloppyArgumentsElements::kMapOffset, map);
-  elements.set(SloppyArgumentsElements::kLengthOffset, mapped_count);
-  elements.set(SloppyArgumentsElements::kContextOffset, context);
-  elements.set(SloppyArgumentsElements::kArgumentsOffset, unmapped_elements);
-  return elements;
-}
-
-// static
-CapturedObject CapturedObject::CreateRegExpLiteral(
-    Zone* zone, compiler::JSHeapBroker* broker, compiler::MapRef map,
-    compiler::RegExpBoilerplateDescriptionRef literal) {
-  DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
-  int slot_count = JSRegExp::Size() / kTaggedSize;
-  CapturedObject regexp(zone, slot_count);
-  regexp.set(JSRegExp::kMapOffset, map);
-  regexp.set(JSRegExp::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
-  regexp.set(JSRegExp::kElementsOffset, RootIndex::kEmptyFixedArray);
-  regexp.set(JSRegExp::kDataOffset, literal.data(broker));
-  regexp.set(JSRegExp::kSourceOffset, literal.source(broker));
-  regexp.set(JSRegExp::kFlagsOffset, literal.flags());
-  regexp.set(JSRegExp::kLastIndexOffset, JSRegExp::kInitialLastIndexValue);
-  return regexp;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSGeneratorObject(
-    Zone* zone, compiler::MapRef map, int instance_size, ValueNode* context,
-    ValueNode* closure, ValueNode* receiver, CapturedObject register_file) {
-  int slot_count = instance_size / kTaggedSize;
-  InstanceType instance_type = map.instance_type();
-  DCHECK(instance_type == JS_GENERATOR_OBJECT_TYPE ||
-         instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE);
-  SBXCHECK_GE(slot_count, instance_type == JS_GENERATOR_OBJECT_TYPE ? 10 : 12);
-  CapturedObject object(zone, slot_count);
-  object.set(JSGeneratorObject::kMapOffset, map);
-  object.set(JSGeneratorObject::kPropertiesOrHashOffset,
-             RootIndex::kEmptyFixedArray);
-  object.set(JSGeneratorObject::kElementsOffset, RootIndex::kEmptyFixedArray);
-  object.set(JSGeneratorObject::kContextOffset, context);
-  object.set(JSGeneratorObject::kFunctionOffset, closure);
-  object.set(JSGeneratorObject::kReceiverOffset, receiver);
-  object.set(JSGeneratorObject::kInputOrDebugPosOffset,
-             RootIndex::kUndefinedValue);
-  object.set(JSGeneratorObject::kResumeModeOffset, JSGeneratorObject::kNext);
-  object.set(JSGeneratorObject::kContinuationOffset,
-             JSGeneratorObject::kGeneratorExecuting);
-  object.set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
-  if (instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
-    object.set(JSAsyncGeneratorObject::kQueueOffset,
-               RootIndex::kUndefinedValue);
-    object.set(JSAsyncGeneratorObject::kIsAwaitingOffset, 0);
-  }
-  return object;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSIteratorResult(Zone* zone,
-                                                      compiler::MapRef map,
-                                                      ValueNode* value,
-                                                      ValueNode* done) {
-  static_assert(JSIteratorResult::kSize == 5 * kTaggedSize);
-  int slot_count = JSIteratorResult::kSize / kTaggedSize;
-  CapturedObject iter_result(zone, slot_count);
-  iter_result.set(JSIteratorResult::kMapOffset, map);
-  iter_result.set(JSIteratorResult::kPropertiesOrHashOffset,
-                  RootIndex::kEmptyFixedArray);
-  iter_result.set(JSIteratorResult::kElementsOffset,
-                  RootIndex::kEmptyFixedArray);
-  iter_result.set(JSIteratorResult::kValueOffset, value);
-  iter_result.set(JSIteratorResult::kDoneOffset, done);
-  return iter_result;
-}
-
-// static
-CapturedObject CapturedObject::CreateJSStringIterator(Zone* zone,
-                                                      compiler::MapRef map,
-                                                      ValueNode* string) {
-  static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);
-  int slot_count = JSStringIterator::kHeaderSize / kTaggedSize;
-  CapturedObject string_iter(zone, slot_count);
-  string_iter.set(JSStringIterator::kMapOffset, map);
-  string_iter.set(JSStringIterator::kPropertiesOrHashOffset,
-                  RootIndex::kEmptyFixedArray);
-  string_iter.set(JSStringIterator::kElementsOffset,
-                  RootIndex::kEmptyFixedArray);
-  string_iter.set(JSStringIterator::kStringOffset, string);
-  string_iter.set(JSStringIterator::kIndexOffset, 0);
-  return string_iter;
-}
-
-CapturedFixedDoubleArray::CapturedFixedDoubleArray(
-    Zone* zone, compiler::FixedDoubleArrayRef elements, int length)
-    : length(length), values(zone->AllocateArray<Float64>(length)) {
-  for (int i = 0; i < length; ++i) {
-    values[i] = elements.GetFromImmutableFixedDoubleArray(i);
-  }
 }
 
 size_t ValueNode::GetInputLocationsArraySize() const {
   if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
     // We allocate the space needed for the captured object plus one location
     // used if the InlinedAllocation escapes.
-    return alloc->captured_allocation().InputLocationSizeNeeded() + 1;
+    return alloc->object()->InputLocationSizeNeeded() + 1;
   }
   return 1;
 }
@@ -6952,16 +6647,12 @@ void AllocationBlock::PrintParams(std::ostream& os,
 
 void InlinedAllocation::PrintParams(std::ostream& os,
                                     MaglevGraphLabeller* graph_labeller) const {
-  switch (captured_allocation_.type) {
-    case CapturedAllocation::kHeapNumber:
-      os << "(HeapNumber)";
-      break;
-    case CapturedAllocation::kFixedDoubleArray:
-      os << "(FixedDoubleArray)";
-      break;
-    case CapturedAllocation::kObject:
-      os << "(" << *captured_allocation_.object.GetMap().object() << ")";
-  }
+  os << "(" << *object()->map().object() << ")";
+}
+
+void VirtualObject::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *map().object() << ")";
 }
 
 void Abort::PrintParams(std::ostream& os,

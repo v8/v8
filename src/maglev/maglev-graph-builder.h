@@ -803,6 +803,8 @@ class MaglevGraphBuilder {
 #undef DECLARE_VISITOR
 
   void AddInitializedNodeToGraph(Node* node) {
+    // VirtualObjects should never be add to the Maglev graph.
+    DCHECK(!node->Is<VirtualObject>());
     current_block_->nodes().Add(node);
     if (v8_flags.maglev_cse) {
       if (node->properties().can_write()) {
@@ -1853,7 +1855,7 @@ class MaglevGraphBuilder {
       compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args);
   ReduceResult ReduceCallWithArrayLikeForArgumentsObject(
       ValueNode* target_node, CallArguments& args,
-      CapturedObject& arguments_object);
+      VirtualObject* arguments_object);
   ReduceResult ReduceCallWithArrayLike(ValueNode* target_node,
                                        CallArguments& args);
   ReduceResult ReduceCall(
@@ -1869,7 +1871,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ValueNode* BuildAndAllocateJSArray(
-      compiler::MapRef map, ValueNode* length, CapturedValue elements,
+      compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
       AllocationType allocation_type);
   ValueNode* BuildAndAllocateJSArrayIterator(ValueNode* array,
@@ -1883,6 +1885,7 @@ class MaglevGraphBuilder {
       const CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
           compiler::FeedbackSource());
+  ValueNode* BuildElementsArray(int length);
   ReduceResult ReduceArrayConstructor(
       compiler::JSFunctionRef array_function, CallArguments& args,
       compiler::AllocationSiteRef allocation_site);
@@ -2111,41 +2114,77 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
+  VirtualObject* CreateVirtualObject(compiler::MapRef map,
+                                     uint32_t slot_count_including_map);
+  VirtualObject* CreateHeapNumber(Float64 value);
+  VirtualObject* CreateDoubleFixedArray(uint32_t elements_length,
+                                        compiler::FixedDoubleArrayRef elements);
+  VirtualObject* CreateJSObject(compiler::MapRef map);
+  VirtualObject* CreateJSArray(compiler::MapRef map, int instance_size,
+                               ValueNode* length);
+  VirtualObject* CreateJSArrayIterator(compiler::MapRef map,
+                                       ValueNode* iterated_object,
+                                       IterationKind kind);
+  VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
+  VirtualObject* CreateFixedArray(compiler::MapRef map, int length);
+  VirtualObject* CreateContext(compiler::MapRef map, int length,
+                               compiler::ScopeInfoRef scope_info,
+                               ValueNode* previous_context,
+                               base::Optional<ValueNode*> extension = {});
+  VirtualObject* CreateArgumentsObject(compiler::MapRef map, ValueNode* length,
+                                       ValueNode* elements,
+                                       base::Optional<ValueNode*> callee = {});
+  VirtualObject* CreateMappedArgumentsElements(compiler::MapRef map,
+                                               int mapped_count,
+                                               ValueNode* context,
+                                               ValueNode* unmapped_elements);
+  VirtualObject* CreateRegExpLiteralObject(
+      compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal);
+  VirtualObject* CreateJSGeneratorObject(compiler::MapRef map,
+                                         int instance_size, ValueNode* context,
+                                         ValueNode* closure,
+                                         ValueNode* receiver,
+                                         ValueNode* register_file);
+  VirtualObject* CreateJSIteratorResult(compiler::MapRef map, ValueNode* value,
+                                        ValueNode* done);
+  VirtualObject* CreateJSStringIterator(compiler::MapRef map,
+                                        ValueNode* string);
+
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      AllocationType allocation_type, CapturedAllocation value);
+      AllocationType allocation_type, VirtualObject* value);
+
   void ClearCurrentAllocationBlock();
 
   inline void AddDeoptUse(ValueNode* node) {
     if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
       AddNonEscapingUses(alloc, 1);
-      AddDeoptUse(alloc->captured_allocation());
+      AddDeoptUse(alloc->object());
     }
     node->add_use();
   }
-  void AddDeoptUse(const CapturedAllocation& alloc);
+  void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
-  std::optional<CapturedObject> TryGetNonEscapingArgumentsObject(
+  std::optional<VirtualObject*> TryGetNonEscapingArgumentsObject(
       ValueNode* value);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
-  base::Optional<CapturedObject> TryReadBoilerplateForFastLiteral(
+  base::Optional<VirtualObject*> TryReadBoilerplateForFastLiteral(
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  ValueNode* GetValueNodeFromCapturedValue(CapturedValue& value);
-  ValueNode* BuildInlinedAllocation(Float64 number, AllocationType allocation);
-  ValueNode* BuildInlinedAllocation(CapturedFixedDoubleArray array,
+  ValueNode* BuildInlinedAllocationForHeapNumber(VirtualObject* object,
+                                                 AllocationType allocation);
+  ValueNode* BuildInlinedAllocationForDoubleFixedArray(
+      VirtualObject* object, AllocationType allocation);
+  ValueNode* BuildInlinedAllocation(VirtualObject* object,
                                     AllocationType allocation);
-  ValueNode* BuildInlinedAllocation(CapturedObject object,
-                                    AllocationType allocation);
-
-  CapturedValue BuildInlinedArgumentsElements(int start_index, int length);
-  CapturedValue BuildInlinedUnmappedArgumentsElements(int mapped_count);
+  ValueNode* BuildInlinedArgumentsElements(int start_index, int length);
+  ValueNode* BuildInlinedUnmappedArgumentsElements(int mapped_count);
 
   template <CreateArgumentsType type>
-  CapturedObject BuildCapturedArgumentsObject();
+  VirtualObject* BuildVirtualArgumentsObject();
   template <CreateArgumentsType type>
   ValueNode* BuildAndAllocateArgumentsObject();
 
