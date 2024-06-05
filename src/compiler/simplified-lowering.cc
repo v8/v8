@@ -1189,7 +1189,7 @@ class RepresentationSelector {
       return MachineRepresentation::kTagged;
     } else if (type.Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
-    } else if (type.Is(Type::BigInt()) && use.IsUsedAsWord64()) {
+    } else if (type.Is(Type::BigInt()) && Is64() && use.IsUsedAsWord64()) {
       return MachineRepresentation::kWord64;
     } else if (type.Is(Type::ExternalPointer()) ||
                type.Is(Type::SandboxedPointer())) {
@@ -3341,7 +3341,7 @@ class RepresentationSelector {
           VisitUnused<T>(node);
           return;
         }
-        if (truncation.IsUsedAsWord64()) {
+        if (Is64() && truncation.IsUsedAsWord64()) {
           VisitBinop<T>(
               node, UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
               MachineRepresentation::kWord64);
@@ -3407,7 +3407,7 @@ class RepresentationSelector {
           VisitUnused<T>(node);
           return;
         }
-        if (truncation.IsUsedAsWord64()) {
+        if (Is64() && truncation.IsUsedAsWord64()) {
           VisitBinop<T>(
               node, UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
               MachineRepresentation::kWord64);
@@ -3444,7 +3444,7 @@ class RepresentationSelector {
           VisitUnused<T>(node);
           return;
         }
-        if (truncation.IsUsedAsWord64()) {
+        if (Is64() && truncation.IsUsedAsWord64()) {
           Type input_type = GetUpperBound(node->InputAt(0));
           Type shift_amount_type = GetUpperBound(node->InputAt(1));
 
@@ -3591,7 +3591,7 @@ class RepresentationSelector {
         // We can use the standard lowering to word64 operations and have
         // following phases remove the unused truncation and subtraction
         // operations.
-        if (truncation.IsUsedAsWord64()) {
+        if (Is64() && truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,
                        UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
                        MachineRepresentation::kWord64);
@@ -4068,7 +4068,7 @@ class RepresentationSelector {
           VisitUnused<T>(node);
           return;
         }
-        if (truncation.IsUsedAsWord64()) {
+        if (Is64() && truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,
                        UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
                        MachineRepresentation::kWord64);

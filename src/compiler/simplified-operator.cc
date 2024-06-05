@@ -589,7 +589,9 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntEqual ||
          op->opcode() == IrOpcode::kSpeculativeBigIntLessThan ||
          op->opcode() == IrOpcode::kSpeculativeBigIntLessThanOrEqual);
-  return OpParameter<BigIntOperationHint>(op);
+  BigIntOperationHint hint = OpParameter<BigIntOperationHint>(op);
+  DCHECK_IMPLIES(hint == BigIntOperationHint::kBigInt64, Is64());
+  return hint;
 }
 
 bool operator==(NumberOperationParameters const& lhs,
