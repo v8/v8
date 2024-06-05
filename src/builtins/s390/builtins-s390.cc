@@ -3511,7 +3511,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     holder, call_data, callback, scratch, scratch2));
+                     holder, func_templ, scratch));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
