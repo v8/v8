@@ -12,6 +12,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -51,6 +52,7 @@ class Isolate;
 template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE ExternalEntityTable {
  protected:
+  static constexpr bool IsWriteProtected = Entry::IsWriteProtected;
   static constexpr int kEntrySize = sizeof(Entry);
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
@@ -228,9 +230,42 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   ExternalEntityTable(const ExternalEntityTable&) = delete;
   ExternalEntityTable& operator=(const ExternalEntityTable&) = delete;
 
+  // This Iterator also acts as a scope object to temporarily lift any
+  // write-protection (if IsWriteProtected is true).
+  class WriteIterator {
+   public:
+    explicit WriteIterator(Entry* base, uint32_t index);
+
+    uint32_t index() const { return index_; }
+    Entry* operator->() { return &base_[index_]; }
+    Entry& operator*() { return base_[index_]; }
+    WriteIterator& operator++() {
+      index_++;
+      DCHECK_LT(index_, size);
+      return *this;
+    }
+    WriteIterator& operator--() {
+      DCHECK_GT(index_, 0);
+      index_--;
+      return *this;
+    }
+
+   private:
+    Entry* base_;
+    uint32_t index_;
+    std::conditional_t<IsWriteProtected, CFIMetadataWriteScope,
+                       NopRwxMemoryWriteScope>
+        write_scope_;
+  };
+
   // Access the entry at the specified index.
   Entry& at(uint32_t index);
   const Entry& at(uint32_t index) const;
+
+  // Returns an iterator that can be used to perform multiple write operations
+  // without switching the write-protections all the time (if IsWriteProtected
+  // is true).
+  WriteIterator iter_at(uint32_t index);
 
   // Returns true if this table has been initialized.
   bool is_initialized() const;

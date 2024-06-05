@@ -5,6 +5,7 @@
 #include "src/common/code-memory-access.h"
 
 #include "src/common/code-memory-access-inl.h"
+#include "src/objects/instruction-stream-inl.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -583,6 +584,22 @@ base::Optional<Address> ThreadIsolation::StartOfJitAllocationAt(
   return page->StartOfAllocationAt(inner_pointer);
 }
 
+// static
+bool ThreadIsolation::WriteProtectMemory(
+    Address addr, size_t size, PageAllocator::Permission page_permissions) {
+  if (!Enabled()) {
+    return true;
+  }
+
+#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+  return base::MemoryProtectionKey::SetPermissionsAndKey(
+      {addr, size}, PageAllocator::Permission::kNoAccess,
+      ThreadIsolation::pkey());
+#else
+  UNREACHABLE();
+#endif
+}
+
 namespace {
 
 class MutexUnlocker {
@@ -634,6 +651,27 @@ bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address inner_pointer) {
 
   return true;
 }
+
+// static
+WritableJitAllocation WritableJitAllocation::ForInstructionStream(
+    Tagged<InstructionStream> istream) {
+  return WritableJitAllocation(
+      istream->address(), istream->Size(),
+      ThreadIsolation::JitAllocationType::kInstructionStream,
+      JitAllocationSource::kLookup);
+}
+
+template <size_t offset>
+void WritableFreeSpace::ClearTagged(size_t count) const {
+  base::Address start = address_ + offset;
+  // TODO(v8:13355): add validation before the write.
+  MemsetTagged(ObjectSlot(start), Tagged<Object>(kClearedFreeMemoryValue),
+               count);
+}
+
+template void WritableFreeSpace::ClearTagged<kTaggedSize>(size_t count) const;
+template void WritableFreeSpace::ClearTagged<2 * kTaggedSize>(
+    size_t count) const;
 
 #if DEBUG
 

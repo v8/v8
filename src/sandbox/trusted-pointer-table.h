@@ -67,6 +67,8 @@ struct TrustedPointerTableEntry {
   // Test whether this entry is currently marked as alive.
   inline bool IsMarked() const;
 
+  static constexpr bool IsWriteProtected = false;
+
  private:
   friend class TrustedPointerTable;
 

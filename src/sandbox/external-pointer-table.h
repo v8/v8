@@ -100,6 +100,8 @@ struct ExternalPointerTableEntry {
   // Mark this entry as alive during table garbage collection.
   inline void Mark();
 
+  static constexpr bool IsWriteProtected = false;
+
  private:
   friend class ExternalPointerTable;
 

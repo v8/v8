@@ -7,7 +7,6 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
-#include "src/objects/instruction-stream-inl.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
@@ -59,15 +58,6 @@ WritableJitAllocation::WritableJitAllocation(
 WritableJitAllocation WritableJitAllocation::ForNonExecutableMemory(
     Address addr, size_t size, ThreadIsolation::JitAllocationType type) {
   return WritableJitAllocation(addr, size, type);
-}
-
-// static
-WritableJitAllocation WritableJitAllocation::ForInstructionStream(
-    Tagged<InstructionStream> istream) {
-  return WritableJitAllocation(
-      istream->address(), istream->Size(),
-      ThreadIsolation::JitAllocationType::kInstructionStream,
-      JitAllocationSource::kLookup);
 }
 
 WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
@@ -207,14 +197,6 @@ void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
   } else {
     TaggedField<T, offset>::Relaxed_Store(object, value);
   }
-}
-
-template <size_t offset>
-void WritableFreeSpace::ClearTagged(size_t count) const {
-  base::Address start = address_ + offset;
-  // TODO(v8:13355): add validation before the write.
-  MemsetTagged(ObjectSlot(start), Tagged<Object>(kClearedFreeMemoryValue),
-               count);
 }
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT

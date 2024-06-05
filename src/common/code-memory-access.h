@@ -11,8 +11,9 @@
 #include "include/v8-platform.h"
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -50,8 +51,9 @@ class CodeSpaceWriteScope;
 #define THREAD_ISOLATION_ALIGN_SZ 0x1000
 #define THREAD_ISOLATION_ALIGN alignas(THREAD_ISOLATION_ALIGN_SZ)
 #define THREAD_ISOLATION_ALIGN_OFFSET_MASK (THREAD_ISOLATION_ALIGN_SZ - 1)
-#define THREAD_ISOLATION_FILL_PAGE_SZ(size)                                    \
-  ((THREAD_ISOLATION_ALIGN_SZ - ((size)&THREAD_ISOLATION_ALIGN_OFFSET_MASK)) % \
+#define THREAD_ISOLATION_FILL_PAGE_SZ(size)          \
+  ((THREAD_ISOLATION_ALIGN_SZ -                      \
+    ((size) & THREAD_ISOLATION_ALIGN_OFFSET_MASK)) % \
    THREAD_ISOLATION_ALIGN_SZ)
 
 #else  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -190,6 +192,11 @@ class V8_EXPORT ThreadIsolation {
   // allocation from inside a signal handler.
   static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
+
+  // Write-protect a given range of memory. Address and size need to be page
+  // aligned.
+  V8_NODISCARD static bool WriteProtectMemory(
+      Address addr, size_t size, PageAllocator::Permission page_permissions);
 
   static void RegisterJitAllocationForTesting(Address obj, size_t size);
   static void UnregisterJitAllocationForTesting(Address addr, size_t size);
@@ -375,8 +382,8 @@ class WritableJitAllocation {
   WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
   V8_INLINE ~WritableJitAllocation();
 
-  static V8_INLINE WritableJitAllocation
-  ForInstructionStream(Tagged<InstructionStream> istream);
+  static WritableJitAllocation ForInstructionStream(
+      Tagged<InstructionStream> istream);
 
   // WritableJitAllocations are used during reloc iteration. But in some
   // cases, we relocate code off-heap, e.g. when growing AssemblerBuffers.
@@ -464,7 +471,7 @@ class WritableFreeSpace {
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) const;
   template <size_t offset>
-  V8_INLINE void ClearTagged(size_t count) const;
+  void ClearTagged(size_t count) const;
 
   base::Address Address() const { return address_; }
   int Size() const { return size_; }
@@ -479,6 +486,11 @@ class WritableFreeSpace {
 
   friend class WritableJitPage;
 };
+
+extern template void WritableFreeSpace::ClearTagged<kTaggedSize>(
+    size_t count) const;
+extern template void WritableFreeSpace::ClearTagged<2 * kTaggedSize>(
+    size_t count) const;
 
 class WritableJitPage {
  public:
@@ -533,8 +545,9 @@ bool operator!=(const ThreadIsolation::StlAllocator<T>&,
 // This class is a no-op version of the RwxMemoryWriteScope class above.
 // It's used as a target type for other scope type definitions when a no-op
 // semantics is required.
-class V8_NODISCARD NopRwxMemoryWriteScope final {
+class V8_NODISCARD V8_ALLOW_UNUSED NopRwxMemoryWriteScope final {
  public:
+  V8_INLINE NopRwxMemoryWriteScope() = default;
   V8_INLINE explicit NopRwxMemoryWriteScope(const char* comment) {
     // Define a constructor to avoid unused variable warnings.
   }

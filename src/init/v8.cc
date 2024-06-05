@@ -188,6 +188,11 @@ void V8::Initialize() {
 
   if (v8_flags.print_flag_values) FlagList::PrintValues();
 
+  // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
+  // protected memory.
+  ThreadIsolation::Initialize(
+      GetCurrentPlatform()->GetThreadIsolatedAllocator());
+
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
@@ -229,11 +234,6 @@ void V8::Initialize() {
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
-
-  // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
-  // protected memory.
-  ThreadIsolation::Initialize(
-      GetCurrentPlatform()->GetThreadIsolatedAllocator());
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
