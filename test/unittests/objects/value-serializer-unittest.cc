@@ -3522,9 +3522,10 @@ TEST_F(ValueSerializerTest, RoundTripError) {
 
   {
     Context::Scope scope(deserialization_context());
-    EXPECT_EQ(error->GetPrototype(), Exception::Error(String::Empty(isolate()))
-                                         .As<Object>()
-                                         ->GetPrototype());
+    EXPECT_EQ(error->GetPrototypeV2(),
+              Exception::Error(String::Empty(isolate()))
+                  .As<Object>()
+                  ->GetPrototypeV2());
   }
   ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("name"))
                   .ToLocal(&name));

@@ -97,6 +97,10 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_Regress2764) {
   CHECK_EQ(0u, result->Length());
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   Local<Context> env1 = context();
   // Create second environment.
@@ -121,5 +125,9 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   // List all entries from global2.
   CHECK(RunJS("a == 'a'")->IsTrue());
 }
+
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace v8

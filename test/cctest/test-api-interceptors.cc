@@ -3451,7 +3451,7 @@ namespace {
 v8::Intercepted SetXOnPrototypeGetter(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Set x on the prototype object and do not handle the get request.
-  v8::Local<v8::Value> proto = info.HolderV2()->GetPrototype();
+  v8::Local<v8::Value> proto = info.HolderV2()->GetPrototypeV2();
   proto.As<v8::Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("x"),
             v8::Integer::New(info.GetIsolate(), 23))
