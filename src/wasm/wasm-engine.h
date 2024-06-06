@@ -168,10 +168,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
       Handle<Script> script,
       base::Vector<const uint8_t> asm_js_offset_table_bytes,
-      Handle<HeapNumber> uses_bitset, LanguageMode language_mode);
+      DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
-      Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
-      Handle<Script> script);
+      Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
+      DirectHandle<Script> script);
 
   // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
@@ -404,7 +404,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, WasmFeatures enabled,
       CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
+      base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 

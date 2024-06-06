@@ -483,7 +483,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
 
 MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                                        Handle<Name> name,
-                                       Handle<Object> constant,
+                                       DirectHandle<Object> constant,
                                        PropertyAttributes attributes,
                                        TransitionFlag flag) {
   // Ensure the descriptor array does not get too big.
@@ -819,16 +819,17 @@ Handle<Map> Map::Update(Isolate* isolate, Handle<Map> map) {
   return mu.Update();
 }
 
-void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
+void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
+                                int slack) {
   // Only supports adding slack to owned descriptors.
   DCHECK(map->owns_descriptors());
 
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                      isolate);
+  DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                            isolate);
   int old_size = map->NumberOfOwnDescriptors();
   if (slack <= descriptors->number_of_slack_descriptors()) return;
 
-  Handle<DescriptorArray> new_descriptors =
+  DirectHandle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
 
   DisallowGarbageCollection no_gc;
@@ -883,7 +884,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
-    Handle<PrototypeInfo> info =
+    DirectHandle<PrototypeInfo> info =
         Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
     // TODO(verwaest): Use inobject slack tracking for this map.
     Tagged<HeapObject> map_obj;
@@ -910,7 +911,7 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
-    Handle<PrototypeInfo> info =
+    DirectHandle<PrototypeInfo> info =
         Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
     Tagged<HeapObject> map_obj;
     Handle<Map> map;
@@ -1120,7 +1121,7 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 
 // static
 base::Optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
-                                                   Handle<Map> map,
+                                                   DirectHandle<Map> map,
                                                    ElementsKind kind,
                                                    ConcurrencyMode cmode) {
   Tagged<Map> closest_map =
@@ -1130,7 +1131,7 @@ base::Optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
 }
 
 // static
-Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
+Handle<Map> Map::AsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                 ElementsKind kind) {
   Handle<Map> closest_map(
       FindClosestElementsTransition(isolate, *map, kind,
@@ -1279,7 +1280,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ICs which can be
       // applied to the shared map, dependent code and weak cell cache.
-      Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
+      DirectHandle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
       fresh->set_elements_kind(new_elements_kind);
       if (!new_prototype.is_null()) {
         Map::SetPrototype(isolate, fresh, new_prototype);
@@ -1380,7 +1381,7 @@ Handle<Map> Map::TransitionToImmutableProto(Isolate* isolate, Handle<Map> map) {
 }
 
 namespace {
-void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
+void EnsureInitialMap(Isolate* isolate, DirectHandle<Map> map) {
 #ifdef DEBUG
   Tagged<Object> maybe_constructor = map->GetConstructor();
   DCHECK((IsJSFunction(maybe_constructor) &&
@@ -1523,12 +1524,11 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
   }
 }
 
-Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
-                                        Handle<DescriptorArray> descriptors,
-                                        TransitionFlag flag,
-                                        MaybeHandle<Name> maybe_name,
-                                        const char* reason,
-                                        TransitionKindFlag transition_kind) {
+Handle<Map> Map::CopyReplaceDescriptors(
+    Isolate* isolate, Handle<Map> map,
+    DirectHandle<DescriptorArray> descriptors, TransitionFlag flag,
+    MaybeHandle<Name> maybe_name, const char* reason,
+    TransitionKindFlag transition_kind) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
@@ -1577,8 +1577,9 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
 // starting from descriptor with index |split_map|.NumberOfOwnDescriptors().
 // The way how it is done is tricky because of GC and special descriptors
 // marking logic.
-Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
-                                       Handle<DescriptorArray> descriptors) {
+Handle<Map> Map::AddMissingTransitions(
+    Isolate* isolate, Handle<Map> split_map,
+    DirectHandle<DescriptorArray> descriptors) {
   DCHECK(descriptors->IsSortedNoDuplicates());
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
@@ -1624,7 +1625,7 @@ Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
 // always insert transitions without checking.
 void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<Map> child, InternalIndex new_descriptor,
-                             Handle<DescriptorArray> descriptors,
+                             DirectHandle<DescriptorArray> descriptors,
                              bool force_connect) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
@@ -1692,7 +1693,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
 }
 
 Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
-                                Handle<SharedFunctionInfo> shared_info) {
+                                DirectHandle<SharedFunctionInfo> shared_info) {
   DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
   // Initial map for sloppy mode function is stored in the function
   // constructor. Initial maps for strict mode are cached as special transitions
@@ -1744,10 +1745,10 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
   } else {
     // In case the map did not own its own descriptors, a split is forced by
     // copying the map; creating a new descriptor array cell.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                        isolate);
+    DirectHandle<DescriptorArray> descriptors(
+        map->instance_descriptors(isolate), isolate);
     int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-    Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+    DirectHandle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
         isolate, descriptors, number_of_own_descriptors);
     new_map->InitializeDescriptors(isolate, *new_descriptors);
   }
@@ -1766,10 +1767,10 @@ Handle<Map> Map::CopyForPrototypeTransition(Isolate* isolate, Handle<Map> map,
 
 Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason,
                       TransitionKindFlag kind) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                      isolate);
+  DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                            isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+  DirectHandle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, number_of_own_descriptors);
   auto res =
       CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
@@ -1809,9 +1810,10 @@ Handle<Map> Map::CopyForPreventExtensions(
     Handle<Symbol> transition_marker, const char* reason,
     bool old_map_is_dictionary_elements_kind) {
   int num_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
-      isolate, handle(map->instance_descriptors(isolate), isolate),
-      num_descriptors, attrs_to_add);
+  DirectHandle<DescriptorArray> new_desc =
+      DescriptorArray::CopyUpToAddAttributes(
+          isolate, handle(map->instance_descriptors(isolate), isolate),
+          num_descriptors, attrs_to_add);
   // Do not track transitions during bootstrapping.
   TransitionFlag flag =
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
@@ -1905,7 +1907,7 @@ bool CanHoldValue(Tagged<DescriptorArray> descriptors, InternalIndex descriptor,
 Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
                                      InternalIndex descriptor,
                                      PropertyConstness constness,
-                                     Handle<Object> value) {
+                                     DirectHandle<Object> value) {
   if (CanHoldValue(map->instance_descriptors(isolate), descriptor, constness,
                    *value)) {
     return map;
@@ -1928,7 +1930,7 @@ Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
 Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
                                         InternalIndex descriptor,
                                         PropertyConstness constness,
-                                        Handle<Object> value) {
+                                        DirectHandle<Object> value) {
   // The map should already be fully updated before storing the property.
   DCHECK(!map->is_deprecated());
   // Dictionaries can store any property value.
@@ -1938,7 +1940,7 @@ Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
 
 Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           Handle<Name> name,
-                                          Handle<Object> value,
+                                          DirectHandle<Object> value,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
                                           StoreOrigin store_origin) {
@@ -1997,8 +1999,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     if (v8_flags.feedback_normalization && map->new_target_is_base() &&
         IsJSFunction(*maybe_constructor) &&
         !JSFunction::cast(*maybe_constructor)->shared()->native()) {
-      Handle<JSFunction> constructor =
-          Handle<JSFunction>::cast(maybe_constructor);
+      auto constructor = DirectHandle<JSFunction>::cast(maybe_constructor);
       DCHECK_NE(*constructor, constructor->native_context()->object_function());
       Handle<Map> initial_map(constructor->initial_map(), isolate);
       result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
@@ -2026,8 +2027,8 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
 Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name,
                                               InternalIndex descriptor,
-                                              Handle<Object> getter,
-                                              Handle<Object> setter,
+                                              DirectHandle<Object> getter,
+                                              DirectHandle<Object> setter,
                                               PropertyAttributes attributes) {
   RCS_SCOPE(
       isolate,
@@ -2070,7 +2071,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                             "TransitionToAccessorFromNonPair");
     }
 
-    Handle<AccessorPair> pair = Handle<AccessorPair>::cast(maybe_pair);
+    auto pair = DirectHandle<AccessorPair>::cast(maybe_pair);
     if (!pair->Equals(*getter, *setter)) {
       return Map::Normalize(isolate, map, mode,
                             "TransitionToDifferentAccessor");
@@ -2101,7 +2102,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonPair");
     }
 
-    Handle<AccessorPair> current_pair = Handle<AccessorPair>::cast(maybe_pair);
+    auto current_pair = DirectHandle<AccessorPair>::cast(maybe_pair);
     if (current_pair->Equals(*getter, *setter)) return map;
 
     bool overwriting_accessor = false;
@@ -2152,7 +2153,7 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
   }
 
   int nof = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> new_descriptors =
+  DirectHandle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
@@ -2177,11 +2178,10 @@ Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
   return CopyAddDescriptor(isolate, map, descriptor, flag);
 }
 
-Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
-                                       Handle<DescriptorArray> descriptors,
-                                       Descriptor* descriptor,
-                                       InternalIndex insertion_index,
-                                       TransitionFlag flag) {
+Handle<Map> Map::CopyReplaceDescriptor(
+    Isolate* isolate, Handle<Map> map,
+    DirectHandle<DescriptorArray> descriptors, Descriptor* descriptor,
+    InternalIndex insertion_index, TransitionFlag flag) {
   Handle<Name> key = descriptor->GetKey();
   DCHECK_EQ(*key, descriptors->GetKey(insertion_index));
   // This function does not support replacing property fields as
@@ -2190,7 +2190,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
   DCHECK_NE(PropertyLocation::kField,
             descriptors->GetDetails(insertion_index).location());
 
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+  DirectHandle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, map->NumberOfOwnDescriptors());
 
   new_descriptors->Replace(insertion_index, descriptor);
@@ -2333,8 +2333,8 @@ void Map::SetInstanceDescriptors(Isolate* isolate,
 }
 
 // static
-Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
-                                                    Isolate* isolate) {
+Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
+    DirectHandle<JSObject> prototype, Isolate* isolate) {
   DCHECK(IsJSObjectThatCanBeTrackedAsPrototype(*prototype));
   {
     Tagged<PrototypeInfo> prototype_info;
@@ -2348,8 +2348,8 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
 }
 
 // static
-Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
-                                                    Isolate* isolate) {
+Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
+    DirectHandle<Map> prototype_map, Isolate* isolate) {
   {
     Tagged<Object> maybe_proto_info = prototype_map->prototype_info();
     if (PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) {
@@ -2362,7 +2362,7 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
 }
 
 // static
-void Map::SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
+void Map::SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
                                       Isolate* isolate) {
   DCHECK(map->is_prototype_map());
   if (value == false && !map->has_prototype_info()) {
@@ -2373,7 +2373,7 @@ void Map::SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
 }
 
 // static
-Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
+Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(DirectHandle<Map> map,
                                                           Isolate* isolate) {
   Handle<Object> maybe_prototype;
   if (IsJSGlobalObjectMap(*map)) {
@@ -2388,7 +2388,7 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_prototype)) {
     return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
-  Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
+  auto prototype = DirectHandle<JSObject>::cast(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.
   JSObject::LazyRegisterPrototypeUser(handle(prototype->map(), isolate),
@@ -2422,7 +2422,7 @@ bool Map::IsPrototypeChainInvalidated(Tagged<Map> map) {
 }
 
 // static
-void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
+void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
                        Handle<HeapObject> prototype,
                        bool enable_prototype_setup_mode) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
@@ -2485,7 +2485,7 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
   return Handle<NormalizedMapCache>::cast(array);
 }
 
-MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
+MaybeHandle<Map> NormalizedMapCache::Get(DirectHandle<Map> fast_map,
                                          ElementsKind elements_kind,
                                          Tagged<HeapObject> prototype,
                                          PropertyNormalizationMode mode) {
@@ -2505,7 +2505,8 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
   return handle(normalized_map, GetIsolate());
 }
 
-void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map) {
+void NormalizedMapCache::Set(DirectHandle<Map> fast_map,
+                             DirectHandle<Map> normalized_map) {
   DisallowGarbageCollection no_gc;
   DCHECK(normalized_map->is_dictionary_map());
   WeakFixedArray::set(GetIndex(*fast_map, normalized_map->prototype()),

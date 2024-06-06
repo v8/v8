@@ -29,7 +29,7 @@ Tagged<TransitionArray> TransitionsAccessor::GetTransitionArray(
 
 // static
 Tagged<TransitionArray> TransitionsAccessor::GetTransitionArray(
-    Isolate* isolate, Handle<Map> map) {
+    Isolate* isolate, DirectHandle<Map> map) {
   Tagged<MaybeObject> raw_transitions =
       map->raw_transitions(isolate, kAcquireLoad);
   return GetTransitionArray(isolate, raw_transitions);
@@ -266,7 +266,7 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
 
 // static
 TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
-    Isolate* isolate, Handle<Map> map) {
+    Isolate* isolate, DirectHandle<Map> map) {
   Tagged<MaybeObject> raw_transitions =
       map->raw_transitions(isolate, kAcquireLoad);
   return GetEncoding(isolate, raw_transitions);
@@ -274,8 +274,8 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
 
 // static
 MaybeHandle<Map> TransitionsAccessor::SearchTransition(
-    Isolate* isolate, Handle<Map> map, Tagged<Name> name, PropertyKind kind,
-    PropertyAttributes attributes) {
+    Isolate* isolate, DirectHandle<Map> map, Tagged<Name> name,
+    PropertyKind kind, PropertyAttributes attributes) {
   Tagged<Map> result = TransitionsAccessor(isolate, *map)
                            .SearchTransition(name, kind, attributes);
   if (result.is_null()) return MaybeHandle<Map>();
@@ -284,7 +284,7 @@ MaybeHandle<Map> TransitionsAccessor::SearchTransition(
 
 // static
 std::optional<Handle<Map>> TransitionsAccessor::SearchSpecial(
-    Isolate* isolate, Handle<Map> map, Tagged<Symbol> name) {
+    Isolate* isolate, DirectHandle<Map> map, Tagged<Symbol> name) {
   if (auto result = TransitionsAccessor(isolate, *map).SearchSpecial(name)) {
     return handle(*result, isolate);
   }

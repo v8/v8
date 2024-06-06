@@ -904,16 +904,17 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
   AlwaysAllocateScope always_allocate_scope{isolate->heap()};
 
   HandleScope scope(isolate);
-  Handle<WeakArrayList> shared_wasm_memories =
+  DirectHandle<WeakArrayList> shared_wasm_memories =
       isolate->factory()->shared_wasm_memories();
 
   for (int i = 0, e = shared_wasm_memories->length(); i < e; ++i) {
     Tagged<HeapObject> obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 
-    Handle<WasmMemoryObject> memory_object(WasmMemoryObject::cast(obj),
+    DirectHandle<WasmMemoryObject> memory_object(WasmMemoryObject::cast(obj),
+                                                 isolate);
+    DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
                                            isolate);
-    Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
     std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
     // Wasm memory always has a BackingStore.
     CHECK_NOT_NULL(backing_store);
@@ -924,7 +925,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     // {void*} so we do not accidentally try to use it for anything else.
     void* expected_backing_store = backing_store.get();
 
-    Handle<JSArrayBuffer> new_buffer =
+    DirectHandle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
     CHECK_EQ(expected_backing_store, new_buffer->GetBackingStore().get());
     memory_object->SetNewBuffer(*new_buffer);

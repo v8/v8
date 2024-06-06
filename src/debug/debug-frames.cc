@@ -93,7 +93,7 @@ bool FrameInspector::IsWasm() { return frame_->is_wasm(); }
 bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
-    Handle<ScopeInfo> info, Handle<String> parameter_name) {
+    DirectHandle<ScopeInfo> info, Handle<String> parameter_name) {
   return info->ContextSlotIndex(parameter_name) != -1;
 }
 

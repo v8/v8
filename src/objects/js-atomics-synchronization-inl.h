@@ -147,7 +147,8 @@ JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
     : LockGuardBase(isolate, mutex, mutex->TryLock()) {}
 
 // static
-bool JSAtomicsMutex::LockImpl(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+bool JSAtomicsMutex::LockImpl(Isolate* requester,
+                              DirectHandle<JSAtomicsMutex> mutex,
                               std::optional<base::TimeDelta> timeout,
                               LockSlowPathWrapper slow_path_wrapper) {
   DisallowGarbageCollection no_gc;

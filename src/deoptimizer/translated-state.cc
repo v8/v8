@@ -1979,7 +1979,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // The map should never be materialized, so let us check we already have
   // an existing object here.
   CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
-  Handle<Map> map = Handle<Map>::cast(frame->values_[value_index].GetValue());
+  auto map = DirectHandle<Map>::cast(frame->values_[value_index].GetValue());
   CHECK(IsMap(*map));
   value_index++;
 
@@ -2047,7 +2047,7 @@ int TranslatedValue::GetSmiValue() const {
 void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
-                                                  Handle<Map> map) {
+                                                  DirectHandle<Map> map) {
   int length = frame->values_[*value_index].GetSmiValue();
   (*value_index)++;
   Handle<FixedDoubleArray> array = Handle<FixedDoubleArray>::cast(
@@ -2073,7 +2073,7 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
                                             TranslatedValue* slot) {
   CHECK_NE(TranslatedValue::kCapturedObject,
            frame->values_[*value_index].kind());
-  Handle<Object> value = frame->values_[*value_index].GetValue();
+  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
   CHECK(IsNumber(*value));
   Handle<HeapNumber> box =
       isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
@@ -2117,7 +2117,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
   // The map should never be materialized, so let us check we already have
   // an existing object here.
   CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
-  Handle<Map> map = Handle<Map>::cast(frame->values_[value_index].GetValue());
+  auto map = DirectHandle<Map>::cast(frame->values_[value_index].GetValue());
   CHECK(IsMap(*map));
   value_index++;
 
@@ -2281,7 +2281,7 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
 }
 
 void TranslatedState::EnsurePropertiesAllocatedAndMarked(
-    TranslatedValue* properties_slot, Handle<Map> map) {
+    TranslatedValue* properties_slot, DirectHandle<Map> map) {
   CHECK_EQ(TranslatedValue::kUninitialized,
            properties_slot->materialization_state());
 
@@ -2323,7 +2323,7 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
 }
 
 void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
-                                              Handle<Map> map) {
+                                              DirectHandle<Map> map) {
   CHECK(IsJSObjectMap(*map));
   CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
 
@@ -2375,8 +2375,8 @@ Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
 
 void TranslatedState::InitializeJSObjectAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
-  Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
+  auto object_storage = DirectHandle<HeapObject>::cast(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
   int children_count = slot->GetChildrenCount();
 
@@ -2403,7 +2403,7 @@ void TranslatedState::InitializeJSObjectAt(
 
   // Fill the property array field.
   {
-    Handle<Object> properties = GetValueAndAdvance(frame, value_index);
+    DirectHandle<Object> properties = GetValueAndAdvance(frame, value_index);
     WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
                 *properties);
     WRITE_BARRIER(*object_storage, JSObject::kPropertiesOrHashOffset,
@@ -2427,7 +2427,7 @@ void TranslatedState::InitializeJSObjectAt(
       // an indirect pointer, so need special handling. TODO(saelo) generalize
       // this, for example by introducing a new kStoreIndirectPointer marker
       // value.
-      Handle<HeapObject> field_value = slot->storage();
+      DirectHandle<HeapObject> field_value = slot->storage();
       CHECK(IsCode(*field_value));
       Tagged<Code> value = Code::cast(*field_value);
       object_storage->RawIndirectPointerField(offset, kCodeIndirectPointerTag)
@@ -2438,12 +2438,12 @@ void TranslatedState::InitializeJSObjectAt(
 #else
     if (marker == kStoreHeapObject) {
 #endif  // V8_ENABLE_SANDBOX
-      Handle<HeapObject> field_value = slot->storage();
+      DirectHandle<HeapObject> field_value = slot->storage();
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     } else {
       CHECK_EQ(kStoreTagged, marker);
-      Handle<Object> field_value = slot->GetValue();
+      DirectHandle<Object> field_value = slot->GetValue();
       DCHECK_IMPLIES(IsHeapNumber(*field_value),
                      !IsSmiDouble(Object::NumberValue(*field_value)));
       WRITE_FIELD(*object_storage, offset, *field_value);
@@ -2455,14 +2455,14 @@ void TranslatedState::InitializeJSObjectAt(
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
-  Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
+  auto object_storage = DirectHandle<HeapObject>::cast(slot->storage_);
   int children_count = slot->GetChildrenCount();
 
   // Skip the writes if we already have the canonical empty fixed array.
   if (*object_storage == ReadOnlyRoots(isolate()).empty_fixed_array()) {
     CHECK_EQ(2, children_count);
-    Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
+    DirectHandle<Object> length_value = GetValueAndAdvance(frame, value_index);
     CHECK_EQ(*length_value, Smi::FromInt(0));
     return;
   }
@@ -2610,8 +2610,8 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     // Skip duplicate objects (i.e., those that point to some other object id).
     if (value_info->object_index() != i) continue;
 
-    Handle<Object> previous_value(previously_materialized_objects->get(i),
-                                  isolate_);
+    DirectHandle<Object> previous_value(previously_materialized_objects->get(i),
+                                        isolate_);
     Handle<Object> value(value_info->GetRawValue(), isolate_);
 
     if (value.is_identical_to(marker)) {
@@ -2651,7 +2651,7 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
   // If we have no previously materialized objects, there is nothing to do.
   if (previously_materialized_objects.is_null()) return;
 
-  Handle<Object> marker = isolate_->factory()->arguments_marker();
+  DirectHandle<Object> marker = isolate_->factory()->arguments_marker();
 
   int length = static_cast<int>(object_positions_.size());
   CHECK_EQ(length, previously_materialized_objects->length());

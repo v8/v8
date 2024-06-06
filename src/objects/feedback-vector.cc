@@ -198,7 +198,7 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 
 // static
 Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
   int length = shared->feedback_metadata()->create_closure_slot_count();
   if (length == 0) {
@@ -207,8 +207,8 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
-  Handle<HeapObject> undefined = isolate->factory()->undefined_value();
-  std::vector<Handle<FeedbackCell>> cells;
+  DirectHandle<HeapObject> undefined = isolate->factory()->undefined_value();
+  DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
   for (int i = 0; i < length; i++) {
     cells.push_back(isolate->factory()->NewNoClosuresCell(undefined));
@@ -225,15 +225,15 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
 // static
 Handle<FeedbackVector> FeedbackVector::New(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
-    Handle<FeedbackCell> parent_feedback_cell,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
+    DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    DirectHandle<FeedbackCell> parent_feedback_cell,
     IsCompiledScope* is_compiled_scope) {
   DCHECK(is_compiled_scope->is_compiled());
   Factory* factory = isolate->factory();
 
-  Handle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
-                                             isolate);
+  DirectHandle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
+                                                   isolate);
   const int slot_count = feedback_metadata->slot_count();
 
   Handle<FeedbackVector> vector = factory->NewFeedbackVector(
@@ -249,7 +249,7 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK(vector->maybe_optimized_code().IsCleared());
 
   // Ensure we can skip the write barrier
-  Handle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
+  DirectHandle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
   DCHECK_EQ(ReadOnlyRoots(isolate).uninitialized_symbol(),
             *uninitialized_sentinel);
   for (int i = 0; i < slot_count;) {
@@ -314,17 +314,19 @@ Handle<FeedbackVector> FeedbackVector::New(
 // static
 Handle<FeedbackVector> FeedbackVector::NewForTesting(
     Isolate* isolate, const FeedbackVectorSpec* spec) {
-  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<FeedbackMetadata> metadata =
+      FeedbackMetadata::New(isolate, spec);
+  DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), Builtin::kIllegal);
   // Set the raw feedback metadata to circumvent checks that we are not
   // overwriting existing metadata.
   shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+  DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
-  Handle<FeedbackCell> parent_cell = isolate->factory()->NewNoClosuresCell(
-      isolate->factory()->undefined_value());
+  DirectHandle<FeedbackCell> parent_cell =
+      isolate->factory()->NewNoClosuresCell(
+          isolate->factory()->undefined_value());
 
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
@@ -349,7 +351,7 @@ Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
 
 // static
 void FeedbackVector::AddToVectorsForProfilingTools(
-    Isolate* isolate, Handle<FeedbackVector> vector) {
+    Isolate* isolate, DirectHandle<FeedbackVector> vector) {
   DCHECK(!isolate->is_best_effort_code_coverage());
   if (!vector->shared_function_info()->IsSubjectToDebugging()) return;
   Handle<ArrayList> list = Handle<ArrayList>::cast(
@@ -896,7 +898,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
   return InlineCacheState::UNINITIALIZED;
 }
 
-void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
+void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
   DCHECK(IsGlobalICKind(kind()));
   SetFeedback(MakeWeak(*cell), UPDATE_WRITE_BARRIER, UninitializedSentinel(),
               SKIP_WRITE_BARRIER);
@@ -976,7 +978,7 @@ void FeedbackNexus::ConfigureCloneObject(
         SetFeedback(MakeWeak(*source_map), UPDATE_WRITE_BARRIER, GetHandler());
       } else {
         // Transition to POLYMORPHIC.
-        Handle<WeakFixedArray> array =
+        DirectHandle<WeakFixedArray> array =
             CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
         DisallowGarbageCollection no_gc;
         Tagged<WeakFixedArray> raw_array = *array;
@@ -1083,7 +1085,7 @@ float FeedbackNexus::ComputeCallFrequency() {
 }
 
 void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
-                                         Handle<Map> receiver_map,
+                                         DirectHandle<Map> receiver_map,
                                          const MaybeObjectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
   if (kind() == FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral) {
@@ -1092,7 +1094,7 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
     if (name.is_null()) {
       SetFeedback(MakeWeak(*receiver_map), UPDATE_WRITE_BARRIER, *handler);
     } else {
-      Handle<WeakFixedArray> array = CreateArrayOfSize(2);
+      DirectHandle<WeakFixedArray> array = CreateArrayOfSize(2);
       array->set(0, MakeWeak(*receiver_map));
       array->set(1, *handler);
       SetFeedback(*name, UPDATE_WRITE_BARRIER, *array);
@@ -1104,10 +1106,10 @@ void FeedbackNexus::ConfigurePolymorphic(
     Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers) {
   int receiver_count = static_cast<int>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
-  Handle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
+  DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = maps_and_handlers[current].first;
+    DirectHandle<Map> map = maps_and_handlers[current].first;
     array->set(current * 2, MakeWeak(*map));
     MaybeObjectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
@@ -1191,7 +1193,8 @@ int FeedbackNexus::ExtractMapsAndHandlers(
   return found;
 }
 
-MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
+MaybeObjectHandle FeedbackNexus::FindHandlerForMap(
+    DirectHandle<Map> map) const {
   DCHECK(!IsStoreInArrayLiteralICKind(kind()));
 
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
@@ -1301,8 +1304,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     // The first handler that isn't the slow handler will have the bits we need.
     Builtin builtin_handler = Builtin::kNoBuiltinId;
     if (IsStoreHandler(*maybe_code_handler.object())) {
-      Handle<StoreHandler> data_handler =
-          Handle<StoreHandler>::cast(maybe_code_handler.object());
+      auto data_handler =
+          DirectHandle<StoreHandler>::cast(maybe_code_handler.object());
 
       if (IsSmi(data_handler->smi_handler())) {
         // Decode the KeyedAccessStoreMode information from the Handler.

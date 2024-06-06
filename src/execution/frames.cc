@@ -1097,7 +1097,7 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
 
 void BuiltinExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
-  Handle<FixedArray> parameters = GetParameters();
+  DirectHandle<FixedArray> parameters = GetParameters();
   DisallowGarbageCollection no_gc;
   Tagged<Code> code = LookupCode();
   int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
@@ -1227,8 +1227,8 @@ bool ApiCallbackExitFrame::IsConstructor() const {
 
 void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
-  Handle<FixedArray> parameters = GetParameters();
-  Handle<JSFunction> function = GetFunction();
+  DirectHandle<FixedArray> parameters = GetParameters();
+  DirectHandle<JSFunction> function = GetFunction();
   DisallowGarbageCollection no_gc;
   Tagged<Code> code = LookupCode();
   int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
@@ -1307,7 +1307,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
 
 void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
                                  int index) const {
-  Handle<JSFunction> function = GetFunction();
+  DirectHandle<JSFunction> function = GetFunction();
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();
 
@@ -2220,9 +2220,9 @@ void CommonFrameWithJSLinkage::Summarize(
   DCHECK(functions->empty());
   Tagged<GcSafeCode> code = GcSafeLookupCode();
   int offset = code->GetOffsetFromInstructionStart(isolate(), pc());
-  Handle<AbstractCode> abstract_code(
+  DirectHandle<AbstractCode> abstract_code(
       AbstractCode::cast(code->UnsafeCastToCode()), isolate());
-  Handle<FixedArray> params = GetParameters();
+  DirectHandle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, offset,
       IsConstructor(), *params);
@@ -2504,7 +2504,7 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
 Handle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
-  Handle<Script> script(Script::cast(shared->script()), isolate());
+  DirectHandle<Script> script(Script::cast(shared->script()), isolate());
   Handle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
       script->compilation_type() == Script::CompilationType::kEval) {
@@ -2568,7 +2568,7 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
 
 Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
     const {
-  Handle<String> function_name =
+  DirectHandle<String> function_name =
       GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);
@@ -2610,7 +2610,7 @@ Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
 
 Handle<StackFrameInfo>
 FrameSummary::WasmInlinedFrameSummary::CreateStackFrameInfo() const {
-  Handle<String> function_name =
+  DirectHandle<String> function_name =
       GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);
@@ -2634,8 +2634,9 @@ Handle<Context> FrameSummary::BuiltinFrameSummary::native_context() const {
 
 Handle<StackFrameInfo> FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo()
     const {
-  Handle<String> name_str = isolate()->factory()->NewStringFromAsciiChecked(
-      Builtins::NameForStackTrace(isolate(), builtin_));
+  DirectHandle<String> name_str =
+      isolate()->factory()->NewStringFromAsciiChecked(
+          Builtins::NameForStackTrace(isolate(), builtin_));
   return isolate()->factory()->NewStackFrameInfo(
       Handle<HeapObject>::cast(script()), SourcePosition(), name_str, false);
 }
@@ -2723,7 +2724,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  Handle<Code> code(LookupCode(), isolate());
+  DirectHandle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
@@ -2741,10 +2742,10 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     // loop stack checks.
     if (code->is_maglevved()) {
       DCHECK(frames->empty());
-      Handle<AbstractCode> abstract_code(
+      DirectHandle<AbstractCode> abstract_code(
           AbstractCode::cast(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
-      Handle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters();
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), receiver(), function(), *abstract_code,
           kFunctionEntryBytecodeOffset, IsConstructor(), *params);
@@ -2769,7 +2770,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
         it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
         it->kind() ==
             TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
-      Handle<SharedFunctionInfo> shared_info = it->shared_info();
+      DirectHandle<SharedFunctionInfo> shared_info = it->shared_info();
 
       // The translation commands are ordered and the function is always
       // at the first position, and the receiver is next.
@@ -2777,13 +2778,13 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
       // Get the correct function in the optimized frame.
       CHECK(!translated_values->IsMaterializedObject());
-      Handle<JSFunction> function =
+      DirectHandle<JSFunction> function =
           Handle<JSFunction>::cast(translated_values->GetValue());
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
       CHECK(!translated_values->IsMaterializedObject());
-      Handle<Object> receiver = translated_values->GetValue();
+      DirectHandle<Object> receiver = translated_values->GetValue();
       translated_values++;
 
       // Determine the underlying code object and the position within it from
@@ -2805,7 +2806,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       }
 
       // Append full summary of the encountered JS frame.
-      Handle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters();
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), *receiver, *function, *abstract_code, code_offset,
           is_constructor, *params);
@@ -2818,7 +2819,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       is_constructor = true;
 #if V8_ENABLE_WEBASSEMBLY
     } else if (it->kind() == TranslatedFrame::kWasmInlinedIntoJS) {
-      Handle<SharedFunctionInfo> shared_info = it->shared_info();
+      DirectHandle<SharedFunctionInfo> shared_info = it->shared_info();
       DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
 
       Tagged<WasmExportedFunctionData> function_data =
@@ -2994,9 +2995,9 @@ Tagged<Object> UnoptimizedFrame::ReadInterpreterRegister(
 
 void UnoptimizedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  Handle<AbstractCode> abstract_code(AbstractCode::cast(GetBytecodeArray()),
-                                     isolate());
-  Handle<FixedArray> params = GetParameters();
+  DirectHandle<AbstractCode> abstract_code(
+      AbstractCode::cast(GetBytecodeArray()), isolate());
+  DirectHandle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
       IsConstructor(), *params);

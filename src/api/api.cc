@@ -181,8 +181,8 @@ namespace v8 {
 
 static OOMErrorCallback g_oom_error_callback = nullptr;
 
-static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
-                                             i::Handle<i::Script> script) {
+static ScriptOrigin GetScriptOriginForScript(
+    i::Isolate* i_isolate, i::DirectHandle<i::Script> script) {
   i::DirectHandle<i::Object> scriptName(script->GetNameOrSourceURL(),
                                         i_isolate);
   i::DirectHandle<i::Object> source_map_url(script->source_mapping_url(),
@@ -1121,7 +1121,7 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
-  i::Handle<i::EmbedderDataArray> data =
+  i::DirectHandle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
   bool ok = i::EmbedderDataSlot(*data, index)
                 .store_aligned_pointer(i_isolate, *data, value);
@@ -1215,8 +1215,8 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::FunctionTemplateInfo> result =
-      Utils::OpenHandle(*prototype_provider);
+  i::DirectHandle<i::FunctionTemplateInfo> result =
+      Utils::OpenDirectHandle(*prototype_provider);
   Utils::ApiCheck(i::IsUndefined(self->GetPrototypeTemplate(), i_isolate),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
                   "Protoype must be undefined");
@@ -1377,10 +1377,10 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
   return Local<Signature>::Cast(receiver);
 }
 
-#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)        \
-  do {                                                          \
-    i::Handle<i::Object> foreign = FromCData(i_isolate, cdata); \
-    (obj)->setter(*foreign);                                    \
+#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)              \
+  do {                                                                \
+    i::DirectHandle<i::Object> foreign = FromCData(i_isolate, cdata); \
+    (obj)->setter(*foreign);                                          \
   } while (false)
 
 void FunctionTemplate::SetCallHandler(
@@ -1404,18 +1404,18 @@ void FunctionTemplate::SetCallHandler(
   if (!c_function_overloads.empty()) {
     // Stores the data for a sequence of CFunction overloads into a single
     // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
-    i::Handle<i::FixedArray> function_overloads =
+    i::DirectHandle<i::FixedArray> function_overloads =
         i_isolate->factory()->NewFixedArray(static_cast<int>(
             c_function_overloads.size() *
             i::FunctionTemplateInfo::kFunctionOverloadEntrySize));
     int function_count = static_cast<int>(c_function_overloads.size());
     for (int i = 0; i < function_count; i++) {
       const CFunction& c_function = c_function_overloads.data()[i];
-      i::Handle<i::Object> address =
+      i::DirectHandle<i::Object> address =
           FromCData(i_isolate, c_function.GetAddress());
       function_overloads->set(
           i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i, *address);
-      i::Handle<i::Object> signature =
+      i::DirectHandle<i::Object> signature =
           FromCData(i_isolate, c_function.GetTypeInfo());
       function_overloads->set(
           i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1,
@@ -2441,11 +2441,12 @@ Local<Module> Module::CreateSyntheticModule(
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   auto i_module_name = Utils::OpenHandle(*module_name);
-  i::Handle<i::FixedArray> i_export_names = i_isolate->factory()->NewFixedArray(
-      static_cast<int>(export_names.size()));
+  i::DirectHandle<i::FixedArray> i_export_names =
+      i_isolate->factory()->NewFixedArray(
+          static_cast<int>(export_names.size()));
   for (int i = 0; i < i_export_names->length(); ++i) {
-    i::Handle<i::String> str = i_isolate->factory()->InternalizeString(
-        Utils::OpenHandle(*export_names[i]));
+    i::DirectHandle<i::String> str = i_isolate->factory()->InternalizeString(
+        Utils::OpenDirectHandle(*export_names[i]));
     i_export_names->set(i, *str);
   }
   return v8::Utils::ToLocal(
@@ -2658,8 +2659,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
   }
 
   for (size_t i = 0; i < context_extension_count; ++i) {
-    i::Handle<i::JSReceiver> extension =
-        Utils::OpenHandle(*context_extensions[i]);
+    i::DirectHandle<i::JSReceiver> extension =
+        Utils::OpenDirectHandle(*context_extensions[i]);
     if (!IsJSObject(*extension)) return Local<Function>();
     context = i_isolate->factory()->NewWithContext(
         context,
@@ -3028,7 +3029,7 @@ ScriptOrigin Message::GetScriptOrigin() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Script> script(self->script(), i_isolate);
+  i::DirectHandle<i::Script> script(self->script(), i_isolate);
   return GetScriptOriginForScript(i_isolate, script);
 }
 
@@ -5549,7 +5550,7 @@ Local<Value> Function::GetDebugName() const {
     return ToApiHandle<Primitive>(i_isolate->factory()->undefined_value());
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
-  i::Handle<i::String> name = i::JSFunction::GetDebugName(func);
+  i::DirectHandle<i::String> name = i::JSFunction::GetDebugName(func);
   return Utils::ToLocal(i::direct_handle(*name, i_isolate), i_isolate);
 }
 
@@ -5558,8 +5559,8 @@ ScriptOrigin Function::GetScriptOrigin() const {
   if (!IsJSFunction(*self)) return v8::ScriptOrigin(Local<Value>());
   auto func = i::DirectHandle<i::JSFunction>::cast(self);
   if (i::IsScript(func->shared()->script())) {
-    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
-                                func->GetIsolate());
+    i::DirectHandle<i::Script> script(i::Script::cast(func->shared()->script()),
+                                      func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
   return v8::ScriptOrigin(Local<Value>());
@@ -6798,7 +6799,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   API_RCS_SCOPE(i_isolate, Context, NewRemoteContext);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::FunctionTemplateInfo> global_constructor =
+  i::DirectHandle<i::FunctionTemplateInfo> global_constructor =
       EnsureConstructor(i_isolate, *global_template);
   Utils::ApiCheck(global_constructor->needs_access_check(),
                   "v8::Context::NewRemoteContext",
@@ -6927,7 +6928,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
                                     Context::DeepFreezeDelegate* delegate)
       : isolate_(isolate), delegate_(delegate) {}
 
-  bool DeepFreeze(i::Handle<i::Context> context) {
+  bool DeepFreeze(i::DirectHandle<i::Context> context) {
     bool success = VisitObject(i::HeapObject::cast(*context));
     if (success) {
       success = InstantiateAndVisitLazyAccessorPairs();
@@ -7392,12 +7393,12 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
   i::Isolate* i_isolate = self->GetIsolateChecked();
   API_RCS_SCOPE(i_isolate, FunctionTemplate, NewRemoteInstance);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::FunctionTemplateInfo> constructor =
+  i::DirectHandle<i::FunctionTemplateInfo> constructor =
       EnsureConstructor(i_isolate, *InstanceTemplate());
   Utils::ApiCheck(constructor->needs_access_check(),
                   "v8::FunctionTemplate::NewRemoteInstance",
                   "InstanceTemplate needs to have access checks enabled");
-  i::Handle<i::AccessCheckInfo> access_check_info(
+  i::DirectHandle<i::AccessCheckInfo> access_check_info(
       i::AccessCheckInfo::cast(constructor->GetAccessCheckInfo()), i_isolate);
   Utils::ApiCheck(
       access_check_info->named_interceptor() != i::Tagged<i::Object>(),
@@ -8090,7 +8091,7 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, int length) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   int real_length = length > 0 ? length : 0;
   i::Handle<i::JSArray> obj = i_isolate->factory()->NewJSArray(real_length);
-  i::Handle<i::Object> length_obj =
+  i::DirectHandle<i::Object> length_obj =
       i_isolate->factory()->NewNumberFromInt(real_length);
   obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
@@ -8104,7 +8105,7 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, Local<Value>* elements,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   int len = static_cast<int>(length);
 
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(len);
+  i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(len);
   for (int i = 0; i < len; i++) {
     auto element = Utils::OpenDirectHandle(*elements[i]);
     result->set(i, *element);
@@ -8125,7 +8126,7 @@ MaybeLocal<v8::Array> v8::Array::New(
   USE(has_exception);
   i::Factory* factory = i_isolate->factory();
   const int len = static_cast<int>(length);
-  i::Handle<i::FixedArray> backing = factory->NewFixedArray(len);
+  i::DirectHandle<i::FixedArray> backing = factory->NewFixedArray(len);
   v8::Local<v8::Value> value;
   for (int i = 0; i < len; i++) {
     MaybeLocal<v8::Value> maybe_value = next_value_callback();
@@ -8157,7 +8158,7 @@ uint32_t v8::Array::Length() const {
 
 namespace internal {
 
-bool CanUseFastIteration(Isolate* isolate, Handle<JSArray> array) {
+bool CanUseFastIteration(Isolate* isolate, DirectHandle<JSArray> array) {
   if (IsCustomElementsReceiverMap(array->map())) return false;
   if (array->GetElementsAccessor()->HasAccessors(*array)) return false;
   if (!JSObject::PrototypeHasNoElements(isolate, *array)) return false;
@@ -8171,7 +8172,8 @@ enum class FastIterateResult {
   kFinished,
 };
 
-FastIterateResult FastIterateArray(Handle<JSArray> array, Isolate* isolate,
+FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
+                                   Isolate* isolate,
                                    v8::Array::IterationCallback callback,
                                    void* callback_data) {
   // Instead of relying on callers to check condition, this function returns
@@ -8229,7 +8231,7 @@ FastIterateResult FastIterateArray(Handle<JSArray> array, Isolate* isolate,
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       DCHECK_NE(length, 0);  // Cast to FixedDoubleArray would be invalid.
-      Handle<FixedDoubleArray> elements(
+      DirectHandle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(array->elements()), isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, i++, {
         if (elements->is_the_hole(i)) continue;
@@ -8461,7 +8463,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
   int capacity = table->UsedCapacity();
   int max_length =
       (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
+  i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
@@ -8564,7 +8566,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
   const bool collect_key_values = kind == SetAsArrayKind::kEntries;
   int max_length = (capacity - offset) * (collect_key_values ? 2 : 1);
   if (max_length == 0) return factory->NewJSArray(0);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
+  i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
@@ -10572,8 +10574,9 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::Handle<i::ArrayList> list = i_isolate->factory()->message_listeners();
-  i::Handle<i::FixedArray> listener = i_isolate->factory()->NewFixedArray(3);
-  i::Handle<i::Foreign> foreign =
+  i::DirectHandle<i::FixedArray> listener =
+      i_isolate->factory()->NewFixedArray(3);
+  i::DirectHandle<i::Foreign> foreign =
       i_isolate->factory()->NewForeign<internal::kGenericForeignTag>(
           FUNCTION_ADDR(that));
   listener->set(0, *foreign);

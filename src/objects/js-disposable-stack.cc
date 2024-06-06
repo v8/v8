@@ -16,14 +16,14 @@ namespace internal {
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
 Maybe<bool> JSDisposableStack::DisposeResources(
-    Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
+    Isolate* isolate, DirectHandle<JSDisposableStack> disposable_stack,
     MaybeHandle<Object> maybe_original_error) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
   DCHECK_NE(disposable_stack->state(), DisposableStackState::kDisposed);
 
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
-  Handle<FixedArray> stack(disposable_stack->stack(), isolate);
+  DirectHandle<FixedArray> stack(disposable_stack->stack(), isolate);
 
   int length = disposable_stack->length();
 

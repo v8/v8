@@ -623,7 +623,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
   Handle<Object> ErrorMessageForWasmCodeGeneration();
 
-  static int IntrinsicIndexForName(Handle<String> name);
+  static int IntrinsicIndexForName(DirectHandle<String> name);
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
@@ -673,14 +673,13 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
   static Tagged<ConstTrackingLetCell> GetOrCreateConstTrackingLetCell(
-      Handle<Context> context, size_t index, Isolate* isolate);
+      DirectHandle<Context> context, size_t index, Isolate* isolate);
 
   bool ConstTrackingLetSideDataIsConst(size_t index) const;
 
-  static void UpdateConstTrackingLetSideData(Handle<Context> script_context,
-                                             int index,
-                                             Handle<Object> new_value,
-                                             Isolate* isolate);
+  static void UpdateConstTrackingLetSideData(
+      DirectHandle<Context> script_context, int index,
+      DirectHandle<Object> new_value, Isolate* isolate);
 
   static const int kNotFound = -1;
 
@@ -839,7 +838,7 @@ class ScriptContextTable
   V8_WARN_UNUSED_RESULT
   V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Add(
       Isolate* isolate, Handle<ScriptContextTable> table,
-      Handle<Context> script_context, bool ignore_duplicates);
+      DirectHandle<Context> script_context, bool ignore_duplicates);
 
   DECL_CAST(ScriptContextTable)
   DECL_PRINTER(ScriptContextTable)

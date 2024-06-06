@@ -82,8 +82,8 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
                                       v8::Local<Function> function) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   HandleScope scope(isolate);
-  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
-      Utils::OpenHandle(*function), isolate->native_context());
+  DirectHandle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+      Utils::OpenDirectHandle(*function), isolate->native_context());
   EnqueueMicrotask(*microtask);
 }
 
@@ -92,7 +92,7 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
                                       void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   HandleScope scope(isolate);
-  Handle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
+  DirectHandle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
       isolate->factory()->NewForeign<kGenericForeignTag>(
           reinterpret_cast<Address>(callback)),
       isolate->factory()->NewForeign<kGenericForeignTag>(
@@ -169,7 +169,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   MaybeHandle<Object> maybe_result;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  Handle<Object> continuation_preserved_embedder_data = Handle<Object>(
+  DirectHandle<Object> continuation_preserved_embedder_data(
       isolate->isolate_data()->continuation_preserved_embedder_data(), isolate);
   isolate->isolate_data()->set_continuation_preserved_embedder_data(
       ReadOnlyRoots(isolate).undefined_value());

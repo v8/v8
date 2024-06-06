@@ -30,7 +30,7 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
 
 // ecma402 #sec-createsegmentiterator
 MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
-    Isolate* isolate, Handle<String> input_string,
+    Isolate* isolate, DirectHandle<String> input_string,
     icu::BreakIterator* break_iterator, JSSegmenter::Granularity granularity) {
   // Clone a copy for both the ownership and not sharing with containing and
   // other calls to the iterator because icu::BreakIterator keep the iteration
@@ -38,17 +38,17 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   // JSSegmentIterator::Create and JSSegments::Containing.
   break_iterator = break_iterator->clone();
   DCHECK_NOT_NULL(break_iterator);
-  Handle<Map> map = Handle<Map>(
-      isolate->native_context()->intl_segment_iterator_map(), isolate);
+  DirectHandle<Map> map(isolate->native_context()->intl_segment_iterator_map(),
+                        isolate);
 
   // 5. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to 0.
   break_iterator->first();
-  Handle<Managed<icu::BreakIterator>> managed_break_iterator =
+  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
 
   icu::UnicodeString* string = new icu::UnicodeString();
   break_iterator->getText().getText(*string);
-  Handle<Managed<icu::UnicodeString>> unicode_string =
+  DirectHandle<Managed<icu::UnicodeString>> unicode_string =
       Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, string);
 
   break_iterator->setText(*string);
@@ -70,7 +70,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
 
 // ecma402 #sec-%segmentiteratorprototype%.next
 MaybeHandle<JSReceiver> JSSegmentIterator::Next(
-    Isolate* isolate, Handle<JSSegmentIterator> segment_iterator) {
+    Isolate* isolate, DirectHandle<JSSegmentIterator> segment_iterator) {
   // Sketches of ideas for future performance improvements, roughly in order
   // of difficulty:
   // - Add a fast path for grapheme segmentation of one-byte strings that
@@ -125,8 +125,8 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     }
     Handle<Object> index;
     if (!Smi::IsValid(start_index)) index = factory->NewHeapNumber(start_index);
-    Handle<Map> map(isolate->native_context()->intl_segment_data_object_map(),
-                    isolate);
+    DirectHandle<Map> map(
+        isolate->native_context()->intl_segment_data_object_map(), isolate);
     segment_data =
         Handle<JSSegmentDataObject>::cast(factory->NewJSObjectFromMap(map));
     Tagged<JSSegmentDataObject> raw = *segment_data;

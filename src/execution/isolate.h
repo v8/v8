@@ -811,7 +811,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
 
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
-  bool IsWasmInliningEnabled(Handle<NativeContext> context);
+  bool IsWasmInliningEnabled(DirectHandle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
   // Has the JSPI flag been requested?
   // Used only during initialization of contexts.
@@ -1018,7 +1018,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Async function and promise instrumentation support.
   void OnAsyncFunctionSuspended(Handle<JSPromise> promise,
                                 Handle<JSPromise> parent);
-  void OnPromiseThen(Handle<JSPromise> promise);
+  void OnPromiseThen(DirectHandle<JSPromise> promise);
   void OnPromiseBefore(Handle<JSPromise> promise);
   void OnPromiseAfter(Handle<JSPromise> promise);
   void OnTerminationDuringRunMicrotasks();
@@ -1374,7 +1374,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t total_regexp_code_generated() const {
     return total_regexp_code_generated_;
   }
-  void IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code);
+  void IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code);
 
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
@@ -1547,7 +1547,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
                                       Handle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                               Handle<Object> locales,
+                               DirectHandle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
   void clear_cached_icu_objects();
@@ -1562,26 +1562,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between
   // Array and Object fire notifications.
-  void UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object);
-  void UpdateNoElementsProtectorOnSetLength(Handle<JSObject> object) {
+  void UpdateNoElementsProtectorOnSetElement(DirectHandle<JSObject> object);
+  void UpdateNoElementsProtectorOnSetLength(DirectHandle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
 
-  void UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
-                                      Handle<Object> new_prototype);
+  void UpdateProtectorsOnSetPrototype(DirectHandle<JSObject> object,
+                                      DirectHandle<Object> new_prototype);
 
-  void UpdateNoElementsProtectorOnSetPrototype(Handle<JSObject> object) {
+  void UpdateNoElementsProtectorOnSetPrototype(DirectHandle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
-      Handle<JSObject> object);
+      DirectHandle<JSObject> object);
   void UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
-      Handle<JSObject> object);
-  void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
+      DirectHandle<JSObject> object);
+  void UpdateNoElementsProtectorOnNormalizeElements(
+      DirectHandle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-      Handle<JSObject> object, Handle<Object> new_prototype);
+      DirectHandle<JSObject> object, DirectHandle<Object> new_prototype);
 
   // Returns true if array is the initial array prototype in any native context.
   inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);

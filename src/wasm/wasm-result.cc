@@ -125,9 +125,10 @@ Handle<Object> ErrorThrower::Reify() {
       constructor = isolate_->wasm_runtime_error_function();
       break;
   }
-  Handle<String> message = isolate_->factory()
-                               ->NewStringFromUtf8(base::VectorOf(error_msg_))
-                               .ToHandleChecked();
+  DirectHandle<String> message =
+      isolate_->factory()
+          ->NewStringFromUtf8(base::VectorOf(error_msg_))
+          .ToHandleChecked();
   Reset();
   return isolate_->factory()->NewError(constructor, message);
 }

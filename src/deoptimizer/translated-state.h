@@ -477,7 +477,8 @@ class TranslatedState {
 
   void UpdateFromPreviouslyMaterializedObjects();
   void MaterializeFixedDoubleArray(TranslatedFrame* frame, int* value_index,
-                                   TranslatedValue* slot, Handle<Map> map);
+                                   TranslatedValue* slot,
+                                   DirectHandle<Map> map);
   void MaterializeHeapNumber(TranslatedFrame* frame, int* value_index,
                              TranslatedValue* slot);
 
@@ -486,9 +487,9 @@ class TranslatedState {
   void SkipSlots(int slots_to_skip, TranslatedFrame* frame, int* value_index);
 
   Handle<ByteArray> AllocateStorageFor(TranslatedValue* slot);
-  void EnsureJSObjectAllocated(TranslatedValue* slot, Handle<Map> map);
+  void EnsureJSObjectAllocated(TranslatedValue* slot, DirectHandle<Map> map);
   void EnsurePropertiesAllocatedAndMarked(TranslatedValue* properties_slot,
-                                          Handle<Map> map);
+                                          DirectHandle<Map> map);
   void EnsureChildrenAllocated(int count, TranslatedFrame* frame,
                                int* value_index, std::stack<int>* worklist);
   void EnsureCapturedObjectAllocatedAt(int object_index,
@@ -497,11 +498,11 @@ class TranslatedState {
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
                                   const DisallowGarbageCollection& no_gc);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
-                            TranslatedValue* slot, Handle<Map> map,
+                            TranslatedValue* slot, DirectHandle<Map> map,
                             const DisallowGarbageCollection& no_gc);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-      Handle<Map> map, const DisallowGarbageCollection& no_gc);
+      DirectHandle<Map> map, const DisallowGarbageCollection& no_gc);
 
   void ReadUpdateFeedback(DeoptTranslationIterator* iterator,
                           Tagged<DeoptimizationLiteralArray> literal_array,

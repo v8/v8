@@ -770,13 +770,13 @@ bool IsBuiltinForwardingRejectHandler(Isolate* isolate,
 }
 
 MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
-    Isolate* isolate, Handle<PromiseReaction> reaction) {
+    Isolate* isolate, DirectHandle<PromiseReaction> reaction) {
   // Check if the {reaction} has one of the known async function or
   // async generator continuations as its fulfill handler.
   if (IsBuiltinAsyncFulfillHandler(isolate, reaction->fulfill_handler())) {
     // Now peek into the handlers' AwaitContext to get to
     // the JSGeneratorObject for the async function.
-    Handle<Context> context(
+    DirectHandle<Context> context(
         JSFunction::cast(reaction->fulfill_handler())->context(), isolate);
     Handle<JSGeneratorObject> generator_object(
         JSGeneratorObject::cast(context->extension()), isolate);
@@ -785,7 +785,8 @@ MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
   return MaybeHandle<JSGeneratorObject>();
 }
 
-int GetGeneratorBytecodeOffset(Handle<JSGeneratorObject> generator_object) {
+int GetGeneratorBytecodeOffset(
+    DirectHandle<JSGeneratorObject> generator_object) {
   // The stored bytecode offset is relative to a different base than what
   // is used in the source position table, hence the subtraction.
   return Smi::ToInt(generator_object->input_or_debug_pos()) -
@@ -829,15 +830,15 @@ class CallSiteBuilder {
     return true;
   }
 
-  void AppendAsyncFrame(Handle<JSGeneratorObject> generator_object) {
-    Handle<JSFunction> function(generator_object->function(), isolate_);
+  void AppendAsyncFrame(DirectHandle<JSGeneratorObject> generator_object) {
+    DirectHandle<JSFunction> function(generator_object->function(), isolate_);
     if (!IsVisibleInStackTrace(function)) return;
     int flags = CallSiteInfo::kIsAsync;
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
-    Handle<BytecodeArray> code(function->shared()->GetBytecodeArray(isolate_),
-                               isolate_);
+    DirectHandle<BytecodeArray> code(
+        function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
@@ -851,18 +852,19 @@ class CallSiteBuilder {
     AppendFrame(receiver, function, code, offset, flags, parameters);
   }
 
-  void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
-                                    Handle<JSFunction> combinator) {
+  void AppendPromiseCombinatorFrame(DirectHandle<JSFunction> element_function,
+                                    DirectHandle<JSFunction> combinator) {
     if (!IsVisibleInStackTrace(combinator)) return;
     int flags =
         CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
     Handle<Object> receiver(combinator->native_context()->promise_function(),
                             isolate_);
-    Handle<Code> code(combinator->code(isolate_), isolate_);
+    DirectHandle<Code> code(combinator->code(isolate_), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
+    DirectHandle<FixedArray> parameters =
+        isolate_->factory()->empty_fixed_array();
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
@@ -877,7 +879,7 @@ class CallSiteBuilder {
     if (!IsVisibleInStackTrace(summary.function())) return;
 
     int flags = 0;
-    Handle<JSFunction> function = summary.function();
+    DirectHandle<JSFunction> function = summary.function();
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
     if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
@@ -897,7 +899,7 @@ class CallSiteBuilder {
       }
     }
 
-    Handle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
                 summary.code_offset(), flags,
@@ -906,7 +908,7 @@ class CallSiteBuilder {
 
   void AppendWasmInlinedFrame(
       FrameSummary::WasmInlinedFrameSummary const& summary) {
-    Handle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
     int flags = CallSiteInfo::kIsWasm;
     AppendFrame(summary.wasm_instance(),
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
@@ -916,8 +918,9 @@ class CallSiteBuilder {
 
   void AppendBuiltinFrame(FrameSummary::BuiltinFrameSummary const& summary) {
     Builtin builtin = summary.builtin();
-    Handle<Code> code = isolate_->builtins()->code_handle(builtin);
-    Handle<Object> function(Smi::FromInt(static_cast<int>(builtin)), isolate_);
+    DirectHandle<Code> code = isolate_->builtins()->code_handle(builtin);
+    DirectHandle<Object> function(Smi::FromInt(static_cast<int>(builtin)),
+                                  isolate_);
     int flags = CallSiteInfo::kIsBuiltin;
     AppendFrame(summary.receiver(), function, code, summary.code_offset(),
                 flags, isolate_->factory()->empty_fixed_array());
@@ -935,7 +938,7 @@ class CallSiteBuilder {
   // The stack trace API should not expose receivers and function
   // objects on frames deeper than the top-most one with a strict mode
   // function.
-  bool IsStrictFrame(Handle<JSFunction> function) {
+  bool IsStrictFrame(DirectHandle<JSFunction> function) {
     if (!encountered_strict_function_) {
       encountered_strict_function_ =
           is_strict(function->shared()->language_mode());
@@ -945,7 +948,7 @@ class CallSiteBuilder {
 
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
-  bool IsVisibleInStackTrace(Handle<JSFunction> function) {
+  bool IsVisibleInStackTrace(DirectHandle<JSFunction> function) {
     return ShouldIncludeFrame(function) && IsNotHidden(function);
   }
 
@@ -953,7 +956,7 @@ class CallSiteBuilder {
   // trace. This can be be the first frame (which will be a builtin-exit frame
   // for the error constructor builtin) or every frame until encountering a
   // user-specified function.
-  bool ShouldIncludeFrame(Handle<JSFunction> function) {
+  bool ShouldIncludeFrame(DirectHandle<JSFunction> function) {
     switch (mode_) {
       case SKIP_NONE:
         return true;
@@ -971,7 +974,7 @@ class CallSiteBuilder {
     UNREACHABLE();
   }
 
-  bool IsNotHidden(Handle<JSFunction> function) {
+  bool IsNotHidden(DirectHandle<JSFunction> function) {
     // TODO(szuend): Remove this check once the flag is enabled
     //               by default.
     if (!v8_flags.experimental_stack_trace_frames &&
@@ -990,9 +993,9 @@ class CallSiteBuilder {
     return true;
   }
 
-  void AppendFrame(Handle<Object> receiver_or_instance, Handle<Object> function,
-                   Handle<HeapObject> code, int offset, int flags,
-                   Handle<FixedArray> parameters) {
+  void AppendFrame(Handle<Object> receiver_or_instance,
+                   DirectHandle<Object> function, DirectHandle<HeapObject> code,
+                   int offset, int flags, DirectHandle<FixedArray> parameters) {
     if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
@@ -1021,7 +1024,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
 
     // Check that we have exactly one PromiseReaction on the {promise}.
     if (!IsPromiseReaction(promise->reactions())) return;
-    Handle<PromiseReaction> reaction(
+    DirectHandle<PromiseReaction> reaction(
         PromiseReaction::cast(promise->reactions()), isolate);
     if (!IsSmi(reaction->next())) return;
 
@@ -1035,14 +1038,14 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
 
       // Try to continue from here.
       if (IsJSAsyncFunctionObject(*generator_object)) {
-        Handle<JSAsyncFunctionObject> async_function_object =
-            Handle<JSAsyncFunctionObject>::cast(generator_object);
+        auto async_function_object =
+            DirectHandle<JSAsyncFunctionObject>::cast(generator_object);
         promise = handle(async_function_object->promise(), isolate);
       } else {
-        Handle<JSAsyncGeneratorObject> async_generator_object =
-            Handle<JSAsyncGeneratorObject>::cast(generator_object);
+        auto async_generator_object =
+            DirectHandle<JSAsyncGeneratorObject>::cast(generator_object);
         if (IsUndefined(async_generator_object->queue(), isolate)) return;
-        Handle<AsyncGeneratorRequest> async_generator_request(
+        DirectHandle<AsyncGeneratorRequest> async_generator_request(
             AsyncGeneratorRequest::cast(async_generator_object->queue()),
             isolate);
         promise = handle(JSPromise::cast(async_generator_request->promise()),
@@ -1050,9 +1053,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       }
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                                  Builtin::kPromiseAllResolveElementClosure)) {
-      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
-                                  isolate);
-      Handle<Context> context(function->context(), isolate);
+      DirectHandle<JSFunction> function(
+          JSFunction::cast(reaction->fulfill_handler()), isolate);
+      DirectHandle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(context->native_context()->promise_all(),
                                     isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
@@ -1068,16 +1071,16 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // the concurrent promises resolve.
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
-      Handle<PromiseCapability> capability(
+      DirectHandle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(
                    isolate, reaction->fulfill_handler(),
                    Builtin::kPromiseAllSettledResolveElementClosure)) {
-      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
-                                  isolate);
-      Handle<Context> context(function->context(), isolate);
+      DirectHandle<JSFunction> function(
+          JSFunction::cast(reaction->fulfill_handler()), isolate);
+      DirectHandle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(
           context->native_context()->promise_all_settled(), isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
@@ -1093,15 +1096,15 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // the concurrent promises resolve.
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
-      Handle<PromiseCapability> capability(
+      DirectHandle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
                                  Builtin::kPromiseAnyRejectElementClosure)) {
-      Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
-                                  isolate);
-      Handle<Context> context(function->context(), isolate);
+      DirectHandle<JSFunction> function(
+          JSFunction::cast(reaction->reject_handler()), isolate);
+      DirectHandle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(context->native_context()->promise_any(),
                                     isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
@@ -1116,15 +1119,15 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // find the promise capability that's being resolved when any of
       // the concurrent promises resolve.
       int const index = PromiseBuiltins::kPromiseAnyRejectElementCapabilitySlot;
-      Handle<PromiseCapability> capability(
+      DirectHandle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                                  Builtin::kPromiseCapabilityDefaultResolve)) {
-      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
-                                  isolate);
-      Handle<Context> context(function->context(), isolate);
+      DirectHandle<JSFunction> function(
+          JSFunction::cast(reaction->fulfill_handler()), isolate);
+      DirectHandle<Context> context(function->context(), isolate);
       promise =
           handle(JSPromise::cast(context->get(PromiseBuiltins::kPromiseSlot)),
                  isolate);
@@ -1137,8 +1140,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       if (IsJSPromise(*promise_or_capability)) {
         promise = Handle<JSPromise>::cast(promise_or_capability);
       } else if (IsPromiseCapability(*promise_or_capability)) {
-        Handle<PromiseCapability> capability =
-            Handle<PromiseCapability>::cast(promise_or_capability);
+        auto capability =
+            DirectHandle<PromiseCapability>::cast(promise_or_capability);
         if (!IsJSPromise(capability->promise())) return;
         promise = handle(JSPromise::cast(capability->promise()), isolate);
       } else {
@@ -1153,8 +1156,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
 MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
   Handle<Object> current_microtask = isolate->factory()->current_microtask();
   if (IsPromiseReactionJobTask(*current_microtask)) {
-    Handle<PromiseReactionJobTask> promise_reaction_job_task =
-        Handle<PromiseReactionJobTask>::cast(current_microtask);
+    auto promise_reaction_job_task =
+        DirectHandle<PromiseReactionJobTask>::cast(current_microtask);
     // Check if the {reaction} has one of the known async function or
     // async generator continuations as its fulfill handler.
     if (IsBuiltinAsyncFulfillHandler(isolate,
@@ -1163,24 +1166,24 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
                                     promise_reaction_job_task->handler())) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
-      Handle<Context> context(
+      DirectHandle<Context> context(
           JSFunction::cast(promise_reaction_job_task->handler())->context(),
           isolate);
       Handle<JSGeneratorObject> generator_object(
           JSGeneratorObject::cast(context->extension()), isolate);
       if (generator_object->is_executing()) {
         if (IsJSAsyncFunctionObject(*generator_object)) {
-          Handle<JSAsyncFunctionObject> async_function_object =
-              Handle<JSAsyncFunctionObject>::cast(generator_object);
+          auto async_function_object =
+              DirectHandle<JSAsyncFunctionObject>::cast(generator_object);
           Handle<JSPromise> promise(async_function_object->promise(), isolate);
           return promise;
         } else {
-          Handle<JSAsyncGeneratorObject> async_generator_object =
-              Handle<JSAsyncGeneratorObject>::cast(generator_object);
-          Handle<Object> queue(async_generator_object->queue(), isolate);
+          auto async_generator_object =
+              DirectHandle<JSAsyncGeneratorObject>::cast(generator_object);
+          DirectHandle<Object> queue(async_generator_object->queue(), isolate);
           if (!IsUndefined(*queue, isolate)) {
-            Handle<AsyncGeneratorRequest> async_generator_request =
-                Handle<AsyncGeneratorRequest>::cast(queue);
+            auto async_generator_request =
+                DirectHandle<AsyncGeneratorRequest>::cast(queue);
             Handle<JSPromise> promise(
                 JSPromise::cast(async_generator_request->promise()), isolate);
             return promise;
@@ -1352,8 +1355,8 @@ Handle<FixedArray> Isolate::GetDetailedStackTrace(
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
 
   if (!IsErrorStackData(*lookup.error_stack)) return {};
-  Handle<ErrorStackData> error_stack_data =
-      Handle<ErrorStackData>::cast(lookup.error_stack);
+  auto error_stack_data =
+      DirectHandle<ErrorStackData>::cast(lookup.error_stack);
 
   ErrorStackData::EnsureStackFrameInfos(this, error_stack_data);
 
@@ -1373,8 +1376,8 @@ Handle<FixedArray> Isolate::GetSimpleStackTrace(
   if (!IsErrorStackData(*lookup.error_stack)) {
     return factory()->empty_fixed_array();
   }
-  Handle<ErrorStackData> error_stack_data =
-      Handle<ErrorStackData>::cast(lookup.error_stack);
+  auto error_stack_data =
+      DirectHandle<ErrorStackData>::cast(lookup.error_stack);
   if (!error_stack_data->HasCallSiteInfos()) {
     return factory()->empty_fixed_array();
   }
@@ -1392,7 +1395,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
 
-  Handle<SharedFunctionInfo> shared = handle(frame->function()->shared(), this);
+  Handle<SharedFunctionInfo> shared(frame->function()->shared(), this);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
   int position = frame->position();
 
@@ -1433,7 +1436,7 @@ class StackFrameBuilder {
     if (index_ >= limit_) return false;
     // Skip frames that aren't subject to debugging.
     if (!summary.is_subject_to_debugging()) return true;
-    Handle<StackFrameInfo> frame = summary.CreateStackFrameInfo();
+    DirectHandle<StackFrameInfo> frame = summary.CreateStackFrameInfo();
     frames_ = FixedArray::SetAndGrow(isolate_, frames_, index_++, frame);
     return true;
   }
@@ -1476,12 +1479,11 @@ class CurrentScriptNameStackVisitor {
     if (!summary.is_subject_to_debugging()) return true;
 
     // Frames that are subject to debugging always have a valid script object.
-    Handle<Script> script = Handle<Script>::cast(summary.script());
-    Handle<Object> name_or_url_obj =
-        handle(script->GetNameOrSourceURL(), isolate_);
+    auto script = DirectHandle<Script>::cast(summary.script());
+    Handle<Object> name_or_url_obj(script->GetNameOrSourceURL(), isolate_);
     if (!IsString(*name_or_url_obj)) return true;
 
-    Handle<String> name_or_url = Handle<String>::cast(name_or_url_obj);
+    auto name_or_url = Handle<String>::cast(name_or_url_obj);
     if (!name_or_url->length()) return true;
 
     name_or_url_ = name_or_url;
@@ -1509,7 +1511,7 @@ bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   Handle<JSObject> error = isolate->error_function();
 
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
-  Handle<Object> stack_trace_limit =
+  DirectHandle<Object> stack_trace_limit =
       JSReceiver::GetDataProperty(isolate, error, key);
   if (!IsNumber(*stack_trace_limit)) return false;
 
@@ -1683,7 +1685,7 @@ Tagged<Object> Isolate::StackOverflow() {
   HandleScope scope(this);
 
   Handle<JSFunction> fun = range_error_function();
-  Handle<Object> msg = factory()->NewStringFromAsciiChecked(
+  DirectHandle<Object> msg = factory()->NewStringFromAsciiChecked(
       MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
   Handle<Object> options = factory()->undefined_value();
   Handle<Object> no_caller;
@@ -1781,7 +1783,7 @@ void Isolate::RequestInvalidateNoProfilingProtector() {
 
 namespace {
 
-void ReportBootstrappingException(Handle<Object> exception,
+void ReportBootstrappingException(DirectHandle<Object> exception,
                                   MessageLocation* location) {
   base::OS::PrintError("Exception thrown during bootstrapping\n");
   if (location == nullptr || location->script().is_null()) return;
@@ -1813,8 +1815,8 @@ void ReportBootstrappingException(Handle<Object> exception,
   // Since comments and empty lines have been stripped from the source of
   // builtins, print the actual source here so that line numbers match.
   if (IsString(location->script()->source())) {
-    Handle<String> src(String::cast(location->script()->source()),
-                       location->script()->GetIsolate());
+    DirectHandle<String> src(String::cast(location->script()->source()),
+                             location->script()->GetIsolate());
     PrintF("Failing script:");
     int len = src->length();
     if (len == 0) {
@@ -1886,7 +1888,7 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
     PrintF("Exception thrown:\n");
     if (location) {
       Handle<Script> script = location->script();
-      Handle<Object> name(script->GetNameOrSourceURL(), this);
+      DirectHandle<Object> name(script->GetNameOrSourceURL(), this);
       PrintF("at ");
       if (IsString(*name) && String::cast(*name)->length() > 0)
         String::cast(*name)->PrintOn(stdout);
@@ -1954,7 +1956,8 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
       // been properly initialized.
       ReportBootstrappingException(exception, location);
     } else {
-      Handle<Object> message_obj = CreateMessageOrAbort(exception, location);
+      DirectHandle<Object> message_obj =
+          CreateMessageOrAbort(exception, location);
       set_pending_message(*message_obj);
     }
   }
@@ -2464,7 +2467,7 @@ HandlerTable::CatchPrediction PredictExceptionFromBytecode(
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
                                                Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
-  Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
+  DirectHandle<AbstractCode> code = summary.AsJavaScript().abstract_code();
   if (code->kind(cage_base) == CodeKind::BUILTIN) {
     return CatchPredictionFor(code->GetCode()->builtin_id());
   }
@@ -2476,7 +2479,7 @@ HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
 }
 
 HandlerTable::CatchPrediction PredictExceptionFromGenerator(
-    Handle<JSGeneratorObject> generator, Isolate* isolate) {
+    DirectHandle<JSGeneratorObject> generator, Isolate* isolate) {
   return PredictExceptionFromBytecode(
       generator->function()->shared()->GetBytecodeArray(isolate),
       GetGeneratorBytecodeOffset(generator));
@@ -2573,7 +2576,7 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
 }
 
 void Isolate::PrintCurrentStackTrace(std::ostream& out) {
-  Handle<FixedArray> frames = CaptureSimpleStackTrace(
+  DirectHandle<FixedArray> frames = CaptureSimpleStackTrace(
       this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
@@ -2623,19 +2626,19 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
   if (!IsJSObject(*exception)) return false;
 
   Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
-  Handle<Object> start_pos = JSReceiver::GetDataProperty(
+  DirectHandle<Object> start_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), start_pos_symbol);
   if (!IsSmi(*start_pos)) return false;
   int start_pos_value = Smi::cast(*start_pos).value();
 
   Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
-  Handle<Object> end_pos = JSReceiver::GetDataProperty(
+  DirectHandle<Object> end_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), end_pos_symbol);
   if (!IsSmi(*end_pos)) return false;
   int end_pos_value = Smi::cast(*end_pos).value();
 
   Handle<Name> script_symbol = factory()->error_script_symbol();
-  Handle<Object> script = JSReceiver::GetDataProperty(
+  DirectHandle<Object> script = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), script_symbol);
   if (!IsScript(*script)) return false;
 
@@ -2649,7 +2652,7 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
   if (!IsJSReceiver(*exception)) {
     return false;
   }
-  Handle<FixedArray> call_site_infos =
+  DirectHandle<FixedArray> call_site_infos =
       GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
   for (int i = 0; i < call_site_infos->length(); ++i) {
     Handle<CallSiteInfo> call_site_info(
@@ -2671,8 +2674,8 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
     return false;
   }
 
-  Handle<StackFrameInfo> info(StackFrameInfo::cast(stack_frame_infos->get(0)),
-                              this);
+  DirectHandle<StackFrameInfo> info(
+      StackFrameInfo::cast(stack_frame_infos->get(0)), this);
   const int pos = StackFrameInfo::GetSourcePosition(info);
   *target = MessageLocation(handle(info->script(), this), pos, pos + 1);
   return true;
@@ -2812,7 +2815,8 @@ void Isolate::ReportPendingMessages(bool report) {
   // Actually report the pending message to all message handlers.
   if (!IsTheHole(message_obj, this) && should_report_exception) {
     HandleScope scope(this);
-    Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
+    DirectHandle<JSMessageObject> message(JSMessageObject::cast(message_obj),
+                                          this);
     Handle<Script> script(message->script(), this);
     // Clear the exception and restore it afterwards, otherwise
     // CollectSourcePositions will abort.
@@ -2837,7 +2841,7 @@ bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   //    has a dependency edge to the generated outer Promise.
   // Otherwise, this is a real reject handler for the Promise.
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
-  Handle<Object> forwarding_handler =
+  DirectHandle<Object> forwarding_handler =
       JSReceiver::GetDataProperty(isolate, handler, key);
   return !IsUndefined(*forwarding_handler, isolate);
 }
@@ -2853,9 +2857,9 @@ bool WalkPromiseTreeInternal(
 
   bool any_caught = false;
   bool any_uncaught = false;
-  Handle<Object> current(promise->reactions(), isolate);
+  DirectHandle<Object> current(promise->reactions(), isolate);
   while (!IsSmi(*current)) {
-    Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
+    auto reaction = DirectHandle<PromiseReaction>::cast(current);
     Handle<HeapObject> promise_or_capability(reaction->promise_or_capability(),
                                              isolate);
     if (!IsUndefined(*promise_or_capability, isolate)) {
@@ -2895,7 +2899,7 @@ bool WalkPromiseTreeInternal(
                                     Builtin::kPromiseThenFinally)) {
                 // If this is the finally handler, get the wrapped callback
                 // from the context to use instead
-                Handle<Context> context(
+                DirectHandle<Context> context(
                     JSFunction::cast(reaction->fulfill_handler())->context(),
                     isolate);
                 int const index =
@@ -2924,7 +2928,7 @@ bool WalkPromiseTreeInternal(
         any_uncaught = any_uncaught || !caught;
       }
     }
-    current = handle(reaction->next(), isolate);
+    current = direct_handle(reaction->next(), isolate);
   }
 
   bool caught = any_caught && !any_uncaught;
@@ -2951,11 +2955,11 @@ enum PromiseMethod { kThen, kCatch, kFinally, kInvalid };
 // Requires the iterator to be on a GetNamedProperty instruction
 PromiseMethod GetPromiseMethod(
     Isolate* isolate, const interpreter::BytecodeArrayIterator& iterator) {
-  Handle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
+  DirectHandle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
   if (!IsString(*object)) {
     return kInvalid;
   }
-  Handle<String> str = Handle<String>::cast(object);
+  auto str = DirectHandle<String>::cast(object);
   if (str->Equals(ReadOnlyRoots(isolate).then_string())) {
     return kThen;
   } else if (str->IsEqualTo(base::StaticCharVector("catch"))) {
@@ -3396,7 +3400,7 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmInliningEnabled(Handle<NativeContext> context) {
+bool Isolate::IsWasmInliningEnabled(DirectHandle<NativeContext> context) {
   // If Wasm GC is explicitly enabled via a callback, also enable inlining.
 #ifdef V8_ENABLE_WEBASSEMBLY
   return v8_flags.experimental_wasm_inlining;
@@ -4507,13 +4511,14 @@ void FinalizeBuiltinCodeObjects(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Handle<Code> old_code = isolate->builtins()->code_handle(builtin);
+    DirectHandle<Code> old_code = isolate->builtins()->code_handle(builtin);
     // Note that `old_code.instruction_start` might point to `old_code`'s
     // InstructionStream which might be GCed once we replace the old code
     // with the new code.
     Address instruction_start = d.InstructionStartOf(builtin);
-    Handle<Code> new_code = isolate->factory()->NewCodeObjectForEmbeddedBuiltin(
-        old_code, instruction_start);
+    DirectHandle<Code> new_code =
+        isolate->factory()->NewCodeObjectForEmbeddedBuiltin(old_code,
+                                                            instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
@@ -5534,7 +5539,7 @@ bool Isolate::use_optimizer() {
          CpuFeatures::SupportsOptimizer() && !is_precise_count_code_coverage();
 }
 
-void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
+void Isolate::IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code) {
   PtrComprCageBase cage_base(this);
   DCHECK(IsCode(*code, cage_base) || IsByteArray(*code, cage_base));
   total_regexp_code_generated_ += code->Size(cage_base);
@@ -5643,7 +5648,8 @@ bool Isolate::IsInAnyContext(Tagged<Object> object, uint32_t index) {
   return false;
 }
 
-void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
+void Isolate::UpdateNoElementsProtectorOnSetElement(
+    DirectHandle<JSObject> object) {
   DisallowGarbageCollection no_gc;
   if (!object->map()->is_prototype_map()) return;
   if (!Protectors::IsNoElementsIntact(this)) return;
@@ -5657,8 +5663,8 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   Protectors::InvalidateNoElements(this);
 }
 
-void Isolate::UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
-                                             Handle<Object> new_prototype) {
+void Isolate::UpdateProtectorsOnSetPrototype(
+    DirectHandle<JSObject> object, DirectHandle<Object> new_prototype) {
   UpdateNoElementsProtectorOnSetPrototype(object);
   UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
   UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
@@ -5666,7 +5672,7 @@ void Isolate::UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
 }
 
 void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
-    Handle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   // Setting the __proto__ of TypedArray constructor could change TypedArray's
   // @@species. So we need to invalidate the @@species protector.
   if (IsTypedArrayConstructor(*object) &&
@@ -5676,7 +5682,7 @@ void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
 }
 
 void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
-    Handle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   if (!Protectors::IsNumberStringNotRegexpLikeIntact(this)) {
     return;
   }
@@ -5694,7 +5700,7 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
 }
 
 void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-    Handle<JSObject> object, Handle<Object> new_prototype) {
+    DirectHandle<JSObject> object, DirectHandle<Object> new_prototype) {
   if (!Protectors::IsStringWrapperToPrimitiveIntact(this)) {
     return;
   }
@@ -5850,8 +5856,10 @@ void Isolate::WasmInitJSPIFeature() {
              stack->jslimit(), reinterpret_cast<void*>(stack->base()));
     }
     HandleScope scope(this);
-    Handle<WasmContinuationObject> continuation = WasmContinuationObject::New(
-        this, std::move(stack), wasm::JumpBuffer::Active, AllocationType::kOld);
+    DirectHandle<WasmContinuationObject> continuation =
+        WasmContinuationObject::New(this, std::move(stack),
+                                    wasm::JumpBuffer::Active,
+                                    AllocationType::kOld);
     heap()
         ->roots_table()
         .slot(RootIndex::kActiveContinuation)
@@ -5939,7 +5947,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     host_defined_options = factory()->empty_fixed_array();
     resource_name = factory()->null_value();
   } else {
-    Handle<Script> referrer = maybe_referrer.ToHandleChecked();
+    DirectHandle<Script> referrer = maybe_referrer.ToHandleChecked();
     host_defined_options = handle(referrer->host_defined_options(), this);
     resource_name = handle(referrer->name(), this);
   }
@@ -6008,7 +6016,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
       if (ComputeLocation(&computed_location)) {
         location = &computed_location;
       }
-      Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+      DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
           this, MessageTemplate::kImportAssertDeprecated, location,
           factory()->NewStringFromAsciiChecked("V8 v12.6 and Chrome 126"),
           Handle<FixedArray>::null());
@@ -6110,7 +6118,7 @@ void Isolate::SetHostCreateShadowRealmContextCallback(
 
 MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
   if (host_create_shadow_realm_context_callback_ == nullptr) {
-    Handle<Object> exception =
+    DirectHandle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     Throw(*exception);
     return kNullMaybeHandle;
@@ -6279,7 +6287,7 @@ void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
   }
 }
 
-void Isolate::OnPromiseThen(Handle<JSPromise> promise) {
+void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
   if (!HasAsyncEventDelegate()) return;
   Maybe<debug::DebugAsyncActionType> action_type =
       Nothing<debug::DebugAsyncActionType>();
@@ -6287,7 +6295,7 @@ void Isolate::OnPromiseThen(Handle<JSPromise> promise) {
     std::vector<Handle<SharedFunctionInfo>> infos;
     it.frame()->GetFunctions(&infos);
     for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
-      Handle<SharedFunctionInfo> info = *it;
+      DirectHandle<SharedFunctionInfo> info = *it;
       if (info->HasBuiltinId()) {
         // We should not report PromiseThen and PromiseCatch which is called
         // indirectly, e.g. Promise.all calls Promise.then internally.
@@ -6356,13 +6364,13 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   //
 
   // Reset the |current_microtask| global slot.
-  Handle<Microtask> current_microtask(
+  DirectHandle<Microtask> current_microtask(
       Microtask::cast(heap()->current_microtask()), this);
   heap()->set_current_microtask(ReadOnlyRoots(this).undefined_value());
 
   if (IsPromiseReactionJobTask(*current_microtask)) {
-    Handle<PromiseReactionJobTask> promise_reaction_job_task =
-        Handle<PromiseReactionJobTask>::cast(current_microtask);
+    auto promise_reaction_job_task =
+        DirectHandle<PromiseReactionJobTask>::cast(current_microtask);
     Handle<HeapObject> promise_or_capability(
         promise_reaction_job_task->promise_or_capability(), this);
     if (IsPromiseCapability(*promise_or_capability)) {
@@ -6374,8 +6382,8 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
       OnPromiseAfter(Handle<JSPromise>::cast(promise_or_capability));
     }
   } else if (IsPromiseResolveThenableJobTask(*current_microtask)) {
-    Handle<PromiseResolveThenableJobTask> promise_resolve_thenable_job_task =
-        Handle<PromiseResolveThenableJobTask>::cast(current_microtask);
+    auto promise_resolve_thenable_job_task =
+        DirectHandle<PromiseResolveThenableJobTask>::cast(current_microtask);
     Handle<JSPromise> promise_to_resolve(
         promise_resolve_thenable_job_task->promise_to_resolve(), this);
     OnPromiseAfter(promise_to_resolve);
@@ -6455,7 +6463,8 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
 
 void Isolate::CheckDetachedContextsAfterGC() {
   HandleScope scope(this);
-  Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
+  DirectHandle<WeakArrayList> detached_contexts =
+      factory()->detached_contexts();
   int length = detached_contexts->length();
   if (length == 0) return;
   int new_length = 0;
@@ -6597,7 +6606,8 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
 
 namespace {
 
-std::string GetStringFromLocales(Isolate* isolate, Handle<Object> locales) {
+std::string GetStringFromLocales(Isolate* isolate,
+                                 DirectHandle<Object> locales) {
   if (IsUndefined(*locales, isolate)) return "";
   return std::string(String::cast(*locales)->ToCString().get());
 }
@@ -6646,7 +6656,7 @@ icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
 }
 
 void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                                      Handle<Object> locales,
+                                      DirectHandle<Object> locales,
                                       std::shared_ptr<icu::UMemory> obj) {
   icu_object_cache_[static_cast<int>(cache_type)] = {
       GetStringFromLocales(this, locales), std::move(obj)};

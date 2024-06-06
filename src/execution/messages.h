@@ -102,7 +102,7 @@ class ErrorUtils : public AllStatic {
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.
   static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
                                               Handle<JSObject> error,
-                                              Handle<Object> stack_trace);
+                                              DirectHandle<Object> stack_trace);
 
   static Handle<JSObject> NewIteratorError(Isolate* isolate,
                                            Handle<Object> source);

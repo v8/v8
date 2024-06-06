@@ -45,9 +45,9 @@ MaybeHandle<JSPromise> PerformPromiseThen(
 }
 
 MaybeHandle<Context> SetAsyncUnlockHandlers(
-    Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+    Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
     Handle<JSPromise> waiting_for_callback_promise,
-    Handle<JSPromise> unlocked_promise) {
+    DirectHandle<JSPromise> unlocked_promise) {
   Handle<Context> handlers_context = isolate->factory()->NewBuiltinContext(
       isolate->native_context(), JSAtomicsMutex::kAsyncContextLength);
   handlers_context->set(JSAtomicsMutex::kMutexAsyncContextSlot, *mutex);
@@ -78,8 +78,9 @@ MaybeHandle<Context> SetAsyncUnlockHandlers(
   return handlers_context;
 }
 
-void AddPromiseToNativeContext(Isolate* isolate, Handle<JSPromise> promise) {
-  Handle<NativeContext> native_context(isolate->native_context());
+void AddPromiseToNativeContext(Isolate* isolate,
+                               DirectHandle<JSPromise> promise) {
+  DirectHandle<NativeContext> native_context(isolate->native_context());
   Handle<OrderedHashSet> promises(native_context->atomics_waitasync_promises(),
                                   isolate);
   promises = OrderedHashSet::Add(isolate, promises, promise).ToHandleChecked();
@@ -87,7 +88,7 @@ void AddPromiseToNativeContext(Isolate* isolate, Handle<JSPromise> promise) {
 }
 
 void RemovePromiseFromNativeContext(Isolate* isolate,
-                                    Handle<JSPromise> promise) {
+                                    DirectHandle<JSPromise> promise) {
   Handle<OrderedHashSet> promises(
       isolate->native_context()->atomics_waitasync_promises(), isolate);
   bool was_deleted = OrderedHashSet::Delete(isolate, *promises, *promise);
@@ -536,7 +537,8 @@ void JSAtomicsMutex::CleanupMatchingAsyncWaiters(Isolate* isolate,
     // other threads.
     return;
   }
-  Handle<JSAtomicsMutex> mutex = async_node->GetSynchronizationPrimitive();
+  DirectHandle<JSAtomicsMutex> mutex =
+      async_node->GetSynchronizationPrimitive();
   std::atomic<StateT>* state = mutex->AtomicStatePtr();
   StateT current_state = state->load(std::memory_order_relaxed);
 
@@ -588,7 +590,7 @@ bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
 }
 
 bool JSAtomicsMutex::BackoffTryLock(Isolate* requester,
-                                    Handle<JSAtomicsMutex> mutex,
+                                    DirectHandle<JSAtomicsMutex> mutex,
                                     std::atomic<StateT>* state) {
   // The backoff algorithm is copied from PartitionAlloc's SpinningMutex.
   constexpr int kSpinCount = 64;
@@ -611,7 +613,7 @@ bool JSAtomicsMutex::BackoffTryLock(Isolate* requester,
 }
 
 bool JSAtomicsMutex::MaybeEnqueueNode(Isolate* requester,
-                                      Handle<JSAtomicsMutex> mutex,
+                                      DirectHandle<JSAtomicsMutex> mutex,
                                       std::atomic<StateT>* state,
                                       WaiterQueueNode* this_waiter) {
   DCHECK_NOT_NULL(this_waiter);
@@ -726,7 +728,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
 
 // static
 bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
-                                  Handle<JSAtomicsMutex> mutex,
+                                  DirectHandle<JSAtomicsMutex> mutex,
                                   std::atomic<StateT>* state,
                                   std::optional<base::TimeDelta> timeout) {
   for (;;) {
@@ -843,7 +845,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   // Use a kGenericForeignTag because using a kWaiterQueueNodeTag will cause
   // the pointer to be stored in the shared external pointer table, which is not
   // necessary since this object is only visible in this thread.
-  Handle<Foreign> wrapper =
+  DirectHandle<Foreign> wrapper =
       requester->factory()->NewForeign<kGenericForeignTag>(
           reinterpret_cast<Address>(waiter_node));
   handlers_context->set(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot,
@@ -929,7 +931,7 @@ bool JSAtomicsMutex::LockAsyncSlowPath(
 
 // static
 bool JSAtomicsMutex::LockOrEnqueueAsyncNode(Isolate* isolate,
-                                            Handle<JSAtomicsMutex> mutex,
+                                            DirectHandle<JSAtomicsMutex> mutex,
                                             LockAsyncWaiterQueueNode* waiter) {
   std::atomic<StateT>* state = mutex->AtomicStatePtr();
   // Spin for a little bit to try to acquire the lock, so as to be fast under
@@ -942,7 +944,7 @@ bool JSAtomicsMutex::LockOrEnqueueAsyncNode(Isolate* isolate,
 }
 
 void JSAtomicsMutex::UnlockAsyncLockedMutex(
-    Isolate* requester, Handle<Foreign> async_locked_waiter_wrapper) {
+    Isolate* requester, DirectHandle<Foreign> async_locked_waiter_wrapper) {
   LockAsyncWaiterQueueNode* waiter_node =
       reinterpret_cast<LockAsyncWaiterQueueNode*>(
           async_locked_waiter_wrapper->foreign_address<kGenericForeignTag>(
@@ -952,7 +954,7 @@ void JSAtomicsMutex::UnlockAsyncLockedMutex(
 }
 
 bool JSAtomicsMutex::DequeueTimedOutAsyncWaiter(
-    Isolate* requester, Handle<JSAtomicsMutex> mutex,
+    Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
     std::atomic<StateT>* state, WaiterQueueNode* timed_out_waiter) {
   // First acquire the queue lock, which is itself a spinlock.
   StateT current_state = state->load(std::memory_order_relaxed);
@@ -1005,7 +1007,7 @@ void JSAtomicsMutex::HandleAsyncTimeout(LockAsyncWaiterQueueNode* waiter) {
   }
 
   v8::Context::Scope contextScope(waiter->GetNativeContext());
-  Handle<JSAtomicsMutex> js_mutex = waiter->GetSynchronizationPrimitive();
+  DirectHandle<JSAtomicsMutex> js_mutex = waiter->GetSynchronizationPrimitive();
 
   bool dequeued = JSAtomicsMutex::DequeueTimedOutAsyncWaiter(
       requester, js_mutex, js_mutex->AtomicStatePtr(), waiter);
@@ -1019,7 +1021,7 @@ void JSAtomicsMutex::HandleAsyncTimeout(LockAsyncWaiterQueueNode* waiter) {
     USE(abort_result);
   }
 
-  Handle<JSPromise> lock_promise = waiter->GetInternalWaitingPromise();
+  DirectHandle<JSPromise> lock_promise = waiter->GetInternalWaitingPromise();
   Handle<JSPromise> lock_async_promise = waiter->GetUnlockedPromise();
   Handle<JSObject> result = CreateResultObject(
       requester, requester->factory()->undefined_value(), false);
@@ -1039,7 +1041,8 @@ void JSAtomicsMutex::HandleAsyncNotify(LockAsyncWaiterQueueNode* waiter) {
     // it is possible that other threads are holding references to the
     // synchronization primitive. Try to notify the next waiter.
     if (!waiter->synchronization_primitive_.IsEmpty()) {
-      Handle<JSAtomicsMutex> js_mutex = waiter->GetSynchronizationPrimitive();
+      DirectHandle<JSAtomicsMutex> js_mutex =
+          waiter->GetSynchronizationPrimitive();
       std::atomic<StateT>* state = js_mutex->AtomicStatePtr();
       StateT current_state = state->load(std::memory_order_acquire);
       if (HasWaitersField::decode(current_state)) {
@@ -1066,7 +1069,7 @@ void JSAtomicsMutex::HandleAsyncNotify(LockAsyncWaiterQueueNode* waiter) {
   }
 
   v8::Context::Scope contextScope(waiter->GetNativeContext());
-  Handle<JSAtomicsMutex> js_mutex = waiter->GetSynchronizationPrimitive();
+  DirectHandle<JSAtomicsMutex> js_mutex = waiter->GetSynchronizationPrimitive();
   Handle<JSPromise> promise = waiter->GetInternalWaitingPromise();
   bool locked = LockOrEnqueueAsyncNode(requester, js_mutex, waiter);
   if (locked) {
@@ -1102,7 +1105,8 @@ void JSAtomicsCondition::CleanupMatchingAsyncWaiters(Isolate* isolate,
     // for it in the event loop. So it is safe to delete the it.
     return;
   }
-  Handle<JSAtomicsCondition> cv = async_node->GetSynchronizationPrimitive();
+  DirectHandle<JSAtomicsCondition> cv =
+      async_node->GetSynchronizationPrimitive();
   std::atomic<StateT>* state = cv->AtomicStatePtr();
   StateT current_state = state->load(std::memory_order_relaxed);
 
@@ -1120,7 +1124,7 @@ void JSAtomicsCondition::CleanupMatchingAsyncWaiters(Isolate* isolate,
 
 // static
 void JSAtomicsCondition::QueueWaiter(Isolate* requester,
-                                     Handle<JSAtomicsCondition> cv,
+                                     DirectHandle<JSAtomicsCondition> cv,
                                      WaiterQueueNode* waiter) {
   // The state pointer should not be used outside of this block as a shared GC
   // may reallocate it after waiting.
@@ -1144,7 +1148,7 @@ void JSAtomicsCondition::QueueWaiter(Isolate* requester,
 
 // static
 bool JSAtomicsCondition::WaitFor(Isolate* requester,
-                                 Handle<JSAtomicsCondition> cv,
+                                 DirectHandle<JSAtomicsCondition> cv,
                                  Handle<JSAtomicsMutex> mutex,
                                  std::optional<base::TimeDelta> timeout) {
   DisallowGarbageCollection no_gc;
@@ -1185,7 +1189,7 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
 
 // static
 uint32_t JSAtomicsCondition::DequeueExplicit(
-    Isolate* requester, Handle<JSAtomicsCondition> cv,
+    Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
     std::atomic<StateT>* state, const DequeueAction& action_under_lock) {
   // First acquire the queue lock, which is itself a spinlock.
   StateT current_state = state->load(std::memory_order_relaxed);
@@ -1218,7 +1222,7 @@ uint32_t JSAtomicsCondition::DequeueExplicit(
 
 // static
 uint32_t JSAtomicsCondition::Notify(Isolate* requester,
-                                    Handle<JSAtomicsCondition> cv,
+                                    DirectHandle<JSAtomicsCondition> cv,
                                     uint32_t count) {
   std::atomic<StateT>* state = cv->AtomicStatePtr();
 
@@ -1255,7 +1259,8 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
 // static
 MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
     Isolate* requester, Handle<JSAtomicsCondition> cv,
-    Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout) {
+    DirectHandle<JSAtomicsMutex> mutex,
+    std::optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_waiting_promise =
       requester->factory()->NewJSPromise();
   Handle<Context> handler_context = requester->factory()->NewBuiltinContext(
@@ -1308,7 +1313,7 @@ void JSAtomicsCondition::HandleAsyncTimeout(WaitAsyncWaiterQueueNode* waiter) {
     return;
   }
   HandleScope scope(requester);
-  Handle<JSAtomicsCondition> cv = waiter->GetSynchronizationPrimitive();
+  DirectHandle<JSAtomicsCondition> cv = waiter->GetSynchronizationPrimitive();
   std::atomic<StateT>* state = cv->AtomicStatePtr();
   uint32_t num_dequeued =
       DequeueExplicit(requester, cv, state, [&](WaiterQueueNode** waiter_head) {

@@ -81,8 +81,8 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
 }  // anonymous namespace
 
 // static
-Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
-                                             Handle<JSCollator> collator) {
+Handle<JSObject> JSCollator::ResolvedOptions(
+    Isolate* isolate, DirectHandle<JSCollator> collator) {
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
@@ -274,7 +274,7 @@ void SetCaseFirstOption(icu::Collator* icu_collator, CaseFirst case_first) {
 }  // anonymous namespace
 
 // static
-MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
+MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
                                         Handle<Object> locales,
                                         Handle<Object> options_obj,
                                         const char* service) {
@@ -537,13 +537,14 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
     DCHECK(U_SUCCESS(status));
   }
 
-  Handle<Managed<icu::Collator>> managed_collator =
+  DirectHandle<Managed<icu::Collator>> managed_collator =
       Managed<icu::Collator>::FromUniquePtr(isolate, 0,
                                             std::move(icu_collator));
 
   // We only need to do so if it is different from the collator would return.
-  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
-      (collator_locale != icu_locale) ? r.locale.c_str() : "");
+  DirectHandle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(
+          (collator_locale != icu_locale) ? r.locale.c_str() : "");
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSCollator> collator = Handle<JSCollator>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));

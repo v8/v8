@@ -69,13 +69,13 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // This could be a Smi kUninitializedValue or InstructionStream.
   V8_EXPORT_PRIVATE Tagged<Object> code(IsolateForSandbox isolate,
                                         bool is_latin1) const;
-  V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
+  V8_EXPORT_PRIVATE void set_code(bool is_unicode, DirectHandle<Code> code);
   // This could be a Smi kUninitializedValue or ByteArray.
   V8_EXPORT_PRIVATE Tagged<Object> bytecode(bool is_latin1) const;
   // Sets the bytecode as well as initializing trampoline slots to the
   // RegExpInterpreterTrampoline.
   void set_bytecode_and_trampoline(Isolate* isolate,
-                                   Handle<ByteArray> bytecode);
+                                   DirectHandle<ByteArray> bytecode);
   inline int max_register_count() const;
   // Number of captures (without the match itself).
   inline int capture_count() const;
@@ -315,7 +315,7 @@ class JSRegExpResultIndices
                                                   JSArray> {
  public:
   static Handle<JSRegExpResultIndices> BuildIndices(
-      Isolate* isolate, Handle<RegExpMatchInfo> match_info,
+      Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       Handle<Object> maybe_names);
 
   // Indices of in-object properties.

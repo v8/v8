@@ -875,7 +875,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
 // static
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 Handle<JSObject> JSNumberFormat::ResolvedOptions(
-    Isolate* isolate, Handle<JSNumberFormat> number_format) {
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format) {
   Factory* factory = isolate->factory();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -1039,9 +1039,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   // old code copy from NumberFormat::Unwrap that has no spec comment and
   // compiled but fail unit tests.
-  Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
-  Handle<JSFunction> constructor = Handle<JSFunction>(
+  DirectHandle<Context> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<JSFunction> constructor(
       JSFunction::cast(native_context->intl_number_format_function()), isolate);
   Handle<Object> object;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1063,7 +1063,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 
 // static
 MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
-                                                Handle<Map> map,
+                                                DirectHandle<Map> map,
                                                 Handle<Object> locales,
                                                 Handle<Object> options_obj,
                                                 const char* service) {
@@ -1128,8 +1128,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
   Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(icu_locale);
   MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSNumberFormat>());
-  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
-      maybe_locale_str.FromJust().c_str());
+  DirectHandle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(
+          maybe_locale_str.FromJust().c_str());
 
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
@@ -1457,7 +1458,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   //
   icu::number::LocalizedNumberFormatter fmt = settings.locale(icu_locale);
 
-  Handle<Managed<icu::number::LocalizedNumberFormatter>>
+  DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
           Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
               isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
@@ -1499,7 +1500,7 @@ icu::number::FormattedNumber FormatDecimalString(
 bool IntlMathematicalValue::IsNaN() const { return i::IsNaN(*value_); }
 
 MaybeHandle<String> IntlMathematicalValue::ToString(Isolate* isolate) const {
-  Handle<String> string;
+  DirectHandle<String> string;
   if (IsNumber(*value_)) {
     return isolate->factory()->NumberToString(value_);
   }
@@ -1519,7 +1520,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   // If it is BigInt, handle it differently.
   UErrorCode status = U_ZERO_ERROR;
   if (IsBigInt(*numeric_obj)) {
-    Handle<BigInt> big_int = Handle<BigInt>::cast(numeric_obj);
+    auto big_int = DirectHandle<BigInt>::cast(numeric_obj);
     Handle<String> big_int_string;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, big_int_string,
                                      BigInt::ToString(isolate, big_int),
@@ -1536,7 +1537,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
     if (IsString(*numeric_obj)) {
       // TODO(ftang) Correct the handling of string after the resolution of
       // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
-      Handle<String> string =
+      DirectHandle<String> string =
           String::Flatten(isolate, Handle<String>::cast(numeric_obj));
       DisallowGarbageCollection no_gc;
       const String::FlatContent& flat = string->GetFlatContent(no_gc);
@@ -1998,11 +1999,9 @@ namespace {
 template <typename T, MaybeHandle<T> (*F)(
                           Isolate*, const icu::FormattedValue&,
                           const icu::number::LocalizedNumberFormatter&, bool)>
-MaybeHandle<T> PartitionNumberRangePattern(Isolate* isolate,
-                                           Handle<JSNumberFormat> number_format,
-                                           Handle<Object> start,
-                                           Handle<Object> end,
-                                           const char* func_name) {
+MaybeHandle<T> PartitionNumberRangePattern(
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
+    Handle<Object> start, Handle<Object> end, const char* func_name) {
   Factory* factory = isolate->factory();
   // 4. Let x be ? ToIntlMathematicalValue(start).
   IntlMathematicalValue x;
@@ -2124,7 +2123,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
 }
 
 MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> value) {
   icu::number::LocalizedNumberFormatter* fmt =
       number_format->icu_number_formatter()->raw();
@@ -2147,7 +2146,7 @@ MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
 }
 
 MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> numeric_obj) {
   icu::number::LocalizedNumberFormatter* fmt =
       number_format->icu_number_formatter()->raw();
@@ -2169,7 +2168,7 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
 // #sec-number-format-functions
 
 MaybeHandle<String> JSNumberFormat::FormatNumericRange(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
   return PartitionNumberRangePattern<String, FormatToString>(
       isolate, number_format, x_obj, y_obj,
@@ -2177,7 +2176,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumericRange(
 }
 
 MaybeHandle<JSArray> JSNumberFormat::FormatNumericRangeToParts(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
   return PartitionNumberRangePattern<JSArray, FormatRangeToJSArray>(
       isolate, number_format, x_obj, y_obj,

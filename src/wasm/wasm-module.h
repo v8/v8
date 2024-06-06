@@ -939,11 +939,14 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size);
-Handle<JSArray> GetImports(Isolate* isolate, Handle<WasmModuleObject> module);
-Handle<JSArray> GetExports(Isolate* isolate, Handle<WasmModuleObject> module);
+Handle<JSArray> GetImports(Isolate* isolate,
+                           DirectHandle<WasmModuleObject> module);
+Handle<JSArray> GetExports(Isolate* isolate,
+                           DirectHandle<WasmModuleObject> module);
 Handle<JSArray> GetCustomSections(Isolate* isolate,
-                                  Handle<WasmModuleObject> module,
-                                  Handle<String> name, ErrorThrower* thrower);
+                                  DirectHandle<WasmModuleObject> module,
+                                  DirectHandle<String> name,
+                                  ErrorThrower* thrower);
 
 // Get the source position from a given function index and byte offset,
 // for either asm.js or pure Wasm modules.

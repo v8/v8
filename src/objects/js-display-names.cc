@@ -402,7 +402,7 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 
 // ecma402 #sec-Intl.DisplayNames
 MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
-                                                Handle<Map> map,
+                                                DirectHandle<Map> map,
                                                 Handle<Object> locales,
                                                 Handle<Object> input_options) {
   const char* service = "Intl.DisplayNames";
@@ -533,7 +533,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  Handle<Managed<DisplayNamesInternal>> managed_internal =
+  DirectHandle<Managed<DisplayNamesInternal>> managed_internal =
       Managed<DisplayNamesInternal>::FromRawPtr(isolate, 0, internal);
 
   Handle<JSDisplayNames> display_names =
@@ -552,7 +552,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
 // ecma402 #sec-Intl.DisplayNames.prototype.resolvedOptions
 Handle<JSObject> JSDisplayNames::ResolvedOptions(
-    Isolate* isolate, Handle<JSDisplayNames> display_names) {
+    Isolate* isolate, DirectHandle<JSDisplayNames> display_names) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
@@ -601,9 +601,9 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 }
 
 // ecma402 #sec-Intl.DisplayNames.prototype.of
-MaybeHandle<Object> JSDisplayNames::Of(Isolate* isolate,
-                                       Handle<JSDisplayNames> display_names,
-                                       Handle<Object> code_obj) {
+MaybeHandle<Object> JSDisplayNames::Of(
+    Isolate* isolate, DirectHandle<JSDisplayNames> display_names,
+    Handle<Object> code_obj) {
   Handle<String> code;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
                              Object::ToString(isolate, code_obj));

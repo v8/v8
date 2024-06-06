@@ -45,7 +45,7 @@ V8_WARN_UNUSED_RESULT Handle<FieldType> GeneralizeFieldType(
 }
 
 void PrintGeneralization(
-    Isolate* isolate, Handle<Map> map, FILE* file, const char* reason,
+    Isolate* isolate, DirectHandle<Map> map, FILE* file, const char* reason,
     InternalIndex modify_index, int split, int descriptors,
     bool descriptor_to_field, Representation old_representation,
     Representation new_representation, PropertyConstness old_constness,
@@ -163,7 +163,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
 }
 
 Handle<FieldType> MapUpdater::GetOrComputeFieldType(
-    Handle<DescriptorArray> descriptors, InternalIndex descriptor,
+    DirectHandle<DescriptorArray> descriptors, InternalIndex descriptor,
     PropertyLocation location, Representation representation) {
   // |location| is just a pre-fetched GetDetails(descriptor).location().
   DCHECK_EQ(descriptors->GetDetails(descriptor).location(), location);
@@ -431,7 +431,8 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   return result;
 }
 
-void MapUpdater::GeneralizeField(Handle<Map> map, InternalIndex modify_index,
+void MapUpdater::GeneralizeField(DirectHandle<Map> map,
+                                 InternalIndex modify_index,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  Handle<FieldType> new_field_type) {
@@ -702,7 +703,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
         isolate_, target_map_, GetKey(i), old_details.kind(),
         old_details.attributes());
     if (!maybe_tmp_map.ToHandle(&tmp_map)) break;
-    Handle<DescriptorArray> tmp_descriptors(
+    DirectHandle<DescriptorArray> tmp_descriptors(
         tmp_map->instance_descriptors(isolate_), isolate_);
 
     // Check if target map is incompatible.
@@ -799,7 +800,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
         isolate_, target_map_, GetKey(i), old_details.kind(),
         old_details.attributes());
     if (!maybe_tmp_map.ToHandle(&tmp_map)) break;
-    Handle<DescriptorArray> tmp_descriptors(
+    DirectHandle<DescriptorArray> tmp_descriptors(
         tmp_map->instance_descriptors(isolate_), isolate_);
 #ifdef DEBUG
     // Check that target map is compatible.
@@ -823,7 +824,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
 Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   InstanceType instance_type = old_map_->instance_type();
   int target_nof = target_map_->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> target_descriptors(
+  DirectHandle<DescriptorArray> target_descriptors(
       target_map_->instance_descriptors(isolate_), isolate_);
 
   // Allocate a new descriptor array large enough to hold the required
@@ -995,7 +996,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   return new_descriptors;
 }
 
-Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
+Handle<Map> MapUpdater::FindSplitMap(
+    DirectHandle<DescriptorArray> descriptors) {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Tagged<Map> current = *root_map_;
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof_)) {
@@ -1033,10 +1035,10 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
 
 MapUpdater::State MapUpdater::ConstructNewMap() {
 #ifdef DEBUG
-  Handle<EnumCache> old_enum_cache =
-      handle(old_map_->instance_descriptors()->enum_cache(), isolate_);
+  DirectHandle<EnumCache> old_enum_cache(
+      old_map_->instance_descriptors()->enum_cache(), isolate_);
 #endif
-  Handle<DescriptorArray> new_descriptors = BuildDescriptorArray();
+  DirectHandle<DescriptorArray> new_descriptors = BuildDescriptorArray();
 
   Handle<Map> split_map = FindSplitMap(new_descriptors);
   int split_nof = split_map->NumberOfOwnDescriptors();
@@ -1158,7 +1160,7 @@ MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
 
 namespace {
 
-void PrintReconfiguration(Isolate* isolate, Handle<Map> map, FILE* file,
+void PrintReconfiguration(Isolate* isolate, DirectHandle<Map> map, FILE* file,
                           InternalIndex modify_index, PropertyKind kind,
                           PropertyAttributes attributes) {
   OFStream os(file);
@@ -1204,7 +1206,7 @@ Handle<Map> MapUpdater::ReconfigureExistingProperty(
 }
 
 // static
-void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
+void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
                                  InternalIndex descriptor, Handle<Name> name,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
@@ -1295,7 +1297,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 
 // TODO(jgruber): Lock the map-updater mutex.
 // static
-void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
+void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
                                  InternalIndex modify_index,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
@@ -1303,8 +1305,8 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   DCHECK(!map->is_deprecated());
 
   // Check if we actually need to generalize the field type at all.
-  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(isolate),
-                                          isolate);
+  DirectHandle<DescriptorArray> old_descriptors(
+      map->instance_descriptors(isolate), isolate);
   PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
   PropertyConstness old_constness = old_details.constness();
   Representation old_representation = old_details.representation();
@@ -1328,8 +1330,9 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   }
 
   // Determine the field owner.
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, modify_index), isolate);
-  Handle<DescriptorArray> descriptors(
+  DirectHandle<Map> field_owner(map->FindFieldOwner(isolate, modify_index),
+                                isolate);
+  DirectHandle<DescriptorArray> descriptors(
       field_owner->instance_descriptors(isolate), isolate);
   DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
 

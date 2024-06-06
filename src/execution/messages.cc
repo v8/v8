@@ -216,10 +216,11 @@ namespace {
 // Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
 // a JSArray of JSCallSite objects.
 MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
-                                    Handle<FixedArray> frames) {
+                                    DirectHandle<FixedArray> frames) {
   int frame_count = frames->length();
   Handle<JSFunction> constructor = isolate->callsite_function();
-  Handle<FixedArray> sites = isolate->factory()->NewFixedArray(frame_count);
+  DirectHandle<FixedArray> sites =
+      isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
     Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), isolate);
     Handle<JSObject> site;
@@ -295,14 +296,13 @@ class V8_NODISCARD PrepareStackTraceScope {
 }  // namespace
 
 // static
-MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
-                                                 Handle<JSObject> error,
-                                                 Handle<Object> raw_stack) {
+MaybeHandle<Object> ErrorUtils::FormatStackTrace(
+    Isolate* isolate, Handle<JSObject> error, DirectHandle<Object> raw_stack) {
   if (v8_flags.correctness_fuzzer_suppressions) {
     return isolate->factory()->empty_string();
   }
   DCHECK(IsFixedArray(*raw_stack));
-  Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
+  auto elems = DirectHandle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
   const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
@@ -1083,8 +1083,8 @@ MaybeHandle<Object> ErrorUtils::GetFormattedStack(
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 
   if (IsErrorStackData(*lookup.error_stack)) {
-    Handle<ErrorStackData> error_stack_data =
-        Handle<ErrorStackData>::cast(lookup.error_stack);
+    auto error_stack_data =
+        DirectHandle<ErrorStackData>::cast(lookup.error_stack);
     if (error_stack_data->HasFormattedStack()) {
       return handle(error_stack_data->formatted_stack(), isolate);
     }
@@ -1133,8 +1133,8 @@ void ErrorUtils::SetFormattedStack(Isolate* isolate,
   if (!lookup.error_stack_symbol_holder.ToHandle(&error_object)) return;
 
   if (IsErrorStackData(*lookup.error_stack)) {
-    Handle<ErrorStackData> error_stack_data =
-        Handle<ErrorStackData>::cast(lookup.error_stack);
+    auto error_stack_data =
+        DirectHandle<ErrorStackData>::cast(lookup.error_stack);
     ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
     error_stack_data->set_formatted_stack(*formatted_stack);
   } else {

@@ -170,7 +170,7 @@ void WasmGlobalObject::SetF64(double value) {
   base::WriteUnalignedValue(address(), value);
 }
 
-void WasmGlobalObject::SetRef(Handle<Object> value) {
+void WasmGlobalObject::SetRef(DirectHandle<Object> value) {
   DCHECK(type().is_object_reference());
   tagged_buffer()->set(offset(), *value);
 }
@@ -313,7 +313,8 @@ const wasm::WasmModule* WasmInstanceObject::module() const {
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    Isolate* isolate, Handle<WasmInstanceObject> instance_object, int index)
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object,
+    int index)
     : ImportedFunctionEntry(
           handle(instance_object->trusted_data(isolate), isolate), index) {}
 
@@ -460,7 +461,8 @@ bool WasmMemoryObject::is_memory64() const {
 }
 
 // static
-Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
+Handle<Object> WasmObject::ReadValueAt(Isolate* isolate,
+                                       DirectHandle<HeapObject> obj,
                                        wasm::ValueType type, uint32_t offset) {
   Address field_address = obj->GetFieldAddress(offset);
   switch (type.kind()) {
@@ -507,7 +509,6 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
       UNREACHABLE();
   }
 }
-
 
 // Conversions from Numeric objects.
 // static
@@ -621,7 +622,8 @@ ObjectSlot WasmArray::ElementSlot(uint32_t index) {
 }
 
 // static
-Handle<Object> WasmArray::GetElement(Isolate* isolate, Handle<WasmArray> array,
+Handle<Object> WasmArray::GetElement(Isolate* isolate,
+                                     DirectHandle<WasmArray> array,
                                      uint32_t index) {
   if (index >= array->length()) {
     return isolate->factory()->undefined_value();

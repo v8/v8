@@ -116,7 +116,7 @@ inline constexpr uint8_t ToLatin1Upper(uint8_t ch) {
 inline constexpr uint8_t ToLatin1Upper(uint16_t ch) = delete;
 
 bool ToUpperFastASCII(base::Vector<const uint16_t> src,
-                      Handle<SeqOneByteString> result) {
+                      DirectHandle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
   int32_t index = 0;
@@ -158,7 +158,7 @@ bool ToUpperOneByte(base::Vector<const Char> src, uint8_t* dest,
 
 template <typename Char>
 void ToUpperWithSharpS(base::Vector<const Char> src,
-                       Handle<SeqOneByteString> result) {
+                       DirectHandle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
     uint8_t ch = AsOneByte(*it);
@@ -211,7 +211,8 @@ MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
 const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
-                                            Handle<String> string, int offset) {
+                                            DirectHandle<String> string,
+                                            int offset) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
   std::unique_ptr<base::uc16[]> sap;
@@ -238,7 +239,7 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
 
 namespace {
 
-icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
+icu::StringPiece ToICUStringPiece(Isolate* isolate, DirectHandle<String> string,
                                   int offset = 0) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
@@ -256,7 +257,7 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
   return icu::StringPiece(char_buffer + offset, length - offset);
 }
 
-MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
+MaybeHandle<String> LocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
                                       bool is_to_upper, const char* lang) {
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
   int32_t src_length = s->length();
@@ -379,7 +380,7 @@ MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate, Handle<String> s) {
     if (is_lower_ascii) return s;
   }
 
-  Handle<SeqOneByteString> result =
+  DirectHandle<SeqOneByteString> result =
       isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
   return Handle<String>(Intl::ConvertOneByteToLower(*s, *result), isolate);
@@ -934,7 +935,8 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
 // static
 template <class IsolateT>
 Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
-    IsolateT* isolate, Handle<Object> locales, Handle<Object> options) {
+    IsolateT* isolate, DirectHandle<Object> locales,
+    DirectHandle<Object> options) {
   if (!IsUndefined(*options, isolate)) {
     return CompareStringsOptions::kNone;
   }
@@ -966,7 +968,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
 
   if (!IsString(*locales)) return CompareStringsOptions::kNone;
 
-  Handle<String> locales_string = Handle<String>::cast(locales);
+  auto locales_string = DirectHandle<String>::cast(locales);
   for (const char* fast_locale : kFastLocales) {
     if (locales_string->IsEqualTo(base::CStrVector(fast_locale), isolate)) {
       return CompareStringsOptions::kTryFastPath;
@@ -978,9 +980,9 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
 
 // Instantiations.
 template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
-    Isolate*, Handle<Object>, Handle<Object>);
+    Isolate*, DirectHandle<Object>, DirectHandle<Object>);
 template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
-    LocalIsolate*, Handle<Object>, Handle<Object>);
+    LocalIsolate*, DirectHandle<Object>, DirectHandle<Object>);
 
 base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
@@ -1352,8 +1354,9 @@ bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
 //   return UCOL_EQUAL;
 // }
 base::Optional<UCollationResult> TryFastCompareStrings(
-    Isolate* isolate, const icu::Collator& icu_collator, Handle<String> string1,
-    Handle<String> string2, int* processed_until_out) {
+    Isolate* isolate, const icu::Collator& icu_collator,
+    DirectHandle<String> string1, DirectHandle<String> string2,
+    int* processed_until_out) {
   // TODO(jgruber): We could avoid the flattening (done by the caller) as well
   // by implementing comparison through string iteration. This has visible
   // performance benefits (e.g. 7% on CDJS) but complicates the code. Consider
@@ -2166,11 +2169,11 @@ MaybeHandle<JSArray> AvailableCollations(Isolate* isolate) {
 MaybeHandle<JSArray> VectorToJSArray(Isolate* isolate,
                                      const std::vector<std::string>& array) {
   Factory* factory = isolate->factory();
-  Handle<FixedArray> fixed_array =
+  DirectHandle<FixedArray> fixed_array =
       factory->NewFixedArray(static_cast<int32_t>(array.size()));
   int32_t index = 0;
   for (const std::string& item : array) {
-    Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
@@ -2267,11 +2270,11 @@ MaybeHandle<JSArray> AvailableTimeZones(Isolate* isolate) {
 MaybeHandle<JSArray> AvailableUnits(Isolate* isolate) {
   Factory* factory = isolate->factory();
   std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
-  Handle<FixedArray> fixed_array =
+  DirectHandle<FixedArray> fixed_array =
       factory->NewFixedArray(static_cast<int32_t>(sanctioned.size()));
   int32_t index = 0;
   for (const std::string& item : sanctioned) {
-    Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
@@ -2926,8 +2929,8 @@ bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
 }
 }  // namespace
 
-MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
-                                                   Handle<String> identifier) {
+MaybeHandle<String> Intl::CanonicalizeTimeZoneName(
+    Isolate* isolate, DirectHandle<String> identifier) {
   UErrorCode status = U_ZERO_ERROR;
   std::string time_zone =
       JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
@@ -2940,7 +2943,7 @@ MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
   return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical);
 }
 
-bool Intl::IsValidTimeZoneName(Isolate* isolate, Handle<String> id) {
+bool Intl::IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> id) {
   std::string time_zone =
       JSDateTimeFormat::CanonicalizeTimeZoneID(id->ToCString().get());
   icu::UnicodeString time_zone_ustring =
@@ -2975,7 +2978,8 @@ std::string Intl::TimeZoneIdFromIndex(int32_t index) {
   return id;
 }
 
-int32_t Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier) {
+int32_t Intl::GetTimeZoneIndex(Isolate* isolate,
+                               DirectHandle<String> identifier) {
   if (identifier->Equals(*isolate->factory()->UTC_string())) {
     return 0;
   }
@@ -3079,11 +3083,11 @@ enum class Direction { kPast, kFuture };
 int64_t ApproximateMillisecondEpoch(Isolate* isolate,
                                     Handle<BigInt> nanosecond_epoch,
                                     Direction direction = Direction::kPast) {
-  Handle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
+  DirectHandle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
   int64_t ms = BigInt::Divide(isolate, nanosecond_epoch, one_million)
                    .ToHandleChecked()
                    ->AsInt64();
-  Handle<BigInt> remainder =
+  DirectHandle<BigInt> remainder =
       BigInt::Remainder(isolate, nanosecond_epoch, one_million)
           .ToHandleChecked();
   // If the nanosecond_epoch is not on the exact millisecond

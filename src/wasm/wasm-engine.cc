@@ -625,7 +625,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
     Handle<Script> script,
     base::Vector<const uint8_t> asm_js_offset_table_bytes,
-    Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
+    DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",
                compilation_id);
@@ -677,8 +677,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 }
 
 Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
-    Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
-    Handle<Script> script) {
+    Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
+    DirectHandle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
       asm_wasm_data->managed_native_module()->get();
   Handle<WasmModuleObject> module_object =
@@ -1029,7 +1029,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   size_t memory_estimate =
       code_size_estimate +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-  Handle<Managed<wasm::NativeModule>> managed_native_module =
+  DirectHandle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
 
@@ -1147,10 +1147,11 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
+    base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
-  Handle<NativeContext> incumbent_context = isolate->GetIncumbentContext();
+  DirectHandle<NativeContext> incumbent_context =
+      isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, enabled, compile_imports, std::move(bytes), context,
       incumbent_context, api_method_name, std::move(resolver), compilation_id);

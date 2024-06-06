@@ -196,7 +196,7 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 
 }  // namespace
 MaybeHandle<JSDurationFormat> JSDurationFormat::New(
-    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
     Handle<Object> input_options) {
   Factory* factory = isolate->factory();
   const char* method_name = "Intl.DurationFormat";
@@ -286,7 +286,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
 
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
-  Handle<Managed<icu::Locale>> managed_locale =
+  DirectHandle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
   // 16. Let prevStyle be the empty String.
   FieldStyle prev_style = FieldStyle::kUndefined;
@@ -362,7 +362,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
         numbering_system.c_str(), status));
     DCHECK(U_SUCCESS(status));
   }
-  Handle<Managed<icu::number::LocalizedNumberFormatter>>
+  DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
           Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
               isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
@@ -450,7 +450,7 @@ Handle<String> DisplayToString(Isolate* isolate,
 }  // namespace
 
 Handle<JSObject> JSDurationFormat::ResolvedOptions(
-    Isolate* isolate, Handle<JSDurationFormat> format) {
+    Isolate* isolate, DirectHandle<JSDurationFormat> format) {
   Factory* factory = isolate->factory();
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
@@ -627,7 +627,7 @@ void Output5Styles(const char* type, double value,
 }
 
 void DurationRecordToListOfFormattedNumber(
-    Handle<JSDurationFormat> df,
+    DirectHandle<JSDurationFormat> df,
     const icu::number::LocalizedNumberFormatter& fmt,
     const DurationRecord& record, std::vector<std::vector<Part>>* parts,
     std::vector<icu::UnicodeString>* strings) {
@@ -745,7 +745,7 @@ template <typename T, bool Details,
                                    const std::vector<std::vector<Part>>*,
                                    JSDurationFormat::Separator separator)>
 MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
-                                              Handle<JSDurationFormat> df,
+                                              DirectHandle<JSDurationFormat> df,
                                               const DurationRecord& record,
                                               const char* method_name) {
   // 4. Let lfOpts be ! OrdinaryObjectCreate(null).

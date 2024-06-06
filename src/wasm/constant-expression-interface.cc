@@ -136,7 +136,7 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
   if (!generate_value()) return;
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       global.shared ? shared_trusted_instance_data_ : trusted_instance_data_;
   result->runtime_value =
       global.type.is_numeric()
@@ -153,10 +153,10 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                             const StructIndexImmediate& imm,
                                             const Value args[], Value* result) {
   if (!generate_value()) return;
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  Handle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
-                  isolate_};
+  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+                        isolate_};
   WasmValue* field_values =
       decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
   for (size_t i = 0; i < imm.struct_type->field_count(); i++) {
@@ -222,10 +222,10 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
 void ConstantExpressionInterface::StructNewDefault(
     FullDecoder* decoder, const StructIndexImmediate& imm, Value* result) {
   if (!generate_value()) return;
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  Handle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
-                  isolate_};
+  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+                        isolate_};
   WasmValue* field_values =
       decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
   for (uint32_t i = 0; i < imm.struct_type->field_count(); i++) {
@@ -242,10 +242,10 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                            const Value& initial_value,
                                            Value* result) {
   if (!generate_value()) return;
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  Handle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
-                  isolate_};
+  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+                        isolate_};
   if (length.runtime_value.to_u32() >
       static_cast<uint32_t>(WasmArray::MaxLength(imm.array_type))) {
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
@@ -272,10 +272,10 @@ void ConstantExpressionInterface::ArrayNewFixed(
     FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
     const IndexImmediate& length_imm, const Value elements[], Value* result) {
   if (!generate_value()) return;
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(array_imm.index);
-  Handle<Map> rtt = handle(
-      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_);
+  DirectHandle<Map> rtt{
+      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_};
   base::Vector<WasmValue> element_values =
       decoder->zone_->AllocateVector<WasmValue>(length_imm.index);
   for (size_t i = 0; i < length_imm.index; i++) {
@@ -296,11 +296,11 @@ void ConstantExpressionInterface::ArrayNewSegment(
     const Value& length_value, Value* result) {
   if (!generate_value()) return;
 
-  Handle<WasmTrustedInstanceData> data =
+  DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(array_imm.index);
 
-  Handle<Map> rtt = handle(
-      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_);
+  DirectHandle<Map> rtt{
+      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_};
 
   uint32_t length = length_value.runtime_value.to_u32();
   uint32_t offset = offset_value.runtime_value.to_u32();

@@ -57,7 +57,8 @@ UListFormatterType GetIcuType(JSListFormat::Type type) {
 
 }  // namespace
 
-MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
+MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate,
+                                            DirectHandle<Map> map,
                                             Handle<Object> locales,
                                             Handle<Object> input_options) {
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -94,7 +95,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
-  Handle<String> locale_str =
+  DirectHandle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 
   // 12. Let t be GetOption(options, "type", "string", «"conjunction",
@@ -122,7 +123,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
-  Handle<Managed<icu::ListFormatter>> managed_formatter =
+  DirectHandle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
   // Now all properties are ready, so we can allocate the result object.
@@ -145,8 +146,8 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
 }
 
 // ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
-Handle<JSObject> JSListFormat::ResolvedOptions(Isolate* isolate,
-                                               Handle<JSListFormat> format) {
+Handle<JSObject> JSListFormat::ResolvedOptions(
+    Isolate* isolate, DirectHandle<JSListFormat> format) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
@@ -196,7 +197,7 @@ namespace {
 
 // Extract String from FixedArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
-    Isolate* isolate, Handle<FixedArray> array) {
+    Isolate* isolate, DirectHandle<FixedArray> array) {
   int length = array->length();
   std::vector<icu::UnicodeString> result;
   for (int i = 0; i < length; i++) {
@@ -211,7 +212,8 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
 
 template <typename T>
 MaybeHandle<T> FormatListCommon(
-    Isolate* isolate, Handle<JSListFormat> format, Handle<FixedArray> list,
+    Isolate* isolate, DirectHandle<JSListFormat> format,
+    DirectHandle<FixedArray> list,
     const std::function<MaybeHandle<T>(Isolate*, const icu::FormattedValue&)>&
         formatToResult) {
   DCHECK(!IsUndefined(*list));
@@ -272,15 +274,16 @@ MaybeHandle<JSArray> FormattedListToJSArray(
 
 // ecma402 #sec-formatlist
 MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
-                                             Handle<JSListFormat> format,
-                                             Handle<FixedArray> list) {
+                                             DirectHandle<JSListFormat> format,
+                                             DirectHandle<FixedArray> list) {
   return FormatListCommon<String>(isolate, format, list,
                                   Intl::FormattedToString);
 }
 
 // ecma42 #sec-formatlisttoparts
 MaybeHandle<JSArray> JSListFormat::FormatListToParts(
-    Isolate* isolate, Handle<JSListFormat> format, Handle<FixedArray> list) {
+    Isolate* isolate, DirectHandle<JSListFormat> format,
+    DirectHandle<FixedArray> list) {
   return FormatListCommon<JSArray>(isolate, format, list,
                                    FormattedListToJSArray);
 }

@@ -39,14 +39,16 @@ class JSDisposableStack
   DECL_PRIMITIVE_ACCESSORS(state, DisposableStackState)
   DECL_INT_ACCESSORS(length)
 
-  static void Initialize(Isolate* isolate, Handle<JSDisposableStack> stack);
-  static void Add(Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
-                  Handle<Object> value, Handle<Object> method,
+  static void Initialize(Isolate* isolate,
+                         DirectHandle<JSDisposableStack> stack);
+  static void Add(Isolate* isolate,
+                  DirectHandle<JSDisposableStack> disposable_stack,
+                  DirectHandle<Object> value, DirectHandle<Object> method,
                   DisposeMethodCallType type);
   static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
       Isolate* isolate, Handle<Object> value);
   static Maybe<bool> DisposeResources(
-      Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
+      Isolate* isolate, DirectHandle<JSDisposableStack> disposable_stack,
       MaybeHandle<Object> maybe_error);
 
   TQ_OBJECT_CONSTRUCTORS(JSDisposableStack)

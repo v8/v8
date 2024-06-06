@@ -116,7 +116,7 @@ class BreakLocation {
         generator_suspend_id_(-1) {}
 
   static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
-                                      Handle<AbstractCode> abstract_code,
+                                      DirectHandle<AbstractCode> abstract_code,
                                       int offset);
 
   void SetDebugBreak();
@@ -268,7 +268,7 @@ class V8_EXPORT_PRIVATE Debug {
 
   // The break target may not be the top-most frame, since we may be
   // breaking before entering a function that cannot contain break points.
-  void Break(JavaScriptFrame* frame, Handle<JSFunction> break_target);
+  void Break(JavaScriptFrame* frame, DirectHandle<JSFunction> break_target);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
@@ -284,23 +284,25 @@ class V8_EXPORT_PRIVATE Debug {
   // Break point handling.
   enum BreakPointKind { kRegular, kInstrumentation };
   bool SetBreakpoint(Handle<SharedFunctionInfo> shared,
-                     Handle<BreakPoint> break_point, int* source_position);
-  void ClearBreakPoint(Handle<BreakPoint> break_point);
+                     DirectHandle<BreakPoint> break_point,
+                     int* source_position);
+  void ClearBreakPoint(DirectHandle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
   void SetTerminateOnResume();
 
-  bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
+  bool SetBreakPointForScript(Handle<Script> script,
+                              DirectHandle<String> condition,
                               int* source_position, int* id);
   bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
-                                Handle<String> condition, int* id,
+                                DirectHandle<String> condition, int* id,
                                 BreakPointKind kind = kRegular);
   void RemoveBreakpoint(int id);
 #if V8_ENABLE_WEBASSEMBLY
   void SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
                                                  int* id);
-  void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
+  void RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -309,13 +311,13 @@ class V8_EXPORT_PRIVATE Debug {
   // whether they are hit. Return an empty handle if not, or a FixedArray with
   // hit BreakPoint objects. has_break_points is set to true if position has
   // any non-instrumentation breakpoint.
-  MaybeHandle<FixedArray> GetHitBreakPoints(Handle<DebugInfo> debug_info,
+  MaybeHandle<FixedArray> GetHitBreakPoints(DirectHandle<DebugInfo> debug_info,
                                             int position,
                                             bool* has_break_points);
 
   // Stepping handling.
   void PrepareStep(StepAction step_action);
-  void PrepareStepIn(Handle<JSFunction> function);
+  void PrepareStepIn(DirectHandle<JSFunction> function);
   void PrepareStepInSuspendedGenerator();
   void PrepareStepOnThrow();
   void ClearStepping();
@@ -327,26 +329,28 @@ class V8_EXPORT_PRIVATE Debug {
   void DiscardBaselineCode(Tagged<SharedFunctionInfo> shared);
   void DiscardAllBaselineCode();
 
-  void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
-  void PrepareFunctionForDebugExecution(Handle<SharedFunctionInfo> shared);
+  void DeoptimizeFunction(DirectHandle<SharedFunctionInfo> shared);
+  void PrepareFunctionForDebugExecution(
+      DirectHandle<SharedFunctionInfo> shared);
   void InstallDebugBreakTrampoline();
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
 
-  bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
+  bool IsBlackboxed(DirectHandle<SharedFunctionInfo> shared);
   bool ShouldBeSkipped();
 
-  bool CanBreakAtEntry(Handle<SharedFunctionInfo> shared);
+  bool CanBreakAtEntry(DirectHandle<SharedFunctionInfo> shared);
 
   void SetDebugDelegate(debug::DebugDelegate* delegate);
 
   // Returns whether the operation succeeded.
   bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
   void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
-  Handle<DebugInfo> GetOrCreateDebugInfo(Handle<SharedFunctionInfo> shared);
+  Handle<DebugInfo> GetOrCreateDebugInfo(
+      DirectHandle<SharedFunctionInfo> shared);
 
-  void InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
+  void InstallCoverageInfo(DirectHandle<SharedFunctionInfo> shared,
                            Handle<CoverageInfo> coverage_info);
   void RemoveAllCoverageInfos();
 
@@ -366,7 +370,7 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<Script> script, bool* did_compile = nullptr);
 
   static Handle<Object> GetSourceBreakLocations(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
@@ -382,7 +386,7 @@ class V8_EXPORT_PRIVATE Debug {
                        bool preview, bool allow_top_frame_live_editing,
                        debug::LiveEditResult* result);
 
-  int GetFunctionDebuggingId(Handle<JSFunction> function);
+  int GetFunctionDebuggingId(DirectHandle<JSFunction> function);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -397,8 +401,8 @@ class V8_EXPORT_PRIVATE Debug {
   void StartSideEffectCheckMode();
   void StopSideEffectCheckMode();
 
-  void ApplySideEffectChecks(Handle<DebugInfo> debug_info);
-  void ClearSideEffectChecks(Handle<DebugInfo> debug_info);
+  void ApplySideEffectChecks(DirectHandle<DebugInfo> debug_info);
+  void ClearSideEffectChecks(DirectHandle<DebugInfo> debug_info);
 
   // Make a one-time exception for a next call to given side-effectful API
   // function.
@@ -407,9 +411,9 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
 
-  bool PerformSideEffectCheckForAccessor(Handle<AccessorInfo> accessor_info,
-                                         Handle<Object> receiver,
-                                         AccessorComponent component);
+  bool PerformSideEffectCheckForAccessor(
+      DirectHandle<AccessorInfo> accessor_info, Handle<Object> receiver,
+      AccessorComponent component);
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       Handle<InterceptorInfo> interceptor_info);
@@ -480,7 +484,7 @@ class V8_EXPORT_PRIVATE Debug {
   // Use -1 to encode instrumentation breakpoints.
   static const int kInstrumentationId = -1;
 
-  void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
+  void RemoveBreakInfoAndMaybeFree(DirectHandle<DebugInfo> debug_info);
 
   // Stops the timer for the top-most `DebugScope` and records a UMA event.
   void NotifyDebuggerPausedEventSent();
@@ -491,7 +495,7 @@ class V8_EXPORT_PRIVATE Debug {
   void ClearMutedLocation();
 #if V8_ENABLE_WEBASSEMBLY
   // Mute additional pauses from this Wasm location.
-  void SetMutedWasmLocation(Handle<Script> script, int position);
+  void SetMutedWasmLocation(DirectHandle<Script> script, int position);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -539,7 +543,7 @@ class V8_EXPORT_PRIVATE Debug {
   void ClearOneShot();
 
   // Mute additional pauses from this JavaScript location.
-  void SetMutedLocation(Handle<SharedFunctionInfo> function,
+  void SetMutedLocation(DirectHandle<SharedFunctionInfo> function,
                         const BreakLocation& location);
 
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
@@ -547,7 +551,7 @@ class V8_EXPORT_PRIVATE Debug {
   void ActivateStepOut(StackFrame* frame);
   bool IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
                                 const BreakLocation& location);
-  bool IsBreakOnDebuggerStatement(Handle<SharedFunctionInfo> function,
+  bool IsBreakOnDebuggerStatement(DirectHandle<SharedFunctionInfo> function,
                                   const BreakLocation& location);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
@@ -556,14 +560,15 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
       bool* has_break_points);
 
-  bool IsMutedAtAnyBreakLocation(Handle<SharedFunctionInfo> function,
+  bool IsMutedAtAnyBreakLocation(DirectHandle<SharedFunctionInfo> function,
                                  const std::vector<BreakLocation>& locations);
 #if V8_ENABLE_WEBASSEMBLY
   bool IsMutedAtWasmLocation(Tagged<Script> script, int position);
 #endif  // V8_ENABLE_WEBASSEMBLY
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
-  bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
+  bool CheckBreakPoint(DirectHandle<BreakPoint> break_point,
+                       bool is_break_at_entry);
 
   inline void AssertDebugContext() { DCHECK(in_debug_scope()); }
 

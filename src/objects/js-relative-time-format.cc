@@ -67,7 +67,7 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
 }  // namespace
 
 MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
-    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
     Handle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -133,8 +133,9 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSRelativeTimeFormat>());
 
   // 13. Set relativeTimeFormat.[[Locale]] to locale.
-  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
-      maybe_locale_str.FromJust().c_str());
+  DirectHandle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(
+          maybe_locale_str.FromJust().c_str());
 
   // 14. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
   if (numbering_system_str != nullptr &&
@@ -206,11 +207,11 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
-  Handle<String> numbering_system_string =
+  DirectHandle<String> numbering_system_string =
       isolate->factory()->NewStringFromAsciiChecked(
           Intl::GetNumberingSystem(icu_locale).c_str());
 
-  Handle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
+  DirectHandle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
                                                           icu_formatter);
 
@@ -246,7 +247,7 @@ Handle<String> StyleAsString(Isolate* isolate, Style style) {
 }  // namespace
 
 Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
-    Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder) {
+    Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
   icu::RelativeDateTimeFormatter* formatter =
       format_holder->icu_formatter()->raw();
@@ -302,7 +303,7 @@ Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
   }
 }
 
-bool GetURelativeDateTimeUnit(Handle<String> unit,
+bool GetURelativeDateTimeUnit(DirectHandle<String> unit,
                               URelativeDateTimeUnit* unit_enum) {
   std::unique_ptr<char[]> unit_str = unit->ToCString();
   if ((strcmp("second", unit_str.get()) == 0) ||
@@ -337,7 +338,7 @@ bool GetURelativeDateTimeUnit(Handle<String> unit,
 
 template <typename T>
 MaybeHandle<T> FormatCommon(
-    Isolate* isolate, Handle<JSRelativeTimeFormat> format,
+    Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format,
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
     MaybeHandle<T> (*formatToResult)(Isolate*,
                                      const icu::FormattedRelativeDateTime&,
@@ -431,7 +432,7 @@ MaybeHandle<JSArray> FormatToJSArray(
   int32_t index = 0;
 
   int32_t previous_end = 0;
-  Handle<String> substring;
+  DirectHandle<String> substring;
   std::vector<std::pair<int32_t, int32_t>> groups;
   while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
     int32_t category = cfpos.getCategory();
@@ -490,7 +491,7 @@ MaybeHandle<JSArray> FormatToJSArray(
 
 MaybeHandle<String> JSRelativeTimeFormat::Format(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-    Handle<JSRelativeTimeFormat> format) {
+    DirectHandle<JSRelativeTimeFormat> format) {
   return FormatCommon<String>(isolate, format, value_obj, unit_obj,
                               "Intl.RelativeTimeFormat.prototype.format",
                               FormatToString);
@@ -498,7 +499,7 @@ MaybeHandle<String> JSRelativeTimeFormat::Format(
 
 MaybeHandle<JSArray> JSRelativeTimeFormat::FormatToParts(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-    Handle<JSRelativeTimeFormat> format) {
+    DirectHandle<JSRelativeTimeFormat> format) {
   return FormatCommon<JSArray>(
       isolate, format, value_obj, unit_obj,
       "Intl.RelativeTimeFormat.prototype.formatToParts", FormatToJSArray);

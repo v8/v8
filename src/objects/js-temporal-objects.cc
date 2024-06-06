@@ -339,7 +339,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
 
 // #sec-temporal-isvalidepochnanoseconds
 bool IsValidEpochNanoseconds(Isolate* isolate,
-                             Handle<BigInt> epoch_nanoseconds);
+                             DirectHandle<BigInt> epoch_nanoseconds);
 
 struct NanosecondsToDaysResult {
   double days;
@@ -441,7 +441,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalDuration> CalendarDateUntil(
 // #sec-temporal-calendarfields
 MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
                                        Handle<JSReceiver> calendar,
-                                       Handle<FixedArray> field_names);
+                                       DirectHandle<FixedArray> field_names);
 
 // #sec-temporal-getoffsetnanosecondsfor
 V8_WARN_UNUSED_RESULT Maybe<int64_t> GetOffsetNanosecondsFor(
@@ -460,11 +460,11 @@ bool IsBuiltinCalendar(Isolate* isolate, Handle<String> id);
 int32_t CalendarIndex(Isolate* isolate, Handle<String> id);
 
 // #sec-isvalidtimezonename
-bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone);
+bool IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> time_zone);
 
 // #sec-canonicalizetimezonename
 Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                        Handle<String> identifier);
+                                        DirectHandle<String> identifier);
 
 // #sec-temporal-tointegerthrowoninfinity
 MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
@@ -652,7 +652,7 @@ MaybeHandle<JSTemporalCalendar> CreateTemporalCalendar(
 // #sec-temporal-createtemporaldate
 MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    const DateRecord& date, Handle<JSReceiver> calendar) {
+    const DateRecord& date, DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoYear is an integer.
   // 2. Assert: isoMonth is an integer.
@@ -689,7 +689,8 @@ MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
 }
 
 MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
-    Isolate* isolate, const DateRecord& date, Handle<JSReceiver> calendar) {
+    Isolate* isolate, const DateRecord& date,
+    DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalDate(isolate, CONSTRUCTOR(plain_date),
                             CONSTRUCTOR(plain_date), date, calendar);
@@ -698,7 +699,7 @@ MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
 // #sec-temporal-createtemporaldatetime
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    const DateTimeRecord& date_time, Handle<JSReceiver> calendar) {
+    const DateTimeRecord& date_time, DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoYear, isoMonth, isoDay, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
@@ -757,7 +758,7 @@ MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
 
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTimeDefaultTarget(
     Isolate* isolate, const DateTimeRecord& date_time,
-    Handle<JSReceiver> calendar) {
+    DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalDateTime(isolate, CONSTRUCTOR(plain_date_time),
                                 CONSTRUCTOR(plain_date_time), date_time,
@@ -770,7 +771,7 @@ namespace temporal {
 
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
     Isolate* isolate, const DateTimeRecord& date_time,
-    Handle<JSReceiver> calendar) {
+    DirectHandle<JSReceiver> calendar) {
   return CreateTemporalDateTimeDefaultTarget(isolate, date_time, calendar);
 }
 
@@ -788,7 +789,8 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
     THROW_INVALID_RANGE(JSTemporalPlainTime);
   }
 
-  Handle<JSTemporalCalendar> calendar = temporal::GetISO8601Calendar(isolate);
+  DirectHandle<JSTemporalCalendar> calendar =
+      temporal::GetISO8601Calendar(isolate);
 
   // 4. Let object be ? OrdinaryCreateFromConstructor(newTarget,
   // "%Temporal.PlainTime.prototype%", « [[InitializedTemporalTime]],
@@ -827,7 +829,7 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(Isolate* isolate,
 // #sec-temporal-createtemporalmonthday
 MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int32_t iso_month, int32_t iso_day, Handle<JSReceiver> calendar,
+    int32_t iso_month, int32_t iso_day, DirectHandle<JSReceiver> calendar,
     int32_t reference_iso_year) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoMonth, isoDay, and referenceISOYear are integers.
@@ -866,7 +868,7 @@ MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
 
 MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
     Isolate* isolate, int32_t iso_month, int32_t iso_day,
-    Handle<JSReceiver> calendar, int32_t reference_iso_year) {
+    DirectHandle<JSReceiver> calendar, int32_t reference_iso_year) {
   return CreateTemporalMonthDay(isolate, CONSTRUCTOR(plain_month_day),
                                 CONSTRUCTOR(plain_month_day), iso_month,
                                 iso_day, calendar, reference_iso_year);
@@ -875,7 +877,7 @@ MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
 // #sec-temporal-createtemporalyearmonth
 MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int32_t iso_year, int32_t iso_month, Handle<JSReceiver> calendar,
+    int32_t iso_year, int32_t iso_month, DirectHandle<JSReceiver> calendar,
     int32_t reference_iso_day) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoYear, isoMonth, and referenceISODay are integers.
@@ -911,7 +913,7 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
 
 MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
     Isolate* isolate, int32_t iso_year, int32_t iso_month,
-    Handle<JSReceiver> calendar, int32_t reference_iso_day) {
+    DirectHandle<JSReceiver> calendar, int32_t reference_iso_day) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalYearMonth(isolate, CONSTRUCTOR(plain_year_month),
                                  CONSTRUCTOR(plain_year_month), iso_year,
@@ -921,8 +923,8 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
 // #sec-temporal-createtemporalzoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    Handle<BigInt> epoch_nanoseconds, Handle<JSReceiver> time_zone,
-    Handle<JSReceiver> calendar) {
+    Handle<BigInt> epoch_nanoseconds, DirectHandle<JSReceiver> time_zone,
+    DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: Type(epochNanoseconds) is BigInt.
   // 2. Assert: ! IsValidEpochNanoseconds(epochNanoseconds) is true.
@@ -948,7 +950,7 @@ MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
 
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
     Isolate* isolate, Handle<BigInt> epoch_nanoseconds,
-    Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar) {
+    DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalZonedDateTime(isolate, CONSTRUCTOR(zoned_date_time),
                                      CONSTRUCTOR(zoned_date_time),
@@ -1045,23 +1047,25 @@ MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
   // [[Years]], [[Months]], [[Weeks]], [[Days]], [[Hours]], [[Minutes]],
   // [[Seconds]], [[Milliseconds]], [[Microseconds]], [[Nanoseconds]] »).
   const TimeDurationRecord& time_duration = duration.time_duration;
-  Handle<Object> years = factory->NewNumber(NormalizeMinusZero(duration.years));
-  Handle<Object> months =
+  DirectHandle<Object> years =
+      factory->NewNumber(NormalizeMinusZero(duration.years));
+  DirectHandle<Object> months =
       factory->NewNumber(NormalizeMinusZero(duration.months));
-  Handle<Object> weeks = factory->NewNumber(NormalizeMinusZero(duration.weeks));
-  Handle<Object> days =
+  DirectHandle<Object> weeks =
+      factory->NewNumber(NormalizeMinusZero(duration.weeks));
+  DirectHandle<Object> days =
       factory->NewNumber(NormalizeMinusZero(time_duration.days));
-  Handle<Object> hours =
+  DirectHandle<Object> hours =
       factory->NewNumber(NormalizeMinusZero(time_duration.hours));
-  Handle<Object> minutes =
+  DirectHandle<Object> minutes =
       factory->NewNumber(NormalizeMinusZero(time_duration.minutes));
-  Handle<Object> seconds =
+  DirectHandle<Object> seconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.seconds));
-  Handle<Object> milliseconds =
+  DirectHandle<Object> milliseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.milliseconds));
-  Handle<Object> microseconds =
+  DirectHandle<Object> microseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.microseconds));
-  Handle<Object> nanoseconds =
+  DirectHandle<Object> nanoseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.nanoseconds));
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalDuration)
@@ -1645,9 +1649,9 @@ Handle<String> TemporalTimeToString(Isolate* isolate, const TimeRecord& time,
   return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
-Handle<String> TemporalTimeToString(Isolate* isolate,
-                                    Handle<JSTemporalPlainTime> temporal_time,
-                                    Precision precision) {
+Handle<String> TemporalTimeToString(
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
+    Precision precision) {
   return TemporalTimeToString(
       isolate,
       {temporal_time->iso_hour(), temporal_time->iso_minute(),
@@ -1752,8 +1756,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: dateTime has an [[InitializedTemporalDateTime]] internal slot.
   DCHECK(IsJSTemporalPlainDateTime(*date_time_obj));
-  Handle<JSTemporalPlainDateTime> date_time =
-      Handle<JSTemporalPlainDateTime>::cast(date_time_obj);
+  auto date_time = DirectHandle<JSTemporalPlainDateTime>::cast(date_time_obj);
 
   // 2. Let n be possibleInstants's length.
   int32_t n = possible_instants->length();
@@ -2000,8 +2003,9 @@ enum class RequiredFields {
 // #sec-temporal-preparetemporalfields
 // #sec-temporal-preparepartialtemporalfields
 V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFieldsOrPartial(
-    Isolate* isolate, Handle<JSReceiver> fields, Handle<FixedArray> field_names,
-    RequiredFields required, bool partial) {
+    Isolate* isolate, Handle<JSReceiver> fields,
+    DirectHandle<FixedArray> field_names, RequiredFields required,
+    bool partial) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
@@ -2105,8 +2109,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFieldsOrPartial(
 
 // #sec-temporal-preparetemporalfields
 V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFields(
-    Isolate* isolate, Handle<JSReceiver> fields, Handle<FixedArray> field_names,
-    RequiredFields required) {
+    Isolate* isolate, Handle<JSReceiver> fields,
+    DirectHandle<FixedArray> field_names, RequiredFields required) {
   TEMPORAL_ENTER_FUNC();
 
   return PrepareTemporalFieldsOrPartial(isolate, fields, field_names, required,
@@ -2116,7 +2120,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFields(
 // #sec-temporal-preparepartialtemporalfields
 V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PreparePartialTemporalFields(
     Isolate* isolate, Handle<JSReceiver> fields,
-    Handle<FixedArray> field_names) {
+    DirectHandle<FixedArray> field_names) {
   TEMPORAL_ENTER_FUNC();
 
   return PrepareTemporalFieldsOrPartial(isolate, fields, field_names,
@@ -2453,8 +2457,7 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
           Handle<JSTemporalPlainDate>());
 
       // ii. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
-      Handle<JSTemporalZonedDateTime> zoned_date_time =
-          Handle<JSTemporalZonedDateTime>::cast(item);
+      auto zoned_date_time = DirectHandle<JSTemporalZonedDateTime>::cast(item);
       Handle<JSTemporalInstant> instant =
           temporal::CreateTemporalInstant(
               isolate, handle(zoned_date_time->nanoseconds(), isolate))
@@ -2489,8 +2492,7 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
           isolate, ToTemporalOverflow(isolate, options, method_name),
           Handle<JSTemporalPlainDate>());
       // ii. Return ! CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
-      Handle<JSTemporalPlainDateTime> date_time =
-          Handle<JSTemporalPlainDateTime>::cast(item);
+      auto date_time = DirectHandle<JSTemporalPlainDateTime>::cast(item);
       return CreateTemporalDate(isolate,
                                 {date_time->iso_year(), date_time->iso_month(),
                                  date_time->iso_day()},
@@ -2554,7 +2556,7 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
 }
 
 // #sec-isintegralnumber
-bool IsIntegralNumber(Isolate* isolate, Handle<Object> argument) {
+bool IsIntegralNumber(Isolate* isolate, DirectHandle<Object> argument) {
   // 1. If Type(argument) is not Number, return false.
   if (!IsNumber(*argument)) return false;
   // 2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
@@ -2647,8 +2649,7 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(
     // then
     if (IsJSTemporalZonedDateTime(*item)) {
       // i. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
-      Handle<JSTemporalZonedDateTime> zoned_date_time =
-          Handle<JSTemporalZonedDateTime>::cast(item);
+      auto zoned_date_time = DirectHandle<JSTemporalZonedDateTime>::cast(item);
       Handle<JSTemporalInstant> instant =
           CreateTemporalInstant(isolate,
                                 handle(zoned_date_time->nanoseconds(), isolate))
@@ -2682,8 +2683,7 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(
       // i. Return ! CreateTemporalTime(item.[[ISOHour]], item.[[ISOMinute]],
       // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
       // item.[[ISONanosecond]]).
-      Handle<JSTemporalPlainDateTime> date_time =
-          Handle<JSTemporalPlainDateTime>::cast(item);
+      auto date_time = DirectHandle<JSTemporalPlainDateTime>::cast(item);
       return CreateTemporalTime(
                  isolate,
                  {date_time->iso_hour(), date_time->iso_minute(),
@@ -2812,8 +2812,8 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
     // temporalDurationLike.[[Milliseconds]],
     // temporalDurationLike.[[Microseconds]],
     // temporalDurationLike.[[Nanoseconds]]).
-    Handle<JSTemporalDuration> duration =
-        Handle<JSTemporalDuration>::cast(temporal_duration_like);
+    auto duration =
+        DirectHandle<JSTemporalDuration>::cast(temporal_duration_like);
     return DurationRecord::Create(isolate,
                                   Object::NumberValue(duration->years()),
                                   Object::NumberValue(duration->months()),
@@ -2926,8 +2926,8 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     // internal slot, then
     if (IsJSTemporalZonedDateTime(*temporal_time_zone_like)) {
       // i. Return temporalTimeZoneLike.[[TimeZone]].
-      Handle<JSTemporalZonedDateTime> zoned_date_time =
-          Handle<JSTemporalZonedDateTime>::cast(temporal_time_zone_like);
+      auto zoned_date_time =
+          DirectHandle<JSTemporalZonedDateTime>::cast(temporal_time_zone_like);
       return handle(zoned_date_time->time_zone(), isolate);
     }
     Handle<JSReceiver> obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
@@ -3232,7 +3232,7 @@ MaybeHandle<String> MaybeFormatCalendarAnnotation(
 
 // #sec-temporal-temporaldatetostring
 MaybeHandle<String> TemporalDateToString(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     ShowCalendar show_calendar) {
   IncrementalStringBuilder builder(isolate);
   // 1. Assert: Type(temporalDate) is Object.
@@ -3262,7 +3262,7 @@ MaybeHandle<String> TemporalDateToString(
 
 // #sec-temporal-temporalmonthdaytostring
 MaybeHandle<String> TemporalMonthDayToString(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     ShowCalendar show_calendar) {
   // 1. Assert: Type(monthDay) is Object.
   // 2. Assert: monthDay has an [[InitializedTemporalMonthDay]] internal slot.
@@ -3291,7 +3291,7 @@ MaybeHandle<String> TemporalMonthDayToString(
   ToZeroPaddedDecimalString(&builder, month_day->iso_day(), 2);
   // 8. Let calendarString be ! FormatCalendarAnnotation(calendarID,
   // showCalendar).
-  Handle<String> calendar_string =
+  DirectHandle<String> calendar_string =
       FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
   // 9. Set result to the string-concatenation of result and calendarString.
   builder.AppendString(calendar_string);
@@ -3301,7 +3301,7 @@ MaybeHandle<String> TemporalMonthDayToString(
 
 // #sec-temporal-temporalyearmonthtostring
 MaybeHandle<String> TemporalYearMonthToString(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     ShowCalendar show_calendar) {
   // 1. Assert: Type(yearMonth) is Object.
   // 2. Assert: yearMonth has an [[InitializedTemporalYearMonth]] internal slot.
@@ -3330,7 +3330,7 @@ MaybeHandle<String> TemporalYearMonthToString(
   }
   // 8. Let calendarString be ! FormatCalendarAnnotation(calendarID,
   // showCalendar).
-  Handle<String> calendar_string =
+  DirectHandle<String> calendar_string =
       FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
   // 9. Set result to the string-concatenation of result and calendarString.
   builder.AppendString(calendar_string);
@@ -4052,7 +4052,7 @@ MaybeHandle<Oddball> CalendarEquals(Isolate* isolate, Handle<JSReceiver> one,
 // #sec-temporal-calendarfields
 MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
                                        Handle<JSReceiver> calendar,
-                                       Handle<FixedArray> field_names) {
+                                       DirectHandle<FixedArray> field_names) {
   // 1. Let fields be ? GetMethod(calendar, "fields").
   Handle<Object> fields;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4561,12 +4561,12 @@ int32_t CalendarIndex(Isolate* isolate, Handle<String> id) {
   return GetCalendarMap()->Index(id->ToCString().get());
 }
 
-bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone) {
+bool IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> time_zone) {
   return Intl::IsValidTimeZoneName(isolate, time_zone);
 }
 
 Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                        Handle<String> identifier) {
+                                        DirectHandle<String> identifier) {
   return Intl::CanonicalizeTimeZoneName(isolate, identifier).ToHandleChecked();
 }
 
@@ -5117,8 +5117,8 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   // 2. If Type(relativeTo) is Object and relativeTo has an
   // [[InitializedTemporalZonedDateTime]] internal slot, then
   if (IsJSTemporalZonedDateTime(*relative_to_obj)) {
-    Handle<JSTemporalZonedDateTime> relative_to =
-        Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
+    auto relative_to =
+        DirectHandle<JSTemporalZonedDateTime>::cast(relative_to_obj);
     // a. Let endNs be ? AddZonedDateTime(relativeTo.[[Nanoseconds]],
     // relativeTo.[[TimeZone]], relativeTo.[[Calendar]], 0, 0, 0, days, hours,
     // minutes, seconds, milliseconds, microseconds, nanoseconds).
@@ -5180,8 +5180,8 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
     days = 0;
   }
   // 6. Set hours, minutes, seconds, milliseconds, and microseconds to 0.
-  Handle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
-  Handle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
+  DirectHandle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
+  DirectHandle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
   Handle<BigInt> zero = BigInt::FromInt64(isolate, 0);
   Handle<BigInt> hours = zero;
   Handle<BigInt> minutes = zero;
@@ -5508,8 +5508,8 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
          Object::NumberValue(*BigInt::ToNumber(isolate, nanoseconds)),
          kDayLengthNs}));
   }
-  Handle<JSTemporalZonedDateTime> relative_to =
-      Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
+  auto relative_to =
+      DirectHandle<JSTemporalZonedDateTime>::cast(relative_to_obj);
   // 5. Let startNs be ℝ(relativeTo.[[Nanoseconds]]).
   Handle<BigInt> start_ns = handle(relative_to->nanoseconds(), isolate);
   // 6. Let startInstant be ! CreateTemporalInstant(ℤ(sartNs)).
@@ -5853,7 +5853,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 
 // #sec-temporal-isvalidepochnanoseconds
 bool IsValidEpochNanoseconds(Isolate* isolate,
-                             Handle<BigInt> epoch_nanoseconds) {
+                             DirectHandle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   // nsMinInstant = -nsMaxInstant = -8.64 × 10^21
   constexpr double kNsMinInstant = -8.64e21;
@@ -6321,7 +6321,8 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
   // 1. Assert: Type(fields) is Object.
   // 2. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «"day"»).
-  Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
+  DirectHandle<FixedArray> field_names =
+      DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names, RequiredFields::kDay),
@@ -6332,15 +6333,15 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
       isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Nothing<DateRecord>());
   // 4. Let month be ! Get(fields, "month").
-  Handle<Object> month_obj =
+  DirectHandle<Object> month_obj =
       JSReceiver::GetProperty(isolate, fields, factory->month_string())
           .ToHandleChecked();
   // 5. Let monthCode be ! Get(fields, "monthCode").
-  Handle<Object> month_code_obj =
+  DirectHandle<Object> month_code_obj =
       JSReceiver::GetProperty(isolate, fields, factory->monthCode_string())
           .ToHandleChecked();
   // 6. Let year be ! Get(fields, "year").
-  Handle<Object> year_obj =
+  DirectHandle<Object> year_obj =
       JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 7. If month is not undefined, and monthCode and year are both undefined,
@@ -6359,7 +6360,7 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
                                          Nothing<DateRecord>());
 
   // 9. Let day be ! Get(fields, "day").
-  Handle<Object> day_obj =
+  DirectHandle<Object> day_obj =
       JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
   // 10. Assert: Type(day) is Number.
@@ -6643,8 +6644,8 @@ Maybe<int64_t> CalculateOffsetShift(Isolate* isolate,
   if (!IsJSTemporalZonedDateTime(*relative_to_obj)) {
     return Just(static_cast<int64_t>(0));
   }
-  Handle<JSTemporalZonedDateTime> relative_to =
-      Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
+  auto relative_to =
+      DirectHandle<JSTemporalZonedDateTime>::cast(relative_to_obj);
   // 2. Let instant be ! CreateTemporalInstant(relativeTo.[[Nanoseconds]]).
   Handle<JSTemporalInstant> instant =
       temporal::CreateTemporalInstant(
@@ -7281,7 +7282,7 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
   // 9. Let ns1 be ! TotalDurationNanoseconds(days1, one.[[Hours]],
   // one.[[Minutes]], one.[[Seconds]], one.[[Milliseconds]],
   // one.[[Microseconds]], one.[[Nanoseconds]], shift1).
-  Handle<BigInt> ns1 = TotalDurationNanoseconds(
+  DirectHandle<BigInt> ns1 = TotalDurationNanoseconds(
       isolate,
       {days1, Object::NumberValue(one->hours()),
        Object::NumberValue(one->minutes()), Object::NumberValue(one->seconds()),
@@ -7292,7 +7293,7 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
   // 10. Let ns2 be ! TotalDurationNanoseconds(days2, two.[[Hours]],
   // two.[[Minutes]], two.[[Seconds]], two.[[Milliseconds]],
   // two.[[Microseconds]], two.[[Nanoseconds]], shift2).
-  Handle<BigInt> ns2 = TotalDurationNanoseconds(
+  DirectHandle<BigInt> ns2 = TotalDurationNanoseconds(
       isolate,
       {days2, Object::NumberValue(two->hours()),
        Object::NumberValue(two->minutes()), Object::NumberValue(two->seconds()),
@@ -7323,8 +7324,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::From(Isolate* isolate,
     // item.[[Weeks]], item.[[Days]], item.[[Hours]], item.[[Minutes]],
     // item.[[Seconds]], item.[[Milliseconds]], item.[[Microseconds]],
     // item.[[Nanoseconds]]).
-    Handle<JSTemporalDuration> duration =
-        Handle<JSTemporalDuration>::cast(item);
+    auto duration = DirectHandle<JSTemporalDuration>::cast(item);
     return CreateTemporalDuration(
         isolate, {Object::NumberValue(duration->years()),
                   Object::NumberValue(duration->months()),
@@ -7357,7 +7357,7 @@ Maybe<double> ToTemporalRoundingIncrement(Isolate* isolate,
 
 // #sec-temporal-moverelativezoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> MoveRelativeZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     const DateDurationRecord& duration, const char* method_name);
 
 // #sec-temporal-roundduration
@@ -7371,7 +7371,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
 
 // #sec-temporal.duration.prototype.round
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::Round(
-    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     Handle<Object> round_to_obj) {
   const char* method_name = "Temporal.Duration.prototype.round";
   Factory* factory = isolate->factory();
@@ -7599,7 +7599,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Round(
 
 // #sec-temporal.duration.prototype.total
 MaybeHandle<Object> JSTemporalDuration::Total(
-    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     Handle<Object> total_of_obj) {
   const char* method_name = "Temporal.Duration.prototype.total";
   Factory* factory = isolate->factory();
@@ -7846,7 +7846,7 @@ Maybe<DurationRecord> ToPartialDuration(
 
 // #sec-temporal.duration.prototype.with
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::With(
-    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     Handle<Object> temporal_duration_like) {
   DurationRecord partial;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -7871,8 +7871,8 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::With(
 }
 
 // #sec-get-temporal.duration.prototype.sign
-MaybeHandle<Smi> JSTemporalDuration::Sign(Isolate* isolate,
-                                          Handle<JSTemporalDuration> duration) {
+MaybeHandle<Smi> JSTemporalDuration::Sign(
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -7896,7 +7896,7 @@ MaybeHandle<Smi> JSTemporalDuration::Sign(Isolate* isolate,
 
 // #sec-get-temporal.duration.prototype.blank
 MaybeHandle<Oddball> JSTemporalDuration::Blank(
-    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -7939,7 +7939,7 @@ Maybe<DurationRecord> CreateNegatedDurationRecord(
 
 // #sec-temporal-createnegatedtemporalduration
 MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
-    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: Type(duration) is Object.
   // 2. Assert: duration has an [[InitializedTemporalDuration]] internal slot.
@@ -7966,7 +7966,7 @@ MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
 
 // #sec-temporal.duration.prototype.negated
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::Negated(
-    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   // Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -7977,7 +7977,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Negated(
 
 // #sec-temporal.duration.prototype.abs
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::Abs(
-    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -8053,8 +8053,7 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
     }
     // b. If value has an [[InitializedTemporalDateTime]] internal slot, then
     if (IsJSTemporalPlainDateTime(*value)) {
-      Handle<JSTemporalPlainDateTime> date_time_value =
-          Handle<JSTemporalPlainDateTime>::cast(value);
+      auto date_time_value = DirectHandle<JSTemporalPlainDateTime>::cast(value);
       // i. Return ? CreateTemporalDateTime(value.[[ISOYear]],
       // value.[[ISOMonth]], value.[[ISODay]],
       // value.[[Calendar]]).
@@ -8509,8 +8508,8 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
   // 6. Assert: relativeTo has an [[InitializedTemporalZonedDateTime]]
   // internal slot.
   DCHECK(IsJSTemporalZonedDateTime(*relative_to_obj));
-  Handle<JSTemporalZonedDateTime> relative_to =
-      Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
+  auto relative_to =
+      DirectHandle<JSTemporalZonedDateTime>::cast(relative_to_obj);
   // 7. Let timeZone be relativeTo.[[TimeZone]].
   Handle<JSReceiver> time_zone(relative_to->time_zone(), isolate);
   // 8. Let calendar be relativeTo.[[Calendar]].
@@ -8555,9 +8554,9 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
 }
 
 MaybeHandle<JSTemporalDuration> AddDurationToOrSubtractDurationFromDuration(
-    Isolate* isolate, Arithmetic operation, Handle<JSTemporalDuration> duration,
-    Handle<Object> other_obj, Handle<Object> options_obj,
-    const char* method_name) {
+    Isolate* isolate, Arithmetic operation,
+    DirectHandle<JSTemporalDuration> duration, Handle<Object> other_obj,
+    Handle<Object> options_obj, const char* method_name) {
   // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
   double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
 
@@ -8625,8 +8624,8 @@ MaybeHandle<JSTemporalDuration> AddDurationToOrSubtractDurationFromDuration(
 
 // #sec-temporal.duration.prototype.add
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::Add(
-    Isolate* isolate, Handle<JSTemporalDuration> duration, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
+    Handle<Object> other, Handle<Object> options) {
   return AddDurationToOrSubtractDurationFromDuration(
       isolate, Arithmetic::kAdd, duration, other, options,
       "Temporal.Duration.prototype.add");
@@ -8634,8 +8633,8 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Add(
 
 // #sec-temporal.duration.prototype.subtract
 MaybeHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
-    Isolate* isolate, Handle<JSTemporalDuration> duration, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
+    Handle<Object> other, Handle<Object> options) {
   return AddDurationToOrSubtractDurationFromDuration(
       isolate, Arithmetic::kSubtract, duration, other, options,
       "Temporal.Duration.prototype.subtract");
@@ -8643,7 +8642,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
 
 // #sec-temporal.duration.prototype.tojson
 MaybeHandle<String> JSTemporalDuration::ToJSON(
-    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -8667,8 +8666,8 @@ MaybeHandle<String> JSTemporalDuration::ToJSON(
 
 // #sec-temporal.duration.prototype.tolocalestring
 MaybeHandle<String> JSTemporalDuration::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalDuration> duration,
-    Handle<Object> locales, Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -8695,7 +8694,7 @@ MaybeHandle<String> JSTemporalDuration::ToLocaleString(
 namespace {
 // #sec-temporal-moverelativezoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> MoveRelativeZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     const DateDurationRecord& duration, const char* method_name) {
   // 1. Let intermediateNs be ? AddZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], years, months,
@@ -8721,8 +8720,9 @@ MaybeHandle<JSTemporalZonedDateTime> MoveRelativeZonedDateTime(
 }
 
 // #sec-temporal-daysuntil
-double DaysUntil(Isolate* isolate, Handle<JSTemporalPlainDate> earlier,
-                 Handle<JSTemporalPlainDate> later, const char* method_name) {
+double DaysUntil(Isolate* isolate, DirectHandle<JSTemporalPlainDate> earlier,
+                 DirectHandle<JSTemporalPlainDate> later,
+                 const char* method_name) {
   // 1. Let epochDays1 be MakeDay(𝔽(earlier.[[ISOYear]]), 𝔽(earlier.[[ISOMonth]]
   // - 1), 𝔽(earlier.[[ISODay]])).
   double epoch_days1 = MakeDay(earlier->iso_year(), earlier->iso_month() - 1,
@@ -9377,7 +9377,7 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
 
 // #sec-temporal.duration.prototype.tostring
 MaybeHandle<String> JSTemporalDuration::ToString(
-    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.Duration.prototype.toString";
   // 3. Set options to ? GetOptionsObject(options).
@@ -9476,7 +9476,7 @@ int32_t ToISODayOfYear(Isolate* isolate, const DateRecord& date) {
 }
 
 bool IsPlainDatePlainDateTimeOrPlainYearMonth(
-    Handle<Object> temporal_date_like) {
+    DirectHandle<Object> temporal_date_like) {
   return IsJSTemporalPlainDate(*temporal_date_like) ||
          IsJSTemporalPlainDateTime(*temporal_date_like) ||
          IsJSTemporalPlainYearMonth(*temporal_date_like);
@@ -9577,7 +9577,7 @@ Maybe<int32_t> RegulateISOYearMonth(Isolate* isolate, ShowOverflow overflow,
 Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   Factory* factory = isolate->factory();
   // 1. Let month be ! Get(fields, "month").
-  Handle<Object> month_obj =
+  DirectHandle<Object> month_obj =
       JSReceiver::GetProperty(isolate, fields, factory->month_string())
           .ToHandleChecked();
   // 2. Let monthCode be ! Get(fields, "monthCode").
@@ -9658,7 +9658,8 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
   // 1. Assert: Type(fields) is Object.
   // 2. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «"year", "day"»).
-  Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
+  DirectHandle<FixedArray> field_names =
+      DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
@@ -9671,7 +9672,7 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
       Nothing<DateRecord>());
 
   // 4. Let year be ! Get(fields, "year").
-  Handle<Object> year_obj =
+  DirectHandle<Object> year_obj =
       JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 5. Assert: Type(year) is Number.
@@ -9686,7 +9687,7 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
       isolate, month, ResolveISOMonth(isolate, fields), Nothing<DateRecord>());
 
   // 7. Let day be ! Get(fields, "day").
-  Handle<Object> day_obj =
+  DirectHandle<Object> day_obj =
       JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
   // 8. Assert: Type(day) is Number.
@@ -9929,7 +9930,7 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
   // 1. Assert: Type(fields) is Object.
   // 2. Set fields to ? PrepareTemporalFields(fields, « "month", "monthCode",
   // "year" », «»).
-  Handle<FixedArray> field_names = factory->NewFixedArray(3);
+  DirectHandle<FixedArray> field_names = factory->NewFixedArray(3);
   field_names->set(0, ReadOnlyRoots(isolate).month_string());
   field_names->set(1, ReadOnlyRoots(isolate).monthCode_string());
   field_names->set(2, ReadOnlyRoots(isolate).year_string());
@@ -9945,7 +9946,7 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
       Nothing<DateRecord>());
 
   // 4. Let year be ! Get(fields, "year").
-  Handle<Object> year_obj =
+  DirectHandle<Object> year_obj =
       JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 5. If year is undefined, throw a TypeError exception.
@@ -10035,7 +10036,7 @@ int32_t ToISOWeekOfYear(Isolate* isolate, const DateRecord& date) {
 
 // #sec-temporal.calendar.prototype.dateadd
 MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> date_obj, Handle<Object> duration_obj,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.Calendar.prototype.dateAdd";
@@ -10113,7 +10114,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
 
 // #sec-temporal.calendar.prototype.daysinyear
 MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10149,7 +10150,7 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
 
 // #sec-temporal.calendar.prototype.daysinmonth
 MaybeHandle<Smi> JSTemporalCalendar::DaysInMonth(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1 Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10189,9 +10190,9 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInMonth(
 }
 
 // #sec-temporal.calendar.prototype.year
-MaybeHandle<Smi> JSTemporalCalendar::Year(Isolate* isolate,
-                                          Handle<JSTemporalCalendar> calendar,
-                                          Handle<Object> temporal_date_like) {
+MaybeHandle<Smi> JSTemporalCalendar::Year(
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
   // [[InitializedTemporalCalendar]]).
@@ -10227,7 +10228,7 @@ MaybeHandle<Smi> JSTemporalCalendar::Year(Isolate* isolate,
 
 // #sec-temporal.calendar.prototype.dayofyear
 MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10249,7 +10250,7 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
 
 // #sec-temporal.calendar.prototype.dayofweek
 MaybeHandle<Smi> JSTemporalCalendar::DayOfWeek(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10271,7 +10272,7 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfWeek(
 
 // #sec-temporal.calendar.prototype.monthsinyear
 MaybeHandle<Smi> JSTemporalCalendar::MonthsInYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10296,7 +10297,7 @@ MaybeHandle<Smi> JSTemporalCalendar::MonthsInYear(
 
 // #sec-temporal.calendar.prototype.inleapyear
 MaybeHandle<Oddball> JSTemporalCalendar::InLeapYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10330,7 +10331,7 @@ MaybeHandle<Oddball> JSTemporalCalendar::InLeapYear(
 
 // #sec-temporal.calendar.prototype.daysinweek
 MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10348,7 +10349,7 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
 
 // #sec-temporal.calendar.prototype.datefromfields
 MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> fields_obj, Handle<Object> options_obj) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10385,7 +10386,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
 
 // #sec-temporal.calendar.prototype.mergefields
 MaybeHandle<JSReceiver> JSTemporalCalendar::MergeFields(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> fields_obj, Handle<Object> additional_fields_obj) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10413,7 +10414,7 @@ MaybeHandle<JSReceiver> JSTemporalCalendar::MergeFields(
 
 // #sec-temporal.calendar.prototype.dateuntil
 MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> one_obj, Handle<Object> two_obj,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.Calendar.prototype.dateUntil";
@@ -10467,9 +10468,9 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
 }
 
 // #sec-temporal.calendar.prototype.day
-MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
-                                         Handle<JSTemporalCalendar> calendar,
-                                         Handle<Object> temporal_date_like) {
+MaybeHandle<Smi> JSTemporalCalendar::Day(
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
   // [[InitializedTemporalCalendar]]).
@@ -10504,7 +10505,7 @@ MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
 
 // #sec-temporal.calendar.prototype.monthcode
 MaybeHandle<String> JSTemporalCalendar::MonthCode(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10549,9 +10550,9 @@ MaybeHandle<String> JSTemporalCalendar::MonthCode(
 }
 
 // #sec-temporal.calendar.prototype.month
-MaybeHandle<Smi> JSTemporalCalendar::Month(Isolate* isolate,
-                                           Handle<JSTemporalCalendar> calendar,
-                                           Handle<Object> temporal_date_like) {
+MaybeHandle<Smi> JSTemporalCalendar::Month(
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
   // 4. If Type(temporalDateLike) is Object and temporalDateLike has an
   // [[InitializedTemporalMonthDay]] internal slot, then
   if (IsJSTemporalPlainMonthDay(*temporal_date_like)) {
@@ -10589,7 +10590,7 @@ MaybeHandle<Smi> JSTemporalCalendar::Month(Isolate* isolate,
 
 // #sec-temporal.calendar.prototype.monthdayfromfields
 MaybeHandle<JSTemporalPlainMonthDay> JSTemporalCalendar::MonthDayFromFields(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> fields_obj, Handle<Object> options_obj) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10626,7 +10627,7 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalCalendar::MonthDayFromFields(
 
 // #sec-temporal.calendar.prototype.yearmonthfromfields
 MaybeHandle<JSTemporalPlainYearMonth> JSTemporalCalendar::YearMonthFromFields(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> fields_obj, Handle<Object> options_obj) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10663,9 +10664,9 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalCalendar::YearMonthFromFields(
 
 #ifdef V8_INTL_SUPPORT
 // #sup-temporal.calendar.prototype.era
-MaybeHandle<Object> JSTemporalCalendar::Era(Isolate* isolate,
-                                            Handle<JSTemporalCalendar> calendar,
-                                            Handle<Object> temporal_date_like) {
+MaybeHandle<Object> JSTemporalCalendar::Era(
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
   // [[InitializedTemporalCalendar]]).
@@ -10692,7 +10693,7 @@ MaybeHandle<Object> JSTemporalCalendar::Era(Isolate* isolate,
 
 // #sup-temporal.calendar.prototype.erayear
 MaybeHandle<Object> JSTemporalCalendar::EraYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10726,7 +10727,7 @@ MaybeHandle<Object> JSTemporalCalendar::EraYear(
 
 // #sec-temporal.calendar.prototype.weekofyear
 MaybeHandle<Smi> JSTemporalCalendar::WeekOfYear(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     Handle<Object> temporal_date_like) {
   // 1. Let calendar be the this value.
   // 2. Perform ? RequireInternalSlot(calendar,
@@ -10748,7 +10749,7 @@ MaybeHandle<Smi> JSTemporalCalendar::WeekOfYear(
 
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
-    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Isolate* isolate, DirectHandle<JSTemporalCalendar> calendar,
     const char* method_name) {
   return CalendarIdentifier(isolate, calendar->calendar_index());
 }
@@ -10938,7 +10939,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalTimeZone::GetPlainDateTimeFor(
 // Temporal.TimeZone.prototype.getPreviousTransition
 template <Handle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
 MaybeHandle<Object> GetTransition(Isolate* isolate,
-                                  Handle<JSTemporalTimeZone> time_zone,
+                                  DirectHandle<JSTemporalTimeZone> time_zone,
                                   Handle<Object> starting_point_obj,
                                   const char* method_name) {
   TEMPORAL_ENTER_FUNC();
@@ -10972,7 +10973,7 @@ MaybeHandle<Object> GetTransition(Isolate* isolate,
 
 // #sec-temporal.timezone.prototype.getnexttransition
 MaybeHandle<Object> JSTemporalTimeZone::GetNextTransition(
-    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
     Handle<Object> starting_point_obj) {
   return GetTransition<GetIANATimeZoneNextTransition>(
       isolate, time_zone, starting_point_obj,
@@ -10980,7 +10981,7 @@ MaybeHandle<Object> JSTemporalTimeZone::GetNextTransition(
 }
 // #sec-temporal.timezone.prototype.getprevioustransition
 MaybeHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
-    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
     Handle<Object> starting_point_obj) {
   return GetTransition<GetIANATimeZonePreviousTransition>(
       isolate, time_zone, starting_point_obj,
@@ -10994,7 +10995,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(
   Factory* factory = isolate->factory();
   // 6. Let possibleInstants be a new empty List.
   Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
   // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
   // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
@@ -11002,7 +11003,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
   // b. Let instant be ! CreateTemporalInstant(epochNanoseconds).
-  Handle<JSTemporalInstant> instant =
+  DirectHandle<JSTemporalInstant> instant =
       temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
           .ToHandleChecked();
   // c. Append instant to possibleInstants.
@@ -11029,7 +11030,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
                                                  nanoseconds_in_local_time);
 
   int32_t array_length = static_cast<int32_t>(possible_offset.size());
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(array_length);
+  DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(array_length);
 
   for (int32_t i = 0; i < array_length; i++) {
     Handle<BigInt> epoch_nanoseconds =
@@ -11064,7 +11065,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
 
 // #sec-temporal.timezone.prototype.getpossibleinstantsfor
 MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
-    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
     Handle<Object> date_time_obj) {
   Factory* factory = isolate->factory();
   // 1. Let timeZone be the this value.
@@ -11109,11 +11110,11 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
 
     // b. Let instant be ! CreateTemporalInstant(epochNanoseconds).
 
-    Handle<JSTemporalInstant> instant =
+    DirectHandle<JSTemporalInstant> instant =
         temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
             .ToHandleChecked();
     // c. Return ! CreateArrayFromList(« instant »).
-    Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
     fixed_array->set(0, *instant);
     return factory->NewJSArrayWithElements(fixed_array);
   }
@@ -11133,7 +11134,7 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
 
 // #sec-temporal.timezone.prototype.getoffsetnanosecondsfor
 MaybeHandle<Object> JSTemporalTimeZone::GetOffsetNanosecondsFor(
-    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
     Handle<Object> instant_obj) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let timeZone be the this value.
@@ -11178,7 +11179,7 @@ MaybeHandle<String> JSTemporalTimeZone::GetOffsetStringFor(
 
 // #sec-temporal.timezone.prototype.tostring
 MaybeHandle<Object> JSTemporalTimeZone::ToString(
-    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Isolate* isolate, DirectHandle<JSTemporalTimeZone> time_zone,
     const char* method_name) {
   return time_zone->id(isolate);
 }
@@ -11274,7 +11275,7 @@ MaybeHandle<Smi> JSTemporalPlainDate::Compare(Isolate* isolate,
 
 // #sec-temporal.plaindate.prototype.equals
 MaybeHandle<Oddball> JSTemporalPlainDate::Equals(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     Handle<Object> other_obj) {
   Factory* factory = isolate->factory();
   // 1. Let temporalDate be the this value.
@@ -11305,7 +11306,7 @@ MaybeHandle<Oddball> JSTemporalPlainDate::Equals(
 
 // #sec-temporal.plaindate.prototype.withcalendar
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     Handle<Object> calendar_like) {
   const char* method_name = "Temporal.PlainDate.prototype.withCalendar";
   // 1. Let temporalDate be the this value.
@@ -11334,8 +11335,8 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
 template <typename T, typename R,
           MaybeHandle<R> (*from_fields)(Isolate*, Handle<JSReceiver>,
                                         Handle<JSReceiver>, Handle<Object>)>
-MaybeHandle<R> ToPlain(Isolate* isolate, Handle<T> t, Handle<String> f1,
-                       Handle<String> f2) {
+MaybeHandle<R> ToPlain(Isolate* isolate, Handle<T> t, DirectHandle<String> f1,
+                       DirectHandle<String> f2) {
   Factory* factory = isolate->factory();
   // 1. Let temporalDate be the this value.
   // 2. Perform ? RequireInternalSlot(t, [[InitializedTemporalDate]]).
@@ -11377,7 +11378,7 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
 
 // #sec-temporal.plaindate.prototype.toplaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     Handle<Object> temporal_time_obj) {
   // 1. Let temporalDate be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDate,
@@ -11565,7 +11566,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
 
 // #sec-temporal.plaindate.prototype.tozoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     Handle<Object> item_obj) {
   const char* method_name = "Temporal.PlainDate.prototype.toZonedDateTime";
   Factory* factory = isolate->factory();
@@ -11892,7 +11893,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
         Handle<JSTemporalPlainDate>());
     // b. Return ? CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[Calendar]]).
-    Handle<JSTemporalPlainDate> date = Handle<JSTemporalPlainDate>::cast(item);
+    auto date = DirectHandle<JSTemporalPlainDate>::cast(item);
     return CreateTemporalDate(
         isolate, {date->iso_year(), date->iso_month(), date->iso_day()},
         Handle<JSReceiver>(date->calendar(), isolate));
@@ -11910,7 +11911,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
 
 // #sec-temporal.plaindate.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainDate::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
   Factory* factory = isolate->factory();
   // 1. Let temporalDate be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDate,
@@ -11940,7 +11941,7 @@ MaybeHandle<JSReceiver> JSTemporalPlainDate::GetISOFields(
 
 // #sec-temporal.plaindate.prototype.tojson
 MaybeHandle<String> JSTemporalPlainDate::ToJSON(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date) {
   // 1. Let temporalDate be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDate,
   // [[InitializedTemporalDate]]).
@@ -11964,8 +11965,8 @@ Maybe<ShowCalendar> ToShowCalendarOption(Isolate* isolate,
 }
 
 template <typename T,
-          MaybeHandle<String> (*F)(Isolate*, Handle<T>, ShowCalendar)>
-MaybeHandle<String> TemporalToString(Isolate* isolate, Handle<T> temporal,
+          MaybeHandle<String> (*F)(Isolate*, DirectHandle<T>, ShowCalendar)>
+MaybeHandle<String> TemporalToString(Isolate* isolate, DirectHandle<T> temporal,
                                      Handle<Object> options_obj,
                                      const char* method_name) {
   // 1. Let temporalDate be the this value.
@@ -11987,7 +11988,7 @@ MaybeHandle<String> TemporalToString(Isolate* isolate, Handle<T> temporal,
 
 // #sec-temporal.plaindate.prototype.tostring
 MaybeHandle<String> JSTemporalPlainDate::ToString(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     Handle<Object> options) {
   return TemporalToString<JSTemporalPlainDate, TemporalDateToString>(
       isolate, temporal_date, options, "Temporal.PlainDate.prototype.toString");
@@ -12151,8 +12152,7 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
           isolate, ToTemporalOverflow(isolate, options, method_name),
           Handle<JSTemporalPlainDateTime>());
       // ii. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
-      Handle<JSTemporalZonedDateTime> zoned_date_time =
-          Handle<JSTemporalZonedDateTime>::cast(item);
+      auto zoned_date_time = DirectHandle<JSTemporalZonedDateTime>::cast(item);
       Handle<JSTemporalInstant> instant =
           temporal::CreateTemporalInstant(
               isolate, handle(zoned_date_time->nanoseconds(), isolate))
@@ -12173,8 +12173,7 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       // ii. Return ? CreateTemporalDateTime(item.[[ISOYear]],
       // item.[[ISOMonth]], item.[[ISODay]], 0, 0, 0, 0, 0, 0,
       // item.[[Calendar]]).
-      Handle<JSTemporalPlainDate> date =
-          Handle<JSTemporalPlainDate>::cast(item);
+      auto date = DirectHandle<JSTemporalPlainDate>::cast(item);
       return temporal::CreateTemporalDateTime(
           isolate,
           {{date->iso_year(), date->iso_month(), date->iso_day()},
@@ -12264,8 +12263,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
     // item.[[ISODay]], item.[[ISOHour]], item.[[ISOMinute]],
     // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
     // item.[[ISONanosecond]], item.[[Calendar]]).
-    Handle<JSTemporalPlainDateTime> date_time =
-        Handle<JSTemporalPlainDateTime>::cast(item);
+    auto date_time = DirectHandle<JSTemporalPlainDateTime>::cast(item);
     return temporal::CreateTemporalDateTime(
         isolate,
         {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
@@ -12316,7 +12314,7 @@ MaybeHandle<Smi> JSTemporalPlainDateTime::Compare(Isolate* isolate,
 
 // #sec-temporal.plaindatetime.prototype.equals
 MaybeHandle<Oddball> JSTemporalPlainDateTime::Equals(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> other_obj) {
   // 1. Let dateTime be the this value.
   // 2. Perform ? RequireInternalSlot(dateTime,
@@ -12436,7 +12434,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
 
 // #sec-temporal.plaindatetime.prototype.withplaintime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainTime(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> plain_time_like) {
   // 1. Let temporalDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDateTime,
@@ -12475,7 +12473,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainTime(
 
 // #sec-temporal.plaindatetime.prototype.withcalendar
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> calendar_like) {
   // 1. Let temporalDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDateTime,
@@ -12598,7 +12596,7 @@ MaybeHandle<JSReceiver> ConsolidateCalendars(Isolate* isolate,
 
 // #sec-temporal.plaindatetime.prototype.withplaindate
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainDate(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> temporal_date_like) {
   // 1. Let temporalDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDateTime,
@@ -12679,7 +12677,7 @@ MaybeHandle<String> TemporalDateTimeToString(Isolate* isolate,
 
 // #sec-temporal.plaindatetime.prototype.tojson
 MaybeHandle<String> JSTemporalPlainDateTime::ToJSON(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   return TemporalDateTimeToString(
       isolate,
       {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
@@ -12757,7 +12755,7 @@ DateTimeRecord RoundISODateTime(
 
 // #sec-temporal.plaindatetime.prototype.tostring
 MaybeHandle<String> JSTemporalPlainDateTime::ToString(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.PlainDateTime.prototype.toString";
   // 1. Let dateTime be the this value.
@@ -12861,7 +12859,7 @@ Maybe<double> ToTemporalDateTimeRoundingIncrement(
 
 // #sec-temporal.plaindatetime.prototype.round
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> round_to_obj) {
   const char* method_name = "Temporal.PlainDateTime.prototype.round";
   Factory* factory = isolate->factory();
@@ -12946,7 +12944,7 @@ namespace {
 MaybeHandle<JSTemporalPlainDateTime>
 AddDurationToOrSubtractDurationFromPlainDateTime(
     Isolate* isolate, Arithmetic operation,
-    Handle<JSTemporalPlainDateTime> date_time,
+    DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options_obj,
     const char* method_name) {
   // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
@@ -13013,7 +13011,7 @@ AddDurationToOrSubtractDurationFromPlainDateTime(
 
 // #sec-temporal.plaindatetime.prototype.add
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options) {
   return AddDurationToOrSubtractDurationFromPlainDateTime(
       isolate, Arithmetic::kAdd, date_time, temporal_duration_like, options,
@@ -13022,7 +13020,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
 
 // #sec-temporal.plaindatetime.prototype.subtract
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options) {
   return AddDurationToOrSubtractDurationFromPlainDateTime(
       isolate, Arithmetic::kSubtract, date_time, temporal_duration_like,
@@ -13034,7 +13032,7 @@ namespace {
 // #sec-temporal-differencetemporalplaindatetime
 MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
     Isolate* isolate, TimePreposition operation,
-    Handle<JSTemporalPlainDateTime> date_time, Handle<Object> other_obj,
+    DirectHandle<JSTemporalPlainDateTime> date_time, Handle<Object> other_obj,
     Handle<Object> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
@@ -13144,7 +13142,7 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
 
 // #sec-temporal.plaindatetime.prototype.until
 MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> handle,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalPlainDateTime(
@@ -13154,7 +13152,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
 
 // #sec-temporal.plaindatetime.prototype.since
 MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> handle,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> handle,
     Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalPlainDateTime(
@@ -13164,7 +13162,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
 
 // #sec-temporal.plaindatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainDateTime::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   Factory* factory = isolate->factory();
   // 1. Let dateTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDateTime,
@@ -13212,7 +13210,7 @@ MaybeHandle<JSReceiver> JSTemporalPlainDateTime::GetISOFields(
 
 // #sec-temporal.plaindatetime.prototype.toplaindate
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   // 1. Let dateTime be the this value.
   // 2. Perform ? RequireInternalSlot(dateTime,
   // [[InitializedTemporalDateTime]]).
@@ -13226,7 +13224,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
 
 // #sec-temporal.plaindatetime.prototype.toplaintime
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time) {
   // 1. Let dateTime be the this value.
   // 2. Perform ? RequireInternalSlot(dateTime,
   // [[InitializedTemporalDateTime]]).
@@ -13495,8 +13493,7 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
         Handle<JSTemporalPlainMonthDay>());
     // b. Return ? CreateTemporalMonthDay(item.[[ISOMonth]], item.[[ISODay]],
     // item.[[Calendar]], item.[[ISOYear]]).
-    Handle<JSTemporalPlainMonthDay> month_day =
-        Handle<JSTemporalPlainMonthDay>::cast(item);
+    auto month_day = DirectHandle<JSTemporalPlainMonthDay>::cast(item);
     return CreateTemporalMonthDay(
         isolate, month_day->iso_month(), month_day->iso_day(),
         handle(month_day->calendar(), isolate), month_day->iso_year());
@@ -13507,7 +13504,7 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
 
 // #sec-temporal.plainyearmonth.prototype.equals
 MaybeHandle<Oddball> JSTemporalPlainMonthDay::Equals(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     Handle<Object> other_obj) {
   // 1. Let monthDay be the this value.
   // 2. Perform ? RequireInternalSlot(monthDay,
@@ -13552,8 +13549,9 @@ namespace {
 template <typename T>
 MaybeHandle<JSTemporalPlainDate> PlainMonthDayOrYearMonthToPlainDate(
     Isolate* isolate, Handle<T> temporal, Handle<Object> item_obj,
-    Handle<String> receiver_field_name_1, Handle<String> receiver_field_name_2,
-    Handle<String> input_field_name) {
+    DirectHandle<String> receiver_field_name_1,
+    DirectHandle<String> receiver_field_name_2,
+    DirectHandle<String> input_field_name) {
   Factory* factory = isolate->factory();
   // 1. Let monthDay be the this value.
   // 2. Perform ? RequireInternalSlot(monthDay,
@@ -13607,7 +13605,7 @@ MaybeHandle<JSTemporalPlainDate> PlainMonthDayOrYearMonthToPlainDate(
   for (int i = 0; i < receiver_field_names->length(); i++) {
     Handle<Object> item(receiver_field_names->get(i), isolate);
     DCHECK(IsString(*item));
-    Handle<String> string = Handle<String>::cast(item);
+    auto string = DirectHandle<String>::cast(item);
     if (!added->Has(isolate, string)) {
       merged_field_names->set(added->NumberOfElements(), *item);
       added = StringSet::Add(isolate, added, string);
@@ -13616,7 +13614,7 @@ MaybeHandle<JSTemporalPlainDate> PlainMonthDayOrYearMonthToPlainDate(
   for (int i = 0; i < input_field_names->length(); i++) {
     Handle<Object> item(input_field_names->get(i), isolate);
     DCHECK(IsString(*item));
-    Handle<String> string = Handle<String>::cast(item);
+    auto string = DirectHandle<String>::cast(item);
     if (!added->Has(isolate, string)) {
       merged_field_names->set(added->NumberOfElements(), *item);
       added = StringSet::Add(isolate, added, string);
@@ -13659,7 +13657,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
 
 // #sec-temporal.plainmonthday.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainMonthDay::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
   Factory* factory = isolate->factory();
   // 1. Let monthDay be the this value.
   // 2. Perform ? RequireInternalSlot(monthDay,
@@ -13689,13 +13687,13 @@ MaybeHandle<JSReceiver> JSTemporalPlainMonthDay::GetISOFields(
 
 // #sec-temporal.plainmonthday.prototype.tojson
 MaybeHandle<String> JSTemporalPlainMonthDay::ToJSON(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day) {
   return TemporalMonthDayToString(isolate, month_day, ShowCalendar::kAuto);
 }
 
 // #sec-temporal.plainmonthday.prototype.tostring
 MaybeHandle<String> JSTemporalPlainMonthDay::ToString(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     Handle<Object> options) {
   return TemporalToString<JSTemporalPlainMonthDay, TemporalMonthDayToString>(
       isolate, month_day, options, "Temporal.PlainMonthDay.prototype.toString");
@@ -13887,8 +13885,7 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
         Handle<JSTemporalPlainYearMonth>());
     // b. Return ? CreateTemporalYearMonth(item.[[ISOYear]], item.[[ISOMonth]],
     // item.[[Calendar]], item.[[ISODay]]).
-    Handle<JSTemporalPlainYearMonth> year_month =
-        Handle<JSTemporalPlainYearMonth>::cast(item);
+    auto year_month = DirectHandle<JSTemporalPlainYearMonth>::cast(item);
     return CreateTemporalYearMonth(
         isolate, year_month->iso_year(), year_month->iso_month(),
         handle(year_month->calendar(), isolate), year_month->iso_day());
@@ -13920,7 +13917,7 @@ MaybeHandle<Smi> JSTemporalPlainYearMonth::Compare(Isolate* isolate,
 
 // #sec-temporal.plainyearmonth.prototype.equals
 MaybeHandle<Oddball> JSTemporalPlainYearMonth::Equals(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     Handle<Object> other_obj) {
   // 1. Let yearMonth be the this value.
   // 2. Perform ? RequireInternalSlot(yearMonth,
@@ -14278,7 +14275,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
 
 // #sec-temporal.plainyearmonth.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainYearMonth::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month) {
   Factory* factory = isolate->factory();
   // 1. Let yearMonth be the this value.
   // 2. Perform ? RequireInternalSlot(yearMonth,
@@ -14308,13 +14305,13 @@ MaybeHandle<JSReceiver> JSTemporalPlainYearMonth::GetISOFields(
 
 // #sec-temporal.plainyearmonth.prototype.tojson
 MaybeHandle<String> JSTemporalPlainYearMonth::ToJSON(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month) {
   return TemporalYearMonthToString(isolate, year_month, ShowCalendar::kAuto);
 }
 
 // #sec-temporal.plainyearmonth.prototype.tostring
 MaybeHandle<String> JSTemporalPlainYearMonth::ToString(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     Handle<Object> options) {
   return TemporalToString<JSTemporalPlainYearMonth, TemporalYearMonthToString>(
       isolate, year_month, options,
@@ -14367,7 +14364,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
 
 // #sec-temporal.plaintime.prototype.tozoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainTime::ToZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> item_obj) {
   const char* method_name = "Temporal.PlainTime.prototype.toZonedDateTime";
   Factory* factory = isolate->factory();
@@ -14508,7 +14505,7 @@ MaybeHandle<Smi> JSTemporalPlainTime::Compare(Isolate* isolate,
 
 // #sec-temporal.plaintime.prototype.equals
 MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> other_obj) {
   // 1. Let temporalTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalTime,
@@ -14580,7 +14577,7 @@ Maximum MaximumTemporalDurationRoundingIncrement(Unit unit) {
 
 // #sec-temporal.plaintime.prototype.round
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> round_to_obj) {
   const char* method_name = "Temporal.PlainTime.prototype.round";
   Factory* factory = isolate->factory();
@@ -14661,7 +14658,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
 
 // #sec-temporal.plaintime.prototype.with
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> temporal_time_like_obj, Handle<Object> options_obj) {
   const char* method_name = "Temporal.PlainTime.prototype.with";
   // 1. Let temporalTime be the this value.
@@ -14752,8 +14749,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
     // a. Return ? CreateTemporalTime(item.[[ISOHour]], item.[[ISOMinute]],
     // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
     // item.[[ISONanosecond]]).
-    Handle<JSTemporalPlainTime> item =
-        Handle<JSTemporalPlainTime>::cast(item_obj);
+    auto item = DirectHandle<JSTemporalPlainTime>::cast(item_obj);
     return CreateTemporalTime(
         isolate, {item->iso_hour(), item->iso_minute(), item->iso_second(),
                   item->iso_millisecond(), item->iso_microsecond(),
@@ -14765,7 +14761,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
 
 // #sec-temporal.plaintime.prototype.toplaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainTime::ToPlainDateTime(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> temporal_date_like) {
   // 1. Let temporalTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalTime,
@@ -14797,7 +14793,7 @@ namespace {
 // #sec-temporal-adddurationtoorsubtractdurationfromplaintime
 MaybeHandle<JSTemporalPlainTime> AddDurationToOrSubtractDurationFromPlainTime(
     Isolate* isolate, Arithmetic operation,
-    Handle<JSTemporalPlainTime> temporal_time,
+    DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> temporal_duration_like, const char* method_name) {
   // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
   double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
@@ -14839,7 +14835,7 @@ MaybeHandle<JSTemporalPlainTime> AddDurationToOrSubtractDurationFromPlainTime(
 
 // #sec-temporal.plaintime.prototype.add
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> temporal_duration_like) {
   return AddDurationToOrSubtractDurationFromPlainTime(
       isolate, Arithmetic::kAdd, temporal_time, temporal_duration_like,
@@ -14848,7 +14844,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
 
 // #sec-temporal.plaintime.prototype.subtract
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> temporal_duration_like) {
   return AddDurationToOrSubtractDurationFromPlainTime(
       isolate, Arithmetic::kSubtract, temporal_time, temporal_duration_like,
@@ -14859,7 +14855,7 @@ namespace {
 // #sec-temporal-differencetemporalplantime
 MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
     Isolate* isolate, TimePreposition operation,
-    Handle<JSTemporalPlainTime> temporal_time, Handle<Object> other_obj,
+    DirectHandle<JSTemporalPlainTime> temporal_time, Handle<Object> other_obj,
     Handle<Object> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
@@ -14935,8 +14931,8 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
 
 // #sec-temporal.plaintime.prototype.until
 MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
-    Isolate* isolate, Handle<JSTemporalPlainTime> handle, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
+    Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalPlainTime(isolate, TimePreposition::kUntil, handle,
                                      other, options,
@@ -14945,8 +14941,8 @@ MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
 
 // #sec-temporal.plaintime.prototype.since
 MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
-    Isolate* isolate, Handle<JSTemporalPlainTime> handle, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> handle,
+    Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalPlainTime(isolate, TimePreposition::kSince, handle,
                                      other, options,
@@ -14955,7 +14951,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
 
 // #sec-temporal.plaintime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time) {
   Factory* factory = isolate->factory();
   // 1. Let temporalTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalTime,
@@ -14996,7 +14992,7 @@ MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
 
 // #sec-temporal.plaintime.prototype.tojson
 MaybeHandle<String> JSTemporalPlainTime::ToJSON(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time) {
   return TemporalTimeToString(isolate, temporal_time, Precision::kAuto);
 }
 
@@ -15124,9 +15120,11 @@ Handle<BigInt> ApplyUnsignedRoundingMode(
   // 5. If unsignedRoundingMode is infinity, return r2.
   if (unsigned_rounding_mode == UnsignedRoundingMode::kInfinity) return r2;
   // 6. Let d1 be x – r1.
-  Handle<BigInt> dd1 = BigInt::Subtract(isolate, num, rr1).ToHandleChecked();
+  DirectHandle<BigInt> dd1 =
+      BigInt::Subtract(isolate, num, rr1).ToHandleChecked();
   // 7. Let d2 be r2 – x.
-  Handle<BigInt> dd2 = BigInt::Subtract(isolate, rr2, num).ToHandleChecked();
+  DirectHandle<BigInt> dd2 =
+      BigInt::Subtract(isolate, rr2, num).ToHandleChecked();
   // 8. If d1 < d2, return r1.
   if (BigInt::CompareToBigInt(dd1, dd2) == ComparisonResult::kLessThan) {
     return r1;
@@ -15144,7 +15142,7 @@ Handle<BigInt> ApplyUnsignedRoundingMode(
   // 13. Assert: unsignedRoundingMode is half-even.
   DCHECK_EQ(unsigned_rounding_mode, UnsignedRoundingMode::kHalfEven);
   // 14. Let cardinality be (r1 / (r2 – r1)) modulo 2.
-  Handle<BigInt> cardinality =
+  DirectHandle<BigInt> cardinality =
       BigInt::Remainder(isolate, r1, BigInt::FromInt64(isolate, 2))
           .ToHandleChecked();
   // 15. If cardinality is 0, return r1.
@@ -15497,8 +15495,9 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
 }
 
 // #sec-temporal-compareepochnanoseconds
-MaybeHandle<Smi> CompareEpochNanoseconds(Isolate* isolate, Handle<BigInt> one,
-                                         Handle<BigInt> two) {
+MaybeHandle<Smi> CompareEpochNanoseconds(Isolate* isolate,
+                                         DirectHandle<BigInt> one,
+                                         DirectHandle<BigInt> two) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. If epochNanosecondsOne > epochNanosecondsTwo, return 1.
@@ -15513,7 +15512,7 @@ MaybeHandle<Smi> CompareEpochNanoseconds(Isolate* isolate, Handle<BigInt> one,
 
 // #sec-temporal.plaintime.prototype.tostring
 MaybeHandle<String> JSTemporalPlainTime::ToString(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.PlainTime.prototype.toString";
   // 1. Let temporalTime be the this value.
@@ -15603,7 +15602,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 
 // #sec-get-temporal.zoneddatetime.prototype.hoursinday
 MaybeHandle<Object> JSTemporalZonedDateTime::HoursInDay(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.hoursInDay";
   // 1. Let zonedDateTime be the this value.
@@ -15940,8 +15939,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
 
     // d. Return ? CreateTemporalZonedDateTime(item.[[Nanoseconds]],
     // item.[[TimeZone]], item.[[Calendar]]).
-    Handle<JSTemporalZonedDateTime> zoned_date_time =
-        Handle<JSTemporalZonedDateTime>::cast(item);
+    auto zoned_date_time = DirectHandle<JSTemporalZonedDateTime>::cast(item);
     return CreateTemporalZonedDateTime(
         isolate, handle(zoned_date_time->nanoseconds(), isolate),
         handle(zoned_date_time->time_zone(), isolate),
@@ -16001,7 +15999,7 @@ Maybe<bool> TimeZoneEquals(Isolate* isolate, Handle<JSReceiver> one,
 
 // #sec-temporal.zoneddatetime.prototype.equals
 MaybeHandle<Oddball> JSTemporalZonedDateTime::Equals(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> other_obj) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.equals";
@@ -16290,7 +16288,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
 
 // #sec-temporal.zoneddatetime.prototype.withcalendar
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> calendar_like) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.withCalendar";
@@ -16306,13 +16304,13 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // zonedDateTime.[[TimeZone]], calendar).
   Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
-  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  DirectHandle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
 
 // #sec-temporal.zoneddatetime.prototype.withplaindate
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainDate(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> plain_date_like) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.withPlainDate";
@@ -16383,7 +16381,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainDate(
 
 // #sec-temporal.zoneddatetime.prototype.withplaintime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> plain_time_like) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.withPlainTime";
@@ -16450,7 +16448,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
 
 // #sec-temporal.zoneddatetime.prototype.withtimezone
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> time_zone_like) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.withTimeZone";
@@ -16466,7 +16464,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // timeZone, zonedDateTime.[[Calendar]]).
   Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
-  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  DirectHandle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
 
@@ -16476,8 +16474,8 @@ template <typename T,
           MaybeHandle<T> (*from_fields_func)(
               Isolate*, Handle<JSReceiver>, Handle<JSReceiver>, Handle<Object>)>
 MaybeHandle<T> ZonedDateTimeToPlainYearMonthOrMonthDay(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
-    Handle<String> field_name_1, Handle<String> field_name_2,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
+    DirectHandle<String> field_name_1, DirectHandle<String> field_name_2,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
@@ -16520,7 +16518,7 @@ MaybeHandle<T> ZonedDateTimeToPlainYearMonthOrMonthDay(
 
 // #sec-temporal.zoneddatetime.prototype.toplainyearmonth
 MaybeHandle<JSTemporalPlainYearMonth> JSTemporalZonedDateTime::ToPlainYearMonth(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return ZonedDateTimeToPlainYearMonthOrMonthDay<JSTemporalPlainYearMonth,
                                                  YearMonthFromFields>(
       isolate, zoned_date_time, isolate->factory()->monthCode_string(),
@@ -16530,7 +16528,7 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalZonedDateTime::ToPlainYearMonth(
 
 // #sec-temporal.zoneddatetime.prototype.toplainmonthday
 MaybeHandle<JSTemporalPlainMonthDay> JSTemporalZonedDateTime::ToPlainMonthDay(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return ZonedDateTimeToPlainYearMonthOrMonthDay<JSTemporalPlainMonthDay,
                                                  MonthDayFromFields>(
       isolate, zoned_date_time, isolate->factory()->day_string(),
@@ -16542,7 +16540,7 @@ namespace {
 
 // #sec-temporal-temporalzoneddatetimetostring
 MaybeHandle<String> TemporalZonedDateTimeToString(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Precision precision, ShowCalendar show_calendar,
     ShowTimeZone show_time_zone, ShowOffset show_offset, double increment,
     Unit unit, RoundingMode rounding_mode, const char* method_name) {
@@ -16642,7 +16640,7 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
 
 // #sec-temporal-temporalzoneddatetimetostring
 MaybeHandle<String> TemporalZonedDateTimeToString(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Precision precision, ShowCalendar show_calendar,
     ShowTimeZone show_time_zone, ShowOffset show_offset,
     const char* method_name) {
@@ -16659,7 +16657,7 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
 }  // namespace
 // #sec-temporal.zoneddatetime.prototype.tojson
 MaybeHandle<String> JSTemporalZonedDateTime::ToJSON(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let zonedDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
@@ -16689,7 +16687,7 @@ MaybeHandle<String> JSTemporalZonedDateTime::ToLocaleString(
 
 // #sec-temporal.zoneddatetime.prototype.tostring
 MaybeHandle<String> JSTemporalZonedDateTime::ToString(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> options_obj) {
   const char* method_name = "Temporal.ZonedDateTime.prototype.toString";
   // 1. Let zonedDateTime be the this value.
@@ -16767,7 +16765,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
 
 // #sec-temporal.zoneddatetime.prototype.round
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> round_to_obj) {
   const char* method_name = "Temporal.ZonedDateTime.prototype.round";
   Factory* factory = isolate->factory();
@@ -16930,7 +16928,7 @@ namespace {
 MaybeHandle<JSTemporalZonedDateTime>
 AddDurationToOrSubtractDurationFromZonedDateTime(
     Isolate* isolate, Arithmetic operation,
-    Handle<JSTemporalZonedDateTime> zoned_date_time,
+    DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options_obj,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
@@ -16989,7 +16987,7 @@ AddDurationToOrSubtractDurationFromZonedDateTime(
 
 // #sec-temporal.zoneddatetime.prototype.add
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return AddDurationToOrSubtractDurationFromZonedDateTime(
@@ -16998,7 +16996,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
 }
 // #sec-temporal.zoneddatetime.prototype.subtract
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> temporal_duration_like, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return AddDurationToOrSubtractDurationFromZonedDateTime(
@@ -17178,7 +17176,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 
 // #sec-temporal.zoneddatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalZonedDateTime::GetISOFields(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.getISOFields";
   Factory* factory = isolate->factory();
@@ -17264,7 +17262,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 
 // #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let zonedDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
@@ -17289,7 +17287,7 @@ MaybeHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
 
 // #sec-get-temporal.zoneddatetime.prototype.offset
 MaybeHandle<String> JSTemporalZonedDateTime::Offset(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let zonedDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
@@ -17308,7 +17306,7 @@ MaybeHandle<String> JSTemporalZonedDateTime::Offset(
 
 // #sec-temporal.zoneddatetime.prototype.startofday
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.startOfDay";
   // 1. Let zonedDateTime be the this value.
@@ -17359,7 +17357,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
 
 // #sec-temporal.zoneddatetime.prototype.toinstant
 MaybeHandle<JSTemporalInstant> JSTemporalZonedDateTime::ToInstant(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let zonedDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
@@ -17374,7 +17372,7 @@ namespace {
 
 // Function implment shared steps of toplaindate, toplaintime, toplaindatetime
 MaybeHandle<JSTemporalPlainDateTime> ZonedDateTimeToPlainDateTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let zonedDateTime be the this value.
@@ -17398,7 +17396,7 @@ MaybeHandle<JSTemporalPlainDateTime> ZonedDateTimeToPlainDateTime(
 
 // #sec-temporal.zoneddatetime.prototype.toplaindate
 MaybeHandle<JSTemporalPlainDate> JSTemporalZonedDateTime::ToPlainDate(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   // Step 1-6 are the same as toplaindatetime
   Handle<JSTemporalPlainDateTime> temporal_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -17417,7 +17415,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalZonedDateTime::ToPlainDate(
 
 // #sec-temporal.zoneddatetime.prototype.toplaintime
 MaybeHandle<JSTemporalPlainTime> JSTemporalZonedDateTime::ToPlainTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   // Step 1-6 are the same as toplaindatetime
   Handle<JSTemporalPlainDateTime> temporal_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -17439,7 +17437,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalZonedDateTime::ToPlainTime(
 
 // #sec-temporal.zoneddatetime.prototype.toplaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalZonedDateTime::ToPlainDateTime(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return ZonedDateTimeToPlainDateTime(
       isolate, zoned_date_time,
       "Temporal.ZonedDateTime.prototype.toPlainDateTime");
@@ -17576,9 +17574,9 @@ MaybeHandle<Smi> JSTemporalInstant::Compare(Isolate* isolate,
 }
 
 // #sec-temporal.instant.prototype.equals
-MaybeHandle<Oddball> JSTemporalInstant::Equals(Isolate* isolate,
-                                               Handle<JSTemporalInstant> handle,
-                                               Handle<Object> other_obj) {
+MaybeHandle<Oddball> JSTemporalInstant::Equals(
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
+    Handle<Object> other_obj) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let instant be the this value.
   // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
@@ -17701,7 +17699,7 @@ Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
 
 // #sec-temporal.instant.prototype.round
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
-    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     Handle<Object> round_to_obj) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.Instant.prototype.round";
@@ -17819,7 +17817,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
 
 // #sec-temporal.instant.prototype.tozoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     Handle<Object> item_obj) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.Instant.prototype.toZonedDateTime";
@@ -17941,7 +17939,7 @@ MaybeHandle<String> TemporalInstantToString(Isolate* isolate,
         GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
         Handle<String>());
     // b. Let timeZoneString be ! FormatISOTimeZoneOffsetString(offsetNs).
-    Handle<String> time_zone_string =
+    DirectHandle<String> time_zone_string =
         FormatISOTimeZoneOffsetString(isolate, offset_ns);
     builder.AppendString(time_zone_string);
   }
@@ -17981,7 +17979,7 @@ MaybeHandle<String> JSTemporalInstant::ToLocaleString(
 
 // #sec-temporal.instant.prototype.tostring
 MaybeHandle<String> JSTemporalInstant::ToString(
-    Isolate* isolate, Handle<JSTemporalInstant> instant,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
   const char* method_name = "Temporal.Instant.prototype.toString";
@@ -18036,7 +18034,7 @@ MaybeHandle<String> JSTemporalInstant::ToString(
 
 // #sec-temporal.instant.prototype.tozoneddatetimeiso
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTimeISO(
-    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     Handle<Object> item_obj) {
   TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
@@ -18063,7 +18061,8 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTimeISO(
       temporal::ToTemporalTimeZone(
           isolate, item_obj, "Temporal.Instant.prototype.toZonedDateTimeISO"));
   // 5. Let calendar be ! GetISO8601Calendar().
-  Handle<JSTemporalCalendar> calendar = temporal::GetISO8601Calendar(isolate);
+  DirectHandle<JSTemporalCalendar> calendar =
+      temporal::GetISO8601Calendar(isolate);
   // 6. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
   // calendar).
   return CreateTemporalZonedDateTime(
@@ -18075,7 +18074,8 @@ namespace {
 
 // #sec-temporal-adddurationtoorsubtractdurationfrominstant
 MaybeHandle<JSTemporalInstant> AddDurationToOrSubtractDurationFromInstant(
-    Isolate* isolate, Arithmetic operation, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, Arithmetic operation,
+    DirectHandle<JSTemporalInstant> handle,
     Handle<Object> temporal_duration_like, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
@@ -18264,7 +18264,7 @@ TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
   // Note: Since diff could be very big and over the precision of double can
   // hold, break diff into diff_hours and diff_nanoseconds before pass into
   // RoundDuration.
-  Handle<BigInt> nanoseconds_in_a_hour =
+  DirectHandle<BigInt> nanoseconds_in_a_hour =
       BigInt::FromUint64(isolate, 3600000000000);
   double diff_hours = Object::NumberValue(*BigInt::ToNumber(
       isolate,
@@ -18292,7 +18292,7 @@ TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
 // #sec-temporal-differencetemporalinstant
 MaybeHandle<JSTemporalDuration> DifferenceTemporalInstant(
     Isolate* isolate, TimePreposition operation,
-    Handle<JSTemporalInstant> instant, Handle<Object> other_obj,
+    DirectHandle<JSTemporalInstant> instant, Handle<Object> other_obj,
     Handle<Object> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
@@ -18336,7 +18336,7 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalInstant(
 
 // #sec-temporal.instant.prototype.add
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::Add(
-    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     Handle<Object> temporal_duration_like) {
   TEMPORAL_ENTER_FUNC();
   return AddDurationToOrSubtractDurationFromInstant(
@@ -18346,7 +18346,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Add(
 
 // #sec-temporal.instant.prototype.subtract
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
-    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
     Handle<Object> temporal_duration_like) {
   TEMPORAL_ENTER_FUNC();
   return AddDurationToOrSubtractDurationFromInstant(
@@ -18356,8 +18356,8 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
 
 // #sec-temporal.instant.prototype.until
 MaybeHandle<JSTemporalDuration> JSTemporalInstant::Until(
-    Isolate* isolate, Handle<JSTemporalInstant> handle, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
+    Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalInstant(isolate, TimePreposition::kUntil, handle,
                                    other, options,
@@ -18366,8 +18366,8 @@ MaybeHandle<JSTemporalDuration> JSTemporalInstant::Until(
 
 // #sec-temporal.instant.prototype.since
 MaybeHandle<JSTemporalDuration> JSTemporalInstant::Since(
-    Isolate* isolate, Handle<JSTemporalInstant> handle, Handle<Object> other,
-    Handle<Object> options) {
+    Isolate* isolate, DirectHandle<JSTemporalInstant> handle,
+    Handle<Object> other, Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
   return DifferenceTemporalInstant(isolate, TimePreposition::kSince, handle,
                                    other, options,
@@ -18378,7 +18378,7 @@ namespace temporal {
 // Step iii and iv of #sec-temporal.calendar.prototype.fields
 MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
     Isolate* isolate, Handle<String> next_value,
-    Handle<FixedArray> fields_name) {
+    DirectHandle<FixedArray> fields_name) {
   Factory* factory = isolate->factory();
   // iii. iii. If fieldNames contains nextValue, then
   for (int i = 0; i < fields_name->length(); i++) {

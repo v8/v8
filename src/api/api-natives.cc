@@ -85,7 +85,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         isolate, getter,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(getter)));
-    Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
   if (IsFunctionTemplateInfo(*setter) &&
@@ -94,7 +94,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         isolate, setter,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(setter)));
-    Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
@@ -130,7 +130,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   return value;
 }
 
-void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
+void DisableAccessChecks(Isolate* isolate, DirectHandle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
@@ -138,7 +138,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   JSObject::MigrateToMap(isolate, object, new_map);
 }
 
-void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
+void EnableAccessChecks(Isolate* isolate, DirectHandle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
@@ -232,7 +232,8 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
   Tagged<Object> maybe_property_list = data->property_list();
   if (IsUndefined(maybe_property_list, isolate)) return obj;
-  Handle<ArrayList> properties(ArrayList::cast(maybe_property_list), isolate);
+  DirectHandle<ArrayList> properties(ArrayList::cast(maybe_property_list),
+                                     isolate);
   if (properties->length() == 0) return obj;
 
   int i = 0;
@@ -455,8 +456,9 @@ MaybeHandle<JSFunction> InstantiateFunction(
   return function;
 }
 
-void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
-                               int length, Handle<Object>* data) {
+void AddPropertyToPropertyList(Isolate* isolate,
+                               DirectHandle<TemplateInfo> templ, int length,
+                               Handle<Object>* data) {
   Tagged<Object> maybe_list = templ->property_list();
   Handle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
@@ -466,7 +468,7 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
   }
   templ->set_number_of_properties(templ->number_of_properties() + 1);
   for (int i = 0; i < length; i++) {
-    Handle<Object> value =
+    DirectHandle<Object> value =
         data[i].is_null()
             ? Handle<Object>::cast(isolate->factory()->undefined_value())
             : data[i];
@@ -513,13 +515,13 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
-    Handle<ObjectTemplateInfo> data) {
+    DirectHandle<ObjectTemplateInfo> data) {
   Isolate* isolate = data->GetIsolate();
   InvokeScope invoke_scope(isolate);
 
-  Handle<FunctionTemplateInfo> constructor(
+  DirectHandle<FunctionTemplateInfo> constructor(
       FunctionTemplateInfo::cast(data->constructor()), isolate);
-  Handle<Map> object_map = isolate->factory()->NewContextlessMap(
+  DirectHandle<Map> object_map = isolate->factory()->NewContextlessMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSSpecialObject::kHeaderSize +
           data->embedder_field_count() * kEmbedderDataSlotSize,
@@ -537,7 +539,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   return object;
 }
 
-void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+void ApiNatives::AddDataProperty(Isolate* isolate,
+                                 DirectHandle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,
                                  PropertyAttributes attributes) {
   PropertyDetails details(PropertyKind::kData, attributes,
@@ -547,7 +550,8 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
 
-void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+void ApiNatives::AddDataProperty(Isolate* isolate,
+                                 DirectHandle<TemplateInfo> info,
                                  Handle<Name> name, v8::Intrinsic intrinsic,
                                  PropertyAttributes attributes) {
   auto value = handle(Smi::FromInt(intrinsic), isolate);
@@ -560,7 +564,7 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
 }
 
 void ApiNatives::AddAccessorProperty(Isolate* isolate,
-                                     Handle<TemplateInfo> info,
+                                     DirectHandle<TemplateInfo> info,
                                      Handle<Name> name,
                                      Handle<FunctionTemplateInfo> getter,
                                      Handle<FunctionTemplateInfo> setter,
@@ -575,8 +579,8 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
 }
 
 void ApiNatives::AddNativeDataProperty(Isolate* isolate,
-                                       Handle<TemplateInfo> info,
-                                       Handle<AccessorInfo> property) {
+                                       DirectHandle<TemplateInfo> info,
+                                       DirectHandle<AccessorInfo> property) {
   Tagged<Object> maybe_list = info->property_accessors();
   Handle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
@@ -590,7 +594,7 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
 
 Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
-    Handle<FunctionTemplateInfo> obj, Handle<Object> prototype,
+    DirectHandle<FunctionTemplateInfo> obj, Handle<Object> prototype,
     InstanceType type, MaybeHandle<Name> maybe_name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCreateApiFunction);
   Handle<SharedFunctionInfo> shared =
@@ -629,7 +633,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   int embedder_field_count = 0;
   bool immutable_proto = false;
   if (!IsUndefined(obj->GetInstanceTemplate(), isolate)) {
-    Handle<ObjectTemplateInfo> GetInstanceTemplate = Handle<ObjectTemplateInfo>(
+    DirectHandle<ObjectTemplateInfo> GetInstanceTemplate(
         ObjectTemplateInfo::cast(obj->GetInstanceTemplate()), isolate);
     embedder_field_count = GetInstanceTemplate->embedder_field_count();
     immutable_proto = GetInstanceTemplate->immutable_proto();

@@ -2469,8 +2469,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, WasmFeatures enabled_features,
     CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
-    Handle<Context> context, Handle<NativeContext> incumbent_context,
-    const char* api_method_name,
+    DirectHandle<Context> context,
+    DirectHandle<NativeContext> incumbent_context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
       api_method_name_(api_method_name),
@@ -2738,7 +2738,7 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
       stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
   auto script =
       GetWasmEngine()->GetOrCreateScript(isolate_, native_module_, source_url);
-  Handle<WasmModuleObject> module_object =
+  DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module_, script);
 
   module_object_ = isolate_->global_handles()->Create(*module_object);
@@ -4022,7 +4022,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
                                                1);
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit.isolate());
-    Handle<Code> code = unit.Finalize();
+    DirectHandle<Code> code = unit.Finalize();
     // Each JSToWasmWrapperCompilationUnit compiles an actual wrappers and never
     // returns the generic builtin.
     DCHECK(!code->is_builtin());
@@ -4589,7 +4589,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
-    Handle<Code> code = unit->Finalize();
+    DirectHandle<Code> code = unit->Finalize();
     DCHECK(!code->is_builtin());
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
     isolate->heap()->js_to_wasm_wrappers()->Set(wrapper_index, code->wrapper());

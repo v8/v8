@@ -27,20 +27,21 @@ namespace internal {
 
 // ecma402 #sec-createsegmentsobject
 MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
-                                           Handle<JSSegmenter> segmenter,
+                                           DirectHandle<JSSegmenter> segmenter,
                                            Handle<String> string) {
   icu::BreakIterator* break_iterator =
       segmenter->icu_break_iterator()->raw()->clone();
   DCHECK_NOT_NULL(break_iterator);
 
-  Handle<Managed<icu::UnicodeString>> unicode_string =
+  DirectHandle<Managed<icu::UnicodeString>> unicode_string =
       Intl::SetTextToBreakIterator(isolate, string, break_iterator);
-  Handle<Managed<icu::BreakIterator>> managed_break_iterator =
+  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
 
   // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
   // 2. Let segments be ! ObjectCreate(%Segments.prototype%, internalSlotsList).
-  Handle<Map> map(isolate->native_context()->intl_segments_map(), isolate);
+  DirectHandle<Map> map(isolate->native_context()->intl_segments_map(),
+                        isolate);
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
 
   Handle<JSSegments> segments = Handle<JSSegments>::cast(result);
@@ -60,7 +61,7 @@ MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
 
 // ecma402 #sec-%segmentsprototype%.containing
 MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
-                                           Handle<JSSegments> segments,
+                                           DirectHandle<JSSegments> segments,
                                            double n_double) {
   // 5. Let len be the length of string.
   int32_t len = segments->unicode_string()->raw()->length();
@@ -108,7 +109,7 @@ bool CurrentSegmentIsWordLike(icu::BreakIterator* break_iterator) {
 // ecma402 #sec-createsegmentdataobject
 MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
     Isolate* isolate, JSSegmenter::Granularity granularity,
-    icu::BreakIterator* break_iterator, Handle<String> input_string,
+    icu::BreakIterator* break_iterator, DirectHandle<String> input_string,
     const icu::UnicodeString& unicode_string, int32_t start_index,
     int32_t end_index) {
   Factory* factory = isolate->factory();
@@ -122,7 +123,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   DCHECK_LT(start_index, end_index);
 
   // 5. Let result be ! ObjectCreate(%ObjectPrototype%).
-  Handle<Map> map(
+  DirectHandle<Map> map(
       granularity == JSSegmenter::Granularity::WORD
           ? isolate->native_context()->intl_segment_data_object_wordlike_map()
           : isolate->native_context()->intl_segment_data_object_map(),
@@ -137,7 +138,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
       Intl::ToString(isolate, unicode_string, start_index, end_index));
-  Handle<Object> index = factory->NewNumberFromInt(start_index);
+  DirectHandle<Object> index = factory->NewNumberFromInt(start_index);
 
   // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).
   DisallowGarbageCollection no_gc;
@@ -153,7 +154,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   if (granularity == JSSegmenter::Granularity::WORD) {
     // a. Let isWordLike be a Boolean value indicating whether the segment in
     //    string is "word-like" according to locale segmenter.[[Locale]].
-    Handle<Boolean> is_word_like =
+    DirectHandle<Boolean> is_word_like =
         factory->ToBoolean(CurrentSegmentIsWordLike(break_iterator));
     // b. Perform ! CreateDataPropertyOrThrow(result, "isWordLike", isWordLike).
     JSSegmentDataObjectWithIsWordLike::cast(raw)->set_is_word_like(

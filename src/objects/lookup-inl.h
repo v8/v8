@@ -272,7 +272,7 @@ bool LookupIterator::IsCacheableTransition() {
 
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
-                                     Handle<Name> name) {
+                                     DirectHandle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
   DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
 

@@ -103,7 +103,6 @@ Handle<Object> FunctionCallbackArguments::Call(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
       reinterpret_cast<v8::FunctionCallback>(function->callback(isolate));
-  Handle<Object> receiver_check_unsupported;
   if (isolate->should_check_side_effects() &&
       !isolate->debug()->PerformSideEffectCheckForCallback(
           handle(function, isolate))) {
@@ -141,7 +140,6 @@ Handle<Object> PropertyCallbackArguments::CallNamedQuery(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedQueryCallback);
-  Handle<Object> receiver_check_unsupported;
   if (interceptor->has_new_callbacks_signature()) {
     // New Api relies on the return value to be set to undefined.
     // TODO(ishell): do this in the constructor once the old Api is deprecated.
@@ -215,7 +213,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
 
 // TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallNamedSetter(
-    Handle<InterceptorInfo> interceptor, Handle<Name> name,
+    DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
     Handle<Object> value) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
@@ -246,7 +244,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetter(
 
 // TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
-    Handle<InterceptorInfo> interceptor, Handle<Name> name,
+    DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
     const v8::PropertyDescriptor& desc) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
@@ -276,7 +274,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
 
 // TODO(ishell): return Handle<Boolean>
 Handle<Object> PropertyCallbackArguments::CallNamedDeleter(
-    Handle<InterceptorInfo> interceptor, Handle<Name> name) {
+    DirectHandle<InterceptorInfo> interceptor, Handle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDeleterCallback);
@@ -391,7 +389,8 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
 
 // TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallIndexedSetter(
-    Handle<InterceptorInfo> interceptor, uint32_t index, Handle<Object> value) {
+    DirectHandle<InterceptorInfo> interceptor, uint32_t index,
+    Handle<Object> value) {
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedSetterCallback);
@@ -420,7 +419,7 @@ Handle<Object> PropertyCallbackArguments::CallIndexedSetter(
 
 // TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallIndexedDefiner(
-    Handle<InterceptorInfo> interceptor, uint32_t index,
+    DirectHandle<InterceptorInfo> interceptor, uint32_t index,
     const v8::PropertyDescriptor& desc) {
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
@@ -491,7 +490,7 @@ Handle<JSObject> PropertyCallbackArguments::CallPropertyEnumerator(
 // Accessors
 
 Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
-    Handle<AccessorInfo> info, Handle<Name> name) {
+    DirectHandle<AccessorInfo> info, Handle<Name> name) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
   // Unlike interceptor callbacks we know that the property exists, so
@@ -507,7 +506,7 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
 }
 
 Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
-    Handle<AccessorInfo> accessor_info, Handle<Name> name,
+    DirectHandle<AccessorInfo> accessor_info, Handle<Name> name,
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorSetterCallback);

@@ -485,7 +485,8 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index,
 }
 
 // static
-Handle<FixedArray> FixedArray::Resize(Isolate* isolate, Handle<FixedArray> xs,
+Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
+                                      DirectHandle<FixedArray> xs,
                                       int new_capacity,
                                       AllocationType allocation,
                                       WriteBarrierMode mode) {

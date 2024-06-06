@@ -67,13 +67,13 @@ class JSWrappedFunction
           JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     Handle<JSWrappedFunction> function);
+                                     DirectHandle<JSWrappedFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
-                              Handle<JSWrappedFunction> function);
+                              DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
-  static MaybeHandle<Object> Create(Isolate* isolate,
-                                    Handle<NativeContext> creation_context,
-                                    Handle<JSReceiver> value);
+  static MaybeHandle<Object> Create(
+      Isolate* isolate, DirectHandle<NativeContext> creation_context,
+      Handle<JSReceiver> value);
 
   // Dispatched behavior.
   DECL_PRINTER(JSWrappedFunction)
@@ -112,7 +112,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<NativeContext> native_context();
   inline int length();
 
-  static Handle<String> GetName(Isolate* isolate, Handle<JSFunction> function);
+  static Handle<String> GetName(Isolate* isolate,
+                                DirectHandle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
@@ -228,10 +229,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(feedback_vector, Tagged<FeedbackVector>)
   DECL_GETTER(has_feedback_vector, bool)
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Isolate* isolate, Handle<JSFunction> function,
+      Isolate* isolate, DirectHandle<JSFunction> function,
       IsCompiledScope* compiled_scope);
   static void CreateAndAttachFeedbackVector(Isolate* isolate,
-                                            Handle<JSFunction> function,
+                                            DirectHandle<JSFunction> function,
                                             IsCompiledScope* compiled_scope);
 
   // Functions related to closure feedback cell array that holds feedback cells
@@ -241,7 +242,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline bool has_closure_feedback_cell_array() const;
   inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
   static void EnsureClosureFeedbackCellArray(
-      Handle<JSFunction> function, bool reset_budget_for_feedback_allocation);
+      DirectHandle<JSFunction> function,
+      bool reset_budget_for_feedback_allocation);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback
@@ -278,11 +280,11 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Tagged<Map>)
 
-  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+  static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
                             Handle<Map> map, Handle<HeapObject> prototype);
-  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+  static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
                             Handle<Map> map, Handle<HeapObject> prototype,
-                            Handle<JSFunction> constructor);
+                            DirectHandle<JSFunction> constructor);
 
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
@@ -351,7 +353,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // function name's length exceeds String::kMaxLength.
   static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
                                             Handle<Name> name,
-                                            Handle<String> prefix);
+                                            DirectHandle<String> prefix);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.

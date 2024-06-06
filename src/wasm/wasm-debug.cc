@@ -893,7 +893,7 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
 }  // namespace
 
 // static
-bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
+bool WasmScript::SetBreakPoint(DirectHandle<Script> script, int* position,
                                Handle<BreakPoint> break_point) {
   DCHECK_NE(kOnEntryBreakpointPosition, *position);
 
@@ -914,8 +914,8 @@ bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
 }
 
 // static
-void WasmScript::SetInstrumentationBreakpoint(Handle<Script> script,
-                                              Handle<BreakPoint> break_point) {
+void WasmScript::SetInstrumentationBreakpoint(
+    DirectHandle<Script> script, DirectHandle<BreakPoint> break_point) {
   // Special handling for on-entry breakpoints.
   AddBreakpointToInfo(script, kOnEntryBreakpointPosition, break_point);
 
@@ -925,7 +925,8 @@ void WasmScript::SetInstrumentationBreakpoint(Handle<Script> script,
 
 // static
 bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
-    Handle<Script> script, int func_index, Handle<BreakPoint> break_point) {
+    DirectHandle<Script> script, int func_index,
+    Handle<BreakPoint> break_point) {
   if (func_index < 0) return false;
   int offset_in_func = 0;
 
@@ -937,9 +938,9 @@ bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
 }
 
 // static
-bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
-                                          int offset,
-                                          Handle<BreakPoint> break_point) {
+bool WasmScript::SetBreakPointForFunction(
+    DirectHandle<Script> script, int func_index, int offset,
+    DirectHandle<BreakPoint> break_point) {
   Isolate* isolate = script->GetIsolate();
 
   DCHECK_LE(0, func_index);
@@ -967,7 +968,7 @@ int GetBreakpointPos(Isolate* isolate,
 }
 
 int FindBreakpointInfoInsertPos(Isolate* isolate,
-                                Handle<FixedArray> breakpoint_infos,
+                                DirectHandle<FixedArray> breakpoint_infos,
                                 int position) {
   // Find insert location via binary search, taking care of undefined values on
   // the right. {position} is either {kOnEntryBreakpointPosition} (which is -1),
@@ -993,20 +994,21 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
 }  // namespace
 
 // static
-bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
-                                 Handle<BreakPoint> break_point) {
+bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
+                                 DirectHandle<BreakPoint> break_point) {
   if (!script->has_wasm_breakpoint_infos()) return false;
 
   Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
+  DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
+                                            isolate);
 
   int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
 
   // Does a BreakPointInfo object already exist for this position?
   if (pos == breakpoint_infos->length()) return false;
 
-  Handle<BreakPointInfo> info(BreakPointInfo::cast(breakpoint_infos->get(pos)),
-                              isolate);
+  DirectHandle<BreakPointInfo> info(
+      BreakPointInfo::cast(breakpoint_infos->get(pos)), isolate);
   BreakPointInfo::ClearBreakPoint(isolate, info, break_point);
 
   // Check if there are no more breakpoints at this location.
@@ -1039,21 +1041,23 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
 }
 
 // static
-bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
+bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
+                                     int breakpoint_id) {
   if (!script->has_wasm_breakpoint_infos()) {
     return false;
   }
   Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
+  DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
+                                            isolate);
   // If the array exists, it should not be empty.
   DCHECK_LT(0, breakpoint_infos->length());
 
   for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
-    Handle<Object> obj(breakpoint_infos->get(i), isolate);
+    DirectHandle<Object> obj(breakpoint_infos->get(i), isolate);
     if (IsUndefined(*obj, isolate)) {
       continue;
     }
-    Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
+    auto breakpoint_info = DirectHandle<BreakPointInfo>::cast(obj);
     Handle<BreakPoint> breakpoint;
     if (BreakPointInfo::GetBreakPointById(isolate, breakpoint_info,
                                           breakpoint_id)
@@ -1074,12 +1078,12 @@ void WasmScript::ClearAllBreakpoints(Tagged<Script> script) {
 }
 
 // static
-void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
-                                     Handle<BreakPoint> break_point) {
+void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
+                                     DirectHandle<BreakPoint> break_point) {
   Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> breakpoint_infos;
+  DirectHandle<FixedArray> breakpoint_infos;
   if (script->has_wasm_breakpoint_infos()) {
-    breakpoint_infos = handle(script->wasm_breakpoint_infos(), isolate);
+    breakpoint_infos = direct_handle(script->wasm_breakpoint_infos(), isolate);
   } else {
     breakpoint_infos =
         isolate->factory()->NewFixedArray(4, AllocationType::kOld);
@@ -1094,7 +1098,7 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
   if (insert_pos < breakpoint_infos->length() &&
       GetBreakpointPos(isolate, breakpoint_infos->get(insert_pos)) ==
           position) {
-    Handle<BreakPointInfo> old_info(
+    DirectHandle<BreakPointInfo> old_info(
         BreakPointInfo::cast(breakpoint_infos->get(insert_pos)), isolate);
     BreakPointInfo::SetBreakPoint(isolate, old_info, break_point);
     return;
@@ -1103,7 +1107,7 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
   // Enlarge break positions array if necessary.
   bool need_realloc = !IsUndefined(
       breakpoint_infos->get(breakpoint_infos->length() - 1), isolate);
-  Handle<FixedArray> new_breakpoint_infos = breakpoint_infos;
+  DirectHandle<FixedArray> new_breakpoint_infos = breakpoint_infos;
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
         2 * breakpoint_infos->length(), AllocationType::kOld);
@@ -1121,7 +1125,7 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
   }
 
   // Generate new BreakpointInfo.
-  Handle<BreakPointInfo> breakpoint_info =
+  DirectHandle<BreakPointInfo> breakpoint_info =
       isolate->factory()->NewBreakPointInfo(position);
   BreakPointInfo::SetBreakPoint(isolate, breakpoint_info, break_point);
 
@@ -1199,7 +1203,7 @@ bool WasmScript::GetPossibleBreakpoints(
 
 namespace {
 
-bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
+bool CheckBreakPoint(Isolate* isolate, DirectHandle<BreakPoint> break_point,
                      StackFrameId frame_id) {
   if (break_point->condition()->length() == 0) return true;
 
@@ -1221,27 +1225,27 @@ bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
 }  // namespace
 
 // static
-MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
-                                                     Handle<Script> script,
-                                                     int position,
-                                                     StackFrameId frame_id) {
+MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(
+    Isolate* isolate, DirectHandle<Script> script, int position,
+    StackFrameId frame_id) {
   if (!script->has_wasm_breakpoint_infos()) return {};
 
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
+  DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
+                                            isolate);
   int insert_pos =
       FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
   if (insert_pos >= breakpoint_infos->length()) return {};
 
-  Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
-                                       isolate);
+  DirectHandle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
+                                             isolate);
   if (IsUndefined(*maybe_breakpoint_info, isolate)) return {};
-  Handle<BreakPointInfo> breakpoint_info =
-      Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
+  auto breakpoint_info =
+      DirectHandle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
-  Handle<Object> break_points(breakpoint_info->break_points(), isolate);
+  DirectHandle<Object> break_points(breakpoint_info->break_points(), isolate);
   if (!IsFixedArray(*break_points)) {
-    if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
+    if (!CheckBreakPoint(isolate, DirectHandle<BreakPoint>::cast(break_points),
                          frame_id)) {
       // A breakpoint that doesn't break mutes traps. (Rule enables the
       // "Never Pause Here" feature.)
@@ -1255,12 +1259,13 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
     return break_points_hit;
   }
 
-  Handle<FixedArray> array = Handle<FixedArray>::cast(break_points);
+  auto array = DirectHandle<FixedArray>::cast(break_points);
   Handle<FixedArray> break_points_hit =
       isolate->factory()->NewFixedArray(array->length());
   int break_points_hit_count = 0;
   for (int i = 0; i < array->length(); ++i) {
-    Handle<BreakPoint> break_point(BreakPoint::cast(array->get(i)), isolate);
+    DirectHandle<BreakPoint> break_point(BreakPoint::cast(array->get(i)),
+                                         isolate);
     if (CheckBreakPoint(isolate, break_point, frame_id)) {
       break_points_hit->set(break_points_hit_count++, *break_point);
     }

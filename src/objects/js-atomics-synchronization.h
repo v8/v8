@@ -253,7 +253,7 @@ class JSAtomicsMutex
 
   // Try to take the lock or requeue an existing node.
   static bool LockOrEnqueueAsyncNode(Isolate* isolate,
-                                     Handle<JSAtomicsMutex> mutex,
+                                     DirectHandle<JSAtomicsMutex> mutex,
                                      LockAsyncWaiterQueueNode* node);
   static void HandleAsyncNotify(LockAsyncWaiterQueueNode* node);
   static void HandleAsyncTimeout(LockAsyncWaiterQueueNode* node);
@@ -263,8 +263,8 @@ class JSAtomicsMutex
   inline bool IsHeld();
   inline bool IsCurrentThreadOwner();
 
-  void UnlockAsyncLockedMutex(Isolate* requester,
-                              Handle<Foreign> async_locked_waiter_wrapper);
+  void UnlockAsyncLockedMutex(
+      Isolate* requester, DirectHandle<Foreign> async_locked_waiter_wrapper);
 
   static void CleanupMatchingAsyncWaiters(Isolate* isolate,
                                           WaiterQueueNode* node,
@@ -310,7 +310,7 @@ class JSAtomicsMutex
   inline std::atomic<int32_t>* AtomicOwnerThreadIdPtr();
 
   V8_EXPORT_PRIVATE static bool LockSlowPath(
-      Isolate* requester, Handle<JSAtomicsMutex> mutex,
+      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state, std::optional<base::TimeDelta> timeout);
   static bool LockAsyncSlowPath(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
                                 std::atomic<StateT>* state,
@@ -336,21 +336,21 @@ class JSAtomicsMutex
       Isolate* requester, Handle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state);
   V8_INLINE static bool BackoffTryLock(Isolate* requester,
-                                       Handle<JSAtomicsMutex> mutex,
+                                       DirectHandle<JSAtomicsMutex> mutex,
                                        std::atomic<StateT>* state);
   static bool DequeueTimedOutAsyncWaiter(Isolate* requester,
-                                         Handle<JSAtomicsMutex> mutex,
+                                         DirectHandle<JSAtomicsMutex> mutex,
                                          std::atomic<StateT>* state,
                                          WaiterQueueNode* timed_out_waiter);
 
-  V8_EXPORT_PRIVATE static bool MaybeEnqueueNode(Isolate* requester,
-                                                 Handle<JSAtomicsMutex> mutex,
-                                                 std::atomic<StateT>* state,
-                                                 WaiterQueueNode* this_waiter);
+  V8_EXPORT_PRIVATE static bool MaybeEnqueueNode(
+      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
+      std::atomic<StateT>* state, WaiterQueueNode* this_waiter);
 
   using LockSlowPathWrapper = std::function<bool(std::atomic<StateT>* state)>;
 
-  static inline bool LockImpl(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+  static inline bool LockImpl(Isolate* requester,
+                              DirectHandle<JSAtomicsMutex> mutex,
                               std::optional<base::TimeDelta> timeout,
                               LockSlowPathWrapper slow_path_wrapper);
 
@@ -406,13 +406,14 @@ class JSAtomicsCondition
   EXPORT_DECL_VERIFIER(JSAtomicsCondition)
 
   V8_EXPORT_PRIVATE static bool WaitFor(Isolate* requester,
-                                        Handle<JSAtomicsCondition> cv,
+                                        DirectHandle<JSAtomicsCondition> cv,
                                         Handle<JSAtomicsMutex> mutex,
                                         std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> WaitAsync(
       Isolate* requester, Handle<JSAtomicsCondition> cv,
-      Handle<JSAtomicsMutex> mutex, std::optional<base::TimeDelta> timeout);
+      DirectHandle<JSAtomicsMutex> mutex,
+      std::optional<base::TimeDelta> timeout);
 
   static void HandleAsyncNotify(WaitAsyncWaiterQueueNode* node);
   static void HandleAsyncTimeout(WaitAsyncWaiterQueueNode* node);
@@ -421,7 +422,7 @@ class JSAtomicsCondition
 
   // Notify {count} waiters. Returns the number of waiters woken up.
   static V8_EXPORT_PRIVATE uint32_t Notify(Isolate* requester,
-                                           Handle<JSAtomicsCondition> cv,
+                                           DirectHandle<JSAtomicsCondition> cv,
                                            uint32_t count);
 
   static void CleanupMatchingAsyncWaiters(Isolate* isolate,
@@ -439,12 +440,13 @@ class JSAtomicsCondition
  private:
   friend class Factory;
 
-  static void QueueWaiter(Isolate* requester, Handle<JSAtomicsCondition> cv,
+  static void QueueWaiter(Isolate* requester,
+                          DirectHandle<JSAtomicsCondition> cv,
                           WaiterQueueNode* waiter);
 
   using DequeueAction = std::function<uint32_t(WaiterQueueNode**)>;
   static uint32_t DequeueExplicit(Isolate* requester,
-                                  Handle<JSAtomicsCondition> cv,
+                                  DirectHandle<JSAtomicsCondition> cv,
                                   std::atomic<StateT>* state,
                                   const DequeueAction& dequeue_action);
 };

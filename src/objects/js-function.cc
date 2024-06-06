@@ -343,7 +343,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
                       isolate);
   }
   if (IsJSWrappedFunction(function->bound_target_function())) {
-    Handle<JSWrappedFunction> target(
+    DirectHandle<JSWrappedFunction> target(
         JSWrappedFunction::cast(function->bound_target_function()), isolate);
     Handle<String> name;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, name,
@@ -351,7 +351,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
     return factory->NewConsString(target_name, name);
   }
   if (IsJSFunction(function->bound_target_function())) {
-    Handle<JSFunction> target(
+    DirectHandle<JSFunction> target(
         JSFunction::cast(function->bound_target_function()), isolate);
     Handle<String> name = JSFunction::GetName(isolate, target);
     return factory->NewConsString(target_name, name);
@@ -378,7 +378,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
     }
   }
   if (IsJSWrappedFunction(function->bound_target_function())) {
-    Handle<JSWrappedFunction> target(
+    DirectHandle<JSWrappedFunction> target(
         JSWrappedFunction::cast(function->bound_target_function()), isolate);
     int target_length = 0;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -389,8 +389,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
-  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
-                            isolate);
+  DirectHandle<JSFunction> target(
+      JSFunction::cast(function->bound_target_function()), isolate);
   int target_length = target->length();
 
   int length = std::max(0, target_length - nof_bound_arguments);
@@ -406,12 +406,11 @@ Handle<String> JSBoundFunction::ToString(
 
 // static
 MaybeHandle<String> JSWrappedFunction::GetName(
-    Isolate* isolate, Handle<JSWrappedFunction> function) {
+    Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
   STACK_CHECK(isolate, MaybeHandle<String>());
   Factory* factory = isolate->factory();
   Handle<String> target_name = factory->empty_string();
-  Handle<JSReceiver> target =
-      handle(function->wrapped_target_function(), isolate);
+  DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetName(
         isolate,
@@ -427,8 +426,8 @@ MaybeHandle<String> JSWrappedFunction::GetName(
 }
 
 // static
-Maybe<int> JSWrappedFunction::GetLength(Isolate* isolate,
-                                        Handle<JSWrappedFunction> function) {
+Maybe<int> JSWrappedFunction::GetLength(
+    Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
   STACK_CHECK(isolate, Nothing<int>());
   Handle<JSReceiver> target =
       handle(function->wrapped_target_function(), isolate);
@@ -452,7 +451,7 @@ Handle<String> JSWrappedFunction::ToString(
 
 // static
 MaybeHandle<Object> JSWrappedFunction::Create(
-    Isolate* isolate, Handle<NativeContext> creation_context,
+    Isolate* isolate, DirectHandle<NativeContext> creation_context,
     Handle<JSReceiver> value) {
   // The value must be a callable according to the specification.
   DCHECK(IsCallable(*value));
@@ -460,8 +459,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // wrapped function won't cause a side effect in the creation realm.
   // Unwrap here to avoid nested unwrapping at the call site.
   if (IsJSWrappedFunction(*value)) {
-    Handle<JSWrappedFunction> target_wrapped =
-        Handle<JSWrappedFunction>::cast(value);
+    auto target_wrapped = DirectHandle<JSWrappedFunction>::cast(value);
     value =
         Handle<JSReceiver>(target_wrapped->wrapped_target_function(), isolate);
   }
@@ -485,7 +483,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
     DCHECK(isolate->has_exception());
-    Handle<Object> exception = Handle<Object>(isolate->exception(), isolate);
+    DirectHandle<Object> exception(isolate->exception(), isolate);
     isolate->clear_exception();
 
     // The TypeError thrown is created with creation Realm's TypeError
@@ -507,7 +505,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
 
 // static
 Handle<String> JSFunction::GetName(Isolate* isolate,
-                                   Handle<JSFunction> function) {
+                                   DirectHandle<JSFunction> function) {
   if (function->shared()->name_should_print_as_anonymous()) {
     return isolate->factory()->anonymous_string();
   }
@@ -516,7 +514,8 @@ Handle<String> JSFunction::GetName(Isolate* isolate,
 
 // static
 void JSFunction::EnsureClosureFeedbackCellArray(
-    Handle<JSFunction> function, bool reset_budget_for_feedback_allocation) {
+    DirectHandle<JSFunction> function,
+    bool reset_budget_for_feedback_allocation) {
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared()->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
@@ -524,7 +523,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (function->shared()->HasAsmWasmData()) return;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared()->HasBytecodeArray());
 
   const bool has_closure_feedback_cell_array =
@@ -544,7 +543,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     return;
   }
 
-  Handle<HeapObject> feedback_cell_array =
+  DirectHandle<HeapObject> feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
   // Many closure cell is used as a way to specify that there is no
   // feedback cell for this function and a new feedback cell has to be
@@ -553,7 +552,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   // many_closure_cell to indicate this because in regular cases, it should
   // already have a feedback_vector / feedback cell array allocated.
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
-    Handle<FeedbackCell> feedback_cell =
+    DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
     function->SetInterruptBudget(isolate);
@@ -565,7 +564,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
 
 // static
 void JSFunction::EnsureFeedbackVector(Isolate* isolate,
-                                      Handle<JSFunction> function,
+                                      DirectHandle<JSFunction> function,
                                       IsCompiledScope* compiled_scope) {
   CHECK(compiled_scope->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
@@ -579,7 +578,7 @@ void JSFunction::EnsureFeedbackVector(Isolate* isolate,
 
 // static
 void JSFunction::CreateAndAttachFeedbackVector(
-    Isolate* isolate, Handle<JSFunction> function,
+    Isolate* isolate, DirectHandle<JSFunction> function,
     IsCompiledScope* compiled_scope) {
   CHECK(compiled_scope->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
@@ -588,15 +587,16 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DCHECK(!function->shared()->HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared()->HasBytecodeArray());
 
   EnsureClosureFeedbackCellArray(function, false);
-  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      handle(function->closure_feedback_cell_array(), isolate);
-  Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
+  DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
+      function->closure_feedback_cell_array(), isolate);
+  DirectHandle<FeedbackVector> feedback_vector = FeedbackVector::New(
       isolate, shared, closure_feedback_cell_array,
-      handle(function->raw_feedback_cell(isolate), isolate), compiled_scope);
+      direct_handle(function->raw_feedback_cell(isolate), isolate),
+      compiled_scope);
   USE(feedback_vector);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
@@ -684,7 +684,7 @@ void JSFunction::InitializeFeedbackCell(
 
 namespace {
 
-void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
+void SetInstancePrototype(Isolate* isolate, DirectHandle<JSFunction> function,
                           Handle<JSReceiver> value) {
   // Now some logic for the maps of the objects that are created by using this
   // function as a constructor.
@@ -752,8 +752,8 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
     // Create a new {constructor, non-instance_prototype} tuple and store it
     // in Map::constructor field.
-    Handle<Object> constructor(new_map->GetConstructor(), isolate);
-    Handle<Tuple2> non_instance_prototype_constructor_tuple =
+    DirectHandle<Object> constructor(new_map->GetConstructor(), isolate);
+    DirectHandle<Tuple2> non_instance_prototype_constructor_tuple =
         isolate->factory()->NewTuple2(constructor, value, AllocationType::kOld);
 
     new_map->set_has_non_instance_prototype(true);
@@ -762,7 +762,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared()->kind();
-    Handle<Context> native_context(function->native_context(), isolate);
+    DirectHandle<Context> native_context(function->native_context(), isolate);
 
     construct_prototype = Handle<JSReceiver>(
         IsGeneratorFunction(kind)
@@ -779,14 +779,16 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
   SetInstancePrototype(isolate, function, construct_prototype);
 }
 
-void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+void JSFunction::SetInitialMap(Isolate* isolate,
+                               DirectHandle<JSFunction> function,
                                Handle<Map> map, Handle<HeapObject> prototype) {
   SetInitialMap(isolate, function, map, prototype, function);
 }
 
-void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+void JSFunction::SetInitialMap(Isolate* isolate,
+                               DirectHandle<JSFunction> function,
                                Handle<Map> map, Handle<HeapObject> prototype,
-                               Handle<JSFunction> constructor) {
+                               DirectHandle<JSFunction> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
@@ -991,7 +993,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 #endif  // DEBUG
 
 bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
-                              Handle<JSFunction> constructor,
+                              DirectHandle<JSFunction> constructor,
                               Handle<Map> constructor_initial_map) {
   // Use the default intrinsic prototype instead.
   if (!new_target->has_prototype_slot()) return false;
@@ -1056,7 +1058,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   Handle<Map> constructor_initial_map(constructor->initial_map(), isolate);
   if (*new_target == *constructor) return constructor_initial_map;
 
-  Handle<Map> result_map;
+  DirectHandle<Map> result_map;
   // Fast case, new.target is a subclass of constructor. The map is cacheable
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
@@ -1100,12 +1102,12 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     Handle<NativeContext> native_context;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, native_context,
                                JSReceiver::GetFunctionRealm(new_target));
-    Handle<Object> maybe_index = JSReceiver::GetDataProperty(
+    DirectHandle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
     int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
                                     : Context::OBJECT_FUNCTION_INDEX;
-    Handle<JSFunction> realm_constructor(
+    DirectHandle<JSFunction> realm_constructor(
         JSFunction::cast(native_context->get(index)), isolate);
     prototype = handle(realm_constructor->prototype(), isolate);
   }
@@ -1175,9 +1177,8 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
 
 MaybeHandle<Map> JSFunction::GetDerivedRabGsabDataViewMap(
     Isolate* isolate, Handle<JSReceiver> new_target) {
-  Handle<Context> context =
-      handle(isolate->context()->native_context(), isolate);
-  Handle<JSFunction> constructor = handle(context->data_view_fun(), isolate);
+  DirectHandle<Context> context(isolate->context()->native_context(), isolate);
+  Handle<JSFunction> constructor(context->data_view_fun(), isolate);
   MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
   Handle<Map> map;
   if (!maybe_map.ToHandle(&map)) {
@@ -1260,7 +1261,7 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
 }
 
 bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
-                         Handle<String> prefix) {
+                         DirectHandle<String> prefix) {
   Isolate* isolate = function->GetIsolate();
   Handle<String> function_name;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
@@ -1286,7 +1287,7 @@ bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
 namespace {
 
 Handle<String> NativeCodeFunctionSourceString(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
@@ -1299,7 +1300,7 @@ Handle<String> NativeCodeFunctionSourceString(
 // static
 Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
-  Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   // Check if {function} should hide its source code.
   if (!shared_info->IsUserJavaScript()) {
@@ -1308,7 +1309,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
 
   if (IsClassConstructor(shared_info->kind())) {
     // Check if we should print {function} as a class.
-    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+    DirectHandle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
         isolate, indirect_handle(function, isolate),
         isolate->factory()->class_positions_symbol());
     if (IsClassPositions(*maybe_class_positions)) {
@@ -1332,7 +1333,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
   // information.
 #if V8_ENABLE_WEBASSEMBLY
   if (shared_info->HasWasmExportedFunctionData()) {
-    Handle<WasmExportedFunctionData> function_data(
+    DirectHandle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
     const wasm::WasmModule* module = function_data->instance_data()->module();
     if (is_asmjs_module(module)) {
@@ -1371,7 +1372,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
     Handle<JSFunction> func = Handle<JSFunction>::cast(current);
     // The super constructor should be compiled for the number of expected
     // properties to be available.
-    Handle<SharedFunctionInfo> shared(func->shared(), isolate);
+    DirectHandle<SharedFunctionInfo> shared(func->shared(), isolate);
     IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
     if (is_compiled_scope.is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::CLEAR_EXCEPTION,

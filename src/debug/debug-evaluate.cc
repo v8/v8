@@ -93,7 +93,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function()->shared(), isolate);
     Handle<JSObject> context_extension = GetWasmDebugProxy(frame);
-    Handle<ScopeInfo> scope_info =
+    DirectHandle<ScopeInfo> scope_info =
         ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
     Handle<Context> context = isolate->factory()->NewWithContext(
         isolate->native_context(), scope_info, context_extension);
@@ -130,7 +130,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   JavaScriptStackFrameIterator it(isolate);
 
   // Get context and receiver.
-  Handle<Context> native_context(
+  DirectHandle<Context> native_context(
       Context::cast(it.frame()->context())->native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
@@ -152,7 +152,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   }
 
   // Use extension object in a debug-evaluate scope.
-  Handle<ScopeInfo> scope_info =
+  DirectHandle<ScopeInfo> scope_info =
       ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
   scope_info->SetIsDebugEvaluateScope();
   Handle<Context> evaluation_context = factory->NewDebugEvaluateContext(
@@ -280,7 +280,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   scope_iterator_.Restart();
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
-      Handle<FixedArray> keys =
+      DirectHandle<FixedArray> keys =
           KeyAccumulator::GetKeys(isolate_, element.materialized_object,
                                   KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS)
@@ -1030,7 +1030,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
 
 // static
 DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
-    Isolate* isolate, Handle<SharedFunctionInfo> info) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> info) {
   if (v8_flags.trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
            info->DebugNameCStr().get());

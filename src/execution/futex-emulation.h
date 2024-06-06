@@ -232,7 +232,7 @@ class FutexEmulation : public AllStatic {
 
   template <typename T>
   static Tagged<Object> WaitAsync(Isolate* isolate,
-                                  Handle<JSArrayBuffer> array_buffer,
+                                  DirectHandle<JSArrayBuffer> array_buffer,
                                   size_t addr, T value, bool use_timeout,
                                   int64_t rel_timeout_ns, CallType call_type);
 

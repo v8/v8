@@ -510,7 +510,7 @@ bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
 // static
 Maybe<bool> Object::IsArray(Handle<Object> object) {
   if (IsSmi(*object)) return Just(false);
-  Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+  auto heap_object = DirectHandle<HeapObject>::cast(object);
   if (IsJSArray(*heap_object)) return Just(true);
   if (!IsJSProxy(*heap_object)) return Just(false);
   return JSProxy::IsArray(Handle<JSProxy>::cast(object));
@@ -1677,9 +1677,9 @@ static inline uint32_t ObjectAddressForHashing(Address object) {
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
-                                           Handle<Object> value) {
-  Handle<Object> key = isolate->factory()->SizeToString(index);
-  Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
+                                           DirectHandle<Object> value) {
+  DirectHandle<Object> key = isolate->factory()->SizeToString(index);
+  DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
@@ -1688,9 +1688,10 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                                     PACKED_ELEMENTS, 2);
 }
 
-static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
-                                           Handle<Object> value) {
-  Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
+static inline Handle<Object> MakeEntryPair(Isolate* isolate,
+                                           DirectHandle<Object> key,
+                                           DirectHandle<Object> value) {
+  DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);

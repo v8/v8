@@ -945,14 +945,14 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   }
 }
 
-WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
+WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<uint8_t> reloc_info;
   if (relocation_size > 0) {
     reloc_info = base::OwnedVector<uint8_t>::Of(
         base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
-  Handle<TrustedByteArray> source_pos_table(
+  DirectHandle<TrustedByteArray> source_pos_table(
       code->source_position_table(), code->instruction_stream()->GetIsolate());
   int source_pos_len = source_pos_table->length();
   auto source_pos = base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_len);

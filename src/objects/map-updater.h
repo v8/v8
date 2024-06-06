@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
                                                  PropertyAttributes attributes,
                                                  PropertyConstness constness);
 
-  static void GeneralizeField(Isolate* isolate, Handle<Map> map,
+  static void GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
                               InternalIndex modify_index,
                               PropertyConstness new_constness,
                               Representation new_representation,
@@ -152,7 +152,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // - Walk the tree again starting from the root towards |target_map|. Stop at
   //   |split_map|, the first map whose descriptor array does not match the
   //   merged descriptor array.
-  Handle<Map> FindSplitMap(Handle<DescriptorArray> descriptors);
+  Handle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
 
   // Step 5.
   // - If |target_map| == |split_map|, |target_map| is in the expected state.
@@ -199,20 +199,20 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // type for the descriptor's value and |representation|.
   // The |location| value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(
-      Handle<DescriptorArray> descriptors, InternalIndex descriptor,
+      DirectHandle<DescriptorArray> descriptors, InternalIndex descriptor,
       PropertyLocation location, Representation representation);
 
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
-  static void UpdateFieldType(Isolate* isolate, Handle<Map> map,
+  static void UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
                               InternalIndex descriptor_number,
                               Handle<Name> name,
                               PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_type);
 
-  void GeneralizeField(Handle<Map> map, InternalIndex modify_index,
+  void GeneralizeField(DirectHandle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,
                        Representation new_representation,
                        Handle<FieldType> new_field_type);

@@ -479,7 +479,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
 
 // static
 void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
-    Isolate* isolate, Handle<SharedFunctionInfo> function) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
@@ -2558,7 +2558,7 @@ void Deoptimizer::MaterializeHeapObjects() {
   }
 
   for (auto& materialization : values_to_materialize_) {
-    Handle<Object> value = materialization.value_->GetValue();
+    DirectHandle<Object> value = materialization.value_->GetValue();
 
     if (verbose_tracing_enabled()) {
       PrintF(trace_scope()->file(),
@@ -2574,7 +2574,7 @@ void Deoptimizer::MaterializeHeapObjects() {
   }
 
   for (auto& fbv_materialization : feedback_vector_to_materialize_) {
-    Handle<Object> closure = fbv_materialization.value_->GetValue();
+    DirectHandle<Object> closure = fbv_materialization.value_->GetValue();
     DCHECK(IsJSFunction(*closure));
     Tagged<Object> feedback_vector =
         Tagged<JSFunction>::cast(*closure)->raw_feedback_cell()->value();

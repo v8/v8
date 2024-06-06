@@ -490,7 +490,7 @@ class SharedFunctionInfo
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
   static Handle<String> DebugName(Isolate* isolate,
-                                  Handle<SharedFunctionInfo> shared);
+                                  DirectHandle<SharedFunctionInfo> shared);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -628,9 +628,9 @@ class SharedFunctionInfo
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
   static Handle<Object> GetSourceCode(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared);
-  static Handle<Object> GetSourceCodeHarmony(Isolate* isolate,
-                                             Handle<SharedFunctionInfo> shared);
+                                      DirectHandle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging, e.g. for
   // - scope inspection
@@ -649,7 +649,7 @@ class SharedFunctionInfo
   // Flush compiled data from this function, setting it back to CompileLazy and
   // clearing any compiled metadata.
   V8_EXPORT_PRIVATE static void DiscardCompiled(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info);
 
   // Discard the compiled metadata. If called during GC then
   // |gc_notify_updated_slot| should be used to record any slot updates.
@@ -699,9 +699,9 @@ class SharedFunctionInfo
                                       FunctionLiteral* lit, bool is_toplevel);
 
   template <typename IsolateT>
-  static void CreateAndSetUncompiledData(IsolateT* isolate,
-                                         Handle<SharedFunctionInfo> shared_info,
-                                         FunctionLiteral* lit);
+  static void CreateAndSetUncompiledData(
+      IsolateT* isolate, DirectHandle<SharedFunctionInfo> shared_info,
+      FunctionLiteral* lit);
 
   // Updates the expected number of properties based on estimate from parser.
   void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
@@ -793,7 +793,7 @@ class SharedFunctionInfo
   // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
   // be returned by following calls to GetActiveBytecodeArray. Stores a
   // reference to the original bytecode in the DebugInfo.
-  static void InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
+  static void InstallDebugBytecode(DirectHandle<SharedFunctionInfo> shared,
                                    Isolate* isolate);
   // Removes the debug bytecode and restores the original bytecode to be
   // returned by following calls to GetActiveBytecodeArray.

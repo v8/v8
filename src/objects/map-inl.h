@@ -368,7 +368,7 @@ int Map::GetInObjectPropertyOffset(int index) const {
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
     Isolate* isolate, Handle<Map> split_map,
-    Handle<DescriptorArray> descriptors) {
+    DirectHandle<DescriptorArray> descriptors) {
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
 

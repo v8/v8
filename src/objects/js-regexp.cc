@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
-    Isolate* isolate, Handle<RegExpMatchInfo> match_info,
+    Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
     Handle<Object> maybe_names) {
   Handle<JSRegExpResultIndices> indices(Handle<JSRegExpResultIndices>::cast(
       isolate->factory()->NewJSObjectFromMap(
@@ -43,11 +43,11 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (start_offset == -1) {
       indices_array->set(i, ReadOnlyRoots(isolate).undefined_value());
     } else {
-      Handle<FixedArray> indices_sub_array(
+      DirectHandle<FixedArray> indices_sub_array(
           isolate->factory()->NewFixedArray(2));
       indices_sub_array->set(0, Smi::FromInt(start_offset));
       indices_sub_array->set(1, Smi::FromInt(end_offset));
-      Handle<JSArray> indices_sub_jsarray =
+      DirectHandle<JSArray> indices_sub_jsarray =
           isolate->factory()->NewJSArrayWithElements(indices_sub_array,
                                                      PACKED_SMI_ELEMENTS, 2);
       indices_array->set(i, *indices_sub_jsarray);
@@ -65,7 +65,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
-  Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
+  auto names = DirectHandle<FixedArray>::cast(maybe_names);
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -108,10 +108,11 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Convert group_names to a JSObject and store at the groups property of the
   // result indices.
-  Handle<FixedArrayBase> elements = isolate->factory()->empty_fixed_array();
+  DirectHandle<FixedArrayBase> elements =
+      isolate->factory()->empty_fixed_array();
   Handle<HeapObject> null =
       Handle<HeapObject>::cast(isolate->factory()->null_value());
-  Handle<JSObject> js_group_names =
+  DirectHandle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
   indices->FastPropertyAtPut(groups_index, *js_group_names);
@@ -179,7 +180,7 @@ Tagged<Object> JSRegExp::code(IsolateForSandbox isolate, bool is_latin1) const {
   return value;
 }
 
-void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
+void JSRegExp::set_code(bool is_latin1, DirectHandle<Code> code) {
   SetDataAt(code_index(is_latin1), code->wrapper());
 }
 
@@ -190,11 +191,12 @@ Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
 }
 
 void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
-                                           Handle<ByteArray> bytecode) {
+                                           DirectHandle<ByteArray> bytecode) {
   SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
   SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
 
-  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  DirectHandle<Code> trampoline =
+      BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
   SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, trampoline->wrapper());
   SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, trampoline->wrapper());
 }
@@ -274,7 +276,8 @@ bool IsLineTerminator(int c) {
 // WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
 // and move related code closer to each other.
 template <typename Char>
-int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
+int CountAdditionalEscapeChars(DirectHandle<String> source,
+                               bool* needs_escapes_out) {
   DisallowGarbageCollection no_gc;
   int escapes = 0;
   bool needs_escapes = false;
@@ -328,7 +331,7 @@ void WriteStringToCharVector(base::Vector<Char> v, int* d, const char* string) {
 }
 
 template <typename Char, typename StringType>
-Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
+Handle<StringType> WriteEscapedRegExpSource(DirectHandle<String> source,
                                             Handle<StringType> result) {
   DisallowGarbageCollection no_gc;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);

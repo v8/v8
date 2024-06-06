@@ -45,14 +45,14 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
 
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
-      Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
+      DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*this, *p, UNSAFE_SKIP_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
-      Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
+      DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(IsCode(*p));
       Tagged<InstructionStream> target_istream =
           Code::cast(*p)->instruction_stream();

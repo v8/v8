@@ -19,11 +19,11 @@ namespace internal {
 // Implements SetSyntheticModuleBinding:
 // https://heycam.github.io/webidl/#setsyntheticmoduleexport
 Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
-                                       Handle<SyntheticModule> module,
+                                       DirectHandle<SyntheticModule> module,
                                        Handle<String> export_name,
-                                       Handle<Object> export_value) {
-  Handle<ObjectHashTable> exports(module->exports(), isolate);
-  Handle<Object> export_object(exports->Lookup(export_name), isolate);
+                                       DirectHandle<Object> export_value) {
+  DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
+  DirectHandle<Object> export_object(exports->Lookup(export_name), isolate);
 
   if (!IsCell(*export_object)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
@@ -38,11 +38,11 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
 }
 
 void SyntheticModule::SetExportStrict(Isolate* isolate,
-                                      Handle<SyntheticModule> module,
+                                      DirectHandle<SyntheticModule> module,
                                       Handle<String> export_name,
-                                      Handle<Object> export_value) {
-  Handle<ObjectHashTable> exports(module->exports(), isolate);
-  Handle<Object> export_object(exports->Lookup(export_name), isolate);
+                                      DirectHandle<Object> export_value) {
+  DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
+  DirectHandle<Object> export_object(exports->Lookup(export_name), isolate);
   CHECK(IsCell(*export_object));
   Maybe<bool> set_export_result =
       SetExport(isolate, module, export_name, export_value);
@@ -52,7 +52,7 @@ void SyntheticModule::SetExportStrict(Isolate* isolate,
 // Implements Synthetic Module Record's ResolveExport concrete method:
 // https://heycam.github.io/webidl/#smr-resolveexport
 MaybeHandle<Cell> SyntheticModule::ResolveExport(
-    Isolate* isolate, Handle<SyntheticModule> module,
+    Isolate* isolate, DirectHandle<SyntheticModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
@@ -70,10 +70,10 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 // Implements Synthetic Module Record's Instantiate concrete method :
 // https://heycam.github.io/webidl/#smr-instantiate
 bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
-                                         Handle<SyntheticModule> module,
+                                         DirectHandle<SyntheticModule> module,
                                          v8::Local<v8::Context> context) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
-  Handle<FixedArray> export_names(module->export_names(), isolate);
+  DirectHandle<FixedArray> export_names(module->export_names(), isolate);
   // Spec step 7: For each export_name in module->export_names...
   for (int i = 0, n = export_names->length(); i < n; ++i) {
     // Spec step 7.1: Create a new mutable binding for export_name.
@@ -91,7 +91,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 // as there are no imports or indirect exports to resolve;
 // just update status.
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
-                                        Handle<SyntheticModule> module) {
+                                        DirectHandle<SyntheticModule> module) {
   module->SetStatus(kLinked);
   return true;
 }

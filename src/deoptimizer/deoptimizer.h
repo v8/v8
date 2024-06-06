@@ -106,7 +106,7 @@ class Deoptimizer : public Malloced {
   // Deoptimizes all optimized code that implements the given function (whether
   // directly or inlined).
   static void DeoptimizeAllOptimizedCodeWithFunction(
-      Isolate* isolate, Handle<SharedFunctionInfo> function);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> function);
 
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the
