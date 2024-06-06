@@ -31,10 +31,6 @@ declare_args() {
   # Dynamically set an additional dependency from v8/custom_deps.
   v8_custom_deps = ""
 
-  # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
-  # within a release Chrome.
-  v8_enable_debugging_features = is_debug
-
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 

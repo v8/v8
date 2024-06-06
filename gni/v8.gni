@@ -40,6 +40,10 @@ declare_args() {
   # Includes profiles to optimize builtins.
   v8_enable_builtins_optimization = ""
 
+  # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
+  # within a release Chrome.
+  v8_enable_debugging_features = is_debug
+
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
