@@ -1758,19 +1758,14 @@ Handle<Map> Map::CopyForPrototypeTransition(Isolate* isolate, Handle<Map> map,
                                             Handle<HeapObject> prototype) {
   // For simplicity we always copy descriptors although it would be possible to
   // share them in some situations.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                      isolate);
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
-      isolate, descriptors, number_of_own_descriptors);
-  Handle<Map> new_map = CopyReplaceDescriptors(
-      isolate, map, new_descriptors, OMIT_TRANSITION, MaybeHandle<Name>(),
-      "TransitionToPrototype", PROTOTYPE_TRANSITION);
+  Handle<Map> new_map =
+      Copy(isolate, map, "TransitionToPrototype", PROTOTYPE_TRANSITION);
   Map::SetPrototype(isolate, new_map, prototype);
   return new_map;
 }
 
-Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
+Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason,
+                      TransitionKindFlag kind) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                       isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -1778,7 +1773,7 @@ Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
       isolate, descriptors, number_of_own_descriptors);
   auto res =
       CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
-                             MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
+                             MaybeHandle<Name>(), reason, kind);
   return res;
 }
 
@@ -2455,7 +2450,7 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
     Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype) {
   DCHECK(IsUndefined(map->GetBackPointer()));
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
-  if (!v8_flags.move_prototype_transitions_first &&
+  if (new_map->GetBackPointer() != *map &&
       map->IsInobjectSlackTrackingInProgress()) {
     // Advance the construction count on the base map to keep it in sync with
     // the transitioned map.
@@ -2465,19 +2460,17 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
 }
 
 Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
-                                             Handle<HeapObject> prototype,
-                                             bool* is_cached) {
+                                             Handle<HeapObject> prototype) {
   Handle<Map> new_map;
   DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
                  IsUndefined(map->GetBackPointer()));
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {
     new_map = handle(*maybe_map, isolate);
-    *is_cached = true;
   } else {
     new_map = CopyForPrototypeTransition(isolate, map, prototype);
-    *is_cached = TransitionsAccessor::PutPrototypeTransition(
-        isolate, map, prototype, new_map);
+    TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
+                                                new_map);
   }
   DCHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
                  new_map->IsInobjectSlackTrackingInProgress());

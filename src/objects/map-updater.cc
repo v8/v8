@@ -672,27 +672,14 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // map.
   if (root_map_->prototype() != *new_prototype_) {
     DCHECK(v8_flags.move_prototype_transitions_first);
-    bool is_cached;
-    Handle<Map> new_root_map_ = Map::TransitionToUpdatePrototype(
-        isolate_, root_map_, new_prototype_, &is_cached);
+    Handle<Map> new_root_map_ =
+        Map::TransitionToUpdatePrototype(isolate_, root_map_, new_prototype_);
+
     root_map_ = new_root_map_;
 
     if (!old_map_->EquivalentToForTransition(
             *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
       return Normalize("Normalize_NotEquivalent");
-    }
-    // If the proto transitions overflow we can't keep track of the relations
-    // anymore. This means field updates do not propagate and we must ensure
-    // that prototype transitions always connect to a more generic map.
-    if (!root_map_->is_dictionary_map() && !is_cached) {
-      root_map_->instance_descriptors()->GeneralizeAllFields(true);
-      // Transitions between JSFunctions require that all fields have the same
-      // representation.
-      if (IsJSFunctionMap(*old_map_) &&
-          !old_map_->EquivalentToForTransition(
-              *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
-        old_map_->instance_descriptors()->GeneralizeAllFields(true);
-      }
     }
   }
   root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
@@ -866,6 +853,18 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     if (old_details.location() == PropertyLocation::kField) {
       current_offset += old_details.field_width_in_words();
     }
+#ifdef DEBUG
+    // Ensuring FindRootMap gave us a compatible root map.
+    // TODO(olivf): In some cases it might be nice to be able to generalize the
+    // root map (for instance if the prototype transitions overflowed). For that
+    // we'd need to generalize old_details with the root_details here.
+    PropertyDetails root_details =
+        root_map_->instance_descriptors()->GetDetails(i);
+    DCHECK(old_details.representation().IsCompatibleForLoad(
+        root_details.representation()));
+    DCHECK_LE(old_details.constness(), root_details.constness());
+    DCHECK_EQ(old_details.attributes(), root_details.attributes());
+#endif  // DEBUG
     new_descriptors->Set(i, GetKey(i), old_descriptors_->GetValue(i),
                          old_details);
   }

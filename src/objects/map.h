@@ -811,8 +811,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
-                          const char* reason);
+  static Handle<Map> Copy(Isolate* isolate, Handle<Map> map, const char* reason,
+                          TransitionKindFlag kind = SPECIAL_TRANSITION);
   V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
                                               int inobject_properties);
 
@@ -888,13 +888,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype) {
-    bool unused;
-    return TransitionToUpdatePrototype(isolate, map, prototype, &unused);
-  }
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
-      bool* is_cached);
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);
