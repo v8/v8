@@ -2802,8 +2802,8 @@ THREADED_TEST(PropertyHandlerInPrototype) {
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
 
-  bottom->SetPrototype(env.local(), middle).FromJust();
-  middle->SetPrototype(env.local(), top).FromJust();
+  bottom->SetPrototypeV2(env.local(), middle).FromJust();
+  middle->SetPrototypeV2(env.local(), top).FromJust();
   env->Global()->Set(env.local(), v8_str("obj"), bottom).FromJust();
 
   // Indexed and named get.
@@ -2858,8 +2858,8 @@ TEST(PropertyHandlerInPrototypeWithDefine) {
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
 
-  bottom->SetPrototype(env.local(), middle).FromJust();
-  middle->SetPrototype(env.local(), top).FromJust();
+  bottom->SetPrototypeV2(env.local(), middle).FromJust();
+  middle->SetPrototypeV2(env.local(), top).FromJust();
   env->Global()->Set(env.local(), v8_str("obj"), bottom).FromJust();
 
   // Indexed and named get.

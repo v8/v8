@@ -840,8 +840,8 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
-  bool success =
-      commandLineAPI->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
+  bool success = commandLineAPI->SetPrototypeV2(context, v8::Null(isolate))
+                     .FromMaybe(false);
   DCHECK(success);
   USE(success);
 
