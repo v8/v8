@@ -721,7 +721,9 @@ void MarkCompactCollector::Prepare() {
       CppHeap::From(heap_->cpp_heap_)->StartMarking();
     }
   }
-
+  if (auto* new_space = heap_->new_space()) {
+    new_space->GarbageCollectionPrologue();
+  }
   if (heap_->use_new_space()) {
     DCHECK_EQ(
         heap_->allocator()->new_space_allocator()->top(),

@@ -262,6 +262,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual Address first_allocatable_address() const = 0;
 
+  virtual void GarbageCollectionPrologue() {}
   virtual void GarbageCollectionEpilogue() = 0;
 
   virtual bool IsPromotionCandidate(const MutablePageMetadata* page) const = 0;
@@ -434,6 +435,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void EvacuatePrologue();
 
+  void GarbageCollectionPrologue() final;
   void GarbageCollectionEpilogue() final;
 
   void ZapUnusedMemory();

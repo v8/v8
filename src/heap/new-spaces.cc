@@ -754,13 +754,19 @@ size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
   return allocated;
 }
 
-void SemiSpaceNewSpace::EvacuatePrologue() {
-  // For the scavenger we actually need to commit from space as we may retain
-  // objects in the young generation. The full GC always promotes all live
-  // objects out of the young generation.
-  if (!from_space_.IsCommitted() && !from_space_.Commit()) {
-    heap_->FatalProcessOutOfMemory("Committing semi space failed.");
+void SemiSpaceNewSpace::GarbageCollectionPrologue() {
+  // We need to commit from space here to be able to check for from/to space
+  // pages later on in the GC. We need to commit before sweeping starts to avoid
+  // empty pages being reused for commiting from space and thus ending up with
+  // remembered set entries that point to from space instead of freed memory.
+
+  if (from_space_.IsCommitted() || from_space_.Commit()) {
+    return;
   }
+  heap_->FatalProcessOutOfMemory("Committing semi space failed.");
+}
+
+void SemiSpaceNewSpace::EvacuatePrologue() {
   // Flip the semispaces. After flipping, to space is empty and from space has
   // live objects.
   SemiSpace::Swap(&from_space_, &to_space_);
