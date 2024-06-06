@@ -71,11 +71,6 @@ inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
 }
 
-inline Address StackFrame::callee_pc() const {
-  return state_.callee_pc_address ? ReadPC(state_.callee_pc_address)
-                                  : kNullAddress;
-}
-
 inline Address StackFrame::pc() const { return ReadPC(pc_address()); }
 
 inline Address StackFrame::unauthenticated_pc() const {
@@ -88,12 +83,13 @@ inline Address StackFrame::unauthenticated_pc(Address* pc_address) {
 }
 
 inline Address StackFrame::maybe_unauthenticated_pc() const {
-  if (!InFastCCall()) {
+  if (!InFastCCall() && !is_profiler_entry_frame()) {
     // Here the pc_address() is on the stack and properly authenticated.
     return pc();
   } else {
     // For fast C calls pc_address() points into IsolateData and the pc in there
-    // is unauthenticated.
+    // is unauthenticated. For the profiler, the pc_address of the first visited
+    // frame is also not written by a call instruction.
     return unauthenticated_pc(pc_address());
   }
 }

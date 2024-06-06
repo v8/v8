@@ -170,8 +170,9 @@ class StackFrame {
     Address fp = kNullAddress;
     Address* pc_address = nullptr;
     Address callee_fp = kNullAddress;
-    Address* callee_pc_address = nullptr;
+    Address callee_pc = kNullAddress;
     Address* constant_pool_address = nullptr;
+    bool is_profiler_entry_frame = false;
   };
 
   // Convert a stack frame type to a marker that can be stored on the stack.
@@ -283,9 +284,12 @@ class StackFrame {
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
   Address callee_fp() const { return state_.callee_fp; }
-  inline Address callee_pc() const;
+  Address callee_pc() const { return state_.callee_pc; }
   Address caller_sp() const { return GetCallerStackPointer(); }
   inline Address pc() const;
+  bool is_profiler_entry_frame() const {
+    return state_.is_profiler_entry_frame;
+  }
 
   // Skip authentication of the PC, when using CFI. Used in the profiler, where
   // in certain corner-cases we do not use an address on the stack, which would
