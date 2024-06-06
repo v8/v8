@@ -89,16 +89,9 @@ class EmbedderDataSlot
 
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
-  using EmbedderDataSlotSnapshot = Address;
-  V8_INLINE static void PopulateEmbedderDataSnapshot(Tagged<Map> map,
-                                                     Tagged<JSObject> js_object,
-                                                     int entry_index,
-                                                     EmbedderDataSlotSnapshot&);
-
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(Tagged<EmbedderDataArray> array, int entry_index);
   V8_INLINE EmbedderDataSlot(Tagged<JSObject> object, int embedder_field_index);
-  V8_INLINE explicit EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot);
 
   // Opaque type used for storing raw embedder data.
   using RawData = Address;

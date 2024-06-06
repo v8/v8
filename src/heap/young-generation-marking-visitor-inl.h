@@ -66,47 +66,35 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-template <typename T, typename TBodyDescriptor>
-int YoungGenerationMarkingVisitor<marking_mode>::
-    VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
-                                                    Tagged<T> object) {
-  const int size = VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
-  if (!marking_worklists_local_.SupportsExtractWrapper()) return size;
-  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  const bool valid_snapshot =
-      marking_worklists_local_.ExtractWrapper(map, object, wrapper_snapshot);
-  if (size && valid_snapshot) {
-    // Success: The object needs to be processed for embedder references.
-    marking_worklists_local_.PushExtractedWrapper(wrapper_snapshot);
-  }
-  return size;
-}
-
-template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
     Tagged<Map> map, Tagged<JSArrayBuffer> object) {
   object->YoungMarkExtension();
-  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+  return VisitJSObjectSubclass<JSArrayBuffer, JSArrayBuffer::BodyDescriptor>(
+      map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitEmbedderTracingSubClassWithEmbedderTracing<
-      JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
+  return VisitJSObjectSubclass<JSObject,
+                               JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
+      map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::
     VisitJSDataViewOrRabGsabDataView(
         Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object) {
-  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+  return VisitJSObjectSubclass<JSDataViewOrRabGsabDataView,
+                               JSDataViewOrRabGsabDataView::BodyDescriptor>(
+      map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSTypedArray(
     Tagged<Map> map, Tagged<JSTypedArray> object) {
-  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+  return VisitJSObjectSubclass<JSTypedArray, JSTypedArray::BodyDescriptor>(
+      map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>

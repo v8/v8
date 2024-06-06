@@ -283,7 +283,7 @@ void MinorMarkSweepCollector::PerformWrapperTracing() {
   if (!cpp_heap) return;
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_TRACING);
-  local_marking_worklists()->PublishWrapper();
+  local_marking_worklists()->PublishCppHeapObjects();
   cpp_heap->AdvanceTracing(v8::base::TimeDelta::Max());
 }
 
@@ -605,15 +605,6 @@ void VisitObjectWithEmbedderFields(Isolate* isolate, Tagged<JSObject> js_object,
                                    MarkingWorklists::Local& worklist) {
   DCHECK(js_object->MayHaveEmbedderFields());
   DCHECK(!Heap::InYoungGeneration(js_object));
-
-  const auto maybe_info = WrappableInfo::From(
-      isolate, js_object,
-      CppHeap::From(isolate->heap()->cpp_heap())->wrapper_descriptor());
-  if (maybe_info.has_value()) {
-    // Wrappers with 2 embedder fields.
-    worklist.cpp_marking_state()->MarkAndPush(maybe_info->instance);
-    return;
-  }
   // Not every object that can have embedder fields is actually a JSApiWrapper.
   if (!IsJSApiWrapperObject(js_object)) {
     return;

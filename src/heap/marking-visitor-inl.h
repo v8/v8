@@ -531,73 +531,39 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-template <typename T, typename TBodyDescriptor>
-inline int MarkingVisitorBase<ConcreteVisitor>::
-    VisitEmbedderTracingSubClassNoEmbedderTracing(Tagged<Map> map,
-                                                  Tagged<T> object) {
-  return concrete_visitor()->template VisitJSObjectSubclass<T, TBodyDescriptor>(
-      map, object);
-}
-
-template <typename ConcreteVisitor>
-template <typename T, typename TBodyDescriptor>
-inline int MarkingVisitorBase<ConcreteVisitor>::
-    VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
-                                                    Tagged<T> object) {
-  const int size =
-      VisitEmbedderTracingSubClassNoEmbedderTracing<T, TBodyDescriptor>(map,
-                                                                        object);
-  if (size == 0) {
-    return 0;
-  }
-
-  DCHECK(local_marking_worklists_->SupportsExtractWrapper());
-
-  // Process embedder fields
-  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  if (local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot)) {
-    local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
-  }
-  return size;
-}
-
-template <typename ConcreteVisitor>
-template <typename T, typename TBodyDescriptor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitEmbedderTracingSubclass(
-    Tagged<Map> map, Tagged<T> object) {
-  DCHECK(object->MayHaveEmbedderFields());
-  if (V8_UNLIKELY(trace_embedder_fields_)) {
-    return VisitEmbedderTracingSubClassWithEmbedderTracing<T, TBodyDescriptor>(
-        map, object);
-  }
-  return VisitEmbedderTracingSubClassNoEmbedderTracing<T, TBodyDescriptor>(
-      map, object);
-}
-
-template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitEmbedderTracingSubclass<
-      JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
+  return concrete_visitor()
+      ->template VisitJSObjectSubclass<
+          JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
     Tagged<Map> map, Tagged<JSArrayBuffer> object) {
   object->MarkExtension();
-  return VisitEmbedderTracingSubclass(map, object);
+  return concrete_visitor()
+      ->template VisitJSObjectSubclass<JSArrayBuffer,
+                                       JSArrayBuffer::BodyDescriptor>(map,
+                                                                      object);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSDataViewOrRabGsabDataView(
     Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object) {
-  return VisitEmbedderTracingSubclass(map, object);
+  return concrete_visitor()
+      ->template VisitJSObjectSubclass<
+          JSDataViewOrRabGsabDataView,
+          JSDataViewOrRabGsabDataView::BodyDescriptor>(map, object);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSTypedArray(
     Tagged<Map> map, Tagged<JSTypedArray> object) {
-  return VisitEmbedderTracingSubclass(map, object);
+  return concrete_visitor()
+      ->template VisitJSObjectSubclass<JSTypedArray,
+                                       JSTypedArray::BodyDescriptor>(map,
+                                                                     object);
 }
 
 // ===========================================================================

@@ -155,12 +155,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   inline void PushOnHold(Tagged<HeapObject> object);
   inline bool PopOnHold(Tagged<HeapObject>* object);
 
-  using WrapperSnapshot = CppMarkingState::EmbedderDataSnapshot;
-  inline bool ExtractWrapper(Tagged<Map> map, Tagged<JSObject> object,
-                             WrapperSnapshot& snapshot);
-  inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);
-  inline bool SupportsExtractWrapper();
-
   void Publish();
   bool IsEmpty();
   bool IsWrapperEmpty() const;
@@ -174,9 +168,8 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   // Merges the on-hold worklist to the shared worklist.
   void MergeOnHold();
 
-  // Returns true if wrapper objects could be directly pushed. Otherwise,
-  // objects need to be processed one by one.
-  inline bool PublishWrapper();
+  // Publishes CppHeap objects.
+  inline void PublishCppHeapObjects();
 
   // Returns the context of the active worklist.
   Address Context() const { return active_context_; }

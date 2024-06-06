@@ -357,39 +357,12 @@ void WriteBarrier::MarkingFromGlobalHandle(Tagged<Object> value) {
 }
 
 // static
-void WriteBarrier::CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                     void* value) {
-  CombinedBarrierFromInternalFields(host, 1, &value);
-}
-
-// static
-void WriteBarrier::CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                     size_t argc,
-                                                     void** values) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  if (V8_LIKELY(!IsMarking(host))) {
-    GenerationalBarrierFromInternalFields(host, argc, values);
-    return;
-  }
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  if (marking_barrier->is_minor()) {
-    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMS is
-    // active. Once Oilpan uses a generational GC with incremental marking and
-    // unified heap, this barrier will be needed again.
-    return;
-  }
-  MarkingSlowFromInternalFields(marking_barrier->heap(), host);
-}
-
-// static
 void WriteBarrier::CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
                                                     void* value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   if (V8_LIKELY(!IsMarking(host))) {
 #if defined(CPPGC_YOUNG_GENERATION)
-    // TODO(mlippautz): Don't reuse the internal field barrier but rather create
-    // a separate barrier for the CppHeapPointer.
-    GenerationalBarrierFromInternalFields(host, 1, &value);
+    GenerationalBarrierForCppHeapPointer(host, value);
 #endif
     return;
   }
@@ -404,24 +377,18 @@ void WriteBarrier::CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
 }
 
 // static
-void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
-                                                         void* value) {
-  GenerationalBarrierFromInternalFields(host, 1, &value);
-}
-
-// static
-void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
-                                                         size_t argc,
-                                                         void** values) {
-  auto* memory_chunk = MemoryChunk::FromHeapObject(host);
-  if (V8_LIKELY(HeapObjectInYoungGeneration(memory_chunk, host))) return;
-  auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
-  if (!cpp_heap) return;
-  for (size_t i = 0; i < argc; ++i) {
-    if (!values[i]) continue;
-    v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
-        host, values[i]);
+void WriteBarrier::GenerationalBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                        void* value) {
+  if (!value) {
+    return;
   }
+  auto* memory_chunk = MemoryChunk::FromHeapObject(host);
+  if (V8_LIKELY(HeapObjectInYoungGeneration(memory_chunk, host))) {
+    return;
+  }
+  auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
+  v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
+      host, value);
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

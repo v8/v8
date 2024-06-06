@@ -92,11 +92,11 @@ class ReferenceSummarizerMarkingVisitor
  public:
   ReferenceSummarizerMarkingVisitor(
       Heap* heap, ReferenceSummarizerMarkingState* marking_state)
-      : MarkingVisitorBase(
-            marking_state->local_marking_worklists(),
-            marking_state->local_weak_objects(), heap, 0 /*mark_compact_epoch*/,
-            {} /*code_flush_mode*/, false /*embedder_tracing_enabled*/,
-            true /*should_keep_ages_unchanged*/, 0 /*code_flushing_increase*/),
+      : MarkingVisitorBase(marking_state->local_marking_worklists(),
+                           marking_state->local_weak_objects(), heap,
+                           0 /*mark_compact_epoch*/, {} /*code_flush_mode*/,
+                           true /*should_keep_ages_unchanged*/,
+                           0 /*code_flushing_increase*/),
         marking_state_(marking_state) {}
 
   template <typename TSlot>

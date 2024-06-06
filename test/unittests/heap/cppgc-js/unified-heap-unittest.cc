@@ -58,25 +58,6 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
-TEST_F(UnifiedHeapTest, Deprecated_FindingV8ToCppReference) {
-  uint16_t wrappable_type = DeprecatedWrapperHelper::kTracedEmbedderId;
-  auto* wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
-  EXPECT_FALSE(api_object.IsEmpty());
-  // With direct locals, api_object may be invalid after a stackless GC.
-  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-  Wrappable::destructor_callcount = 0;
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  DeprecatedWrapperHelper::ResetWrappableConnection(
-      v8::Utils::ToLocal(handle_api_object));
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(1u, Wrappable::destructor_callcount);
-}
-
 TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
@@ -93,25 +74,6 @@ TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
       v8_isolate(), v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
-}
-
-TEST_F(UnifiedHeapTest, Deprectated_WriteBarrierV8ToCppReference) {
-  if (!v8_flags.incremental_marking) return;
-
-  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = DeprecatedWrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), nullptr, nullptr);
-  EXPECT_FALSE(api_object.IsEmpty());
-  // With direct locals, api_object may be invalid after a stackless GC.
-  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-  Wrappable::destructor_callcount = 0;
-  DeprecatedWrapperHelper::ResetWrappableConnection(api_object);
-  SimulateIncrementalMarking();
-  uint16_t type_info = DeprecatedWrapperHelper::kTracedEmbedderId;
-  DeprecatedWrapperHelper::SetWrappableConnection(
-      v8::Utils::ToLocal(handle_api_object), &type_info, wrappable);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }
 
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
@@ -756,41 +718,6 @@ class Wrappable2 final : public cppgc::GarbageCollected<Wrappable2> {
 
 size_t Wrappable2::destructor_call_count = 0;
 }  // namespace
-
-TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
-  v8::Isolate* isolate = v8_isolate();
-  auto* wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable2>(allocation_handle());
-  START_ALLOW_USE_DEPRECATED()
-  v8::WrapperDescriptor descriptor =
-      isolate->GetCppHeap()->wrapper_descriptor();
-  END_ALLOW_USE_DEPRECATED()
-  v8::Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
-  int size = std::max(descriptor.wrappable_type_index,
-                      descriptor.wrappable_instance_index) +
-             1;
-  tmpl->SetInternalFieldCount(size);
-  v8::Local<v8::Object> api_object =
-      tmpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
-  EXPECT_FALSE(api_object.IsEmpty());
-  api_object->SetAlignedPointerInInternalField(
-      descriptor.wrappable_type_index,
-      &descriptor.embedder_id_for_garbage_collected);
-  api_object->SetAlignedPointerInInternalField(
-      descriptor.wrappable_instance_index, wrappable_object);
-  // With direct locals, api_object may be invalid after a stackless GC.
-  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-
-  Wrappable2::destructor_call_count = 0;
-  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
-  v8::Utils::ToLocal(handle_api_object)
-      ->SetAlignedPointerInInternalField(descriptor.wrappable_instance_index,
-                                         nullptr);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(1u, Wrappable2::destructor_call_count);
-}
 
 namespace {
 class WrappedData final : public cppgc::GarbageCollected<WrappedData> {

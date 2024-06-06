@@ -99,14 +99,11 @@ class MinorGCHeapGrowing
 }  // namespace internal
 
 // static
-constexpr uint16_t WrapperDescriptor::kUnknownEmbedderId;
-
-// static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
-  return std::make_unique<internal::CppHeap>(
-      platform, params.custom_spaces, params.wrapper_descriptor,
-      params.marking_support, params.sweeping_support);
+  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces,
+                                             params.marking_support,
+                                             params.sweeping_support);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -146,10 +143,6 @@ void CppHeap::CollectGarbageInYoungGenerationForTesting(
     cppgc::EmbedderStackState stack_state) {
   return internal::CppHeap::From(this)->CollectGarbageForTesting(
       internal::CppHeap::CollectionType::kMinor, stack_state);
-}
-
-v8::WrapperDescriptor CppHeap::wrapper_descriptor() const {
-  return internal::CppHeap::From(this)->wrapper_descriptor();
 }
 
 namespace internal {
@@ -456,7 +449,6 @@ void CppHeap::InitializeOncePerProcess() {
 CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
-    const v8::WrapperDescriptor& wrapper_descriptor,
     cppgc::Heap::MarkingType marking_support,
     cppgc::Heap::SweepingType sweeping_support)
     : cppgc::internal::HeapBase(
@@ -466,8 +458,7 @@ CppHeap::CppHeap(
           marking_support, sweeping_support, *this),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
-      cross_heap_remembered_set_(*this),
-      wrapper_descriptor_(wrapper_descriptor) {
+      cross_heap_remembered_set_(*this) {
   // Enter no GC scope. `AttachIsolate()` removes this and allows triggering
   // garbage collections.
   no_gc_scope_++;
@@ -855,31 +846,6 @@ void CppHeap::ReEnableConcurrentMarking() {
   marker_->ReEnableConcurrentMarking();
 }
 
-void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
-  DCHECK(js_object->MayHaveEmbedderFields());
-  DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
-
-  const auto descriptor = wrapper_descriptor();
-  if (descriptor.embedder_id_for_garbage_collected ==
-      WrapperDescriptor::kUnknownEmbedderId) {
-    return;
-  }
-  const auto min_field_count =
-      1 + std::max(descriptor.wrappable_type_index,
-                   descriptor.wrappable_instance_index);
-  if (js_object->GetEmbedderFieldCount() < min_field_count) return;
-
-  const EmbedderDataSlot type_slot(js_object, descriptor.wrappable_type_index);
-  const EmbedderDataSlot instance_slot(js_object,
-                                       descriptor.wrappable_instance_index);
-  isolate()
-      ->heap()
-      ->mark_compact_collector()
-      ->local_marking_worklists()
-      ->cpp_marking_state()
-      ->MarkAndPush(type_slot, instance_slot);
-}
-
 void CppHeap::WriteBarrier(void* object) {
   isolate()
       ->heap()
@@ -1215,7 +1181,6 @@ std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
   if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
-      isolate(), wrapper_descriptor_,
       std::make_unique<cppgc::internal::MarkingStateBase>(
           AsBase(), marker()->To<UnifiedHeapMarker>().GetMarkingWorklists()));
 }
@@ -1225,7 +1190,6 @@ CppHeap::CreateCppMarkingStateForMutatorThread() {
   if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
-      isolate(), wrapper_descriptor_,
       marker()->To<UnifiedHeapMarker>().GetMutatorMarkingState());
 }
 

@@ -117,8 +117,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   CppHeap(v8::Platform*,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&,
-          const v8::WrapperDescriptor&, cppgc::Heap::MarkingType,
-          cppgc::Heap::SweepingType);
+          cppgc::Heap::MarkingType, cppgc::Heap::SweepingType);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -156,7 +155,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   // still generally supported.
   void ReEnableConcurrentMarking();
 
-  void WriteBarrier(Tagged<JSObject>);
   void WriteBarrier(void*);
 
   bool ShouldFinalizeIncrementalMarking() const;
@@ -167,10 +165,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void ResetAllocatedObjectSize(size_t) final {}
 
   MetricRecorderAdapter* GetMetricRecorder() const;
-
-  v8::WrapperDescriptor wrapper_descriptor() const {
-    return wrapper_descriptor_;
-  }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -252,8 +246,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   // atomic pause. Allocated bytes are buffer in case this is temporarily
   // prohibited.
   int64_t buffered_allocated_bytes_ = 0;
-
-  v8::WrapperDescriptor wrapper_descriptor_;
 
   bool in_detached_testing_mode_ = false;
   bool force_incremental_marking_for_testing_ = false;

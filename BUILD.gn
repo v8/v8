@@ -3606,8 +3606,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/cppgc-js/unified-heap-marking-state.h",
     "src/heap/cppgc-js/unified-heap-marking-verifier.h",
     "src/heap/cppgc-js/unified-heap-marking-visitor.h",
-    "src/heap/cppgc-js/wrappable-info-inl.h",
-    "src/heap/cppgc-js/wrappable-info.h",
     "src/heap/ephemeron-remembered-set.h",
     "src/heap/evacuation-allocator-inl.h",
     "src/heap/evacuation-allocator.h",

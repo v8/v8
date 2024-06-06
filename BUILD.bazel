@@ -1588,8 +1588,6 @@ filegroup(
         "src/heap/cppgc-js/unified-heap-marking-verifier.h",
         "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
         "src/heap/cppgc-js/unified-heap-marking-visitor.h",
-        "src/heap/cppgc-js/wrappable-info.h",
-        "src/heap/cppgc-js/wrappable-info-inl.h",
         "src/heap/ephemeron-remembered-set.h",
         "src/heap/ephemeron-remembered-set.cc",
         "src/heap/evacuation-allocator.cc",

@@ -121,10 +121,6 @@ class YoungGenerationMarkingVisitor final
                                  Tagged<HeapObject>* heap_object);
 #endif  // V8_MINORMS_STRING_SHORTCUTTING
 
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
-                                                      Tagged<T> object);
-
   static constexpr size_t kNumEntries = 128;
   static constexpr size_t kEntriesMask = kNumEntries - 1;
   // Fixed-size hashmap that caches live bytes. Hashmap entries are evicted to

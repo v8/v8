@@ -243,13 +243,12 @@ class MainMarkingVisitor final
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged,
                      uint16_t code_flushing_increase)
       : FullMarkingVisitorBase<MainMarkingVisitor>(
             local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
-            should_keep_ages_unchanged, code_flushing_increase) {}
+            mark_compact_epoch, code_flush_mode, should_keep_ages_unchanged,
+            code_flushing_increase) {}
 
  private:
   // Functions required by MarkingVisitorBase.
@@ -391,10 +390,7 @@ void MarkCompactCollector::StartMarking() {
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
   marking_visitor_ = std::make_unique<MainMarkingVisitor>(
       local_marking_worklists_.get(), local_weak_objects_.get(), heap_, epoch(),
-      code_flush_mode(),
-      cpp_heap && local_marking_worklists_->cpp_marking_state()
-                      ->SupportsWrappableExtraction(),
-      heap_->ShouldCurrentGCKeepAgesUnchanged(),
+      code_flush_mode(), heap_->ShouldCurrentGCKeepAgesUnchanged(),
       heap_->tracer()->CodeFlushingIncrease());
   // This method evicts SFIs with flushed bytecode from the cache before
   // iterating the compilation cache as part of the root set. SFIs that get

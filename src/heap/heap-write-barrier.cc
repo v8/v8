@@ -64,14 +64,6 @@ void WriteBarrier::MarkingSlowFromGlobalHandle(Tagged<HeapObject> value) {
 }
 
 // static
-void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap,
-                                                 Tagged<JSObject> host) {
-  if (auto* cpp_heap = heap->cpp_heap()) {
-    CppHeap::From(cpp_heap)->WriteBarrier(host);
-  }
-}
-
-// static
 void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap, void* object) {
   if (auto* cpp_heap = heap->cpp_heap()) {
     CppHeap::From(cpp_heap)->WriteBarrier(object);

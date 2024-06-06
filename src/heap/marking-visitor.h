@@ -51,7 +51,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged,
                      uint16_t code_flushing_increase)
       : ConcurrentHeapVisitor<int, ConcreteVisitor>(heap->isolate()),
@@ -60,7 +59,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         heap_(heap),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
-        trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         code_flushing_increase_(code_flushing_increase),
         isolate_in_background_(heap->isolate()->is_backgrounded())
@@ -191,15 +189,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitEmbedderTracingSubclass(Tagged<Map> map, Tagged<T> object);
-  template <typename T, typename TBodyDescriptor>
-  int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
-                                                      Tagged<T> object);
-  template <typename T, typename TBodyDescriptor>
-  int VisitEmbedderTracingSubClassNoEmbedderTracing(Tagged<Map> map,
-                                                    Tagged<T> object);
-
   V8_INLINE int VisitFixedArrayWithProgressBar(Tagged<Map> map,
                                                Tagged<FixedArray> object,
                                                ProgressBar& progress_bar);
@@ -219,7 +208,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   Heap* const heap_;
   const unsigned mark_compact_epoch_;
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
-  const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
   const uint16_t code_flushing_increase_;
   const bool isolate_in_background_;
@@ -244,13 +232,12 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
                          WeakObjects::Local* local_weak_objects, Heap* heap,
                          unsigned mark_compact_epoch,
                          base::EnumSet<CodeFlushMode> code_flush_mode,
-                         bool trace_embedder_fields,
                          bool should_keep_ages_unchanged,
                          uint16_t code_flushing_increase)
       : MarkingVisitorBase<ConcreteVisitor>(
             local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
-            should_keep_ages_unchanged, code_flushing_increase),
+            mark_compact_epoch, code_flush_mode, should_keep_ages_unchanged,
+            code_flushing_increase),
         marking_state_(heap->marking_state()) {}
 
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(

@@ -20,23 +20,16 @@ namespace internal {
 UnifiedHeapTest::UnifiedHeapTest()
     : UnifiedHeapTest(std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>()) {}
 
-START_ALLOW_USE_DEPRECATED()
 UnifiedHeapTest::UnifiedHeapTest(
     std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
-    : cpp_heap_(v8::CppHeap::Create(
-          V8::GetCurrentPlatform(),
-          CppHeapCreateParams{
-              std::move(custom_spaces),
-              // TODO(338411141): Switch to the non-deprecated setup when
-              // removing DeprecatedWrapperHelper and all the tests prefixed
-              // with "Deprectated_".
-              DeprecatedWrapperHelper::DefaultWrapperDescriptor()})) {
+    : cpp_heap_(
+          v8::CppHeap::Create(V8::GetCurrentPlatform(),
+                              CppHeapCreateParams{std::move(custom_spaces)})) {
   // --stress-incremental-marking may have started an incremental GC at this
   // point already.
   InvokeAtomicMajorGC();
   isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
-END_ALLOW_USE_DEPRECATED()
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
     cppgc::Heap::SweepingType sweeping_type) {
@@ -87,49 +80,6 @@ CppHeap& UnifiedHeapTest::cpp_heap() const {
 
 cppgc::AllocationHandle& UnifiedHeapTest::allocation_handle() {
   return cpp_heap().object_allocator();
-}
-
-// static
-v8::Local<v8::Object> DeprecatedWrapperHelper::CreateWrapper(
-    v8::Local<v8::Context> context, void* wrappable_type,
-    void* wrappable_object, const char* class_name) {
-  v8::EscapableHandleScope scope(context->GetIsolate());
-  v8::Local<v8::FunctionTemplate> function_t =
-      v8::FunctionTemplate::New(context->GetIsolate());
-  if (strlen(class_name) != 0) {
-    function_t->SetClassName(
-        v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), class_name)
-            .ToLocalChecked());
-  }
-  v8::Local<v8::ObjectTemplate> instance_t = function_t->InstanceTemplate();
-  instance_t->SetInternalFieldCount(2);
-  v8::Local<v8::Function> function =
-      function_t->GetFunction(context).ToLocalChecked();
-  v8::Local<v8::Object> instance =
-      function->NewInstance(context).ToLocalChecked();
-  SetWrappableConnection(instance, wrappable_type, wrappable_object);
-  CHECK(!instance.IsEmpty());
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
-  CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map()->instance_type());
-  return scope.Escape(instance);
-}
-
-// static
-void DeprecatedWrapperHelper::ResetWrappableConnection(
-    v8::Local<v8::Object> api_object) {
-  api_object->SetAlignedPointerInInternalField(kWrappableTypeEmbedderIndex,
-                                               nullptr);
-  api_object->SetAlignedPointerInInternalField(kWrappableInstanceEmbedderIndex,
-                                               nullptr);
-}
-
-// static
-void DeprecatedWrapperHelper::SetWrappableConnection(
-    v8::Local<v8::Object> api_object, void* type, void* instance) {
-  api_object->SetAlignedPointerInInternalField(kWrappableTypeEmbedderIndex,
-                                               type);
-  api_object->SetAlignedPointerInInternalField(kWrappableInstanceEmbedderIndex,
-                                               instance);
 }
 
 // static

@@ -89,12 +89,6 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   // Invoked from global handles where no host object is available.
   static inline void MarkingFromGlobalHandle(Tagged<Object> value);
 
-  static inline void CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                       void* value);
-  static inline void CombinedBarrierFromInternalFields(Tagged<JSObject> host,
-                                                       size_t argc,
-                                                       void** values);
-
   static inline void CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
                                                       void* value);
 
@@ -126,13 +120,10 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
                           Tagged<TrustedObject> value);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
-  static void MarkingSlowFromInternalFields(Heap* heap, Tagged<JSObject> host);
   static void MarkingSlowFromCppHeapWrappable(Heap* heap, void* object);
 
-  static inline void GenerationalBarrierFromInternalFields(
-      Tagged<JSObject> host, void* value);
-  static inline void GenerationalBarrierFromInternalFields(
-      Tagged<JSObject> host, size_t argc, void** values);
+  static inline void GenerationalBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                          void* value);
 
   static void SharedSlow(Tagged<InstructionStream> host, RelocInfo*,
                          Tagged<HeapObject> value);

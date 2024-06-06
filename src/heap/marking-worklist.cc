@@ -112,7 +112,7 @@ void MarkingWorklists::Local::Publish() {
       context_worklists_[entry->value].Publish();
     }
   }
-  PublishWrapper();
+  PublishCppHeapObjects();
 }
 
 bool MarkingWorklists::Local::IsEmpty() {

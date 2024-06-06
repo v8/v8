@@ -30,9 +30,6 @@ EmbedderDataSlot::EmbedderDataSlot(Tagged<JSObject> object,
     : SlotBase(FIELD_ADDR(
           object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
 
-EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
-    : SlotBase(reinterpret_cast<Address>(&snapshot)) {}
-
 void EmbedderDataSlot::Initialize(Tagged<Object> initial_value) {
   // TODO(v8) initialize the slot with Smi::zero() instead. This'll also
   // guarantee that we don't need a write barrier.
@@ -192,36 +189,6 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
   ObjectSlot(address() + kTaggedPayloadOffset)
       .Relaxed_Store(Tagged<Smi>(value));
 #endif
-}
-
-// static
-void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
-    Tagged<Map> map, Tagged<JSObject> js_object, int entry_index,
-    EmbedderDataSlotSnapshot& snapshot) {
-#ifdef V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t) * 2);
-#else   // !V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t));
-#endif  // !V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
-
-  const Address field_base =
-      FIELD_ADDR(js_object, js_object->GetEmbedderFieldOffset(entry_index));
-
-#if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
-  const int index = 1;
-#else
-  const int index = 0;
-#endif
-
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[index] =
-      AsAtomicTagged::Relaxed_Load(
-          reinterpret_cast<AtomicTagged_t*>(field_base + kTaggedPayloadOffset));
-#ifdef V8_COMPRESS_POINTERS
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[1 - index] =
-      AsAtomicTagged::Relaxed_Load(
-          reinterpret_cast<AtomicTagged_t*>(field_base + kRawPayloadOffset));
-#endif  // V8_COMPRESS_POINTERS
 }
 
 }  // namespace internal
