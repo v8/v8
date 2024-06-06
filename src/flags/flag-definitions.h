@@ -2421,9 +2421,9 @@ DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 DEFINE_BOOL(log_maps, false, "Log map creation")
 DEFINE_BOOL(log_maps_details, true, "Also log map details")
 DEFINE_IMPLICATION(log_maps, log_code)
-DEFINE_EXPERIMENTAL_FEATURE(
-    move_prototype_transitions_first,
-    "Always move prototype transitions to the front of the tree")
+DEFINE_BOOL(move_prototype_transitions_first, false,
+            "Always move prototype transitions to the front of the tree")
+DEFINE_WEAK_IMPLICATION(future, move_prototype_transitions_first)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
