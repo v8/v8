@@ -4411,10 +4411,7 @@ struct FastApiReceiver {
                            v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
-    if (!IsValidUnwrapObject(*receiver)) {
-      options.fallback = true;
-      return;
-    }
+    CHECK(IsValidUnwrapObject(*receiver));
     FastApiReceiver* receiver_ptr =
         GetInternalField<FastApiReceiver>(*receiver);
 

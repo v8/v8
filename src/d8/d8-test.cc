@@ -9,23 +9,21 @@
 #include "src/api/api-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
-// for writing mjsunit tests that exercise fast API calls. The fast_c_api object
-// contains an `add_all` method with the following signature:
-// double add_all(bool /*should_fallback*/, int32_t, uint32_t,
-//   int64_t, uint64_t, float, double), that is wired as a "fast API" method.
+// for writing mjsunit tests that exercise fast API calls.
 // The fast_c_api object also supports querying the number of fast/slow calls
 // and resetting these counters.
 
 namespace v8 {
 namespace {
 
-#define CHECK_SELF_OR_FALLBACK(return_value) \
-  if (!self) {                               \
-    options.fallback = 1;                    \
-    return return_value;                     \
+#define CHECK_SELF_OR_THROW_FAST(return_value)                              \
+  if (!self) {                                                              \
+    receiver->GetIsolate()->ThrowError(                                     \
+        "This method is not defined on objects inheriting from FastCAPI."); \
+    return return_value;                                                    \
   }
 
-#define CHECK_SELF_OR_THROW()                                               \
+#define CHECK_SELF_OR_THROW_SLOW()                                          \
   if (!self) {                                                              \
     info.GetIsolate()->ThrowError(                                          \
         "This method is not defined on objects inheriting from FastCAPI."); \
@@ -37,13 +35,6 @@ class FastCApiObject {
   static FastCApiObject& instance();
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  static AnyCType ThrowFallbackFastCallbackPatch(AnyCType receiver,
-                                                 AnyCType options) {
-    AnyCType ret;
-    ThrowFallbackFastCallback(receiver.object_value, *options.options_value);
-    return ret;
-  }
-
   static AnyCType ThrowNoFallbackFastCallbackPatch(AnyCType receiver) {
     AnyCType ret;
     ThrowNoFallbackFastCallback(receiver.object_value);
@@ -51,12 +42,6 @@ class FastCApiObject {
   }
 
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  static void ThrowFallbackFastCallback(Local<Object> receiver,
-                                        FastApiCallbackOptions& options) {
-    FastCApiObject* self = UnwrapObject(receiver);
-    self->fast_call_count_++;
-    options.fallback = true;
-  }
 
   static int ThrowNoFallbackFastCallback(Local<Object> receiver) {
     FastCApiObject* self = UnwrapObject(receiver);
@@ -73,7 +58,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     info.GetIsolate()->ThrowError("Exception from slow callback");
@@ -81,30 +66,21 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType CopyStringFastCallbackPatch(AnyCType receiver,
-                                              AnyCType should_fallback,
                                               AnyCType source, AnyCType out,
                                               AnyCType options) {
     AnyCType ret;
-    CopyStringFastCallback(receiver.object_value, should_fallback.bool_value,
-                           *source.string_value, *out.uint8_ta_value,
-                           *options.options_value);
+    CopyStringFastCallback(receiver.object_value, *source.string_value,
+                           *out.uint8_ta_value, *options.options_value);
     return ret;
   }
 
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static void CopyStringFastCallback(Local<Object> receiver,
-                                     bool should_fallback,
                                      const FastOneByteString& source,
                                      const FastApiTypedArray<uint8_t>& out,
                                      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-    } else {
-      options.fallback = false;
-    }
 
     uint8_t* memory = nullptr;
     CHECK(out.getStorageIfAligned(&memory));
@@ -113,40 +89,32 @@ class FastCApiObject {
 
   static void CopyStringSlowCallback(const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
   }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType AddAllFastCallbackPatch(AnyCType receiver,
-                                          AnyCType should_fallback,
                                           AnyCType arg_i32, AnyCType arg_u32,
                                           AnyCType arg_i64, AnyCType arg_u64,
                                           AnyCType arg_f32, AnyCType arg_f64,
                                           AnyCType options) {
     AnyCType ret;
     ret.double_value = AddAllFastCallback(
-        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
-        arg_u32.uint32_value, arg_i64.int64_value, arg_u64.uint64_value,
-        arg_f32.float_value, arg_f64.double_value, *options.options_value);
+        receiver.object_value, arg_i32.int32_value, arg_u32.uint32_value,
+        arg_i64.int64_value, arg_u64.uint64_value, arg_f32.float_value,
+        arg_f64.double_value, *options.options_value);
     return ret;
   }
 
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  static double AddAllFastCallback(Local<Object> receiver, bool should_fallback,
-                                   int32_t arg_i32, uint32_t arg_u32,
-                                   int64_t arg_i64, uint64_t arg_u64,
-                                   float arg_f32, double arg_f64,
+  static double AddAllFastCallback(Local<Object> receiver, int32_t arg_i32,
+                                   uint32_t arg_u32, int64_t arg_i64,
+                                   uint64_t arg_u64, float arg_f32,
+                                   double arg_f64,
                                    FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    } else {
-      options.fallback = false;
-    }
 
     return static_cast<double>(arg_i32) + static_cast<double>(arg_u32) +
            static_cast<double>(arg_i64) + static_cast<double>(arg_u64) +
@@ -155,19 +123,17 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType AddAllFastCallbackNoOptionsPatch(
-      AnyCType receiver, AnyCType should_fallback, AnyCType arg_i32,
-      AnyCType arg_u32, AnyCType arg_i64, AnyCType arg_u64, AnyCType arg_f32,
-      AnyCType arg_f64) {
+      AnyCType receiver, AnyCType arg_i32, AnyCType arg_u32, AnyCType arg_i64,
+      AnyCType arg_u64, AnyCType arg_f32, AnyCType arg_f64) {
     AnyCType ret;
     ret.double_value = AddAllFastCallbackNoOptions(
-        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
-        arg_u32.uint32_value, arg_i64.int64_value, arg_u64.uint64_value,
-        arg_f32.float_value, arg_f64.double_value);
+        receiver.object_value, arg_i32.int32_value, arg_u32.uint32_value,
+        arg_i64.int64_value, arg_u64.uint64_value, arg_f32.float_value,
+        arg_f64.double_value);
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static double AddAllFastCallbackNoOptions(Local<Object> receiver,
-                                            bool should_fallback,
                                             int32_t arg_i32, uint32_t arg_u32,
                                             int64_t arg_i64, uint64_t arg_u64,
                                             float arg_f32, double arg_f64) {
@@ -198,31 +164,31 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
 
     double sum = 0;
+    if (info.Length() > 0 && info[0]->IsNumber()) {
+      sum += info[0]->Int32Value(isolate->GetCurrentContext()).FromJust();
+    }
     if (info.Length() > 1 && info[1]->IsNumber()) {
-      sum += info[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
+      sum += info[1]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
     if (info.Length() > 2 && info[2]->IsNumber()) {
-      sum += info[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
+      sum += info[2]->IntegerValue(isolate->GetCurrentContext()).FromJust();
     }
     if (info.Length() > 3 && info[3]->IsNumber()) {
       sum += info[3]->IntegerValue(isolate->GetCurrentContext()).FromJust();
     }
     if (info.Length() > 4 && info[4]->IsNumber()) {
-      sum += info[4]->IntegerValue(isolate->GetCurrentContext()).FromJust();
-    }
-    if (info.Length() > 5 && info[5]->IsNumber()) {
-      sum += info[5]->NumberValue(isolate->GetCurrentContext()).FromJust();
+      sum += info[4]->NumberValue(isolate->GetCurrentContext()).FromJust();
     } else {
       sum += std::numeric_limits<double>::quiet_NaN();
     }
-    if (info.Length() > 6 && info[6]->IsNumber()) {
-      sum += info[6]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    if (info.Length() > 5 && info[5]->IsNumber()) {
+      sum += info[5]->NumberValue(isolate->GetCurrentContext()).FromJust();
     } else {
       sum += std::numeric_limits<double>::quiet_NaN();
     }
@@ -237,108 +203,35 @@ class FastCApiObject {
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType AddAllSequenceFastCallbackPatch(AnyCType receiver,
-                                                  AnyCType should_fallback,
                                                   AnyCType seq_arg,
                                                   AnyCType options) {
     AnyCType ret;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     ret.double_value = AddAllSequenceFastCallback(
-        receiver.object_value, should_fallback.bool_value,
-        seq_arg.sequence_value, *options.options_value);
+        receiver.object_value, seq_arg.sequence_value, *options.options_value);
 #else
     ret.int32_value = AddAllSequenceFastCallback(
-        receiver.object_value, should_fallback.bool_value,
-        seq_arg.sequence_value, *options.options_value);
+        receiver.object_value, seq_arg.sequence_value, *options.options_value);
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
-  static Type AddAllSequenceFastCallback(Local<Object> receiver,
-                                         bool should_fallback,
-                                         Local<Array> seq_arg,
-                                         FastApiCallbackOptions& options) {
-    FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
-    self->fast_call_count_++;
-
-    CHECK_NULL(options.wasm_memory);
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
-
-    uint32_t length = seq_arg->Length();
-    if (length > 1024) {
-      options.fallback = true;
-      return 0;
-    }
-
-    Type buffer[1024];
-    bool result = TryToCopyAndConvertArrayToCppBuffer<
-        CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer, 1024);
-    if (!result) {
-      options.fallback = true;
-      return 0;
-    }
-    DCHECK_EQ(seq_arg->Length(), length);
-
+  static Type AddAllSequenceJSArrayHelper(v8::Isolate* isolate,
+                                          Local<Array> seq_arg) {
     Type sum = 0;
-    for (uint32_t i = 0; i < length; ++i) {
-      sum += buffer[i];
-    }
-
-    return sum;
-  }
-  static void AddAllSequenceSlowCallback(
-      const FunctionCallbackInfo<Value>& info) {
-    DCHECK(i::ValidateCallbackInfo(info));
-    Isolate* isolate = info.GetIsolate();
-
-    FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
-
-    HandleScope handle_scope(isolate);
-
-    if (info.Length() < 2) {
-      self->slow_call_count_++;
-      isolate->ThrowError("This method expects at least 2 arguments.");
-      return;
-    }
-    if (info[1]->IsTypedArray()) {
-      AddAllTypedArraySlowCallback(info);
-      return;
-    }
-    if (info[1]->IsNumber()) {
-      AddAllSlowCallback(info);
-      return;
-    }
-    self->slow_call_count_++;
-    if (info[1]->IsUndefined()) {
-      Type dummy_result = 0;
-      info.GetReturnValue().Set(Number::New(isolate, dummy_result));
-      return;
-    }
-    if (!info[1]->IsArray()) {
-      isolate->ThrowError("This method expects an array as a second argument.");
-      return;
-    }
-
-    Local<Array> seq_arg = info[1].As<Array>();
     uint32_t length = seq_arg->Length();
     if (length > 1024) {
       isolate->ThrowError(
           "Invalid length of array, must be between 0 and 1024.");
-      return;
+      return sum;
     }
 
-    Type sum = 0;
     for (uint32_t i = 0; i < length; ++i) {
       v8::MaybeLocal<v8::Value> maybe_element =
           seq_arg->Get(isolate->GetCurrentContext(),
                        v8::Integer::NewFromUnsigned(isolate, i));
-      if (maybe_element.IsEmpty()) return;
+      if (maybe_element.IsEmpty()) return sum;
 
       v8::Local<v8::Value> element = maybe_element.ToLocalChecked();
       if (element->IsNumber()) {
@@ -350,9 +243,78 @@ class FastCApiObject {
         // Hole: ignore the element.
       } else {
         isolate->ThrowError("unexpected element type in JSArray");
-        return;
+        return sum;
       }
     }
+    return sum;
+  }
+
+  static Type AddAllSequenceFastCallback(Local<Object> receiver,
+                                         Local<Array> seq_arg,
+                                         FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST(0);
+    self->fast_call_count_++;
+
+    uint32_t length = seq_arg->Length();
+    if (length > 1024) {
+      receiver->GetIsolate()->ThrowError(
+          "Invalid length of array, must be between 0 and 1024.");
+      return 0;
+    }
+
+    Type buffer[1024];
+    bool result = TryToCopyAndConvertArrayToCppBuffer<
+        CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer, 1024);
+    if (!result) {
+      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), seq_arg);
+    }
+    DCHECK_EQ(seq_arg->Length(), length);
+
+    Type sum = 0;
+    for (uint32_t i = 0; i < length; ++i) {
+      sum += buffer[i];
+    }
+
+    return sum;
+  }
+
+  static void AddAllSequenceSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1) {
+      self->slow_call_count_++;
+      isolate->ThrowError("This method expects at least 1 arguments.");
+      return;
+    }
+    if (info[0]->IsTypedArray()) {
+      AddAllTypedArraySlowCallback(info);
+      return;
+    }
+    if (info[0]->IsNumber()) {
+      AddAllSlowCallback(info);
+      return;
+    }
+    self->slow_call_count_++;
+    if (info[0]->IsUndefined()) {
+      Type dummy_result = 0;
+      info.GetReturnValue().Set(Number::New(isolate, dummy_result));
+      return;
+    }
+    if (!info[0]->IsArray()) {
+      isolate->ThrowError("This method expects an array as a second argument.");
+      return;
+    }
+    Local<Array> seq_arg = info[0].As<Array>();
+    Type sum = AddAllSequenceJSArrayHelper(isolate, seq_arg);
+
     info.GetReturnValue().Set(Number::New(isolate, sum));
   }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -370,34 +332,28 @@ class FastCApiObject {
 
   template <typename T>
   static AnyCType AddAllTypedArrayFastCallbackPatch(AnyCType receiver,
-                                                    AnyCType should_fallback,
                                                     AnyCType typed_array_arg,
                                                     AnyCType options) {
     AnyCType ret;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     ret.double_value = AddAllTypedArrayFastCallback(
-        receiver.object_value, should_fallback.bool_value,
-        *AnyCTypeToTypedArray<T>(typed_array_arg), *options.options_value);
+        receiver.object_value, *AnyCTypeToTypedArray<T>(typed_array_arg),
+        *options.options_value);
 #else
     ret.int32_value = AddAllTypedArrayFastCallback(
-        receiver.object_value, should_fallback.bool_value,
-        *AnyCTypeToTypedArray<T>(typed_array_arg), *options.options_value);
+        receiver.object_value * AnyCTypeToTypedArray<T>(typed_array_arg),
+        *options.options_value);
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   template <typename T>
   static Type AddAllTypedArrayFastCallback(
-      Local<Object> receiver, bool should_fallback,
-      const FastApiTypedArray<T>& typed_array_arg,
+      Local<Object> receiver, const FastApiTypedArray<T>& typed_array_arg,
       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
 
     T sum = 0;
     for (unsigned i = 0; i < typed_array_arg.length(); ++i) {
@@ -405,28 +361,29 @@ class FastCApiObject {
     }
     return static_cast<Type>(sum);
   }
+
   static void AddAllTypedArraySlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
 
-    if (info.Length() < 2) {
-      isolate->ThrowError("This method expects at least 2 arguments.");
+    if (info.Length() < 1) {
+      isolate->ThrowError("This method expects at least 1 arguments.");
       return;
     }
-    if (!info[1]->IsTypedArray()) {
+    if (!info[0]->IsTypedArray()) {
       isolate->ThrowError(
           "This method expects a TypedArray as a second argument.");
       return;
     }
 
-    Local<TypedArray> typed_array_arg = info[1].As<TypedArray>();
+    Local<TypedArray> typed_array_arg = info[0].As<TypedArray>();
     size_t length = typed_array_arg->Length();
 
     void* data = typed_array_arg->Buffer()->GetBackingStore()->Data();
@@ -467,7 +424,7 @@ class FastCApiObject {
   }
 
   static int32_t AddAllIntInvalidCallback(Local<Object> receiver,
-                                          bool should_fallback, int32_t arg_i32,
+                                          int32_t arg_i32,
                                           FastApiCallbackOptions& options) {
     // This should never be called
     UNREACHABLE();
@@ -475,30 +432,23 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType Add32BitIntFastCallbackPatch(AnyCType receiver,
-                                               AnyCType should_fallback,
                                                AnyCType arg_i32,
                                                AnyCType arg_u32,
                                                AnyCType options) {
     AnyCType ret;
-    ret.int32_value = Add32BitIntFastCallback(
-        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
-        arg_u32.uint32_value, *options.options_value);
+    ret.int32_value =
+        Add32BitIntFastCallback(receiver.object_value, arg_i32.int32_value,
+                                arg_u32.uint32_value, *options.options_value);
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
   static int Add32BitIntFastCallback(v8::Local<v8::Object> receiver,
-                                     bool should_fallback, int32_t arg_i32,
-                                     uint32_t arg_u32,
+                                     int32_t arg_i32, uint32_t arg_u32,
                                      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
 
     return arg_i32 + arg_u32;
   }
@@ -507,17 +457,17 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
 
     double sum = 0;
-    if (info.Length() > 1 && info[1]->IsNumber()) {
-      sum += info[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
+    if (info.Length() > 0 && info[0]->IsNumber()) {
+      sum += info[0]->Int32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (info.Length() > 2 && info[2]->IsNumber()) {
-      sum += info[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
+    if (info.Length() > 1 && info[1]->IsNumber()) {
+      sum += info[1]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
 
     info.GetReturnValue().Set(Number::New(isolate, sum));
@@ -525,54 +475,48 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType AddAll32BitIntFastCallback_8ArgsPatch(
-      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
-      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
-      AnyCType arg5_u32, AnyCType arg6_u32, AnyCType arg7_u32,
-      AnyCType arg8_u32, AnyCType options) {
+      AnyCType receiver, AnyCType arg1_i32, AnyCType arg2_i32,
+      AnyCType arg3_i32, AnyCType arg4_u32, AnyCType arg5_u32,
+      AnyCType arg6_u32, AnyCType arg7_u32, AnyCType arg8_u32,
+      AnyCType options) {
     AnyCType ret;
     ret.int32_value = AddAll32BitIntFastCallback_8Args(
-        receiver.object_value, should_fallback.bool_value, arg1_i32.int32_value,
-        arg2_i32.int32_value, arg3_i32.int32_value, arg4_u32.uint32_value,
-        arg5_u32.uint32_value, arg6_u32.uint32_value, arg7_u32.uint32_value,
-        arg8_u32.uint32_value, *options.options_value);
+        receiver.object_value, arg1_i32.int32_value, arg2_i32.int32_value,
+        arg3_i32.int32_value, arg4_u32.uint32_value, arg5_u32.uint32_value,
+        arg6_u32.uint32_value, arg7_u32.uint32_value, arg8_u32.uint32_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType AddAll32BitIntFastCallback_6ArgsPatch(
-      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
-      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
-      AnyCType arg5_u32, AnyCType arg6_u32, AnyCType options) {
+      AnyCType receiver, AnyCType arg1_i32, AnyCType arg2_i32,
+      AnyCType arg3_i32, AnyCType arg4_u32, AnyCType arg5_u32,
+      AnyCType arg6_u32, AnyCType options) {
     AnyCType ret;
     ret.int32_value = AddAll32BitIntFastCallback_6Args(
-        receiver.object_value, should_fallback.bool_value, arg1_i32.int32_value,
-        arg2_i32.int32_value, arg3_i32.int32_value, arg4_u32.uint32_value,
-        arg5_u32.uint32_value, arg6_u32.uint32_value, *options.options_value);
+        receiver.object_value, arg1_i32.int32_value, arg2_i32.int32_value,
+        arg3_i32.int32_value, arg4_u32.uint32_value, arg5_u32.uint32_value,
+        arg6_u32.uint32_value, *options.options_value);
     return ret;
   }
   static AnyCType AddAll32BitIntFastCallback_5ArgsPatch(
-      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
-      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
-      AnyCType arg5_u32, AnyCType options) {
+      AnyCType receiver, AnyCType arg1_i32, AnyCType arg2_i32,
+      AnyCType arg3_i32, AnyCType arg4_u32, AnyCType arg5_u32,
+      AnyCType options) {
     AnyCType arg6;
     arg6.uint32_value = 0;
-    return AddAll32BitIntFastCallback_6ArgsPatch(
-        receiver, should_fallback, arg1_i32, arg2_i32, arg3_i32, arg4_u32,
-        arg5_u32, arg6, options);
+    return AddAll32BitIntFastCallback_6ArgsPatch(receiver, arg1_i32, arg2_i32,
+                                                 arg3_i32, arg4_u32, arg5_u32,
+                                                 arg6, options);
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
   static int AddAll32BitIntFastCallback_8Args(
-      Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
-      int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
-      uint32_t arg6_u32, uint32_t arg7_u32, uint32_t arg8_u32,
-      FastApiCallbackOptions& options) {
+      Local<Object> receiver, int32_t arg1_i32, int32_t arg2_i32,
+      int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32, uint32_t arg6_u32,
+      uint32_t arg7_u32, uint32_t arg8_u32, FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
 
     int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
                      arg4_u32 + arg5_u32 + arg6_u32 + arg7_u32 + arg8_u32;
@@ -581,17 +525,12 @@ class FastCApiObject {
     return static_cast<int>(result);
   }
   static int AddAll32BitIntFastCallback_6Args(
-      Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
-      int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
-      uint32_t arg6_u32, FastApiCallbackOptions& options) {
+      Local<Object> receiver, int32_t arg1_i32, int32_t arg2_i32,
+      int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32, uint32_t arg6_u32,
+      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
 
     int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
                      arg4_u32 + arg5_u32 + arg6_u32;
@@ -600,12 +539,11 @@ class FastCApiObject {
     return static_cast<int>(result);
   }
   static int AddAll32BitIntFastCallback_5Args(
-      Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
-      int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
+      Local<Object> receiver, int32_t arg1_i32, int32_t arg2_i32,
+      int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
       FastApiCallbackOptions& options) {
-    return AddAll32BitIntFastCallback_6Args(receiver, should_fallback, arg1_i32,
-                                            arg2_i32, arg3_i32, arg4_u32,
-                                            arg5_u32, 0, options);
+    return AddAll32BitIntFastCallback_6Args(
+        receiver, arg1_i32, arg2_i32, arg3_i32, arg4_u32, arg5_u32, 0, options);
   }
   static void AddAll32BitIntSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
@@ -613,13 +551,16 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
 
     Local<Context> context = isolate->GetCurrentContext();
     double sum = 0;
+    if (info.Length() > 0 && info[0]->IsNumber()) {
+      sum += info[0]->Int32Value(context).FromJust();
+    }
     if (info.Length() > 1 && info[1]->IsNumber()) {
       sum += info[1]->Int32Value(context).FromJust();
     }
@@ -627,7 +568,7 @@ class FastCApiObject {
       sum += info[2]->Int32Value(context).FromJust();
     }
     if (info.Length() > 3 && info[3]->IsNumber()) {
-      sum += info[3]->Int32Value(context).FromJust();
+      sum += info[3]->Uint32Value(context).FromJust();
     }
     if (info.Length() > 4 && info[4]->IsNumber()) {
       sum += info[4]->Uint32Value(context).FromJust();
@@ -635,12 +576,12 @@ class FastCApiObject {
     if (info.Length() > 5 && info[5]->IsNumber()) {
       sum += info[5]->Uint32Value(context).FromJust();
     }
-    if (info.Length() > 6 && info[6]->IsNumber()) {
+    if (info.Length() > 7 && info[6]->IsNumber() && info[7]->IsNumber()) {
+      // info[6] and info[7] only get handled together, because we want to
+      // have functions in the list of overloads with 6 parameters and with 8
+      // parameters, but not with 7 parameters.
       sum += info[6]->Uint32Value(context).FromJust();
-    }
-    if (info.Length() > 7 && info[7]->IsNumber() && info[8]->IsNumber()) {
       sum += info[7]->Uint32Value(context).FromJust();
-      sum += info[8]->Uint32Value(context).FromJust();
     }
 
     info.GetReturnValue().Set(Number::New(isolate, sum));
@@ -649,31 +590,24 @@ class FastCApiObject {
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   template <v8::CTypeInfo::Flags flags>
   static AnyCType AddAllAnnotateFastCallbackPatch(
-      AnyCType receiver, AnyCType should_fallback, AnyCType arg_i32,
-      AnyCType arg_u32, AnyCType arg_i64, AnyCType arg_u64, AnyCType options) {
+      AnyCType receiver, AnyCType arg_i32, AnyCType arg_u32, AnyCType arg_i64,
+      AnyCType arg_u64, AnyCType options) {
     AnyCType ret;
     ret.double_value = AddAllAnnotateFastCallback<flags>(
-        receiver.object_value, should_fallback.bool_value, arg_i32.int32_value,
-        arg_u32.uint32_value, arg_i64.int64_value, arg_u64.uint64_value,
-        *options.options_value);
+        receiver.object_value, arg_i32.int32_value, arg_u32.uint32_value,
+        arg_i64.int64_value, arg_u64.uint64_value, *options.options_value);
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
   template <v8::CTypeInfo::Flags flags>
   static double AddAllAnnotateFastCallback(Local<Object> receiver,
-                                           bool should_fallback,
                                            int32_t arg_i32, uint32_t arg_u32,
                                            int64_t arg_i64, uint64_t arg_u64,
                                            FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
-
-    if (should_fallback) {
-      options.fallback = true;
-      return 0;
-    }
 
     return static_cast<double>(arg_i32) + static_cast<double>(arg_u32) +
            static_cast<double>(arg_i64) + static_cast<double>(arg_u64);
@@ -685,7 +619,7 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
@@ -779,7 +713,7 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
@@ -918,7 +852,7 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     double real_arg = 0;
@@ -990,7 +924,7 @@ class FastCApiObject {
     Isolate* isolate = info.GetIsolate();
 
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
@@ -1019,7 +953,7 @@ class FastCApiObject {
                                          uint32_t address,
                                          FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(false);
+    CHECK_SELF_OR_THROW_FAST(false);
     self->fast_call_count_++;
 
     if (i::v8_flags.fuzzing) {
@@ -1038,7 +972,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     info.GetIsolate()->ThrowError("should be unreachable from wasm");
@@ -1047,7 +981,7 @@ class FastCApiObject {
   static void AssertIsExternal(const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
 
     Local<Value> value = info[0];
 
@@ -1059,7 +993,7 @@ class FastCApiObject {
   static void* GetPointerFastCallback(Local<Object> receiver,
                                       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(nullptr);
+    CHECK_SELF_OR_THROW_FAST(nullptr);
     self->fast_call_count_++;
 
     return static_cast<void*>(self);
@@ -1069,7 +1003,7 @@ class FastCApiObject {
     DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     info.GetReturnValue().Set(External::New(isolate, static_cast<void*>(self)));
@@ -1078,7 +1012,7 @@ class FastCApiObject {
   static void* GetNullPointerFastCallback(Local<Object> receiver,
                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(nullptr);
+    CHECK_SELF_OR_THROW_FAST(nullptr);
     self->fast_call_count_++;
 
     return nullptr;
@@ -1089,7 +1023,7 @@ class FastCApiObject {
     DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     info.GetReturnValue().Set(v8::Null(isolate));
@@ -1098,7 +1032,7 @@ class FastCApiObject {
   static void* PassPointerFastCallback(Local<Object> receiver, void* pointer,
                                        FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(nullptr);
+    CHECK_SELF_OR_THROW_FAST(nullptr);
     self->fast_call_count_++;
 
     return pointer;
@@ -1107,7 +1041,7 @@ class FastCApiObject {
   static void PassPointerSlowCallback(const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 1) {
@@ -1136,7 +1070,7 @@ class FastCApiObject {
                                           void* pointer_a, void* pointer_b,
                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(false);
+    CHECK_SELF_OR_THROW_FAST(false);
     self->fast_call_count_++;
 
     return pointer_a == pointer_b;
@@ -1146,7 +1080,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 2) {
@@ -1187,7 +1121,7 @@ class FastCApiObject {
                                       int64_t b,
                                       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
 
     return a + b;
@@ -1204,7 +1138,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 2) {
@@ -1244,7 +1178,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 2) {
@@ -1280,7 +1214,7 @@ class FastCApiObject {
                                         uint64_t b,
                                         FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_FALLBACK(0);
+    CHECK_SELF_OR_THROW_FAST(0);
     self->fast_call_count_++;
 
     return a + b;
@@ -1290,7 +1224,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 2) {
@@ -1330,7 +1264,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& info) {
     Isolate* isolate = info.GetIsolate();
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
     if (info.Length() != 2) {
@@ -1364,28 +1298,28 @@ class FastCApiObject {
 
   static void FastCallCount(const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     info.GetReturnValue().Set(
         Number::New(info.GetIsolate(), self->fast_call_count()));
   }
   static void SlowCallCount(const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     info.GetReturnValue().Set(
         Number::New(info.GetIsolate(), self->slow_call_count()));
   }
   static void ResetCounts(const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     self->reset_counts();
     info.GetReturnValue().Set(Undefined(info.GetIsolate()));
   }
   static void SupportsFPParams(const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     FastCApiObject* self = UnwrapObject(info.This());
-    CHECK_SELF_OR_THROW();
+    CHECK_SELF_OR_THROW_SLOW();
     info.GetReturnValue().Set(self->supports_fp_params_);
   }
 
@@ -1424,8 +1358,8 @@ class FastCApiObject {
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 };
 
-#undef CHECK_SELF_OR_THROW
-#undef CHECK_SELF_OR_FALLBACK
+#undef CHECK_SELF_OR_THROW_SLOW
+#undef CHECK_SELF_OR_THROW_FAST
 
 // The object is statically initialized for simplicity, typically the embedder
 // will take care of managing their C++ objects lifetime.
@@ -1459,16 +1393,6 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   PerIsolateData::Get(isolate)->SetTestApiObjectCtor(api_obj_ctor);
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
-    CFunction throw_fallback_func = CFunction::Make(
-        FastCApiObject::ThrowFallbackFastCallback V8_IF_USE_SIMULATOR(
-            FastCApiObject::ThrowFallbackFastCallbackPatch));
-    api_obj_ctor->PrototypeTemplate()->Set(
-        isolate, "throw_fallback",
-        FunctionTemplate::New(
-            isolate, FastCApiObject::ThrowFallbackSlowCallback, Local<Value>(),
-            signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, &throw_fallback_func));
-
     CFunction throw_no_fallback_func = CFunction::Make(
         FastCApiObject::ThrowNoFallbackFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::ThrowNoFallbackFastCallbackPatch));

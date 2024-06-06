@@ -577,7 +577,7 @@ struct FastApiCallbackOptions {
    * returned instance may be filled with mock data.
    */
   static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
-    return {false, {0}, nullptr};
+    return {};
   }
 
   /**
@@ -591,16 +591,16 @@ struct FastApiCallbackOptions {
    * fallback conditions are checked, because otherwise executing the slow
    * callback might produce visible side-effects twice.
    */
-  bool fallback;
+  V8_DEPRECATE_SOON(
+      "It is not necessary to use the `fallback` flag anymore, as it is "
+      "possible now to trigger GC, throw exceptions, and call back into "
+      "JavaScript even in API functions called with a fast API call.")
+  bool fallback = false;
 
   /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
-   * `data_ptr` allows for default constructing FastApiCallbackOptions.
    */
-  union {
-    uintptr_t data_ptr;
-    v8::Local<v8::Value> data;
-  };
+  v8::Local<v8::Value> data;
 
   /**
    * When called from WebAssembly, a view of the calling module's memory.

@@ -14,7 +14,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig = makeSig(
       [
-        kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmI64,
+        kWasmExternRef, kWasmI32, kWasmI32, kWasmI64, kWasmI64,
         kWasmF32, kWasmF64
       ],
       [kWasmF64],
@@ -23,13 +23,12 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction('main', sig)
       .addBody([
         kExprLocalGet, 0, // receiver
-        kExprLocalGet, 1, // fallback
-        kExprLocalGet, 2, // param int32
-        kExprLocalGet, 3, // param uint32
-        kExprLocalGet, 4, // param int64
-        kExprLocalGet, 5, // param uint64
-        kExprLocalGet, 6, // param float32
-        kExprLocalGet, 7, // param float64
+        kExprLocalGet, 1, // param int32
+        kExprLocalGet, 2, // param uint32
+        kExprLocalGet, 3, // param int64
+        kExprLocalGet, 4, // param uint64
+        kExprLocalGet, 5, // param float32
+        kExprLocalGet, 6, // param float64
         kExprCallFunction, imp_index
       ])
       .exportFunc();
@@ -38,14 +37,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   const fallback = true;
   fast_c_api.reset_counts();
-  instance.exports.main(fast_c_api, !fallback, 1, 2, 3n, 4n, 5, 6);
+  instance.exports.main(fast_c_api, 1, 2, 3n, 4n, 5, 6);
   assertEquals(1, fast_c_api.fast_call_count());
-  instance.exports.main(fast_c_api, fallback, 1, 2, 3n, 4n, 5, 6);
+  instance.exports.main(fast_c_api, 1, 2, 3n, 4n, 5, 6);
   assertEquals(2, fast_c_api.fast_call_count());
   assertThrows(
-      _ => instance.exports.main(12, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+      _ => instance.exports.main(12, 1, 2, 3n, 4n, 5, 6), TypeError);
   assertThrows(
-      _ => instance.exports.main({}, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+      _ => instance.exports.main({}, 1, 2, 3n, 4n, 5, 6), TypeError);
 })();
 
 (function TestFastApiCallWithOverloadFromWasm() {
@@ -55,7 +54,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig = makeSig(
       [
-        kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmI64,
+        kWasmExternRef, kWasmI32, kWasmI32, kWasmI64, kWasmI64,
         kWasmF32, kWasmF64
       ],
       [kWasmF64],
@@ -64,30 +63,29 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction('main', sig)
       .addBody([
         kExprLocalGet, 0, // receiver
-        kExprLocalGet, 1, // fallback
-        kExprLocalGet, 2, // param int32
-        kExprLocalGet, 3, // param uint32
-        kExprLocalGet, 4, // param int64
-        kExprLocalGet, 5, // param uint64
-        kExprLocalGet, 6, // param float32
-        kExprLocalGet, 7, // param float64
+        kExprLocalGet, 1, // param int32
+        kExprLocalGet, 2, // param uint32
+        kExprLocalGet, 3, // param int64
+        kExprLocalGet, 4, // param uint64
+        kExprLocalGet, 5, // param float32
+        kExprLocalGet, 6, // param float64
         kExprCallFunction, imp_index
       ])
       .exportFunc();
 
   const instance = builder.instantiate({'mod': {'foo': boundImport}});
 
-  const fallback = true;
   fast_c_api.reset_counts();
-  instance.exports.main(fast_c_api, !fallback, 1, 2, 3n, 4n, 5, 6);
+  instance.exports.main(fast_c_api, 1, 2, 3n, 4n, 5, 6);
   assertEquals(1, fast_c_api.fast_call_count());
-  instance.exports.main(fast_c_api, fallback, 1, 2, 3n, 4n, 5, 6);
+  instance.exports.main(fast_c_api, 1, 2, 3n, 4n, 5, 6);
   assertEquals(2, fast_c_api.fast_call_count());
   assertThrows(
-      _ => instance.exports.main(12, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+      _ => instance.exports.main(12, 1, 2, 3n, 4n, 5, 6), TypeError);
   assertThrows(
-      _ => instance.exports.main({}, false, 1, 2, 3n, 4n, 5, 6), TypeError);
+      _ => instance.exports.main({}, 1, 2, 3n, 4n, 5, 6), TypeError);
 })();
+
 (function TestTaggedParam() {
   const fast_c_api = new d8.test.FastCAPI();
   const boundImport =

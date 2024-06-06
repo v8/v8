@@ -15,7 +15,7 @@ function buildWasm(name, sig, body) {
     'fast_c_api',
     'add_all_no_options',
     makeSig(
-      [kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmI64, kWasmF32, kWasmF64],
+      [kWasmI32, kWasmI32, kWasmI64, kWasmI64, kWasmF32, kWasmF64],
       [kWasmF64],
     ),
   );
@@ -23,7 +23,7 @@ function buildWasm(name, sig, body) {
     'fast_c_api',
     'add_all_no_options',
     makeSig(
-      [kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmI64, kWasmF64],
+      [kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmI64, kWasmF64],
       [kWasmF64],
     ),
   );
@@ -31,7 +31,7 @@ function buildWasm(name, sig, body) {
     'fast_c_api',
     'add_all_nested_bound',
     makeSig(
-      [kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmI64, kWasmF32, kWasmF64],
+      [kWasmI32, kWasmI32, kWasmI64, kWasmI64, kWasmF32, kWasmF64],
       [kWasmF64],
     ),
   );
@@ -39,7 +39,7 @@ function buildWasm(name, sig, body) {
     'fast_c_api',
     'overloaded_add_all_32bit_int',
     makeSig(
-      [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
+      [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
       [kWasmI32],
     ),
   );
@@ -85,7 +85,6 @@ const add_all_result = -42 + 45 + Number.MIN_SAFE_INTEGER + Number.MAX_SAFE_INTE
 const add_all_wasm = buildWasm(
   'add_all_wasm', makeSig([], [kWasmF64]),
   ({ add_all_no_options }) => [
-    ...wasmI32Const(0),
     ...wasmI32Const(-42),
     ...wasmI32Const(45),
     kExprI64Const, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x70, // Number.MIN_SAFE_INTEGER
@@ -116,7 +115,6 @@ if (fast_c_api.supports_fp_params) {
 const add_all_mismatch_wasm = buildWasm(
   'add_all_mismatch_wasm', makeSig([], [kWasmF64]),
   ({ add_all_no_options_mismatch }) => [
-    ...wasmI32Const(0),
     ...wasmI32Const(45),
     ...wasmI32Const(-42),
     kExprI64Const, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, // Number.MAX_SAFE_INTEGER
@@ -139,7 +137,6 @@ assertEquals(1, fast_c_api.slow_call_count());
 const add_all_nested_bound_wasm = buildWasm(
   'add_all_nested_bound_wasm', makeSig([], [kWasmF64]),
   ({ add_all_nested_bound }) => [
-    ...wasmI32Const(0),
     ...wasmI32Const(-42),
     ...wasmI32Const(45),
     kExprI64Const, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x70, // Number.MIN_SAFE_INTEGER
@@ -159,9 +156,8 @@ assertEquals(1, fast_c_api.slow_call_count());
 
 // ----------- Test overloaded_add_all_32bit_int -----------
 const overloaded_add_all_32bit_int_wasm = buildWasm(
-  'overloaded_add_all_32bit_int_wasm', makeSig([kWasmI32], [kWasmI32]),
+  'overloaded_add_all_32bit_int_wasm', makeSig([], [kWasmI32]),
   ({ overloaded_add_all_32bit_int }) => [
-    kExprLocalGet, 0,
     ...wasmI32Const(1),
     ...wasmI32Const(2),
     ...wasmI32Const(3),
@@ -177,15 +173,9 @@ const overload_result = 1 + 2 + 3 + 4 + 5 + 6;
 
 // Test wasm hits fast path.
 fast_c_api.reset_counts();
-assertEquals(overload_result, overloaded_add_all_32bit_int_wasm(false));
+assertEquals(overload_result, overloaded_add_all_32bit_int_wasm());
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
-
-// Test wasm hits slow path.
-fast_c_api.reset_counts();
-assertEquals(overload_result, overloaded_add_all_32bit_int_wasm(true));
-assertEquals(1, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
 
 // ------------- Test test_wasm_memory ---------------
 const test_wasm_memory_wasm = buildWasm(
