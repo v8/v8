@@ -812,6 +812,11 @@ class BlockIndex {
   bool operator<=(BlockIndex other) const { return id_ <= other.id_; }
   bool operator>=(BlockIndex other) const { return id_ >= other.id_; }
 
+  template <typename H>
+  friend H AbslHashValue(H h, const BlockIndex& idx) {
+    return H::combine(std::move(h), idx.id_);
+  }
+
  private:
   uint32_t id_;
 };

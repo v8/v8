@@ -170,6 +170,33 @@ TEST_F(ControlFlowTest, DCEGoto) {
   ASSERT_LE(test.graph().block_count(), static_cast<size_t>(2));
 }
 
+TEST_F(ControlFlowTest, LoopVar) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    OpIndex p = Asm.GetParameter(0);
+    Variable v1 = __ NewVariable(RegisterRepresentation::Tagged());
+    Variable v2 = __ NewVariable(RegisterRepresentation::Tagged());
+    __ SetVariable(v1, p);
+    __ SetVariable(v2, p);
+    LoopLabel<Word32> loop(&Asm);
+    Label<Word32> end(&Asm);
+    GOTO(loop, 0);
+
+    BIND_LOOP(loop, iter) {
+      GOTO_IF(__ Word32Equal(iter, 42), end, 15);
+
+      __ SetVariable(v1, __ SmiConstant(Smi::FromInt(17)));
+
+      GOTO(loop, __ Word32Add(iter, 1));
+    }
+
+    BIND(end, ret);
+    OpIndex t = __ Word32Mul(ret, __ GetVariable(v1));
+    __ Return(__ Word32BitwiseAnd(t, __ GetVariable(v2)));
+  });
+
+  ASSERT_EQ(0u, test.CountOp(Opcode::kPendingLoopPhi));
+}
+
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
