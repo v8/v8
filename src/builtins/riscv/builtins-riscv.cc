@@ -3934,8 +3934,6 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // Copy data needed for return handling from old wrapper buffer to new one.
   // kWrapperBufferRefReturnCount will be copied too, because 8 bytes are copied
   // at the same time.
-  std::cout << "SwitchToAllocatedStack " << scratch << " " << wrapper_buffer
-            << std::endl;
   static_assert(JSToWasmWrapperFrameConstants::kWrapperBufferRefReturnCount ==
                 JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount + 4);
   __ LoadWord(

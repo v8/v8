@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/register.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate-data.h"

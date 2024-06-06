@@ -336,9 +336,6 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    if (AreAliased(object, value, scratch)) {
-      std::cout << object << " " << value << " " << scratch << std::endl;
-    }
     DCHECK(!AreAliased(object, value, scratch));
     AddWord(scratch, object, offset - kHeapObjectTag);
     And(scratch, scratch, Operand(kTaggedSize - 1));
