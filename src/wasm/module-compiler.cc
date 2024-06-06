@@ -1331,7 +1331,11 @@ class TransitiveTypeFeedbackProcessor {
         auto existing = feedback_for_function_.find(func);
         if (existing != feedback_for_function_.end() &&
             !existing->second.feedback_vector.empty()) {
-          continue;
+          if (!existing->second.needs_reprocessing_after_deopt) {
+            continue;
+          }
+          DCHECK(v8_flags.wasm_deopt);
+          existing->second.needs_reprocessing_after_deopt = false;
         }
         queue_.insert(func);
       }

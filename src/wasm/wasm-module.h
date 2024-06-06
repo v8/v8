@@ -580,9 +580,17 @@ struct FunctionTypeFeedback {
   // TODO(clemensb): This does not belong here; find a better place.
   int tierup_priority = 0;
 
-  static constexpr uint32_t kUninitializedLiftoffFrameSize = -1;
+  static constexpr uint32_t kUninitializedLiftoffFrameSize = 1;
   // The size of the stack frame in liftoff in bytes.
-  uint32_t liftoff_frame_size = kUninitializedLiftoffFrameSize;
+  uint32_t liftoff_frame_size : 31 = kUninitializedLiftoffFrameSize;
+  // Flag whether the cached {feedback_vector} has to be reprocessed as the data
+  // is outdated (signaled by a deopt).
+  // This is set by the deoptimizer, so that the next tierup trigger performs
+  // the reprocessing. The deoptimizer can't update the cached data, as the new
+  // feedback (which caused the deopt) hasn't been processed yet and processing
+  // it can trigger allocations. After returning to liftoff, the feedback is
+  // updated (which is guaranteed to happen before the next tierup trigger).
+  bool needs_reprocessing_after_deopt : 1 = false;
 
   static constexpr uint32_t kCallRef = 0xFFFFFFFF;
   static constexpr uint32_t kCallIndirect = kCallRef - 1;

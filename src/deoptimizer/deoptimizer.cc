@@ -1162,21 +1162,18 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   }
 
   {
-    // Delete the cached feedback result produced by the
-    // TransitiveFeedbackProcessor from the module for all inlined functions.
+    // Mark the cached feedback result produced by the
+    // TransitiveFeedbackProcessor as outdated.
     // This is required to prevent deopt loops as new feedback is ignored
     // otherwise.
-    // TODO(mliedtke): What happens if there is a job scheduled that thinks this
-    // feedback has been processed? (The job should probably be cancelled in
-    // that case.)
     wasm::TypeFeedbackStorage& feedback =
         native_module->module()->type_feedback;
-    base::SharedMutexGuard<base::kShared> mutex_guard(&feedback.mutex);
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback.mutex);
     for (const TranslatedFrame& frame : translated_state_) {
       int index = frame.wasm_function_index();
       auto iter = feedback.feedback_for_function.find(index);
       if (iter != feedback.feedback_for_function.end()) {
-        iter->second.feedback_vector.clear();
+        iter->second.needs_reprocessing_after_deopt = true;
       }
     }
   }
