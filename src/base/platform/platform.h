@@ -311,9 +311,10 @@ class V8_BASE_EXPORT OS {
     uintptr_t end = 0;
   };
 
-  // Find gaps between existing virtual memory ranges that have enough space
-  // to place a region with minimum_size within (boundary_start, boundary_end)
-  static std::vector<MemoryRange> GetFreeMemoryRangesWithin(
+  // Find the first gap between existing virtual memory ranges that has enough
+  // space to place a region with minimum_size within (boundary_start,
+  // boundary_end)
+  static std::optional<MemoryRange> GetFirstFreeMemoryRangeWithin(
       Address boundary_start, Address boundary_end, size_t minimum_size,
       size_t alignment);
 

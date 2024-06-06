@@ -41,15 +41,15 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
   // a code region.
   if (it == recently_freed_.end() || it->second.empty()) {
     if (V8_ENABLE_NEAR_CODE_RANGE_BOOL && !preferred_region.is_empty()) {
-      auto memory_ranges = base::OS::GetFreeMemoryRangesWithin(
+      const auto memory_ranges = base::OS::GetFirstFreeMemoryRangeWithin(
           preferred_region.begin(), preferred_region.end(), code_range_size,
           alignment);
-      if (!memory_ranges.empty()) {
-        result = memory_ranges.front().start;
+      if (memory_ranges.has_value()) {
+        result = memory_ranges.value().start;
         CHECK(IsAligned(result, alignment));
         return result;
       }
-      // The empty memory_ranges means that GetFreeMemoryRangesWithin() API
+      // The empty memory_ranges means that GetFirstFreeMemoryRangeWithin() API
       // is not supported, so use the lowest address from the preferred region
       // as a hint because it'll be at least as good as the fallback hint but
       // with a higher chances to point to the free address space range.
@@ -162,7 +162,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     // preferred region.
     params.base_alignment = kPageSize;
 
-    // TODO(v8:11880): consider using base::OS::GetFreeMemoryRangesWithin()
+    // TODO(v8:11880): consider using base::OS::GetFirstFreeMemoryRangeWithin()
     // to avoid attempts that's going to fail anyway.
 
     VirtualMemoryCage candidate_cage;
