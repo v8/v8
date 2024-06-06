@@ -136,7 +136,7 @@ class FunctionCallbackInfo {
    * referencing this callback was found (which in V8 internally is often
    * referred to as holder [sic]).
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "V8 will stop providing access to hidden prototype (i.e. "
       "JSGlobalObject). Use This() instead. \n"
       "DO NOT try to workaround this by accessing JSGlobalObject via "
