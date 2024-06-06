@@ -5654,8 +5654,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
   {
     Handle<JSFunction> shadow_realm_import_value_rejected =
         SimpleCreateFunction(isolate(), factory->empty_string(),
-                             Builtin::kShadowRealmImportValueRejected, 1,
-                             false);
+                             Builtin::kShadowRealmImportValueRejected, 1, true);
     shadow_realm_import_value_rejected->shared()->set_native(false);
     native_context()->set_shadow_realm_import_value_rejected(
         *shadow_realm_import_value_rejected);

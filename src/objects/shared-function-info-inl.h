@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
@@ -528,6 +529,22 @@ void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
   DCHECK(!HasWasmExportedFunctionData());
 #endif  // V8_ENABLE_WEBASSEMBLY
+  if (HasBuiltinId()) {
+    Builtin builtin = builtin_id();
+    if (Builtins::KindOf(builtin) == Builtins::TFJ) {
+      const int formal_parameter_count =
+          Builtins::GetStackParameterCount(builtin);
+      // If we have `kDontAdaptArgumentsSentinel` or no arguments, then we are
+      // good. Otherwise this is a mismatch.
+      if (formal_parameter_count != kDontAdaptArgumentsSentinel &&
+          formal_parameter_count != JSParameterCount(0)) {
+        FATAL(
+            "Conflicting argument adaptation configuration (SFI vs call "
+            "descriptor) for builtin: %s (%d)",
+            Builtins::name(builtin), static_cast<int>(builtin));
+      }
+    }
+  }
   TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
