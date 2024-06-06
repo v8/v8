@@ -102,6 +102,10 @@ Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
   return value;
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 //
 // Accessors::ReconfigureToDataProperty
 //
@@ -832,6 +836,10 @@ Handle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &WrappedFunctionNameGetter, &ReconfigureToDataProperty);
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 //
 // Accessors::ErrorStack

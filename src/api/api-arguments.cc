@@ -32,7 +32,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   // It cannot escape into js as it's removed in Call below.
   Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
-  slot_at(T::kUnusedIndex).store(Smi::zero());
+  slot_at(T::kHolderV2Index).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }

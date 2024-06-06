@@ -127,7 +127,7 @@ struct IndexedDebugProxy {
 
   template <typename V>
   static Handle<JSObject> GetHolder(const PropertyCallbackInfo<V>& info) {
-    return Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
+    return Handle<JSObject>::cast(Utils::OpenHandle(*info.HolderV2()));
   }
 
   static Handle<Provider> GetProvider(DirectHandle<JSObject> holder,

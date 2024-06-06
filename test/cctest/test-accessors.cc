@@ -201,7 +201,7 @@ static void XGetter(Local<Name> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_holder_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.Holder())
+            ->Equals(isolate->GetCurrentContext(), info.HolderV2())
             .FromJust());
   XGetter(info, 0);
 }
@@ -221,7 +221,7 @@ Local<v8::Object> GetHolder(const Info& info);
 template <>
 Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
     const v8::PropertyCallbackInfo<void>& info) {
-  return info.Holder();
+  return info.HolderV2();
 }
 
 template <>
@@ -343,8 +343,13 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::ValidateCallbackInfo(info);
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()
@@ -364,6 +369,10 @@ static void CheckAccessorArgsCorrect(
             .FromJust());
   info.GetReturnValue().Set(17);
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(DirectCall) {
   LocalContext context;

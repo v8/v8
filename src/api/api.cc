@@ -3945,6 +3945,18 @@ i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
       i::HeapObject::cast(i::Tagged<i::Object>(obj)));
 }
 
+namespace api_internal {
+i::Address ConvertToJSGlobalProxyIfNecessary(i::Address holder_ptr) {
+  i::Tagged<i::HeapObject> holder =
+      i::HeapObject::cast(i::Tagged<i::Object>(holder_ptr));
+
+  if (i::IsJSGlobalObject(holder)) {
+    return i::JSGlobalObject::cast(holder)->global_proxy().ptr();
+  }
+  return holder_ptr;
+}
+}  // namespace api_internal
+
 bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
   return i::GetShouldThrow(i_isolate, Nothing<i::ShouldThrow>()) ==
          i::ShouldThrow::kThrowOnError;
@@ -11935,7 +11947,16 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
   CHECK(info.This()->IsValue());
+  CHECK(info.HolderV2()->IsObject());
+  CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
+  // Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+  // TODO(https://crbug.com/333672197): remove.
+  START_ALLOW_USE_DEPRECATED()
   CHECK(info.Holder()->IsObject());
+  CHECK_IMPLIES(info.Holder() != info.HolderV2(),
+                i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.Holder())));
+  END_ALLOW_USE_DEPRECATED()
+
   CHECK(info.Data()->IsValue());
   USE(info.ShouldThrowOnError());
   if (!std::is_same<T, void>::value) {

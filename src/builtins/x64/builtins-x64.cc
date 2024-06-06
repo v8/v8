@@ -4588,7 +4588,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 0);
   static_assert(PCA::kHolderIndex == 1);
   static_assert(PCA::kIsolateIndex == 2);
-  static_assert(PCA::kUnusedIndex == 3);
+  static_assert(PCA::kHolderV2Index == 3);
   static_assert(PCA::kReturnValueIndex == 4);
   static_assert(PCA::kDataIndex == 5);
   static_assert(PCA::kThisIndex == 6);
@@ -4605,7 +4605,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   rsp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex   <= PCI:args_
   //   rsp[3 * kSystemPointerSize]: kHolderIndex
   //   rsp[4 * kSystemPointerSize]: kIsolateIndex
-  //   rsp[5 * kSystemPointerSize]: kUnusedIndex
+  //   rsp[5 * kSystemPointerSize]: kHolderV2Index
   //   rsp[6 * kSystemPointerSize]: kReturnValueIndex
   //   rsp[7 * kSystemPointerSize]: kDataIndex
   //   rsp[8 * kSystemPointerSize]: kThisIndex / receiver
@@ -4616,7 +4616,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
                      decompr_scratch1);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // return value
-  __ Push(Smi::zero());       // unused value
+  __ Push(Smi::zero());       // holderV2 value
   __ PushAddress(ExternalReference::isolate_address(masm->isolate()));
   __ Push(holder);
   __ Push(Smi::zero());  // should_throw_on_error -> false

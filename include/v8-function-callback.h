@@ -264,7 +264,22 @@ class PropertyCallbackInfo {
    *
    * \note For security reasons, do not pass the object back into the runtime.
    */
+  V8_DEPRECATE_SOON(
+      "V8 will stop providing access to hidden prototype (i.e. "
+      "JSGlobalObject). Use HolderV2() instead. \n"
+      "DO NOT try to workaround this by accessing JSGlobalObject via "
+      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
+      "See http://crbug.com/333672197. ")
   V8_INLINE Local<Object> Holder() const;
+
+  /**
+   * \return The object in the prototype chain of the receiver that has the
+   * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
+   * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
+   * In case the property is installed on the global object the Holder()
+   * would return the global proxy.
+   */
+  V8_INLINE Local<Object> HolderV2() const;
 
   /**
    * \return The return value of the callback.
@@ -301,7 +316,7 @@ class PropertyCallbackInfo {
   static constexpr int kShouldThrowOnErrorIndex = 0;
   static constexpr int kHolderIndex = 1;
   static constexpr int kIsolateIndex = 2;
-  static constexpr int kUnusedIndex = 3;
+  static constexpr int kHolderV2Index = 3;
   static constexpr int kReturnValueIndex = 4;
   static constexpr int kDataIndex = 5;
   static constexpr int kThisIndex = 6;
@@ -645,6 +660,23 @@ Local<Object> PropertyCallbackInfo<T>::This() const {
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::Holder() const {
   return Local<Object>::FromSlot(&args_[kHolderIndex]);
+}
+
+namespace api_internal {
+// Returns JSGlobalProxy if holder is JSGlobalObject or unmodified holder
+// otherwise.
+V8_EXPORT internal::Address ConvertToJSGlobalProxyIfNecessary(
+    internal::Address holder);
+}  // namespace api_internal
+
+template <typename T>
+Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
+  using I = internal::Internals;
+  if (!I::HasHeapObjectTag(args_[kHolderV2Index])) {
+    args_[kHolderV2Index] =
+        api_internal::ConvertToJSGlobalProxyIfNecessary(args_[kHolderIndex]);
+  }
+  return Local<Object>::FromSlot(&args_[kHolderV2Index]);
 }
 
 template <typename T>

@@ -925,7 +925,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (scope == nullptr) {
-    USE(info.Holder()->Delete(context, name).FromMaybe(false));
+    USE(info.HolderV2()->Delete(context, name).FromMaybe(false));
     return;
   }
 
@@ -952,8 +952,10 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
-  if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
+  if (!info.HolderV2()->Delete(context, name).FromMaybe(false)) return;
+  if (!info.HolderV2()
+           ->CreateDataProperty(context, name, value)
+           .FromMaybe(false))
     return;
 
   v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();

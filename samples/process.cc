@@ -405,7 +405,7 @@ v8::Intercepted JsHttpRequestProcessor::MapGet(
   if (name->IsSymbol()) return v8::Intercepted::kNo;
 
   // Fetch the map wrapped by this object.
-  map<string, string>* obj = UnwrapMap(info.Holder());
+  map<string, string>* obj = UnwrapMap(info.HolderV2());
 
   // Convert the JavaScript string to a std::string.
   string key = ObjectToString(info.GetIsolate(), name.As<String>());
@@ -431,7 +431,7 @@ v8::Intercepted JsHttpRequestProcessor::MapSet(
   if (name->IsSymbol()) return v8::Intercepted::kNo;
 
   // Fetch the map wrapped by this object.
-  map<string, string>* obj = UnwrapMap(info.Holder());
+  map<string, string>* obj = UnwrapMap(info.HolderV2());
 
   // Convert the key and value to std::strings.
   string key = ObjectToString(info.GetIsolate(), name.As<String>());
@@ -511,7 +511,7 @@ HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Local<Object> obj) {
 void JsHttpRequestProcessor::GetPath(Local<Name> name,
                                      const PropertyCallbackInfo<Value>& info) {
   // Extract the C++ request object from the JavaScript wrapper.
-  HttpRequest* request = UnwrapRequest(info.Holder());
+  HttpRequest* request = UnwrapRequest(info.HolderV2());
 
   // Fetch the path.
   const string& path = request->Path();
@@ -525,7 +525,7 @@ void JsHttpRequestProcessor::GetPath(Local<Name> name,
 
 void JsHttpRequestProcessor::GetReferrer(
     Local<Name> name, const PropertyCallbackInfo<Value>& info) {
-  HttpRequest* request = UnwrapRequest(info.Holder());
+  HttpRequest* request = UnwrapRequest(info.HolderV2());
   const string& path = request->Referrer();
   info.GetReturnValue().Set(
       String::NewFromUtf8(info.GetIsolate(), path.c_str(),
@@ -535,7 +535,7 @@ void JsHttpRequestProcessor::GetReferrer(
 
 void JsHttpRequestProcessor::GetHost(Local<Name> name,
                                      const PropertyCallbackInfo<Value>& info) {
-  HttpRequest* request = UnwrapRequest(info.Holder());
+  HttpRequest* request = UnwrapRequest(info.HolderV2());
   const string& path = request->Host();
   info.GetReturnValue().Set(
       String::NewFromUtf8(info.GetIsolate(), path.c_str(),
@@ -545,7 +545,7 @@ void JsHttpRequestProcessor::GetHost(Local<Name> name,
 
 void JsHttpRequestProcessor::GetUserAgent(
     Local<Name> name, const PropertyCallbackInfo<Value>& info) {
-  HttpRequest* request = UnwrapRequest(info.Holder());
+  HttpRequest* request = UnwrapRequest(info.HolderV2());
   const string& path = request->UserAgent();
   info.GetReturnValue().Set(
       String::NewFromUtf8(info.GetIsolate(), path.c_str(),

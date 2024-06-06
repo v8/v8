@@ -8289,7 +8289,7 @@ void PGetter(Local<Name> name,
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   v8::Local<v8::Object> global = context->Global();
   CHECK(
-      info.Holder()
+      info.HolderV2()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
   if (name->Equals(context, v8_str("p1")).FromJust()) {
@@ -8342,7 +8342,7 @@ v8::Intercepted PGetter2(Local<Name> name,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> global = context->Global();
   CHECK(
-      info.Holder()
+      info.HolderV2()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
   if (name->Equals(context, v8_str("p1")).FromJust()) {
@@ -17780,7 +17780,7 @@ static void GetterWhichReturns42(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   info.GetReturnValue().Set(v8_num(42));
 }
 
@@ -17789,7 +17789,7 @@ static void SetterWhichSetsYOnThisTo23(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   info.This()
       .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
@@ -17800,7 +17800,7 @@ v8::Intercepted FooGetInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
@@ -17813,7 +17813,7 @@ v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
@@ -21780,11 +21780,20 @@ TEST(EscapableHandleScope) {
   }
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 static void SetterWhichExpectsThisAndHolderToDiffer(
     Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(info.Holder() != info.This());
+  CHECK(info.HolderV2() != info.This());
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 TEST(Regress239669) {
   LocalContext context;

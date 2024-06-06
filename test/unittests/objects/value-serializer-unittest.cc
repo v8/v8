@@ -68,14 +68,14 @@ class ValueSerializerTest : public TestWithIsolate {
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.Holder()->GetInternalField(0).As<v8::Value>());
+              info.HolderV2()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetNativeDataProperty(
         StringFromUtf8("value2"),
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.Holder()->GetInternalField(1).As<v8::Value>());
+              info.HolderV2()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context, deserialization_context}) {
