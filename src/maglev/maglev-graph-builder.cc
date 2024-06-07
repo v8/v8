@@ -2707,7 +2707,8 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
   DCHECK_EQ(
       known_node_aspects().loaded_context_constants.count({context, offset}),
       0);
-  BuildStoreTaggedField(context, GetTaggedValue(value), offset);
+  BuildStoreTaggedField(context, GetTaggedValue(value), offset,
+                        InitializingOrTransitioning::kNo);
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  * Recording context slot store "
@@ -3154,7 +3155,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       BuildStoreTaggedField(property_cell_node, value,
-                            PropertyCell::kValueOffset);
+                            PropertyCell::kValueOffset,
+                            InitializingOrTransitioning::kNo);
       break;
     }
     case PropertyCellType::kMutable: {
@@ -3164,7 +3166,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       ValueNode* value = GetAccumulatorTagged();
       BuildStoreTaggedField(property_cell_node, value,
-                            PropertyCell::kValueOffset);
+                            PropertyCell::kValueOffset,
+                            InitializingOrTransitioning::kNo);
       break;
     }
     case PropertyCellType::kInTransition:
@@ -4032,23 +4035,28 @@ void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
     deps->second.push_back(inlined_value);
     inlined_value->AddNonEscapingUses();
   }
-  BuildStoreTaggedField(object, value, offset);
+  BuildStoreTaggedField(object, value, offset,
+                        InitializingOrTransitioning::kYes);
 }
 
-void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
-                                               ValueNode* value, int offset) {
+void MaglevGraphBuilder::BuildStoreTaggedField(
+    ValueNode* object, ValueNode* value, int offset,
+    InitializingOrTransitioning initializing_or_transitioning) {
   if (CanElideWriteBarrier(object, value)) {
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset);
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                               initializing_or_transitioning);
   } else {
-    AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset);
+    AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset,
+                                                 initializing_or_transitioning);
   }
 }
 
-void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
-                                                             ValueNode* value,
-                                                             int offset) {
+void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
+    ValueNode* object, ValueNode* value, int offset,
+    InitializingOrTransitioning initializing_or_transitioning) {
   DCHECK(CanElideWriteBarrier(object, value));
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                             initializing_or_transitioning);
 }
 
 void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
@@ -4350,9 +4358,13 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   }
 
+  InitializingOrTransitioning initializing_or_transitioning =
+      access_info.HasTransitionMap() ? InitializingOrTransitioning::kYes
+                                     : InitializingOrTransitioning::kNo;
   if (field_representation.IsSmi()) {
     BuildStoreTaggedFieldNoWriteBarrier(store_target, value,
-                                        field_index.offset());
+                                        field_index.offset(),
+                                        initializing_or_transitioning);
   } else if (value->use_double_register()) {
     DCHECK(field_representation.IsDouble());
     DCHECK(!access_info.HasTransitionMap());
@@ -4361,7 +4373,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     DCHECK(field_representation.IsHeapObject() ||
            field_representation.IsTagged() ||
            (field_representation.IsDouble() && access_info.HasTransitionMap()));
-    BuildStoreTaggedField(store_target, value, field_index.offset());
+    BuildStoreTaggedField(store_target, value, field_index.offset(),
+                          initializing_or_transitioning);
   }
 
   if (access_info.HasTransitionMap()) {
@@ -5796,7 +5809,8 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   ValueNode* cell = BuildLoadFixedArrayElement(exports, cell_index);
-  BuildStoreTaggedField(cell, GetAccumulatorTagged(), Cell::kValueOffset);
+  BuildStoreTaggedField(cell, GetAccumulatorTagged(), Cell::kValueOffset,
+                        InitializingOrTransitioning::kNo);
 }
 
 void MaglevGraphBuilder::BuildLoadGlobal(
@@ -6973,7 +6987,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   ValueNode* smi_next_index = AddNewNode<CheckedSmiTagInt32>({next_index});
   // Update [[NextIndex]]
   AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, smi_next_index},
-                                             JSArrayIterator::kNextIndexOffset);
+                                             JSArrayIterator::kNextIndexOffset,
+                                             InitializingOrTransitioning::kNo);
   subgraph.Goto(&done);
 
   // Index is greater or equal than length.
@@ -7525,8 +7540,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
         {elements_array, receiver, old_array_length, elements_array_length},
         kind);
 
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
-                                               JSArray::kLengthOffset);
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+        {receiver, new_array_length_smi}, JSArray::kLengthOffset,
+        InitializingOrTransitioning::kNo);
 
     // Do the store
     if (IsDoubleElementsKind(kind)) {
@@ -7680,8 +7696,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
             : elements_array;
 
     // Store new length.
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
-                                               JSArray::kLengthOffset);
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+        {receiver, new_array_length_smi}, JSArray::kLengthOffset,
+        InitializingOrTransitioning::kNo);
 
     // Load the value and store the hole in it's place.
     ValueNode* value;
@@ -9095,7 +9112,8 @@ void MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
   ValueNode* generator = GetTaggedValue(args[0]);
   ValueNode* value = GetSmiConstant(JSGeneratorObject::kGeneratorClosed);
   BuildStoreTaggedFieldNoWriteBarrier(generator, value,
-                                      JSGeneratorObject::kContinuationOffset);
+                                      JSGeneratorObject::kContinuationOffset,
+                                      InitializingOrTransitioning::kNo);
   SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
 }
 
@@ -10719,7 +10737,8 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
   BuildStoreMap(allocation, broker()->fixed_double_array_map(),
                 StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-      {allocation, GetSmiConstant(length)}, FixedDoubleArray::kLengthOffset);
+      {allocation, GetSmiConstant(length)}, FixedDoubleArray::kLengthOffset,
+      InitializingOrTransitioning::kNo);
   for (int i = 0; i < length; ++i) {
     AddNewNode<StoreFloat64>(
         {allocation,
@@ -12156,7 +12175,8 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
       {generator}, JSGeneratorObject::kContinuationOffset);
   ValueNode* new_state = GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
   BuildStoreTaggedFieldNoWriteBarrier(generator, new_state,
-                                      JSGeneratorObject::kContinuationOffset);
+                                      JSGeneratorObject::kContinuationOffset,
+                                      InitializingOrTransitioning::kNo);
   ValueNode* context = AddNewNode<LoadTaggedField>(
       {generator}, JSGeneratorObject::kContextOffset);
   SetContext(context);

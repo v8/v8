@@ -1860,16 +1860,36 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
+    bool initializing_or_transitioning;
+    switch (node->initializing_or_transitioning()) {
+      case maglev::InitializingOrTransitioning::kNo:
+        initializing_or_transitioning = false;
+        break;
+      case maglev::InitializingOrTransitioning::kYes:
+        initializing_or_transitioning = true;
+        break;
+    }
     __ Store(Map(node->object_input()), Map(node->value_input()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kNoWriteBarrier, node->offset());
+             WriteBarrierKind::kNoWriteBarrier, node->offset(),
+             initializing_or_transitioning);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreTaggedFieldWithWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
+    bool initializing_or_transitioning;
+    switch (node->initializing_or_transitioning()) {
+      case maglev::InitializingOrTransitioning::kNo:
+        initializing_or_transitioning = false;
+        break;
+      case maglev::InitializingOrTransitioning::kYes:
+        initializing_or_transitioning = true;
+        break;
+    }
     __ Store(Map(node->object_input()), Map(node->value_input()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier, node->offset());
+             WriteBarrierKind::kFullWriteBarrier, node->offset(),
+             initializing_or_transitioning);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleField* node,
@@ -1910,7 +1930,8 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     __ Store(Map(node->object_input()), __ HeapConstant(node->map().object()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-             WriteBarrierKind::kMapWriteBarrier, HeapObject::kMapOffset);
+             WriteBarrierKind::kMapWriteBarrier, HeapObject::kMapOffset,
+             /*maybe_initializing_or_transitioning*/ true);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreFloat64* node,

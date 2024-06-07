@@ -1961,9 +1961,12 @@ class MaglevGraphBuilder {
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
                                        ValueNode* value, int offset);
-  void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);
-  void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
-                                           int offset);
+  void BuildStoreTaggedField(
+      ValueNode* object, ValueNode* value, int offset,
+      InitializingOrTransitioning initializing_or_transitioning);
+  void BuildStoreTaggedFieldNoWriteBarrier(
+      ValueNode* object, ValueNode* value, int offset,
+      InitializingOrTransitioning initializing_or_transitioning);
   void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
                                    ValueNode* value);
 

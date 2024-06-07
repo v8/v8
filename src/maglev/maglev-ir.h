@@ -7106,13 +7106,19 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
   const int offset_;
 };
 
+enum class InitializingOrTransitioning : bool { kNo, kYes };
+
 class StoreTaggedFieldNoWriteBarrier
     : public FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier> {
   using Base = FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier>;
 
  public:
-  explicit StoreTaggedFieldNoWriteBarrier(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
+  explicit StoreTaggedFieldNoWriteBarrier(
+      uint64_t bitfield, int offset,
+      InitializingOrTransitioning initializing_or_transitioning)
+      : Base(bitfield | InitializingOrTransitioningField::encode(
+                            initializing_or_transitioning)),
+        offset_(offset) {}
 
   // StoreTaggedFieldNoWriteBarrier never does a Deferred Call. However,
   // PhiRepresentationSelector can cause some StoreTaggedFieldNoWriteBarrier to
@@ -7126,6 +7132,9 @@ class StoreTaggedFieldNoWriteBarrier
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
+  InitializingOrTransitioning initializing_or_transitioning() const {
+    return InitializingOrTransitioningField::decode(bitfield());
+  }
 
   static constexpr int kObjectIndex = 0;
   static constexpr int kValueIndex = 1;
@@ -7148,6 +7157,9 @@ class StoreTaggedFieldNoWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  using InitializingOrTransitioningField =
+      NextBitField<InitializingOrTransitioning, 1>;
+
   const int offset_;
 };
 
@@ -7196,8 +7208,12 @@ class StoreTaggedFieldWithWriteBarrier
   using Base = FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier>;
 
  public:
-  explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
+  explicit StoreTaggedFieldWithWriteBarrier(
+      uint64_t bitfield, int offset,
+      InitializingOrTransitioning initializing_or_transitioning)
+      : Base(bitfield | InitializingOrTransitioningField::encode(
+                            initializing_or_transitioning)),
+        offset_(offset) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -7205,6 +7221,9 @@ class StoreTaggedFieldWithWriteBarrier
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
+  InitializingOrTransitioning initializing_or_transitioning() const {
+    return InitializingOrTransitioningField::decode(bitfield());
+  }
 
   static constexpr int kObjectIndex = 0;
   static constexpr int kValueIndex = 1;
@@ -7224,6 +7243,9 @@ class StoreTaggedFieldWithWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  using InitializingOrTransitioningField =
+      NextBitField<InitializingOrTransitioning, 1>;
+
   const int offset_;
 };
 
