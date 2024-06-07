@@ -702,20 +702,7 @@ class GraphBuilder {
     V<Any> call_idx =
         GenerateBuiltinCall(node, node->builtin(), frame_state,
                             base::VectorOf(arguments), stack_arg_count);
-    const Operation& call_op = __ output_graph().Get(call_idx);
-    if (const TupleOp* tuple = call_op.TryCast<TupleOp>()) {
-      // If the builtin call returned multiple values, then in Maglev, {node} is
-      // used as the 1st returned value, and a GetSecondReturnedValue node is
-      // used to access the 2nd value. We thus call `SetMap` with the 1st
-      // projection of the call, and record the 2nd projection in
-      // {second_return_value_}, which we'll use when translating
-      // GetSecondReturnedValue.
-      DCHECK_EQ(tuple->input_count, 2);
-      SetMap(node, tuple->input(0));
-      second_return_value_ = tuple->input<Object>(1);
-    } else {
-      SetMap(node, call_idx);
-    }
+    SetMapMaybeMultiReturn(node, call_idx);
 
     return maglev::ProcessResult::kContinue;
   }
@@ -747,10 +734,11 @@ class GraphBuilder {
 
     LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
 
-    SetMap(node, __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
-                         TSCallDescriptor::Create(
-                             call_descriptor, CanThrow::kYes,
-                             lazy_deopt_on_throw, graph_zone())));
+    V<Any> call_idx =
+        __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
+                TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                                         lazy_deopt_on_throw, graph_zone()));
+    SetMapMaybeMultiReturn(node, call_idx);
 
     return maglev::ProcessResult::kContinue;
   }
@@ -3828,11 +3816,27 @@ class GraphBuilder {
   }
   Block* Map(const maglev::BasicBlock* block) { return block_mapping_[block]; }
 
-  OpIndex SetMap(maglev::NodeBase* node, OpIndex idx) {
+  void SetMap(maglev::NodeBase* node, V<Any> idx) {
     DCHECK(idx.valid());
     DCHECK_EQ(__ output_graph().Get(idx).outputs_rep().size(), 1);
     node_mapping_[node] = idx;
-    return idx;
+  }
+
+  void SetMapMaybeMultiReturn(maglev::NodeBase* node, V<Any> idx) {
+    const Operation& op = __ output_graph().Get(idx);
+    if (const TupleOp* tuple = op.TryCast<TupleOp>()) {
+      // If the call returned multiple values, then in Maglev, {node} is
+      // used as the 1st returned value, and a GetSecondReturnedValue node is
+      // used to access the 2nd value. We thus call `SetMap` with the 1st
+      // projection of the call, and record the 2nd projection in
+      // {second_return_value_}, which we'll use when translating
+      // GetSecondReturnedValue.
+      DCHECK_EQ(tuple->input_count, 2);
+      SetMap(node, tuple->input(0));
+      second_return_value_ = tuple->input<Object>(1);
+    } else {
+      SetMap(node, idx);
+    }
   }
 
   V<NativeContext> native_context() {
