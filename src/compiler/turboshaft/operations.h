@@ -4842,7 +4842,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
-struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
+struct ConvertJSPrimitiveToObjectOp
+    : FixedArityOperationT<3, ConvertJSPrimitiveToObjectOp> {
   ConvertReceiverMode mode;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
@@ -4858,34 +4859,14 @@ struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
 
   V<JSPrimitive> value() const { return Base::input<JSPrimitive>(0); }
   V<Context> native_context() const { return Base::input<Context>(1); }
-  OptionalV<JSGlobalProxy> global_proxy() const {
-    return input_count > 2 ? Base::input<JSGlobalProxy>(2)
-                           : OptionalV<JSGlobalProxy>::Nullopt();
+  V<JSGlobalProxy> global_proxy() const {
+    return Base::input<JSGlobalProxy>(2);
   }
 
   ConvertJSPrimitiveToObjectOp(V<JSPrimitive> value, V<Context> native_context,
-                               OptionalV<JSGlobalProxy> global_proxy,
+                               V<JSGlobalProxy> global_proxy,
                                ConvertReceiverMode mode)
-      : Base(2 + global_proxy.valid()), mode(mode) {
-    input(0) = value;
-    input(1) = native_context;
-    if (global_proxy.valid()) {
-      input(2) = global_proxy.value();
-    }
-  }
-
-  static ConvertJSPrimitiveToObjectOp& New(
-      Graph* graph, V<JSPrimitive> value, V<Context> native_context,
-      OptionalV<JSGlobalProxy> global_proxy, ConvertReceiverMode mode) {
-    return Base::New(graph, 2 + global_proxy.valid(), value, native_context,
-                     global_proxy, mode);
-  }
-
-  template <typename Fn, typename Mapper>
-  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(value()), mapper.Map(native_context()),
-              mapper.Map(global_proxy()), mode);
-  }
+      : Base(value, native_context, global_proxy), mode(mode) {}
 
   void Validate(const Graph& graph) const {}
 

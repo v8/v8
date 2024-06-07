@@ -3146,9 +3146,12 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::ToObject* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ ConvertJSPrimitiveToObject(
-                     Map(node->value_input()), Map(node->context()),
-                     ConvertReceiverMode::kNotNullOrUndefined));
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    OpIndex arguments[] = {Map(node->value_input()), Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kToObject, frame_state,
+                                     base::VectorOf(arguments)));
+
     return maglev::ProcessResult::kContinue;
   }
 
