@@ -50,9 +50,11 @@
   'proposals/memory64/table_set': [FAIL],
   'proposals/memory64/table_get': [FAIL],
   'proposals/memory64/call_indirect': [FAIL],
+  'proposals/memory64/table_copy_mixed': [FAIL],
   'proposals/js-types/memory': [FAIL],
   'proposals/exception-handling/memory': [FAIL],
   'proposals/extended-const/memory': [FAIL],
+  'proposals/js-promise-integration/memory': [FAIL],
 
   # The function-references spec tests haven't been updated to the final
   # binary encoding. We don't care, because the GC tests are up to date and
@@ -78,6 +80,7 @@
   'proposals/multi-memory/elem': [FAIL],
   'proposals/tail-call/elem': [FAIL],
   'proposals/exception-handling/elem': [FAIL],
+  'proposals/js-promise-integration/elem': [FAIL],
 
   'global': [FAIL],
   'proposals/extended-const/global': [FAIL],

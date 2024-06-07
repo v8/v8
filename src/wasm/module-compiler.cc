@@ -4297,6 +4297,7 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
       {kFeature_type_reflection, Feature::kWasmTypeReflection},
       {kFeature_exnref, Feature::kWasmExnRef},
       {kFeature_typed_funcref, Feature::kWasmTypedFuncRef},
+      {kFeature_jspi, Feature::kWasmJavaScriptPromiseIntegration},
   };
 
   // Check that every staging or shipping feature has a use counter as that is

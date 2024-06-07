@@ -45,11 +45,6 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
-  /* JavaScript Promise Integration proposal. */                               \
-  /* https://github.com/WebAssembly/js-promise-integration */                  \
-  /* V8 side owner: thibaudm, fgm */                                           \
-  V(jspi, "javascript promise integration", false)                             \
-                                                                               \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
   /* V8 side owner: manoskouk */                                               \
@@ -87,11 +82,15 @@
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings, "imported strings", false)                               \
                                                                                \
-                                                                               \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal */                  \
   /* V8 side owner: thibaudm */                                                \
-  V(exnref, "exnref", false)
+  V(exnref, "exnref", false)                                                   \
+                                                                               \
+  /* JavaScript Promise Integration proposal. */                               \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
+  /* V8 side owner: thibaudm, fgm */                                           \
+  V(jspi, "javascript promise integration", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
