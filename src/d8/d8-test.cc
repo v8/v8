@@ -959,11 +959,21 @@ class FastCApiObject {
     if (i::v8_flags.fuzzing) {
       return true;
     }
+    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::String> mem_string =
+        v8::String::NewFromUtf8(isolate, "wasm_memory").ToLocalChecked();
+    v8::Local<v8::Value> mem;
+    if (!receiver->Get(context, mem_string).ToLocal(&mem)) {
+      isolate->ThrowError(
+          "wasm_memory was used when the WebAssembly.Memory was not set on the "
+          "receiver.");
+    }
 
-    CHECK_NOT_NULL(options.wasm_memory);
-    uint8_t* memory = nullptr;
-    CHECK(options.wasm_memory->getStorageIfAligned(&memory));
-    memory[address] = 42;
+    v8::Local<v8::WasmMemoryObject> wasm_memory =
+        mem.As<v8::WasmMemoryObject>();
+    reinterpret_cast<uint8_t*>(wasm_memory->Buffer()->Data())[address] = 42;
 
     return true;
   }

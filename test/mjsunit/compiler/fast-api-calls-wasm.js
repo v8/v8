@@ -48,7 +48,8 @@ function buildWasm(name, sig, body) {
     'test_wasm_memory',
     makeSig([kWasmI32], [kWasmI32]),
   );
-  builder.addMemory(1, 1);
+  const mem_index = builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory", mem_index);
   builder.addFunction(name, sig)
       .addBody(body({
         add_all_no_options,
@@ -70,6 +71,7 @@ function buildWasm(name, sig, body) {
       test_wasm_memory: fast_c_api.test_wasm_memory.bind(fast_c_api),
     },
   });
+  fast_c_api.wasm_memory = module.exports.memory;
   return module.exports[name];
 }
 
