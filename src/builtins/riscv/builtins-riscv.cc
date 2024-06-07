@@ -4522,7 +4522,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 0);
   static_assert(PCA::kHolderIndex == 1);
   static_assert(PCA::kIsolateIndex == 2);
-  static_assert(PCA::kUnusedIndex == 3);
+  static_assert(PCA::kHolderV2Index == 3);
   static_assert(PCA::kReturnValueIndex == 4);
   static_assert(PCA::kDataIndex == 5);
   static_assert(PCA::kThisIndex == 6);
@@ -4534,7 +4534,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex   <= PCI:args_
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kUnusedIndex
+  //   sp[4 * kSystemPointerSize]: kHolderV2Index
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
   //   sp[6 * kSystemPointerSize]: kDataIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
@@ -4563,7 +4563,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ StoreWord(scratch, MemOperand(sp, (PCA::kReturnValueIndex + 1) *
                                            kSystemPointerSize));
   __ StoreWord(scratch,
-               MemOperand(sp, (PCA::kUnusedIndex + 1) * kSystemPointerSize));
+               MemOperand(sp, (PCA::kHolderV2Index + 1) * kSystemPointerSize));
   __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kIsolateIndex + 1) * kSystemPointerSize));
