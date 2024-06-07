@@ -3031,8 +3031,8 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
-static constexpr Register kOldSPRegister = t0;
-static constexpr Register kSwitchFlagRegister = t1;
+static constexpr Register kOldSPRegister = s9;
+static constexpr Register kSwitchFlagRegister = s10;
 
 void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
                                      Register target_input,
@@ -4001,8 +4001,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
   __ li(tmp, 1);
   __ StoreWord(
       tmp, MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
-  FREE_REG(tmp);
-  FREE_REG(tmp2);
+  tmp = no_reg;
+  tmp2 = no_reg;
   __ Push(promise);
   __ CallBuiltin(Builtin::kFulfillPromise);
   __ Pop(promise);
@@ -4012,13 +4012,13 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
                                          Label* return_promise) {
-  UseScratchRegisterScope temps(masm);
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
   Register promise = desc.GetRegisterParameter(0);
   Register reason = desc.GetRegisterParameter(1);
   Register debug_event = desc.GetRegisterParameter(2);
   int catch_handler = __ pc_offset();
   {
+    UseScratchRegisterScope temps(masm);
     Register thread_in_wasm_flag_addr = temps.Acquire();
     // Unset thread_in_wasm_flag.
     __ LoadWord(thread_in_wasm_flag_addr,
@@ -4044,8 +4044,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ li(tmp, 1);
   __ StoreWord(
       tmp, MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
-  FREE_REG(tmp);
-  FREE_REG(tmp2);
+  tmp = no_reg;
+  tmp2 = no_reg;
   __ Push(promise);
   __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
@@ -4058,7 +4058,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 }
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
-  UseScratchRegisterScope temps(masm);
   __ EnterFrame(stack_switch ? StackFrame::STACK_SWITCH
                              : StackFrame::JS_TO_WASM);
 
@@ -4089,6 +4088,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
         MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
     if (stack_switch) {
       __ StoreWord(ref, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+      UseScratchRegisterScope temps(masm);
       Register scratch = temps.Acquire();
       __ LoadWord(
           scratch,

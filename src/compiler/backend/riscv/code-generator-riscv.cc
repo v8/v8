@@ -3873,14 +3873,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
              instr->arch_opcode() == kRiscvSub64) {
     Condition cc = FlagsConditionToConditionOvf(condition);
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
-    __ Sra64(kScratchReg2, i.OutputRegister(), 31);
+    __ Sra32(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kRiscvAdd32 ||
-             instr->arch_opcode() == kRiscvSub32) {
-    Condition cc = FlagsConditionToConditionOvf(condition);
-    __ Sll64(kScratchReg, i.OutputRegister(), 32);
-    __ Srl64(kScratchReg, kScratchReg, 32);
-    __ Branch(tlabel, cc, i.OutputRegister(), Operand(kScratchReg));
   } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
              instr->arch_opcode() == kRiscvSubOvf64) {
 #elif V8_TARGET_ARCH_RISCV32

@@ -17,8 +17,9 @@ namespace v8::internal::compiler::turboshaft {
 struct LoadStoreSimplificationConfiguration {
   // TODO(12783): This needs to be extended for all architectures that don't
   // have loads with the base + index * element_size + offset pattern.
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 ||    \
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_RISCV32
   // As tagged loads result in modfiying the offset by -1, those loads are
   // converted into raw loads.
   static constexpr bool kNeedsUntaggedBase = true;
@@ -188,10 +189,11 @@ class LoadStoreSimplificationReducer : public Next,
   bool is_wasm_ = __ data() -> is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||   \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||    \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) || \
-    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||      \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||       \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) ||    \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
   bool lowering_enabled_ =
       (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
       (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
