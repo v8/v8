@@ -233,6 +233,16 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case COVERAGE_INFO_TYPE:
       return kVisitCoverageInfo;
 
+    // Objects that may have embedder fields but otherwise are just a regular
+    // JSObject.
+    case JS_PROMISE_TYPE: {
+      const bool has_raw_data_fields =
+          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
+      return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
+    }
+
+    // Objects that are guaranteed to not have any embedder fields and just
+    // behave like regular JSObject.
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
@@ -262,7 +272,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_OBJECT_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
     case JS_PROMISE_PROTOTYPE_TYPE:
-    case JS_PROMISE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
@@ -315,11 +324,13 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE:
     case JS_WRAPPED_FUNCTION_TYPE: {
-      // Is GetEmbedderFieldCount(map) > 0 for Atomics.Mutex?
-      const bool has_raw_data_fields =
-          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
-      return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
+      CHECK_EQ(0, JSObject::GetEmbedderFieldCount(map));
+      return kVisitJSObjectFast;
     }
+
+    // Objects that are used as API wrapper objects and can have embedder
+    // fields. Note that there's more of these kinds (e.g. JS_ARRAY_BUFFER_TYPE)
+    // but they have their own visitor id for other reasons
     case JS_API_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
@@ -419,10 +430,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       SIMPLE_HEAP_OBJECT_LIST2(CASE)
       CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(CASE)
 #undef CASE
-
-    default:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // static
