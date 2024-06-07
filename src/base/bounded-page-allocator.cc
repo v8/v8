@@ -55,6 +55,7 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   }
 
   if (address == RegionAllocator::kAllocationFailure) {
+    ran_out_of_reservation_ = true;
     return nullptr;
   }
 
@@ -91,6 +92,7 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
     DCHECK(region_allocator_.contains(address, size));
 
     if (!region_allocator_.AllocateRegionAt(address, size)) {
+      ran_out_of_reservation_ = true;
       return false;
     }
   }
@@ -120,6 +122,7 @@ bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
     size_t region_size = RoundUp(size, allocate_page_size_);
     if (!region_allocator_.AllocateRegionAt(
             address, region_size, RegionAllocator::RegionState::kExcluded)) {
+      ran_out_of_reservation_ = true;
       return false;
     }
   }
@@ -133,6 +136,10 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
 
   Address address = reinterpret_cast<Address>(raw_address);
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
+  if (ran_out_of_reservation_) {
+    // Reset the flag, since some memory may become available.
+    ran_out_of_reservation_ = false;
+  }
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);

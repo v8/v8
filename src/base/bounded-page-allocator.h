@@ -110,6 +110,8 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
 
   bool DecommitPages(void* address, size_t size) override;
 
+  bool ran_out_of_reservation() const { return ran_out_of_reservation_; }
+
  private:
   v8::base::Mutex mutex_;
   const size_t allocate_page_size_;
@@ -118,6 +120,7 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   v8::base::RegionAllocator region_allocator_;
   const PageInitializationMode page_initialization_mode_;
   const PageFreeingMode page_freeing_mode_;
+  bool ran_out_of_reservation_ = false;
 };
 
 }  // namespace base
