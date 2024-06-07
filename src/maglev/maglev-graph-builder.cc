@@ -11312,7 +11312,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 
   merge_states_[target]->MergeLoop(this, current_interpreter_frame_, block);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
-  if (loop_headers_to_peel_.Contains(iterator_.current_offset())) {
+  if (loop_headers_to_peel_.Contains(target)) {
     allow_loop_peeling_ = true;
   }
 }
