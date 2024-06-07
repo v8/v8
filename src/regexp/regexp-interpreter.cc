@@ -135,7 +135,7 @@ class BacktrackStack {
     return (static_cast<int>(data_.size()) <= kMaxSize);
   }
   int peek() const {
-    DCHECK(!data_.empty());
+    SBXCHECK(!data_.empty());
     return data_.back();
   }
   int pop() {
