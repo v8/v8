@@ -8170,6 +8170,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
+
+    gasm_->Store(StoreRepresentation(mcgraph_->machine()->Is64()
+                                         ? MachineRepresentation::kWord64
+                                         : MachineRepresentation::kWord32,
+                                     WriteBarrierKind::kNoWriteBarrier),
+                 gasm_->LoadRootRegister(), Isolate::context_offset(),
+                 gasm_->BitcastMaybeObjectToWord(native_context));
+
     Node* undefined_node = UndefinedValue();
 
     BuildModifyThreadInWasmFlag(false);
