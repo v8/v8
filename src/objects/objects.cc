@@ -2272,8 +2272,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         }
         DirectHandle<Object> accessors = it->GetAccessors();
         if (IsAccessorInfo(*accessors) &&
-            !it->HolderIsReceiverOrHiddenPrototype() &&
-            AccessorInfo::cast(*accessors)->is_special_data_property()) {
+            !it->HolderIsReceiverOrHiddenPrototype()) {
           *found = false;
           return Nothing<bool>();
         }

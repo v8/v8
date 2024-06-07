@@ -1049,33 +1049,6 @@ class V8_EXPORT ObjectTemplate : public Template {
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(Local<Context> context);
 
   /**
-   * Sets an accessor on the object template.
-   *
-   * Whenever the property with the given name is accessed on objects
-   * created from this ObjectTemplate the getter and setter callbacks
-   * are called instead of getting and setting the property directly
-   * on the JavaScript object.
-   *
-   * \param name The name of the property for which an accessor is added.
-   * \param getter The callback to invoke when getting the property.
-   * \param setter The callback to invoke when setting the property.
-   * \param data A piece of data that will be passed to the getter and setter
-   *   callbacks whenever they are invoked.
-   * \param attribute The attributes of the property for which an accessor
-   *   is added.
-   */
-  V8_DEPRECATED(
-      "Use SetNativeDataProperty or SetAccessorProperty instead depending on "
-      "the required semantics. See http://crbug.com/336325111. This method "
-      "will be removed in V8 12.8.")
-  void SetAccessor(
-      Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-
-  /**
    * Sets a named property handler on the object template.
    *
    * Whenever a property whose name is a string or a symbol is accessed on

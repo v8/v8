@@ -973,8 +973,7 @@ const char* SideEffectType2String(SideEffectType type) {
 
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject>::AccessorInfoPrint(os);
-  os << " - is_special_data_property: " << is_special_data_property();
-  os << "\n - is_sloppy: " << is_sloppy();
+  os << " - is_sloppy: " << is_sloppy();
   os << "\n - replace_on_access: " << replace_on_access();
   os << "\n - getter_side_effect_type: "
      << SideEffectType2String(getter_side_effect_type());

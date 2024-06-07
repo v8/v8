@@ -2073,9 +2073,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }
-        if (AccessorInfo::cast(*accessors)->is_special_data_property() &&
-            !lookup->HolderIsReceiverOrHiddenPrototype()) {
-          set_slow_stub_reason("special data property in prototype chain");
+        if (!lookup->HolderIsReceiverOrHiddenPrototype()) {
+          set_slow_stub_reason("native data property in prototype chain");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }

@@ -1437,13 +1437,11 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
                                             v8::Local<Name> name, Getter getter,
                                             Setter setter,
                                             v8::Local<Value> data,
-                                            bool is_special_data_property,
                                             bool replace_on_access) {
   i::Handle<i::AccessorInfo> obj = i_isolate->factory()->NewAccessorInfo();
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
-  DCHECK_IMPLIES(replace_on_access,
-                 is_special_data_property && setter == nullptr);
-  if (is_special_data_property && setter == nullptr) {
+  DCHECK_IMPLIES(replace_on_access, setter == nullptr);
+  if (setter == nullptr) {
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
   obj->set_setter(i_isolate, reinterpret_cast<i::Address>(setter));
@@ -1461,7 +1459,6 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
     raw_obj->set_data(*Utils::OpenDirectHandle(*data));
   }
   raw_obj->set_name(*accessor_name);
-  raw_obj->set_is_special_data_property(is_special_data_property);
   raw_obj->set_replace_on_access(replace_on_access);
   raw_obj->set_initial_property_attributes(i::NONE);
   return obj;
@@ -1569,17 +1566,15 @@ i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 template <typename Getter, typename Setter, typename Data, typename Template>
 void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                          Getter getter, Setter setter, Data data,
-                         PropertyAttribute attribute,
-                         bool is_special_data_property, bool replace_on_access,
+                         PropertyAttribute attribute, bool replace_on_access,
                          SideEffectType getter_side_effect_type,
                          SideEffectType setter_side_effect_type) {
   auto info = Utils::OpenHandle(template_obj);
   auto i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::AccessorInfo> accessor_info =
-      MakeAccessorInfo(i_isolate, name, getter, setter, data,
-                       is_special_data_property, replace_on_access);
+  i::Handle<i::AccessorInfo> accessor_info = MakeAccessorInfo(
+      i_isolate, name, getter, setter, data, replace_on_access);
   {
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::AccessorInfo> raw = *accessor_info;
@@ -1599,7 +1594,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      PropertyAttribute attribute,
                                      SideEffectType getter_side_effect_type,
                                      SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, true, false,
+  TemplateSetAccessor(this, name, getter, setter, data, attribute, false,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -1609,10 +1604,9 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter,
-                      static_cast<AccessorNameSetterCallback>(nullptr), data,
-                      attribute, true, true, getter_side_effect_type,
-                      setter_side_effect_type);
+  TemplateSetAccessor(
+      this, name, getter, static_cast<AccessorNameSetterCallback>(nullptr),
+      data, attribute, true, getter_side_effect_type, setter_side_effect_type);
 }
 
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
@@ -1624,18 +1618,6 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
   i::ApiNatives::AddDataProperty(i_isolate, templ, Utils::OpenHandle(*name),
                                  intrinsic,
                                  static_cast<i::PropertyAttributes>(attribute));
-}
-
-void ObjectTemplate::SetAccessor(v8::Local<Name> name,
-                                 AccessorNameGetterCallback getter,
-                                 AccessorNameSetterCallback setter,
-                                 v8::Local<Value> data,
-                                 PropertyAttribute attribute,
-                                 SideEffectType getter_side_effect_type,
-                                 SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute,
-                      i::v8_flags.disable_old_api_accessors, false,
-                      getter_side_effect_type, setter_side_effect_type);
 }
 
 namespace {
@@ -4995,7 +4977,6 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
                                      Local<Name> name, Getter getter,
                                      Setter setter, Data data,
                                      PropertyAttribute attributes,
-                                     bool is_special_data_property,
                                      bool replace_on_access,
                                      SideEffectType getter_side_effect_type,
                                      SideEffectType setter_side_effect_type) {
@@ -5003,9 +4984,8 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   ENTER_V8_NO_SCRIPT(i_isolate, context, Object, SetAccessor, i::HandleScope);
   if (!IsJSObject(*Utils::OpenDirectHandle(self))) return Just(false);
   auto obj = i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
-  i::Handle<i::AccessorInfo> info =
-      MakeAccessorInfo(i_isolate, name, getter, setter, data,
-                       is_special_data_property, replace_on_access);
+  i::Handle<i::AccessorInfo> info = MakeAccessorInfo(
+      i_isolate, name, getter, setter, data, replace_on_access);
   info->set_getter_side_effect_type(getter_side_effect_type);
   info->set_setter_side_effect_type(setter_side_effect_type);
   if (info.is_null()) return Nothing<bool>();
@@ -5022,19 +5002,6 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
     i::JSObject::MigrateSlowToFast(obj, 0, "APISetAccessor");
   }
   return Just(true);
-}
-
-Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
-                                AccessorNameGetterCallback getter,
-                                AccessorNameSetterCallback setter,
-                                MaybeLocal<Value> data, AccessControl settings,
-                                PropertyAttribute attribute,
-                                SideEffectType getter_side_effect_type,
-                                SideEffectType setter_side_effect_type) {
-  return ObjectSetAccessor(context, this, name, getter, setter,
-                           data.FromMaybe(Local<Value>()), attribute,
-                           i::v8_flags.disable_old_api_accessors, false,
-                           getter_side_effect_type, setter_side_effect_type);
 }
 
 void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
@@ -5071,7 +5038,7 @@ Maybe<bool> Object::SetNativeDataProperty(
     SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter, data,
-                           attributes, true, false, getter_side_effect_type,
+                           attributes, false, getter_side_effect_type,
                            setter_side_effect_type);
 }
 
@@ -5082,8 +5049,8 @@ Maybe<bool> Object::SetLazyDataProperty(
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter,
                            static_cast<AccessorNameSetterCallback>(nullptr),
-                           data, attributes, true, true,
-                           getter_side_effect_type, setter_side_effect_type);
+                           data, attributes, true, getter_side_effect_type,
+                           setter_side_effect_type);
 }
 
 Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,

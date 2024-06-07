@@ -602,8 +602,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   }
 
   DCHECK(state_ != LookupIterator::ACCESSOR ||
-         (IsAccessorInfo(*GetAccessors(), isolate_) &&
-          AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
+         IsAccessorInfo(*GetAccessors(), isolate_));
   DCHECK_NE(TYPED_ARRAY_INDEX_NOT_FOUND, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
 
