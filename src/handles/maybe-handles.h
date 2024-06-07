@@ -85,6 +85,8 @@ class MaybeHandle final {
   bool is_null() const { return location_ == nullptr; }
 
  protected:
+  V8_INLINE explicit MaybeHandle(Address* location) : location_(location) {}
+
   Address* location_ = nullptr;
 
   // MaybeHandles of different classes are allowed to access each
@@ -95,6 +97,9 @@ class MaybeHandle final {
   template <typename>
   friend class MaybeDirectHandle;
 #endif
+  // Casts are allowed to access location_.
+  template <typename To, typename From>
+  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value);
 };
 
 template <typename T>
@@ -203,6 +208,9 @@ class MaybeDirectHandle final {
   bool is_null() const { return location_ == kTaggedNullAddress; }
 
  protected:
+  V8_INLINE explicit MaybeDirectHandle(Address location)
+      : location_(location) {}
+
   Address location_ = kTaggedNullAddress;
 
   // MaybeDirectHandles of different classes are allowed to access each
@@ -211,6 +219,9 @@ class MaybeDirectHandle final {
   friend class MaybeDirectHandle;
   template <typename>
   friend class MaybeHandle;
+  // Casts are allowed to access location_.
+  template <typename To, typename From>
+  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value);
 };
 
 class MaybeObjectDirectHandle {

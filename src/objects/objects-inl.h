@@ -26,6 +26,7 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
@@ -35,6 +36,7 @@
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
@@ -198,6 +200,47 @@ bool IsPrivateSymbol(Tagged<Object> obj) {
 bool IsNoSharedNameSentinel(Tagged<Object> obj) {
   return obj == SharedFunctionInfo::kNoSharedNameSentinel;
 }
+
+// TODO(leszeks): Expand Is<T> to all types.
+#define IS_HELPER_DEF(type_)                                 \
+  template <>                                                \
+  struct CastTraits<type_> {                                 \
+    static inline bool AllowFrom(Tagged<Object> value) {     \
+      return Is##type_(value);                               \
+    }                                                        \
+    static inline bool AllowFrom(Tagged<HeapObject> value) { \
+      return Is##type_(value);                               \
+    }                                                        \
+  };
+HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
+IS_HELPER_DEF(Number)
+IS_HELPER_DEF(Smi)
+IS_HELPER_DEF(PromiseReaction)
+#undef IS_HELPER_DEF
+#define IS_HELPER_DEF(Type, Value, _)                        \
+  template <>                                                \
+  struct CastTraits<Type> {                                  \
+    static inline bool AllowFrom(Tagged<Object> value) {     \
+      return Is##Type(value);                                \
+    }                                                        \
+    static inline bool AllowFrom(Tagged<HeapObject> value) { \
+      return Is##Type(value);                                \
+    }                                                        \
+  };
+ODDBALL_LIST(IS_HELPER_DEF)
+#undef IS_HELPER_DEF
+
+template <>
+struct CastTraits<HeapObject> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return IsHeapObject(value);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) { return true; }
+};
+template <>
+struct CastTraits<Object> {
+  static inline bool AllowFrom(Tagged<Object> value) { return true; }
+};
 
 template <class T,
           typename std::enable_if<(std::is_arithmetic<T>::value ||

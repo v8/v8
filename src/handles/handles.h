@@ -197,6 +197,9 @@ class Handle final : public HandleBase {
   // MaybeHandle is allowed to access location_.
   template <typename>
   friend class MaybeHandle;
+  // Casts are allowed to access location_.
+  template <typename To, typename From>
+  friend inline Handle<To> Cast(Handle<From> value);
 };
 
 template <typename T>
@@ -534,6 +537,9 @@ class DirectHandle : public DirectHandleBase {
   template <typename>
   friend class MaybeDirectHandle;
   friend class DirectHandleUnchecked<T>;
+  // Casts are allowed to access location_.
+  template <typename To, typename From>
+  friend inline DirectHandle<To> Cast(DirectHandle<From> value);
 
   explicit DirectHandle(no_checking_tag do_not_check)
       : DirectHandleBase(kTaggedNullAddress, do_not_check) {}

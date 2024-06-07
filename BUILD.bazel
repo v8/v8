@@ -1867,6 +1867,7 @@ filegroup(
         "src/objects/call-site-info.cc",
         "src/objects/call-site-info.h",
         "src/objects/call-site-info-inl.h",
+        "src/objects/casting.h",
         "src/objects/cell.h",
         "src/objects/cell-inl.h",
         "src/objects/code.cc",
