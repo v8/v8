@@ -1322,7 +1322,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
 
-    OpIndex arguments[] = {__ TaggedIndexConstant(node->feedback().index()),
+    OpIndex arguments[] = {__ WordPtrConstant(node->feedback().index()),
                            Map(node->receiver()),
                            Map(node->cache_array()),
                            Map(node->cache_type()),
