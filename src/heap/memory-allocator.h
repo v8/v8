@@ -368,10 +368,10 @@ class MemoryAllocator {
 
   // Performs all necessary bookkeeping to free the memory, but does not free
   // it.
-  void UnregisterMemoryChunk(MutablePageMetadata* chunk);
-  void UnregisterSharedBasicMemoryChunk(MemoryChunkMetadata* chunk);
-  void UnregisterBasicMemoryChunk(MemoryChunkMetadata* chunk,
-                                  Executability executable = NOT_EXECUTABLE);
+  void UnregisterMutableMemoryChunk(MutablePageMetadata* chunk);
+  void UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk);
+  void UnregisterMemoryChunk(MemoryChunkMetadata* chunk,
+                             Executability executable = NOT_EXECUTABLE);
 
   void RegisterReadOnlyMemory(ReadOnlyPageMetadata* page);
 

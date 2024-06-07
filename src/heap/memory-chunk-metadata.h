@@ -162,12 +162,12 @@ class MemoryChunkMetadata {
   friend class MemoryChunk;
 #endif
 
-  friend class BasicMemoryChunkValidator;
+  friend class AtomicMarkingState;
   friend class ConcurrentMarkingState;
   friend class MarkingState;
-  friend class AtomicMarkingState;
-  friend class NonAtomicMarkingState;
   friend class MemoryAllocator;
+  friend class MemoryChunkValidator;
+  friend class NonAtomicMarkingState;
   friend class PagedSpace;
 };
 

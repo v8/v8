@@ -3118,7 +3118,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsMapIteratorProtectorCellInvalid();
   void InvalidateStringWrapperToPrimitiveProtector();
 
-  TNode<IntPtrT> LoadBasicMemoryChunkFlags(TNode<HeapObject> object);
+  TNode<IntPtrT> LoadMemoryChunkFlags(TNode<HeapObject> object);
 
   TNode<BoolT> LoadRuntimeFlag(ExternalReference address_of_flag) {
     TNode<Word32T> flag_value = UncheckedCast<Word32T>(

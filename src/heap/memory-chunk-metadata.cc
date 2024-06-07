@@ -60,7 +60,7 @@ void MemoryChunkMetadata::SynchronizedHeapStore() {
 }
 #endif
 
-class BasicMemoryChunkValidator {
+class MemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
   static_assert(MemoryChunkLayout::kFlagsOffset ==
                 offsetof(MemoryChunk, main_thread_flags_));

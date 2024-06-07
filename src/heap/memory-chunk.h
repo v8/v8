@@ -394,7 +394,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #endif  // V8_ENABLE_SANDBOX
 
-  friend class BasicMemoryChunkValidator;
+  friend class MemoryChunkValidator;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)

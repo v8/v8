@@ -290,8 +290,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
   size_ -= released_bytes;
 }
 
-void MemoryAllocator::UnregisterSharedBasicMemoryChunk(
-    MemoryChunkMetadata* chunk) {
+void MemoryAllocator::UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk) {
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
@@ -299,8 +298,8 @@ void MemoryAllocator::UnregisterSharedBasicMemoryChunk(
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterBasicMemoryChunk(
-    MemoryChunkMetadata* chunk_metadata, Executability executable) {
+void MemoryAllocator::UnregisterMemoryChunk(MemoryChunkMetadata* chunk_metadata,
+                                            Executability executable) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   VirtualMemory* reservation = chunk_metadata->reserved_memory();
@@ -323,20 +322,20 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(
   chunk->SetFlagSlow(MemoryChunk::UNREGISTERED);
 }
 
-void MemoryAllocator::UnregisterMemoryChunk(MutablePageMetadata* chunk) {
-  UnregisterBasicMemoryChunk(chunk, chunk->Chunk()->executable());
+void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* chunk) {
+  UnregisterMemoryChunk(chunk, chunk->Chunk()->executable());
 }
 
 void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPageMetadata* page) {
   DCHECK(!page->Chunk()->executable());
-  UnregisterBasicMemoryChunk(page, NOT_EXECUTABLE);
+  UnregisterMemoryChunk(page, NOT_EXECUTABLE);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
   DCHECK(!chunk->Chunk()->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
 
-  UnregisterSharedBasicMemoryChunk(chunk);
+  UnregisterSharedMemoryChunk(chunk);
 
   v8::PageAllocator* allocator = page_allocator(RO_SPACE);
   VirtualMemory* reservation = chunk->reserved_memory();
@@ -355,7 +354,7 @@ void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk_metadata));
-  UnregisterMemoryChunk(chunk_metadata);
+  UnregisterMutableMemoryChunk(chunk_metadata);
   isolate_->heap()->RememberUnmappedPage(
       reinterpret_cast<Address>(chunk_metadata),
       chunk->IsEvacuationCandidate());

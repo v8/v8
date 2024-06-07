@@ -3633,7 +3633,7 @@ void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<Object> value) {
   CSA_DCHECK(this,
              WordNotEqual(
-                 WordAnd(LoadBasicMemoryChunkFlags(object),
+                 WordAnd(LoadMemoryChunkFlags(object),
                          IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
                  IntPtrConstant(0)));
   int const_offset;
@@ -8118,7 +8118,7 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
       [=] { return IsHeapNumberUint32(CAST(number)); });
 }
 
-TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
+TNode<IntPtrT> CodeStubAssembler::LoadMemoryChunkFlags(
     TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<IntPtrT> page_header = MemoryChunkFromAddress(object_word);
@@ -18132,7 +18132,7 @@ void CodeStubAssembler::SharedValueBarrier(
   // Fast path: Shared memory features imply shared RO space, so RO objects are
   // trivially shared.
   CSA_DCHECK(this, BoolConstant(ReadOnlyHeap::IsReadOnlySpaceShared()));
-  TNode<IntPtrT> page_flags = LoadBasicMemoryChunkFlags(CAST(value));
+  TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
   GotoIf(WordNotEqual(
              WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),
              IntPtrConstant(0)),
@@ -18170,7 +18170,7 @@ void CodeStubAssembler::SharedValueBarrier(
     CSA_DCHECK(
         this,
         WordNotEqual(
-            WordAnd(LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
+            WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
                     IntPtrConstant(MemoryChunk::READ_ONLY_HEAP |
                                    MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
             IntPtrConstant(0)));
