@@ -256,12 +256,15 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a normal function call.
 BUILTIN(HandleApiCallAsFunctionDelegate) {
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDocumentAllLegacyCall);
   return HandleApiCallAsFunctionOrConstructorDelegate(isolate, false, args);
 }
 
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a construct call.
 BUILTIN(HandleApiCallAsConstructorDelegate) {
+  isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kDocumentAllLegacyConstruct);
   return HandleApiCallAsFunctionOrConstructorDelegate(isolate, true, args);
 }
 

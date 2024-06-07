@@ -543,6 +543,8 @@ class V8_EXPORT Isolate {
     kWasmExnRef = 138,
     kWasmTypedFuncRef = 139,
     kInvalidatedStringWrapperToPrimitiveProtector = 140,
+    kDocumentAllLegacyCall = 141,
+    kDocumentAllLegacyConstruct = 142,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
