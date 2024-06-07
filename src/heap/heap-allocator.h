@@ -153,6 +153,13 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment);
 
+  void CollectGarbage(AllocationType allocation);
+  void CollectAllAvailableGarbage(AllocationType allocation);
+
+  V8_WARN_UNUSED_RESULT AllocationResult
+  RetryAllocateRaw(int size_in_bytes, AllocationType allocation,
+                   AllocationOrigin origin, AllocationAlignment alignment);
+
 #ifdef DEBUG
   void IncrementObjectCounters();
 #endif  // DEBUG

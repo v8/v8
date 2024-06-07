@@ -266,8 +266,8 @@ Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
     return result;
   } else {
     // Return null if we cannot allocate the code object.
-    return heap->AllocateRawWith<LocalHeap::kLightRetry>(object_size,
-                                                         AllocationType::kCode);
+    return heap->AllocateRawWith<HeapAllocator::kLightRetry>(
+        object_size, AllocationType::kCode);
   }
 }
 

@@ -117,20 +117,28 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
 
   // Two GCs before returning failure.
   for (int i = 0; i < 2; i++) {
-    if (IsSharedAllocationType(allocation)) {
-      heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
-                                  GarbageCollectionReason::kAllocationFailure);
-    } else {
-      AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
-      heap_->CollectGarbage(space_to_gc,
-                            GarbageCollectionReason::kAllocationFailure);
-    }
-    result = AllocateRaw(size, allocation, origin, alignment);
+    CollectGarbage(allocation);
+    result = RetryAllocateRaw(size, allocation, origin, alignment);
     if (!result.IsFailure()) {
       return result;
     }
   }
   return result;
+}
+
+void HeapAllocator::CollectGarbage(AllocationType allocation) {
+  if (IsSharedAllocationType(allocation)) {
+    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
+                                GarbageCollectionReason::kAllocationFailure);
+  } else if (local_heap_->is_main_thread()) {
+    // On the main thread we can directly start the GC.
+    AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
+    heap_->CollectGarbage(space_to_gc,
+                          GarbageCollectionReason::kAllocationFailure);
+  } else {
+    // Request GC from main thread.
+    heap_->CollectGarbageFromAnyThread(local_heap_);
+  }
 }
 
 AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
@@ -140,22 +148,8 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
       AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
   if (!result.IsFailure()) return result;
 
-  if (IsSharedAllocationType(allocation)) {
-    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
-                                GarbageCollectionReason::kLastResort);
-
-    // We need always_allocate() to be true both on the client- and
-    // server-isolate. It is used in both code paths.
-    AlwaysAllocateScope shared_scope(
-        heap_->isolate()->shared_space_isolate()->heap());
-    AlwaysAllocateScope client_scope(heap_);
-    result = AllocateRaw(size, allocation, origin, alignment);
-  } else {
-    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
-
-    AlwaysAllocateScope scope(heap_);
-    result = AllocateRaw(size, allocation, origin, alignment);
-  }
+  CollectAllAvailableGarbage(allocation);
+  result = RetryAllocateRaw(size, allocation, origin, alignment);
 
   if (!result.IsFailure()) {
     return result;
@@ -163,6 +157,32 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
 
   V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
                               V8::kHeapOOM);
+}
+
+void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
+  if (IsSharedAllocationType(allocation)) {
+    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
+                                GarbageCollectionReason::kLastResort);
+  } else if (local_heap_->is_main_thread()) {
+    // On the main thread we can directly start the GC.
+    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  } else {
+    // Request GC from main thread.
+    heap_->CollectGarbageFromAnyThread(local_heap_);
+  }
+}
+
+AllocationResult HeapAllocator::RetryAllocateRaw(
+    int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
+    AllocationAlignment alignment) {
+  // Initially flags on the LocalHeap are always disabled. They are only
+  // active while this method is running.
+  DCHECK(!local_heap_->IsRetryOfFailedAllocation());
+  local_heap_->SetRetryOfFailedAllocation(true);
+  AllocationResult result =
+      AllocateRaw(size_in_bytes, allocation, origin, alignment);
+  local_heap_->SetRetryOfFailedAllocation(false);
+  return result;
 }
 
 void HeapAllocator::MakeLinearAllocationAreasIterable() {

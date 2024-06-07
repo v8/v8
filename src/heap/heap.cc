@@ -5322,16 +5322,12 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   // was initiated.
   if (gc_state() == TEAR_DOWN) return true;
 
-  // If main thread is parked, it can't perform the GC. Fix the deadlock by
-  // allowing the allocation.
-  if (IsMainThreadParked(local_heap)) return true;
-
   // If allocating isolate is deserialized at the moment then always allow
   // allocation.
   if (IsIsolateDeserializationActive(local_heap)) return true;
 
-  // Make it more likely that retry of allocation on background thread succeeds
-  if (IsRetryOfFailedAllocation(local_heap)) return true;
+  // Make it more likely that retry of allocations succeeds.
+  if (local_heap->IsRetryOfFailedAllocation()) return true;
 
   // Background thread requested GC, allocation should fail
   if (CollectionRequested()) return false;
@@ -5380,16 +5376,6 @@ bool Heap::ShouldExpandYoungGenerationOnSlowAllocation() {
   }
 
   return false;
-}
-
-bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
-  if (!local_heap) return false;
-  return local_heap->allocation_failed_;
-}
-
-bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
-  if (!local_heap) return false;
-  return local_heap->main_thread_parked_;
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {

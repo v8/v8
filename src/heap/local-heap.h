@@ -101,6 +101,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool IsParked() const;
   bool IsRunning() const;
 
+  bool IsRetryOfFailedAllocation() const { return allocation_failed_; }
+
+  void SetRetryOfFailedAllocation(bool value) { allocation_failed_ = value; }
+
   Heap* heap() const { return heap_; }
   Heap* AsHeap() const { return heap(); }
 
@@ -149,8 +153,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationAlignment alignment = kTaggedAligned);
 
   // Allocate an uninitialized object.
-  enum AllocationRetryMode { kLightRetry, kRetryOrFail };
-  template <AllocationRetryMode mode>
+  template <HeapAllocator::AllocationRetryMode mode>
   Tagged<HeapObject> AllocateRawWith(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
@@ -297,12 +300,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
     std::atomic<uint8_t> raw_state_;
   };
 
-  // Slow path of allocation that performs GC and then retries allocation in
-  // loop.
-  AllocationResult PerformCollectionAndAllocateAgain(
-      int object_size, AllocationType type, AllocationOrigin origin,
-      AllocationAlignment alignment);
-
 #ifdef DEBUG
   bool IsSafeForConservativeStackScanning() const;
 #endif
@@ -356,7 +353,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   AtomicThreadState state_;
 
   bool allocation_failed_;
-  bool main_thread_parked_;
   int nested_parked_scopes_;
 
   LocalHeap* prev_;
@@ -378,6 +374,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class CollectionBarrier;
   friend class GlobalSafepoint;
   friend class Heap;
+  friend class HeapAllocator;
   friend class Isolate;
   friend class IsolateSafepoint;
   friend class IsolateSafepointScope;
