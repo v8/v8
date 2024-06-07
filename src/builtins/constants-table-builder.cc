@@ -74,7 +74,8 @@ void CheckPreconditionsForPatching(Isolate* isolate,
 }  // namespace
 
 void BuiltinsConstantsTableBuilder::PatchSelfReference(
-    Handle<Object> self_reference, Handle<InstructionStream> code_object) {
+    DirectHandle<Object> self_reference,
+    Handle<InstructionStream> code_object) {
   CheckPreconditionsForPatching(isolate_, code_object);
   DCHECK_EQ(*self_reference, ReadOnlyRoots(isolate_).self_reference_marker());
 
@@ -106,7 +107,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   // An empty map means there's nothing to do.
   if (map_.empty()) return;
 
-  Handle<FixedArray> table =
+  DirectHandle<FixedArray> table =
       isolate_->factory()->NewFixedArray(map_.size(), AllocationType::kOld);
 
   Builtins* builtins = isolate_->builtins();

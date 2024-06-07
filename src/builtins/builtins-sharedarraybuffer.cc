@@ -86,7 +86,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
 // https://tc39.es/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
-    Isolate* isolate, Handle<JSTypedArray> typed_array,
+    Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
   Handle<Object> access_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -161,7 +161,7 @@ BUILTIN(AtomicsNotify) {
   // Steps 5-9 performed in FutexEmulation::Wake.
 
   // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
-  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
 
   if (V8_UNLIKELY(!array_buffer->is_shared())) {
     return Smi::zero();

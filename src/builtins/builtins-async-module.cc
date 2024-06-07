@@ -28,7 +28,7 @@ BUILTIN(CallAsyncModuleFulfilled) {
 
 BUILTIN(CallAsyncModuleRejected) {
   HandleScope handle_scope(isolate);
-  Handle<SourceTextModule> module = Handle<SourceTextModule>(
+  DirectHandle<SourceTextModule> module(
       SourceTextModule::cast(isolate->context()->get(
           SourceTextModule::ExecuteAsyncModuleContextSlots::kModule)),
       isolate);

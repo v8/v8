@@ -69,7 +69,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   bool can_use_type_feedback = !site.is_null();
   bool can_inline_array_constructor = true;
   if (argv.length() == 1) {
-    Handle<Object> argument_one = argv.at<Object>(0);
+    DirectHandle<Object> argument_one = argv.at<Object>(0);
     if (IsSmi(*argument_one)) {
       int value = Smi::cast(*argument_one).value();
       if (value < 0 ||
@@ -162,7 +162,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<JSObject> object = args.at<JSObject>(0);
-  Handle<Object> key = args.at(1);
+  DirectHandle<Object> key = args.at(1);
   ElementsKind kind = object->GetElementsKind();
   CHECK(IsFastElementsKind(kind));
   uint32_t index;

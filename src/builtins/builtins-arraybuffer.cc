@@ -41,7 +41,8 @@ namespace {
 
 Tagged<Object> ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                                Handle<JSReceiver> new_target,
-                               Handle<Object> length, Handle<Object> max_length,
+                               DirectHandle<Object> length,
+                               Handle<Object> max_length,
                                InitializedFlag initialized) {
   SharedFlag shared = *target != target->native_context()->array_buffer_fun()
                           ? SharedFlag::kShared
@@ -157,7 +158,7 @@ BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
   HandleScope scope(isolate);
   Handle<JSFunction> target(isolate->native_context()->array_buffer_fun(),
                             isolate);
-  Handle<Object> length = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> length = args.atOrUndefined(isolate, 1);
   return ConstructBuffer(isolate, target, target, length, Handle<Object>(),
                          InitializedFlag::kUninitialized);
 }

@@ -117,7 +117,7 @@ Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
-  Handle<TrustedByteArray> reloc_info =
+  DirectHandle<TrustedByteArray> reloc_info =
       NewTrustedByteArray(code_desc_.reloc_size);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
@@ -131,7 +131,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // iteration.
     Handle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
                            isolate_);
-    Handle<ArrayList> new_list = ArrayList::Add(
+    DirectHandle<ArrayList> new_list = ArrayList::Add(
         isolate_, list, on_heap_profiler_data, AllocationType::kOld);
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
@@ -236,7 +236,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     std::ostringstream os;
     code->Disassemble(nullptr, os, isolate_);
     if (!on_heap_profiler_data.is_null()) {
-      Handle<String> disassembly =
+      DirectHandle<String> disassembly =
           local_isolate_->factory()->NewStringFromAsciiChecked(
               os.str().c_str(), AllocationType::kOld);
       on_heap_profiler_data->set_code(*disassembly);
@@ -569,7 +569,7 @@ Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
 
   ReadOnlyRoots roots(isolate());
 
-  Handle<ByteArray> empty_meta_table =
+  DirectHandle<ByteArray> empty_meta_table =
       NewByteArray(SwissNameDictionary::kMetaTableEnumerationDataStartIndex,
                    AllocationType::kReadOnly);
 
@@ -1085,19 +1085,19 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
   int offset = begin;
 
   if (IsSlicedString(*str)) {
-    Handle<SlicedString> slice = Handle<SlicedString>::cast(str);
+    auto slice = DirectHandle<SlicedString>::cast(str);
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   }
   if (IsThinString(*str)) {
-    Handle<ThinString> thin = Handle<ThinString>::cast(str);
+    auto thin = DirectHandle<ThinString>::cast(str);
     str = handle(thin->actual(), isolate());
   }
 
   DCHECK(IsSeqString(*str) || IsExternalString(*str));
-  Handle<Map> map = str->IsOneByteRepresentation()
-                        ? sliced_one_byte_string_map()
-                        : sliced_two_byte_string_map();
+  DirectHandle<Map> map = str->IsOneByteRepresentation()
+                              ? sliced_one_byte_string_map()
+                              : sliced_two_byte_string_map();
   Tagged<SlicedString> slice =
       Tagged<SlicedString>::cast(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
@@ -1116,9 +1116,9 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   }
   if (length == 0) return empty_string();
 
-  Handle<Map> map = resource->IsCacheable()
-                        ? external_one_byte_string_map()
-                        : uncached_external_one_byte_string_map();
+  DirectHandle<Map> map = resource->IsCacheable()
+                              ? external_one_byte_string_map()
+                              : uncached_external_one_byte_string_map();
   Tagged<ExternalOneByteString> external_string =
       Tagged<ExternalOneByteString>::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -1140,9 +1140,9 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   }
   if (length == 0) return empty_string();
 
-  Handle<Map> map = resource->IsCacheable()
-                        ? external_two_byte_string_map()
-                        : uncached_external_two_byte_string_map();
+  DirectHandle<Map> map = resource->IsCacheable()
+                              ? external_two_byte_string_map()
+                              : uncached_external_two_byte_string_map();
   Tagged<ExternalTwoByteString> string =
       Tagged<ExternalTwoByteString>::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -1157,9 +1157,9 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
 }
 
 Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
-  Handle<Map> map(isolate()->native_context()->initial_string_iterator_map(),
-                  isolate());
-  Handle<String> flat_string = String::Flatten(isolate(), string);
+  DirectHandle<Map> map(
+      isolate()->native_context()->initial_string_iterator_map(), isolate());
+  DirectHandle<String> flat_string = String::Flatten(isolate(), string);
   Handle<JSStringIterator> iterator =
       Handle<JSStringIterator>::cast(NewJSObjectFromMap(map));
 
@@ -1623,8 +1623,8 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   if (opt_parent.is_null()) {
     supertypes.resize(wasm::kMinimumSupertypeArraySize, undefined_value());
   } else {
-    Handle<WasmTypeInfo> parent_type_info =
-        handle(opt_parent->wasm_type_info(), isolate());
+    DirectHandle<WasmTypeInfo> parent_type_info(opt_parent->wasm_type_info(),
+                                                isolate());
     int first_undefined_index = -1;
     for (int i = 0; i < parent_type_info->supertypes_length(); i++) {
       Handle<Object> supertype =
@@ -1741,12 +1741,12 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
-  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+  DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       callable, suspend, undefined_value(), serialized_sig);
 
-  Handle<WasmInternalFunction> internal =
+  DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
-  Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
+  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
@@ -1783,7 +1783,8 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
     int wrapper_budget, wasm::Promise promise) {
   int func_index = internal_function->function_index();
-  Handle<Cell> wrapper_budget_cell = NewCell(Smi::FromInt(wrapper_budget));
+  DirectHandle<Cell> wrapper_budget_cell =
+      NewCell(Smi::FromInt(wrapper_budget));
   Tagged<Map> map = *wasm_exported_function_data_map();
   Tagged<WasmExportedFunctionData> result =
       Tagged<WasmExportedFunctionData>::cast(AllocateRawWithImmortalMap(
@@ -1813,11 +1814,11 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     uintptr_t signature_hash) {
-  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+  DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
-  Handle<WasmInternalFunction> internal =
+  DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
-  Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
+  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   internal->set_call_target(call_target);
   Tagged<Map> map = *wasm_capi_function_data_map();
@@ -2128,8 +2129,9 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
 }
 
 Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
-  Handle<Map> map = with_weak_next ? allocation_site_map()
-                                   : allocation_site_without_weaknext_map();
+  DirectHandle<Map> map = with_weak_next
+                              ? allocation_site_map()
+                              : allocation_site_without_weaknext_map();
   Handle<AllocationSite> site(
       AllocationSite::cast(New(map, AllocationType::kOld)), isolate());
   site->Initialize();
@@ -2328,7 +2330,7 @@ Handle<JSObject> Factory::CopyJSObject(DirectHandle<JSObject> source) {
 
 Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     DirectHandle<JSObject> source, DirectHandle<AllocationSite> site) {
-  Handle<Map> map(source->map(), isolate());
+  DirectHandle<Map> map(source->map(), isolate());
 
   // We can only clone regexps, normal objects, api objects, errors or arrays.
   // Copying anything else will break invariants.
@@ -2403,7 +2405,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     Tagged<PropertyArray> properties = source->property_array();
     if (properties->length() > 0) {
       // TODO(gsathya): Do not copy hash code.
-      Handle<PropertyArray> prop =
+      DirectHandle<PropertyArray> prop =
           CopyArrayWithMap(direct_handle(properties, isolate()),
                            direct_handle(properties->map(), isolate()));
       clone->set_raw_properties_or_hash(*prop, kRelaxedStore);
@@ -2687,7 +2689,8 @@ DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
-  Handle<NativeContext> native_context(function->native_context(), isolate());
+  DirectHandle<NativeContext> native_context(function->native_context(),
+                                             isolate());
   Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
     new_map = handle(native_context->async_generator_object_prototype_map(),
@@ -2700,8 +2703,8 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   } else {
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
-    Handle<JSFunction> object_function(native_context->object_function(),
-                                       isolate());
+    DirectHandle<JSFunction> object_function(native_context->object_function(),
+                                             isolate());
     DCHECK(object_function->has_initial_map());
     new_map = handle(object_function->initial_map(), isolate());
   }
@@ -2802,7 +2805,7 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       AllocationType allocation,
                                       NewJSObjectType new_js_object_type) {
   JSFunction::EnsureHasInitialMap(constructor);
-  Handle<Map> map(constructor->initial_map(), isolate());
+  DirectHandle<Map> map(constructor->initial_map(), isolate());
   // NewJSObjectFromMap does not support creating dictionary mode objects. Need
   // to use NewSlowJSObjectFromMap instead.
   DCHECK(!map->is_dictionary_map());
@@ -2819,7 +2822,7 @@ Handle<JSObject> Factory::NewSlowJSObjectWithNullProto() {
 
 Handle<JSObject> Factory::NewJSObjectWithNullProto() {
   Handle<Map> map(isolate()->object_function()->initial_map(), isolate());
-  Handle<Map> map_with_null_proto =
+  DirectHandle<Map> map_with_null_proto =
       Map::TransitionRootMapToPrototypeForNewObject(isolate(), map,
                                                     null_value());
   return NewJSObjectFromMap(map_with_null_proto);
@@ -2853,8 +2856,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
-  Handle<DescriptorArray> descs(map->instance_descriptors(isolate()),
-                                isolate());
+  DirectHandle<DescriptorArray> descs(map->instance_descriptors(isolate()),
+                                      isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
@@ -2862,7 +2865,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     PropertyDetails d(PropertyKind::kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i), isolate());
-    Handle<Object> value(descs->GetStrongValue(i), isolate());
+    DirectHandle<Object> value(descs->GetStrongValue(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(name, d, value);
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(isolate(), dictionary, name, cell, d));
@@ -2875,7 +2878,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
                             NewJSObjectType::kAPIWrapper);
 
   // Create a new map for the global object.
-  Handle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
+  DirectHandle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
   Tagged<Map> raw_map = *new_map;
   raw_map->set_may_have_interesting_properties(true);
   raw_map->set_is_dictionary_map(true);
@@ -3032,7 +3035,7 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
   }
 
   HandleScope inner_scope(isolate());
-  Handle<FixedArrayBase> elms =
+  DirectHandle<FixedArrayBase> elms =
       NewJSArrayStorage(elements_kind, capacity, mode);
   return inner_scope.CloseAndEscape(NewJSArrayWithUnverifiedElements(
       elms, elements_kind, length, allocation));
@@ -3084,8 +3087,8 @@ Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   JSObject::SetIntegrityLevel(isolate(), raw_object, FROZEN, kThrowOnError)
       .ToChecked();
 
-  Handle<NativeContext> native_context = isolate()->native_context();
-  Handle<TemplateLiteralObject> template_object =
+  DirectHandle<NativeContext> native_context = isolate()->native_context();
+  auto template_object =
       Handle<TemplateLiteralObject>::cast(NewJSArrayWithUnverifiedElements(
           handle(native_context->js_array_template_literal_object_map(),
                  isolate()),
@@ -3113,7 +3116,7 @@ void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, int length,
   }
 
   HandleScope inner_scope(isolate());
-  Handle<FixedArrayBase> elms =
+  DirectHandle<FixedArrayBase> elms =
       NewJSArrayStorage(array->GetElementsKind(), capacity, mode);
   DisallowGarbageCollection no_gc;
   Tagged<JSArray> raw = *array;
@@ -3150,7 +3153,8 @@ Handle<FixedArrayBase> Factory::NewJSArrayStorage(
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
-  Handle<Map> map(native_context->js_weak_map_fun()->initial_map(), isolate());
+  DirectHandle<Map> map(native_context->js_weak_map_fun()->initial_map(),
+                        isolate());
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
                             isolate());
   {
@@ -3162,7 +3166,7 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
 }
 
 Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
-  Handle<Map> map = isolate()->js_module_namespace_map();
+  DirectHandle<Map> map = isolate()->js_module_namespace_map();
   Handle<JSModuleNamespace> module_namespace(
       Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(
           map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
@@ -3177,7 +3181,7 @@ Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
 Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
     DirectHandle<NativeContext> creation_context, DirectHandle<Object> target) {
   DCHECK(IsCallable(*target));
-  Handle<Map> map(
+  DirectHandle<Map> map(
       Map::cast(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
       isolate());
   // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
@@ -3199,7 +3203,7 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
   DCHECK(IsResumableFunction(function->shared()->kind()));
   JSFunction::EnsureHasInitialMap(function);
-  Handle<Map> map(function->initial_map(), isolate());
+  DirectHandle<Map> map(function->initial_map(), isolate());
 
   DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
@@ -3208,8 +3212,8 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 Handle<JSDisposableStack> Factory::NewJSDisposableStack() {
-  Handle<NativeContext> native_context = isolate()->native_context();
-  Handle<Map> map(native_context->js_disposable_stack_map(), isolate());
+  DirectHandle<NativeContext> native_context = isolate()->native_context();
+  DirectHandle<Map> map(native_context->js_disposable_stack_map(), isolate());
   Handle<JSDisposableStack> disposable_stack(
       Handle<JSDisposableStack>::cast(NewJSObjectFromMap(map)));
   disposable_stack->set_status(0);
@@ -3218,16 +3222,16 @@ Handle<JSDisposableStack> Factory::NewJSDisposableStack() {
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(
     DirectHandle<SharedFunctionInfo> sfi) {
-  Handle<SourceTextModuleInfo> module_info(
+  DirectHandle<SourceTextModuleInfo> module_info(
       sfi->scope_info()->ModuleDescriptorInfo(), isolate());
-  Handle<ObjectHashTable> exports =
+  DirectHandle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), module_info->RegularExportCount());
-  Handle<FixedArray> regular_exports =
+  DirectHandle<FixedArray> regular_exports =
       NewFixedArray(module_info->RegularExportCount());
-  Handle<FixedArray> regular_imports =
+  DirectHandle<FixedArray> regular_imports =
       NewFixedArray(module_info->regular_imports()->length());
   int requested_modules_length = module_info->module_requests()->length();
-  Handle<FixedArray> requested_modules =
+  DirectHandle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
@@ -3263,10 +3267,11 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   ReadOnlyRoots roots(isolate());
 
-  Handle<ObjectHashTable> exports =
+  DirectHandle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
-  Handle<Foreign> evaluation_steps_foreign = NewForeign<kGenericForeignTag>(
-      reinterpret_cast<Address>(evaluation_steps));
+  DirectHandle<Foreign> evaluation_steps_foreign =
+      NewForeign<kGenericForeignTag>(
+          reinterpret_cast<Address>(evaluation_steps));
 
   Tagged<SyntheticModule> module = Tagged<SyntheticModule>::cast(
       New(synthetic_module_map(), AllocationType::kOld));
@@ -3285,7 +3290,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
 
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
     std::shared_ptr<BackingStore> backing_store, AllocationType allocation) {
-  Handle<Map> map(
+  DirectHandle<Map> map(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
   ResizableFlag resizable_by_js = ResizableFlag::kNotResizable;
@@ -3334,7 +3339,7 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
       if (!backing_store) return MaybeHandle<JSArrayBuffer>();
     }
   }
-  Handle<Map> map(
+  DirectHandle<Map> map(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
   auto array_buffer = Handle<JSArrayBuffer>::cast(
@@ -3347,7 +3352,7 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  Handle<Map> map(
+  DirectHandle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun()->initial_map(),
       isolate());
   auto result = Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(
@@ -3363,8 +3368,8 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
 
 Handle<JSIteratorResult> Factory::NewJSIteratorResult(
     DirectHandle<Object> value, bool done) {
-  Handle<Map> map(isolate()->native_context()->iterator_result_map(),
-                  isolate());
+  DirectHandle<Map> map(isolate()->native_context()->iterator_result_map(),
+                        isolate());
   Handle<JSIteratorResult> js_iter_result = Handle<JSIteratorResult>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
@@ -3376,8 +3381,8 @@ Handle<JSIteratorResult> Factory::NewJSIteratorResult(
 
 Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
     DirectHandle<JSReceiver> sync_iterator, DirectHandle<Object> next) {
-  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map(),
-                  isolate());
+  DirectHandle<Map> map(
+      isolate()->native_context()->async_from_sync_iterator_map(), isolate());
   Handle<JSAsyncFromSyncIterator> iterator =
       Handle<JSAsyncFromSyncIterator>::cast(
           NewJSObjectFromMap(map, AllocationType::kYoung));
@@ -3389,14 +3394,14 @@ Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
 }
 
 Handle<JSMap> Factory::NewJSMap() {
-  Handle<Map> map(isolate()->native_context()->js_map_map(), isolate());
+  DirectHandle<Map> map(isolate()->native_context()->js_map_map(), isolate());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
   JSMap::Initialize(js_map, isolate());
   return js_map;
 }
 
 Handle<JSSet> Factory::NewJSSet() {
-  Handle<Map> map(isolate()->native_context()->js_set_map(), isolate());
+  DirectHandle<Map> map(isolate()->native_context()->js_set_map(), isolate());
   Handle<JSSet> js_set = Handle<JSSet>::cast(NewJSObjectFromMap(map));
   JSSet::Initialize(js_set, isolate());
   return js_set;
@@ -3569,11 +3574,11 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
                                     DirectHandle<JSReceiver> handler) {
   // Allocate the proxy object.
-  Handle<Map> map = IsCallable(*target)
-                        ? IsConstructor(*target)
-                              ? isolate()->proxy_constructor_map()
-                              : isolate()->proxy_callable_map()
-                        : isolate()->proxy_map();
+  DirectHandle<Map> map = IsCallable(*target)
+                              ? IsConstructor(*target)
+                                    ? isolate()->proxy_constructor_map()
+                                    : isolate()->proxy_callable_map()
+                              : isolate()->proxy_map();
   DCHECK(IsNull(map->prototype(), isolate()));
   Tagged<JSProxy> result =
       Tagged<JSProxy>::cast(New(map, AllocationType::kYoung));
@@ -3587,7 +3592,7 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.
-  Handle<Map> map = NewContextlessMap(JS_GLOBAL_PROXY_TYPE, size);
+  DirectHandle<Map> map = NewContextlessMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
   {
     DisallowGarbageCollection no_gc;
@@ -3612,8 +3617,8 @@ void Factory::ReinitializeJSGlobalProxy(DirectHandle<JSGlobalProxy> object,
   Handle<Map> old_map(object->map(), isolate());
 
   // The proxy's hash should be retained across reinitialization.
-  Handle<Object> raw_properties_or_hash(object->raw_properties_or_hash(),
-                                        isolate());
+  DirectHandle<Object> raw_properties_or_hash(object->raw_properties_or_hash(),
+                                              isolate());
 
   if (old_map->is_prototype_map()) {
     map = Map::Copy(isolate(), map, "CopyAsPrototypeForJSGlobalProxy");
@@ -3647,7 +3652,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     int end_position, DirectHandle<SharedFunctionInfo> shared_info,
     int bytecode_offset, DirectHandle<Script> script,
     DirectHandle<Object> stack_frames) {
-  Handle<Map> map = message_object_map();
+  DirectHandle<Map> map = message_object_map();
   Tagged<JSMessageObject> message_obj =
       Tagged<JSMessageObject>::cast(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
@@ -3697,7 +3702,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 }
 
 Handle<InterpreterData> Factory::NewInterpreterData(
-    Handle<BytecodeArray> bytecode_array, Handle<Code> code) {
+    DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code) {
   Tagged<Map> map = *interpreter_data_map();
   Tagged<InterpreterData> interpreter_data = Tagged<InterpreterData>::cast(
       AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
@@ -3836,8 +3841,9 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
                             !callee->shared()->has_simple_parameters();
-  Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
-                                       : isolate()->sloppy_arguments_map();
+  DirectHandle<Map> map = strict_mode_callee
+                              ? isolate()->strict_arguments_map()
+                              : isolate()->sloppy_arguments_map();
   AllocationSiteUsageContext context(isolate(), Handle<AllocationSite>(),
                                      false);
   DCHECK(!isolate()->has_exception());
@@ -3865,8 +3871,8 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
   // TODO(chromium:1503456): remove once fixed.
   CHECK_LE(0, number_of_properties);
 
-  Handle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
-                               isolate());
+  DirectHandle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
+                                     isolate());
 
   // Check to see whether there is a matching element in the cache.
   Tagged<MaybeObject> result = cache->get(number_of_properties);
@@ -3886,7 +3892,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
 
 Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
                                                   MaybeObjectHandle context) {
-  Handle<Map> map = read_only_roots().mega_dom_handler_map_handle();
+  DirectHandle<Map> map = read_only_roots().mega_dom_handler_map_handle();
   Tagged<MegaDomHandler> handler =
       Tagged<MegaDomHandler>::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -4316,9 +4322,9 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
 Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
                                                 int length) {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<FixedArrayBase> storage =
+  DirectHandle<FixedArrayBase> storage =
       NewFixedArray(length, AllocationType::kSharedOld);
-  Handle<JSSharedArray> instance = Handle<JSSharedArray>::cast(
+  auto instance = Handle<JSSharedArray>::cast(
       NewJSObject(constructor, AllocationType::kSharedOld));
   instance->set_elements(*storage);
   FieldIndex index = FieldIndex::ForDescriptor(
@@ -4330,8 +4336,8 @@ Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
 
 Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map = read_only_roots().js_atomics_mutex_map_handle();
-  Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
+  DirectHandle<Map> map = read_only_roots().js_atomics_mutex_map_handle();
+  auto mutex = Handle<JSAtomicsMutex>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   mutex->set_state(JSAtomicsMutex::kUnlockedUncontended);
   mutex->set_owner_thread_id(ThreadId::Invalid().ToInteger());
@@ -4341,7 +4347,7 @@ Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
 
 Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map = read_only_roots().js_atomics_condition_map_handle();
+  DirectHandle<Map> map = read_only_roots().js_atomics_condition_map_handle();
   Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
@@ -4418,9 +4424,10 @@ Handle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
 }
 
 Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
-    Handle<FixedArray> property_names) {
+    DirectHandle<FixedArray> property_names) {
   const int size = DictionaryTemplateInfo::SizeFor();
-  Handle<Map> map = read_only_roots().dictionary_template_info_map_handle();
+  DirectHandle<Map> map =
+      read_only_roots().dictionary_template_info_map_handle();
   Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
   obj->set_property_names(*property_names);
@@ -4437,7 +4444,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  Handle<Code> code = handle(sfi_->GetCode(isolate_), isolate_);
+  DirectHandle<Code> code(sfi_->GetCode(isolate_), isolate_);
   // Retain the code across the call to BuildRaw, because it allocates and can
   // trigger code to be flushed. Otherwise the SFI's compiled state and the
   // function's compiled state can diverge, and the call to PostInstantiation
@@ -4458,8 +4465,9 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   Isolate* isolate = isolate_;
   Factory* factory = isolate_->factory();
 
-  Handle<Map> map = maybe_map_.ToHandleChecked();
-  Handle<FeedbackCell> feedback_cell = maybe_feedback_cell_.ToHandleChecked();
+  DirectHandle<Map> map = maybe_map_.ToHandleChecked();
+  DirectHandle<FeedbackCell> feedback_cell =
+      maybe_feedback_cell_.ToHandleChecked();
 
   DCHECK(InstanceTypeChecker::IsJSFunction(*map));
 

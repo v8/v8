@@ -124,10 +124,10 @@ BUILTIN(IsTraceCategoryEnabled) {
 BUILTIN(Trace) {
   HandleScope handle_scope(isolate);
 
-  Handle<Object> phase_arg = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> phase_arg = args.atOrUndefined(isolate, 1);
   Handle<Object> category = args.atOrUndefined(isolate, 2);
   Handle<Object> name_arg = args.atOrUndefined(isolate, 3);
-  Handle<Object> id_arg = args.atOrUndefined(isolate, 4);
+  DirectHandle<Object> id_arg = args.atOrUndefined(isolate, 4);
   Handle<Object> data_arg = args.atOrUndefined(isolate, 5);
 
   // Exit early if the category group is not enabled.

@@ -10,7 +10,8 @@ namespace v8 {
 namespace internal {
 namespace {
 
-std::optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
+std::optional<base::TimeDelta> GetTimeoutDelta(
+    DirectHandle<Object> timeout_obj) {
   double ms = Object::NumberValue(*timeout_obj);
   if (!std::isnan(ms)) {
     if (ms < 0) ms = 0;
@@ -22,19 +23,19 @@ std::optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
 }
 
 Handle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(Isolate* isolate) {
-  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
-  Handle<Object> mutex = Handle<Object>(
+  DirectHandle<Context> context(isolate->context(), isolate);
+  DirectHandle<Object> mutex(
       context->get(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
-  Handle<Object> unlock_promise = Handle<Object>(
+  Handle<Object> unlock_promise(
       context->get(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot), isolate);
-  Handle<Object> waiter_wrapper_obj = Handle<Object>(
+  DirectHandle<Object> waiter_wrapper_obj(
       context->get(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
       isolate);
 
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(mutex);
-  Handle<JSPromise> js_unlock_promise = Handle<JSPromise>::cast(unlock_promise);
-  Handle<Foreign> async_locked_waiter_wrapper =
-      Handle<Foreign>::cast(waiter_wrapper_obj);
+  auto js_mutex = DirectHandle<JSAtomicsMutex>::cast(mutex);
+  auto js_unlock_promise = Handle<JSPromise>::cast(unlock_promise);
+  auto async_locked_waiter_wrapper =
+      DirectHandle<Foreign>::cast(waiter_wrapper_obj);
   js_mutex->UnlockAsyncLockedMutex(isolate, async_locked_waiter_wrapper);
   return js_unlock_promise;
 }
@@ -123,7 +124,7 @@ BUILTIN(AtomicsMutexTryLock) {
       success = false;
     }
   }
-  Handle<JSObject> result =
+  DirectHandle<JSObject> result =
       JSAtomicsMutex::CreateResultObject(isolate, callback_result, success);
   return *result;
 }
@@ -182,7 +183,7 @@ BUILTIN(AtomicsMutexLockWithTimeout) {
       success = false;
     }
   }
-  Handle<JSObject> result =
+  DirectHandle<JSObject> result =
       JSAtomicsMutex::CreateResultObject(isolate, callback_result, success);
   return *result;
 }
@@ -293,9 +294,8 @@ BUILTIN(AtomicsConditionWait) {
                                   method_name)));
   }
 
-  Handle<JSAtomicsCondition> js_condition =
-      Handle<JSAtomicsCondition>::cast(js_condition_obj);
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  auto js_condition = DirectHandle<JSAtomicsCondition>::cast(js_condition_obj);
+  auto js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
 
   if (!js_mutex->IsCurrentThreadOwner()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -336,8 +336,7 @@ BUILTIN(AtomicsConditionNotify) {
     count = static_cast<uint32_t>(count_double);
   }
 
-  Handle<JSAtomicsCondition> js_condition =
-      Handle<JSAtomicsCondition>::cast(js_condition_obj);
+  auto js_condition = DirectHandle<JSAtomicsCondition>::cast(js_condition_obj);
   return *isolate->factory()->NewNumberFromUint(
       JSAtomicsCondition::Notify(isolate, js_condition, count));
 }
@@ -370,7 +369,7 @@ BUILTIN(AtomicsConditionWaitAsync) {
 
   Handle<JSAtomicsCondition> js_condition =
       Handle<JSAtomicsCondition>::cast(js_condition_obj);
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  auto js_mutex = DirectHandle<JSAtomicsMutex>::cast(js_mutex_obj);
 
   if (!js_mutex->IsCurrentThreadOwner()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -389,11 +388,11 @@ BUILTIN(AtomicsConditionAcquireLock) {
   DCHECK(v8_flags.harmony_struct);
   HandleScope scope(isolate);
 
-  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+  DirectHandle<Context> context(isolate->context(), isolate);
   Handle<Object> js_mutex_obj = Handle<Object>(
       context->get(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
   Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
-  Handle<JSPromise> lock_promise =
+  DirectHandle<JSPromise> lock_promise =
       JSAtomicsMutex::LockAsyncWrapperForWait(isolate, js_mutex);
   return *lock_promise;
 }

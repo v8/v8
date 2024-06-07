@@ -68,7 +68,7 @@ void ObjectDeserializer::LinkAllocationSites() {
   Heap* heap = isolate()->heap();
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.
-  for (Handle<AllocationSite> site : new_allocation_sites()) {
+  for (DirectHandle<AllocationSite> site : new_allocation_sites()) {
     if (!site->HasWeakNext()) continue;
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes

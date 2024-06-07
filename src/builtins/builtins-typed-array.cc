@@ -26,7 +26,8 @@ BUILTIN(TypedArrayPrototypeBuffer) {
 
 namespace {
 
-int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
+int64_t CapRelativeIndex(DirectHandle<Object> num, int64_t minimum,
+                         int64_t maximum) {
   if (V8_LIKELY(IsSmi(*num))) {
     int64_t relative = Smi::ToInt(*num);
     return relative < 0 ? std::max<int64_t>(relative + maximum, minimum)

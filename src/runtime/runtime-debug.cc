@@ -39,7 +39,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   HandleScope scope(isolate);
 
   // Return value can be changed by debugger. Last set value will be used as
@@ -112,7 +112,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
   DCHECK(function->shared()->BreakAtEntry(isolate));
 
@@ -221,7 +221,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     }
   }
   if (IsJSBoundFunction(*object)) {
-    Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object);
+    auto function = DirectHandle<JSBoundFunction>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -244,8 +244,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     Handle<JSSetIterator> iterator = Handle<JSSetIterator>::cast(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (IsJSGeneratorObject(*object)) {
-    Handle<JSGeneratorObject> generator =
-        Handle<JSGeneratorObject>::cast(object);
+    auto generator = DirectHandle<JSGeneratorObject>::cast(object);
 
     const char* status = "suspended";
     if (generator->is_closed()) {
@@ -269,7 +268,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewStringFromAsciiChecked("[[GeneratorReceiver]]"),
         handle(generator->receiver(), isolate));
   } else if (IsJSPromise(*object)) {
-    Handle<JSPromise> promise = Handle<JSPromise>::cast(object);
+    auto promise = DirectHandle<JSPromise>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -283,7 +282,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
             ? isolate->factory()->undefined_value()
             : handle(promise->result(), isolate));
   } else if (IsJSProxy(*object)) {
-    Handle<JSProxy> js_proxy = Handle<JSProxy>::cast(object);
+    auto js_proxy = DirectHandle<JSProxy>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -298,15 +297,14 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewStringFromAsciiChecked("[[IsRevoked]]"),
         isolate->factory()->ToBoolean(js_proxy->IsRevoked()));
   } else if (IsJSPrimitiveWrapper(*object)) {
-    Handle<JSPrimitiveWrapper> js_value =
-        Handle<JSPrimitiveWrapper>::cast(object);
+    auto js_value = DirectHandle<JSPrimitiveWrapper>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
         handle(js_value->value(), isolate));
   } else if (IsJSWeakRef(*object)) {
-    Handle<JSWeakRef> js_weak_ref = Handle<JSWeakRef>::cast(object);
+    auto js_weak_ref = DirectHandle<JSWeakRef>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -347,7 +345,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                          isolate->factory()->NewNumberFromSize(byte_length));
 
       auto backing_store = js_array_buffer->GetBackingStore();
-      Handle<Object> array_buffer_data =
+      DirectHandle<Object> array_buffer_data =
           backing_store
               ? isolate->factory()->NewNumberFromUint(backing_store->id())
               : isolate->factory()->null_value();
@@ -358,7 +356,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
       Handle<Symbol> memory_symbol =
           isolate->factory()->array_buffer_wasm_memory_symbol();
-      Handle<Object> memory_object =
+      DirectHandle<Object> memory_object =
           JSObject::GetDataProperty(isolate, js_array_buffer, memory_symbol);
       if (!IsUndefined(*memory_object, isolate)) {
         result = ArrayList::Add(isolate, result,
@@ -472,9 +470,9 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CHECK(isolate->debug()->is_active());
-  Handle<JSFunction> fun = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> fun = args.at<JSFunction>(0);
 
-  Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
   // Find the number of break points
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
@@ -521,7 +519,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < instances->length(); i++) {
-    Handle<Script> script(Script::cast(instances->get(i)), isolate);
+    DirectHandle<Script> script(Script::cast(instances->get(i)), isolate);
     instances->set(i, Smi::FromInt(script->id()));
   }
 
@@ -554,7 +552,7 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 
 namespace {
 
-int ScriptLinePosition(Handle<Script> script, int line) {
+int ScriptLinePosition(DirectHandle<Script> script, int line) {
   if (line < 0) return -1;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -630,8 +628,8 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
 }
 
 Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
-                                      Handle<Object> opt_line,
-                                      Handle<Object> opt_column,
+                                      DirectHandle<Object> opt_line,
+                                      DirectHandle<Object> opt_column,
                                       int32_t offset) {
   // Line and column are possibly undefined and we need to handle these cases,
   // additionally subtracting corresponding offsets.
@@ -677,8 +675,8 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   int32_t scriptid = NumberToInt32(args[0]);
-  Handle<Object> opt_line = args.at(1);
-  Handle<Object> opt_column = args.at(2);
+  DirectHandle<Object> opt_line = args.at(1);
+  DirectHandle<Object> opt_column = args.at(2);
   int32_t offset = NumberToInt32(args[3]);
 
   Handle<Script> script;
@@ -696,7 +694,7 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   Handle<Object> receiver = args.at(1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
-    Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
+    DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
     isolate->debug()->DeoptimizeFunction(shared);
     if (isolate->debug()->last_step_action() >= StepInto ||
         isolate->debug()->break_on_next_function_call()) {
@@ -754,7 +752,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   // Create an array of scripts.
   int num_scripts = static_cast<int>(coverage->size());
   // Prepare property keys.
-  Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  DirectHandle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
   Handle<String> script_string = factory->script_string();
   for (int i = 0; i < num_scripts; i++) {
     const auto& script_data = coverage->at(i);
@@ -773,9 +771,9 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
     }
 
     int num_ranges = static_cast<int>(ranges.size());
-    Handle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
+    DirectHandle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
     for (int j = 0; j < num_ranges; j++) {
-      Handle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
+      DirectHandle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
       ranges_array->set(j, *range_object);
     }
 
@@ -814,7 +812,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   Handle<JSPromise> promise = args.at<JSPromise>(0);
   Handle<JSPromise> outer_promise = args.at<JSPromise>(1);
   Handle<JSFunction> reject_handler = args.at<JSFunction>(2);
-  Handle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
+  DirectHandle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
 
   // Allocate the throwaway promise and fire the appropriate init
   // hook for the throwaway promise (passing the {promise} as its
@@ -869,7 +867,7 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSFunction> script_function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> script_function = args.at<JSFunction>(0);
   Handle<String> new_source = args.at<String>(1);
 
   Handle<Script> script(Script::cast(script_function->shared()->script()),

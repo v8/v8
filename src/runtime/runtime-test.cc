@@ -145,8 +145,8 @@ RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> left = args.at<String>(0);
-  Handle<String> right = args.at<String>(1);
+  DirectHandle<String> left = args.at<String>(0);
+  DirectHandle<String> right = args.at<String>(1);
 
   CHECK(left->IsOneByteRepresentation());
   CHECK(right->IsOneByteRepresentation());
@@ -167,7 +167,7 @@ RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   CHECK(string->IsOneByteRepresentation());
   CHECK_LT(index, string->length());
 
-  Handle<String> sliced_string =
+  DirectHandle<String> sliced_string =
       isolate->factory()->NewSubString(string, index, string->length());
   CHECK(IsSlicedString(*sliced_string));
   return *sliced_string;
@@ -180,7 +180,8 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
   }
   Handle<String> string = args.at<String>(0);
   CHECK(string->IsOneByteRepresentation());
-  Handle<String> internalized = isolate->factory()->InternalizeString(string);
+  DirectHandle<String> internalized =
+      isolate->factory()->InternalizeString(string);
   CHECK(IsInternalizedString(*string));
   return *internalized;
 }
@@ -199,7 +200,8 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
                                           string, string->length(), kIsOneByte);
   }
   CHECK(IsConsString(*string));
-  Handle<String> internalized = isolate->factory()->InternalizeString(string);
+  DirectHandle<String> internalized =
+      isolate->factory()->InternalizeString(string);
   CHECK_NE(*internalized, *string);
   CHECK(IsThinString(*string));
   return *string;
@@ -213,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  auto function = DirectHandle<JSFunction>::cast(function_object);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function);
@@ -520,28 +522,28 @@ RUNTIME_FUNCTION(Runtime_BenchTurbofan) {
 RUNTIME_FUNCTION(Runtime_ActiveTierIsIgnition) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   return isolate->heap()->ToBoolean(function->ActiveTierIsIgnition(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsSparkplug) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   return isolate->heap()->ToBoolean(function->ActiveTierIsBaseline(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsMaglev) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   return isolate->heap()->ToBoolean(function->ActiveTierIsMaglev(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsTurbofan) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   return isolate->heap()->ToBoolean(function->ActiveTierIsTurbofan(isolate));
 }
 
@@ -869,8 +871,8 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   if (!IsJSFunction(*function_object, cage_base)) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  Handle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
+  auto function = DirectHandle<JSFunction>::cast(function_object);
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
   CodeKind code_kind = sfi->abstract_code(isolate)->kind(cage_base);
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
@@ -926,7 +928,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (IsUndefined(*function_object)) return Smi::FromInt(status);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
 
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  auto function = DirectHandle<JSFunction>::cast(function_object);
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
   switch (function->tiering_state()) {
@@ -1052,7 +1054,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  auto function = DirectHandle<JSFunction>::cast(function_object);
 
   SharedFunctionInfo::DiscardCompiled(
       isolate, handle(function->shared(isolate), isolate));
@@ -1139,7 +1141,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   function->ClearAllTypeFeedbackInfoForTesting();
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1194,7 +1196,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
     int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
     int length = FixedArrayLenFromSize(space_remaining);
     if (length > 0) {
-      Handle<FixedArray> padding =
+      DirectHandle<FixedArray> padding =
           isolate->factory()->NewFixedArray(length, AllocationType::kYoung);
       DCHECK(heap->new_space()->Contains(*padding));
       space_remaining -= padding->Size();
@@ -1253,7 +1255,7 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
 
   if (args.length() >= 1) {
     HandleScope hs(isolate);
-    Handle<String> filename_as_js_string = args.at<String>(0);
+    DirectHandle<String> filename_as_js_string = args.at<String>(0);
     std::unique_ptr<char[]> buffer = filename_as_js_string->ToCString();
     filename = std::string(buffer.get());
   }
@@ -1507,7 +1509,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> message = args.at<String>(0);
+  DirectHandle<String> message = args.at<String>(0);
   if (v8_flags.disable_abortjs) {
     base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
     return Tagged<Object>();
@@ -1523,7 +1525,7 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> message = args.at<String>(0);
+  DirectHandle<String> message = args.at<String>(0);
   if (base::ControlledCrashesAreHarmless()) {
     base::OS::PrintError(
         "Safely terminating process due to CSA check failure\n");
@@ -1772,7 +1774,7 @@ RUNTIME_FUNCTION(Runtime_RegexpIsUnmodified) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   return isolate->heap()->ToBoolean(
       RegExp::IsUnmodifiedRegExp(isolate, regexp));
 }
@@ -1928,7 +1930,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*object, isolate);
 #else
@@ -1956,7 +1958,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  Handle<JSObject> object = args.at<JSObject>(0);
+  DirectHandle<JSObject> object = args.at<JSObject>(0);
   MapUpdater::CompleteInobjectSlackTracking(isolate, object->map());
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -2066,8 +2068,8 @@ RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<HeapObject> obj1 = args.at<HeapObject>(0);
-  Handle<HeapObject> obj2 = args.at<HeapObject>(1);
+  DirectHandle<HeapObject> obj1 = args.at<HeapObject>(0);
+  DirectHandle<HeapObject> obj2 = args.at<HeapObject>(1);
   return isolate->heap()->ToBoolean(obj1->address() == obj2->address());
 }
 
@@ -2101,7 +2103,7 @@ RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  DirectHandle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(
       IsString(*obj) && String::IsInPlaceInternalizable(String::cast(*obj)));
 }
@@ -2111,7 +2113,7 @@ RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  DirectHandle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(IsInternalizedString(*obj));
 }
 
@@ -2127,7 +2129,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSSynchronizationPrimitive> primitive =
+  DirectHandle<JSSynchronizationPrimitive> primitive =
       args.at<JSSynchronizationPrimitive>(0);
   return primitive->NumWaitersForTesting(isolate);
 }
@@ -2146,7 +2148,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
+  DirectHandle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
 
   return Smi::FromInt(
       EphemeronHashTable::cast(collection->table())->NumberOfElements());

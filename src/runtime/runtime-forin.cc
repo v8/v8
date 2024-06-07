@@ -59,7 +59,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
         if (result.IsNothing()) return MaybeHandle<Object>();
         if (result.FromJust() == ABSENT) {
           // Continue lookup on the proxy's prototype.
-          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          DirectHandle<JSProxy> proxy = it.GetHolder<JSProxy>();
           Handle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
                                      JSProxy::GetPrototype(proxy));

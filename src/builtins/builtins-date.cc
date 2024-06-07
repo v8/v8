@@ -26,7 +26,7 @@ namespace internal {
 
 namespace {
 
-Tagged<Object> SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
+Tagged<Object> SetLocalDateValue(Isolate* isolate, DirectHandle<JSDate> date,
                                  double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {

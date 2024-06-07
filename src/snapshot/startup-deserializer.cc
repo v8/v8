@@ -48,10 +48,10 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     isolate()->heap()->IterateWeakRoots(
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
-    for (Handle<AccessorInfo> info : accessor_infos()) {
+    for (DirectHandle<AccessorInfo> info : accessor_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
-    for (Handle<FunctionTemplateInfo> info : function_template_infos()) {
+    for (DirectHandle<FunctionTemplateInfo> info : function_template_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
 

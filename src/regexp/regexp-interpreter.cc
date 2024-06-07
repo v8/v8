@@ -237,8 +237,8 @@ IrregexpInterpreter::Result MaybeThrowStackOverflow(
 
 template <typename Char>
 void UpdateCodeAndSubjectReferences(
-    Isolate* isolate, Handle<ByteArray> code_array,
-    Handle<String> subject_string, Tagged<ByteArray>* code_array_out,
+    Isolate* isolate, DirectHandle<ByteArray> code_array,
+    DirectHandle<String> subject_string, Tagged<ByteArray>* code_array_out,
     const uint8_t** code_base_out, const uint8_t** pc_out,
     Tagged<String>* subject_string_out,
     base::Vector<const Char>* subject_string_vector_out) {
@@ -1156,8 +1156,9 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
 #endif  // !COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(
-    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject_string,
-    int* output_registers, int output_register_count, int start_position) {
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> subject_string, int* output_registers,
+    int output_register_count, int start_position) {
   return Match(isolate, *regexp, *subject_string, output_registers,
                output_register_count, start_position,
                RegExp::CallOrigin::kFromRuntime);

@@ -198,7 +198,7 @@ class JsonStringifier {
   Result SerializeSmi(Tagged<Smi> object);
 
   Result SerializeDouble(double number);
-  V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
+  V8_INLINE Result SerializeHeapNumber(DirectHandle<HeapNumber> object) {
     return SerializeDouble(object->value());
   }
 
@@ -216,7 +216,7 @@ class JsonStringifier {
       Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
   template <ElementsKind kind>
   V8_INLINE Result SerializeFixedArrayWithPossibleTransitions(
-      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+      DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
   template <ElementsKind kind, typename T>
   V8_INLINE Result SerializeFixedArrayElement(Tagged<T> elements, uint32_t i,
                                               Tagged<JSArray> array,
@@ -348,7 +348,7 @@ class JsonStringifier {
   V8_INLINE void Unindent() { indent_--; }
   V8_INLINE void Separator(bool first);
 
-  Handle<JSReceiver> CurrentHolder(Handle<Object> value,
+  Handle<JSReceiver> CurrentHolder(DirectHandle<Object> value,
                                    Handle<Object> inital_holder);
 
   Result StackPush(Handle<Object> object, Handle<Object> key);
@@ -356,8 +356,8 @@ class JsonStringifier {
 
   // Uses the current stack_ to provide a detailed error message of
   // the objects involved in the circular structure.
-  Handle<String> ConstructCircularStructureErrorMessage(Handle<Object> last_key,
-                                                        size_t start_index);
+  Handle<String> ConstructCircularStructureErrorMessage(
+      DirectHandle<Object> last_key, size_t start_index);
   // The prefix and postfix count do NOT include the starting and
   // closing lines of the error message.
   static const int kCircularErrorMessagePrefixCount = 2;
@@ -525,8 +525,8 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, key, Object::ToString(isolate_, element), false);
       } else if (IsJSPrimitiveWrapper(*element)) {
-        Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(element)->value(),
-                             isolate_);
+        DirectHandle<Object> value(
+            Handle<JSPrimitiveWrapper>::cast(element)->value(), isolate_);
         if (IsNumber(*value) || IsString(*value)) {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate_, key, Object::ToString(isolate_, element), false);
@@ -555,8 +555,8 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   DCHECK_NULL(gap_);
   HandleScope scope(isolate_);
   if (IsJSPrimitiveWrapper(*gap)) {
-    Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(gap)->value(),
-                         isolate_);
+    DirectHandle<Object> value(Handle<JSPrimitiveWrapper>::cast(gap)->value(),
+                               isolate_);
     if (IsString(*value)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
@@ -567,7 +567,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   }
 
   if (IsString(*gap)) {
-    Handle<String> gap_string = Handle<String>::cast(gap);
+    auto gap_string = DirectHandle<String>::cast(gap);
     if (gap_string->length() > 0) {
       int gap_length = std::min(gap_string->length(), 10);
       gap_ = NewArray<base::uc16>(gap_length + 1);
@@ -625,7 +625,7 @@ MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
 }
 
 Handle<JSReceiver> JsonStringifier::CurrentHolder(
-    Handle<Object> value, Handle<Object> initial_holder) {
+    DirectHandle<Object> value, Handle<Object> initial_holder) {
   if (stack_.empty()) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
@@ -663,7 +663,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
         AllowGarbageCollection allow_to_return_error;
         Handle<String> circle_description =
             ConstructCircularStructureErrorMessage(key, i);
-        Handle<Object> error = factory()->NewTypeError(
+        DirectHandle<Object> error = factory()->NewTypeError(
             MessageTemplate::kCircularStructure, circle_description);
         isolate_->Throw(*error);
         return EXCEPTION;
@@ -716,7 +716,7 @@ class CircularStructureMessageBuilder {
  private:
   void AppendConstructorName(Handle<Object> object) {
     builder_.AppendCharacter('\'');
-    Handle<String> constructor_name = JSReceiver::GetConstructorName(
+    DirectHandle<String> constructor_name = JSReceiver::GetConstructorName(
         builder_.isolate(), Handle<JSReceiver>::cast(object));
     builder_.AppendString(constructor_name);
     builder_.AppendCharacter('\'');
@@ -755,7 +755,7 @@ class CircularStructureMessageBuilder {
 };
 
 Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
-    Handle<Object> last_key, size_t start_index) {
+    DirectHandle<Object> last_key, size_t start_index) {
   DCHECK(start_index < stack_.size());
   CircularStructureMessageBuilder builder(isolate_);
 
@@ -1111,11 +1111,11 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
 template <ElementsKind kind>
 JsonStringifier::Result
 JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
-    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+    DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
   static_assert(IsObjectElementsKind(kind));
 
   HandleScope handle_scope(isolate_);
-  Handle<Object> old_length(array->length(), isolate_);
+  DirectHandle<Object> old_length(array->length(), isolate_);
   constexpr bool is_holey = IsHoleyElementsKind(kind);
   bool should_check_treat_hole_as_undefined = true;
   for (uint32_t i = 0; i < length; i++) {
@@ -1249,7 +1249,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
   DCHECK(!object->HasIndexedInterceptor());
   DCHECK(!object->HasNamedInterceptor());
 
-  Handle<Map> map(object->map(cage_base), isolate_);
+  DirectHandle<Map> map(object->map(cage_base), isolate_);
   if (map->NumberOfOwnDescriptors() == 0) {
     AppendCStringLiteral("{}");
     return SUCCESS;

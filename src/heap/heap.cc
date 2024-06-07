@@ -190,7 +190,7 @@ void Heap::SetSerializedGlobalProxySizes(Tagged<FixedArray> sizes) {
   set_serialized_global_proxy_sizes(sizes);
 }
 
-void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
+void Heap::SetBasicBlockProfilingData(DirectHandle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
 
@@ -2209,7 +2209,7 @@ void Heap::EnsureWasmCanonicalRttsSize(int length) {
 
   Handle<WeakArrayList> current_rtts = handle(wasm_canonical_rtts(), isolate_);
   if (length <= current_rtts->length()) return;
-  Handle<WeakArrayList> new_rtts = WeakArrayList::EnsureSpace(
+  DirectHandle<WeakArrayList> new_rtts = WeakArrayList::EnsureSpace(
       isolate(), current_rtts, length, AllocationType::kOld);
   new_rtts->set_length(length);
   set_wasm_canonical_rtts(*new_rtts);
@@ -2220,7 +2220,7 @@ void Heap::EnsureWasmCanonicalRttsSize(int length) {
   Handle<WeakArrayList> current_wrappers =
       handle(js_to_wasm_wrappers(), isolate_);
   if (required_wrapper_length <= current_wrappers->length()) return;
-  Handle<WeakArrayList> new_wrappers =
+  DirectHandle<WeakArrayList> new_wrappers =
       WeakArrayList::EnsureSpace(isolate(), current_wrappers,
                                  required_wrapper_length, AllocationType::kOld);
   new_wrappers->set_length(required_wrapper_length);
@@ -6302,7 +6302,7 @@ void Heap::CompactWeakArrayLists() {
     }
   }
   for (auto& prototype_info : prototype_infos) {
-    Handle<WeakArrayList> array(
+    DirectHandle<WeakArrayList> array(
         WeakArrayList::cast(prototype_info->prototype_users()), isolate());
     DCHECK(InOldSpace(*array) ||
            *array == ReadOnlyRoots(this).empty_weak_array_list());
@@ -6319,7 +6319,7 @@ void Heap::CompactWeakArrayLists() {
   set_script_list(*scripts);
 }
 
-void Heap::AddRetainedMaps(Handle<NativeContext> context,
+void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
                            GlobalHandleVector<Map> maps) {
   Handle<WeakArrayList> array(WeakArrayList::cast(context->retained_maps()),
                               isolate());
@@ -6336,7 +6336,7 @@ void Heap::AddRetainedMaps(Handle<NativeContext> context,
   {
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw_array = *array;
-    for (Handle<Map> map : maps) {
+    for (DirectHandle<Map> map : maps) {
       DCHECK(!InAnySharedSpace(*map));
 
       if (map->is_in_retained_map_list()) {
@@ -6938,7 +6938,7 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(
   set_dirty_js_finalization_registries_list_tail(prev);
 }
 
-void Heap::KeepDuringJob(Handle<HeapObject> target) {
+void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
   DCHECK(IsUndefined(weak_refs_keep_during_job()) ||
          IsOrderedHashSet(weak_refs_keep_during_job()));
   Handle<OrderedHashSet> table;

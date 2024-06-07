@@ -149,7 +149,7 @@ void ConsoleCall(
   if (!isolate->console_delegate()) return;
   HandleScope scope(isolate);
   debug::ConsoleCallArguments wrapper(isolate, args);
-  Handle<Object> context_id_obj = JSObject::GetDataProperty(
+  DirectHandle<Object> context_id_obj = JSObject::GetDataProperty(
       isolate, args.target(), isolate->factory()->console_context_id_symbol());
   int context_id =
       IsSmi(*context_id_obj) ? Smi::cast(*context_id_obj).value() : 0;

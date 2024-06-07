@@ -70,7 +70,7 @@ class SlotAccessorForHeapObject {
             int slot_offset = 0) {
     return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
   }
-  int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
+  int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
   }
@@ -131,7 +131,7 @@ class SlotAccessorForRootSlots {
             int slot_offset = 0) {
     return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
   }
-  int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
+  int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
   }
@@ -304,7 +304,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
 template <typename IsolateT>
 void Deserializer<IsolateT>::Rehash() {
   DCHECK(should_rehash());
-  for (Handle<HeapObject> item : to_rehash_) {
+  for (DirectHandle<HeapObject> item : to_rehash_) {
     item->RehashBasedOnMap(isolate());
   }
 }
@@ -351,7 +351,7 @@ template <typename IsolateT>
 void Deserializer<IsolateT>::LogNewMapEvents() {
   if (V8_LIKELY(!v8_flags.log_maps)) return;
   DisallowGarbageCollection no_gc;
-  for (Handle<Map> map : new_maps_) {
+  for (DirectHandle<Map> map : new_maps_) {
     DCHECK(v8_flags.log_maps);
     LOG(isolate(), MapCreate(*map));
     LOG(isolate(), MapDetails(*map));
@@ -439,10 +439,9 @@ void PostProcessExternalString(Tagged<ExternalString> string,
 
 // Should be called only on the main thread (not thread safe).
 template <>
-void Deserializer<Isolate>::PostProcessNewJSReceiver(Tagged<Map> map,
-                                                     Handle<JSReceiver> obj,
-                                                     InstanceType instance_type,
-                                                     SnapshotSpace space) {
+void Deserializer<Isolate>::PostProcessNewJSReceiver(
+    Tagged<Map> map, DirectHandle<JSReceiver> obj, InstanceType instance_type,
+    SnapshotSpace space) {
   DCHECK_EQ(map->instance_type(), instance_type);
 
   if (InstanceTypeChecker::IsJSDataView(instance_type) ||
@@ -502,13 +501,13 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Tagged<Map> map,
 
 template <>
 void Deserializer<LocalIsolate>::PostProcessNewJSReceiver(
-    Tagged<Map> map, Handle<JSReceiver> obj, InstanceType instance_type,
+    Tagged<Map> map, DirectHandle<JSReceiver> obj, InstanceType instance_type,
     SnapshotSpace space) {
   UNREACHABLE();
 }
 
 template <typename IsolateT>
-void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
+void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
                                                   Handle<HeapObject> obj,
                                                   SnapshotSpace space) {
   DisallowGarbageCollection no_gc;
@@ -616,7 +615,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                     instance_type, space);
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
-    Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
+    auto descriptors = DirectHandle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.Push(*descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     NativeContext::cast(raw_obj)->init_microtask_queue(main_thread_isolate(),

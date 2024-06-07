@@ -57,7 +57,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
   base::ElapsedTimer timer;
   if (v8_flags.profile_deserialization) timer.Start();
-  Handle<Script> script(Script::cast(info->script()), isolate);
+  DirectHandle<Script> script(Script::cast(info->script()), isolate);
   if (v8_flags.trace_serializer) {
     PrintF("[Serializing from");
     ShortPrint(script->name());
@@ -70,7 +70,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Serialize code object.
-  Handle<String> source(String::cast(script->source()), isolate);
+  DirectHandle<String> source(String::cast(script->source()), isolate);
   HandleScope scope(isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
@@ -251,7 +251,7 @@ namespace {
 // functions, otherwise we'll call the builtin IET for those functions (which
 // is not what a user of this flag wants).
 void CreateInterpreterDataForDeserializedCode(
-    Isolate* isolate, Handle<SharedFunctionInfo> result_sfi,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> result_sfi,
     bool log_code_creation) {
   DCHECK_IMPLIES(log_code_creation, isolate->NeedsSourcePositions());
 
@@ -270,10 +270,11 @@ void CreateInterpreterDataForDeserializedCode(
     DCHECK(shared_info->HasBytecodeArray());
     Handle<SharedFunctionInfo> sfi = handle(shared_info, isolate);
 
-    Handle<BytecodeArray> bytecode(sfi->GetBytecodeArray(isolate), isolate);
+    DirectHandle<BytecodeArray> bytecode(sfi->GetBytecodeArray(isolate),
+                                         isolate);
     Handle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
-    Handle<InterpreterData> interpreter_data =
+    DirectHandle<InterpreterData> interpreter_data =
         isolate->factory()->NewInterpreterData(bytecode, code);
 
     if (sfi->HasBaselineCode()) {
@@ -314,7 +315,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
   }
 
   MaybeHandle<SharedFunctionInfo> Finalize(
-      Isolate* isolate, Handle<String> source,
+      Isolate* isolate, DirectHandle<String> source,
       const ScriptDetails& script_details) {
     return CodeSerializer::FinishOffThreadDeserialize(
         isolate, std::move(off_thread_data_), cached_data_, source,
@@ -328,7 +329,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
 };
 
 void FinalizeDeserialization(Isolate* isolate,
-                             Handle<SharedFunctionInfo> result,
+                             DirectHandle<SharedFunctionInfo> result,
                              const base::ElapsedTimer& timer,
                              const ScriptDetails& script_details) {
   // Devtools can report time in this function as profiler overhead, since none
@@ -558,7 +559,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
-    AlignedCachedData* cached_data, Handle<String> source,
+    AlignedCachedData* cached_data, DirectHandle<String> source,
     const ScriptDetails& script_details,
     BackgroundMergeTask* background_merge_task) {
   base::ElapsedTimer timer;
@@ -746,7 +747,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
   return SerializedCodeSanityCheckResult::kSuccess;
 }
 
-uint32_t SerializedCodeData::SourceHash(Handle<String> source,
+uint32_t SerializedCodeData::SourceHash(DirectHandle<String> source,
                                         ScriptOriginOptions origin_options) {
   const uint32_t source_length = source->length();
 

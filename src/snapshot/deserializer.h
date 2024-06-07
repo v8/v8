@@ -250,9 +250,9 @@ class Deserializer : public SerializerDeserializer {
   int ReadRepeatedObject(SlotGetter slot_getter, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
-  void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
+  void PostProcessNewObject(DirectHandle<Map> map, Handle<HeapObject> obj,
                             SnapshotSpace space);
-  void PostProcessNewJSReceiver(Tagged<Map> map, Handle<JSReceiver> obj,
+  void PostProcessNewJSReceiver(Tagged<Map> map, DirectHandle<JSReceiver> obj,
                                 InstanceType instance_type,
                                 SnapshotSpace space);
 

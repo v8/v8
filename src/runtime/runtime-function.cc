@@ -41,10 +41,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> function = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
   if (IsJSFunction(*function)) {
-    Handle<SharedFunctionInfo> shared(
-        Handle<JSFunction>::cast(function)->shared(), isolate);
+    DirectHandle<SharedFunctionInfo> shared(
+        DirectHandle<JSFunction>::cast(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(isolate, shared);
   }
   return ReadOnlyRoots(isolate).undefined_value();

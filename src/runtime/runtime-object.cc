@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNamesTryFast) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
 
-  Handle<Map> map(receiver->map(), isolate);
+  DirectHandle<Map> map(receiver->map(), isolate);
 
   int nod = map->NumberOfOwnDescriptors();
   Handle<FixedArray> keys;
@@ -262,7 +262,7 @@ RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
 
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   HandleScope scope(isolate);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at(2);
 
@@ -853,7 +853,7 @@ RUNTIME_FUNCTION(Runtime_GetDerivedMap) {
   DCHECK_EQ(3, args.length());
   Handle<JSFunction> target = args.at<JSFunction>(0);
   Handle<JSReceiver> new_target = args.at<JSReceiver>(1);
-  Handle<Object> rab_gsab = args.at(2);
+  DirectHandle<Object> rab_gsab = args.at(2);
   if (IsTrue(*rab_gsab)) {
     RETURN_RESULT_OR_FAILURE(
         isolate, JSFunction::GetDerivedRabGsabTypedArrayMap(isolate, target,
@@ -869,7 +869,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<Map> initial_map = args.at<Map>(0);
+  DirectHandle<Map> initial_map = args.at<Map>(0);
   MapUpdater::CompleteInobjectSlackTracking(isolate, *initial_map);
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -889,7 +889,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   return *js_object;
 }
 
-static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
+static bool IsValidAccessor(Isolate* isolate, DirectHandle<Object> obj) {
   return IsNullOrUndefined(*obj, isolate) || IsCallable(*obj);
 }
 
@@ -923,9 +923,9 @@ RUNTIME_FUNCTION(Runtime_SetFunctionName) {
   Handle<Object> value = args.at(0);
   Handle<Name> name = args.at<Name>(1);
   DCHECK(IsJSFunction(*value));
-  Handle<JSFunction> function = Handle<JSFunction>::cast(value);
+  auto function = Handle<JSFunction>::cast(value);
   DCHECK(!function->shared()->HasSharedName());
-  Handle<Map> function_map(function->map(), isolate);
+  DirectHandle<Map> function_map(function->map(), isolate);
   if (!JSFunction::SetName(function, name,
                            isolate->factory()->empty_string())) {
     return ReadOnlyRoots(isolate).exception();
@@ -971,9 +971,9 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
   if (flags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(IsName(*name));
     DCHECK(IsJSFunction(*value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(value);
+    auto function = Handle<JSFunction>::cast(value);
     DCHECK(!function->shared()->HasSharedName());
-    Handle<Map> function_map(function->map(), isolate);
+    DirectHandle<Map> function_map(function->map(), isolate);
     if (!JSFunction::SetName(function, Handle<Name>::cast(name),
                              isolate->factory()->empty_string())) {
       return ReadOnlyRoots(isolate).exception();
@@ -1018,7 +1018,7 @@ RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
 RUNTIME_FUNCTION(Runtime_GetFunctionName) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   return *JSFunction::GetName(isolate, function);
 }
 
@@ -1031,7 +1031,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   auto attrs = PropertyAttributesFromInt(args.smi_value_at(3));
 
   if (String::cast(getter->shared()->Name())->length() == 0) {
-    Handle<Map> getter_map(getter->map(), isolate);
+    DirectHandle<Map> getter_map(getter->map(), isolate);
     if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
@@ -1176,7 +1176,7 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   auto attrs = PropertyAttributesFromInt(args.smi_value_at(3));
 
   if (String::cast(setter->shared()->Name())->length() == 0) {
-    Handle<Map> setter_map(setter->map(), isolate);
+    DirectHandle<Map> setter_map(setter->map(), isolate);
     if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
@@ -1247,8 +1247,8 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
 RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> value = args.at(0);
-  Handle<Object> done = args.at(1);
+  DirectHandle<Object> value = args.at(0);
+  DirectHandle<Object> done = args.at(1);
   return *isolate->factory()->NewJSIteratorResult(
       value, Object::BooleanValue(*done, isolate));
 }
@@ -1315,10 +1315,10 @@ struct PrivateMember {
 
 namespace {
 void CollectPrivateMethodsAndAccessorsFromContext(
-    Isolate* isolate, Handle<Context> context, Handle<String> desc,
+    Isolate* isolate, DirectHandle<Context> context, Handle<String> desc,
     Handle<Object> brand, IsStaticFlag is_static_flag,
     std::vector<PrivateMember>* results) {
-  Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+  DirectHandle<ScopeInfo> scope_info(context->scope_info(), isolate);
   VariableLookupResult lookup_result;
   int context_index = scope_info->ContextSlotIndex(desc, &lookup_result);
   if (context_index == -1 ||
@@ -1355,19 +1355,19 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
 
   if (IsJSFunction(*receiver)) {
     Handle<JSFunction> func(JSFunction::cast(*receiver), isolate);
-    Handle<SharedFunctionInfo> shared(func->shared(), isolate);
+    DirectHandle<SharedFunctionInfo> shared(func->shared(), isolate);
     if (shared->is_class_constructor() &&
         shared->has_static_private_methods_or_accessors()) {
-      Handle<Context> recevier_context(JSFunction::cast(*receiver)->context(),
-                                       isolate);
+      DirectHandle<Context> receiver_context(
+          JSFunction::cast(*receiver)->context(), isolate);
       CollectPrivateMethodsAndAccessorsFromContext(
-          isolate, recevier_context, desc, func, IsStaticFlag::kStatic,
+          isolate, receiver_context, desc, func, IsStaticFlag::kStatic,
           results);
     }
   }
 
   for (int i = 0; i < keys->length(); ++i) {
-    Handle<Object> obj_key(keys->get(i), isolate);
+    DirectHandle<Object> obj_key(keys->get(i), isolate);
     Handle<Symbol> symbol(Symbol::cast(*obj_key), isolate);
     CHECK(symbol->is_private_name());
     Handle<Object> value;
@@ -1376,12 +1376,13 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
         Nothing<bool>());
 
     if (symbol->is_private_brand()) {
-      Handle<Context> value_context(Context::cast(*value), isolate);
+      DirectHandle<Context> value_context(Context::cast(*value), isolate);
       CollectPrivateMethodsAndAccessorsFromContext(
           isolate, value_context, desc, symbol, IsStaticFlag::kNotStatic,
           results);
     } else {
-      Handle<String> symbol_desc(String::cast(symbol->description()), isolate);
+      DirectHandle<String> symbol_desc(String::cast(symbol->description()),
+                                       isolate);
       if (symbol_desc->Equals(*desc)) {
         results->push_back({
             PrivateMemberType::kPrivateField,
@@ -1435,7 +1436,7 @@ MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(result.value);
+      auto pair = DirectHandle<AccessorPair>::cast(result.value);
       if (IsNull(pair->getter())) {
         THROW_NEW_ERROR(
             isolate,
@@ -1459,8 +1460,7 @@ MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
 
   switch (result.type) {
     case PrivateMemberType::kPrivateField: {
-      Handle<Symbol> symbol =
-          Handle<Symbol>::cast(result.brand_or_field_symbol);
+      auto symbol = Handle<Symbol>::cast(result.brand_or_field_symbol);
       return Object::SetProperty(isolate, receiver, symbol, value,
                                  StoreOrigin::kMaybeKeyed);
     }
@@ -1471,7 +1471,7 @@ MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(result.value);
+      auto pair = DirectHandle<AccessorPair>::cast(result.value);
       if (IsNull(pair->setter())) {
         THROW_NEW_ERROR(
             isolate,
@@ -1523,7 +1523,7 @@ RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<AccessorPair> pair = args.at<AccessorPair>(0);
+  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
   DCHECK(IsJSFunction(pair->setter()));
   return pair->setter();
 }
@@ -1531,7 +1531,7 @@ RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
 RUNTIME_FUNCTION(Runtime_LoadPrivateGetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  Handle<AccessorPair> pair = args.at<AccessorPair>(0);
+  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
   DCHECK(IsJSFunction(pair->getter()));
   return pair->getter();
 }
@@ -1541,7 +1541,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   DCHECK_EQ(args.length(), 2);
   DCHECK(IsNull(args[0]) || IsJSFunction(args[0]));
   DCHECK(IsNull(args[1]) || IsJSFunction(args[1]));
-  Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
+  DirectHandle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
   pair->SetComponents(args[0], args[1]);
   return *pair;
 }
@@ -1561,8 +1561,8 @@ RUNTIME_FUNCTION(Runtime_SwissTableAllocate) {
 RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
   HandleScope scope(isolate);
   Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
-  Handle<Name> key = args.at<Name>(1);
-  Handle<Object> value = args.at(2);
+  DirectHandle<Name> key = args.at<Name>(1);
+  DirectHandle<Object> value = args.at(2);
   PropertyDetails details(Smi::cast(args[3]));
 
   DCHECK(IsUniqueName(*key));

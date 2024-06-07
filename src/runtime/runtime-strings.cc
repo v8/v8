@@ -264,11 +264,11 @@ RUNTIME_FUNCTION(Runtime_StringCodePointAt) {
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<FixedArray> array = args.at<FixedArray>(0);
+  DirectHandle<FixedArray> array = args.at<FixedArray>(0);
 
   int array_length = args.smi_value_at(1);
 
-  Handle<String> special = args.at<String>(2);
+  DirectHandle<String> special = args.at<String>(2);
 
   // This assumption is used by the slice encoding in one or two smis.
   DCHECK_GE(Smi::kMaxValue, String::kMaxLength);
@@ -330,7 +330,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   const int length =
       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
+  DirectHandle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
   bool elements_are_initialized = false;
 
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
@@ -358,7 +358,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 
   if (!elements_are_initialized) {
     for (int i = 0; i < length; ++i) {
-      Handle<Object> str =
+      DirectHandle<Object> str =
           isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
       elements->set(i, *str);
     }
@@ -474,7 +474,7 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   }
 
   // Build the replacement string.
-  Handle<String> replacement =
+  DirectHandle<String> replacement =
       isolate->factory()->NewStringFromAsciiChecked("&quot;");
   const int estimated_part_count = static_cast<int>(indices.size()) * 2 + 1;
   ReplacementStringBuilder builder(isolate->heap(), string,
@@ -516,7 +516,7 @@ RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
   // String::IsWellFormedUnicode would have returned true above otherwise.
   DCHECK(!String::IsOneByteRepresentationUnderneath(*source));
   const int length = source->length();
-  Handle<SeqTwoByteString> dest =
+  DirectHandle<SeqTwoByteString> dest =
       isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
   DisallowGarbageCollection no_gc;
   String::FlatContent source_contents = source->GetFlatContent(no_gc);

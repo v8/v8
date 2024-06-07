@@ -33,10 +33,10 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> constructor = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> constructor = args.at<JSFunction>(0);
   Handle<String> name(constructor->shared()->Name(), isolate);
 
-  Handle<Context> context = handle(constructor->native_context(), isolate);
+  DirectHandle<Context> context(constructor->native_context(), isolate);
   DCHECK(IsNativeContext(*context));
   Handle<JSFunction> realm_type_error_function(
       JSFunction::cast(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
@@ -77,7 +77,7 @@ namespace {
 
 Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
                                         Handle<Object> constructor,
-                                        Handle<JSFunction> function) {
+                                        DirectHandle<JSFunction> function) {
   DirectHandle<String> super_name;
   if (IsJSFunction(*constructor)) {
     super_name = direct_handle(
@@ -111,7 +111,7 @@ RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<Object> constructor = args.at(0);
-  Handle<JSFunction> function = args.at<JSFunction>(1);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(1);
   return ThrowNotSuperConstructor(isolate, constructor, function);
 }
 
@@ -141,7 +141,7 @@ template <typename Dictionary>
 MaybeHandle<Object> GetMethodAndSetName(Isolate* isolate,
                                         RuntimeArguments& args,
                                         Tagged<Smi> index,
-                                        Handle<String> name_prefix,
+                                        DirectHandle<String> name_prefix,
                                         Handle<Object> key) {
   int int_index = index.value();
 
@@ -181,7 +181,7 @@ Tagged<Object> GetMethodWithSharedName(Isolate* isolate, RuntimeArguments& args,
     return args[int_index];
   }
 
-  Handle<JSFunction> method = args.at<JSFunction>(int_index);
+  DirectHandle<JSFunction> method = args.at<JSFunction>(int_index);
   DCHECK(method->shared()->HasSharedName());
   return *method;
 }
@@ -214,7 +214,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     Handle<Object> key(maybe_key, isolate);
     Handle<Object> value(dictionary->ValueAt(i), isolate);
     if (IsAccessorPair(*value)) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
+      auto pair = DirectHandle<AccessorPair>::cast(value);
       Tagged<Object> tmp = pair->getter();
       if (IsSmi(tmp)) {
         Handle<Object> result;
@@ -253,33 +253,33 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
 
 template <typename Dictionary>
 void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
-                      Handle<Dictionary> properties_dictionary) {
+                      DirectHandle<Dictionary> properties_dictionary) {
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : properties_dictionary->IterateEntries()) {
     Tagged<Object> maybe_key = properties_dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
-    Handle<Name> name(Name::cast(maybe_key), isolate);
+    DirectHandle<Name> name(Name::cast(maybe_key), isolate);
     LookupIterator::UpdateProtector(isolate, receiver, name);
   }
 }
 
 void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
-                      Handle<DescriptorArray> properties_template) {
+                      DirectHandle<DescriptorArray> properties_template) {
   int nof_descriptors = properties_template->number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
-    Handle<Name> name(properties_template->GetKey(i), isolate);
+    DirectHandle<Name> name(properties_template->GetKey(i), isolate);
     LookupIterator::UpdateProtector(isolate, receiver, name);
   }
 }
 
 bool AddDescriptorsByTemplate(
-    Isolate* isolate, Handle<Map> map,
-    Handle<DescriptorArray> descriptors_template,
+    Isolate* isolate, DirectHandle<Map> map,
+    DirectHandle<DescriptorArray> descriptors_template,
     Handle<NumberDictionary> elements_dictionary_template,
     Handle<JSObject> receiver, RuntimeArguments& args) {
   int nof_descriptors = descriptors_template->number_of_descriptors();
 
-  Handle<DescriptorArray> descriptors =
+  DirectHandle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, nof_descriptors, 0);
 
   Handle<NumberDictionary> elements_dictionary =
@@ -299,7 +299,7 @@ bool AddDescriptorsByTemplate(
       count++;
     }
   }
-  Handle<PropertyArray> property_array =
+  DirectHandle<PropertyArray> property_array =
       isolate->factory()->NewPropertyArray(count);
 
   // Read values from |descriptors_template| and store possibly post-processed
@@ -308,7 +308,7 @@ bool AddDescriptorsByTemplate(
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     Tagged<Object> value = descriptors_template->GetStrongValue(i);
     if (IsAccessorPair(value)) {
-      Handle<AccessorPair> pair = AccessorPair::Copy(
+      DirectHandle<AccessorPair> pair = AccessorPair::Copy(
           isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
@@ -399,10 +399,10 @@ Handle<T> ToHandle(MaybeHandle<T> h) {
 
 template <typename Dictionary>
 bool AddDescriptorsByTemplate(
-    Isolate* isolate, Handle<Map> map,
+    Isolate* isolate, DirectHandle<Map> map,
     Handle<Dictionary> properties_dictionary_template,
     Handle<NumberDictionary> elements_dictionary_template,
-    Handle<FixedArray> computed_properties, Handle<JSObject> receiver,
+    DirectHandle<FixedArray> computed_properties, Handle<JSObject> receiver,
     RuntimeArguments& args) {
   int computed_properties_length = computed_properties->length();
 
@@ -451,7 +451,8 @@ bool AddDescriptorsByTemplate(
     return false;
   }
 
-  UpdateProtectors(isolate, receiver, properties_dictionary);
+  UpdateProtectors(isolate, receiver,
+                   DirectHandle<Dictionary>(properties_dictionary));
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
@@ -477,15 +478,15 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 
   // TODO(ishell) Support caching of zero in-object properties map
   // by ObjectLiteralMapFromCache().
-  Handle<Map> map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = Map::Create(isolate, 0);
   return isolate->factory()->NewJSObjectFromMap(map);
 }
 
 bool InitClassPrototype(Isolate* isolate,
-                        Handle<ClassBoilerplate> class_boilerplate,
+                        DirectHandle<ClassBoilerplate> class_boilerplate,
                         Handle<JSObject> prototype,
                         Handle<HeapObject> prototype_parent,
-                        Handle<JSFunction> constructor,
+                        DirectHandle<JSFunction> constructor,
                         RuntimeArguments& args) {
   Handle<Map> map(prototype->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
@@ -494,7 +495,7 @@ bool InitClassPrototype(Isolate* isolate,
   isolate->UpdateProtectorsOnSetPrototype(prototype, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
   map->SetConstructor(*constructor);
-  Handle<FixedArray> computed_properties(
+  DirectHandle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
   Handle<NumberDictionary> elements_dictionary_template(
       NumberDictionary::cast(class_boilerplate->instance_elements_template()),
@@ -504,8 +505,8 @@ bool InitClassPrototype(Isolate* isolate,
       class_boilerplate->instance_properties_template(), isolate);
 
   if (IsDescriptorArray(*properties_template)) {
-    Handle<DescriptorArray> descriptors_template =
-        Handle<DescriptorArray>::cast(properties_template);
+    auto descriptors_template =
+        DirectHandle<DescriptorArray>::cast(properties_template);
 
     // The size of the prototype object is known at this point.
     // So we can create it now and then add the rest instance methods to the
@@ -519,7 +520,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    Handle<PropertyDictionary> properties_dictionary_template =
+    auto properties_dictionary_template =
         Handle<PropertyDictionary>::cast(properties_template);
     return AddDescriptorsByTemplate(
         isolate, map, properties_dictionary_template,
@@ -528,7 +529,7 @@ bool InitClassPrototype(Isolate* isolate,
 }
 
 bool InitClassConstructor(Isolate* isolate,
-                          Handle<ClassBoilerplate> class_boilerplate,
+                          DirectHandle<ClassBoilerplate> class_boilerplate,
                           Handle<HeapObject> constructor_parent,
                           Handle<JSFunction> constructor,
                           RuntimeArguments& args) {
@@ -547,15 +548,15 @@ bool InitClassConstructor(Isolate* isolate,
   Handle<NumberDictionary> elements_dictionary_template(
       NumberDictionary::cast(class_boilerplate->static_elements_template()),
       isolate);
-  Handle<FixedArray> computed_properties(
+  DirectHandle<FixedArray> computed_properties(
       class_boilerplate->static_computed_properties(), isolate);
 
   Handle<Object> properties_template(
       class_boilerplate->static_properties_template(), isolate);
 
   if (IsDescriptorArray(*properties_template)) {
-    Handle<DescriptorArray> descriptors_template =
-        Handle<DescriptorArray>::cast(properties_template);
+    auto descriptors_template =
+        DirectHandle<DescriptorArray>::cast(properties_template);
 
     return AddDescriptorsByTemplate(isolate, map, descriptors_template,
                                     elements_dictionary_template, constructor,
@@ -569,14 +570,14 @@ bool InitClassConstructor(Isolate* isolate,
     map->set_construction_counter(Map::kNoSlackTracking);
 
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      Handle<SwissNameDictionary> properties_dictionary_template =
+      auto properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, constructor, args);
     } else {
-      Handle<NameDictionary> properties_dictionary_template =
+      auto properties_dictionary_template =
           Handle<NameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
@@ -585,11 +586,10 @@ bool InitClassConstructor(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> DefineClass(Isolate* isolate,
-                                Handle<ClassBoilerplate> class_boilerplate,
-                                Handle<Object> super_class,
-                                Handle<JSFunction> constructor,
-                                RuntimeArguments& args) {
+MaybeHandle<Object> DefineClass(
+    Isolate* isolate, DirectHandle<ClassBoilerplate> class_boilerplate,
+    Handle<Object> super_class, Handle<JSFunction> constructor,
+    RuntimeArguments& args) {
   Handle<Object> prototype_parent;
   Handle<HeapObject> constructor_parent;
 
@@ -660,7 +660,8 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
   DCHECK_LE(ClassBoilerplate::kFirstDynamicArgumentIndex, args.length());
-  Handle<ClassBoilerplate> class_boilerplate = args.at<ClassBoilerplate>(0);
+  DirectHandle<ClassBoilerplate> class_boilerplate =
+      args.at<ClassBoilerplate>(0);
   Handle<JSFunction> constructor = args.at<JSFunction>(1);
   Handle<Object> super_class = args.at(2);
   DCHECK_EQ(class_boilerplate->arguments_count(), args.length());

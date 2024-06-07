@@ -943,7 +943,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<InterpreterData> NewInterpreterData(
-      Handle<BytecodeArray> bytecode_array, Handle<Code> code);
+      DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code);
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode & kWithPrototypeBits) != 0;
@@ -1037,7 +1037,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache);
 
   Handle<DictionaryTemplateInfo> NewDictionaryTemplateInfo(
-      Handle<FixedArray> property_names);
+      DirectHandle<FixedArray> property_names);
 
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {

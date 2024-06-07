@@ -172,12 +172,11 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           Object::GetLengthFromArrayLike(isolate_, object));
       double length = Object::NumberValue(*length_object);
       if (pass_source_to_reviver) {
-        Handle<FixedArray> val_nodes_and_snapshots =
-            Handle<FixedArray>::cast(val_node);
+        auto val_nodes_and_snapshots = DirectHandle<FixedArray>::cast(val_node);
         int snapshot_length = val_nodes_and_snapshots->length() / 2;
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
-          Handle<Object> index = isolate_->factory()->NewNumber(i);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
               isolate_->factory()->NumberToString(index);
           // Even if the array pointer snapshot matched, it's possible the
@@ -199,7 +198,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       } else {
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
-          Handle<Object> index = isolate_->factory()->NewNumber(i);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
               isolate_->factory()->NumberToString(index);
           if (!RecurseAndApply<kWithoutSource>(
@@ -216,8 +215,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString));
       if (pass_source_to_reviver) {
-        Handle<ObjectTwoHashTable> val_nodes_and_snapshots =
-            Handle<ObjectTwoHashTable>::cast(val_node);
+        auto val_nodes_and_snapshots =
+            DirectHandle<ObjectTwoHashTable>::cast(val_node);
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(String::cast(contents->get(i)), isolate_);
@@ -526,7 +525,7 @@ JsonParser<Char>::~JsonParser() {
 }
 
 template <typename Char>
-MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
+MaybeHandle<Object> JsonParser<Char>::ParseJson(DirectHandle<Object> reviver) {
   Handle<Object> result;
   // Only record the val node when reviver is callable.
   bool reviver_is_callable = IsCallable(*reviver);
@@ -824,7 +823,7 @@ class JSDataObjectBuilder {
     Handle<String> key;
     bool existing_map_found = TryFastTransitionToPropertyKey(get_key, &key);
     // Unconditionally get the value after getting the transition result.
-    Handle<Object> value = get_value();
+    DirectHandle<Object> value = get_value();
     if (existing_map_found) {
       // We found a map with a field for our value -- now make sure that field
       // is compatible with our value.
@@ -874,8 +873,8 @@ class JSDataObjectBuilder {
   }
 
   template <typename ValueIterator>
-  V8_INLINE void CreateAndInitialiseObject(ValueIterator value_it,
-                                           Handle<FixedArrayBase> elements) {
+  V8_INLINE void CreateAndInitialiseObject(
+      ValueIterator value_it, DirectHandle<FixedArrayBase> elements) {
     // We've created a map for the first `i` property stack values (which might
     // be all of them). We need to write these properties to a newly allocated
     // object.
@@ -1035,7 +1034,7 @@ class JSDataObjectBuilder {
     return true;
   }
 
-  V8_INLINE bool TryGeneralizeFieldToValue(Handle<Object> value) {
+  V8_INLINE bool TryGeneralizeFieldToValue(DirectHandle<Object> value) {
     DCHECK_LT(current_property_index_, map_->NumberOfOwnDescriptors());
 
     InternalIndex descriptor_index(current_property_index_);
@@ -1163,7 +1162,7 @@ class JSDataObjectBuilder {
                   isolate_);
   }
 
-  V8_INLINE void RegisterFieldNeedsFreshHeapNumber(Handle<Object> value) {
+  V8_INLINE void RegisterFieldNeedsFreshHeapNumber(DirectHandle<Object> value) {
     // We need to allocate a new HeapNumber for double representation fields if
     // the HeapNumber values is not guaranteed to be uniquely owned by this
     // object (and therefore can't be made mutable), or if the value is a Smi
@@ -1310,7 +1309,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
-        Handle<Object> value = property.value;
+        DirectHandle<Object> value = property.value;
         raw_elements->set(static_cast<int>(index), *value, mode);
       }
       elements = elms;
@@ -1825,7 +1824,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           if constexpr (should_track_json_source) {
             size_t start = cont.index;
             int num_elements = static_cast<int>(element_stack_.size() - start);
-            Handle<FixedArray> val_node_and_snapshot_array =
+            DirectHandle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
             DisallowGarbageCollection no_gc;
             Tagged<FixedArray> raw_val_node_and_snapshot_array =

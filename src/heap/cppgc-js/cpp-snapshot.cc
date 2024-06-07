@@ -385,7 +385,7 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
   if (!(v8_value->IsValue() && v8_value.As<v8::Value>()->IsObject()))
     return nullptr;
 
-  Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
+  DirectHandle<Object> v8_object = Utils::OpenDirectHandle(*v8_value);
   if (!IsJSObject(*v8_object) ||
       !JSObject::cast(*v8_object)->MayHaveEmbedderFields()) {
     return nullptr;

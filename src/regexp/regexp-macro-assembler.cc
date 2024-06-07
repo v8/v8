@@ -130,7 +130,7 @@ int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
 }
 
 bool Equals(const ZoneList<CharacterRange>* lhs,
-            const Handle<FixedUInt16Array>& rhs) {
+            const DirectHandle<FixedUInt16Array>& rhs) {
   const int rhs_length = rhs->length();
   if (rhs_length != RangeArrayLengthFor(lhs)) return false;
   for (int i = 0; i < lhs->length(); i++) {
@@ -317,9 +317,9 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 
   // Prepare for possible GC.
   HandleScope handles(isolate);
-  Handle<InstructionStream> code_handle(re_code, isolate);
-  Handle<String> subject_handle(String::cast(Tagged<Object>(*subject)),
-                                isolate);
+  DirectHandle<InstructionStream> code_handle(re_code, isolate);
+  DirectHandle<String> subject_handle(String::cast(Tagged<Object>(*subject)),
+                                      isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
 
@@ -367,8 +367,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
-int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
-                                      Handle<String> subject,
+int NativeRegExpMacroAssembler::Match(DirectHandle<JSRegExp> regexp,
+                                      DirectHandle<String> subject,
                                       int* offsets_vector,
                                       int offsets_vector_length,
                                       int previous_index, Isolate* isolate) {

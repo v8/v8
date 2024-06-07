@@ -16,7 +16,7 @@ namespace internal {
 
 // static
 Handle<String> RegExpUtils::GenericCaptureGetter(
-    Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture,
+    Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info, int capture,
     bool* ok) {
   const int capture_start_index = RegExpMatchInfo::capture_start_index(capture);
   if (capture_start_index >= match_info->number_of_capture_registers()) {
@@ -138,7 +138,8 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   }
 }
 
-bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
+bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
+                                     DirectHandle<Object> obj) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   if (isolate->force_slow_path()) return false;
 #endif
@@ -153,7 +154,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   Tagged<Object> proto = recv->map()->prototype();
   if (!IsJSReceiver(proto)) return false;
 
-  Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
+  DirectHandle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
   Tagged<Map> proto_map = JSReceiver::cast(proto)->map();
   if (proto_map != *initial_proto_initial_map) {
     return false;
@@ -185,8 +186,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   return IsSmi(last_index) && Smi::ToInt(last_index) >= 0;
 }
 
-uint64_t RegExpUtils::AdvanceStringIndex(Handle<String> string, uint64_t index,
-                                         bool unicode) {
+uint64_t RegExpUtils::AdvanceStringIndex(DirectHandle<String> string,
+                                         uint64_t index, bool unicode) {
   DCHECK_LE(static_cast<double>(index), kMaxSafeInteger);
   const uint64_t string_length = static_cast<uint64_t>(string->length());
   if (unicode && index < string_length) {
@@ -204,7 +205,7 @@ uint64_t RegExpUtils::AdvanceStringIndex(Handle<String> string, uint64_t index,
 }
 
 MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
-    Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
+    Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
     bool unicode) {
   Handle<Object> last_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION(

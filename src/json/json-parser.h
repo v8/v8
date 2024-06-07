@@ -211,7 +211,7 @@ class JsonParser final {
   ~JsonParser();
 
   // Parse a string containing a single JSON value.
-  MaybeHandle<Object> ParseJson(Handle<Object> reviver);
+  MaybeHandle<Object> ParseJson(DirectHandle<Object> reviver);
 
   bool ParseRawJson();
 

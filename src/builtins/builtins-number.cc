@@ -58,7 +58,8 @@ BUILTIN(NumberPrototypeToExponential) {
                     ? -1
                     : static_cast<int>(fraction_digits_number);
   char* const str = DoubleToExponentialCString(value_number, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -103,7 +104,8 @@ BUILTIN(NumberPrototypeToFixed) {
   }
   char* const str = DoubleToFixedCString(
       value_number, static_cast<int>(fraction_digits_number));
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -181,7 +183,8 @@ BUILTIN(NumberPrototypeToPrecision) {
   }
   char* const str = DoubleToPrecisionCString(
       value_number, static_cast<int>(precision_number));
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }

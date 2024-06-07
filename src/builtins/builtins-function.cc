@@ -153,9 +153,8 @@ BUILTIN(AsyncFunctionConstructor) {
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
-  Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
-  Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+  auto func = DirectHandle<JSFunction>::cast(maybe_func);
+  DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -172,9 +171,8 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
-  Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
-  Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+  auto func = DirectHandle<JSFunction>::cast(maybe_func);
+  DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -214,7 +212,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, proto, JSReceiver::GetPrototype(isolate, target));
   } else if (proto_source == ProtoSource::kNormalFunction) {
-    Handle<NativeContext> native_context(
+    DirectHandle<NativeContext> native_context(
         isolate->global_object()->native_context(), isolate);
     auto function_proto = native_context->function_function()->prototype();
     proto = handle(HeapObject::cast(function_proto), isolate);

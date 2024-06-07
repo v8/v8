@@ -63,9 +63,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
-  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+  DirectHandle<CallableTask> microtask = isolate->factory()->NewCallableTask(
       function, handle(function->native_context(), isolate));
   MicrotaskQueue* microtask_queue =
       function->native_context()->microtask_queue();
@@ -129,7 +129,7 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   DCHECK_EQ(3, args.length());
   Handle<JSPromise> promise = args.at<JSPromise>(0);
   Handle<Object> reason = args.at(1);
-  Handle<Boolean> debug_event = args.at<Boolean>(2);
+  DirectHandle<Boolean> debug_event = args.at<Boolean>(2);
   return *JSPromise::Reject(promise, reason,
                             Object::BooleanValue(*debug_event, isolate));
 }
@@ -152,7 +152,7 @@ RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
   DCHECK_EQ(4, args.length());
   Handle<JSFunction> target = args.at<JSFunction>(0);
   Handle<Object> new_target = args.at(1);
-  Handle<Object> message = args.at(2);
+  DirectHandle<Object> message = args.at(2);
   Handle<Object> options = args.at(3);
 
   DCHECK_EQ(*target, *isolate->aggregate_error_function());

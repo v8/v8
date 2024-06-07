@@ -136,7 +136,7 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
   return true;
 }
 
-bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
+bool IntoOneAndTwoByte(DirectHandle<String> uri, bool is_uri,
                        std::vector<uint8_t>* one_byte_buffer,
                        std::vector<base::uc16>* two_byte_buffer) {
   DisallowGarbageCollection no_gc;
@@ -505,7 +505,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 }  // anonymous namespace
 
 MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
-  Handle<String> result;
+  DirectHandle<String> result;
   string = String::Flatten(isolate, string);
   return String::IsOneByteRepresentationUnderneath(*string)
              ? EscapePrivate<uint8_t>(isolate, string)
@@ -513,7 +513,7 @@ MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
 }
 
 MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
-  Handle<String> result;
+  DirectHandle<String> result;
   string = String::Flatten(isolate, string);
   return String::IsOneByteRepresentationUnderneath(*string)
              ? UnescapePrivate<uint8_t>(isolate, string)

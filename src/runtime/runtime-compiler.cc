@@ -20,12 +20,12 @@ namespace v8 {
 namespace internal {
 
 namespace {
-void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
+void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   DCHECK(v8_flags.log_function_events);
   if (!function->has_feedback_vector()) return;
   if (!function->feedback_vector()->log_next_execution()) return;
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  Handle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  DirectHandle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw_sfi = *sfi;
   std::string event_name = "first-execution";
@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     return isolate->StackOverflow();
   }
 
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
 
   DCHECK(!function->is_compiled(isolate));
 #ifdef DEBUG
@@ -75,8 +75,8 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DCHECK(sfi->HasBaselineCode());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
   DCHECK(!function->HasAvailableOptimizedCode(isolate));
@@ -149,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
 RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> js_function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> js_function = args.at<JSFunction>(0);
   DCHECK(v8_flags.log_function_events);
   LogExecution(isolate, js_function);
   return js_function->code(isolate);
@@ -158,7 +158,7 @@ RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
   DCHECK(function->shared()->is_compiled());
 
@@ -177,7 +177,7 @@ enum AsmJsInstantiateResult {
 RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 4);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
   Handle<JSReceiver> stdlib;
   if (IsJSReceiver(args[1])) {
@@ -191,10 +191,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (IsJSArrayBuffer(args[3])) {
     memory = args.at<JSArrayBuffer>(3);
   }
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
 #if V8_ENABLE_WEBASSEMBLY
   if (shared->HasAsmWasmData()) {
-    Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
+    DirectHandle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
@@ -344,14 +344,14 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  Handle<JSFunction> function = deoptimizer->function();
+  DirectHandle<JSFunction> function = deoptimizer->function();
   if (v8_flags.profile_guided_optimization) {
     function->shared()->set_cached_tiering_decision(
         CachedTieringDecision::kNormal);
   }
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
+  DirectHandle<Code> optimized_code = deoptimizer->compiled_code();
   const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
   const DeoptimizeReason deopt_reason =
       deoptimizer->GetDeoptInfo().deopt_reason;
@@ -413,7 +413,7 @@ RUNTIME_FUNCTION(Runtime_ObserveNode) {
   // code compiled by TurboFan.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> obj = args.at(0);
+  DirectHandle<Object> obj = args.at(0);
   return *obj;
 }
 
@@ -421,7 +421,7 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   // %VerifyType has no effect in the interpreter.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> obj = args.at(0);
+  DirectHandle<Object> obj = args.at(0);
   return *obj;
 }
 
@@ -429,7 +429,7 @@ RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
   // %CheckTurboshaftTypeOf has no effect in the interpreter.
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> obj = args.at(0);
+  DirectHandle<Object> obj = args.at(0);
   return *obj;
 }
 
@@ -668,7 +668,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
 
-  Handle<Object> callee = args.at(0);
+  DirectHandle<Object> callee = args.at(0);
 
   // If "eval" didn't refer to the original GlobalEval, it's not a
   // direct call to eval.

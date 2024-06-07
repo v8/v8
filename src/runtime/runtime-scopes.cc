@@ -61,7 +61,7 @@ Tagged<Object> DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
                              Handle<String> name, Handle<Object> value,
                              PropertyAttributes attr, bool is_var,
                              RedeclarationType redeclaration_type) {
-  Handle<ScriptContextTable> script_contexts(
+  DirectHandle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate);
   VariableLookupResult lookup;
   if (script_contexts->Lookup(name, &lookup) &&
@@ -135,8 +135,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  Handle<FixedArray> declarations = args.at<FixedArray>(0);
-  Handle<JSFunction> closure = args.at<JSFunction>(1);
+  DirectHandle<FixedArray> declarations = args.at<FixedArray>(0);
+  DirectHandle<JSFunction> closure = args.at<JSFunction>(1);
 
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       Handle<ClosureFeedbackCellArray>::null();
@@ -150,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
 
   Handle<Context> context(isolate->context(), isolate);
   DCHECK(context->IsModuleContext());
-  Handle<FixedArray> exports(
+  DirectHandle<FixedArray> exports(
       SourceTextModule::cast(context->extension())->regular_exports(), isolate);
 
   int length = declarations->length();
@@ -183,8 +183,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  Handle<FixedArray> declarations = args.at<FixedArray>(0);
-  Handle<JSFunction> closure = args.at<JSFunction>(1);
+  DirectHandle<FixedArray> declarations = args.at<FixedArray>(0);
+  DirectHandle<JSFunction> closure = args.at<JSFunction>(1);
 
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
@@ -244,7 +244,7 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<JSDisposableStack> disposable_stack =
+  DirectHandle<JSDisposableStack> disposable_stack =
       isolate->factory()->NewJSDisposableStack();
   JSDisposableStack::Initialize(isolate, disposable_stack);
   return *disposable_stack;
@@ -254,7 +254,7 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  Handle<JSDisposableStack> stack = args.at<JSDisposableStack>(0);
+  DirectHandle<JSDisposableStack> stack = args.at<JSDisposableStack>(0);
   Handle<Object> value = args.at<Object>(1);
 
   // a. If V is either null or undefined and hint is sync-dispose, return
@@ -280,8 +280,9 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<JSDisposableStack> disposable_stack = args.at<JSDisposableStack>(0);
-  Handle<Smi> continuation_token = args.at<Smi>(1);
+  DirectHandle<JSDisposableStack> disposable_stack =
+      args.at<JSDisposableStack>(0);
+  DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
 
   MAYBE_RETURN(
@@ -490,11 +491,11 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
-      Handle<Context> context(isolate->context(), isolate);
-      Handle<FixedArray> arguments = isolate->factory()->NewFixedArray(
+      DirectHandle<Context> context(isolate->context(), isolate);
+      DirectHandle<FixedArray> arguments = isolate->factory()->NewFixedArray(
           argument_count, AllocationType::kYoung);
 
-      Handle<SloppyArgumentsElements> parameter_map =
+      DirectHandle<SloppyArgumentsElements> parameter_map =
           isolate->factory()->NewSloppyArgumentsElements(
               mapped_count, context, arguments, AllocationType::kYoung);
 
@@ -510,7 +511,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         --index;
       }
 
-      Handle<ScopeInfo> scope_info(callee->shared()->scope_info(), isolate);
+      DirectHandle<ScopeInfo> scope_info(callee->shared()->scope_info(),
+                                         isolate);
 
       // First mark all mappable slots as unmapped and copy the values into the
       // arguments object.
@@ -534,7 +536,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
     } else {
       // If there is no aliasing, the arguments object elements are not
       // special in any way.
-      Handle<FixedArray> elements = isolate->factory()->NewFixedArray(
+      DirectHandle<FixedArray> elements = isolate->factory()->NewFixedArray(
           argument_count, AllocationType::kYoung);
       result->set_elements(*elements);
       for (int i = 0; i < argument_count; ++i) {
@@ -589,10 +591,10 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   int argument_count = 0;
   std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
-  Handle<JSObject> result =
+  DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
   if (argument_count) {
-    Handle<FixedArray> array =
+    DirectHandle<FixedArray> array =
         isolate->factory()->NewFixedArray(argument_count);
     DisallowGarbageCollection no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
@@ -608,7 +610,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> callee = args.at<JSFunction>(0);
   int start_index =
       callee->shared()->internal_formal_parameter_count_without_receiver();
   // This generic runtime function can also be used when the caller has been
@@ -617,7 +619,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
-  Handle<JSObject> result = isolate->factory()->NewJSArray(
+  DirectHandle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
       ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
   if (num_elements == 0) return *result;
@@ -662,9 +664,9 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
+  DirectHandle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
 
-  Handle<Context> outer(isolate->context(), isolate);
+  DirectHandle<Context> outer(isolate->context(), isolate);
   return *isolate->factory()->NewFunctionContext(outer, scope_info);
 }
 
@@ -672,9 +674,9 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSReceiver> extension_object = args.at<JSReceiver>(0);
-  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
-  Handle<Context> current(isolate->context(), isolate);
+  DirectHandle<JSReceiver> extension_object = args.at<JSReceiver>(0);
+  DirectHandle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
+  DirectHandle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewWithContext(current, scope_info,
                                              extension_object);
 }
@@ -683,9 +685,9 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> thrown_object = args.at(0);
-  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
-  Handle<Context> current(isolate->context(), isolate);
+  DirectHandle<Object> thrown_object = args.at(0);
+  DirectHandle<ScopeInfo> scope_info = args.at<ScopeInfo>(1);
+  DirectHandle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewCatchContext(current, scope_info,
                                               thrown_object);
 }
@@ -694,8 +696,8 @@ RUNTIME_FUNCTION(Runtime_PushCatchContext) {
 RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
-  Handle<Context> current(isolate->context(), isolate);
+  DirectHandle<ScopeInfo> scope_info = args.at<ScopeInfo>(0);
+  DirectHandle<Context> current(isolate->context(), isolate);
   return *isolate->factory()->NewBlockContext(current, scope_info);
 }
 
@@ -968,17 +970,17 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> name = args.at<String>(0);
-  Handle<Object> value = args.at(1);
+  DirectHandle<Object> value = args.at(1);
 
-  Handle<Context> native_context = isolate->native_context();
-  Handle<ScriptContextTable> script_contexts(
+  DirectHandle<Context> native_context = isolate->native_context();
+  DirectHandle<ScriptContextTable> script_contexts(
       native_context->script_context_table(), isolate);
 
   VariableLookupResult lookup_result;
   bool found = script_contexts->Lookup(name, &lookup_result);
   CHECK(found);
-  Handle<Context> script_context =
-      handle(script_contexts->get(lookup_result.context_index), isolate);
+  DirectHandle<Context> script_context(
+      script_contexts->get(lookup_result.context_index), isolate);
   // We need to initialize the side data also for variables declared with
   // VariableMode::kConst. This is because such variables can be accessed
   // by functions using the LdaContextSlot bytecode, and such accesses are not

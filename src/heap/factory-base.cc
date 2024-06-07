@@ -78,7 +78,7 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 
 template <typename Impl>
 Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
-  Handle<CodeWrapper> wrapper = NewCodeWrapper();
+  DirectHandle<CodeWrapper> wrapper = NewCodeWrapper();
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
   Tagged<Code> code = Tagged<Code>::cast(
@@ -341,7 +341,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
-  Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
+  DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().bytecode_array_map());
@@ -517,7 +517,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
 template <typename Impl>
 Handle<SharedFunctionInfoWrapper>
 FactoryBase<Impl>::NewSharedFunctionInfoWrapper(
-    Handle<SharedFunctionInfo> sfi) {
+    DirectHandle<SharedFunctionInfo> sfi) {
   Tagged<Map> map = read_only_roots().shared_function_info_wrapper_map();
   Tagged<SharedFunctionInfoWrapper> wrapper = SharedFunctionInfoWrapper::cast(
       NewWithImmortalMap(map, AllocationType::kTrusted));
@@ -1330,7 +1330,7 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
   }
 
   int meta_table_length = SwissNameDictionary::MetaTableSizeFor(capacity);
-  Handle<ByteArray> meta_table =
+  DirectHandle<ByteArray> meta_table =
       impl()->NewByteArray(meta_table_length, allocation);
 
   Tagged<Map> map = read_only_roots().swiss_name_dictionary_map();

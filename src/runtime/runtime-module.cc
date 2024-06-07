@@ -26,7 +26,7 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
   DCHECK_GE(3, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   Handle<Object> specifier = args.at(1);
 
   MaybeHandle<Object> import_options;
@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   int module_request = args.smi_value_at(0);
-  Handle<SourceTextModule> module(isolate->context()->module(), isolate);
+  DirectHandle<SourceTextModule> module(isolate->context()->module(), isolate);
   return *SourceTextModule::GetModuleNamespace(isolate, module, module_request);
 }
 
@@ -60,7 +60,8 @@ RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
 RUNTIME_FUNCTION(Runtime_GetModuleNamespaceExport) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSModuleNamespace> module_namespace = args.at<JSModuleNamespace>(0);
+  DirectHandle<JSModuleNamespace> module_namespace =
+      args.at<JSModuleNamespace>(0);
   Handle<String> name = args.at<String>(1);
   if (!module_namespace->HasExport(isolate, name)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

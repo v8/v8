@@ -272,8 +272,8 @@ class NfaInterpreter {
     } else {
       DCHECK(call_origin_ == RegExp::CallOrigin::kFromRuntime);
       HandleScope handles(isolate_);
-      Handle<ByteArray> bytecode_handle(bytecode_object_, isolate_);
-      Handle<String> input_handle(input_object_, isolate_);
+      DirectHandle<ByteArray> bytecode_handle(bytecode_object_, isolate_);
+      DirectHandle<String> input_handle(input_object_, isolate_);
 
       if (check.JsHasOverflowed()) {
         // We abort the interpreter now anyway, so gc can't invalidate any

@@ -628,7 +628,7 @@ class Heap final {
   void SetSerializedObjects(Tagged<HeapObject> objects);
   void SetSerializedGlobalProxySizes(Tagged<FixedArray> sizes);
 
-  void SetBasicBlockProfilingData(Handle<ArrayList> list);
+  void SetBasicBlockProfilingData(DirectHandle<ArrayList> list);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
@@ -648,7 +648,7 @@ class Heap final {
 
   void CompactWeakArrayLists();
 
-  V8_EXPORT_PRIVATE void AddRetainedMaps(Handle<NativeContext> context,
+  V8_EXPORT_PRIVATE void AddRetainedMaps(DirectHandle<NativeContext> context,
                                          GlobalHandleVector<Map> maps);
 
   // This event is triggered after object is moved to a new place.
@@ -923,7 +923,7 @@ class Heap final {
     return is_finalization_registry_cleanup_task_posted_;
   }
 
-  V8_EXPORT_PRIVATE void KeepDuringJob(Handle<HeapObject> target);
+  V8_EXPORT_PRIVATE void KeepDuringJob(DirectHandle<HeapObject> target);
   void ClearKeptObjects();
 
   // ===========================================================================
@@ -1764,7 +1764,8 @@ class Heap final {
   void ResumeConcurrentThreadsInClients(std::vector<Isolate*> paused_clients);
 
   // For static-roots builds, pads the object to the required size.
-  void StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj, int required);
+  void StaticRootsEnsureAllocatedSize(DirectHandle<HeapObject> obj,
+                                      int required);
   bool CreateEarlyReadOnlyMapsAndObjects();
   bool CreateImportantReadOnlyObjects();
   bool CreateLateReadOnlyNonJSReceiverMaps();
@@ -2027,7 +2028,7 @@ class Heap final {
       AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates a heap object based on the map.
-  V8_WARN_UNUSED_RESULT AllocationResult Allocate(Handle<Map> map,
+  V8_WARN_UNUSED_RESULT AllocationResult Allocate(DirectHandle<Map> map,
                                                   AllocationType allocation);
 
   // Allocates a partial map for bootstrapping.

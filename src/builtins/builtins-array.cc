@@ -155,7 +155,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
 V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
     Isolate* isolate, Handle<JSReceiver> receiver) {
   if (IsJSArray(*receiver)) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    auto array = DirectHandle<JSArray>::cast(receiver);
     double length = Object::NumberValue(array->length());
     DCHECK(0 <= length && length <= kMaxSafeInteger);
 
@@ -670,7 +670,7 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<HeapObject> storage,
+  ArrayConcatVisitor(Isolate* isolate, DirectHandle<HeapObject> storage,
                      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
@@ -763,9 +763,9 @@ class ArrayConcatVisitor {
   Handle<JSArray> ToArray() {
     DCHECK(is_fixed_array());
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
-    Handle<Object> length =
+    DirectHandle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
-    Handle<Map> map = JSObject::GetElementsTransitionMap(
+    DirectHandle<Map> map = JSObject::GetElementsTransitionMap(
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     {
       DisallowGarbageCollection no_gc;
@@ -797,7 +797,7 @@ class ArrayConcatVisitor {
   // Convert storage to dictionary mode.
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
-    Handle<FixedArray> current_storage = storage_fixed_array();
+    DirectHandle<FixedArray> current_storage = storage_fixed_array();
     Handle<NumberDictionary> slow_storage(
         NumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
@@ -855,7 +855,7 @@ class ArrayConcatVisitor {
   uint32_t bit_field_;
 };
 
-uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
+uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
   DisallowGarbageCollection no_gc;
   uint32_t length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   int element_count = 0;
@@ -963,7 +963,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         DCHECK_EQ(object->elements()->length(), 0);
         break;
       }
-      Handle<FixedDoubleArray> elements(
+      DirectHandle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(object->elements()), isolate);
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
@@ -1028,10 +1028,9 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
       DCHECK(IsJSPrimitiveWrapper(*object));
-      Handle<JSPrimitiveWrapper> js_value =
-          Handle<JSPrimitiveWrapper>::cast(object);
+      auto js_value = DirectHandle<JSPrimitiveWrapper>::cast(object);
       DCHECK(IsString(js_value->value()));
-      Handle<String> string(String::cast(js_value->value()), isolate);
+      DirectHandle<String> string(String::cast(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());
       uint32_t i = 0;
       uint32_t limit = std::min(length, range);
@@ -1111,7 +1110,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
   uint32_t length = 0;
 
   if (IsJSArray(*receiver)) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    auto array = DirectHandle<JSArray>::cast(receiver);
     length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   } else {
     Handle<Object> val;
@@ -1152,7 +1151,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
+      DirectHandle<FixedArray> elements(FixedArray::cast(array->elements()),
+                                        isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
@@ -1187,7 +1187,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         DCHECK_EQ(array->elements()->length(), 0);
         break;
       }
-      Handle<FixedDoubleArray> elements(
+      DirectHandle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(array->elements()), isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
@@ -1218,7 +1218,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       // Disallow execution so the cached dictionary won't change mid execution.
       DisallowJavascriptExecution no_js(isolate);
 
-      Handle<NumberDictionary> dict(array->element_dictionary(), isolate);
+      DirectHandle<NumberDictionary> dict(array->element_dictionary(), isolate);
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
 
@@ -1309,7 +1309,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     uint32_t length_estimate;
     uint32_t element_estimate;
     if (IsJSArray(*obj)) {
-      Handle<JSArray> array(Handle<JSArray>::cast(obj));
+      auto array = DirectHandle<JSArray>::cast(obj);
       length_estimate =
           static_cast<uint32_t>(Object::NumberValue(array->length()));
       if (length_estimate != 0) {
@@ -1355,10 +1355,9 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     int j = 0;
     bool failure = false;
     if (estimate_result_length > 0) {
-      Handle<FixedDoubleArray> double_storage =
-          Handle<FixedDoubleArray>::cast(storage);
+      auto double_storage = DirectHandle<FixedDoubleArray>::cast(storage);
       for (int i = 0; i < argument_count; i++) {
-        Handle<Object> obj = args->at(i);
+        DirectHandle<Object> obj = args->at(i);
         if (IsSmi(*obj)) {
           double_storage->set(j, Smi::ToInt(*obj));
           j++;
@@ -1492,7 +1491,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   }
 }
 
-bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
+bool IsSimpleArray(Isolate* isolate, DirectHandle<JSArray> obj) {
   DisallowGarbageCollection no_gc;
   Tagged<Map> map = obj->map();
   // If there is only the 'length' property we are fine.
@@ -1533,7 +1532,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       if (!JSObject::cast(arg)->HasFastElements()) {
         return MaybeHandle<JSArray>();
       }
-      Handle<JSArray> array(JSArray::cast(arg), isolate);
+      DirectHandle<JSArray> array(JSArray::cast(arg), isolate);
       if (!IsSimpleArray(isolate, array)) {
         return MaybeHandle<JSArray>();
       }

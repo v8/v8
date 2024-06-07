@@ -60,7 +60,7 @@ static V8_INLINE bool CheckForName(Isolate* isolate, Handle<Name> name,
 
 // Returns true for properties that are accessors to object fields.
 // If true, *object_offset contains offset of object field.
-bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
+bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
                                         Handle<Name> name, FieldIndex* index) {
   if (map->is_dictionary_map()) {
     // There are not descriptors in a dictionary mode map.
@@ -362,8 +362,8 @@ void Accessors::FunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionLengthGetter);
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  auto function =
+      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
   int length = function->length();
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -382,8 +382,8 @@ void Accessors::FunctionNameGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  auto function =
+      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result = JSFunction::GetName(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -424,12 +424,12 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
 
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(function, argument_count);
-  Handle<FixedArray> array = factory->NewFixedArray(argument_count);
+  DirectHandle<FixedArray> array = factory->NewFixedArray(argument_count);
   for (int i = 0; i < argument_count; ++i) {
     // If we materialize any object, we should deoptimize the frame because we
     // might alias an object that was eliminated by escape analysis.
     should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
-    Handle<Object> value = iter->GetValue();
+    DirectHandle<Object> value = iter->GetValue();
     array->set(i, *value);
     iter++;
   }
@@ -443,7 +443,8 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
   return arguments;
 }
 
-int FindFunctionInFrame(JavaScriptFrame* frame, Handle<JSFunction> function) {
+int FindFunctionInFrame(JavaScriptFrame* frame,
+                        DirectHandle<JSFunction> function) {
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
   for (size_t i = frames.size(); i != 0; i--) {
@@ -473,7 +474,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   Handle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+  DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(length);
 
   // Copy the parameters to the arguments object.
   DCHECK(array->length() == length);
@@ -493,9 +494,9 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   // update them with the deopt info, while keeping the length and extra
   // arguments from the actual frame.
   if (CodeKindCanDeoptimize(frame->LookupCode()->kind()) && length > 0) {
-    Handle<JSObject> arguments_from_deopt_info =
+    DirectHandle<JSObject> arguments_from_deopt_info =
         ArgumentsFromDeoptInfo(frame, function_index);
-    Handle<FixedArray> elements_from_deopt_info(
+    DirectHandle<FixedArray> elements_from_deopt_info(
         FixedArray::cast(arguments_from_deopt_info->elements()), isolate);
     int common_length = std::min(length, elements_from_deopt_info->length());
     for (int i = 0; i < common_length; i++) {
@@ -527,8 +528,8 @@ void Accessors::FunctionArgumentsGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  auto function =
+      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result = isolate->factory()->null_value();
   if (!function->shared()->native()) {
     // Find the top invocation of the function by traversing frames.
@@ -780,8 +781,8 @@ void Accessors::WrappedFunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   HandleScope scope(isolate);
-  Handle<JSWrappedFunction> function =
-      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  auto function = DirectHandle<JSWrappedFunction>::cast(
+      Utils::OpenDirectHandle(*info.Holder()));
 
   int length = 0;
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
@@ -823,8 +824,8 @@ void Accessors::WrappedFunctionNameGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kWrappedFunctionNameGetter);
   HandleScope scope(isolate);
-  Handle<JSWrappedFunction> function =
-      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  auto function = DirectHandle<JSWrappedFunction>::cast(
+      Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
     return;

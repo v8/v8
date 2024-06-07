@@ -251,15 +251,15 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
-    Handle<WeakArrayList> wrappers =
-        handle(isolate->heap()->js_to_wasm_wrappers(), isolate);
+    DirectHandle<WeakArrayList> wrappers(isolate->heap()->js_to_wasm_wrappers(),
+                                         isolate);
     for (int i = 0; i < wrappers->length(); ++i) {
       wrappers->Set(i, Tagged<MaybeObject>{});
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
-    for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
+    for (i::DirectHandle<i::SharedFunctionInfo> shared : sfis_to_clear) {
       if (shared->CanDiscardCompiled()) {
         i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
       }
@@ -340,7 +340,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 // static
 void Snapshot::SerializeDeserializeAndVerifyForTesting(
-    Isolate* isolate, Handle<Context> default_context) {
+    Isolate* isolate, DirectHandle<Context> default_context) {
   StartupData serialized_data;
   std::unique_ptr<const char[]> auto_delete_serialized_data;
 
@@ -389,7 +389,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
           CHECK(Snapshot::Initialize(new_isolate));
 
           HandleScope scope(new_isolate);
-          Handle<Context> new_native_context =
+          DirectHandle<Context> new_native_context =
               new_isolate->bootstrapper()->CreateEnvironmentForTesting();
           CHECK(IsNativeContext(*new_native_context));
 
@@ -969,13 +969,13 @@ size_t SnapshotCreatorImpl::AddContext(
   return index;
 }
 
-size_t SnapshotCreatorImpl::AddData(Handle<NativeContext> context,
+size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
                                     Address object) {
   CHECK_EQ(isolate_, context->GetIsolate());
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Tagged<Object>(object), isolate_);
+  DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
@@ -993,7 +993,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Tagged<Object>(object), isolate_);
+  DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
@@ -1018,21 +1018,21 @@ void ConvertSerializedObjectsToFixedArray(Isolate* isolate) {
     isolate->heap()->SetSerializedObjects(
         ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
-    Handle<ArrayList> list(
+    DirectHandle<ArrayList> list(
         ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
-    Handle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
+    DirectHandle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
     isolate->heap()->SetSerializedObjects(*elements);
   }
 }
 
 void ConvertSerializedObjectsToFixedArray(Isolate* isolate,
-                                          Handle<NativeContext> context) {
+                                          DirectHandle<NativeContext> context) {
   if (!IsArrayList(context->serialized_objects())) {
     context->set_serialized_objects(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
-    Handle<ArrayList> list(ArrayList::cast(context->serialized_objects()),
-                           isolate);
-    Handle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
+    DirectHandle<ArrayList> list(ArrayList::cast(context->serialized_objects()),
+                                 isolate);
+    DirectHandle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
     context->set_serialized_objects(*elements);
   }
 }
@@ -1064,8 +1064,9 @@ StartupData SnapshotCreatorImpl::CreateBlob(
 
     // We need to store the global proxy size upfront in case we need the
     // bootstrapper to create a global proxy before we deserialize the context.
-    Handle<FixedArray> global_proxy_sizes = isolate_->factory()->NewFixedArray(
-        static_cast<int>(num_additional_contexts), AllocationType::kOld);
+    DirectHandle<FixedArray> global_proxy_sizes =
+        isolate_->factory()->NewFixedArray(
+            static_cast<int>(num_additional_contexts), AllocationType::kOld);
     for (size_t i = kFirstAddtlContextIndex; i < num_contexts; i++) {
       global_proxy_sizes->set(
           static_cast<int>(i - kFirstAddtlContextIndex),

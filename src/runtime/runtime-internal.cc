@@ -182,7 +182,7 @@ const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
 RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Map> map = args.at<Map>(0);
+  DirectHandle<Map> map = args.at<Map>(0);
   Handle<String> problem_string = args.at<String>(1);
 
   ElementsKind kind = map->elements_kind();
@@ -599,7 +599,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetTurboProfilingData) {
 
   std::stringstream stats_stream;
   BasicBlockProfiler::Get()->Log(isolate, stats_stream);
-  Handle<String> result =
+  DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
   BasicBlockProfiler::Get()->ResetCounts(isolate);
   return *result;
@@ -626,7 +626,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     // Without arguments, the result is returned as a string.
     std::stringstream stats_stream;
     isolate->counters()->runtime_call_stats()->Print(stats_stream);
-    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(
+    DirectHandle<String> result = isolate->factory()->NewStringFromAsciiChecked(
         stats_stream.str().c_str());
     isolate->counters()->runtime_call_stats()->Reset();
     return *result;
@@ -635,7 +635,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   std::FILE* f;
   if (IsString(args[0])) {
     // With a string argument, the results are appended to that file.
-    Handle<String> filename = args.at<String>(0);
+    DirectHandle<String> filename = args.at<String>(0);
     f = std::fopen(filename->ToCString().get(), "a");
     DCHECK_NOT_NULL(f);
   } else {
@@ -646,7 +646,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
   // The second argument (if any) is a message header to be printed.
   if (args.length() >= 2) {
-    Handle<String> message = args.at<String>(1);
+    DirectHandle<String> message = args.at<String>(1);
     message->PrintOn(f);
     std::fputc('\n', f);
     std::fflush(f);
@@ -682,14 +682,14 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
 RUNTIME_FUNCTION(Runtime_Typeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   return *Object::TypeOf(isolate, object);
 }
 
 RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> target = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> target = args.at<JSFunction>(0);
   Handle<JSObject> global_proxy(target->global_proxy(), isolate);
   return *isolate->factory()->ToBoolean(
       Builtins::AllowDynamicFunction(isolate, target, global_proxy));
@@ -719,13 +719,13 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
 RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<TemplateObjectDescription> description =
+  DirectHandle<TemplateObjectDescription> description =
       args.at<TemplateObjectDescription>(0);
-  Handle<SharedFunctionInfo> shared_info = args.at<SharedFunctionInfo>(1);
+  DirectHandle<SharedFunctionInfo> shared_info = args.at<SharedFunctionInfo>(1);
   int slot_id = args.smi_value_at(2);
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
+  DirectHandle<NativeContext> native_context(
+      isolate->context()->native_context(), isolate);
   return *TemplateObjectDescription::GetTemplateObject(
       isolate, native_context, description, shared_info, slot_id);
 }
@@ -742,7 +742,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   DCHECK(!isolate->has_exception());
   isolate->set_exception(*exception);
   MessageLocation* no_location = nullptr;
-  Handle<JSMessageObject> message =
+  DirectHandle<JSMessageObject> message =
       isolate->CreateMessageOrAbort(exception, no_location);
   MessageHandler::ReportMessage(isolate, no_location, message);
   isolate->clear_exception();
@@ -755,7 +755,7 @@ RUNTIME_FUNCTION(Runtime_GetInitializerFunction) {
 
   Handle<JSReceiver> constructor = args.at<JSReceiver>(0);
   Handle<Symbol> key = isolate->factory()->class_fields_symbol();
-  Handle<Object> initializer =
+  DirectHandle<Object> initializer =
       JSReceiver::GetDataProperty(isolate, constructor, key);
   return *initializer;
 }
@@ -768,7 +768,8 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   CHECK(Object::ToInt32(args[1], &radix));
 
   char* const str = DoubleToRadixCString(number, radix);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -786,8 +787,8 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
 RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForConstTrackingLet) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<ConstTrackingLetCell> const_tracking_let_cell =
-      Handle<ConstTrackingLetCell>::cast(args.at<HeapObject>(0));
+  auto const_tracking_let_cell =
+      DirectHandle<ConstTrackingLetCell>::cast(args.at<HeapObject>(0));
   DependentCode::DeoptimizeDependencyGroups(
       isolate, *const_tracking_let_cell,
       DependentCode::kConstTrackingLetChangedGroup);

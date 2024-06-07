@@ -40,7 +40,7 @@ BUILTIN(DataViewConstructor) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
   }
-  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
+  auto array_buffer = DirectHandle<JSArrayBuffer>::cast(buffer);
 
   // 3. Let offset be ? ToIndex(byteOffset).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -121,8 +121,7 @@ BUILTIN(DataViewConstructor) {
         JSObject::New(target, new_target, Handle<AllocationSite>::null(),
                       NewJSObjectType::kAPIWrapper));
   }
-  Handle<JSDataViewOrRabGsabDataView> data_view =
-      Handle<JSDataViewOrRabGsabDataView>::cast(result);
+  auto data_view = DirectHandle<JSDataViewOrRabGsabDataView>::cast(result);
   {
     // Must fully initialize the JSDataViewOrRabGsabDataView here so that it
     // passes ObjectVerify, which may for example be triggered when allocating

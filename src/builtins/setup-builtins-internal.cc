@@ -152,10 +152,11 @@ V8_NOINLINE Tagged<Code> BuildWithMacroAssembler(
   masm.GetCode(isolate->main_thread_local_isolate(), &desc,
                MacroAssembler::kNoSafepointTable, handler_table_offset);
 
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
 #if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin, masm.GetUnwindInfo());
 #endif  // V8_OS_WIN64
@@ -174,10 +175,11 @@ Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
   Builtins::Generate_Adaptor(&masm, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
   return *code;
 }
 
@@ -191,7 +193,7 @@ V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerJS(
   compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
                                      name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
@@ -211,7 +213,7 @@ V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerCS(
   compiler::CodeAssemblerState state(isolate, &zone, descriptor,
                                      CodeKind::BUILTIN, name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
@@ -235,7 +237,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   HandleScope scope(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Handle<Code> placeholder = BuildPlaceholder(isolate, builtin);
+    DirectHandle<Code> placeholder = BuildPlaceholder(isolate, builtin);
     AddBuiltin(builtins, builtin, *placeholder);
   }
 }
@@ -298,7 +300,7 @@ V8_NOINLINE Tagged<Code> GenerateBytecodeHandler(
     Isolate* isolate, Builtin builtin, interpreter::OperandScale operand_scale,
     interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  Handle<Code> code = interpreter::GenerateBytecodeHandler(
+  DirectHandle<Code> code = interpreter::GenerateBytecodeHandler(
       isolate, Builtins::name(builtin), bytecode, operand_scale, builtin,
       BuiltinAssemblerOptions(isolate, builtin));
   return *code;

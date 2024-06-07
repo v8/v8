@@ -162,7 +162,7 @@ void Factory::NumberToStringCacheSet(DirectHandle<Object> number, int hash,
       !v8_flags.optimize_for_size) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
-      Handle<FixedArray> new_cache =
+      DirectHandle<FixedArray> new_cache =
           NewFixedArray(full_size, AllocationType::kOld);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;

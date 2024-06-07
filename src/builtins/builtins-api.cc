@@ -204,7 +204,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object>
 HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
                                              bool is_construct_call,
                                              BuiltinArguments args) {
-  Handle<Object> receiver = args.receiver();
+  DirectHandle<Object> receiver = args.receiver();
 
   // Get the object called.
   Tagged<JSObject> obj = JSObject::cast(*receiver);

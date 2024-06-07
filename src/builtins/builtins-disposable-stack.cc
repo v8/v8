@@ -27,7 +27,7 @@ BUILTIN(DisposableStackConstructor) {
   // 2. Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget,
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //    [[DisposeCapability]] »).
-  Handle<JSDisposableStack> disposable_stack =
+  DirectHandle<JSDisposableStack> disposable_stack =
       isolate->factory()->NewJSDisposableStack();
   // 3. Set disposableStack.[[DisposableState]] to pending.
   // 4. Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
@@ -120,7 +120,7 @@ BUILTIN(DisposableStackPrototypeGetDisposed) {
 BUILTIN(DisposableStackPrototypeAdopt) {
   const char* const kMethodName = "DisposableStack.prototype.adopt";
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(1);
+  DirectHandle<Object> value = args.at(1);
   Handle<Object> on_dispose = args.at(2);
 
   // 1. Let disposableStack be the this value.
@@ -218,7 +218,7 @@ BUILTIN(DisposableStackPrototypeMove) {
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //     [[DisposeCapability]] »).
   // 5. Set newDisposableStack.[[DisposableState]] to pending.
-  Handle<JSDisposableStack> new_disposable_stack =
+  DirectHandle<JSDisposableStack> new_disposable_stack =
       isolate->factory()->NewJSDisposableStack();
 
   // 6. Set newDisposableStack.[[DisposeCapability]] to

@@ -13,7 +13,7 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
   int mode = args.smi_value_at(0);
-  Handle<BigInt> lhs = args.at<BigInt>(1);
+  DirectHandle<BigInt> lhs = args.at<BigInt>(1);
   Handle<Object> rhs = args.at(2);
   bool result = ComparisonResultToBool(static_cast<Operation>(mode),
                                        BigInt::CompareToNumber(lhs, rhs));
@@ -24,7 +24,7 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   int mode = args.smi_value_at(0);
-  Handle<BigInt> lhs = args.at<BigInt>(1);
+  DirectHandle<BigInt> lhs = args.at<BigInt>(1);
   Handle<String> rhs = args.at<String>(2);
   Maybe<ComparisonResult> maybe_result =
       BigInt::CompareToString(isolate, lhs, rhs);
@@ -37,8 +37,8 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<BigInt> lhs = args.at<BigInt>(0);
-  Handle<BigInt> rhs = args.at<BigInt>(1);
+  DirectHandle<BigInt> lhs = args.at<BigInt>(0);
+  DirectHandle<BigInt> rhs = args.at<BigInt>(1);
   bool result = BigInt::EqualToBigInt(*lhs, *rhs);
   return *isolate->factory()->ToBoolean(result);
 }
@@ -46,7 +46,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<BigInt> lhs = args.at<BigInt>(0);
+  DirectHandle<BigInt> lhs = args.at<BigInt>(0);
   Handle<Object> rhs = args.at(1);
   bool result = BigInt::EqualToNumber(lhs, rhs);
   return *isolate->factory()->ToBoolean(result);
@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<BigInt> lhs = args.at<BigInt>(0);
+  DirectHandle<BigInt> lhs = args.at<BigInt>(0);
   Handle<String> rhs = args.at<String>(1);
   Maybe<bool> maybe_result = BigInt::EqualToString(isolate, lhs, rhs);
   MAYBE_RETURN(maybe_result, ReadOnlyRoots(isolate).exception());
@@ -99,14 +99,14 @@ RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<Object> left_obj = args.at(0);
-  Handle<Object> right_obj = args.at(1);
+  DirectHandle<Object> right_obj = args.at(1);
 
   if (!IsBigInt(*left_obj) || !IsBigInt(*right_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kBigIntMixedTypes));
   }
-  Handle<BigInt> left(Handle<BigInt>::cast(left_obj));
-  Handle<BigInt> right(Handle<BigInt>::cast(right_obj));
+  auto left = Handle<BigInt>::cast(left_obj);
+  auto right = DirectHandle<BigInt>::cast(right_obj);
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::Exponentiate(isolate, left, right));
 }
 

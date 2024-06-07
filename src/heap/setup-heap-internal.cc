@@ -324,7 +324,7 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
   map->init_prototype_and_constructor_or_back_pointer(roots);
 }
 
-AllocationResult Heap::Allocate(Handle<Map> map,
+AllocationResult Heap::Allocate(DirectHandle<Map> map,
                                 AllocationType allocation_type) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
@@ -802,7 +802,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     }
     AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
         shared_array_map);
-    Handle<DescriptorArray> descriptors =
+    DirectHandle<DescriptorArray> descriptors =
         factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
     Descriptor length_descriptor = Descriptor::DataField(
         factory->length_string(), JSSharedArray::kLengthFieldIndex,
@@ -829,7 +829,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
 // For static roots we need the r/o space to have identical layout on all
 // compile targets. Varying objects are padded to their biggest size.
-void Heap::StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj,
+void Heap::StaticRootsEnsureAllocatedSize(DirectHandle<HeapObject> obj,
                                           int required) {
   if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
     int obj_size = obj->Size();
@@ -868,7 +868,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
       // the initial section.
       isolate()->string_table()->InsertEmptyStringForBootstrapping(isolate());
     } else {
-      Handle<String> str = factory->InternalizeUtf8String(entry.contents);
+      DirectHandle<String> str = factory->InternalizeUtf8String(entry.contents);
       roots_table()[entry.index] = str->ptr();
     }
   }
@@ -876,7 +876,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   {
 #define SYMBOL_INIT(_, name)                                                \
   {                                                                         \
-    Handle<Symbol> symbol(                                                  \
+    DirectHandle<Symbol> symbol(                                            \
         isolate()->factory()->NewPrivateSymbol(AllocationType::kReadOnly)); \
     roots_table()[RootIndex::k##name] = symbol->ptr();                      \
   }
@@ -884,7 +884,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // SYMBOL_INIT used again later.
 
   // Empty elements
-  Handle<NameDictionary>
+  DirectHandle<NameDictionary>
       empty_property_dictionary = NameDictionary::New(
           isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
@@ -892,7 +892,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   set_empty_property_dictionary(*empty_property_dictionary);
 
   // Allocate the empty OrderedNameDictionary
-  Handle<OrderedNameDictionary> empty_ordered_property_dictionary =
+  DirectHandle<OrderedNameDictionary> empty_ordered_property_dictionary =
       OrderedNameDictionary::AllocateEmpty(isolate(), AllocationType::kReadOnly)
           .ToHandleChecked();
   set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
@@ -1024,7 +1024,7 @@ bool Heap::CreateReadOnlyObjects() {
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
   // Allocate the empty SwissNameDictionary
-  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
+  DirectHandle<SwissNameDictionary> empty_swiss_property_dictionary =
       factory->CreateCanonicalEmptySwissNameDictionary();
   set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
   StaticRootsEnsureAllocatedSize(empty_swiss_property_dictionary,
@@ -1039,14 +1039,14 @@ bool Heap::CreateReadOnlyObjects() {
       *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
   for (int i = 0; i < table_size; ++i) {
     uint8_t code = static_cast<uint8_t>(i);
-    Handle<String> str =
+    DirectHandle<String> str =
         factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
     DCHECK(ReadOnlyHeap::Contains(*str));
     single_character_string_table()->set(i, *str);
   }
 
   for (const ConstantStringInit& entry : kNotImportantConstantStringTable) {
-    Handle<String> str = factory->InternalizeUtf8String(entry.contents);
+    DirectHandle<String> str = factory->InternalizeUtf8String(entry.contents);
     roots_table()[entry.index] = str->ptr();
   }
 
@@ -1094,19 +1094,19 @@ bool Heap::CreateReadOnlyObjects() {
 
   {
     HandleScope handle_scope(isolate());
-#define PUBLIC_SYMBOL_INIT(_, name, description)                         \
-  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
-  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
-  name->set_description(*name##d);                                       \
+#define PUBLIC_SYMBOL_INIT(_, name, description)                               \
+  DirectHandle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
+  DirectHandle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_description(*name##d);                                             \
   roots_table()[RootIndex::k##name] = name->ptr();
 
     PUBLIC_SYMBOL_LIST_GENERATOR(PUBLIC_SYMBOL_INIT, /* not used */)
 
-#define WELL_KNOWN_SYMBOL_INIT(_, name, description)                     \
-  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
-  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
-  name->set_is_well_known_symbol(true);                                  \
-  name->set_description(*name##d);                                       \
+#define WELL_KNOWN_SYMBOL_INIT(_, name, description)                           \
+  DirectHandle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
+  DirectHandle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_is_well_known_symbol(true);                                        \
+  name->set_description(*name##d);                                             \
   roots_table()[RootIndex::k##name] = name->ptr();
 
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT, /* not used */)
@@ -1134,8 +1134,8 @@ bool Heap::CreateReadOnlyObjects() {
                                                    /* not used */)
 #undef ALLOCATE_SYMBOL_STRING
 
-#define INTERNALIZED_STRING_INIT(_, name, description)               \
-  Handle<String> name = factory->InternalizeUtf8String(description); \
+#define INTERNALIZED_STRING_INIT(_, name, description)                     \
+  DirectHandle<String> name = factory->InternalizeUtf8String(description); \
   roots_table()[RootIndex::k##name] = name->ptr();
 
     INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(INTERNALIZED_STRING_INIT,
@@ -1160,47 +1160,49 @@ bool Heap::CreateReadOnlyObjects() {
 #undef WELL_KNOWN_SYMBOL_INIT
   }
 
-  Handle<NumberDictionary> slow_element_dictionary = NumberDictionary::New(
-      isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
+  DirectHandle<NumberDictionary> slow_element_dictionary =
+      NumberDictionary::New(isolate(), 1, AllocationType::kReadOnly,
+                            USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
-  Handle<RegisteredSymbolTable> empty_symbol_table = RegisteredSymbolTable::New(
-      isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
+  DirectHandle<RegisteredSymbolTable> empty_symbol_table =
+      RegisteredSymbolTable::New(isolate(), 1, AllocationType::kReadOnly,
+                                 USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_symbol_table->HasSufficientCapacityToAdd(1));
   set_empty_symbol_table(*empty_symbol_table);
 
   // Allocate the empty OrderedHashMap.
-  Handle<OrderedHashMap> empty_ordered_hash_map =
+  DirectHandle<OrderedHashMap> empty_ordered_hash_map =
       OrderedHashMap::AllocateEmpty(isolate(), AllocationType::kReadOnly)
           .ToHandleChecked();
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
   // Allocate the empty OrderedHashSet.
-  Handle<OrderedHashSet> empty_ordered_hash_set =
+  DirectHandle<OrderedHashSet> empty_ordered_hash_set =
       OrderedHashSet::AllocateEmpty(isolate(), AllocationType::kReadOnly)
           .ToHandleChecked();
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
 
   // Allocate the empty FeedbackMetadata.
-  Handle<FeedbackMetadata> empty_feedback_metadata =
+  DirectHandle<FeedbackMetadata> empty_feedback_metadata =
       factory->NewFeedbackMetadata(0, 0, AllocationType::kReadOnly);
   set_empty_feedback_metadata(*empty_feedback_metadata);
 
   // Canonical scope arrays.
-  Handle<ScopeInfo> global_this_binding =
+  DirectHandle<ScopeInfo> global_this_binding =
       ScopeInfo::CreateGlobalThisBinding(isolate());
   set_global_this_binding_scope_info(*global_this_binding);
 
-  Handle<ScopeInfo> empty_function =
+  DirectHandle<ScopeInfo> empty_function =
       ScopeInfo::CreateForEmptyFunction(isolate());
   set_empty_function_scope_info(*empty_function);
 
-  Handle<ScopeInfo> native_scope_info =
+  DirectHandle<ScopeInfo> native_scope_info =
       ScopeInfo::CreateForNativeContext(isolate());
   set_native_scope_info(*native_scope_info);
 
-  Handle<ScopeInfo> shadow_realm_scope_info =
+  DirectHandle<ScopeInfo> shadow_realm_scope_info =
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
 
@@ -1284,8 +1286,8 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  Handle<InterceptorInfo> info =
-      Handle<InterceptorInfo>::cast(isolate()->factory()->NewStruct(
+  auto info =
+      DirectHandle<InterceptorInfo>::cast(isolate()->factory()->NewStruct(
           INTERCEPTOR_INFO_TYPE, AllocationType::kReadOnly));
   info->set_flags(0);
   set_noop_interceptor_info(*info);
@@ -1318,7 +1320,7 @@ void Heap::CreateInitialMutableObjects() {
       RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
 
   // Allocate FeedbackCell for builtins.
-  Handle<FeedbackCell> many_closures_cell =
+  DirectHandle<FeedbackCell> many_closures_cell =
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
 
@@ -1345,7 +1347,7 @@ void Heap::CreateInitialMutableObjects() {
   set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty script.
-  Handle<Script> script = factory->NewScript(factory->empty_string());
+  DirectHandle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::Type::kNative);
   // This is used for exceptions thrown with no stack frames. Such exceptions
   // can be shared everywhere.
@@ -1446,14 +1448,14 @@ void Heap::CreateInitialMutableObjects() {
 
   // AsyncIterator:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
   // AsyncFromSyncIterator:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow, 1);
     set_async_from_sync_iterator_close_sync_and_rethrow_shared_fun(*info);
   }
@@ -1523,14 +1525,14 @@ void Heap::CreateInitialMutableObjects() {
 
   // ProxyRevoke:
   {
-    Handle<SharedFunctionInfo> info =
+    DirectHandle<SharedFunctionInfo> info =
         CreateSharedFunctionInfo(isolate_, Builtin::kProxyRevoke, 0);
     set_proxy_revoke_shared_fun(*info);
   }
 
   // ShadowRealm:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
     set_shadow_realm_import_value_fulfilled_sfi(*info);
   }
@@ -1577,7 +1579,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Atomics.Condition
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAtomicsConditionAcquireLock, 0);
     set_atomics_condition_acquire_lock_sfi(*info);
   }

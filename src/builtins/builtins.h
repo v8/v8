@@ -249,7 +249,8 @@ class Builtins {
                               ArgvMode argv_mode, bool builtin_exit_frame,
                               bool switch_to_central_stack);
 
-  static bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
+  static bool AllowDynamicFunction(Isolate* isolate,
+                                   DirectHandle<JSFunction> target,
                                    Handle<JSObject> target_global_proxy);
 
   // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
