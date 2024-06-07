@@ -23,6 +23,8 @@ void (*g_print_stack_trace)() = nullptr;
 
 void (*g_dcheck_function)(const char*, int, const char*) = DefaultDcheckHandler;
 
+void (*g_fatal_function)(const char*, int, const char*) = nullptr;
+
 std::string PrettyPrintChar(int ch) {
   std::ostringstream oss;
   switch (ch) {
@@ -69,6 +71,10 @@ void SetPrintStackTrace(void (*print_stack_trace)()) {
 
 void SetDcheckFunction(void (*dcheck_function)(const char*, int, const char*)) {
   g_dcheck_function = dcheck_function ? dcheck_function : &DefaultDcheckHandler;
+}
+
+void SetFatalFunction(void (*fatal_function)(const char*, int, const char*)) {
+  g_fatal_function = fatal_function;
 }
 
 void FatalOOM(OOMType type, const char* msg) {
@@ -171,6 +177,10 @@ void V8_Fatal(const char* format, ...) {
   // crash processor.
   FailureMessage message(format, arguments);
   va_end(arguments);
+
+  if (v8::base::g_fatal_function != nullptr) {
+    v8::base::g_fatal_function(file, line, message.message_);
+  }
 
   fflush(stdout);
   fflush(stderr);

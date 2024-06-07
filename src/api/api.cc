@@ -614,6 +614,10 @@ void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
   v8::base::SetDcheckFunction(that);
 }
 
+void V8::SetFatalErrorHandler(V8FatalErrorCallback that) {
+  v8::base::SetFatalFunction(that);
+}
+
 void V8::SetFlagsFromString(const char* str) {
   SetFlagsFromString(str, strlen(str));
 }

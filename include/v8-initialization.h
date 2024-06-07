@@ -52,6 +52,9 @@ using ReturnAddressLocationResolver =
 using DcheckErrorCallback = void (*)(const char* file, int line,
                                      const char* message);
 
+using V8FatalErrorCallback = void (*)(const char* file, int line,
+                                      const char* message);
+
 /**
  * Container class for static utility functions.
  */
@@ -76,6 +79,12 @@ class V8_EXPORT V8 {
 
   /** Set the callback to invoke in case of Dcheck failures. */
   static void SetDcheckErrorHandler(DcheckErrorCallback that);
+
+  /** Set the callback to invoke in the case of CHECK failures or fatal
+   * errors. This is distinct from Isolate::SetFatalErrorHandler, which
+   * is invoked in response to API usage failures.
+   * */
+  static void SetFatalErrorHandler(V8FatalErrorCallback that);
 
   /**
    * Sets V8 flags from a string.
