@@ -7,6 +7,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/compiler/fast-api-calls.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
@@ -140,7 +141,8 @@ class FastApiCallLoweringReducer : public Next {
       BIND(trigger_exception);
       __ template CallRuntime<
           typename RuntimeCallDescriptor::PropagateException>(
-          isolate_, frame_state, __ NoContextConstant(), {});
+          isolate_, frame_state, __ NoContextConstant(), LazyDeoptOnThrow::kNo,
+          {});
 
       GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }

@@ -750,7 +750,7 @@ class GraphBuilder {
     IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowAccessedUninitializedVariable(
-          isolate_, frame_state, native_context(),
+          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
           __ HeapConstant(node->name().object()));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
@@ -773,9 +773,9 @@ class GraphBuilder {
     IF_NOT (LIKELY(__ Word32BitwiseAnd(bitfield,
                                        Map::Bits1::IsConstructorBit::kMask))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-      __ CallRuntime_ThrowNotSuperConstructor(isolate_, frame_state,
-                                              native_context(), constructor,
-                                              Map(node->function()));
+      __ CallRuntime_ThrowNotSuperConstructor(
+          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
+          constructor, Map(node->function()));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -794,7 +794,8 @@ class GraphBuilder {
                                 isolate_))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowSuperAlreadyCalledError(isolate_, frame_state,
-                                                  native_context());
+                                                  native_context(),
+                                                  ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -813,7 +814,8 @@ class GraphBuilder {
                               isolate_))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowSuperNotCalled(isolate_, frame_state,
-                                         native_context());
+                                         native_context(),
+                                         ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -832,8 +834,9 @@ class GraphBuilder {
 
     IF_NOT (LIKELY(__ ObjectIsCallable(value))) {
       V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-      __ CallRuntime_ThrowCalledNonCallable(isolate_, frame_state,
-                                            native_context(), value);
+      __ CallRuntime_ThrowCalledNonCallable(
+          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
+          value);
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1025,9 +1028,9 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
     V<Object> construct_result = Map(node->construct_result_input());
-    __ CheckDerivedConstructResult(construct_result,
-                                   BuildFrameState(node->lazy_deopt_info()),
-                                   native_context());
+    __ CheckDerivedConstructResult(
+        construct_result, BuildFrameState(node->lazy_deopt_info()),
+        native_context(), ShouldLazyDeoptOnThrow(node));
     SetMap(node, construct_result);
     return maglev::ProcessResult::kContinue;
   }
@@ -1613,7 +1616,8 @@ class GraphBuilder {
 
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     SetMap(node, __ HasInPrototypeChain(Map(node->object()), node->prototype(),
-                                        frame_state, native_context()));
+                                        frame_state, native_context(),
+                                        ShouldLazyDeoptOnThrow(node)));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1644,6 +1648,50 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::StringConcat* node,
                                 const maglev::ProcessingState& state) {
+    // When coming from Turbofan, StringConcat is always guarded by a check that
+    // the length is less than String::kMaxLength, which prevents StringConcat
+    // from ever throwing (and as a consequence of this, it does not need a
+    // Context input). This is not the case for Maglev. To mimic Turbofan's
+    // behavior, we thus insert here a length check.
+    // TODO(dmercadier): I'm not convinced that these checks make a lot of
+    // sense, since they make the graph bigger, and throwing before the builtin
+    // call to StringConcat isn't super important since throwing is not supposed
+    // to be fast. We should consider just calling the builtin and letting it
+    // throw. With LazyDeopOnThrow, this is currently a bit verbose to
+    // implement, so we should first find a way to have this LazyDeoptOnThrow
+    // without adding a member to all throwing operations (like adding
+    // LazyDeoptOnThrow in FrameStateOp).
+    ThrowingScope throwing_scope(this, node);
+
+    V<String> left = Map(node->lhs());
+    V<String> right = Map(node->rhs());
+
+    V<Word32> left_len = __ StringLength(left);
+    V<Word32> right_len = __ StringLength(right);
+
+    V<Tuple<Word32, Word32>> len_and_ovf =
+        __ Int32AddCheckOverflow(left_len, right_len);
+    V<Word32> len = __ Projection<0>(len_and_ovf);
+    V<Word32> ovf = __ Projection<1>(len_and_ovf);
+
+    Label<> throw_invalid_length(this);
+    Label<> done(this);
+
+    GOTO_IF(UNLIKELY(ovf), throw_invalid_length);
+    GOTO_IF(LIKELY(__ Uint32LessThanOrEqual(len, String::kMaxLength)), done);
+
+    GOTO(throw_invalid_length);
+    BIND(throw_invalid_length);
+    {
+      __ CallRuntime_ThrowInvalidStringLength(
+          isolate_, BuildFrameState(node->lazy_deopt_info()), native_context(),
+          ShouldLazyDeoptOnThrow(node));
+      // We should not return from Throw.
+      __ Unreachable();
+    }
+
+    BIND(done);
+
     SetMap(node, __ StringConcat(Map(node->lhs()), Map(node->rhs())));
     return maglev::ProcessResult::kContinue;
   }

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 #define V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/runtime/runtime.h"
@@ -15,7 +16,10 @@ struct RuntimeCallDescriptor {
  private:
   template <typename Derived>
   struct Descriptor {
-    static const TSCallDescriptor* Create(Zone* zone) {
+    static const TSCallDescriptor* Create(
+        Zone* zone, LazyDeoptOnThrow lazy_deopt_on_throw) {
+      DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
+                     Derived::kNeedsFrameState);
       auto descriptor = Linkage::GetRuntimeCallDescriptor(
           zone, Derived::kFunction,
           std::tuple_size_v<typename Derived::arguments_t>,
@@ -29,7 +33,7 @@ struct RuntimeCallDescriptor {
                                ? CanThrow::kNo
                                : CanThrow::kYes;
       return TSCallDescriptor::Create(descriptor, can_throw,
-                                      LazyDeoptOnThrow::kNo, zone);
+                                      lazy_deopt_on_throw, zone);
     }
 
 #ifdef DEBUG
@@ -245,6 +249,18 @@ struct RuntimeCallDescriptor {
   struct ThrowCalledNonCallable : public Descriptor<ThrowCalledNonCallable> {
     static constexpr auto kFunction = Runtime::kThrowCalledNonCallable;
     using arguments_t = std::tuple<V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowInvalidStringLength
+      : public Descriptor<ThrowInvalidStringLength> {
+    static constexpr auto kFunction = Runtime::kThrowInvalidStringLength;
+    using arguments_t = std::tuple<>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
     using result_t = V<Object>;

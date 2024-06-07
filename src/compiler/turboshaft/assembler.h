@@ -3280,7 +3280,7 @@ class TurboshaftAssemblerOpInterface
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context,
+              V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -3289,8 +3289,9 @@ class TurboshaftAssemblerOpInterface
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
         isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone()), frame_state,
-        context, args);
+        Descriptor::Create(Asm().output_graph().graph_zone(),
+                           lazy_deopt_on_throw),
+        frame_state, context, args);
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState, typename Descriptor::result_t>
@@ -3302,8 +3303,9 @@ class TurboshaftAssemblerOpInterface
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
         isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone()), {}, context,
-        args);
+        Descriptor::Create(Asm().output_graph().graph_zone(),
+                           LazyDeoptOnThrow::kNo),
+        {}, context, args);
   }
 
   template <typename Ret, typename Args>
@@ -3349,7 +3351,7 @@ class TurboshaftAssemblerOpInterface
       V<Context> context) {
     return CallRuntime<
         typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
-        isolate, frame_state, context, {});
+        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
   }
   V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate, V<Context> context,
                                           V<Smi> gap) {
@@ -3379,7 +3381,7 @@ class TurboshaftAssemblerOpInterface
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
       V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
-        isolate, frame_state, context, {});
+        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
   }
   V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
                                                V<Context> context,
@@ -3395,41 +3397,53 @@ class TurboshaftAssemblerOpInterface
   }
   void CallRuntime_ThrowAccessedUninitializedVariable(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Object> object) {
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
+      V<Object> object) {
     CallRuntime<
         typename RuntimeCallDescriptor::ThrowAccessedUninitializedVariable>(
-        isolate, frame_state, context, {object});
+        isolate, frame_state, context, lazy_deopt_on_throw, {object});
   }
   void CallRuntime_ThrowConstructorReturnedNonObject(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
     CallRuntime<
         typename RuntimeCallDescriptor::ThrowConstructorReturnedNonObject>(
-        isolate, frame_state, context, {});
+        isolate, frame_state, context, lazy_deopt_on_throw, {});
   }
   void CallRuntime_ThrowNotSuperConstructor(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Object> constructor, V<Object> function) {
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
+      V<Object> constructor, V<Object> function) {
     CallRuntime<typename RuntimeCallDescriptor::ThrowNotSuperConstructor>(
-        isolate, frame_state, context, {constructor, function});
+        isolate, frame_state, context, lazy_deopt_on_throw,
+        {constructor, function});
   }
   void CallRuntime_ThrowSuperAlreadyCalledError(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
     CallRuntime<typename RuntimeCallDescriptor::ThrowSuperAlreadyCalledError>(
-        isolate, frame_state, context, {});
+        isolate, frame_state, context, lazy_deopt_on_throw, {});
   }
   void CallRuntime_ThrowSuperNotCalled(Isolate* isolate,
                                        V<turboshaft::FrameState> frame_state,
-                                       V<Context> context) {
+                                       V<Context> context,
+                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
     CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
-        isolate, frame_state, context, {});
+        isolate, frame_state, context, lazy_deopt_on_throw, {});
   }
   void CallRuntime_ThrowCalledNonCallable(Isolate* isolate,
                                           V<turboshaft::FrameState> frame_state,
-                                          V<Context> context, V<Object> value) {
+                                          V<Context> context,
+                                          LazyDeoptOnThrow lazy_deopt_on_throw,
+                                          V<Object> value) {
     CallRuntime<typename RuntimeCallDescriptor::ThrowCalledNonCallable>(
-        isolate, frame_state, context, {value});
+        isolate, frame_state, context, lazy_deopt_on_throw, {value});
+  }
+  void CallRuntime_ThrowInvalidStringLength(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    CallRuntime<typename RuntimeCallDescriptor::ThrowInvalidStringLength>(
+        isolate, frame_state, context, lazy_deopt_on_throw, {});
   }
   V<JSFunction> CallRuntime_NewClosure(
       Isolate* isolate, V<Context> context,
@@ -3447,9 +3461,11 @@ class TurboshaftAssemblerOpInterface
   }
   V<Boolean> CallRuntime_HasInPrototypeChain(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Object> object, V<HeapObject> prototype) {
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
+      V<Object> object, V<HeapObject> prototype) {
     return CallRuntime<typename RuntimeCallDescriptor::HasInPrototypeChain>(
-        isolate, frame_state, context, {object, prototype});
+        isolate, frame_state, context, lazy_deopt_on_throw,
+        {object, prototype});
   }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,

@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
 
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -146,7 +147,8 @@ class MaglevEarlyLoweringReducer : public Next {
 
   void CheckDerivedConstructResult(V<Object> construct_result,
                                    V<FrameState> frame_state,
-                                   V<NativeContext> native_context) {
+                                   V<NativeContext> native_context,
+                                   LazyDeoptOnThrow lazy_deopt_on_throw) {
     // The result of a derived construct should be an object (in the ECMA
     // sense).
     Label<> do_throw(this);
@@ -158,8 +160,8 @@ class MaglevEarlyLoweringReducer : public Next {
     IF_NOT (JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result))) {
       GOTO(do_throw);
       BIND(do_throw);
-      __ CallRuntime_ThrowConstructorReturnedNonObject(isolate_, frame_state,
-                                                       native_context);
+      __ CallRuntime_ThrowConstructorReturnedNonObject(
+          isolate_, frame_state, native_context, lazy_deopt_on_throw);
       // ThrowConstructorReturnedNonObject should not return.
       __ Unreachable();
     }
@@ -301,7 +303,8 @@ class MaglevEarlyLoweringReducer : public Next {
 
   V<Boolean> HasInPrototypeChain(V<Object> object, HeapObjectRef prototype,
                                  V<FrameState> frame_state,
-                                 V<NativeContext> native_context) {
+                                 V<NativeContext> native_context,
+                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     Label<Boolean> done(this);
 
     V<Boolean> true_bool = __ HeapConstant(factory_->true_value());
@@ -331,9 +334,9 @@ class MaglevEarlyLoweringReducer : public Next {
         GOTO(call_runtime);
 
         BIND(call_runtime);
-        GOTO(done,
-             __ CallRuntime_HasInPrototypeChain(
-                 isolate_, frame_state, native_context, object, target_proto));
+        GOTO(done, __ CallRuntime_HasInPrototypeChain(
+                       isolate_, frame_state, native_context,
+                       lazy_deopt_on_throw, object, target_proto));
       }
       GOTO(object_is_direct);
 
