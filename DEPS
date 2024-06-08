@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0d8a269adcdedb92ee75aa0760b90219bb4e4416',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '52d45bf894b41f37b6ea9adf012c9b274acf774c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2bd8dea61c53448c67f70419004ded4032590fe7',
   'buildtools/linux64': {
@@ -176,7 +176,7 @@ deps = {
   'test/test262/data':
     Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '249657722525cc8e43b1ddb91f8df0b4b011fcf6',
   'third_party/android_platform': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + 'eeb2d566f963bb66212fdc0d9bbe1dde550b4969',
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '6337c445f9963ec3914e7e0c5787941d07b46509',
     'condition': 'checkout_android',
   },
   'third_party/android_sdk/public': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e6d8f67fae6c1ec119dcdb7c1af84909a096144f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '954a8d771345d12f8920da03359b56c001632a7b',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -300,7 +300,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '852bc6746f45add53fec19f3a29280e69e358d44',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c5d2b1886cbe32a8a7de1bbfd2c72a7ed34da17c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '43dd5b4bf62e8593461dce9a95e3d43fdcd0b9f2',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'ab43b1d3c9f762db4c6a04c8c7c0955dfe3fb957',
   'third_party/logdog/logdog':
@@ -340,7 +340,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '209717dd69cd62f24cbacc4758261ae2dd78cfac',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1955ad663f8fb64cb2928701fa8efd20d0b4f218',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd15b951fe7cc998369040819c7c6e7160125ea9f',
   'tools/luci-go': {
       'packages': [
         {
