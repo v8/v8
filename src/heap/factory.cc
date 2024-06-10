@@ -1777,7 +1777,7 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
-    DirectHandle<WasmInstanceObject> instance,
+    DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function,
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
@@ -1794,7 +1794,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal_function);
   result->set_wrapper_code(*export_wrapper);
-  result->set_instance_data(*instance->trusted_data(isolate()));
+  result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
   result->set_sig(sig);
   result->set_canonical_type_index(canonical_type_index);

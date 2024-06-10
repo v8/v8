@@ -2244,8 +2244,6 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
         export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
   int func_index = internal_function->function_index();
   Factory* factory = isolate->factory();
-  DirectHandle<WasmInstanceObject> instance_object{
-      instance_data->instance_object(), isolate};
   const wasm::WasmModule* module = instance_data->module();
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
   DirectHandle<Map> rtt;
@@ -2259,7 +2257,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       module->isorecursive_canonical_type_ids[sig_index];
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
-          export_wrapper, instance_object, func_ref, internal_function, sig,
+          export_wrapper, instance_data, func_ref, internal_function, sig,
           canonical_type_index, v8_flags.wasm_wrapper_tiering_budget, promise);
 
   MaybeHandle<String> maybe_name;
@@ -2268,7 +2266,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     // We can use the function name only for asm.js. For WebAssembly, the
     // function name is specified as the function_index.toString().
     maybe_name = WasmModuleObject::GetFunctionNameOrNull(
-        isolate, handle(instance_object->module_object(), isolate), func_index);
+        isolate, handle(instance_data->module_object(), isolate), func_index);
   }
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {
@@ -2306,7 +2304,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   DCHECK_EQ(is_asm_js_module, IsConstructor(*js_function));
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(JSParameterCount(arity));
-  shared->set_script(instance_object->module_object()->script(), kReleaseStore);
+  shared->set_script(instance_data->module_object()->script(), kReleaseStore);
   function_data->internal()->set_external(*js_function);
   return Handle<WasmExportedFunction>::cast(js_function);
 }

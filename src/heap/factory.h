@@ -730,7 +730,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       uintptr_t signature_hash);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       DirectHandle<Code> export_wrapper,
-      DirectHandle<WasmInstanceObject> instance_object,
+      DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function,
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
