@@ -31,15 +31,10 @@ namespace internal {
 
 namespace {
 
-#if V8_ENABLE_WEBASSEMBLY
-constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
-
-#if V8_TARGET_ARCH_64_BIT
-constexpr uint64_t kFullGuardSize32 = uint64_t{10} * GB;
-constexpr uint64_t kFullGuardSize64 = uint64_t{32} * GB;
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_64_BIT
+constexpr size_t kFullGuardSize32 = uint64_t{8} * GB;
+constexpr size_t kFullGuardSize64 = uint64_t{32} * GB;
 #endif
-
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::atomic<uint32_t> next_backing_store_id_{1};
 
@@ -60,30 +55,22 @@ enum class AllocationStatus {
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
                                       bool is_wasm_memory64, void* buffer_start,
                                       size_t byte_capacity) {
-#if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_64_BIT
   if (has_guard_regions) {
     Address start = reinterpret_cast<Address>(buffer_start);
     DCHECK_EQ(8, sizeof(size_t));  // only use on 64-bit
     DCHECK_EQ(0, start % AllocatePageSize());
+    size_t guard_size = kFullGuardSize32;
     if (is_wasm_memory64) {
       DCHECK(v8_flags.wasm_memory64_trap_handling);
       static_assert(kFullGuardSize64 ==
                     2 * wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
       DCHECK_LE(byte_capacity,
                 wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
-      return base::AddressRegion(
-          start,
-          1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity));
-    } else {
-      // Guard regions always look like this:
-      // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
-      //              ^ buffer_start
-      //                              ^ byte_length
-      // ^ negative guard region           ^ positive guard region
-
-      return base::AddressRegion(start - kNegativeGuardSize,
-                                 static_cast<size_t>(kFullGuardSize32));
+      guard_size =
+          1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity);
     }
+    return base::AddressRegion(start, guard_size);
   }
 #endif
 
@@ -369,16 +356,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     return {};
   }
 
-  // Get a pointer to the start of the buffer, skipping negative guard region
-  // if necessary.
-#if V8_ENABLE_WEBASSEMBLY
-  uint8_t* buffer_start =
-      reinterpret_cast<uint8_t*>(allocation_base) +
-      (guards && !is_wasm_memory64 ? kNegativeGuardSize : 0);
-#else
-  DCHECK(!guards);
   uint8_t* buffer_start = reinterpret_cast<uint8_t*>(allocation_base);
-#endif
 
   //--------------------------------------------------------------------------
   // Commit the initial pages (allow read/write).
