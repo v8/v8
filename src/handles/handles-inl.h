@@ -132,7 +132,7 @@ V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
 template <typename To, typename From>
 inline DirectHandle<To> Cast(DirectHandle<From> value) {
   DCHECK(Is<To>(*value));
-  return DirectHandle<To>(value.location_);
+  return DirectHandle<To>(value.obj_);
 }
 
 template <typename T>
