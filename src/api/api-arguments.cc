@@ -52,7 +52,7 @@ FunctionCallbackArguments::FunctionCallbackArguments(
   // TODO(cbruni): Remove and/or use custom sentinel value.
   Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
-  slot_at(T::kUnusedIndex).store(Smi::zero());
+  slot_at(T::kContextIndex).store(isolate->context());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }

@@ -183,7 +183,7 @@ class FunctionCallbackArguments
 
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
-  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kContextIndex = T::kContextIndex;
   static constexpr int kTargetIndex = T::kTargetIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 

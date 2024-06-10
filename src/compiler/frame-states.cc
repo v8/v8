@@ -264,9 +264,7 @@ Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
                                          Node* target, Node* context,
                                          Node* receiver,
                                          Node* outer_frame_state) {
-  if (!v8_flags.experimental_stack_trace_frames) return outer_frame_state;
-  return CreateGenericLazyDeoptContinuationFrameState(
-      graph, shared, target, context, receiver, outer_frame_state);
+  return outer_frame_state;
 }
 
 FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,

@@ -166,7 +166,7 @@ class FunctionCallbackInfo {
 
   static constexpr int kHolderIndex = 0;
   static constexpr int kIsolateIndex = 1;
-  static constexpr int kUnusedIndex = 2;
+  static constexpr int kContextIndex = 2;
   static constexpr int kReturnValueIndex = 3;
   static constexpr int kTargetIndex = 4;
   static constexpr int kNewTargetIndex = 5;
@@ -188,9 +188,13 @@ class FunctionCallbackInfo {
 
   V8_INLINE FunctionCallbackInfo(internal::Address* implicit_args,
                                  internal::Address* values, int length);
+
+  // TODO(https://crbug.com/326505377): flatten the v8::FunctionCallbackInfo
+  // object to avoid indirect loads through values_ and implicit_args_ and
+  // reduce the number of instructions in the CallApiCallback builtin.
   internal::Address* implicit_args_;
   internal::Address* values_;
-  int length_;
+  internal::Address length_;
 };
 
 /**
@@ -591,7 +595,7 @@ FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Address* implicit_args,
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   // values_ points to the first argument (not the receiver).
-  if (i < 0 || length_ <= i) return Undefined(GetIsolate());
+  if (i < 0 || Length() <= i) return Undefined(GetIsolate());
   return Local<Value>::FromSlot(values_ + i);
 }
 
@@ -639,7 +643,7 @@ bool FunctionCallbackInfo<T>::IsConstructCall() const {
 
 template <typename T>
 int FunctionCallbackInfo<T>::Length() const {
-  return length_;
+  return static_cast<int>(length_);
 }
 
 template <typename T>

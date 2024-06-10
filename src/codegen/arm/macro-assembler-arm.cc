@@ -3083,15 +3083,17 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   Move(scratch_and_result, Operand(0));
 }
 
-// Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// Calls an API function. Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
                               MemOperand return_value_operand) {
   ASM_CODE_COMMENT(masm);
 
@@ -3187,11 +3189,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ RecordComment("Leave the API exit frame.");
   __ bind(&leave_exit_frame);
 
-  Register stack_space_reg = prev_limit_reg;
-  if (stack_space_operand != nullptr) {
-    DCHECK_EQ(stack_space, 0);
+  Register argc_reg = prev_limit_reg;
+  if (argc_operand != nullptr) {
     // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
-    __ ldr(stack_space_reg, *stack_space_operand);
+    __ ldr(argc_reg, *argc_operand);
   }
   __ LeaveExitFrame(scratch);
 
@@ -3217,14 +3218,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
 
-  if (stack_space_operand == nullptr) {
-    DCHECK_NE(stack_space, 0);
-    __ add(sp, sp, Operand(stack_space * kPointerSize));
+  if (argc_operand == nullptr) {
+    DCHECK_NE(slots_to_drop_on_return, 0);
+    __ add(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
 
   } else {
-    DCHECK_EQ(stack_space, 0);
-    // {stack_space_operand} was loaded into {stack_space_reg} above.
-    __ add(sp, sp, stack_space_reg);
+    // {argc_operand} was loaded into {argc_reg} above.
+    __ add(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
+    __ add(sp, sp, Operand(argc_reg, LSL, kSystemPointerSizeLog2));
   }
 
   __ mov(pc, lr);

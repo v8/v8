@@ -1443,11 +1443,10 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
   Add(sp, sp, size);
 }
 
-void MacroAssembler::DropArguments(const Register& count) {
-  int extra_slots = 1;  // Padding slot.
+void MacroAssembler::DropArguments(const Register& count, int extra_slots) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
-  Add(tmp, count, extra_slots);
+  Add(tmp, count, extra_slots + 1);  // +1 is for rounding the count up to 2.
   Bic(tmp, tmp, 1);
   Drop(tmp, kXRegSize);
 }

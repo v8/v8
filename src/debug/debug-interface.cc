@@ -1109,7 +1109,7 @@ ConsoleCallArguments::ConsoleCallArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info)
     : isolate_(info.GetIsolate()),
       values_(info.values_),
-      length_(info.length_) {}
+      length_(info.Length()) {}
 
 ConsoleCallArguments::ConsoleCallArguments(
     internal::Isolate* isolate, const internal::BuiltinArguments& args)

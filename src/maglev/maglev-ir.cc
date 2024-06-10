@@ -5409,12 +5409,13 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
+  using FC = ApiCallbackExitFrameConstants;
 
   static_assert(FCA::kArgsLength == 6);
   static_assert(FCA::kNewTargetIndex == 5);
   static_assert(FCA::kTargetIndex == 4);
   static_assert(FCA::kReturnValueIndex == 3);
-  static_assert(FCA::kUnusedIndex == 2);
+  static_assert(FCA::kContextIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
   static_assert(FCA::kHolderIndex == 0);
 
@@ -5423,7 +5424,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   // Target state:
   //   sp[0 * kSystemPointerSize]: kHolder   <= implicit_args_
   //   sp[1 * kSystemPointerSize]: kIsolate
-  //   sp[2 * kSystemPointerSize]: undefined (padding, unused)
+  //   sp[2 * kSystemPointerSize]: kContext
   //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
   //   sp[4 * kSystemPointerSize]: kTarget
   //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
@@ -5435,9 +5436,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   ASM_CODE_COMMENT_STRING(masm, "inlined CallApiCallbackOptimized builtin");
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  // kNewTarget, kTarget, kReturnValue, kUnused
+  // kNewTarget, kTarget, kReturnValue, kContext
   __ Push(scratch, Handle<HeapObject>::cast(function_template_info_.object()),
-          scratch, scratch);
+          scratch, kContextRegister);
   __ Move(scratch, ER::isolate_address(masm->isolate()));
   // kIsolate, kHolder
   if (api_holder_.has_value()) {
@@ -5457,18 +5458,6 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
       ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
   __ Move(api_function_address, reference);
 
-  Register implicit_args = ReassignRegister(scratch);
-
-  // Save a pointer to kHolder (= implicit_args), we use it below to set up
-  // the FunctionCallbackInfo object.
-  __ Move(implicit_args, kStackPointerRegister);
-
-  // Allocate v8::FunctionCallbackInfo object and a number of bytes to drop
-  // from the stack after the callback in non-GCed space of the exit frame.
-  static constexpr int kApiStackSpace = 4;
-  static_assert((kApiStackSpace - 1) * kSystemPointerSize == FCA::kSize);
-  const int exit_frame_params_count = 0;
-
   Label done, call_api_callback_builtin_inline;
   __ Call(&call_api_callback_builtin_inline);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -5480,43 +5469,45 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   __ bind(&call_api_callback_builtin_inline);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EmitEnterExitFrame(kApiStackSpace, StackFrame::EXIT, api_function_address,
+  __ EmitEnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
+                        StackFrame::API_CALLBACK_EXIT, api_function_address,
                         scratch2);
+
+  Register fp = __ GetFramePointer();
+  MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
   {
-    ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
-    // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up
-    // above).
-    __ Move(ExitFrameStackSlotOperand(FCA::kImplicitArgsOffset), implicit_args);
-
-    // FunctionCallbackInfo::values_ (points at the first varargs argument
-    // passed on the stack).
-    __ IncrementAddress(implicit_args,
-                        FCA::kArgsLengthWithReceiver * kSystemPointerSize);
-    __ Move(ExitFrameStackSlotOperand(FCA::kValuesOffset), implicit_args);
-
+    ASM_CODE_COMMENT_STRING(masm, "Initialize v8::FunctionCallbackInfo");
     // FunctionCallbackInfo::length_.
-    scratch = ReassignRegister(implicit_args);
-    __ Move(scratch, num_args());
-    __ Move(ExitFrameStackSlotOperand(FCA::kLengthOffset), scratch);
+    __ Move(scratch, num_args());  // not including receiver
+    __ Move(argc_operand, scratch);
+
+    // FunctionCallbackInfo::implicit_args_.
+    __ LoadAddress(scratch, MemOperand(fp, FC::kImplicitArgsArrayOffset));
+    __ Move(MemOperand(fp, FC::kFCIImplicitArgsOffset), scratch);
+
+    // FunctionCallbackInfo::values_ (points at JS arguments on the stack).
+    __ LoadAddress(scratch, MemOperand(fp, FC::kFirstArgumentOffset));
+    __ Move(MemOperand(fp, FC::kFCIValuesOffset), scratch);
   }
 
   Register function_callback_info_arg = kCArgRegs[0];
 
   __ RecordComment("v8::FunctionCallback's argument.");
   __ LoadAddress(function_callback_info_arg,
-                 ExitFrameStackSlotOperand(FCA::kImplicitArgsOffset));
+                 MemOperand(fp, FC::kFunctionCallbackInfoOffset));
 
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
-  MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
-      FCA::kReturnValueIndex + exit_frame_params_count);
-  const int kStackUnwindSpace = FCA::kArgsLengthWithReceiver + num_args();
+  MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
+  const int kSlotsToDropOnReturn =
+      FC::kFunctionCallbackInfoArgsLength + kJSArgcReceiverSlots + num_args();
+
   const bool with_profiling = false;
   ExternalReference no_thunk_ref;
   Register no_thunk_arg = no_reg;
 
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           no_thunk_ref, no_thunk_arg, kStackUnwindSpace,
+                           no_thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
                            nullptr, return_value_operand);
   __ RecordComment("end of inlined CallApiCallbackOptimized builtin");
 

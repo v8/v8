@@ -167,26 +167,49 @@ inline ApiCallbackExitFrame::ApiCallbackExitFrame(
     StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
-inline FullObjectSlot ApiCallbackExitFrame::receiver_slot() const {
-  // The receiver is the first argument on the frame.
-  return FullObjectSlot(fp() +
-                        ApiCallbackExitFrameConstants::kFirstArgumentOffset);
-}
-
-inline FullObjectSlot ApiCallbackExitFrame::argc_slot() const {
-  return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kArgcOffset);
-}
-
-inline FullObjectSlot ApiCallbackExitFrame::context_slot() const {
-  return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kContextOffset);
+inline Tagged<Object> ApiCallbackExitFrame::context() const {
+  return Tagged<Object>(base::Memory<Address>(
+      fp() + ApiCallbackExitFrameConstants::kContextOffset));
 }
 
 inline FullObjectSlot ApiCallbackExitFrame::target_slot() const {
   return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kTargetOffset);
 }
 
-inline FullObjectSlot ApiCallbackExitFrame::new_target_slot() const {
-  return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kNewTargetOffset);
+Tagged<Object> ApiCallbackExitFrame::receiver() const {
+  return Tagged<Object>(base::Memory<Address>(
+      fp() + ApiCallbackExitFrameConstants::kReceiverOffset));
+}
+
+Tagged<HeapObject> ApiCallbackExitFrame::target() const {
+  Tagged<Object> function = *target_slot();
+  DCHECK(IsJSFunction(function) || IsFunctionTemplateInfo(function));
+  return HeapObject::cast(function);
+}
+
+void ApiCallbackExitFrame::set_target(Tagged<HeapObject> function) const {
+  DCHECK(IsJSFunction(function) || IsFunctionTemplateInfo(function));
+  target_slot().store(function);
+}
+
+int ApiCallbackExitFrame::ComputeParametersCount() const {
+  int argc = static_cast<int>(base::Memory<Address>(
+      fp() + ApiCallbackExitFrameConstants::kFCIArgcOffset));
+  DCHECK_GE(argc, 0);
+  return argc;
+}
+
+Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
+  DCHECK(i >= 0 && i < ComputeParametersCount());
+  int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
+               i * kSystemPointerSize;
+  return Tagged<Object>(base::Memory<Address>(fp() + offset));
+}
+
+bool ApiCallbackExitFrame::IsConstructor() const {
+  Tagged<Object> new_context(base::Memory<Address>(
+      fp() + ApiCallbackExitFrameConstants::kNewTargetOffset));
+  return !IsUndefined(new_context, isolate());
 }
 
 inline ApiAccessorExitFrame::ApiAccessorExitFrame(

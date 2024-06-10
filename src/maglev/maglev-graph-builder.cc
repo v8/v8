@@ -8302,28 +8302,10 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
 
   switch (api_holder.lookup) {
     case CallOptimization::kHolderIsReceiver:
-    case CallOptimization::kHolderFound: {
-      // Add lazy deopt point to make the API function appear in exception
-      // stack trace.
-      base::Optional<DeoptFrameScope> lazy_deopt_scope;
-      if (v8_flags.experimental_stack_trace_frames) {
-        // The receiver is only necessary for displaying "class.method" name
-        // if applicable, so full GetConvertReceiver() is not needed here.
-        // Another reason to not use GetConvertReceiver() here because
-        // ReduceCallForApiFunction might bailout and we'll end up with
-        // unused ConvertReceiver node.
-        ValueNode* receiver =
-            args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined
-                ? GetRootConstant(RootIndex::kUndefinedValue)
-                : args.receiver();
-
-        lazy_deopt_scope.emplace(this, Builtin::kGenericLazyDeoptContinuation,
-                                 function,
-                                 base::VectorOf<ValueNode*>({receiver}));
-      }
+    case CallOptimization::kHolderFound:
       return ReduceCallForApiFunction(function_template_info, shared,
                                       api_holder.holder, args);
-    }
+
     case CallOptimization::kHolderNotFound:
       break;
   }

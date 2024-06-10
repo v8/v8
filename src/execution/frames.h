@@ -895,27 +895,25 @@ class BuiltinExitFrame : public ExitFrame {
 // Api callback exit frames are a special case of exit frames, which are used
 // whenever an Api functions (such as v8::Function or v8::FunctionTemplate) are
 // called. Their main purpose is to support preprocessing of exceptions thrown
-// from Api functions and to allow these functions to appear in stack traces
-// (see v8_flags.experimental_stack_trace_frames).
+// from Api functions and as a bonus it allows these functions to appear in
+// stack traces (see v8_flags.experimental_stack_trace_frames).
 class ApiCallbackExitFrame : public ExitFrame {
  public:
   Type type() const override { return API_CALLBACK_EXIT; }
-
-  // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
-  // JSFunction in the function slot.
-  Tagged<HeapObject> target() const;
 
   // In case function slot contains FunctionTemplateInfo, instantiate the
   // function, stores it in the function slot and returns JSFunction handle.
   Handle<JSFunction> GetFunction() const;
 
-  Tagged<Object> receiver() const;
-  Tagged<Object> GetParameter(int i) const;
-  int ComputeParametersCount() const;
+  inline Tagged<Object> receiver() const;
+  inline Tagged<Object> GetParameter(int i) const;
+  inline int ComputeParametersCount() const;
   Handle<FixedArray> GetParameters() const;
 
+  inline Tagged<Object> context() const override;
+
   // Check if this frame is a constructor frame invoked through 'new'.
-  bool IsConstructor() const;
+  inline bool IsConstructor() const;
 
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
@@ -932,13 +930,12 @@ class ApiCallbackExitFrame : public ExitFrame {
   inline explicit ApiCallbackExitFrame(StackFrameIteratorBase* iterator);
 
  private:
+  // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
+  // JSFunction in the function slot.
+  inline Tagged<HeapObject> target() const;
   inline void set_target(Tagged<HeapObject> function) const;
 
-  inline FullObjectSlot receiver_slot() const;
-  inline FullObjectSlot argc_slot() const;
-  inline FullObjectSlot context_slot() const;
   inline FullObjectSlot target_slot() const;
-  inline FullObjectSlot new_target_slot() const;
 
   friend class StackFrameIteratorBase;
 };
