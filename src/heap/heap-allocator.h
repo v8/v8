@@ -160,6 +160,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   RetryAllocateRaw(int size_in_bytes, AllocationType allocation,
                    AllocationOrigin origin, AllocationAlignment alignment);
 
+  bool ReachedAllocationTimeout();
+
 #ifdef DEBUG
   void IncrementObjectCounters();
 #endif  // DEBUG

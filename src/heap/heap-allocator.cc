@@ -382,6 +382,17 @@ void HeapAllocator::UpdateAllocationTimeout() {
   allocation_timeout_ = std::max(0, interval);
 }
 
+bool HeapAllocator::ReachedAllocationTimeout() {
+  DCHECK_GT(allocation_timeout_, 0);
+
+  if (heap_->always_allocate() || local_heap_->IsRetryOfFailedAllocation()) {
+    return false;
+  }
+
+  --allocation_timeout_;
+  return allocation_timeout_ <= 0;
+}
+
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace internal
