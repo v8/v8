@@ -323,15 +323,27 @@ class Int64LoweringReducer : public Next {
         CHECK_EQ(element_size_log2, 0);
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
-      return __ Tuple(
-          Next::ReduceStore(
-              base, index, low, kind, MemoryRepresentation::Int32(),
-              write_barrier, offset, element_size_log2,
-              maybe_initializing_or_transitioning, maybe_indirect_pointer_tag),
-          Next::ReduceStore(
-              base, index, high, kind, MemoryRepresentation::Int32(),
-              write_barrier, offset + sizeof(int32_t), element_size_log2,
-              maybe_initializing_or_transitioning, maybe_indirect_pointer_tag));
+      OpIndex low_store = Next::ReduceStore(
+          base, index, low, kind, MemoryRepresentation::Int32(), write_barrier,
+          offset, element_size_log2, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
+      int32_t high_offset = offset + sizeof(int32_t);
+      OptionalOpIndex high_index = index;
+      if (!LoadOp::OffsetIsValid(high_offset, kind.tagged_base)) {
+        // We cannot encode {high_offset} as an offset, so we use {offset}
+        // instead and use the Index to represent the "+ sizeof(int32_t)".
+        high_offset = offset;
+        if (high_index.has_value()) {
+          high_index = __ Word32Add(high_index.value(), sizeof(int32_t));
+        } else {
+          high_index = __ Word32Constant(sizeof(int32_t));
+        }
+      }
+      OpIndex high_store = Next::ReduceStore(
+          base, high_index, high, kind, MemoryRepresentation::Int32(),
+          write_barrier, high_offset, element_size_log2,
+          maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+      return __ Tuple(low_store, high_store);
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_size_log2,
