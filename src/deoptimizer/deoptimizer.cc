@@ -960,8 +960,22 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
         break;  // Nothing to be done for constants in liftoff frame.
       case wasm::LiftoffVarState::kRegister:
         if (liftoff_iter->is_gp_reg()) {
-          output_frame->SetRegister(liftoff_iter->reg().gp().code(),
-                                    value.int64_value_);
+          intptr_t reg_value = kZapValue;
+          switch (value.kind()) {
+            case TranslatedValue::Kind::kInt32:
+              // Ensure that the upper half is zeroed out.
+              reg_value = static_cast<uint32_t>(value.int32_value());
+              break;
+            case TranslatedValue::Kind::kTagged:
+              reg_value = value.raw_literal().ptr();
+              break;
+            case TranslatedValue::Kind::kInt64:
+              reg_value = value.int64_value();
+              break;
+            default:
+              UNIMPLEMENTED();
+          }
+          output_frame->SetRegister(liftoff_iter->reg().gp().code(), reg_value);
         } else if (liftoff_iter->is_fp_reg()) {
           // TODO(mliedtke): These cases don't cover the cases where a double
           // might be a word64 in Turboshaft due to optimizations etc.

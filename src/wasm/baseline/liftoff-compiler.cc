@@ -8075,6 +8075,12 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
+    if (v8_flags.wasm_deopt &&
+        env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+        env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
+      StoreFrameDescriptionForDeopt(decoder);
+    }
+
     LiftoffRegList pinned;
     VarState index_slot = __ cache_state() -> stack_state.back();
     const bool is_static_index = index_slot.is_const();

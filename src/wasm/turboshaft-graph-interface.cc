@@ -2610,8 +2610,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           bool is_last_feedback_case = (i == feedback_cases.size() - 1);
           if (use_deopt_slowpath && is_last_feedback_case) {
-            // TODO(42204618,335082212): Deopt support for call_indirect.
-            UNIMPLEMENTED();
+            const FunctionSig* sig =
+                decoder->module_->functions[inlined_index].sig;
+            V<FrameState> frame_state =
+                CreateFrameState(decoder, sig, &index, args);
+            DeoptIfNot(decoder, __ WordPtrEqual(target, inlined_target), sig,
+                       args, frame_state);
           } else {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
@@ -2860,7 +2864,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           V<FrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
-                     sig, func_ref, args, frame_state);
+                     sig, args, frame_state);
         } else {
           TSBlock* inline_block = __ NewBlock();
           BranchHint hint =
@@ -5535,7 +5539,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   V<FrameState> CreateFrameState(FullDecoder* decoder,
                                  const FunctionSig* callee_sig,
-                                 const Value* func_ref, const Value args[]) {
+                                 const Value* func_ref_or_index,
+                                 const Value args[]) {
     compiler::turboshaft::FrameStateData::Builder builder;
     if (parent_frame_state_.valid()) {
       builder.AddParentFrameState(parent_frame_state_.value());
@@ -5575,11 +5580,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         builder.AddInput(arg.type.machine_type(), arg.op);
       }
     }
-    if (func_ref) {
-      builder.AddInput(func_ref->type.machine_type(), func_ref->op);
+    if (func_ref_or_index) {
+      builder.AddInput(func_ref_or_index->type.machine_type(),
+                       func_ref_or_index->op);
     }
-    // The call_ref (callee).
-    const size_t kExtraLocals = func_ref != nullptr ? 1 : 0;
+    // The call_ref (callee) or the table index.
+    const size_t kExtraLocals = func_ref_or_index != nullptr ? 1 : 0;
     size_t wasm_local_count = ssa_env_.size() - param_count;
     size_t local_count = kExtraLocals + decoder->stack_size() +
                          wasm_local_count - callee_sig->return_count();
@@ -5599,8 +5605,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  const FunctionSig* callee_sig, const Value& func_ref,
-                  const Value args[], V<FrameState> frame_state) {
+                  const FunctionSig* callee_sig, const Value args[],
+                  V<FrameState> frame_state) {
     CHECK(v8_flags.wasm_deopt);
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
