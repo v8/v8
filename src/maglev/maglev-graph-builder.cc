@@ -1398,6 +1398,11 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) return value;
 
+  if (Int32Constant* as_int32_constant = value->TryCast<Int32Constant>();
+      as_int32_constant && Smi::IsValid(as_int32_constant->value())) {
+    return GetSmiConstant(as_int32_constant->value());
+  }
+
   NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
 
