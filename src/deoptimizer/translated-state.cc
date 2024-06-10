@@ -977,15 +977,10 @@ TranslatedValue DeoptimizationLiteralProvider::Get(TranslatedState* container,
       return TranslatedValue::NewInt32(container, literal.GetInt32());
     case DeoptimizationLiteralKind::kWasmInt64:
       return TranslatedValue::NewInt64(container, literal.GetInt64());
-    case DeoptimizationLiteralKind::kWasmFloat:
-      // TODO(mliedtke): What about NaNs? Seems like we may change bit patterns
-      // here...
-      return TranslatedValue::NewFloat(container, Float32(literal.GetFloat()));
-    case DeoptimizationLiteralKind::kWasmDouble:
-      // TODO(mliedtke): What about NaNs? Seems like we may change bit patterns
-      // here...
-      return TranslatedValue::NewDouble(container,
-                                        Float64(literal.GetDouble()));
+    case DeoptimizationLiteralKind::kWasmFloat32:
+      return TranslatedValue::NewFloat(container, literal.GetFloat32());
+    case DeoptimizationLiteralKind::kWasmFloat64:
+      return TranslatedValue::NewDouble(container, literal.GetFloat64());
     case DeoptimizationLiteralKind::kWasmI31Ref:
       return TranslatedValue::NewTagged(container, literal.GetSmi());
     default:

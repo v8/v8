@@ -1426,10 +1426,10 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           literal = DeoptimizationLiteral(constant.ToInt64());
           break;
         case MachineRepresentation::kFloat32:
-          literal = DeoptimizationLiteral(constant.ToFloat32());
+          literal = DeoptimizationLiteral(constant.ToFloat32Safe());
           break;
         case MachineRepresentation::kFloat64:
-          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+          literal = DeoptimizationLiteral(Float64(constant.ToFloat64()));
           break;
         case MachineRepresentation::kTagged: {
           Tagged<Smi> smi(static_cast<Address>(constant.ToInt32()));

@@ -36,7 +36,8 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
-    case DeoptimizationLiteralKind::kWasmFloat:
+    case DeoptimizationLiteralKind::kWasmFloat32:
+    case DeoptimizationLiteralKind::kWasmFloat64:
     case DeoptimizationLiteralKind::kInvalid: {
       UNREACHABLE();
     }

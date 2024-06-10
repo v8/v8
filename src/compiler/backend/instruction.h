@@ -1241,6 +1241,13 @@ class V8_EXPORT_PRIVATE Constant final {
     return base::bit_cast<float>(static_cast<int32_t>(value_));
   }
 
+  // TODO(ahaas): All callers of ToFloat32() should call this function instead
+  // to preserve signaling NaNs.
+  Float32 ToFloat32Safe() const {
+    DCHECK_EQ(kFloat32, type());
+    return Float32::FromBits(static_cast<uint32_t>(value_));
+  }
+
   uint32_t ToFloat32AsInt() const {
     DCHECK_EQ(kFloat32, type());
     return base::bit_cast<uint32_t>(static_cast<int32_t>(value_));

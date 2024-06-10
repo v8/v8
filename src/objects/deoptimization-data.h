@@ -9,6 +9,7 @@
 
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "src/utils/boxed-float.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -50,8 +51,8 @@ enum class DeoptimizationLiteralKind {
   // TODO(mliedtke): Add support for S128 / SIMD.
   kWasmI31Ref,
   kWasmInt32,
-  kWasmFloat,
-  kWasmDouble = kNumber,
+  kWasmFloat32,
+  kWasmFloat64,
   kWasmInt64 = kSignedBigInt64,
 };
 
@@ -66,8 +67,10 @@ class DeoptimizationLiteral {
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     CHECK(!object_.is_null());
   }
-  explicit DeoptimizationLiteral(float number)
-      : kind_(DeoptimizationLiteralKind::kWasmFloat), float_(number) {}
+  explicit DeoptimizationLiteral(Float32 number)
+      : kind_(DeoptimizationLiteralKind::kWasmFloat32), float32_(number) {}
+  explicit DeoptimizationLiteral(Float64 number)
+      : kind_(DeoptimizationLiteralKind::kWasmFloat64), float64_(number) {}
   explicit DeoptimizationLiteral(double number)
       : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
   explicit DeoptimizationLiteral(int64_t signed_bigint64)
@@ -101,9 +104,10 @@ class DeoptimizationLiteral {
         return uint64_ == other.uint64_;
       case DeoptimizationLiteralKind::kInvalid:
         return true;
-      case DeoptimizationLiteralKind::kWasmFloat:
-        return base::bit_cast<uint32_t>(float_) ==
-               base::bit_cast<uint32_t>(other.float_);
+      case DeoptimizationLiteralKind::kWasmFloat32:
+        return float32_.get_bits() == other.float32_.get_bits();
+      case DeoptimizationLiteralKind::kWasmFloat64:
+        return float64_.get_bits() == other.float64_.get_bits();
     }
     UNREACHABLE();
   }
@@ -111,14 +115,14 @@ class DeoptimizationLiteral {
   Handle<Object> Reify(Isolate* isolate) const;
 
 #if V8_ENABLE_WEBASSEMBLY
-  double GetDouble() const {
-    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmDouble);
-    return number_;
+  Float64 GetFloat64() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat64);
+    return float64_;
   }
 
-  float GetFloat() const {
-    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat);
-    return float_;
+  Float32 GetFloat32() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat32);
+    return float32_;
   }
 
   int64_t GetInt64() const {
@@ -152,7 +156,8 @@ class DeoptimizationLiteral {
   union {
     Handle<Object> object_;
     double number_;
-    float float_;
+    Float32 float32_;
+    Float64 float64_;
     int64_t int64_;
     uint64_t uint64_;
   };
