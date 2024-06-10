@@ -358,39 +358,41 @@ void HeapAllocator::SetAllocationGcInterval(int allocation_gc_interval) {
 std::atomic<int> HeapAllocator::allocation_gc_interval_{-1};
 
 void HeapAllocator::SetAllocationTimeout(int allocation_timeout) {
-  // See `allocation_timeout_` for description. We map negative values to 0 to
-  // avoid underflows as allocation decrements this value as well.
-  allocation_timeout_ = std::max(0, allocation_timeout);
+  if (allocation_timeout > 0) {
+    allocation_timeout_ = allocation_timeout;
+  } else {
+    allocation_timeout_.reset();
+  }
 }
 
 void HeapAllocator::UpdateAllocationTimeout() {
   if (v8_flags.random_gc_interval > 0) {
-    const int new_timeout = allocation_timeout_ <= 0
-                                ? heap_->isolate()->fuzzer_rng()->NextInt(
-                                      v8_flags.random_gc_interval + 1)
-                                : allocation_timeout_;
+    const int new_timeout = heap_->isolate()->fuzzer_rng()->NextInt(
+        v8_flags.random_gc_interval + 1);
     // Reset the allocation timeout, but make sure to allow at least a few
     // allocations after a collection. The reason for this is that we have a lot
     // of allocation sequences and we assume that a garbage collection will
     // allow the subsequent allocation attempts to go through.
     constexpr int kFewAllocationsHeadroom = 6;
-    allocation_timeout_ = std::max(kFewAllocationsHeadroom, new_timeout);
+    int timeout = std::max(kFewAllocationsHeadroom, new_timeout);
+    SetAllocationTimeout(timeout);
+    DCHECK(allocation_timeout_.has_value());
     return;
   }
 
-  int interval = allocation_gc_interval_.load(std::memory_order_relaxed);
-  allocation_timeout_ = std::max(0, interval);
+  int timeout = allocation_gc_interval_.load(std::memory_order_relaxed);
+  SetAllocationTimeout(timeout);
 }
 
 bool HeapAllocator::ReachedAllocationTimeout() {
-  DCHECK_GT(allocation_timeout_, 0);
+  DCHECK(allocation_timeout_.has_value());
 
   if (heap_->always_allocate() || local_heap_->IsRetryOfFailedAllocation()) {
     return false;
   }
 
-  --allocation_timeout_;
-  return allocation_timeout_ <= 0;
+  allocation_timeout_ = std::max(0, allocation_timeout_.value() - 1);
+  return allocation_timeout_.value() <= 0;
 }
 
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT

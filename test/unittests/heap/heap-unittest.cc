@@ -521,7 +521,7 @@ TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
   // Invoke major GC to cause the timeout to be updated.
   InvokeMajorGC();
   const int initial_allocation_timeout =
-      heap()->get_allocation_timeout_for_testing();
+      allocator->get_allocation_timeout_for_testing().value_or(0);
   ASSERT_GT(initial_allocation_timeout, 0);
 
   for (int i = 0; i < initial_allocation_timeout - 1; ++i) {

@@ -83,7 +83,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   static void SetAllocationGcInterval(int allocation_gc_interval);
   static void InitializeOncePerProcess();
 
-  int get_allocation_timeout_for_testing() const { return allocation_timeout_; }
+  base::Optional<int> get_allocation_timeout_for_testing() const {
+    return allocation_timeout_;
+  }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   // Give up all LABs. Used for e.g. full GCs.
@@ -187,7 +189,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   // allocation failure (which will eventually lead to garbage collection).
   // Allocation will fail for any values <=0. See `UpdateAllocationTimeout()`
   // for how the new timeout is computed.
-  int allocation_timeout_ = 0;
+  base::Optional<int> allocation_timeout_;
 
   // The configured GC interval, initialized from --gc-interval during
   // `InitializeOncePerProcess` and potentially dynamically updated by

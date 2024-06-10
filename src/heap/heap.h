@@ -1572,7 +1572,6 @@ class Heap final {
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void V8_EXPORT_PRIVATE set_allocation_timeout(int allocation_timeout);
-  int V8_EXPORT_PRIVATE get_allocation_timeout_for_testing() const;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 #ifdef DEBUG

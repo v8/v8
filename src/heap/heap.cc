@@ -7507,10 +7507,6 @@ void StrongRootAllocatorBase::deallocate_impl(Address* p, size_t n) noexcept {
 void Heap::set_allocation_timeout(int allocation_timeout) {
   heap_allocator_->SetAllocationTimeout(allocation_timeout);
 }
-
-int Heap::get_allocation_timeout_for_testing() const {
-  return heap_allocator_->get_allocation_timeout_for_testing();
-}
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork() {

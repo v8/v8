@@ -84,7 +84,8 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  if (V8_UNLIKELY(allocation_timeout_ > 0) && ReachedAllocationTimeout()) {
+  if (V8_UNLIKELY(allocation_timeout_.has_value()) &&
+      ReachedAllocationTimeout()) {
     return AllocationResult::Failure();
   }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT

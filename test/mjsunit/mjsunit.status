@@ -1697,6 +1697,8 @@
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
   'regress/regress-740784': [PASS, ['tsan', SKIP]],
   'regress/regress-crbug-820312': [PASS, SLOW],
+  # Bug(chromium:42204525): Re-enable once this is supported.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
