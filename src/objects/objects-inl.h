@@ -66,6 +66,9 @@
 namespace v8 {
 namespace internal {
 
+template <typename T>
+class Managed;
+
 PropertyDetails::PropertyDetails(Tagged<Smi> smi) { value_ = smi.value(); }
 
 Tagged<Smi> PropertyDetails::AsSmi() const {
@@ -202,22 +205,7 @@ bool IsNoSharedNameSentinel(Tagged<Object> obj) {
 }
 
 // TODO(leszeks): Expand Is<T> to all types.
-#define IS_HELPER_DEF(type_)                                 \
-  template <>                                                \
-  struct CastTraits<type_> {                                 \
-    static inline bool AllowFrom(Tagged<Object> value) {     \
-      return Is##type_(value);                               \
-    }                                                        \
-    static inline bool AllowFrom(Tagged<HeapObject> value) { \
-      return Is##type_(value);                               \
-    }                                                        \
-  };
-HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
-IS_HELPER_DEF(Number)
-IS_HELPER_DEF(Smi)
-IS_HELPER_DEF(PromiseReaction)
-#undef IS_HELPER_DEF
-#define IS_HELPER_DEF(Type, Value, _)                        \
+#define IS_HELPER_DEF(Type, ...)                             \
   template <>                                                \
   struct CastTraits<Type> {                                  \
     static inline bool AllowFrom(Tagged<Object> value) {     \
@@ -227,20 +215,52 @@ IS_HELPER_DEF(PromiseReaction)
       return Is##Type(value);                                \
     }                                                        \
   };
+HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
+HEAP_OBJECT_TRUSTED_TYPE_LIST(IS_HELPER_DEF)
 ODDBALL_LIST(IS_HELPER_DEF)
+
+#define IS_HELPER_DEF_STRUCT(NAME, Name, name) IS_HELPER_DEF(Name)
+STRUCT_LIST(IS_HELPER_DEF_STRUCT)
+#undef IS_HELPER_DEF_STRUCT
+
+IS_HELPER_DEF(Number)
 #undef IS_HELPER_DEF
 
 template <>
-struct CastTraits<HeapObject> {
+struct CastTraits<FieldType> {
   static inline bool AllowFrom(Tagged<Object> value) {
-    return IsHeapObject(value);
+    return value == FieldType::None() || value == FieldType::Any() ||
+           IsMap(value);
   }
-  static inline bool AllowFrom(Tagged<HeapObject> value) { return true; }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return IsMap(value);
+  }
 };
+
+template <typename T>
+struct CastTraits<Managed<T>> : public CastTraits<Foreign> {};
+template <typename T>
+struct CastTraits<PodArray<T>> : public CastTraits<ByteArray> {};
+template <typename T>
+struct CastTraits<TrustedPodArray<T>> : public CastTraits<TrustedByteArray> {};
+template <typename T, typename Base>
+struct CastTraits<FixedIntegerArrayBase<T, Base>> : public CastTraits<Base> {};
+template <typename Base>
+struct CastTraits<FixedAddressArrayBase<Base>> : public CastTraits<Base> {};
+
 template <>
-struct CastTraits<Object> {
-  static inline bool AllowFrom(Tagged<Object> value) { return true; }
-};
+struct CastTraits<JSRegExpResultIndices> : public CastTraits<JSArray> {};
+template <>
+struct CastTraits<DeoptimizationLiteralArray>
+    : public CastTraits<TrustedWeakFixedArray> {};
+template <>
+struct CastTraits<FreshlyAllocatedBigInt> : public CastTraits<BigInt> {};
+template <>
+struct CastTraits<JSIteratorResult> : public CastTraits<JSObject> {};
+
+template <>
+struct CastTraits<DeoptimizationFrameTranslation>
+    : public CastTraits<TrustedByteArray> {};
 
 template <class T,
           typename std::enable_if<(std::is_arithmetic<T>::value ||

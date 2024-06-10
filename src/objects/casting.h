@@ -51,6 +51,10 @@ inline Tagged<To> Cast(Tagged<From> value) {
   return UncheckedCast<To>(value);
 }
 template <typename To, typename From>
+inline Tagged<To> Cast(const From& value) {
+  return Cast<To>(Tagged(value));
+}
+template <typename To, typename From>
 inline Handle<To> Cast(Handle<From> value);
 template <typename To, typename From>
 inline MaybeHandle<To> Cast(MaybeHandle<From> value);
@@ -73,11 +77,53 @@ inline Tagged<To> UncheckedCast(Tagged<From> value) {
 // actually a strong value (or a Smi, which can't be weak).
 template <typename T, typename U>
 inline bool Is(Tagged<MaybeWeak<U>> value) {
-  // TODO(leszeks): Add Is which supports weak conversion targets.
-  static_assert(!is_maybe_weak_v<T>);
   // Cast from maybe weak to strong needs to be strong or smi.
-  return value.IsStrongOrSmi() && Is<T>(Tagged<U>(value.ptr()));
+  if constexpr (!is_maybe_weak_v<T>) {
+    if (!value.IsStrongOrSmi()) return false;
+    return CastTraits<T>::AllowFrom(Tagged<U>(value.ptr()));
+  } else {
+    // Dispatches to CastTraits<MaybeWeak<T>> below.
+    return CastTraits<T>::AllowFrom(value);
+  }
 }
+
+// Specialization for maybe weak cast targets, which first converts the incoming
+// value to a strong reference and then checks if the cast to the strong T
+// is allowed. Cleared weak references always return true.
+template <typename T>
+struct CastTraits<MaybeWeak<T>> {
+  template <typename U>
+  static bool AllowFrom(Tagged<U> value) {
+    if constexpr (is_maybe_weak_v<U>) {
+      // Cleared values are always ok.
+      if (value.IsCleared()) return true;
+      // TODO(leszeks): Skip Smi check for values that are known to not be Smi.
+      if (value.IsSmi()) {
+        return CastTraits<T>::AllowFrom(Tagged<Smi>(value.ptr()));
+      }
+      return CastTraits<T>::AllowFrom(MakeStrong(value));
+    } else {
+      return CastTraits<T>::AllowFrom(value);
+    }
+  }
+};
+
+template <>
+struct CastTraits<Object> {
+  static inline bool AllowFrom(Tagged<Object> value) { return true; }
+};
+template <>
+struct CastTraits<Smi> {
+  static inline bool AllowFrom(Tagged<Object> value) { return value.IsSmi(); }
+  static inline bool AllowFrom(Tagged<HeapObject> value) { return false; }
+};
+template <>
+struct CastTraits<HeapObject> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return value.IsHeapObject();
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) { return true; }
+};
 
 }  // namespace v8::internal
 
