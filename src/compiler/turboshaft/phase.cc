@@ -121,7 +121,7 @@ void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
 
 CodeTracer* PipelineData::GetCodeTracer() const {
 #if V8_ENABLE_WEBASSEMBLY
-  if (info_->IsWasm()) {
+  if (info_->IsWasm() || info_->IsWasmBuiltin()) {
     return wasm::GetWasmEngine()->GetCodeTracer();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
