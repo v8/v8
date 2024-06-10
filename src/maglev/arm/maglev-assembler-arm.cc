@@ -276,7 +276,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register instance_type, Label* result_fits_one_byte) {
+    Register index, Register instance_type, Register scratch2,
+    Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -401,16 +402,26 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     lsl(scratch, index, Operand(1));
     add(scratch, scratch,
         Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-    ldrh(result, MemOperand(string, scratch));
 
-    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
+      ldrh(result, MemOperand(string, scratch));
+    } else {
+      DCHECK_EQ(mode,
+                BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      Register string_backup = string;
+      if (result == string) {
+        string_backup = scratch2;
+        Move(string_backup, string);
+      }
+      ldrh(result, MemOperand(string, scratch));
+
       Register first_code_point = scratch;
       and_(first_code_point, result, Operand(0xfc00));
       cmp(first_code_point, Operand(0xd800));
       b(ne, *done);
 
       Register length = scratch;
-      ldr(length, FieldMemOperand(string, offsetof(String, length_)));
+      ldr(length, FieldMemOperand(string_backup, offsetof(String, length_)));
       add(index, index, Operand(1));
       cmp(index, length);
       b(ge, *done);
@@ -419,7 +430,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       lsl(index, index, Operand(1));
       add(index, index,
           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      ldrh(second_code_point, MemOperand(string, index));
+      ldrh(second_code_point, MemOperand(string_backup, index));
 
       // {index} is not needed at this point.
       Register scratch2 = index;

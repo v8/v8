@@ -309,7 +309,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register instance_type, Label* result_fits_one_byte) {
+    Register index, Register instance_type, Register scratch2,
+    Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -434,15 +435,26 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     Lsl(scratch, index, 1);
     Add(scratch, scratch,
         OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
-    Ldrh(result, MemOperand(string, scratch));
 
-    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
+      Ldrh(result, MemOperand(string, scratch));
+    } else {
+      DCHECK_EQ(mode,
+                BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      Register string_backup = string;
+      if (result == string) {
+        string_backup = scratch2;
+        Mov(string_backup, string);
+      }
+      Ldrh(result, MemOperand(string, scratch));
+
       Register first_code_point = scratch;
       And(first_code_point.W(), result.W(), Immediate(0xfc00));
       CompareAndBranch(first_code_point, Immediate(0xd800), kNotEqual, *done);
 
       Register length = scratch;
-      Ldr(length.W(), FieldMemOperand(string, offsetof(String, length_)));
+      Ldr(length.W(),
+          FieldMemOperand(string_backup, offsetof(String, length_)));
       Add(index.W(), index.W(), Immediate(1));
       CompareAndBranch(index, length, kGreaterThanEqual, *done);
 
@@ -450,7 +462,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Lsl(index, index, 1);
       Add(index, index,
           OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
-      Ldrh(second_code_point, MemOperand(string, index));
+      Ldrh(second_code_point, MemOperand(string_backup, index));
 
       // {index} is not needed at this point.
       Register scratch2 = index;

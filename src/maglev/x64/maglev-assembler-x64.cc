@@ -138,7 +138,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register scratch, Label* result_fits_one_byte) {
+    Register index, Register scratch1, Register scratch2,
+    Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -175,7 +176,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       },
       mode, register_snapshot, done, result, string, index);
 
-  Register instance_type = scratch;
+  Register instance_type = scratch1;
 
   // We might need to try more than one time for ConsString, SlicedString and
   // ThinString.
@@ -185,12 +186,13 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   if (v8_flags.debug_code) {
     // Check if {string} is a string.
     AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CmpInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+    LoadMap(scratch1, string);
+    CmpInstanceTypeRange(scratch1, scratch1, FIRST_STRING_TYPE,
+                         LAST_STRING_TYPE);
     Check(below_equal, AbortReason::kUnexpectedValue);
 
-    movl(scratch, FieldOperand(string, offsetof(String, length_)));
-    cmpl(index, scratch);
+    movl(scratch1, FieldOperand(string, offsetof(String, length_)));
+    cmpl(index, scratch1);
     Check(below, AbortReason::kUnexpectedValue);
   }
 
@@ -221,7 +223,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   bind(&sliced_string);
   {
-    Register offset = scratch;
+    Register offset = scratch1;
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
@@ -251,29 +253,37 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                                  OFFSET_OF_DATA_START(SeqOneByteString)));
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
-    movzxwl(result, FieldOperand(string, index, times_2,
-                                 OFFSET_OF_DATA_START(SeqTwoByteString)));
 
-    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
-      Register first_code_point = scratch;
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
+      movzxwl(result, FieldOperand(string, index, times_2,
+                                   OFFSET_OF_DATA_START(SeqTwoByteString)));
+    } else {
+      DCHECK_EQ(mode,
+                BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      Register string_backup = string;
+      if (result == string) {
+        string_backup = scratch2;
+        movq(string_backup, string);
+      }
+      movzxwl(result, FieldOperand(string, index, times_2,
+                                   OFFSET_OF_DATA_START(SeqTwoByteString)));
+
+      Register first_code_point = scratch1;
       movl(first_code_point, result);
       andl(first_code_point, Immediate(0xfc00));
       cmpl(first_code_point, Immediate(0xd800));
       j(not_equal, *done);
 
-      Register length = scratch;
-      StringLength(length, string);
+      Register length = scratch1;
+      StringLength(length, string_backup);
       incl(index);
       cmpl(index, length);
       j(greater_equal, *done);
 
-      Register second_code_point = scratch;
+      Register second_code_point = scratch1;
       movzxwl(second_code_point,
-              FieldOperand(string, index, times_2,
+              FieldOperand(string_backup, index, times_2,
                            OFFSET_OF_DATA_START(SeqTwoByteString)));
-
-      // {index} is not needed at this point.
-      Register scratch2 = index;
       movl(scratch2, second_code_point);
       andl(scratch2, Immediate(0xfc00));
       cmpl(scratch2, Immediate(0xdc00));

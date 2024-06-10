@@ -4372,10 +4372,43 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
   RegisterSnapshot save_registers = register_snapshot();
   __ StringCharCodeOrCodePointAt(
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt, save_registers,
-      char_code, string, index, scratch, &cached_one_byte_string);
+      char_code, string, index, scratch, Register::no_reg(),
+      &cached_one_byte_string);
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
                         char_code, scratch,
                         MaglevAssembler::CharCodeMaskMode::kValueIsInRange);
+}
+
+int BuiltinStringPrototypeCharCodeOrCodePointAt::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
+  return 2;
+}
+void BuiltinStringPrototypeCharCodeOrCodePointAt::
+    SetValueLocationConstraints() {
+  UseAndClobberRegister(string_input());
+  UseAndClobberRegister(index_input());
+  DefineAsRegister(this);
+  // TODO(victorgomes): Add a mode to the register allocator where we ensure
+  // input cannot alias with output. We can then remove the second scratch.
+  set_temporaries_needed(
+      mode_ == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt ? 2
+                                                                         : 1);
+}
+void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = Register::no_reg();
+  if (mode_ == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+    scratch2 = temps.Acquire();
+  }
+  Register string = ToRegister(string_input());
+  Register index = ToRegister(index_input());
+  ZoneLabelRef done(masm);
+  RegisterSnapshot save_registers = register_snapshot();
+  __ StringCharCodeOrCodePointAt(mode_, save_registers, ToRegister(result()),
+                                 string, index, scratch1, scratch2, *done);
+  __ bind(*done);
 }
 
 void StringLength::SetValueLocationConstraints() {
