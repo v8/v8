@@ -591,7 +591,7 @@ struct FastApiCallbackOptions {
    * fallback conditions are checked, because otherwise executing the slow
    * callback might produce visible side-effects twice.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "It is not necessary to use the `fallback` flag anymore, as it is "
       "possible now to trigger GC, throw exceptions, and call back into "
       "JavaScript even in API functions called with a fast API call.")
@@ -605,7 +605,7 @@ struct FastApiCallbackOptions {
   /**
    * When called from WebAssembly, a view of the calling module's memory.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "The wasm memory should either be provided as a field of the receiver, "
       "the data object of the FunctionTemplate, or as a normal parameter of "
       "the API function. Since regular API calls don't have this magic "
