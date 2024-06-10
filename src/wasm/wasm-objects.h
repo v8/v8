@@ -614,7 +614,8 @@ class WasmTagObject
   static Handle<WasmTagObject> New(Isolate* isolate,
                                    const wasm::FunctionSig* sig,
                                    uint32_t canonical_type_index,
-                                   DirectHandle<HeapObject> tag);
+                                   DirectHandle<HeapObject> tag,
+                                   Handle<HeapObject> instance);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };
