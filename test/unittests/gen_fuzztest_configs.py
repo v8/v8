@@ -50,12 +50,12 @@ exec $BINARY_DIR/centipede $@
 FUZZTEST_WRAPPER = WRAPPER_HEADER + """
 # Normal fuzzing.
 if [ "$#" -eq  "0" ]; then
-   exec $BINARY_DIR/v8_unittests --fuzz={test}
+   exec $BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=""
 fi
 # Fuzztest replay.
 if [ "$#" -eq  "1" ]; then
    unset CENTIPEDE_RUNNER_FLAGS
-   FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz={test}
+   FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz={test} --corpus_database=""
 fi
 """
 

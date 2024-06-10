@@ -106,12 +106,12 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
       cd $BINARY_DIR
       # Normal fuzzing.
       if [ "$#" -eq  "0" ]; then
-         exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
+         exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=""
       fi
       # Fuzztest replay.
       if [ "$#" -eq  "1" ]; then
          unset CENTIPEDE_RUNNER_FLAGS
-         FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
+         FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1 --corpus_database=""
       fi
       """)
     with open('/out/build/fuzztests/v8_foo_1_fuzztest') as f:
