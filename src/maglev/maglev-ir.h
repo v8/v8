@@ -4991,11 +4991,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return slots_.data[i];
   }
 
-  void set_by_index(uint32_t i, ValueNode* value) {
-    DCHECK_EQ(type_, kDefault);
-    slots_.data[i] = value;
-  }
-
   void set(uint32_t offset, ValueNode* value) {
     DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
