@@ -350,10 +350,7 @@ class V8_EXPORT_PRIVATE PipelineData {
     return instruction_component_->sequence;
   }
   Frame* frame() const { return codegen_component_->frame; }
-  CodeTracer* GetCodeTracer() const {
-    DCHECK_NOT_NULL(isolate_);
-    return isolate_->GetCodeTracer();
-  }
+  CodeTracer* GetCodeTracer() const;
   size_t& max_unoptimized_frame_height() {
     return codegen_component_->max_unoptimized_frame_height;
   }

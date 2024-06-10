@@ -119,4 +119,14 @@ void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
 #endif  // DEBUG
 }
 
+CodeTracer* PipelineData::GetCodeTracer() const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (info_->IsWasm()) {
+    return wasm::GetWasmEngine()->GetCodeTracer();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  DCHECK_NOT_NULL(isolate_);
+  return isolate_->GetCodeTracer();
+}
+
 }  // namespace v8::internal::compiler::turboshaft
