@@ -30,7 +30,7 @@ class V8_EXPORT EmbedderRootsHandler {
 
   EmbedderRootsHandler() = default;
 
-  V8_DEPRECATE_SOON("Use the default constructor instead.")
+  V8_DEPRECATED("Use the default constructor instead.")
   explicit EmbedderRootsHandler(RootHandling default_traced_reference_handling)
       : default_traced_reference_handling_(default_traced_reference_handling) {}
 
@@ -49,7 +49,7 @@ class V8_EXPORT EmbedderRootsHandler {
    *
    * The concrete implementations must be thread-safe.
    */
-  V8_DEPRECATE_SOON("Use TracedReferenceHandling::kDroppable instead.")
+  V8_DEPRECATED("Use TracedReferenceHandling::kDroppable instead.")
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
 
   /**
