@@ -50,6 +50,11 @@ struct TracedReferenceWrapper {
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
  public:
+  START_ALLOW_USE_DEPRECATED()
+  NonRootingEmbedderRootsHandler()
+      : v8::EmbedderRootsHandler(v8::EmbedderRootsHandler::RootHandling::
+                                     kQueryEmbedderForNonDroppableReferences) {}
+  END_ALLOW_USE_DEPRECATED()
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
     return false;
   }

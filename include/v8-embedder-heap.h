@@ -75,7 +75,7 @@ class V8_EXPORT EmbedderRootsHandler {
 
  private:
   const RootHandling default_traced_reference_handling_ =
-      RootHandling::kQueryEmbedderForNonDroppableReferences;
+      RootHandling::kDontQueryEmbedderForAnyReference;
 
   friend class internal::TracedHandles;
 };
