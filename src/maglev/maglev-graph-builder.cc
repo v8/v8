@@ -8654,6 +8654,22 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     return ReduceCall(target_node, new_args);
   }
 
+  if (Constant* constant_value = elements_value->TryCast<Constant>()) {
+    DCHECK(constant_value->object().IsFixedArray());
+    compiler::FixedArrayRef elements = constant_value->object().AsFixedArray();
+    base::SmallVector<ValueNode*, 8> arg_list;
+    DCHECK_NOT_NULL(args.receiver());
+    arg_list.push_back(args.receiver());
+    for (int i = 0; i < static_cast<int>(args.count()); i++) {
+      arg_list.push_back(args[i]);
+    }
+    for (int i = 0; i < elements.length(); i++) {
+      arg_list.push_back(GetConstant(*elements.TryGet(broker(), i)));
+    }
+    CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
+    return ReduceCall(target_node, new_args);
+  }
+
   DCHECK(elements_value->Is<InlinedAllocation>());
   InlinedAllocation* allocation = elements_value->Cast<InlinedAllocation>();
   VirtualObject* elements = allocation->object();
@@ -8696,12 +8712,16 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // we keep track of the arguments object changes so far.
   if (alloc->IsEscaping()) return {};
   VirtualObject* object = alloc->object();
-  // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
-  // requirement if there is no stores to  the mapped arguments.
+  // TODO(victorgomes): Support simple JSArray forwarding.
   compiler::MapRef map = object->map();
-  if (map.IsJSArrayMap()) {
+  // It is a rest parameter, if it is an array with ArgumentsElements node as
+  // the elements array.
+  if (map.IsJSArrayMap() && object->get(JSArgumentsObject::kElementsOffset)
+                                ->Is<ArgumentsElements>()) {
     return object;
   }
+  // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
+  // requirement if there is no stores to  the mapped arguments.
   if (map.IsJSArgumentsObjectMap() &&
       !IsSloppyMappedArgumentsObject(broker(), map)) {
     return object;
@@ -10584,6 +10604,7 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
+  if (vobject->type() != VirtualObject::kDefault) return;
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
     ValueNode* value = vobject->get_by_index(i);
     if (!IsConstantNode(value->opcode()) &&
@@ -10643,6 +10664,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
     if (node->Is<VirtualObject>()) {
       VirtualObject* nested = node->Cast<VirtualObject>();
       node = BuildInlinedAllocation(nested, allocation_type);
+      vobject->set_by_index(i, node);
     } else if (node->Is<Float64Constant>()) {
       node = BuildInlinedAllocationForHeapNumber(
           CreateHeapNumber(node->Cast<Float64Constant>()->value()),
@@ -10654,7 +10676,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
   }
   InlinedAllocation* allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  AddNonEscapingUses(allocation, vobject->slot_count());
+  AddNonEscapingUses(allocation, vobject->slot_count() + 1);
   BuildStoreMap(allocation, vobject->map(),
                 StoreMap::initializing_kind(allocation_type));
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
