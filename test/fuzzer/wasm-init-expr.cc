@@ -326,7 +326,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         // For reference types the expectations are more limited.
         // Any struct.new would create a new object, so reference equality
         // comparisons will not work.
-        Handle<Object> global_val = global->GetRef();
+        DirectHandle<Object> global_val = global->GetRef();
         CHECK_EQ(IsUndefined(*global_val), IsUndefined(*function_result));
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));

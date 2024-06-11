@@ -240,7 +240,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"), &zone,
                                 CodeKind::FOR_TESTING);
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
                                        callee.ExportForTest())
@@ -286,7 +286,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(base::ArrayVector("wrapper"), &zone,
                                         CodeKind::FOR_TESTING);
-  Handle<Code> wrapper_code =
+  DirectHandle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
           AssemblerOptions::Default(i_isolate), caller.ExportForTest())

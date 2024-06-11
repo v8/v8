@@ -82,7 +82,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 
 // Some mutable roots may initially point to undefined until they are properly
 // initialized.
-bool IsUninitialized(Handle<Object> object) {
+bool IsUninitialized(DirectHandle<Object> object) {
   return !IsTrustedObject(*object) && IsUndefined(*object);
 }
 }  // namespace

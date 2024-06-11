@@ -93,7 +93,8 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   MessageLocation loc;
   CHECK(i_isolate->ComputeLocationFromSimpleStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
-  Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
+  DirectHandle<JSMessageObject> message =
+      i_isolate->CreateMessage(exc, nullptr);
   JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, message);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
          message->GetStartPosition(), message->GetEndPosition(),
@@ -193,7 +194,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 
   // Set the wasm script source url.
   const char* url = "http://example.com/example.wasm";
-  const Handle<String> source_url =
+  const DirectHandle<String> source_url =
       isolate->factory()->InternalizeUtf8String(url);
   r.builder().instance_object()->module_object()->script()->set_source_url(
       *source_url);
@@ -210,7 +211,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   Handle<Object> exception = maybe_exc.ToHandleChecked();
 
   // Extract stack trace from the exception.
-  Handle<FixedArray> stack_trace_object =
+  DirectHandle<FixedArray> stack_trace_object =
       isolate->GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
   CHECK_NE(0, stack_trace_object->length());
   Handle<CallSiteInfo> stack_frame(
@@ -219,7 +220,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   MaybeHandle<String> maybe_stack_trace_str =
       SerializeCallSiteInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
-  Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
+  DirectHandle<String> stack_trace_str =
+      maybe_stack_trace_str.ToHandleChecked();
 
   // Check if the source_url is part of the stack trace.
   CHECK_NE(std::string(stack_trace_str->ToCString().get()).find(url),

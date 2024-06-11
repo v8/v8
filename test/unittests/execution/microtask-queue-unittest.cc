@@ -82,9 +82,9 @@ class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
  public:
   template <typename F>
   Handle<Microtask> NewMicrotask(F&& f) {
-    Handle<Foreign> runner = factory()->NewForeign<kGenericForeignTag>(
+    DirectHandle<Foreign> runner = factory()->NewForeign<kGenericForeignTag>(
         reinterpret_cast<Address>(&RunStdFunction));
-    Handle<Foreign> data = factory()->NewForeign<kGenericForeignTag>(
+    DirectHandle<Foreign> data = factory()->NewForeign<kGenericForeignTag>(
         reinterpret_cast<Address>(new Closure(std::forward<F>(f))));
     return factory()->NewCallbackTask(runner, data);
   }
@@ -234,7 +234,7 @@ TEST_P(MicrotaskQueueTest, VisitRoot) {
 
   std::vector<Tagged<Object>> expected;
   for (int i = 0; i < MicrotaskQueue::kMinimumCapacity / 2 + 1; ++i) {
-    Handle<Microtask> microtask = NewMicrotask([] {});
+    DirectHandle<Microtask> microtask = NewMicrotask([] {});
     expected.push_back(*microtask);
     microtask_queue()->EnqueueMicrotask(*microtask);
   }
@@ -255,9 +255,12 @@ TEST_P(MicrotaskQueueTest, PromiseHandlerContext) {
   Local<v8::Context> v8_context2 = v8::Context::New(v8_isolate());
   Local<v8::Context> v8_context3 = v8::Context::New(v8_isolate());
   Local<v8::Context> v8_context4 = v8::Context::New(v8_isolate());
-  Handle<Context> context2 = Utils::OpenHandle(*v8_context2, isolate());
-  Handle<Context> context3 = Utils::OpenHandle(*v8_context3, isolate());
-  Handle<Context> context4 = Utils::OpenHandle(*v8_context3, isolate());
+  DirectHandle<Context> context2 =
+      Utils::OpenDirectHandle(*v8_context2, isolate());
+  DirectHandle<Context> context3 =
+      Utils::OpenDirectHandle(*v8_context3, isolate());
+  DirectHandle<Context> context4 =
+      Utils::OpenDirectHandle(*v8_context3, isolate());
   context2->native_context()->set_microtask_queue(isolate(), microtask_queue());
   context3->native_context()->set_microtask_queue(isolate(), microtask_queue());
   context4->native_context()->set_microtask_queue(isolate(), microtask_queue());
@@ -368,9 +371,9 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_Run) {
       "Promise.reject().catch(() => { ran[1] = true; });"
       "ran");
 
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       RunJS<JSFunction>("(function() { ran[2] = true; })");
-  Handle<CallableTask> callable =
+  DirectHandle<CallableTask> callable =
       factory()->NewCallableTask(function, Utils::OpenHandle(*context()));
   microtask_queue()->EnqueueMicrotask(*callable);
 

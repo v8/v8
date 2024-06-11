@@ -65,7 +65,7 @@ TEST(ArrayBuffer_OnlyMC) {
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
     extension = buf->extension();
     CHECK(v8_flags.single_generation ? IsTrackedOld(heap, extension)
                                      : IsTrackedYoung(heap, extension));
@@ -94,7 +94,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
     extension = buf->extension();
     CHECK(IsTrackedYoung(heap, extension));
     heap::InvokeAtomicMinorGC(heap);
@@ -122,7 +122,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
     extension = buf->extension();
     CHECK(IsTrackedYoung(heap, extension));
     heap::InvokeAtomicMinorGC(heap);
@@ -193,14 +193,14 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
 
     {
       v8::HandleScope new_handle_scope(isolate);
       // Allocate another buffer on the same page to force processing a
       // non-empty set of buffers in the last GC.
       Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
-      Handle<JSArrayBuffer> buf2 = v8::Utils::OpenHandle(*ab2);
+      DirectHandle<JSArrayBuffer> buf2 = v8::Utils::OpenDirectHandle(*ab2);
       CHECK(IsTracked(heap, *buf));
       heap::InvokeAtomicMinorGC(heap);
       CHECK(IsTracked(heap, *buf));
@@ -232,12 +232,12 @@ TEST(ArrayBuffer_NonLivePromotion) {
 
   {
     v8::HandleScope handle_scope(isolate);
-    Handle<FixedArray> root =
+    DirectHandle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       root->set(0, *buf);  // Buffer that should not be promoted as live.
     }
     heap::SimulateIncrementalMarking(heap, false);
@@ -274,7 +274,7 @@ TEST(ArrayBuffer_LivePromotion) {
     {
       v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
     // Store array in Global such that it is part of the root set when
@@ -312,12 +312,12 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   heap::SealCurrentObjects(heap);
   {
     v8::HandleScope handle_scope(isolate);
-    Handle<FixedArray> root =
+    DirectHandle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
       MemoryChunk::FromHeapObject(*buf)->MarkNeverEvacuate();
     }
@@ -349,13 +349,13 @@ TEST(ArrayBuffer_PagePromotion) {
   heap::SealCurrentObjects(heap);
   {
     v8::HandleScope handle_scope(isolate);
-    Handle<FixedArray> root =
+    DirectHandle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     ArrayBufferExtension* extension;
     {
       v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       extension = buf->extension();
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
@@ -391,10 +391,10 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     heap::InvokeMajorGC(heap);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
+    DirectHandle<JSArrayBuffer> buf1 = v8::Utils::OpenDirectHandle(*ab1);
     heap::FillCurrentPage(heap->new_space());
     Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
-    Handle<JSArrayBuffer> buf2 = v8::Utils::OpenHandle(*ab2);
+    DirectHandle<JSArrayBuffer> buf2 = v8::Utils::OpenDirectHandle(*ab2);
     CHECK_NE(PageMetadata::FromHeapObject(*buf1),
              PageMetadata::FromHeapObject(*buf2));
     heap::InvokeAtomicMajorGC(heap);

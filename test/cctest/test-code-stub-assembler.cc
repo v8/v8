@@ -82,7 +82,7 @@ TEST(CallCFunction) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<Object> result = ft.Call().ToHandleChecked();
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(45, Smi::cast(*result).value());
 }
 
@@ -110,7 +110,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<Object> result = ft.Call().ToHandleChecked();
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(3, Smi::cast(*result).value());
 }
 
@@ -172,7 +172,7 @@ TEST(NumberToString) {
 
 namespace {
 
-void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
+void CheckToUint32Result(uint32_t expected, DirectHandle<Object> result) {
   const int64_t result_int64 = NumberToInt64(*result);
   const uint32_t result_uint32 = NumberToUint32(*result);
 
@@ -245,7 +245,7 @@ TEST(ToUint32) {
     // Check with Smi input.
     if (IsSmi(*input_obj)) {
       Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
-      Handle<Object> result = ft.Call(input_smi).ToHandleChecked();
+      DirectHandle<Object> result = ft.Call(input_smi).ToHandleChecked();
       CheckToUint32Result(expectations[i], result);
       input_num = factory->NewHeapNumber(inputs[i]);
     } else {
@@ -255,7 +255,7 @@ TEST(ToUint32) {
     // Check with HeapNumber input.
     {
       CHECK(IsHeapNumber(*input_num));
-      Handle<Object> result = ft.Call(input_num).ToHandleChecked();
+      DirectHandle<Object> result = ft.Call(input_num).ToHandleChecked();
       CheckToUint32Result(expectations[i], result);
     }
   }
@@ -499,7 +499,7 @@ TEST(ComputeIntegerHash) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
 
     Handle<Smi> key(Smi::FromInt(k), isolate);
-    Handle<Object> result = ft.Call(key).ToHandleChecked();
+    DirectHandle<Object> result = ft.Call(key).ToHandleChecked();
 
     uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
     Tagged<Smi> expected = Smi::FromInt(hash);
@@ -516,33 +516,33 @@ TEST(ToString) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  Handle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
-  Handle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
+  DirectHandle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
   smi_test->set(0, Smi::FromInt(42));
   Handle<String> str(isolate->factory()->InternalizeUtf8String("42"));
   smi_test->set(1, *str);
   test_cases->set(0, *smi_test);
 
-  Handle<FixedArray> number_test = isolate->factory()->NewFixedArray(2);
-  Handle<HeapNumber> num(isolate->factory()->NewHeapNumber(3.14));
+  DirectHandle<FixedArray> number_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<HeapNumber> num(isolate->factory()->NewHeapNumber(3.14));
   number_test->set(0, *num);
   str = isolate->factory()->InternalizeUtf8String("3.14");
   number_test->set(1, *str);
   test_cases->set(1, *number_test);
 
-  Handle<FixedArray> string_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> string_test = isolate->factory()->NewFixedArray(2);
   str = isolate->factory()->InternalizeUtf8String("test");
   string_test->set(0, *str);
   string_test->set(1, *str);
   test_cases->set(2, *string_test);
 
-  Handle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
   oddball_test->set(0, ReadOnlyRoots(isolate).undefined_value());
   str = isolate->factory()->InternalizeUtf8String("undefined");
   oddball_test->set(1, *str);
   test_cases->set(3, *oddball_test);
 
-  Handle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
   Handle<FixedArray> js_array_storage = isolate->factory()->NewFixedArray(2);
   js_array_storage->set(0, Smi::FromInt(1));
   js_array_storage->set(1, Smi::FromInt(2));
@@ -554,10 +554,10 @@ TEST(ToString) {
   test_cases->set(4, *tostring_test);
 
   for (int i = 0; i < 5; ++i) {
-    Handle<FixedArray> test =
-        handle(FixedArray::cast(test_cases->get(i)), isolate);
-    Handle<Object> obj = handle(test->get(0), isolate);
-    Handle<String> expected = handle(String::cast(test->get(1)), isolate);
+    DirectHandle<FixedArray> test(FixedArray::cast(test_cases->get(i)),
+                                  isolate);
+    Handle<Object> obj(test->get(0), isolate);
+    Handle<String> expected(String::cast(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(IsString(*result));
     CHECK(String::Equals(isolate, Handle<String>::cast(result), expected));
@@ -804,7 +804,7 @@ void TestEntryToIndex() {
   // Test a wide range of entries but staying linear in the first 100 entries.
   for (int entry = 0; entry < Dictionary::kMaxCapacity;
        entry = entry * 1.01 + 1) {
-    Handle<Object> result =
+    DirectHandle<Object> result =
         ft.Call(handle(Smi::FromInt(entry), isolate)).ToHandleChecked();
     CHECK_EQ(Dictionary::EntryToIndex(InternalIndex(entry)),
              Smi::ToInt(*result));
@@ -972,7 +972,7 @@ TEST(NumberDictionaryLookup) {
       NumberDictionary::New(isolate, kKeysCount);
   uint32_t keys[kKeysCount];
 
-  Handle<Object> fake_value(Smi::FromInt(42), isolate);
+  DirectHandle<Object> fake_value(Smi::FromInt(42), isolate);
   PropertyDetails fake_details = PropertyDetails::Empty();
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
@@ -1174,7 +1174,7 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
   for (size_t i = 0; i < names_count; i++) {
     Handle<Object> value = values[(seed + i) % values_count];
     if (IsAccessorPair(*value)) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
+      DirectHandle<AccessorPair> pair = Cast<AccessorPair>(value);
       Handle<Object> getter(pair->getter(), isolate);
       Handle<Object> setter(pair->setter(), isolate);
       JSObject::DefineOwnAccessorIgnoreAttributes(object, names[i], getter,
@@ -1260,7 +1260,7 @@ TEST(TryHasOwnProperty) {
   {
     // Fast object, no inobject properties.
     int inobject_properties = 0;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
@@ -1272,7 +1272,7 @@ TEST(TryHasOwnProperty) {
   {
     // Fast object, all inobject properties.
     int inobject_properties = arraysize(names) * 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
@@ -1284,7 +1284,7 @@ TEST(TryHasOwnProperty) {
   {
     // Fast object, half inobject properties.
     int inobject_properties = arraysize(names) / 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
@@ -1369,7 +1369,7 @@ TEST(TryHasOwnProperty) {
   }
 
   {
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
@@ -1468,7 +1468,7 @@ TEST(TryGetOwnProperty) {
   {
     // Fast object, no inobject properties.
     int inobject_properties = 0;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
@@ -1481,7 +1481,7 @@ TEST(TryGetOwnProperty) {
   {
     // Fast object, all inobject properties.
     int inobject_properties = arraysize(names) * 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
@@ -1494,7 +1494,7 @@ TEST(TryGetOwnProperty) {
   {
     // Fast object, half inobject properties.
     int inobject_properties = arraysize(names) / 2;
-    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    DirectHandle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
@@ -1546,9 +1546,9 @@ TEST(TryGetOwnProperty) {
     for (Handle<JSObject> object : objects) {
       for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
         Handle<Name> name = names[name_index];
-        Handle<Object> expected_value =
+        DirectHandle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
-        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
+        DirectHandle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK(Object::SameValue(*expected_value, *value));
       }
     }
@@ -1568,21 +1568,21 @@ TEST(TryGetOwnProperty) {
       for (size_t key_index = 0; key_index < arraysize(non_existing_names);
            key_index++) {
         Handle<Name> name = non_existing_names[key_index];
-        Handle<Object> expected_value =
+        DirectHandle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
         CHECK(IsUndefined(*expected_value, isolate));
-        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
+        DirectHandle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK_EQ(*not_found_symbol, *value);
       }
     }
   }
 
   {
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
-    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    DirectHandle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     // Proxies are not supported yet.
     CHECK_EQ(*bailout_symbol, *value);
   }
@@ -1591,7 +1591,7 @@ TEST(TryGetOwnProperty) {
     Handle<JSObject> object = isolate->global_proxy();
     CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
     // Global proxies are not supported yet.
-    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    DirectHandle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     CHECK_EQ(*bailout_symbol, *value);
   }
 }
@@ -1766,7 +1766,7 @@ TEST(TryLookupElement) {
   {
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
-    Handle<String> str = factory->InternalizeUtf8String("ab");
+    DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
     AddElement(object, 13, smi0);
     CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
@@ -1781,7 +1781,7 @@ TEST(TryLookupElement) {
   {
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
-    Handle<String> str = factory->InternalizeUtf8String("ab");
+    DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
     AddElement(object, 13, smi0);
     JSObject::NormalizeElements(object);
@@ -1813,8 +1813,8 @@ TEST(TryLookupElement) {
 #undef CHECK_ABSENT
 
   {
-    Handle<JSArray> handler = factory->NewJSArray(0);
-    Handle<JSFunction> function =
+    DirectHandle<JSArray> handler = factory->NewJSArray(0);
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, handler);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
@@ -1871,11 +1871,11 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     Handle<FixedArray> empty_fixed_array = factory->empty_fixed_array();
-    Handle<PropertyArray> empty_property_array =
+    DirectHandle<PropertyArray> empty_property_array =
         factory->empty_property_array();
     for (size_t i = 0; i < arraysize(maps); i++) {
       Handle<Map> map = maps[i];
-      Handle<JSObject> result = Handle<JSObject>::cast(
+      DirectHandle<JSObject> result = Cast<JSObject>(
           ft.Call(map, empty_fixed_array, empty_fixed_array).ToHandleChecked());
       CHECK_EQ(result->map(), *map);
       CHECK_EQ(result->property_array(), *empty_property_array);
@@ -1898,10 +1898,10 @@ TEST(AllocateJSObjectFromMap) {
         V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
             ? Handle<HeapObject>(object->property_dictionary_swiss(), isolate)
             : handle(object->property_dictionary(), isolate);
-    Handle<JSObject> result = Handle<JSObject>::cast(
-        ft.Call(handle(object->map(), isolate), properties,
-                handle(object->elements(), isolate))
-            .ToHandleChecked());
+    DirectHandle<JSObject> result =
+        Cast<JSObject>(ft.Call(handle(object->map(), isolate), properties,
+                               handle(object->elements(), isolate))
+                           .ToHandleChecked());
     CHECK_EQ(result->map(), object->map());
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CHECK_EQ(result->property_dictionary_swiss(),
@@ -1942,8 +1942,8 @@ TEST(AllocationFoldingCSA) {
 
   {
     auto fixed_array_length = Handle<Smi>(Smi::FromInt(kNumArrays), isolate);
-    Handle<FixedArray> result =
-        Handle<FixedArray>::cast(ft.Call(fixed_array_length).ToHandleChecked());
+    DirectHandle<FixedArray> result =
+        Cast<FixedArray>(ft.Call(fixed_array_length).ToHandleChecked());
     CHECK_EQ(result->length(), kNumArrays);
     if (V8_COMPRESS_POINTERS_8GB_BOOL) {
       CHECK(IsAligned(result->address(), kObjectAlignment8GbHeap));
@@ -2003,7 +2003,7 @@ void TestDictionaryAllocation(CSAAllocator<Dictionary> csa_alloc,
 
   {
     for (int i = 0; i < max_capacity; i = i * 1.1 + 1) {
-      Handle<HeapObject> result = Handle<HeapObject>::cast(
+      DirectHandle<HeapObject> result = Cast<HeapObject>(
           ft.Call(handle(Smi::FromInt(i), isolate)).ToHandleChecked());
       Handle<Dictionary> dict = alloc(isolate, i);
       // Both dictionaries should be memory equal.
@@ -2570,7 +2570,7 @@ TEST(CallBuiltin) {
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
-  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  DirectHandle<Object> result = ft.Call(object, name).ToHandleChecked();
   CHECK_EQ(*value, *result);
 }
 
@@ -2597,7 +2597,7 @@ TEST(TailCallBuiltin) {
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
-  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  DirectHandle<Object> result = ft.Call(object, name).ToHandleChecked();
   CHECK_EQ(*value, *result);
 }
 
@@ -2634,15 +2634,15 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
 
     FunctionTester ft(csa_tester->GenerateCode(), kNumParams);
 
-    Handle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
+    DirectHandle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
 
     CHECK_EQ(kind_, array->GetElementsKind());
     CHECK_EQ(result_size, Smi::cast(*result).value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Handle<Object> obj =
         JSObject::GetElement(isolate, array, 2).ToHandleChecked();
-    Handle<HeapObject> undefined_value =
-        Handle<HeapObject>(ReadOnlyRoots(isolate).undefined_value(), isolate);
+    DirectHandle<HeapObject> undefined_value(
+        ReadOnlyRoots(isolate).undefined_value(), isolate);
     CHECK_EQ(result_size < 3 ? *undefined_value : *o1, *obj);
     obj = JSObject::GetElement(isolate, array, 3).ToHandleChecked();
     CHECK_EQ(result_size < 4 ? *undefined_value : *o2, *obj);
@@ -2783,7 +2783,7 @@ TEST(NewJSPromise) {
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsJSPromise(*result));
 }
@@ -2804,7 +2804,7 @@ TEST(NewJSPromise2) {
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsJSPromise(*result));
-  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
+  DirectHandle<JSPromise> js_promise = Cast<JSPromise>(result);
   CHECK_EQ(v8::Promise::kRejected, js_promise->status());
   CHECK_EQ(Smi::FromInt(1), js_promise->result());
   CHECK(!js_promise->has_handler());
@@ -2864,7 +2864,7 @@ TEST(PromiseHasHandler) {
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
@@ -2888,7 +2888,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call().ToHandleChecked();
   CHECK(IsContext(*result));
-  Handle<Context> context_js = Handle<Context>::cast(result);
+  DirectHandle<Context> context_js = Cast<Context>(result);
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(IsJSPromise(context_js->get(PromiseBuiltins::kPromiseSlot)));
@@ -2922,7 +2922,7 @@ TEST(CreatePromiseResolvingFunctions) {
   Handle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsFixedArray(*result_obj));
-  Handle<FixedArray> result_arr = Handle<FixedArray>::cast(result_obj);
+  DirectHandle<FixedArray> result_arr = Cast<FixedArray>(result_obj);
   CHECK(IsJSFunction(result_arr->get(0)));
   CHECK(IsJSFunction(result_arr->get(1)));
 }
@@ -3013,7 +3013,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   Handle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsJSFunction(*result_obj));
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
+  DirectHandle<JSFunction> fun = Cast<JSFunction>(result_obj);
   CHECK_EQ(ReadOnlyRoots(isolate).empty_property_array(),
            fun->property_array());
   CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(), fun->elements());
@@ -3047,7 +3047,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   Handle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsContext(*result_obj));
-  Handle<Context> context_js = Handle<Context>::cast(result_obj);
+  DirectHandle<Context> context_js = Cast<Context>(result_obj);
   CHECK_EQ(PromiseBuiltins::kCapabilitiesContextLength, context_js->length());
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
@@ -3077,8 +3077,8 @@ TEST(NewPromiseCapability) {
 
     Handle<Object> result_obj = ft.Call().ToHandleChecked();
     CHECK(IsPromiseCapability(*result_obj));
-    Handle<PromiseCapability> result =
-        Handle<PromiseCapability>::cast(result_obj);
+    DirectHandle<PromiseCapability> result =
+        Cast<PromiseCapability>(result_obj);
 
     CHECK(IsJSPromise(result->promise()));
     CHECK(IsJSFunction(result->resolve()));
@@ -3095,8 +3095,8 @@ TEST(NewPromiseCapability) {
         handle(JSFunction::cast(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
-      Handle<Context> callback_context(Context::cast(callback->context()),
-                                       isolate);
+      DirectHandle<Context> callback_context(Context::cast(callback->context()),
+                                             isolate);
       CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo),
                callback_context->scope_info());
       CHECK_EQ(*isolate->native_context(), callback_context->native_context());
@@ -3133,8 +3133,8 @@ TEST(NewPromiseCapability) {
 
     Handle<Object> result_obj = ft.Call(constructor_fn).ToHandleChecked();
     CHECK(IsPromiseCapability(*result_obj));
-    Handle<PromiseCapability> result =
-        Handle<PromiseCapability>::cast(result_obj);
+    DirectHandle<PromiseCapability> result =
+        Cast<PromiseCapability>(result_obj);
 
     CHECK(IsJSObject(result->promise()));
     Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
@@ -3154,7 +3154,7 @@ TEST(NewPromiseCapability) {
                         isolate->factory()->undefined_value(), 1, argv1)
             .ToHandleChecked();
 
-    Handle<Object> prop1 =
+    DirectHandle<Object> prop1 =
         JSReceiver::GetProperty(isolate, promise, "resolvedValue")
             .ToHandleChecked();
     CHECK_EQ(*resolved_str, *prop1);
@@ -3163,7 +3163,7 @@ TEST(NewPromiseCapability) {
     ret = Execution::Call(isolate, handle(result->reject(), isolate),
                           isolate->factory()->undefined_value(), 1, argv2)
               .ToHandleChecked();
-    Handle<Object> prop2 =
+    DirectHandle<Object> prop2 =
         JSReceiver::GetProperty(isolate, promise, "rejectedReason")
             .ToHandleChecked();
     CHECK_EQ(*rejected_str, *prop2);
@@ -3349,10 +3349,10 @@ TEST(LoadJSArrayElementsMap) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   for (int kind = 0; kind <= HOLEY_DOUBLE_ELEMENTS; kind++) {
-    Handle<Map> csa_result =
+    DirectHandle<Map> csa_result =
         ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
     ElementsKind elements_kind = static_cast<ElementsKind>(kind);
-    Handle<Map> result(
+    DirectHandle<Map> result(
         isolate->native_context()->GetInitialJSArrayMap(elements_kind),
         isolate);
     CHECK_EQ(*csa_result, *result);
@@ -3578,7 +3578,7 @@ TEST(CloneEmptyFixedArray) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(0, result->length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
@@ -3596,7 +3596,7 @@ TEST(CloneFixedArray) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(5, result->length());
   CHECK(IsTheHole(result->get(0), isolate));
@@ -3619,7 +3619,7 @@ TEST(CloneFixedArrayCOW) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(*source, result);
 }
@@ -3643,7 +3643,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_NE(*source, result);
   CHECK_EQ(5, result->length());
@@ -3673,7 +3673,7 @@ TEST(ExtractFixedArraySimple) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw =
+  DirectHandle<Object> result_raw =
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
@@ -3702,7 +3702,7 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
@@ -3728,7 +3728,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
@@ -3752,7 +3752,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
@@ -3774,7 +3774,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  Handle<Object> result_raw =
+  DirectHandle<Object> result_raw =
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
@@ -3790,7 +3790,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   source_double->set(2, 12);
   source_double->set(3, 13);
   source_double->set(4, 14);
-  Handle<Object> double_result_raw =
+  DirectHandle<Object> double_result_raw =
       ft.Call(source_double, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
@@ -3841,11 +3841,11 @@ TEST(SmallOrderedHashMapAllocate) {
   Factory* factory = isolate->factory();
   int capacity = SmallOrderedHashMap::kMinCapacity;
   while (capacity <= SmallOrderedHashMap::kMaxCapacity) {
-    Handle<SmallOrderedHashMap> expected =
+    DirectHandle<SmallOrderedHashMap> expected =
         factory->NewSmallOrderedHashMap(capacity);
-    Handle<Object> result_raw =
+    DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
-    Handle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
+    DirectHandle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
         SmallOrderedHashMap::cast(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
@@ -3879,11 +3879,11 @@ TEST(SmallOrderedHashSetAllocate) {
   int capacity = SmallOrderedHashSet::kMinCapacity;
   Factory* factory = isolate->factory();
   while (capacity <= SmallOrderedHashSet::kMaxCapacity) {
-    Handle<SmallOrderedHashSet> expected =
+    DirectHandle<SmallOrderedHashSet> expected =
         factory->NewSmallOrderedHashSet(capacity);
-    Handle<Object> result_raw =
+    DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
-    Handle<SmallOrderedHashSet> actual = Handle<SmallOrderedHashSet>(
+    DirectHandle<SmallOrderedHashSet> actual(
         SmallOrderedHashSet::cast(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
@@ -4086,14 +4086,14 @@ TEST(WasmInt32ToHeapNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected));
   }
 }
 
-int32_t NumberToInt32(Handle<Object> number) {
+int32_t NumberToInt32(DirectHandle<Object> number) {
   if (IsSmi(*number)) {
     return Smi::ToInt(*number);
   }
@@ -4172,9 +4172,9 @@ TEST(WasmFloat32ToNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
           (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
@@ -4212,16 +4212,16 @@ TEST(WasmFloat64ToNumber) {
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    Handle<Object> result = ft.Call().ToHandleChecked();
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
-    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    DirectHandle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
           (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
 
-double NumberToFloat64(Handle<Object> number) {
+double NumberToFloat64(DirectHandle<Object> number) {
   if (IsSmi(*number)) {
     return Smi::ToInt(*number);
   }

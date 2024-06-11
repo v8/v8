@@ -59,7 +59,7 @@ using MacroAssemblerX64Test = TestWithIsolate;
 
 void PrintCode(Isolate* isolate, CodeDesc desc) {
 #ifdef OBJECT_PRINT
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
   Print(*code, os);
@@ -549,7 +549,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1526,7 +1526,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Min) {
   __ GetCode(i_isolate(), &desc);
 
 #ifdef OBJECT_PRINT
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
   Print(*code, os);
@@ -1593,7 +1593,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Max) {
   __ GetCode(i_isolate(), &desc);
 
 #ifdef OBJECT_PRINT
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
   Print(*code, os);
@@ -1660,7 +1660,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Min) {
   __ GetCode(i_isolate(), &desc);
 
 #ifdef OBJECT_PRINT
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
   Print(*code, os);
@@ -1730,7 +1730,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
   __ GetCode(i_isolate(), &desc);
 
 #ifdef OBJECT_PRINT
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
   Print(*code, os);

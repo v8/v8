@@ -102,7 +102,8 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
   CHECK(!instance.IsEmpty());
   CHECK_EQ(wrappable_object,
            ReadWrappablePointer(context->GetIsolate(), instance));
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
+  i::DirectHandle<i::JSReceiver> js_obj =
+      v8::Utils::OpenDirectHandle(*instance);
   CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map()->instance_type());
   return scope.Escape(instance);
 }
@@ -110,7 +111,8 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
 // static
 void WrapperHelper::ResetWrappableConnection(v8::Isolate* isolate,
                                              v8::Local<v8::Object> api_object) {
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
+  i::DirectHandle<i::JSReceiver> js_obj =
+      v8::Utils::OpenDirectHandle(*api_object);
   JSApiWrapper(JSObject::cast(*js_obj))
       .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
           reinterpret_cast<i::Isolate*>(isolate), nullptr);
@@ -120,7 +122,8 @@ void WrapperHelper::ResetWrappableConnection(v8::Isolate* isolate,
 void WrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
                                            v8::Local<v8::Object> api_object,
                                            void* instance) {
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
+  i::DirectHandle<i::JSReceiver> js_obj =
+      v8::Utils::OpenDirectHandle(*api_object);
   JSApiWrapper(JSObject::cast(*js_obj))
       .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
           reinterpret_cast<i::Isolate*>(isolate), instance);
@@ -129,7 +132,8 @@ void WrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
 // static
 void* WrapperHelper::ReadWrappablePointer(v8::Isolate* isolate,
                                           v8::Local<v8::Object> api_object) {
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
+  i::DirectHandle<i::JSReceiver> js_obj =
+      v8::Utils::OpenDirectHandle(*api_object);
   return JSApiWrapper(JSObject::cast(*js_obj))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
                            kAnyCppHeapPointer);

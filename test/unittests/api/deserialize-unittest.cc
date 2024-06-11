@@ -298,8 +298,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   template <typename T>
   static i::Tagged<i::SharedFunctionInfo> GetSharedFunctionInfo(
       Local<T> function_or_script) {
-    i::Handle<i::JSFunction> i_function =
-        i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function_or_script));
+    i::DirectHandle<i::JSFunction> i_function =
+        i::Cast<i::JSFunction>(Utils::OpenDirectHandle(*function_or_script));
     return i_function->shared();
   }
 
@@ -359,7 +359,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   }
 
   void AgeBytecodeAndGC(ScriptObjectFlag sfis_to_age,
-                        i::Handle<i::WeakFixedArray> original_objects,
+                        i::DirectHandle<i::WeakFixedArray> original_objects,
                         i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((sfis_to_age & (1 << index)) == (1 << index)) {
@@ -419,11 +419,11 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     ScriptOrigin default_origin(NewString(""));
 
-    i::Handle<i::WeakFixedArray> original_objects =
+    i::DirectHandle<i::WeakFixedArray> original_objects =
         i_isolate->factory()->NewWeakFixedArray(kScriptObjectsCount);
-    i::Handle<i::FixedArray> retained_original_objects =
+    i::DirectHandle<i::FixedArray> retained_original_objects =
         i_isolate->factory()->NewFixedArray(kScriptObjectsCount);
-    i::Handle<i::WeakFixedArray> new_objects =
+    i::DirectHandle<i::WeakFixedArray> new_objects =
         i_isolate->factory()->NewWeakFixedArray(kScriptObjectsCount);
     Local<Script> original_script;
 

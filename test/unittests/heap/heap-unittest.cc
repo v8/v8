@@ -395,8 +395,8 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
                   ->Int32Value(ctx)
                   .FromJust());
 
-  i::Handle<JSReceiver> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::DirectHandle<JSReceiver> o =
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(Heap::InYoungGeneration(*o));
 }
@@ -426,7 +426,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   HandleScope scope(isolate());
 
   // Create a young object and age it one generation inside the new space.
-  Handle<FixedArray> arr = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> arr = factory->NewFixedArray(1);
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_ms) {
     NewSpace* new_space = heap->new_space();
@@ -444,7 +444,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   // Add into 'arr' a reference to an object one generation younger.
   {
     HandleScope scope_inner(isolate());
-    Handle<Object> number = factory->NewHeapNumber(42);
+    DirectHandle<Object> number = factory->NewHeapNumber(42);
     arr->set(0, *number);
   }
 
@@ -476,7 +476,7 @@ TEST_F(HeapTest, Regress978156) {
   std::vector<Handle<FixedArray>> arrays;
   SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
-  Handle<FixedArray> last = arrays.back();
+  DirectHandle<FixedArray> last = arrays.back();
   CHECK_GT(last->length(), 0);
   heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.

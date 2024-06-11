@@ -69,10 +69,10 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
   return try_catch.Message();
 }
 
-void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
+void FunctionTester::CheckCall(DirectHandle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
-  Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
+  DirectHandle<Object> result = Call(a, b, c, d).ToHandleChecked();
   CHECK(Object::SameValue(*expected, *result));
 }
 

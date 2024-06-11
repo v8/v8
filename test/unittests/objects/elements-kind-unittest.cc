@@ -105,7 +105,7 @@ TEST_F(ElementsKindTest, JSObjectAddingProperties) {
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
   Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<Map> previous_map(object->map(), i_isolate());
+  DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
   CHECK(EQUALS(i_isolate(), object->elements(), empty_fixed_array));
@@ -136,7 +136,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
   Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<Map> previous_map(object->map(), i_isolate());
+  DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
   CHECK(EQUALS(i_isolate(), object->elements(), empty_fixed_array));
@@ -178,7 +178,7 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
   Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<Map> previous_map(object->map(), i_isolate());
+  DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
   CHECK(EQUALS(i_isolate(), object->elements(), empty_fixed_array));
@@ -228,7 +228,7 @@ TEST_F(ElementsKindTest, JSArrayAddingProperties) {
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
-  Handle<Map> previous_map(array->map(), i_isolate());
+  DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), array->property_array(), empty_property_array));
   CHECK(EQUALS(i_isolate(), array->elements(), empty_fixed_array));
@@ -258,7 +258,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
 
   Handle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
-  Handle<Map> previous_map(array->map(), i_isolate());
+  DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), array->property_array(), empty_property_array));
   CHECK(EQUALS(i_isolate(), array->elements(), empty_fixed_array));

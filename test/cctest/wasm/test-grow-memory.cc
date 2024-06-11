@@ -47,7 +47,7 @@ TEST(GrowMemDetaches) {
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
                               WasmMemoryFlag::kWasmMemory32)
             .ToHandleChecked();
-    Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
+    DirectHandle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
     int32_t result = WasmMemoryObject::Grow(isolate, memory_object, 0);
     CHECK_EQ(16, result);
     CHECK_NE(*buffer, memory_object->array_buffer());

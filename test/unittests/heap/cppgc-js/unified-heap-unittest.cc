@@ -674,7 +674,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
 
   v8::Local<v8::Object> key =
       v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-  Handle<JSWeakMap> weak_map = i_isolate()->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weak_map = i_isolate()->factory()->NewJSWeakMap();
   {
     v8::HandleScope inner_scope(v8_isolate());
     // C++ object that should be traced through ephemeron value.
@@ -685,7 +685,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     EXPECT_FALSE(value.IsEmpty());
     Handle<JSObject> js_key =
         handle(JSObject::cast(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
-    Handle<JSReceiver> js_value = v8::Utils::OpenHandle(*value);
+    DirectHandle<JSReceiver> js_value = v8::Utils::OpenDirectHandle(*value);
     int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);
   }

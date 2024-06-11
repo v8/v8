@@ -58,15 +58,15 @@ class Types {
     // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
     // uncontionally.
     if (!PersistentHandlesScope::IsActive(isolate)) {
-      Handle<i::Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
-                              isolate);
+      DirectHandle<i::Object> dummy(
+          ReadOnlyRoots(isolate->heap()).empty_string(), isolate);
       persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
     }
 
     SignedSmall = Type::SignedSmall();
     UnsignedSmall = Type::UnsignedSmall();
 
-    Handle<i::Map> object_map =
+    DirectHandle<i::Map> object_map =
         CanonicalHandle(isolate->factory()->NewContextfulMapForCurrentContext(
             JS_OBJECT_TYPE, JSObject::kHeaderSize));
     Handle<i::Smi> smi = CanonicalHandle(Smi::FromInt(666));

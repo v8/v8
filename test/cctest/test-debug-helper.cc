@@ -416,9 +416,9 @@ TEST(GetObjectProperties) {
   CheckStructProp(*flags.struct_fields[2], "bool", "is_strict", 0, 1, 6);
 
   // Get data about a different bitfield struct which is contained within a smi.
-  Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(o);
-  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
-  Handle<i::DebugInfo> debug_info =
+  DirectHandle<i::JSFunction> function = Cast<i::JSFunction>(o);
+  DirectHandle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
+  DirectHandle<i::DebugInfo> debug_info =
       i_isolate->debug()->GetOrCreateDebugInfo(shared);
   props =
       d::GetObjectProperties(debug_info->ptr(), &ReadMemory, heap_addresses);
@@ -506,7 +506,7 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);
 
-  Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
+  DirectHandle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
   const size_t number_of_buckets = 2;
   CHECK_EQ(number_of_buckets, set->NumberOfBuckets());
   CHECK_EQ(0, set->NumberOfElements());

@@ -430,7 +430,7 @@ TEST(OldLargeObjectSpace) {
     // alignment requirements.
     CHECK_EQ(0, Heap::GetFillToAlign(ho.address(),
                                      HeapObject::RequiredAlignment(map)));
-    Handle<HeapObject> keep_alive(ho, isolate);
+    DirectHandle<HeapObject> keep_alive(ho, isolate);
   }
   CHECK_LT(0, successful_allocations);
 
@@ -609,7 +609,7 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
 
   // Prepare page that only contains a single object and a trailing FreeSpace
   // filler.
-  Handle<FixedArray> array =
+  DirectHandle<FixedArray> array =
       isolate->factory()->NewFixedArray(128, AllocationType::kOld);
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
 
@@ -639,7 +639,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   const int kFillerSize = 0;
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
+  DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
@@ -663,7 +663,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   const int kFillerSize = kTaggedSize;
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
+  DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
@@ -692,7 +692,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   const int kFillerSize = 2 * kTaggedSize;
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
+  DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 

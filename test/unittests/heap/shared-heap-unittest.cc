@@ -153,7 +153,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
 
           for (int i = 0; i < kNumIterations; i++) {
             HandleScope scope(i_client_isolate);
-            Handle<FixedArray> fixed_array =
+            DirectHandle<FixedArray> fixed_array =
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
                     AllocationType::kSharedOld);
@@ -202,7 +202,7 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
 
           for (int i = 0; i < kNumIterations; i++) {
             HandleScope scope(i_client_isolate);
-            Handle<TrustedByteArray> fixed_array =
+            DirectHandle<TrustedByteArray> fixed_array =
                 i_client_isolate->factory()->NewTrustedByteArray(
                     kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
             CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
@@ -409,7 +409,7 @@ void AllocateInSharedHeap(int iterations = 100) {
     std::vector<Handle<FixedArray>> arrays_in_handles;
     const int kKeptAliveInHandle = 1000;
     const int kKeptAliveInHeap = 100;
-    Handle<FixedArray> arrays_in_heap =
+    DirectHandle<FixedArray> arrays_in_heap =
         i_client_isolate->factory()->NewFixedArray(kKeptAliveInHeap,
                                                    AllocationType::kYoung);
 
@@ -431,7 +431,7 @@ void AllocateInSharedHeap(int iterations = 100) {
       i_client_isolate->factory()->NewFixedArray(100, AllocationType::kYoung);
     }
 
-    for (Handle<FixedArray> array : arrays_in_handles) {
+    for (DirectHandle<FixedArray> array : arrays_in_handles) {
       CHECK_EQ(array->length(), 100);
     }
 
@@ -768,7 +768,8 @@ template <AllocationType allocation, AllocationSpace space, int size>
 void AllocateWithRawPointer(Isolate* isolate, StateWithRawPointer* state) {
   // Allocate a fixed array, keep a raw pointer and a weak reference.
   HandleScope scope(isolate);
-  Handle<FixedArray> h = isolate->factory()->NewFixedArray(size, allocation);
+  DirectHandle<FixedArray> h =
+      isolate->factory()->NewFixedArray(size, allocation);
   state->ptr = (*h).ptr();
   Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h, isolate);
   state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);

@@ -360,7 +360,8 @@ WASM_COMPILED_EXEC_TEST(TableCopyInboundsFrom6To6) {
 
 namespace {
 template <typename... Args>
-void CheckTable(Isolate* isolate, Handle<WasmTableObject> table, Args... args) {
+void CheckTable(Isolate* isolate, DirectHandle<WasmTableObject> table,
+                Args... args) {
   uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
   CHECK_EQ(table->current_length(), args_length);
   Handle<Object> handles[] = {args...};
@@ -370,7 +371,7 @@ void CheckTable(Isolate* isolate, Handle<WasmTableObject> table, Args... args) {
 }
 
 template <typename WasmRunner, typename... Args>
-void CheckTableCall(Isolate* isolate, Handle<WasmTableObject> table,
+void CheckTableCall(Isolate* isolate, DirectHandle<WasmTableObject> table,
                     WasmRunner* r, uint32_t function_index, Args... args) {
   uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
   CHECK_EQ(table->current_length(), args_length);

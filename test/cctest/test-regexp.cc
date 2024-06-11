@@ -106,7 +106,7 @@ class InterruptTest {
     auto instance = reinterpret_cast<InterruptTest*>(data);
     HandleScope scope(isolate);
     Local<RegExp> re = instance->regexp_handle_.Get(isolate);
-    i::Handle<i::JSRegExp> regexp = Utils::OpenHandle(*re);
+    i::DirectHandle<i::JSRegExp> regexp = Utils::OpenDirectHandle(*re);
     // We executed on a two-byte subject so far, so we expect only bytecode for
     // two-byte to be present.
     i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
@@ -342,7 +342,8 @@ TEST(InterruptAndTransitionSubjectFromTwoByteToOneByte) {
   test.RunTest(InterruptTest::TwoByteSubjectToOneByte);
   // After the test, we expect that bytecode for a one-byte subject has been
   // installed during the interrupt.
-  i::Handle<i::JSRegExp> regexp = Utils::OpenHandle(*test.GetRegExp());
+  i::DirectHandle<i::JSRegExp> regexp =
+      Utils::OpenDirectHandle(*test.GetRegExp());
   i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
   CHECK(IsByteArray(one_byte_code));
 }

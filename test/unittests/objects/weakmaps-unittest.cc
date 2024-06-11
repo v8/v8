@@ -208,15 +208,15 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   InvokeAtomicMinorGC();
   CHECK(ObjectInYoungGeneration(weakmap->table()));
 
-  Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+  DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-  Handle<Smi> smi(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
 
@@ -252,7 +252,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
   Handle<JSFunction> function =
       factory->NewFunctionForTesting(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
   PageMetadata* first_page = heap->old_space()->first_page();
@@ -262,7 +262,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
   {
     HandleScope inner_scope(isolate);
     for (int i = 0; i < 32; i++) {
-      Handle<JSObject> object =
+      DirectHandle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
       CHECK(!Heap::InYoungGeneration(*object));
       CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
@@ -306,9 +306,9 @@ TEST_F(WeakMapsTest, Regress2060b) {
     CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                   !first_page->Contains(keys[i]->address()));
   }
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   for (int i = 0; i < 32; i++) {
-    Handle<Smi> smi(Smi::FromInt(i), isolate);
+    DirectHandle<Smi> smi(Smi::FromInt(i), isolate);
     int32_t hash = Object::GetOrCreateHash(*keys[i], isolate).value();
     JSWeakCollection::Set(weakmap, keys[i], smi, hash);
   }
@@ -345,8 +345,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
   v8::HandleScope scope(isolate);
 
   const int initial_gc_count = i_isolate()->heap()->gc_count();
-  Handle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
-  Handle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
   v8::Global<v8::Object> g1;
   v8::Global<v8::Object> g2;
   {

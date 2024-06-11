@@ -101,7 +101,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       "g();";
   test::ScriptResource* script = new test::ScriptResource(
       raw_script, strlen(raw_script), JSParameterCount(0));
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  DirectHandle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());
   std::unique_ptr<BackgroundCompileTask> task(
@@ -197,7 +197,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
       "g();";
   test::ScriptResource* script = new test::ScriptResource(
       raw_script, strlen(raw_script), JSParameterCount(0));
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  DirectHandle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());
   std::unique_ptr<BackgroundCompileTask> task(
@@ -208,7 +208,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Handle<JSFunction> e = RunJS<JSFunction>("f();");
+  DirectHandle<JSFunction> e = RunJS<JSFunction>("f();");
 
   ASSERT_TRUE(e->shared()->is_compiled());
 }
@@ -225,7 +225,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
       "g();";
   test::ScriptResource* script = new test::ScriptResource(
       raw_script, strlen(raw_script), JSParameterCount(0));
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  DirectHandle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());
   std::unique_ptr<BackgroundCompileTask> task(
@@ -238,7 +238,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Handle<JSFunction> e = RunJS<JSFunction>("f();");
+  DirectHandle<JSFunction> e = RunJS<JSFunction>("f();");
 
   ASSERT_FALSE(e->shared()->is_compiled());
 }

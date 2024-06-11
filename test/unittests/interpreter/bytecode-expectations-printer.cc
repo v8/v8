@@ -90,8 +90,8 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
   v8::Local<v8::String> v8_global_name = V8StringFromUTF8(global_name);
   v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
       context->Global()->Get(context, v8_global_name).ToLocalChecked());
-  i::Handle<i::JSFunction> js_function =
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
+  i::DirectHandle<i::JSFunction> js_function =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*function));
 
   i::Handle<i::BytecodeArray> bytecodes = i::handle(
       js_function->shared()->GetBytecodeArray(i_isolate()), i_isolate());
@@ -112,7 +112,8 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
 i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
     v8::Local<v8::Script> script) const {
-  i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
+  i::DirectHandle<i::JSFunction> js_function =
+      v8::Utils::OpenDirectHandle(*script);
   return i::handle(js_function->shared()->GetBytecodeArray(i_isolate()),
                    i_isolate());
 }
@@ -128,8 +129,7 @@ BytecodeExpectationsPrinter::GetBytecodeArrayOfCallee(
           .ToLocalChecked();
   i::Handle<i::Object> i_object =
       v8::Utils::OpenHandle(*script->Run(context).ToLocalChecked());
-  i::Handle<i::JSFunction> js_function =
-      i::Handle<i::JSFunction>::cast(i_object);
+  i::DirectHandle<i::JSFunction> js_function = i::Cast<i::JSFunction>(i_object);
   CHECK(js_function->shared()->HasBytecodeArray());
   return i::handle(js_function->shared()->GetBytecodeArray(i_isolate()),
                    i_isolate());
@@ -294,7 +294,7 @@ void BytecodeExpectationsPrinter::PrintV8String(
 }
 
 void BytecodeExpectationsPrinter::PrintConstant(
-    std::ostream* stream, i::Handle<i::Object> constant) const {
+    std::ostream* stream, i::DirectHandle<i::Object> constant) const {
   if (IsSmi(*constant)) {
     *stream << "Smi [";
     i::Smi::SmiPrint(i::Smi::cast(*constant), *stream);
@@ -314,7 +314,8 @@ void BytecodeExpectationsPrinter::PrintConstant(
 }
 
 void BytecodeExpectationsPrinter::PrintFrameSize(
-    std::ostream* stream, i::Handle<i::BytecodeArray> bytecode_array) const {
+    std::ostream* stream,
+    i::DirectHandle<i::BytecodeArray> bytecode_array) const {
   int32_t frame_size = bytecode_array->frame_size();
 
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
@@ -368,7 +369,8 @@ void BytecodeExpectationsPrinter::PrintCodeSnippet(
 }
 
 void BytecodeExpectationsPrinter::PrintHandlers(
-    std::ostream* stream, i::Handle<i::BytecodeArray> bytecode_array) const {
+    std::ostream* stream,
+    i::DirectHandle<i::BytecodeArray> bytecode_array) const {
   *stream << "handlers: [\n";
   HandlerTable table(*bytecode_array);
   for (int i = 0, num_entries = table.NumberOfRangeEntries(); i < num_entries;

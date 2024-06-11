@@ -141,7 +141,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
 
     local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
-    for (Handle<HeapNumber> handle : handles_) {
+    for (DirectHandle<HeapNumber> handle : handles_) {
       CHECK_EQ(42.0, handle->value());
     }
 

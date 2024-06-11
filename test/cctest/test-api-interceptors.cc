@@ -1429,10 +1429,10 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
       EmptyInterceptorGetter, EmptyInterceptorSetter));
 
   LocalContext context(nullptr, templ_global);
-  i::Handle<i::JSReceiver> global_proxy =
-      v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
+  i::DirectHandle<i::JSReceiver> global_proxy =
+      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(context->Global());
   CHECK(IsJSGlobalProxy(*global_proxy));
-  i::Handle<i::JSGlobalObject> global(
+  i::DirectHandle<i::JSGlobalObject> global(
       i::JSGlobalObject::cast(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());
   CHECK(global->map()->has_named_interceptor());
@@ -1493,10 +1493,10 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       GenericInterceptorGetter, GenericInterceptorSetter));
 
   LocalContext context(nullptr, templ_global);
-  i::Handle<i::JSReceiver> global_proxy =
-      v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
+  i::DirectHandle<i::JSReceiver> global_proxy =
+      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(context->Global());
   CHECK(IsJSGlobalProxy(*global_proxy));
-  i::Handle<i::JSGlobalObject> global(
+  i::DirectHandle<i::JSGlobalObject> global(
       i::JSGlobalObject::cast(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());
   CHECK(global->map()->has_named_interceptor());
@@ -3623,8 +3623,8 @@ void SloppyArgsIndexedPropertyEnumerator(
           .ToLocalChecked()
           .As<Object>();
   // Have to populate the handle manually, as it's not Cast-able.
-  i::Handle<i::JSReceiver> o =
-      v8::Utils::OpenHandle<Object, i::JSReceiver>(result);
+  i::DirectHandle<i::JSReceiver> o =
+      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
   i::Handle<i::JSArray> array(i::JSArray::unchecked_cast(*o), o->GetIsolate());
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }

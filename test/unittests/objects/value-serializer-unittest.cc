@@ -1943,8 +1943,8 @@ TEST_F(ValueSerializerTest, RoundTripResizableArrayBuffer) {
 
   // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
   // once they're exposed via the API.
-  i::Handle<i::JSArrayBuffer> array_buffer =
-      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  i::DirectHandle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(200u, array_buffer->max_byte_length());
   EXPECT_EQ(true, array_buffer->is_resizable_by_js());
 }
@@ -2514,8 +2514,8 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed
   // via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(false, i_dv->is_backed_by_rab());
 }
@@ -2544,8 +2544,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
@@ -2560,8 +2560,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(true, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
@@ -2801,9 +2801,9 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
-    i::Handle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
+    i::DirectHandle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
         i_isolate, buffer, kMaxPages, i::WasmMemoryFlag::kWasmMemory32);
-    i::Handle<i::FixedArray> fixed_array =
+    i::DirectHandle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);
     fixed_array->set(1, *wasm_memory);

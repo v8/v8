@@ -66,7 +66,8 @@ TEST(Promotion) {
     heap::SealCurrentObjects(heap);
 
     int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
+    DirectHandle<FixedArray> array =
+        isolate->factory()->NewFixedArray(array_length);
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
@@ -211,7 +212,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   // The pinned flag should prevent the page from moving.
-  for (Handle<FixedArray> object : handles) {
+  for (DirectHandle<FixedArray> object : handles) {
     CHECK_EQ(chunk, MemoryChunk::FromHeapObject(*object));
   }
 
@@ -222,7 +223,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 
   // `compact_on_every_full_gc` ensures that this page is an evacuation
   // candidate, so with the pin flag cleared compaction should now move it.
-  for (Handle<FixedArray> object : handles) {
+  for (DirectHandle<FixedArray> object : handles) {
     CHECK_NE(chunk, MemoryChunk::FromHeapObject(*object));
   }
 }
@@ -350,7 +351,7 @@ TEST(Regress5829) {
   }
   CHECK(marking->IsMarking());
   CHECK(marking->black_allocation());
-  Handle<FixedArray> array =
+  DirectHandle<FixedArray> array =
       isolate->factory()->NewFixedArray(10, AllocationType::kOld);
   Address old_end = array->address() + array->Size();
   // Right trim the array without clearing the mark bits.

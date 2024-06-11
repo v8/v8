@@ -93,7 +93,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
 
   // Create the module object.
   constexpr base::Vector<const char> kNoSourceUrl;
-  Handle<Script> script =
+  DirectHandle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate, native_module, kNoSourceUrl);
   isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
                                                1);

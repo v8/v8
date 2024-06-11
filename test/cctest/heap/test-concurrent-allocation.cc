@@ -457,9 +457,9 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
     Tagged<HeapObject> value;
     {
       HandleScope handle_scope(i_isolate);
-      Handle<FixedArray> fixed_array_handle(
+      DirectHandle<FixedArray> fixed_array_handle(
           i_isolate->factory()->NewFixedArray(1));
-      Handle<HeapNumber> value_handle(
+      DirectHandle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
       fixed_array = *fixed_array_handle;
       value = *value_handle;
@@ -554,7 +554,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       // Globalize the handle for |code| for the incremental marker to mark it.
       i_isolate->global_handles()->Create(*code_handle.location());
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
-      Handle<HeapNumber> value_handle(
+      DirectHandle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
       heap::ForceEvacuationCandidate(
           PageMetadata::FromHeapObject(*value_handle));

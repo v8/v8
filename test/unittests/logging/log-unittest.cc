@@ -315,7 +315,7 @@ TEST_F(TestWithIsolate, Issue23768) {
   v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin, false);
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
-  i::Handle<i::ExternalTwoByteString> i_source(
+  i::DirectHandle<i::ExternalTwoByteString> i_source(
       i::ExternalTwoByteString::cast(*v8::Utils::OpenDirectHandle(*source)),
       i_isolate());
   // This situation can happen if source was an external string disposed
@@ -1207,7 +1207,8 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     logger.StopLogging();
 
     i::Isolate* i_isolate = logger.i_isolate();
-    i::Handle<i::Code> builtin = BUILTIN_CODE(i_isolate, BooleanConstructor);
+    i::DirectHandle<i::Code> builtin =
+        BUILTIN_CODE(i_isolate, BooleanConstructor);
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "Function".

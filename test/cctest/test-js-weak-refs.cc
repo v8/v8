@@ -44,7 +44,7 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
   return finalization_registry;
 }
 
-Handle<JSWeakRef> ConstructJSWeakRef(Handle<JSReceiver> target,
+Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
                                      Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<String> weak_ref_name = factory->WeakRef_string();
@@ -104,7 +104,7 @@ Handle<WeakCell> FinalizationRegistryRegister(
                                       undefined, isolate);
 }
 
-void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
+void NullifyWeakCell(DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   auto empty_func = [](Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<Object> target) {};
   weak_cell->Nullify(isolate, empty_func);
@@ -114,11 +114,12 @@ void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
 }
 
 Tagged<Object> PopClearedCellHoldings(
-    Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
+    Isolate* isolate) {
   // PopClearedCell is implemented in Torque. Reproduce that implementation here
   // for testing.
-  Handle<WeakCell> weak_cell =
-      handle(WeakCell::cast(finalization_registry->cleared_cells()), isolate);
+  DirectHandle<WeakCell> weak_cell(
+      WeakCell::cast(finalization_registry->cleared_cells()), isolate);
   DCHECK(IsUndefined(weak_cell->prev(), isolate));
   finalization_registry->set_cleared_cells(weak_cell->next());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
@@ -212,7 +213,7 @@ void VerifyWeakCellKeyChain(Isolate* isolate,
 Handle<JSWeakRef> MakeWeakRefAndKeepDuringJob(Isolate* isolate) {
   HandleScope inner_scope(isolate);
 
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
   isolate->heap()->KeepDuringJob(js_object);
@@ -233,7 +234,7 @@ TEST(TestRegister) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Register a weak reference and verify internal data structures.
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 1,
@@ -247,7 +248,7 @@ TEST(TestRegister) {
   CHECK(IsUndefined(finalization_registry->key_map(), isolate));
 
   // Register another weak reference and verify internal data structures.
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 2,
@@ -275,7 +276,7 @@ TEST(TestRegisterWithKey) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   // Register a weak reference with a key and verify internal data structures.
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
@@ -287,7 +288,7 @@ TEST(TestRegisterWithKey) {
 
   // Register another weak reference with a different key and verify internal
   // data structures.
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   {
@@ -299,7 +300,7 @@ TEST(TestRegisterWithKey) {
 
   // Register another weak reference with token1 and verify internal data
   // structures.
-  Handle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
@@ -321,9 +322,9 @@ TEST(TestWeakCellNullify1) {
   Handle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   // Nullify the first WeakCell and verify internal data structures.
@@ -355,9 +356,9 @@ TEST(TestWeakCellNullify2) {
   Handle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   // Like TestWeakCellNullify1 but nullify the WeakCells in opposite order.
@@ -392,13 +393,13 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, undefined, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, undefined, isolate);
   Handle<Object> holdings3 = factory->NewStringFromAsciiChecked("holdings3");
-  Handle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings3, undefined, isolate);
 
   NullifyWeakCell(weak_cell2, isolate);
@@ -449,10 +450,10 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   Handle<JSObject> token1 = CreateKey("token1", isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, token1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
@@ -503,14 +504,14 @@ TEST(TestUnregisterActiveCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 4,
@@ -555,14 +556,14 @@ TEST(TestUnregisterActiveAndClearedCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   NullifyWeakCell(weak_cell2a, isolate);
@@ -609,7 +610,7 @@ TEST(TestWeakCellUnregisterTwice) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 1,
@@ -654,7 +655,7 @@ TEST(TestWeakCellUnregisterPopped) {
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<JSObject> token1 = CreateKey("token1", isolate);
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
@@ -688,9 +689,9 @@ TEST(TestWeakCellUnregisterNonexistentKey) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
 
   JSFinalizationRegistry::Unregister(finalization_registry, token1, isolate);
 }
@@ -707,7 +708,7 @@ TEST(TestJSWeakRef) {
   {
     HandleScope inner_scope(isolate);
 
-    Handle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
@@ -741,7 +742,7 @@ TEST(TestJSWeakRefIncrementalMarking) {
   {
     HandleScope inner_scope(isolate);
 
-    Handle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
@@ -845,14 +846,14 @@ TEST(TestRemoveUnregisterToken) {
   Handle<HeapObject> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   NullifyWeakCell(weak_cell2a, isolate);
@@ -909,7 +910,7 @@ TEST(JSWeakRefScavengedInWorklist) {
     // Make a WeakRef that points to a target, both of which become unreachable.
     {
       HandleScope inner_scope(isolate);
-      Handle<JSObject> js_object =
+      DirectHandle<JSObject> js_object =
           isolate->factory()->NewJSObject(isolate->object_function());
       Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
       CHECK(Heap::InYoungGeneration(*js_object));
@@ -960,7 +961,7 @@ TEST(JSWeakRefTenuredInWorklist) {
   // Make a WeakRef that points to a target. The target becomes unreachable.
   {
     HandleScope inner_scope(isolate);
-    Handle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
     CHECK(Heap::InYoungGeneration(*js_object));

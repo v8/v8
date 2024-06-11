@@ -162,10 +162,10 @@ TEST(TestTernaryOperator) {
     m.Return(m.TestTernaryOperator(arg));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result1 =
+  DirectHandle<Object> result1 =
       ft.Call(Handle<Smi>(Smi::FromInt(-5), isolate)).ToHandleChecked();
   CHECK_EQ(-15, Smi::cast(*result1).value());
-  Handle<Object> result2 =
+  DirectHandle<Object> result2 =
       ft.Call(Handle<Smi>(Smi::FromInt(3), isolate)).ToHandleChecked();
   CHECK_EQ(103, Smi::cast(*result2).value());
 }
@@ -828,8 +828,8 @@ TEST(TestFullyGeneratedClassFromCpp) {
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestFullyGeneratedClassFromCpp()); }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<ExportedSubClass> result =
-      Handle<ExportedSubClass>::cast(ft.Call().ToHandleChecked());
+  DirectHandle<ExportedSubClass> result =
+      Cast<ExportedSubClass>(ft.Call().ToHandleChecked());
   CHECK_EQ(result->c_field(), 7);
   CHECK_EQ(result->d_field(), 8);
   CHECK_EQ(result->e_field(), 9);
@@ -937,7 +937,7 @@ TEST(TestRunLazyTwice) {
   }
   CHECK_EQ(lazyNumber, 5);
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(7, Smi::cast(*result).value());
 }
 
@@ -970,7 +970,7 @@ TEST(TestReturnNever_NotCalled) {
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(42, Smi::cast(*result).value());
 }
 

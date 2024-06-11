@@ -414,7 +414,7 @@ class WasmRunnerBase : public InitializedHandleScope {
     if (retval.is_null()) {
       CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
     } else {
-      Handle<Object> result = retval.ToHandleChecked();
+      DirectHandle<Object> result = retval.ToHandleChecked();
       if (IsSmi(*result)) {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
@@ -535,7 +535,7 @@ class WasmRunner : public WasmRunnerBase {
       return static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     }
 
-    Handle<Object> result = retval.ToHandleChecked();
+    DirectHandle<Object> result = retval.ToHandleChecked();
     // For int64_t and uint64_t returns we will get a BigInt.
     if constexpr (std::is_integral_v<ReturnType> &&
                   sizeof(ReturnType) == sizeof(int64_t)) {

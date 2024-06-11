@@ -87,7 +87,7 @@ std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
   ErrorThrower thrower(CcTest::i_isolate(), "Test");
   auto enabled_features = WasmFeatures::FromIsolate(CcTest::i_isolate());
   auto wire_bytes = ModuleWireBytes(bytes.begin(), bytes.end());
-  Handle<WasmModuleObject> module =
+  DirectHandle<WasmModuleObject> module =
       GetWasmEngine()
           ->SyncCompile(CcTest::i_isolate(), enabled_features,
                         CompileTimeImports{}, &thrower, wire_bytes)

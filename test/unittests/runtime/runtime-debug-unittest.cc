@@ -68,7 +68,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
   ASSERT_FALSE(result.is_null());
   // ["[[Prototype]]", <map>, "[[Entries]]", <entries>]
   ASSERT_EQ(4, result.ToHandleChecked()->elements()->length());
-  Handle<Object> entries =
+  DirectHandle<Object> entries =
       Object::GetElement(i_isolate(), result.ToHandleChecked(), 3)
           .ToHandleChecked();
   EXPECT_EQ(1, JSArray::cast(*entries)->elements()->length());

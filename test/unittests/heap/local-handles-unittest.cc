@@ -56,7 +56,7 @@ class LocalHandlesThread final : public v8::base::Thread {
 
     local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
-    for (Handle<HeapNumber> handle : handles) {
+    for (DirectHandle<HeapNumber> handle : handles) {
       CHECK_EQ(42.0, handle->value());
     }
   }
@@ -74,7 +74,7 @@ TEST_F(LocalHandlesTest, CreateLocalHandles) {
 
   {
     HandleScope handle_scope(isolate);
-    Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
+    DirectHandle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
     object = number->address();
   }
 
@@ -117,7 +117,7 @@ TEST_F(LocalHandlesTest, DereferenceLocalHandle) {
                          std::move(phs));
     UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
-    Handle<HeapNumber> local_number = handle(*ph, &local_heap);
+    DirectHandle<HeapNumber> local_number = handle(*ph, &local_heap);
     CHECK_EQ(42, local_number->value());
   }
 }
@@ -139,7 +139,7 @@ TEST_F(LocalHandlesTest, DereferenceLocalHandleFailsWhenDisallowed) {
                          std::move(phs));
     UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
-    Handle<HeapNumber> local_number = handle(*ph, &local_heap);
+    DirectHandle<HeapNumber> local_number = handle(*ph, &local_heap);
     DisallowHandleDereference disallow_scope;
     CHECK_EQ(42, local_number->value());
   }

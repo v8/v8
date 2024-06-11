@@ -49,13 +49,13 @@ class PreParserTest : public TestWithNativeContext {
 TEST_F(PreParserTest, LazyFunctionLength) {
   const char* script_source = "function lazy(a, b, c) { } lazy";
 
-  Handle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
+  DirectHandle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
 
-  Handle<SharedFunctionInfo> shared(lazy_function->shared(),
-                                    lazy_function->GetIsolate());
+  DirectHandle<SharedFunctionInfo> shared(lazy_function->shared(),
+                                          lazy_function->GetIsolate());
   CHECK_EQ(3, shared->length());
 
-  Handle<Smi> length = RunJS<Smi>("lazy.length");
+  DirectHandle<Smi> length = RunJS<Smi>("lazy.length");
   int32_t value;
   CHECK(Object::ToInt32(*length, &value));
   CHECK_EQ(3, value);
@@ -713,15 +713,15 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
 
-      i::Handle<i::String> source =
+      i::DirectHandle<i::String> source =
           factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
 
       // Compile and run the script to get a pointer to the lazy function.
       v8::Local<v8::Value> v = TryRunJS(program.begin()).ToLocalChecked();
-      i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-      i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+      i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+      i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
 
       if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
@@ -785,7 +785,7 @@ TEST_F(PreParserTest, Regress753896) {
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::String> source = factory->InternalizeUtf8String(
+  i::DirectHandle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState state;
@@ -927,7 +927,8 @@ TEST_F(PreParserTest, ProducingAndConsumingByteData) {
 
   {
     // Serialize as an OnHeapConsumedPreparseData, and read back data.
-    i::Handle<i::PreparseData> data_on_heap = bytes.CopyToHeap(isolate, 0);
+    i::DirectHandle<i::PreparseData> data_on_heap =
+        bytes.CopyToHeap(isolate, 0);
     CHECK_EQ(data_on_heap->data_length(), kDataSize);
     CHECK_EQ(data_on_heap->children_length(), 0);
     i::OnHeapConsumedPreparseData::ByteData bytes_for_reading;

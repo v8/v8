@@ -1864,8 +1864,8 @@ TEST(NativeSnapshotObjectIdMoving) {
   {
     v8::HandleScope inner_scope(isolate);
     auto local = v8::Local<v8::String>::New(isolate, wrapper);
-    i::Handle<i::String> internal = i::Handle<i::String>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
+    i::DirectHandle<i::String> internal = i::Cast<i::String>(
+        v8::Utils::OpenDirectHandle(*v8::Local<v8::String>::Cast(local)));
     i::heap::ForceEvacuationCandidate(
         i::PageMetadata::FromHeapObject(*internal));
   }
@@ -2122,38 +2122,38 @@ TEST(GetConstructor) {
   v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj1 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
+  i::DirectHandle<i::JSObject> js_obj1 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj1));
   CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj1).is_null());
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj2 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
+  i::DirectHandle<i::JSObject> js_obj2 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj2));
   CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj2).is_null());
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj3 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
+  i::DirectHandle<i::JSObject> js_obj3 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj3));
   CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj3).is_null());
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj4 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
+  i::DirectHandle<i::JSObject> js_obj4 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj4));
   CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj4).is_null());
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj5 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
+  i::DirectHandle<i::JSObject> js_obj5 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj5));
   CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj5).is_null());
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj6 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
+  i::DirectHandle<i::JSObject> js_obj6 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj6));
   CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj6).is_null());
 }
 
@@ -2181,43 +2181,43 @@ TEST(GetConstructorName) {
   v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj1 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
+  i::DirectHandle<i::JSObject> js_obj1 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj1));
   CHECK_EQ(0, StringCmp("Constructor1", i::V8HeapExplorer::GetConstructorName(
                                             i_isolate, *js_obj1)));
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj2 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
+  i::DirectHandle<i::JSObject> js_obj2 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj2));
   CHECK_EQ(0, StringCmp("Constructor2", i::V8HeapExplorer::GetConstructorName(
                                             i_isolate, *js_obj2)));
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj3 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
+  i::DirectHandle<i::JSObject> js_obj3 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj3));
   CHECK_EQ(0, StringCmp("Constructor3", i::V8HeapExplorer::GetConstructorName(
                                             i_isolate, *js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj4 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
+  i::DirectHandle<i::JSObject> js_obj4 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj4));
   CHECK_EQ(0, StringCmp("Constructor4", i::V8HeapExplorer::GetConstructorName(
                                             i_isolate, *js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj5 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
+  i::DirectHandle<i::JSObject> js_obj5 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj5));
   CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
                                       i_isolate, *js_obj5)));
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
-  i::Handle<i::JSObject> js_obj6 =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
+  i::DirectHandle<i::JSObject> js_obj6 =
+      i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj6));
   CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
                                       i_isolate, *js_obj6)));
 }
@@ -3983,8 +3983,8 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   // Make sure the function is producing pre-tenured objects.
   auto res = f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
-  i::Handle<i::JSObject> o = i::Handle<i::JSObject>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
+  i::DirectHandle<i::JSObject> o = i::Cast<i::JSObject>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
 
@@ -4172,13 +4172,12 @@ TEST(WeakReference) {
   v8::MaybeLocal<v8::Value> value = script->Run(isolate->GetCurrentContext());
   CHECK(!value.IsEmpty());
 
-  i::Handle<i::Object> obj = v8::Utils::OpenHandle(*script);
-  i::Handle<i::SharedFunctionInfo> shared_function =
-      i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared(),
-                                       i_isolate);
-  i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
+  i::DirectHandle<i::Object> obj = v8::Utils::OpenDirectHandle(*script);
+  i::DirectHandle<i::SharedFunctionInfo> shared_function(
+      i::JSFunction::cast(*obj)->shared(), i_isolate);
+  i::DirectHandle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
-  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(
+  i::DirectHandle<i::FeedbackVector> fv = factory->NewFeedbackVector(
       shared_function, feedback_cell_array,
       handle(i::JSFunction::cast(*obj)->raw_feedback_cell(), i_isolate));
 
@@ -4187,7 +4186,7 @@ TEST(WeakReference) {
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
-  i::Handle<i::Code> code =
+  i::DirectHandle<i::Code> code =
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
   CHECK(IsCode(*code));

@@ -43,7 +43,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   heap::InvokeMajorGC(heap);
 
   // Allocate a string, the GC may suspect a memento behind the string.
-  Handle<SeqOneByteString> string =
+  DirectHandle<SeqOneByteString> string =
       isolate->factory()->NewRawOneByteString(12).ToHandleChecked();
   CHECK(!(*string).is_null());
 

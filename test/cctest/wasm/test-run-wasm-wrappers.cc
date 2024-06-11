@@ -49,7 +49,7 @@ Handle<Object> SmiHandle(Isolate* isolate, int value) {
 void SmiCall(Isolate* isolate, Handle<WasmExportedFunction> exported_function,
              int argc, Handle<Object>* argv, int expected_result) {
   Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> result =
+  DirectHandle<Object> result =
       Execution::Call(isolate, exported_function, receiver, argc, argv)
           .ToHandleChecked();
   CHECK(IsSmi(*result) && Smi::ToInt(*result) == expected_result);
@@ -94,8 +94,8 @@ TEST(WrapperBudget) {
     Handle<WasmExportedFunction> main_export =
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
-    Handle<WasmExportedFunctionData> main_function_data =
-        handle(main_export->shared()->wasm_exported_function_data(), isolate);
+    DirectHandle<WasmExportedFunctionData> main_function_data(
+        main_export->shared()->wasm_exported_function_data(), isolate);
 
     // Check that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget.
@@ -142,8 +142,8 @@ TEST(WrapperReplacement) {
     Handle<WasmExportedFunction> main_export =
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
-    Handle<WasmExportedFunctionData> main_function_data =
-        handle(main_export->shared()->wasm_exported_function_data(), isolate);
+    DirectHandle<WasmExportedFunctionData> main_function_data(
+        main_export->shared()->wasm_exported_function_data(), isolate);
 
     // Check that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget.
@@ -237,12 +237,12 @@ TEST(EagerWrapperReplacement) {
         testing::GetExportedFunction(isolate, instance, "id").ToHandleChecked();
 
     // Get the function data for all exported functions.
-    Handle<WasmExportedFunctionData> add_function_data =
-        handle(add_export->shared()->wasm_exported_function_data(), isolate);
-    Handle<WasmExportedFunctionData> mult_function_data =
-        handle(mult_export->shared()->wasm_exported_function_data(), isolate);
-    Handle<WasmExportedFunctionData> id_function_data =
-        handle(id_export->shared()->wasm_exported_function_data(), isolate);
+    DirectHandle<WasmExportedFunctionData> add_function_data(
+        add_export->shared()->wasm_exported_function_data(), isolate);
+    DirectHandle<WasmExportedFunctionData> mult_function_data(
+        mult_export->shared()->wasm_exported_function_data(), isolate);
+    DirectHandle<WasmExportedFunctionData> id_function_data(
+        id_export->shared()->wasm_exported_function_data(), isolate);
 
     // Set the remaining generic-wrapper budget for add to 1,
     // so that the next call to it will cause the function to tier up.
@@ -333,24 +333,24 @@ TEST(WrapperReplacement_IndirectExport) {
         WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
 
     // Compile the module.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileModule(&zone, isolate, builder);
 
     // Get the exported table.
-    Handle<WasmTableObject> table(
+    DirectHandle<WasmTableObject> table(
         WasmTableObject::cast(
             instance->trusted_data(isolate)->tables()->get(table_index)),
         isolate);
     // Get the Wasm function through the exported table.
-    Handle<WasmFuncRef> func_ref = Handle<WasmFuncRef>::cast(
-        WasmTableObject::Get(isolate, table, function_index));
-    Handle<WasmInternalFunction> internal_function{func_ref->internal(isolate),
-                                                   isolate};
+    DirectHandle<WasmFuncRef> func_ref =
+        Cast<WasmFuncRef>(WasmTableObject::Get(isolate, table, function_index));
+    DirectHandle<WasmInternalFunction> internal_function{
+        func_ref->internal(isolate), isolate};
     Handle<WasmExportedFunction> indirect_function =
         Handle<WasmExportedFunction>::cast(
             WasmInternalFunction::GetOrCreateExternal(internal_function));
     // Get the function data.
-    Handle<WasmExportedFunctionData> indirect_function_data(
+    DirectHandle<WasmExportedFunctionData> indirect_function_data(
         indirect_function->shared()->wasm_exported_function_data(), isolate);
 
     // Verify that the generic-wrapper budget has initially a value of

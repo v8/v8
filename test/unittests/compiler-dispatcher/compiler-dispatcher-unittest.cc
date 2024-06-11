@@ -744,7 +744,7 @@ TEST_F(LazyCompileDispatcherTest, CompileLazyFinishesDispatcherJob) {
   const char raw_script[] = "function lazy() { return 42; }; lazy;";
   test::ScriptResource* script = new test::ScriptResource(
       raw_script, strlen(raw_script), JSParameterCount(0));
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  DirectHandle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   ASSERT_FALSE(shared->is_compiled());
 
@@ -765,14 +765,14 @@ TEST_F(LazyCompileDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   const char raw_source_2[] = "function lazy2() { return 42; }; lazy2;";
   test::ScriptResource* source_2 = new test::ScriptResource(
       raw_source_2, strlen(raw_source_2), JSParameterCount(0));
-  Handle<JSFunction> lazy2 = RunJS<JSFunction>(source_2);
+  DirectHandle<JSFunction> lazy2 = RunJS<JSFunction>(source_2);
   Handle<SharedFunctionInfo> shared_2(lazy2->shared(), i_isolate());
   ASSERT_FALSE(shared_2->is_compiled());
 
   const char raw_source_1[] = "function lazy1() { return lazy2(); }; lazy1;";
   test::ScriptResource* source_1 = new test::ScriptResource(
       raw_source_1, strlen(raw_source_1), JSParameterCount(0));
-  Handle<JSFunction> lazy1 = RunJS<JSFunction>(source_1);
+  DirectHandle<JSFunction> lazy1 = RunJS<JSFunction>(source_1);
   Handle<SharedFunctionInfo> shared_1(lazy1->shared(), i_isolate());
   ASSERT_FALSE(shared_1->is_compiled());
 

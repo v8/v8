@@ -32,7 +32,7 @@ class CodeGenTest : public TestWithIsolateAndZone {
     RawMachineAssemblerTester<Tagged<Object>> m(i_isolate(), zone());
 #if V8_TARGET_ARCH_X64
     // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
-    Handle<Object> number = m.isolate()->factory()->NewNumber(v);
+    DirectHandle<Object> number = m.isolate()->factory()->NewNumber(v);
     if (IsSmi(*number)) return;
 #endif
     m.Return(m.NumberConstant(v));

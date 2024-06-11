@@ -52,8 +52,8 @@ class BackgroundThread final : public v8::base::Thread {
     // some point more likely.
     static constexpr int kIndex = 1;
     for (int i = 0; i < kNumArrays; i++) {
-      Handle<JSArray> x = handles_[i];
-      Handle<FixedArrayBase> elements =
+      DirectHandle<JSArray> x = handles_[i];
+      DirectHandle<FixedArrayBase> elements =
           local_heap.NewPersistentHandle(x->elements(isolate, kRelaxedLoad));
       ElementsKind elements_kind = x->map(isolate)->elements_kind();
 

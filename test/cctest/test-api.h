@@ -36,7 +36,8 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   if (is_runtime) {
     CHECK(returnValue.Get()->IsUndefined());
   } else {
-    i::Handle<i::Object> v = v8::Utils::OpenHandle(*returnValue.Get());
+    i::DirectHandle<i::Object> v =
+        v8::Utils::OpenDirectHandle(*returnValue.Get());
     CHECK_EQ(*v, *returnObjectSlot);
   }
   returnValue.Set(true);

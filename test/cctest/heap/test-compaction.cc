@@ -32,7 +32,7 @@ void CheckInvariantsOfAbortedPage(PageMetadata* page) {
 
 void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
                            PageMetadata* page) {
-  for (Handle<FixedArray> fixed_array : handles) {
+  for (DirectHandle<FixedArray> fixed_array : handles) {
     CHECK(PageMetadata::FromHeapObject(*fixed_array) == page);
   }
 }
@@ -83,7 +83,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
       // Check that all handles still point to the same page, i.e., compaction
       // has been aborted on the page.
-      for (Handle<FixedArray> object : compaction_page_handles) {
+      for (DirectHandle<FixedArray> object : compaction_page_handles) {
         CHECK_EQ(to_be_aborted_page, PageMetadata::FromHeapObject(*object));
       }
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
@@ -167,7 +167,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
             Heap::SweepingForcedFinalizationMode::kV8Only);
 
         bool migration_aborted = false;
-        for (Handle<FixedArray> object : compaction_page_handles) {
+        for (DirectHandle<FixedArray> object : compaction_page_handles) {
           // Once compaction has been aborted, all following objects still have
           // to be on the initial page.
           CHECK(!migration_aborted ||
@@ -347,7 +347,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
       }
       root_array->set(0, *compaction_page_handles.back());
-      Handle<FixedArray> new_space_array =
+      DirectHandle<FixedArray> new_space_array =
           isolate->factory()->NewFixedArray(1, AllocationType::kYoung);
       CHECK(Heap::InYoungGeneration(*new_space_array));
       compaction_page_handles.front()->set(1, *new_space_array);
@@ -401,7 +401,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
 
       // Allocate a new object in new space.
-      Handle<FixedArray> holder =
+      DirectHandle<FixedArray> holder =
           isolate->factory()->NewFixedArray(10, AllocationType::kYoung);
       // Create a broken address that looks like a tagged pointer to a new space
       // object.

@@ -222,7 +222,7 @@ class WasmGCTester {
                        CWasmArgumentsPacker* packer, int32_t expected) {
     CallFunctionImpl(function_index, sig, packer);
     if (isolate_->has_exception()) {
-      Handle<String> message =
+      DirectHandle<String> message =
           ErrorUtils::ToString(isolate_,
                                handle(isolate_->exception(), isolate_))
               .ToHandleChecked();
@@ -236,7 +236,7 @@ class WasmGCTester {
                           CWasmArgumentsPacker* packer, const char* expected) {
     CallFunctionImpl(function_index, sig, packer);
     CHECK(isolate_->has_exception());
-    Handle<String> message =
+    DirectHandle<String> message =
         ErrorUtils::ToString(isolate_, handle(isolate_->exception(), isolate_))
             .ToHandleChecked();
     std::string message_str(message->ToCString().get());
@@ -250,8 +250,8 @@ class WasmGCTester {
     const WasmModule* module = trusted_instance_data_->module();
     Address wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
-    Handle<Object> object_ref = instance_object_;
-    Handle<Code> c_wasm_entry =
+    DirectHandle<Object> object_ref = instance_object_;
+    DirectHandle<Code> c_wasm_entry =
         compiler::CompileCWasmEntry(isolate_, sig, module);
     Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
                         packer->argv());
@@ -397,7 +397,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
        WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index)), kExprEnd});
 
   tester.CompileModule();
-  Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
+  DirectHandle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
   // Without null checks, ref.as_non_null can actually return null.
   CHECK(IsWasmNull(*result));
 }
@@ -1147,7 +1147,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   tester.CheckResult(kCopyI16, 3, 9);
 
   {
-    Handle<Object> result5 =
+    DirectHandle<Object> result5 =
         tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
     CHECK(IsWasmNull(*result5));
     for (int i = 6; i <= 9; i++) {
@@ -1471,20 +1471,21 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   tester.CompileModule();
 
   i::Isolate* i_isolate = CcTest::i_isolate();
-  Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
+  DirectHandle<Object> result_cast =
+      tester.GetResultObject(cast).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast));
-  Handle<WasmInternalFunction> result_cast_internal{
+  DirectHandle<WasmInternalFunction> result_cast_internal{
       WasmFuncRef::cast(*result_cast)->internal(i_isolate), i_isolate};
-  Handle<JSFunction> cast_function =
+  DirectHandle<JSFunction> cast_function =
       WasmInternalFunction::GetOrCreateExternal(result_cast_internal);
 
-  Handle<Object> result_cast_reference =
+  DirectHandle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast_reference));
-  Handle<WasmInternalFunction> result_cast_reference_internal{
+  DirectHandle<WasmInternalFunction> result_cast_reference_internal{
       WasmFuncRef::cast(*result_cast_reference)->internal(i_isolate),
       i_isolate};
-  Handle<JSFunction> cast_function_reference =
+  DirectHandle<JSFunction> cast_function_reference =
       WasmInternalFunction::GetOrCreateExternal(result_cast_reference_internal);
 
   CHECK_EQ(cast_function->code(i_isolate)->instruction_start(),

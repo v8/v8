@@ -68,7 +68,7 @@ class SharedEngineIsolate {
     return instance.ToHandleChecked();
   }
 
-  SharedModule ExportInstance(Handle<WasmInstanceObject> instance) {
+  SharedModule ExportInstance(DirectHandle<WasmInstanceObject> instance) {
     return instance->module_object()->shared_native_module();
   }
 
@@ -255,7 +255,8 @@ TEST(SharedEngineRunThreadedExecution) {
     SharedEngineIsolate isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
-    Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
+    DirectHandle<WasmInstanceObject> instance =
+        isolate.CompileAndInstantiate(buffer);
     module = isolate.ExportInstance(instance);
   }
   SharedEngineThread thread1([module](SharedEngineIsolate* isolate) {
@@ -280,7 +281,8 @@ TEST(SharedEngineRunThreadedTierUp) {
     SharedEngineIsolate isolate;
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
-    Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
+    DirectHandle<WasmInstanceObject> instance =
+        isolate.CompileAndInstantiate(buffer);
     module = isolate.ExportInstance(instance);
   }
   constexpr int kNumberOfThreads = 5;

@@ -38,8 +38,8 @@ GraphTest::Data::Data(Isolate* isolate, Zone* zone, int num_parameters)
   // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
   // uncontionally.
   if (!PersistentHandlesScope::IsActive(isolate)) {
-    Handle<Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
-                         isolate);
+    DirectHandle<Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
+                               isolate);
     persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
   }
   graph_.SetStart(graph_.NewNode(common_.Start(num_parameters)));

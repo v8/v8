@@ -320,8 +320,8 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
       v8::MaybeLocal<v8::WasmModuleObject> transferred_module =
           v8::WasmModuleObject::FromCompiledModule(to_isolate, store[0]);
       CHECK(!transferred_module.IsEmpty());
-      Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
-          v8::Utils::OpenHandle(*transferred_module.ToLocalChecked()));
+      DirectHandle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
+          v8::Utils::OpenDirectHandle(*transferred_module.ToLocalChecked()));
       std::shared_ptr<NativeModule> transferred_native_module =
           module_object->shared_native_module();
       CHECK_EQ(original_native_module, transferred_native_module);
@@ -374,7 +374,7 @@ TEST(SerializeLiftoffModuleFails) {
       GetWasmEngine()->SyncCompile(
           isolate, WasmFeatures::All(), CompileTimeImports{}, &thrower,
           ModuleWireBytes(wire_bytes_buffer.begin(), wire_bytes_buffer.end()));
-  Handle<WasmModuleObject> module_object =
+  DirectHandle<WasmModuleObject> module_object =
       maybe_module_object.ToHandleChecked();
 
   NativeModule* native_module = module_object->native_module();

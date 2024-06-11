@@ -40,7 +40,7 @@ test::ScriptResource* CreateSource(test::ScriptResource* maybe_resource);
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate, ScriptResource* maybe_resource);
 std::unique_ptr<Utf16CharacterStream> SourceCharacterStreamForShared(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared);
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
 }  // namespace test
 }  // namespace internal

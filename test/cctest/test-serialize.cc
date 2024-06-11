@@ -904,8 +904,8 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
     {
       // Check that compiled irregexp code has been flushed prior to
       // serialization.
-      i::Handle<i::JSRegExp> re =
-          Utils::OpenHandle(*CompileRun("re1").As<v8::RegExp>());
+      i::DirectHandle<i::JSRegExp> re =
+          Utils::OpenDirectHandle(*CompileRun("re1").As<v8::RegExp>());
       CHECK(!re->HasCompiledCode());
     }
     {
@@ -925,8 +925,8 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
     }
     {
       // Check that ATOM regexp remains valid.
-      i::Handle<i::JSRegExp> re =
-          Utils::OpenHandle(*CompileRun("re2").As<v8::RegExp>());
+      i::DirectHandle<i::JSRegExp> re =
+          Utils::OpenDirectHandle(*CompileRun("re2").As<v8::RegExp>());
       CHECK_EQ(re->type_tag(), JSRegExp::ATOM);
       CHECK(!re->HasCompiledCode());
     }
@@ -1240,8 +1240,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
 
     v8::Local<v8::Value> x = CompileRun("x");
     CHECK(x->IsTypedArray());
-    i::Handle<i::JSTypedArray> array =
-        i::Handle<i::JSTypedArray>::cast(v8::Utils::OpenHandle(*x));
+    i::DirectHandle<i::JSTypedArray> array =
+        i::Cast<i::JSTypedArray>(v8::Utils::OpenDirectHandle(*x));
     CHECK(array->WasDetached());
   }
   isolate->Dispose();
@@ -1253,8 +1253,8 @@ i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
     v8::Local<v8::Value> typed_array) {
   CHECK(typed_array->IsTypedArray());
 
-  i::Handle<i::JSArrayBufferView> view = i::Handle<i::JSArrayBufferView>::cast(
-      v8::Utils::OpenHandle(*typed_array));
+  i::DirectHandle<i::JSArrayBufferView> view =
+      i::Cast<i::JSArrayBufferView>(v8::Utils::OpenDirectHandle(*typed_array));
 
   return i::handle(i::JSArrayBuffer::cast(view->buffer()), view->GetIsolate());
 }
@@ -1286,7 +1286,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
 
       CompileRun(code);
       TestInt32Expectations(expectations);
-      i::Handle<i::JSArrayBuffer> buffer =
+      i::DirectHandle<i::JSArrayBuffer> buffer =
           GetBufferFromTypedArray(CompileRun("x"));
       // The resulting buffer should be on-heap.
       CHECK(buffer->IsEmpty());
@@ -1780,7 +1780,7 @@ TEST(CodeSerializerWithProfiler) {
   AlignedCachedData* cache = nullptr;
 
   ScriptDetails default_script_details;
-  Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+  DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
       isolate, orig_source, default_script_details, &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
@@ -1790,7 +1790,7 @@ TEST(CodeSerializerWithProfiler) {
 
   // This does not assert that no compilation can happen as source position
   // collection could trigger it.
-  Handle<SharedFunctionInfo> copy =
+  DirectHandle<SharedFunctionInfo> copy =
       CompileScript(isolate, copy_source, default_script_details, cache,
                     v8::ScriptCompiler::kConsumeCodeCache);
 
@@ -1823,7 +1823,7 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   AlignedCachedData* cache = nullptr;
 
   ScriptDetails default_script_details;
-  Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+  DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
       isolate, orig_source, default_script_details, &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
@@ -1843,7 +1843,7 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -1894,7 +1894,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
       isolate->factory()->NewFixedArray(2);
   default_host_defined_options->set(0, Smi::FromInt(0));
   const char* default_host_defined_option_1_string = "custom string";
-  Handle<String> default_host_defined_option_1 =
+  DirectHandle<String> default_host_defined_option_1 =
       isolate->factory()->NewStringFromAsciiChecked(
           default_host_defined_option_1_string);
   default_host_defined_options->set(1, *default_host_defined_option_1);
@@ -1928,7 +1928,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
     Handle<FixedArray> host_defined_options =
         isolate->factory()->NewFixedArray(2);
     host_defined_options->set(0, default_host_defined_options->get(0));
-    Handle<String> host_defined_option_1 =
+    DirectHandle<String> host_defined_option_1 =
         isolate->factory()->NewStringFromAsciiChecked(
             default_host_defined_option_1_string);
     host_defined_options->set(1, *host_defined_option_1);
@@ -2012,7 +2012,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   // Compile the script again with different options.
   ScriptDetails alternative_script_details(src);
   ScriptCompiler::CompilationDetails compilation_details;
-  Handle<SharedFunctionInfo> alternative_toplevel_sfi =
+  DirectHandle<SharedFunctionInfo> alternative_toplevel_sfi =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, src, alternative_script_details,
           ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
@@ -2063,7 +2063,7 @@ TEST(CompileFunctionCompilationCache) {
 
   Handle<FixedArray> i_host_defined_options =
       i_isolate->factory()->NewFixedArray(1);
-  Handle<Symbol> i_sym = Utils::OpenHandle(*sym);
+  DirectHandle<Symbol> i_sym = Utils::OpenDirectHandle(*sym);
   i_host_defined_options->set(0, *i_sym);
 
   v8::ScriptOrigin origin(resource_name, 0, 0, false, -1,
@@ -2079,7 +2079,7 @@ TEST(CompileFunctionCompilationCache) {
   Handle<FixedArray> i_args =
       i_isolate->factory()->NewFixedArray(static_cast<int>(args.size()));
   for (size_t i = 0; i < raw_args.size(); ++i) {
-    Handle<String> arg =
+    DirectHandle<String> arg =
         i_isolate->factory()->NewStringFromAsciiChecked(raw_args[i]);
     i_args->set(static_cast<int>(i), *arg);
   }
@@ -2142,9 +2142,12 @@ TEST(CompileFunctionCompilationCache) {
   {
     // Lookup with different wrapped arguments should fail:
     Handle<FixedArray> new_args = i_isolate->factory()->NewFixedArray(3);
-    Handle<String> arg_1 = i_isolate->factory()->NewStringFromAsciiChecked("a");
-    Handle<String> arg_2 = i_isolate->factory()->NewStringFromAsciiChecked("b");
-    Handle<String> arg_3 = i_isolate->factory()->NewStringFromAsciiChecked("c");
+    DirectHandle<String> arg_1 =
+        i_isolate->factory()->NewStringFromAsciiChecked("a");
+    DirectHandle<String> arg_2 =
+        i_isolate->factory()->NewStringFromAsciiChecked("b");
+    DirectHandle<String> arg_3 =
+        i_isolate->factory()->NewStringFromAsciiChecked("c");
     new_args->set(0, *arg_1);
     new_args->set(1, *arg_2);
     new_args->set(2, *arg_3);
@@ -2160,7 +2163,7 @@ TEST(CompileFunctionCompilationCache) {
   {
     // Lookup with different host_defined_options should fail:
     Handle<FixedArray> new_options = i_isolate->factory()->NewFixedArray(1);
-    Handle<Symbol> new_sym = i_isolate->factory()->NewSymbol();
+    DirectHandle<Symbol> new_sym = i_isolate->factory()->NewSymbol();
     new_options->set(0, *new_sym);
     ScriptDetails script_details = CopyScriptDetails();
     script_details.host_defined_options = new_options;
@@ -2286,7 +2289,7 @@ TEST(CompileFunctionCompilationCache) {
   {
     // The new script can also be found.
     Handle<FixedArray> other_options = i_isolate->factory()->NewFixedArray(1);
-    Handle<Symbol> i_other_sym = Utils::OpenHandle(*other_sym);
+    DirectHandle<Symbol> i_other_sym = Utils::OpenDirectHandle(*other_sym);
     other_options->set(0, *i_other_sym);
     ScriptDetails script_details = CopyScriptDetails();
     script_details.host_defined_options = other_options;
@@ -2351,7 +2354,7 @@ TEST(CodeSerializerInternalizedString) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
   CHECK(orig_result.is_identical_to(copy_result));
-  Handle<String> expected =
+  DirectHandle<String> expected =
       isolate->factory()->NewStringFromAsciiChecked("string1");
 
   CHECK(Handle<String>::cast(copy_result)->Equals(*expected));
@@ -2383,7 +2386,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig =
+  DirectHandle<SharedFunctionInfo> orig =
       CompileScriptAndProduceCache(isolate, source_str, ScriptDetails(), &cache,
                                    v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2405,7 +2408,7 @@ TEST(CodeSerializerLargeCodeObject) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -2457,7 +2460,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig =
+  DirectHandle<SharedFunctionInfo> orig =
       CompileScriptAndProduceCache(isolate, source_str, ScriptDetails(), &cache,
                                    v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2491,7 +2494,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -2527,7 +2530,7 @@ TEST(CodeSerializerLargeStrings) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig =
+  DirectHandle<SharedFunctionInfo> orig =
       CompileScriptAndProduceCache(isolate, source_str, ScriptDetails(), &cache,
                                    v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2603,7 +2606,7 @@ TEST(CodeSerializerThreeBigStrings) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig =
+  DirectHandle<SharedFunctionInfo> orig =
       CompileScriptAndProduceCache(isolate, source_str, ScriptDetails(), &cache,
                                    v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2727,7 +2730,7 @@ TEST(CodeSerializerExternalString) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+  DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
       isolate, source_string, ScriptDetails(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2743,7 +2746,7 @@ TEST(CodeSerializerExternalString) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -2793,7 +2796,7 @@ TEST(CodeSerializerLargeExternalString) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig =
+  DirectHandle<SharedFunctionInfo> orig =
       CompileScriptAndProduceCache(isolate, source_str, ScriptDetails(), &cache,
                                    v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2809,7 +2812,7 @@ TEST(CodeSerializerLargeExternalString) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -2849,7 +2852,7 @@ TEST(CodeSerializerExternalScriptName) {
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
-  Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+  DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
       isolate, source_string, ScriptDetails(name), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
@@ -2865,7 +2868,7 @@ TEST(CodeSerializerExternalScriptName) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -3057,7 +3060,7 @@ TEST(CodeSerializerAfterExecute) {
     }
     CHECK(!cache->rejected);
 
-    Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
+    DirectHandle<SharedFunctionInfo> sfi = v8::Utils::OpenDirectHandle(*script);
     CHECK(sfi->HasBytecodeArray());
 
     {
@@ -3313,7 +3316,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
   Handle<Script> script;
   {
     HandleScope first_compilation_scope(isolate);
-    Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
+    DirectHandle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
         isolate, source, ScriptDetails(), &cached_data,
         v8::ScriptCompiler::kNoCompileOptions,
         ScriptCompiler::InMemoryCacheResult::kMiss);
@@ -3343,7 +3346,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
           ? ScriptCompiler::InMemoryCacheResult::kHit
           : ScriptCompiler::InMemoryCacheResult::kPartial;
 
-  Handle<SharedFunctionInfo> copy = CompileScript(
+  DirectHandle<SharedFunctionInfo> copy = CompileScript(
       isolate, source, ScriptDetails(), cached_data,
       v8::ScriptCompiler::kConsumeCodeCache, expected_lookup_result);
   delete cached_data;
@@ -5769,8 +5772,8 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
 
     v8::Local<v8::Value> x = CompileRun("my_func");
     CHECK(x->IsFunction());
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*x));
+    DirectHandle<JSFunction> function =
+        Cast<JSFunction>(v8::Utils::OpenDirectHandle(*x));
 
     // Verify that the pointers in shared_function_infos are weak.
     Tagged<WeakFixedArray> sfis =
@@ -5801,7 +5804,7 @@ TEST(WeakArraySerializationInCodeCache) {
                                v8::ScriptCompiler::kNoCompileOptions);
 
   DisallowCompilation no_compile_expected(isolate);
-  Handle<SharedFunctionInfo> copy =
+  DirectHandle<SharedFunctionInfo> copy =
       CompileScript(isolate, src, script_details, cache,
                     v8::ScriptCompiler::kConsumeCodeCache);
 

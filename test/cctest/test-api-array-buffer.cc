@@ -144,7 +144,7 @@ THREADED_TEST(ArrayBuffer_DisableDetach) {
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
   CHECK(ab->IsDetachable());
 
-  i::Handle<i::JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+  i::DirectHandle<i::JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
   buf->set_is_detachable(false);
 
   CHECK(!ab->IsDetachable());

@@ -158,8 +158,8 @@ i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
                  name_start, counter, name_start, name_start);
   CompileRun(script.begin());
 
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
+  i::DirectHandle<i::JSFunction> fun = i::Cast<i::JSFunction>(
+      v8::Utils::OpenDirectHandle(*GetFunction(env->local(), name_start)));
   return fun->abstract_code(isolate);
 }
 
@@ -175,7 +175,8 @@ TEST(CodeEvents) {
   i::Handle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
   i::Handle<i::AbstractCode> comment_code(CreateCode(isolate, &env), isolate);
   i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> moved_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> moved_code(CreateCode(isolate, &env),
+                                              isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -318,7 +319,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
   profiler.StartProfiling("");
@@ -333,7 +334,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   profiler.DeleteProfile(profile);
 
   // Create code between profiles. This should not be logged yet.
-  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
 
   CHECK(!instruction_stream_map->FindEntry(code2->InstructionStart(isolate)));
 }
@@ -345,7 +346,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
   profiler.StartProfiling("");
@@ -370,7 +371,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
 
   // Create code between profiles. This should be logged too.
-  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
   CHECK(instruction_stream_map->FindEntry(code2->InstructionStart(cage_base)));
 
   profiler.StartProfiling("");
@@ -1310,8 +1311,8 @@ static void TickLines(bool optimize) {
 
   CompileRun(script.begin());
 
-  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
+  i::DirectHandle<i::JSFunction> func = i::Cast<i::JSFunction>(
+      v8::Utils::OpenDirectHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
   CHECK(!func->shared()->abstract_code(isolate).is_null());
   CHECK(!optimize || func->HasAttachedOptimizedCode(isolate) ||
@@ -4282,10 +4283,10 @@ enum class EntryCountMode { kAll, kOnlyInlined };
 int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
                                 EntryCountMode mode = EntryCountMode::kAll) {
   std::unordered_set<int64_t> raw_position_set;
-  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*CompileRun(source)));
+  i::DirectHandle<i::JSFunction> function =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*CompileRun(source)));
   if (function->ActiveTierIsIgnition(isolate)) return -1;
-  i::Handle<i::Code> code(function->code(isolate), isolate);
+  i::DirectHandle<i::Code> code(function->code(isolate), isolate);
   i::SourcePositionTableIterator iterator(
       TrustedByteArray::cast(code->source_position_table()));
 
@@ -4529,13 +4530,13 @@ TEST(NoProfilingProtectorCPUProfiler) {
 
   // Prepare the code.
   v8::Local<v8::Function> function = CreateApiCode(&env);
-  Handle<JSFunction> i_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function));
+  DirectHandle<JSFunction> i_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(*function));
 
   CHECK(!i_function->code(i_isolate)->is_optimized_code());
   CompileRun("foo(42);");
 
-  Handle<Code> code(i_function->code(i_isolate), i_isolate);
+  DirectHandle<Code> code(i_function->code(i_isolate), i_isolate);
   CHECK(code->is_optimized_code());
   CHECK(!code->marked_for_deoptimization());
   CHECK(Protectors::IsNoProfilingIntact(i_isolate));
@@ -4749,7 +4750,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
 
     Tagged<BytecodeArray> compiled_data =

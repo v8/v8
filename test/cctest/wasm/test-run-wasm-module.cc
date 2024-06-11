@@ -578,7 +578,7 @@ TEST(TestInterruptLoop) {
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
 
-    Handle<JSArrayBuffer> memory(
+    DirectHandle<JSArrayBuffer> memory(
         instance->trusted_data(isolate)->memory_object(0)->array_buffer(),
         isolate);
     std::atomic<int32_t>* memory_array =

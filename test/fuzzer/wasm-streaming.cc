@@ -50,7 +50,7 @@ class TestResolver : public CompilationResultResolver {
   void OnCompilationFailed(Handle<Object> error_reason) override {
     done_ = true;
     failed_ = true;
-    Handle<String> str =
+    DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
     error_message_.assign(str->ToCString().get());
   }
@@ -134,7 +134,7 @@ CompilationResult CompileSync(Isolate* isolate, WasmFeatures enabled_features,
                          &thrower, ModuleWireBytes{data})
            .ToHandle(&module_object)) {
     Handle<Object> error = thrower.Reify();
-    Handle<String> error_msg =
+    DirectHandle<String> error_msg =
         Object::ToString(isolate, error).ToHandleChecked();
     return CompilationResult::ForFailure(error_msg->ToCString().get());
   }
