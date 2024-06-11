@@ -28,6 +28,8 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_custom_deps
 # v8_embed_script
 # v8_embedder_string
+# v8_array_buffer_internal_field_count
+# v8_array_buffer_view_internal_field_count
 # v8_promise_internal_field_count
 # v8_enable_vtunetracemark
 # v8_enable_fast_torque

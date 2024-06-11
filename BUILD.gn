@@ -67,6 +67,14 @@ declare_args() {
   # Sets the number of internal fields on promise objects.
   v8_promise_internal_field_count = 0
 
+  # Sets the number of internal fields on array buffer objects.
+  # TODO(346350847): Switch default to 0.
+  v8_array_buffer_internal_field_count = 2
+
+  # Sets the number of internal fields on array buffer view objects.
+  # TODO(346350847): Switch default to 0.
+  v8_array_buffer_view_internal_field_count = 2
+
   # Sets -dENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
 
@@ -1063,6 +1071,12 @@ config("features") {
   if (v8_promise_internal_field_count != 0) {
     defines +=
         [ "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}" ]
+  }
+  if (v8_array_buffer_internal_field_count != 0) {
+    defines += [ "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}" ]
+  }
+  if (v8_array_buffer_view_internal_field_count != 0) {
+    defines += [ "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}" ]
   }
   defines +=
       [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
