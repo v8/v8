@@ -291,6 +291,7 @@ class ParserBase {
   int loop_nesting_depth() const {
     return function_state_->loop_nesting_depth();
   }
+  int PeekNextFunctionLiteralId() { return function_literal_id_ + 1; }
   int GetNextFunctionLiteralId() { return ++function_literal_id_; }
   int GetLastFunctionLiteralId() const { return function_literal_id_; }
 
@@ -1285,7 +1286,8 @@ class ParserBase {
   }
   ExpressionT DoParseMemberExpressionContinuation(ExpressionT expression);
 
-  ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters);
+  ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters,
+                                        int function_literal_id);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
   ExpressionT ParseClassExpression(Scope* outer_scope);
@@ -1650,11 +1652,13 @@ class ParserBase {
         Scanner::Location::invalid();
     MessageTemplate strict_parameter_error_message = MessageTemplate::kNone;
     DeclarationScope* scope = nullptr;
+    int function_literal_id = -1;
 
     bool HasInitialState() const { return scope == nullptr; }
 
     void Reset() {
       scope = nullptr;
+      function_literal_id = -1;
       ClearStrictParameterError();
       DCHECK(HasInitialState());
     }
@@ -1673,7 +1677,6 @@ class ParserBase {
   NextArrowFunctionInfo next_arrow_function_info_;
 
   bool accept_IN_ = true;
-
   bool allow_eval_cache_ = true;
 };
 
@@ -2022,13 +2025,16 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     if (V8_UNLIKELY(peek() == Token::kArrow)) {
-      ArrowHeadParsingScope parsing_scope(impl(), kind);
+      ArrowHeadParsingScope parsing_scope(impl(), kind,
+                                          PeekNextFunctionLiteralId());
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
           impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
       parsing_scope.SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
+      next_arrow_function_info_.function_literal_id =
+          parsing_scope.function_literal_id();
       return result;
     }
 
@@ -2085,10 +2091,13 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         if (peek() != Token::kArrow) ReportUnexpectedToken(Token::kRightParen);
         next_arrow_function_info_.scope =
             NewFunctionScope(FunctionKind::kArrowFunction);
+        next_arrow_function_info_.function_literal_id =
+            GetNextFunctionLiteralId();
         return factory()->NewEmptyParentheses(beg_pos);
       }
       Scope::Snapshot scope_snapshot(scope());
-      ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kArrowFunction);
+      ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kArrowFunction,
+                                        PeekNextFunctionLiteralId());
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
       if (peek() == Token::kFunction ||
@@ -2102,6 +2111,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
       if (peek() == Token::kArrow) {
         next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
+        next_arrow_function_info_.function_literal_id =
+            maybe_arrow.function_literal_id();
         scope_snapshot.Reparent(next_arrow_function_info_.scope);
       } else {
         maybe_arrow.ValidateExpression();
@@ -3072,6 +3083,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     }
 
     DeclarationScope* scope = next_arrow_function_info_.scope;
+    int function_literal_id = next_arrow_function_info_.function_literal_id;
     scope->set_start_position(lhs_beg_pos);
 
     FormalParametersT parameters(scope);
@@ -3082,8 +3094,16 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     next_arrow_function_info_.Reset();
 
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
+    // function_literal_id was reserved for the arrow function, but not actaully
+    // allocated. This comparison allocates a function literal id for the arrow
+    // function, and checks whether it's still the function id we wanted. If
+    // not, we'll reindex the arrow function formal parameters to shift them all
+    // 1 down to make space for the arrow function.
+    if (function_literal_id != GetNextFunctionLiteralId()) {
+      impl()->ReindexArrowFunctionFormalParameters(&parameters);
+    }
 
-    expression = ParseArrowFunctionLiteral(parameters);
+    expression = ParseArrowFunctionLiteral(parameters, function_literal_id);
 
     return expression;
   }
@@ -3662,8 +3682,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
 
-    ArrowHeadParsingScope maybe_arrow(impl(),
-                                      FunctionKind::kAsyncArrowFunction);
+    ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kAsyncArrowFunction,
+                                      PeekNextFunctionLiteralId());
     Scope::Snapshot scope_snapshot(scope());
 
     ExpressionListT args(pointer_buffer());
@@ -3672,6 +3692,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     if (V8_LIKELY(peek() == Token::kArrow)) {
       fni_.RemoveAsyncKeywordFromEnd();
       next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
+      next_arrow_function_info_.function_literal_id =
+          maybe_arrow.function_literal_id();
       scope_snapshot.Reparent(next_arrow_function_info_.scope);
       // async () => ...
       if (!args.length()) return factory()->NewEmptyParentheses(pos);
@@ -4771,7 +4793,7 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
-    const FormalParametersT& formal_parameters) {
+    const FormalParametersT& formal_parameters, int function_literal_id) {
   RCS_SCOPE(runtime_call_stats_,
             Impl::IsPreParser()
                 ? RuntimeCallCounterId::kPreParseArrowFunctionLiteral
@@ -4793,7 +4815,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   int expected_property_count = 0;
   int suspend_count = 0;
-  int function_literal_id = GetNextFunctionLiteralId();
 
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
