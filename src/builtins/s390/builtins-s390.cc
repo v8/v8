@@ -3106,6 +3106,23 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
+// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// depending on the ref's type, and places the result in the input register.
+void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
+  __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
+  __ CompareInstanceType(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
+  Label instance;
+  Label end;
+  __ beq(&instance);
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ jmp(&end);
+  __ bind(&instance);
+  __ LoadTaggedField(
+      ref, FieldMemOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+  __ bind(&end);
+}
+
 void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   // Push registers in reverse order so that they are on the stack like
   // in an array, with the first item being at the lowest address.
@@ -3158,7 +3175,172 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   __ Trap();
 }
 
-void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
+  Register zero = r2;
+  __ Move(zero, Smi::zero());
+  __ StoreU64(zero,
+              MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
+  __ StoreU64(zero, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+}
+
+void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::JS_TO_WASM);
+
+  constexpr int kNumSpillSlots = StackSwitchFrameConstants::kNumSpillSlots;
+  __ AllocateStackSpace(kNumSpillSlots * kSystemPointerSize);
+  ResetStackSwitchFrameStackSlots(masm);
+
+  Register wrapper_buffer =
+      WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
+  // Push the wrapper_buffer stack, it's needed later for the results.
+  __ StoreU64(
+      wrapper_buffer,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
+
+  Register result_size = r2;
+  __ LoadU64(
+      result_size,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize),
+      r0);
+  __ ShiftLeftU64(r0, result_size, Operand(kPointerSizeLog2));
+  __ SubS64(sp, sp, r0);
+
+  __ StoreU64(
+      sp,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart));
+  // Push stack parameters on the stack.
+  Register params_end = r1;
+  __ LoadU64(params_end,
+             MemOperand(wrapper_buffer,
+                        JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+
+  Register params_start = ip;
+  __ LoadU64(
+      params_start,
+      MemOperand(wrapper_buffer,
+                 JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+  // The first GP parameter is the instance, which we handle specially.
+  int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+  Register last_stack_param = r2;
+  __ AddS64(last_stack_param, params_start, Operand(stack_params_offset));
+
+  Label loop_start;
+  __ bind(&loop_start);
+
+  Label finish_stack_params;
+  __ CmpS64(last_stack_param, params_end);
+  __ bge(&finish_stack_params);
+
+  // Push parameter
+  {
+    // TODO(miladfarca): Use a different register for scratch.
+    __ AddS64(params_end, params_end, Operand(-kSystemPointerSize));
+    __ LoadU64(r0, MemOperand(params_end));
+    __ push(r0);
+  }
+
+  __ jmp(&loop_start);
+
+  __ bind(&finish_stack_params);
+
+  size_t next_offset = 0;
+  for (size_t i = 1; i < arraysize(wasm::kGpParamRegisters); ++i) {
+    // Check that {params_start} does not overlap with any of the parameter
+    // registers, so that we don't overwrite it by accident with the loads
+    // below.
+    DCHECK_NE(params_start, wasm::kGpParamRegisters[i]);
+    __ LoadU64(wasm::kGpParamRegisters[i],
+               MemOperand(params_start, next_offset));
+    next_offset += kSystemPointerSize;
+  }
+
+  for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); ++i) {
+    __ LoadF64(wasm::kFpParamRegisters[i],
+               MemOperand(params_start, next_offset));
+    next_offset += kDoubleSize;
+  }
+  DCHECK_EQ(next_offset, stack_params_offset);
+
+  // Load the instance into r5.
+  __ LoadU64(kWasmInstanceRegister,
+             MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+
+  {
+    Register thread_in_wasm_flag_addr = r3;
+    __ LoadU64(thread_in_wasm_flag_addr,
+               MemOperand(kRootRegister,
+                          Isolate::thread_in_wasm_flag_address_offset()));
+    __ mov(r0, Operand(1));
+    __ StoreU64(r0, MemOperand(thread_in_wasm_flag_addr, 0));
+  }
+
+  Register function_entry = r3;
+  __ LoadU64(
+      function_entry,
+      MemOperand(wrapper_buffer,
+                 JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
+  __ Call(function_entry);
+
+  {
+    Register thread_in_wasm_flag_addr = r6;
+    __ LoadU64(thread_in_wasm_flag_addr,
+               MemOperand(kRootRegister,
+                          Isolate::thread_in_wasm_flag_address_offset()));
+    __ mov(r0, Operand(0));
+    __ StoreU64(r0, MemOperand(thread_in_wasm_flag_addr, 0));
+  }
+
+  // `wrapper_buffer` is a parameter for `JSToWasmHandleReturns`, it therefore
+  // has to be in r4.
+  wrapper_buffer = r4;
+  __ LoadU64(
+      wrapper_buffer,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
+
+  __ StoreF64(
+      wasm::kFpReturnRegisters[0],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1));
+  __ StoreF64(
+      wasm::kFpReturnRegisters[1],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2));
+  __ StoreU64(
+      wasm::kGpReturnRegisters[0],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1));
+  __ StoreU64(
+      wasm::kGpReturnRegisters[1],
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2));
+
+  // r2: wasm instance.
+  // r3: the result JSArray for multi-return.
+  // r4: pointer to the byte buffer which contains all parameters.
+  __ LoadU64(
+      r3,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
+  __ LoadU64(r2,
+             MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+  Register scratch = r5;
+  GetContextFromRef(masm, r2, scratch);
+
+  __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
+
+  __ LeaveFrame(StackFrame::JS_TO_WASM);
+  __ AddS64(sp, sp, Operand(2 * kSystemPointerSize));
+  __ b(r14);
+}
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
   // Load the code pointer from the WasmApiFunctionRef and tail-call there.
