@@ -3895,7 +3895,8 @@ void MaglevGraphBuildingPhase::Run(PipelineData* data, Zone* temp_zone) {
 
   auto compilation_info = maglev::MaglevCompilationInfo::New(
       data->isolate(), broker, data->info()->closure(),
-      data->info()->osr_offset());
+      data->info()->osr_offset(),
+      data->info()->function_context_specializing());
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
     PrintBytecode(*data, compilation_info.get());
