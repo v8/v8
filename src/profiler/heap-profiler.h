@@ -115,6 +115,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   v8::EmbedderGraph::Node::Detachedness GetDetachedness(
       const v8::Local<v8::Value> v8_value, uint16_t class_id);
 
+  const char* CopyNameForHeapSnapshot(const char* name);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);

@@ -777,5 +777,41 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       });
 }
 
+namespace {
+
+class GCedWithDynamicName : public cppgc::GarbageCollected<GCedWithDynamicName>,
+                            public cppgc::NameProvider {
+ public:
+  virtual void Trace(cppgc::Visitor* v) const {}
+
+  void SetValue(int value) { value_ = value; }
+
+  const char* GetHumanReadableName() const final {
+    v8::HeapProfiler* heap_profiler =
+        v8::Isolate::GetCurrent()->GetHeapProfiler();
+    std::string name = "dynamic name " + std::to_string(value_);
+    return heap_profiler->CopyNameForHeapSnapshot(name.c_str());
+  }
+
+ private:
+  int value_ = 0;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, DynamicName) {
+  cppgc::Persistent<GCedWithDynamicName> object_zero =
+      cppgc::MakeGarbageCollected<GCedWithDynamicName>(allocation_handle());
+  cppgc::Persistent<GCedWithDynamicName> object_one =
+      cppgc::MakeGarbageCollected<GCedWithDynamicName>(allocation_handle());
+  object_one->SetValue(1);
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(*snapshot,
+                                    {kExpectedCppRootsName, "dynamic name 0"}));
+  EXPECT_TRUE(ContainsRetainingPath(*snapshot,
+                                    {kExpectedCppRootsName, "dynamic name 1"}));
+}
+
 }  // namespace internal
 }  // namespace v8

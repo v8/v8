@@ -83,6 +83,11 @@ v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
       get_detachedness_callback_.second);
 }
 
+const char* HeapProfiler::CopyNameForHeapSnapshot(const char* name) {
+  CHECK(is_taking_snapshot_);
+  return names_->GetCopy(name);
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     const v8::HeapProfiler::HeapSnapshotOptions options) {
   is_taking_snapshot_ = true;

@@ -11466,6 +11466,11 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
                                                                        data);
 }
 
+const char* HeapProfiler::CopyNameForHeapSnapshot(const char* name) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->CopyNameForHeapSnapshot(
+      name);
+}
+
 EmbedderStateScope::EmbedderStateScope(Isolate* v8_isolate,
                                        Local<v8::Context> context,
                                        EmbedderStateTag tag)
