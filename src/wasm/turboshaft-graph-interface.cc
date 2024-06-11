@@ -225,6 +225,35 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
   return {target, ref};
 }
 
+std::pair<V<WordPtr>, V<ExposedTrustedObject>>
+WasmGraphBuilderBase::BuildFunctionTargetAndRef(
+    V<WasmInternalFunction> internal_function, uint64_t expected_sig_hash) {
+  V<ExposedTrustedObject> ref =
+      V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+          internal_function, LoadOp::Kind::TaggedBase().Immutable(),
+          WasmInternalFunction::kProtectedRefOffset));
+
+#if V8_ENABLE_SANDBOX
+  V<Word64> actual_sig_hash =
+      __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+              MemoryRepresentation::Uint64(),
+              WasmInternalFunction::kSignatureHashOffset);
+  IF_NOT (LIKELY(__ Word64Equal(actual_sig_hash, expected_sig_hash))) {
+    auto sig = FixedSizeSignature<MachineType>::Params(MachineType::AnyTagged(),
+                                                       MachineType::Uint64());
+    CallC(&sig, ExternalReference::wasm_signature_check_fail(),
+          {internal_function, __ Word64Constant(expected_sig_hash)});
+    __ Unreachable();
+  }
+#endif
+
+  V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::UintPtr(),
+                              WasmInternalFunction::kCallTargetOffset);
+
+  return {target, ref};
+}
+
 RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
   switch (type.kind()) {
     case kI8:
@@ -7077,30 +7106,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
             WasmFuncRef::kTrustedInternalOffset));
 
-    V<ExposedTrustedObject> ref =
-        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-            internal_function, LoadOp::Kind::TaggedBase().Immutable(),
-            WasmInternalFunction::kProtectedRefOffset));
-
-#if V8_ENABLE_SANDBOX
-    V<Word64> actual_sig_hash =
-        __ Load(internal_function, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Uint64(),
-                WasmInternalFunction::kSignatureHashOffset);
-    IF_NOT (LIKELY(__ Word64Equal(actual_sig_hash, expected_sig_hash))) {
-      auto sig = FixedSizeSignature<MachineType>::Params(
-          MachineType::AnyTagged(), MachineType::Uint64());
-      CallC(&sig, ExternalReference::wasm_signature_check_fail(),
-            {internal_function, __ Word64Constant(expected_sig_hash)});
-      __ Unreachable();
-    }
-#endif
-
-    V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
-                                MemoryRepresentation::UintPtr(),
-                                WasmInternalFunction::kCallTargetOffset);
-
-    return {target, ref};
+    return BuildFunctionTargetAndRef(internal_function, expected_sig_hash);
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
