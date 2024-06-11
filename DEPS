@@ -73,7 +73,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b3a0bff47dd81073bfe67a402971bad92e4f2423',
+  'gn_version': 'git_revision:b2afae122eeb6ce09c52d63f67dc53fc517dbdc8',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6358eccee8cc7effcde3eb52f0ea920730f8453e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0eb093566a85381610a21f5e46f999ac106b0ee2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2bd8dea61c53448c67f70419004ded4032590fe7',
   'buildtools/linux64': {
@@ -338,7 +338,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '209717dd69cd62f24cbacc4758261ae2dd78cfac',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '887bb57a1b1d38e348bd39ac7c2e6b4b6d18b9f7',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '686f88cb9f0de02f04f2df1769bb7668b45c9f41',
   'tools/luci-go': {
