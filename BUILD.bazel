@@ -4381,8 +4381,8 @@ alias(
 v8_build_config(
     name = "v8_build_config",
     arch = select({
-        "//third_party/v8/v12_4/google3/config:v8_target_arm64": "arm64",
-        "//third_party/v8/v12_4/google3/config:v8_target_x64": "x64",
+        "@v8//bazel/config:v8_target_arm64": "arm64",
+        "@v8//bazel/config:v8_target_x64": "x64",
         "//conditions:default": "x64",
     }),
 )
@@ -4403,10 +4403,10 @@ py_test(
         "--outdir noicu",
         "--verbose",
     ] + select({
-        "//third_party/v8/v12_4/google3/config:v8_target_arm64": [
+        "@v8//bazel/config:v8_target_arm64": [
             "--arch=arm64",
         ],
-        "//third_party/v8/v12_4/google3/config:v8_target_x64": [
+        "@v8//bazel/config:v8_target_x64": [
             "--arch=x64",
         ],
         "//conditions:default": [],
@@ -4442,10 +4442,10 @@ py_test(
         "--outdir icu",
         "--verbose",
     ] + select({
-        "//third_party/v8/v12_4/google3/config:v8_target_arm64": [
+        "@v8//bazel/config:v8_target_arm64": [
             "--arch=arm64",
         ],
-        "//third_party/v8/v12_4/google3/config:v8_target_x64": [
+        "@v8//bazel/config:v8_target_x64": [
             "--arch=x64",
         ],
         "//conditions:default": [],
