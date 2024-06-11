@@ -86,10 +86,6 @@ bool LazilyGeneratedNames::Has(uint32_t function_index) {
   return function_names_.Get(function_index) != nullptr;
 }
 
-int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import) {
-  return 2 * canonical_sig_index + (is_import ? 1 : 0);
-}
-
 // static
 int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index) {
   const std::vector<WasmFunction>& functions = module->functions;

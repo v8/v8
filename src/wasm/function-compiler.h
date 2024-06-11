@@ -132,7 +132,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
                                  uint32_t canonical_sig_index,
-                                 const wasm::WasmModule* module, bool is_import,
+                                 const wasm::WasmModule* module,
                                  WasmFeatures enabled_features);
   ~JSToWasmWrapperCompilationUnit();
 
@@ -147,7 +147,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   void Execute();
   Handle<Code> Finalize();
 
-  bool is_import() const { return is_import_; }
   const FunctionSig* sig() const { return sig_; }
   uint32_t canonical_sig_index() const { return canonical_sig_index_; }
 
@@ -155,8 +154,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
                                              const FunctionSig* sig,
                                              uint32_t canonical_sig_index,
-                                             const WasmModule* module,
-                                             bool is_import);
+                                             const WasmModule* module);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -164,7 +162,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // should only access immutable information (like the root table). The isolate
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
-  bool is_import_;
   const FunctionSig* sig_;
   uint32_t canonical_sig_index_;
   std::unique_ptr<OptimizedCompilationJob> job_;

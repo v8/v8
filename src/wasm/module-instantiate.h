@@ -128,19 +128,14 @@ V8_EXPORT_PRIVATE void CreateMapForType(
     Handle<WasmInstanceObject> instance_object,
     Handle<FixedArray> maybe_shared_maps);
 
-// A union tagged on the code-kind for wrapper graph building data. The rest of
-// the wrapper compilation pipeline is independent of the code kind.
+// Wrapper information required for graph building.
 struct WrapperCompilationInfo {
   CodeKind code_kind;
   StubCallMode stub_mode;
-  union {
-    bool is_import;
-    struct {
-      wasm::ImportCallKind import_kind;
-      int expected_arity;
-      wasm::Suspend suspend;
-    } wasm_js_info;
-  };
+  // For wasm-js wrappers only:
+  wasm::ImportCallKind import_kind = kDefaultImportCallKind;
+  int expected_arity = 0;
+  wasm::Suspend suspend = kNoSuspend;
 };
 
 }  // namespace wasm

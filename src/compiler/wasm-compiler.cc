@@ -7508,8 +7508,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                               Operator::kEliminatable, array_length, context);
   }
 
-  Node* BuildCallAndReturn(bool is_import, Node* js_context,
-                           Node* function_data,
+  Node* BuildCallAndReturn(Node* js_context, Node* function_data,
                            base::SmallVector<Node*, 16> args,
                            bool do_conversion, Node* frame_state,
                            bool set_in_wasm_flag) {
@@ -7524,30 +7523,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         modify_thread_in_wasm_flag_builder.emplace(this, gasm_.get());
       }
 
-      if (is_import) {
-        // Call to an imported function.
-        // Load function index from {WasmExportedFunctionData}.
-        Node* function_index = gasm_->BuildChangeSmiToInt32(
-            gasm_->LoadExportedFunctionIndexAsSmi(function_data));
-        BuildImportCall(sig_, base::VectorOf(args), base::VectorOf(rets),
-                        wasm::kNoCodePosition, function_index, kCallContinues,
-                        frame_state);
-      } else {
-        // Call to a wasm function defined in this module.
-        // The (cached) call target is the jump table slot for that function.
-        Node* internal = gasm_->LoadProtectedPointerFromObject(
-            function_data, wasm::ObjectAccess::ToTagged(
-                               WasmFunctionData::kProtectedInternalOffset));
-        args[0] =
-            gasm_->LoadFromObject(MachineType::Pointer(), internal,
-                                  wasm::ObjectAccess::ToTagged(
-                                      WasmInternalFunction::kCallTargetOffset));
-        Node* instance_data = gasm_->LoadProtectedPointerFromObject(
-            internal, wasm::ObjectAccess::ToTagged(
-                          WasmInternalFunction::kProtectedRefOffset));
-        BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
-                      wasm::kNoCodePosition, instance_data, frame_state);
-      }
+      // Call to an import or a wasm function defined in this module.
+      // The (cached) call target is the jump table slot for that function.
+      // We do not use the imports dispatch table here so that the wrapper is
+      // target independent, in particular for tier-up.
+      Node* internal = gasm_->LoadProtectedPointerFromObject(
+          function_data, wasm::ObjectAccess::ToTagged(
+                             WasmFunctionData::kProtectedInternalOffset));
+      args[0] =
+          gasm_->LoadFromObject(MachineType::Pointer(), internal,
+                                wasm::ObjectAccess::ToTagged(
+                                    WasmInternalFunction::kCallTargetOffset));
+      Node* instance_data = gasm_->LoadProtectedPointerFromObject(
+          internal, wasm::ObjectAccess::ToTagged(
+                        WasmInternalFunction::kProtectedRefOffset));
+      BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
+                    wasm::kNoCodePosition, instance_data, frame_state);
     }
 
     Node* jsval;
@@ -7640,7 +7631,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
-  void BuildJSToWasmWrapper(bool is_import, bool do_conversion = true,
+  void BuildJSToWasmWrapper(bool do_conversion = true,
                             Node* frame_state = nullptr,
                             bool set_in_wasm_flag = true) {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
@@ -7695,8 +7686,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[i + 1] = wasm_param;
       }
       Node* jsval =
-          BuildCallAndReturn(is_import, js_context, function_data, args,
-                             do_conversion, frame_state, set_in_wasm_flag);
+          BuildCallAndReturn(js_context, function_data, args, do_conversion,
+                             frame_state, set_in_wasm_flag);
       gasm_->Goto(&done, jsval);
       gasm_->Bind(&slow_path);
     }
@@ -7723,8 +7714,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     Node* jsval =
-        BuildCallAndReturn(is_import, js_context, function_data, args,
-                           do_conversion, frame_state, set_in_wasm_flag);
+        BuildCallAndReturn(js_context, function_data, args, do_conversion,
+                           frame_state, set_in_wasm_flag);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -8432,7 +8423,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
 void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::FunctionSig* signature,
-                                 bool is_import, const wasm::WasmModule* module,
+                                 const wasm::WasmModule* module,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
                                  wasm::WasmFeatures features, Node* frame_state,
@@ -8440,21 +8431,18 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
   WasmWrapperGraphBuilder builder(
       zone, mcgraph, signature, module, WasmGraphBuilder::kJSFunctionAbiMode,
       isolate, spt, StubCallMode::kCallBuiltinPointer, features);
-  builder.BuildJSToWasmWrapper(is_import, false, frame_state, set_in_wasm_flag);
+  builder.BuildJSToWasmWrapper(false, frame_state, set_in_wasm_flag);
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module, bool is_import,
-    wasm::WasmFeatures enabled_features) {
+    const wasm::WasmModule* module, wasm::WasmFeatures enabled_features) {
   std::unique_ptr<char[]> debug_name = WasmExportedFunction::GetDebugName(sig);
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
         isolate, sig,
-        wasm::WrapperCompilationInfo{
-            .code_kind = CodeKind::JS_TO_WASM_FUNCTION,
-            .stub_mode = StubCallMode::kCallBuiltinPointer,
-            .is_import = is_import},
+        wasm::WrapperCompilationInfo{CodeKind::JS_TO_WASM_FUNCTION,
+                                     StubCallMode::kCallBuiltinPointer},
         module, std::move(debug_name), WasmAssemblerOptions());
   } else {
     std::unique_ptr<Zone> zone = std::make_unique<Zone>(
@@ -8478,7 +8466,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     WasmWrapperGraphBuilder builder(
         zone.get(), mcgraph, sig, module, WasmGraphBuilder::kJSFunctionAbiMode,
         isolate, nullptr, StubCallMode::kCallBuiltinPointer, enabled_features);
-    builder.BuildJSToWasmWrapper(is_import);
+    builder.BuildJSToWasmWrapper();
 
     //----------------------------------------------------------------------------
     // Create the compilation job.
@@ -8628,10 +8616,9 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         env->module, sig,
-        wasm::WrapperCompilationInfo{
-            .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-            .stub_mode = StubCallMode::kCallWasmRuntimeStub,
-            .wasm_js_info = {kind, expected_arity, suspend}},
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION,
+                                     StubCallMode::kCallWasmRuntimeStub, kind,
+                                     expected_arity, suspend},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
   auto compile_with_turbofan = [&]() {
@@ -8692,8 +8679,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         native_module->module(), sig,
         wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION,
-                                     StubCallMode::kCallWasmRuntimeStub,
-                                     {}},
+                                     StubCallMode::kCallWasmRuntimeStub},
         debug_name, WasmStubAssemblerOptions(), nullptr);
   };
 
@@ -8808,10 +8794,9 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
     std::unique_ptr<turboshaft::TurboshaftCompilationJob> job =
         Pipeline::NewWasmTurboshaftWrapperCompilationJob(
             isolate, sig,
-            wasm::WrapperCompilationInfo{
-                .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-                .stub_mode = StubCallMode::kCallBuiltinPointer,
-                .wasm_js_info = {kind, expected_arity, suspend}},
+            wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION,
+                                         StubCallMode::kCallBuiltinPointer,
+                                         kind, expected_arity, suspend},
             module, std::move(name_buffer), WasmAssemblerOptions());
 
     // Compile the wrapper

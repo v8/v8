@@ -359,8 +359,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
-  OpIndex BuildCallAndReturn(bool is_import, V<Context> js_context,
-                             V<HeapObject> function_data,
+  OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
                              base::SmallVector<OpIndex, 16> args,
                              bool do_conversion, bool set_in_wasm_flag) {
     const int rets_count = static_cast<int>(sig_->return_count());
@@ -374,33 +373,23 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         modify_thread_in_wasm_flag_builder.emplace(this, Asm());
       }
 
-      V<WasmTrustedInstanceData> instance_data =
-          V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
+      V<WasmInternalFunction> internal =
+          V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
               function_data, LoadOp::Kind::TaggedBase().Immutable(),
-              WasmExportedFunctionData::kProtectedInstanceDataOffset));
+              WasmExportedFunctionData::kProtectedInternalOffset));
+      V<ExposedTrustedObject> ref =
+          V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+              internal, LoadOp::Kind::TaggedBase().Immutable(),
+              WasmInternalFunction::kProtectedRefOffset));
 
-      if (is_import) {
-        // Call to an imported function.
-        // Load function index from {WasmExportedFunctionData}.
-        V<Word32> function_index = BuildChangeSmiToInt32(
-            LoadExportedFunctionIndexAsSmi(function_data));
-        auto [target, ref] =
-            BuildImportedFunctionTargetAndRef(function_index, instance_data);
-        BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, ref, args,
-                                 rets);
-      } else {
-        // Call to a wasm function defined in this module.
-        // The (cached) call target is the jump table slot for that function.
-        V<WasmInternalFunction> internal =
-            V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
-                function_data, LoadOp::Kind::TaggedBase().Immutable(),
-                WasmExportedFunctionData::kProtectedInternalOffset));
-        V<WordPtr> callee = __ Load(internal, LoadOp::Kind::TaggedBase(),
-                                    MemoryRepresentation::UintPtr(),
-                                    WasmInternalFunction::kCallTargetOffset);
-        BuildCallWasmFromWrapper(__ phase_zone(), sig_, callee, instance_data,
-                                 args, rets);
-      }
+      // Call to an import or a wasm function defined in this module.
+      // The (cached) call target is the jump table slot for that function.
+      // We do not use the imports dispatch table here so that the wrapper is
+      // target independent, in particular for tier-up.
+      V<WordPtr> callee = __ Load(internal, LoadOp::Kind::TaggedBase(),
+                                  MemoryRepresentation::UintPtr(),
+                                  WasmInternalFunction::kCallTargetOffset);
+      BuildCallWasmFromWrapper(__ phase_zone(), sig_, callee, ref, args, rets);
     }
 
     V<Object> jsval;
@@ -429,7 +418,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   void BuildJSToWasmWrapper(
-      bool is_import, bool do_conversion = true,
+      bool do_conversion = true,
       compiler::turboshaft::OptionalOpIndex frame_state =
           compiler::turboshaft::OptionalOpIndex::Nullopt(),
       bool set_in_wasm_flag = true) {
@@ -502,8 +491,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         OpIndex wasm_param = FromJSFast(params[i + 1], sig_->GetParam(i));
         args[i + 1] = wasm_param;
       }
-      jsval = BuildCallAndReturn(is_import, js_context, function_data, args,
-                                 do_conversion, set_in_wasm_flag);
+      jsval = BuildCallAndReturn(js_context, function_data, args, do_conversion,
+                                 set_in_wasm_flag);
       GOTO(done, jsval);
       __ Bind(slow_path);
     }
@@ -528,8 +517,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
     }
 
-    jsval = BuildCallAndReturn(is_import, js_context, function_data, args,
-                               do_conversion, set_in_wasm_flag);
+    jsval = BuildCallAndReturn(js_context, function_data, args, do_conversion,
+                               set_in_wasm_flag);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -1371,11 +1360,11 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
   WasmWrapperTSGraphBuilder builder(&zone, assembler, module, sig,
                                     wrapper_info.stub_mode);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
-    builder.BuildJSToWasmWrapper(wrapper_info.is_import);
+    builder.BuildJSToWasmWrapper();
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
-    builder.BuildWasmToJSWrapper(wrapper_info.wasm_js_info.import_kind,
-                                 wrapper_info.wasm_js_info.expected_arity,
-                                 wrapper_info.wasm_js_info.suspend, module);
+    builder.BuildWasmToJSWrapper(wrapper_info.import_kind,
+                                 wrapper_info.expected_arity,
+                                 wrapper_info.suspend, module);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
     builder.BuildCapiCallWrapper(module);
   } else {

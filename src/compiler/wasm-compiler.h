@@ -90,8 +90,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
 // (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module, bool is_import,
-    wasm::WasmFeatures enabled_features);
+    const wasm::WasmModule* module, wasm::WasmFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::WasmModule* module,
@@ -893,7 +892,7 @@ class WasmGraphBuilder {
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
-    bool is_import, const wasm::WasmModule* module, Isolate* isolate,
+    const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, wasm::WasmFeatures features,
     Node* frame_state, bool set_in_wasm_flag);
 

@@ -852,10 +852,6 @@ inline bool is_asmjs_module(const WasmModule* module) {
   return module->origin != kWasmOrigin;
 }
 
-// Returns the wrapper index for a function with isorecursive canonical
-// signature index {canonical_sig_index}, and origin defined by {is_import}.
-int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import);
-
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.
 // Returns -1 if the function index is invalid.
