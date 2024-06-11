@@ -1869,6 +1869,7 @@ if (v8_postmortem_support) {
       "src/objects/struct.h",
       "src/objects/struct-inl.h",
       "src/objects/tagged.h",
+      "src/objects/union.h",
     ]
 
     outputs = [ "$target_gen_dir/debug-support.cc" ]
@@ -3983,6 +3984,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/turboshaft-types-inl.h",
     "src/objects/turboshaft-types.h",
     "src/objects/type-hints.h",
+    "src/objects/union.h",
     "src/objects/value-serializer.h",
     "src/objects/visitors-inl.h",
     "src/objects/visitors.h",

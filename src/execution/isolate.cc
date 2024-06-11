@@ -87,6 +87,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -836,7 +837,7 @@ class CallSiteBuilder {
     int flags = CallSiteInfo::kIsAsync;
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
-    Handle<Object> receiver(generator_object->receiver(), isolate_);
+    Handle<JSAny> receiver(generator_object->receiver(), isolate_);
     DirectHandle<BytecodeArray> code(
         function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
@@ -858,8 +859,8 @@ class CallSiteBuilder {
     int flags =
         CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
-    Handle<Object> receiver(combinator->native_context()->promise_function(),
-                            isolate_);
+    Handle<JSFunction> receiver(
+        combinator->native_context()->promise_function(), isolate_);
     DirectHandle<Code> code(combinator->code(isolate_), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
@@ -883,8 +884,9 @@ class CallSiteBuilder {
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
     if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
-    AppendFrame(summary.receiver(), function, summary.abstract_code(),
-                summary.code_offset(), flags, summary.parameters());
+    AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function,
+                summary.abstract_code(), summary.code_offset(), flags,
+                summary.parameters());
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -919,11 +921,12 @@ class CallSiteBuilder {
   void AppendBuiltinFrame(FrameSummary::BuiltinFrameSummary const& summary) {
     Builtin builtin = summary.builtin();
     DirectHandle<Code> code = isolate_->builtins()->code_handle(builtin);
-    DirectHandle<Object> function(Smi::FromInt(static_cast<int>(builtin)),
-                                  isolate_);
+    DirectHandle<Smi> function(Smi::FromInt(static_cast<int>(builtin)),
+                               isolate_);
     int flags = CallSiteInfo::kIsBuiltin;
-    AppendFrame(summary.receiver(), function, code, summary.code_offset(),
-                flags, isolate_->factory()->empty_fixed_array());
+    AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function, code,
+                summary.code_offset(), flags,
+                isolate_->factory()->empty_fixed_array());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -993,16 +996,18 @@ class CallSiteBuilder {
     return true;
   }
 
-  void AppendFrame(Handle<Object> receiver_or_instance,
-                   DirectHandle<Object> function, DirectHandle<HeapObject> code,
-                   int offset, int flags, DirectHandle<FixedArray> parameters) {
+  void AppendFrame(Handle<UnionOf<JSAny, Hole>> receiver_or_instance,
+                   DirectHandle<UnionOf<Smi, JSFunction>> function,
+                   DirectHandle<HeapObject> code, int offset, int flags,
+                   DirectHandle<FixedArray> parameters) {
     if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
     }
     auto info = isolate_->factory()->NewCallSiteInfo(
-        receiver_or_instance, function, code, offset, flags, parameters);
+        Cast<JSAny>(receiver_or_instance), function, code, offset, flags,
+        parameters);
     elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
   }
 
@@ -1289,7 +1294,8 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
 MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
     Handle<JSObject> error_object, FrameSkipMode mode, Handle<Object> caller) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
-  Handle<Object> error_stack = factory()->undefined_value();
+  Handle<UnionOf<Undefined, FixedArray>> call_site_infos_or_formatted_stack =
+      factory()->undefined_value();
 
   // Capture the "simple stack trace" for the error.stack property,
   // which can be disabled by setting Error.stackTraceLimit to a non
@@ -1312,8 +1318,10 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
         limit = stack_trace_for_uncaught_exceptions_frame_limit_;
       }
     }
-    error_stack = CaptureSimpleStackTrace(this, limit, mode, caller);
+    call_site_infos_or_formatted_stack =
+        CaptureSimpleStackTrace(this, limit, mode, caller);
   }
+  Handle<Object> error_stack = call_site_infos_or_formatted_stack;
 
   // Next is the inspector part: Depending on whether we got a "simple
   // stack trace" above and whether that's usable (meaning the API
@@ -1323,7 +1331,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // the API, or a negative limit to indicate the opposite), or we
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    Handle<Object> limit_or_stack_frame_infos;
+    Handle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos;
     if (IsUndefined(*error_stack, this) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
@@ -1337,8 +1345,8 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
               : stack_trace_limit;
       limit_or_stack_frame_infos = handle(Smi::FromInt(limit), this);
     }
-    error_stack =
-        factory()->NewErrorStackData(error_stack, limit_or_stack_frame_infos);
+    error_stack = factory()->NewErrorStackData(
+        call_site_infos_or_formatted_stack, limit_or_stack_frame_infos);
   }
 
   RETURN_ON_EXCEPTION(
@@ -1516,8 +1524,8 @@ bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   if (!IsNumber(*stack_trace_limit)) return false;
 
   // Ensure that limit is not negative.
-  *result =
-      std::max(FastD2IChecked(Object::NumberValue(*stack_trace_limit)), 0);
+  *result = std::max(
+      FastD2IChecked(Object::NumberValue(Cast<Number>(*stack_trace_limit))), 0);
 
   if (*result != v8_flags.stack_trace_limit) {
     isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);

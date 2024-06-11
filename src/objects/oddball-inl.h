@@ -37,8 +37,8 @@ void Oddball::set_to_string(Tagged<String> value, WriteBarrierMode mode) {
   to_string_.store(this, value);
 }
 
-Tagged<Object> Oddball::to_number() const { return to_number_.load(); }
-void Oddball::set_to_number(Tagged<Object> value, WriteBarrierMode mode) {
+Tagged<Number> Oddball::to_number() const { return to_number_.load(); }
+void Oddball::set_to_number(Tagged<Number> value, WriteBarrierMode mode) {
   to_number_.store(this, value);
 }
 
@@ -54,9 +54,9 @@ void Oddball::set_kind(uint8_t value) {
 }
 
 // static
-Handle<Object> Oddball::ToNumber(Isolate* isolate,
+Handle<Number> Oddball::ToNumber(Isolate* isolate,
                                  DirectHandle<Oddball> input) {
-  return Handle<Object>(input->to_number(), isolate);
+  return handle(input->to_number(), isolate);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBoolean) {

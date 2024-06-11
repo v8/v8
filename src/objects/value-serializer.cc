@@ -1938,7 +1938,7 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       if (!ReadDouble().To(&number)) return MaybeHandle<JSPrimitiveWrapper>();
       value = Handle<JSPrimitiveWrapper>::cast(
           isolate_->factory()->NewJSObject(isolate_->number_function()));
-      DirectHandle<Object> number_object =
+      DirectHandle<Number> number_object =
           isolate_->factory()->NewNumber(number);
       value->set_value(*number_object);
       break;

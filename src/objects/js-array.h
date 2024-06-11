@@ -25,17 +25,17 @@ namespace internal {
 class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
  public:
   // [length]: The length property.
-  DECL_ACCESSORS(length, Tagged<Object>)
-  DECL_RELAXED_GETTER(length, Tagged<Object>)
+  DECL_ACCESSORS(length, Tagged<Number>)
+  DECL_RELAXED_GETTER(length, Tagged<Number>)
 
   // Acquire/release semantics on this field are explicitly forbidden to avoid
   // confusion, since the default setter uses relaxed semantics. If
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  Tagged<Object> length(PtrComprCageBase cage_base,
+  Tagged<Number> length(PtrComprCageBase cage_base,
                         AcquireLoadTag tag) const = delete;
-  void set_length(Tagged<Object> value, ReleaseStoreTag tag,
+  void set_length(Tagged<Number> value, ReleaseStoreTag tag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   // Overload the length setter to skip write barrier when the length

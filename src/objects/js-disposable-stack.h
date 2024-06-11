@@ -36,7 +36,8 @@ class JSDisposableStack
   DECL_VERIFIER(JSDisposableStack)
 
   DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
-  DECL_PRIMITIVE_ACCESSORS(state, DisposableStackState)
+  inline DisposableStackState state() const;
+  inline void set_state(DisposableStackState value);
   DECL_INT_ACCESSORS(length)
 
   static void Initialize(Isolate* isolate,

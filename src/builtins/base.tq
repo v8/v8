@@ -97,7 +97,7 @@ type JSPrimitive = Numeric|String|Symbol|Boolean|Null|Undefined;
 
 // A user-exposed JavaScript value, as opposed to V8-internal values like Holes
 // or a FixedArray.
-type JSAny = JSReceiver|JSPrimitive;
+type JSAny = JSPrimitive|JSReceiver;
 
 type JSAnyNotNumeric = String|Symbol|Boolean|Null|Undefined|JSReceiver;
 type JSAnyNotNumber = BigInt|JSAnyNotNumeric;
@@ -1013,10 +1013,10 @@ macro Float64IsNaN(n: float64): bool {
 // The type of all tagged values that can safely be compared with TaggedEqual.
 @if(V8_ENABLE_WEBASSEMBLY)
   type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
-      Context|EmptyString|Symbol|WasmFuncRef|WasmNull;
+      Context|EmptyString|Symbol|FunctionTemplateInfo|WasmFuncRef|WasmNull;
 @ifnot(V8_ENABLE_WEBASSEMBLY)
   type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
-      Context|EmptyString|Symbol;
+      Context|EmptyString|Symbol|FunctionTemplateInfo;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -1585,26 +1585,12 @@ macro RequireObjectCoercible(
   return value;
 }
 
-extern macro BranchIfSameValue(JSAny, JSAny): never labels Taken, NotTaken;
-macro SameValue(a: JSAny, b: JSAny): bool {
+extern macro BranchIfSameValue(
+    JSAny|TaggedWithIdentity, JSAny|TaggedWithIdentity): never labels Taken,
+    NotTaken;
+macro SameValue(
+    a: JSAny|TaggedWithIdentity, b: JSAny|TaggedWithIdentity): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
-}
-macro SameValue(a: (JSAny|TheHole), b: (JSAny|TheHole)): bool {
-  typeswitch (a) {
-    case (a: TheHole): {
-      return UnsafeCast<TheHole>(b) == a;
-    }
-    case (a: JSAny): {
-      typeswitch (b) {
-        case (TheHole): {
-          return false;
-        }
-        case (b: JSAny): {
-          return SameValue(a, b);
-        }
-      }
-    }
-  }
 }
 
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow

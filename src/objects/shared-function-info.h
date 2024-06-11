@@ -14,6 +14,7 @@
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
+#include "src/objects/name.h"
 #include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
@@ -187,6 +188,8 @@ class InterpreterData
  private:
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };
+
+using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
@@ -813,7 +816,7 @@ class SharedFunctionInfo
 
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Tagged<Object>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Tagged<NameOrScopeInfoT>)
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.

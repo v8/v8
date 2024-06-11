@@ -118,8 +118,8 @@ void SourceTextModuleDescriptor::AddStarExport(
 
 namespace {
 template <typename IsolateT>
-Handle<PrimitiveHeapObject> ToStringOrUndefined(IsolateT* isolate,
-                                                const AstRawString* s) {
+Handle<UnionOf<String, Undefined>> ToStringOrUndefined(IsolateT* isolate,
+                                                       const AstRawString* s) {
   if (s == nullptr) return isolate->factory()->undefined_value();
   return s->string();
 }

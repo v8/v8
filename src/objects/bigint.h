@@ -278,7 +278,7 @@ V8_OBJECT class BigInt : public BigIntBase {
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.
-  static Handle<Object> ToNumber(Isolate* isolate, DirectHandle<BigInt> x);
+  static Handle<Number> ToNumber(Isolate* isolate, DirectHandle<BigInt> x);
 
   // ECMAScript's NumberToBigInt
   V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromNumber(

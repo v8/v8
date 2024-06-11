@@ -1309,7 +1309,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   // Update the suspender state.
   FullObjectSlot active_suspender_slot =
       isolate->roots_table().slot(RootIndex::kActiveSuspender);
-  suspender->set_parent(HeapObject::cast(*active_suspender_slot));
+  suspender->set_parent(
+      Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
   suspender->set_state(WasmSuspenderObject::kActive);
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);

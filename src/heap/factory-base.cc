@@ -416,7 +416,7 @@ Handle<WasmDispatchTable> FactoryBase<Impl>::NewWasmDispatchTable(int length) {
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScript(
-    DirectHandle<PrimitiveHeapObject> source,
+    DirectHandle<UnionOf<String, Undefined>> source,
     ScriptEventType script_event_type) {
   return NewScriptWithId(source, isolate()->GetNextScriptId(),
                          script_event_type);
@@ -424,7 +424,7 @@ Handle<Script> FactoryBase<Impl>::NewScript(
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScriptWithId(
-    DirectHandle<PrimitiveHeapObject> source, int script_id,
+    DirectHandle<UnionOf<String, Undefined>> source, int script_id,
     ScriptEventType script_event_type) {
   DCHECK(IsString(*source) || IsUndefined(*source));
   // Create and initialize script object.

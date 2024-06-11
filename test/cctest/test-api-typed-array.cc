@@ -178,8 +178,8 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
   CHECK_EQ(0, result->Int32Value(context).FromJust());
   if (array_type == i::kExternalFloat64Array ||
       array_type == i::kExternalFloat32Array) {
-    CHECK(std::isnan(i::Object::NumberValue(
-        *i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked())));
+    CHECK(std::isnan(i::Object::NumberValue(Cast<i::Number>(
+        *i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()))));
   } else {
     CheckElementValue(isolate, 0, jsobj, 7);
   }
@@ -191,8 +191,8 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "ext_array[6];");
   CHECK_EQ(2, result->Int32Value(context).FromJust());
   CHECK_EQ(2,
-           static_cast<int>(i::Object::NumberValue(
-               *i::Object::GetElement(isolate, jsobj, 6).ToHandleChecked())));
+           static_cast<int>(i::Object::NumberValue(Cast<i::Number>(
+               *i::Object::GetElement(isolate, jsobj, 6).ToHandleChecked()))));
 
   if (array_type != i::kExternalFloat32Array &&
       array_type != i::kExternalFloat64Array) {

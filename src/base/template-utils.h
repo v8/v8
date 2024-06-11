@@ -170,6 +170,12 @@ using nth_type_t = typename detail::nth_type<N, T...>::type;
 template <typename SearchT, typename... Ts>
 struct index_of_type;
 
+template <typename SearchT, typename... Ts>
+constexpr size_t index_of_type_v = index_of_type<SearchT, Ts...>::value;
+template <typename SearchT, typename... Ts>
+constexpr bool has_type_v =
+    index_of_type<SearchT, Ts...>::value < sizeof...(Ts);
+
 // Not found / empty list.
 template <typename SearchT>
 struct index_of_type<SearchT> : public std::integral_constant<size_t, 0> {};
@@ -179,7 +185,7 @@ template <typename SearchT, typename... Ts>
 struct index_of_type<SearchT, SearchT, Ts...>
     : public std::integral_constant<size_t, 0> {
   // SearchT is not allowed to be anywhere else in the list.
-  static_assert(index_of_type<SearchT, Ts...>::value == sizeof...(Ts));
+  static_assert(!has_type_v<SearchT, Ts...>);
 };
 
 // Recursion, SearchT not found at head of list.
@@ -188,9 +194,6 @@ struct index_of_type<SearchT, T, Ts...>
     : public std::integral_constant<size_t,
                                     1 + index_of_type<SearchT, Ts...>::value> {
 };
-
-template <typename SearchT, typename... Ts>
-constexpr size_t index_of_type_v = index_of_type<SearchT, Ts...>::value;
 
 }  // namespace base
 }  // namespace v8

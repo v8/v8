@@ -330,7 +330,7 @@ class KeyedStoreIC : public StoreIC {
 
   Handle<Object> StoreElementHandler(
       DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
-      MaybeHandle<Object> prev_validity_cell = MaybeHandle<Object>());
+      MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
 
   void StoreElementPolymorphicHandlers(
       std::vector<MapAndHandler>* receiver_maps_and_handlers,

@@ -128,8 +128,8 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   }
 }
 
-#define RARE_ACCESSORS(Name, CamelName, Type, Default)                         \
-  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<Type>) {             \
+#define RARE_ACCESSORS(Name, CamelName, Default, ...)                          \
+  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<__VA_ARGS__>) {      \
     Tagged<HeapObject> extra = rare_data(cage_base, kAcquireLoad);             \
     Tagged<Undefined> undefined =                                              \
         GetReadOnlyRoots(cage_base).undefined_value();                         \
@@ -139,26 +139,30 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   inline void FunctionTemplateInfo::Set##CamelName(                            \
       Isolate* isolate,                                                        \
       DirectHandle<FunctionTemplateInfo> function_template_info,               \
-      DirectHandle<Type> Name) {                                               \
+      DirectHandle<__VA_ARGS__> Name) {                                        \
     Tagged<FunctionTemplateRareData> rare_data =                               \
         EnsureFunctionTemplateRareData(isolate, function_template_info);       \
     rare_data->set_##Name(*Name);                                              \
   }
 
-RARE_ACCESSORS(prototype_template, PrototypeTemplate, HeapObject, undefined)
+RARE_ACCESSORS(prototype_template, PrototypeTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
 RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate,
-               HeapObject, undefined)
-RARE_ACCESSORS(parent_template, ParentTemplate, HeapObject, undefined)
-RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject, undefined)
-RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
-RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
-               GetReadOnlyRoots(cage_base).empty_fixed_array())
+               undefined, UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(parent_template, ParentTemplate, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(instance_template, InstanceTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
+RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(access_check_info, AccessCheckInfo, undefined,
+               UnionOf<Undefined, AccessCheckInfo>)
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads,
+               GetReadOnlyRoots(cage_base).empty_fixed_array(), FixedArray)
 #undef RARE_ACCESSORS
 
 InstanceType FunctionTemplateInfo::GetInstanceType() const {

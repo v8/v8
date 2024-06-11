@@ -56,12 +56,14 @@ inline v8::internal::Address ToCData(
     v8::internal::Tagged<v8::internal::Object> obj);
 
 template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
-    v8::internal::Isolate* isolate, T obj);
+inline v8::internal::Handle<
+    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
+FromCData(v8::internal::Isolate* isolate, T obj);
 
 template <>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
-    v8::internal::Isolate* isolate, v8::internal::Address obj);
+inline v8::internal::Handle<
+    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
+FromCData(v8::internal::Isolate* isolate, v8::internal::Address obj);
 
 class ApiFunction {
  public:
@@ -137,6 +139,7 @@ class RegisteredExtension {
   V(DictionaryTemplate, DictionaryTemplateInfo) \
   V(Signature, FunctionTemplateInfo)            \
   V(Data, Object)                               \
+  V(Number, Number)                             \
   V(RegExp, JSRegExp)                           \
   V(Object, JSReceiver)                         \
   V(Array, JSArray)                             \

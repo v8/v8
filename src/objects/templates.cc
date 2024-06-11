@@ -272,8 +272,9 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
         if (details.representation().Equals(Representation::Double())) {
           // We allowed coercion in `FitsRepresentation` above which means that
           // we may deal with a Smi here.
-          property_values[i] = ToApiHandle<v8::Object>(
-              isolate->factory()->NewHeapNumber(Object::NumberValue(*value)));
+          property_values[i] =
+              ToApiHandle<v8::Object>(isolate->factory()->NewHeapNumber(
+                  Object::NumberValue(Cast<Number>(*value))));
         }
       }
       if (V8_LIKELY(can_use_cached_map)) {

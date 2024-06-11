@@ -140,16 +140,16 @@
 #define DECL_RELAXED_UINT8_ACCESSORS(name) \
   DECL_RELAXED_PRIMITIVE_ACCESSORS(name, uint8_t)
 
-#define DECL_GETTER(name, type) \
-  inline type name() const;     \
-  inline type name(PtrComprCageBase cage_base) const;
+#define DECL_GETTER(name, ...)     \
+  inline __VA_ARGS__ name() const; \
+  inline __VA_ARGS__ name(PtrComprCageBase cage_base) const;
 
-#define DEF_GETTER(holder, name, type)                       \
-  type holder::name() const {                                \
+#define DEF_GETTER(holder, name, ...)                        \
+  __VA_ARGS__ holder::name() const {                         \
     PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
     return holder::name(cage_base);                          \
   }                                                          \
-  type holder::name(PtrComprCageBase cage_base) const
+  __VA_ARGS__ holder::name(PtrComprCageBase cage_base) const
 
 #define DEF_RELAXED_GETTER(holder, name, type)               \
   type holder::name(RelaxedLoadTag tag) const {              \

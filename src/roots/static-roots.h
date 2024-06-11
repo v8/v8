@@ -189,13 +189,13 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kStoreHandler1Map = 0x15c5;
   static constexpr Tagged_t kStoreHandler2Map = 0x15ed;
   static constexpr Tagged_t kStoreHandler3Map = 0x1615;
-  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x163d;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x1665;
+  static constexpr Tagged_t kFunctionTemplateInfoMap = 0x163d;
+  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x1665;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x168d;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataWithJobMap =
-      0x168d;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x16b5;
-  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x16dd;
-  static constexpr Tagged_t kFunctionTemplateInfoMap = 0x1705;
+      0x16b5;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x16dd;
+  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x1705;
   static constexpr Tagged_t kObjectTemplateInfoMap = 0x172d;
   static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x1755;
   static constexpr Tagged_t kTurbofanUnionTypeMap = 0x177d;
@@ -1501,6 +1501,7 @@ static constexpr std::array<Tagged_t, 762> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kTemplateObjectDescriptionMap,
     StaticReadOnlyRoot::kTuple2Map,
     StaticReadOnlyRoot::kWasmExceptionTagMap,
+    StaticReadOnlyRoot::kFunctionTemplateInfoMap,
     StaticReadOnlyRoot::kSloppyArgumentsElementsMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kStrongDescriptorArrayMap,
@@ -1509,7 +1510,6 @@ static constexpr std::array<Tagged_t, 762> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataWithJobMap,
     StaticReadOnlyRoot::kUncompiledDataWithPreparseDataAndJobMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
-    StaticReadOnlyRoot::kFunctionTemplateInfoMap,
     StaticReadOnlyRoot::kObjectTemplateInfoMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
     StaticReadOnlyRoot::kTurbofanUnionTypeMap,

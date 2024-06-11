@@ -267,7 +267,7 @@ V8_OBJECT class String : public Name {
   Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
-  static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
+  static Handle<Number> ToNumber(Isolate* isolate, Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.

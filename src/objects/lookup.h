@@ -104,6 +104,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   };
 
   // {name} is guaranteed to be a property name (and not e.g. "123").
+  // TODO(leszeks): Port these constructors to use JSAny.
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name,
                         Configuration configuration = DEFAULT);
@@ -169,7 +170,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
-  Handle<Object> GetReceiver() const { return receiver_; }
+  Handle<JSAny> GetReceiver() const { return receiver_; }
 
   template <class T>
   inline Handle<T> GetStoreTarget() const;
@@ -179,7 +180,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <class T>
   inline Handle<T> GetHolder() const;
 
-  Handle<Object> lookup_start_object() const { return lookup_start_object_; }
+  Handle<JSAny> lookup_start_object() const { return lookup_start_object_; }
 
   bool HolderIsReceiver() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
@@ -259,16 +260,16 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
   bool LookupCachedProperty(DirectHandle<AccessorPair> accessor);
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+  inline LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
                         Handle<Name> name, size_t index,
-                        Handle<Object> lookup_start_object,
+                        Handle<JSAny> lookup_start_object,
                         Configuration configuration);
 
   // Lookup private symbol on the prototype chain. Currently used only for
   // error_stack_symbol and error_message_symbol.
   inline LookupIterator(Isolate* isolate, Configuration configuration,
-                        Handle<Object> receiver, Handle<Symbol> name,
-                        Handle<Object> lookup_start_object);
+                        Handle<JSAny> receiver, Handle<Symbol> name,
+                        Handle<JSAny> lookup_start_object);
 
   static void InternalUpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                       DirectHandle<Name> name);
@@ -334,10 +335,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Handle<Name> name);
 
   static MaybeHandle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, DirectHandle<Object> lookup_start_object, size_t index,
-      Configuration configuration);
+      Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
+      size_t index, Configuration configuration);
   static inline MaybeHandle<JSReceiver> GetRoot(
-      Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+      Isolate* isolate, Handle<JSAny> lookup_start_object, size_t index,
       Configuration configuration);
 
   State NotFound(Tagged<JSReceiver> const holder) const;
@@ -352,9 +353,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Isolate* const isolate_;
   Handle<Name> name_;
   Handle<Object> transition_;
-  const Handle<Object> receiver_;
+  const Handle<JSAny> receiver_;
   Handle<JSReceiver> holder_;
-  const Handle<Object> lookup_start_object_;
+  const Handle<JSAny> lookup_start_object_;
   const size_t index_;
   InternalIndex number_ = InternalIndex::NotFound();
 };

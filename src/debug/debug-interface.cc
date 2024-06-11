@@ -127,9 +127,9 @@ Local<String> GetDateDescription(Local<Date> date) {
   auto jsdate = i::DirectHandle<i::JSDate>::cast(receiver);
   i::Isolate* i_isolate = jsdate->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto buffer = i::ToDateString(i::Object::NumberValue(jsdate->value()),
-                                i_isolate->date_cache(),
-                                i::ToDateStringMode::kLocalDateAndTime);
+  auto buffer = i::ToDateString(
+      i::Object::NumberValue(Cast<i::Number>(jsdate->value())),
+      i_isolate->date_cache(), i::ToDateStringMode::kLocalDateAndTime);
   return Utils::ToLocal(i_isolate->factory()
                             ->NewStringFromUtf8(base::VectorOf(buffer))
                             .ToHandleChecked());

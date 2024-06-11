@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/casting.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
@@ -172,22 +173,22 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
 
 bool Context::IsDetached() const { return global_object()->IsDetached(); }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
-  void Context::set_##name(Tagged<type> value) {            \
-    DCHECK(IsNativeContext(*this));                         \
-    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore); \
-  }                                                         \
-  bool Context::is_##name(Tagged<type> value) const {       \
-    DCHECK(IsNativeContext(*this));                         \
-    return type::cast(get(index)) == value;                 \
-  }                                                         \
-  Tagged<type> Context::name() const {                      \
-    DCHECK(IsNativeContext(*this));                         \
-    return type::cast(get(index));                          \
-  }                                                         \
-  Tagged<type> Context::name(AcquireLoadTag tag) const {    \
-    DCHECK(IsNativeContext(*this));                         \
-    return type::cast(get(index, tag));                     \
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)         \
+  void Context::set_##name(Tagged<UNPAREN(type)> value) {         \
+    DCHECK(IsNativeContext(*this));                               \
+    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore);       \
+  }                                                               \
+  bool Context::is_##name(Tagged<UNPAREN(type)> value) const {    \
+    DCHECK(IsNativeContext(*this));                               \
+    return Cast<UNPAREN(type)>(get(index)) == value;              \
+  }                                                               \
+  Tagged<UNPAREN(type)> Context::name() const {                   \
+    DCHECK(IsNativeContext(*this));                               \
+    return Cast<UNPAREN(type)>(get(index));                       \
+  }                                                               \
+  Tagged<UNPAREN(type)> Context::name(AcquireLoadTag tag) const { \
+    DCHECK(IsNativeContext(*this));                               \
+    return Cast<UNPAREN(type)>(get(index, tag));                  \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS

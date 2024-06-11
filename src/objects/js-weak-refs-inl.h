@@ -93,9 +93,9 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
 
   Tagged<Object> value = key_map->ValueAt(entry);
   bool was_present = false;
-  Tagged<HeapObject> undefined = ReadOnlyRoots(isolate).undefined_value();
-  Tagged<HeapObject> new_key_list_head = undefined;
-  Tagged<HeapObject> new_key_list_prev = undefined;
+  Tagged<Undefined> undefined = ReadOnlyRoots(isolate).undefined_value();
+  Tagged<UnionOf<Undefined, WeakCell>> new_key_list_head = undefined;
+  Tagged<UnionOf<Undefined, WeakCell>> new_key_list_prev = undefined;
   // Compute a new key list that doesn't have unregister_token. Because
   // unregister tokens are held weakly, key_map is keyed using the tokens'
   // identity hashes, and identity hashes may collide.
@@ -196,7 +196,7 @@ void WeakCell::Nullify(Isolate* isolate,
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
-  Tagged<Object> cleared_head = fr->cleared_cells();
+  Tagged<UnionOf<Undefined, WeakCell>> cleared_head = fr->cleared_cells();
   if (IsWeakCell(cleared_head)) {
     Tagged<WeakCell> cleared_head_cell = WeakCell::cast(cleared_head);
     cleared_head_cell->set_prev(*this);

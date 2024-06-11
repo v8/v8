@@ -763,7 +763,7 @@ class ArrayConcatVisitor {
   Handle<JSArray> ToArray() {
     DCHECK(is_fixed_array());
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
-    DirectHandle<Object> length =
+    DirectHandle<Number> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     DirectHandle<Map> map = JSObject::GetElementsTransitionMap(
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);

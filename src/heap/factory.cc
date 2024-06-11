@@ -46,6 +46,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/heap-object.h"
@@ -77,6 +78,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/templates.h"
 #include "src/objects/transitions-inl.h"
+#include "src/roots/roots-inl.h"
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
@@ -1492,8 +1494,8 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 }
 
 Handle<ErrorStackData> Factory::NewErrorStackData(
-    DirectHandle<Object> call_site_infos_or_formatted_stack,
-    DirectHandle<Object> limit_or_stack_frame_infos) {
+    DirectHandle<UnionOf<JSAny, FixedArray>> call_site_infos_or_formatted_stack,
+    DirectHandle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos) {
   Tagged<ErrorStackData> error_stack_data = NewStructInternal<ErrorStackData>(
       ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1651,9 +1653,11 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     result->set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
   result->init_native_type(isolate(), type_address);
-  result->set_instance(opt_instance.is_null()
-                           ? HeapObject::cast(*undefined_value())
-                           : HeapObject::cast(*opt_instance));
+  if (opt_instance.is_null()) {
+    result->set_instance(read_only_roots().undefined_value());
+  } else {
+    result->set_instance(*opt_instance);
+  }
   result->set_type_index(type_index);
   return handle(result, isolate());
 }
@@ -1668,11 +1672,9 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   DisallowGarbageCollection no_gc;
   result->init_self_indirect_pointer(isolate());
   result->set_native_context(*isolate()->native_context());
-  DCHECK(IsUndefined(*callable) || IsJSReceiver(*callable));
-  result->set_callable(*callable);
+  result->set_callable(Cast<UnionOf<Undefined, JSReceiver>>(*callable));
   result->set_suspend(suspend);
-  DCHECK(IsUndefined(*instance) || IsWasmInstanceObject(*instance));
-  result->set_instance(*instance);
+  result->set_instance(Cast<UnionOf<Undefined, WasmInstanceObject>>(*instance));
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
   result->set_sig(*serialized_sig);
@@ -1694,7 +1696,7 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
   auto result = Tagged<WasmFastApiCallData>::cast(AllocateRawWithImmortalMap(
       map->instance_size(), AllocationType::kOld, map));
   result->set_signature(*signature);
-  result->set_cached_map(*null_value());
+  result->set_cached_map(read_only_roots().null_value());
   return handle(result, isolate());
 }
 
@@ -1982,7 +1984,7 @@ Handle<WasmContinuationObject> Factory::NewWasmContinuationObject(
       AllocateRawWithImmortalMap(map->instance_size(), allocation, map));
   result->init_jmpbuf(isolate(), jmpbuf);
   result->set_stack(*managed_stack);
-  result->set_parent(*parent);
+  result->set_parent(Cast<UnionOf<Undefined, WasmContinuationObject>>(*parent));
   return handle(result, isolate());
 }
 
@@ -2028,21 +2030,20 @@ Handle<Cell> Factory::NewCell() {
   return handle(result, isolate());
 }
 
-Handle<FeedbackCell> Factory::NewNoClosuresCell(
-    DirectHandle<HeapObject> value) {
+Handle<FeedbackCell> Factory::NewNoClosuresCell() {
   Tagged<FeedbackCell> result =
       Tagged<FeedbackCell>::cast(AllocateRawWithImmortalMap(
           FeedbackCell::kAlignedSize, AllocationType::kOld,
           *no_closures_cell_map()));
   DisallowGarbageCollection no_gc;
-  result->set_value(*value);
+  result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
   result->clear_padding();
   return handle(result, isolate());
 }
 
 Handle<FeedbackCell> Factory::NewOneClosureCell(
-    DirectHandle<HeapObject> value) {
+    DirectHandle<ClosureFeedbackCellArray> value) {
   Tagged<FeedbackCell> result =
       Tagged<FeedbackCell>::cast(AllocateRawWithImmortalMap(
           FeedbackCell::kAlignedSize, AllocationType::kOld,
@@ -2054,14 +2055,13 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(
   return handle(result, isolate());
 }
 
-Handle<FeedbackCell> Factory::NewManyClosuresCell(
-    DirectHandle<HeapObject> value) {
+Handle<FeedbackCell> Factory::NewManyClosuresCell() {
   Tagged<FeedbackCell> result =
       Tagged<FeedbackCell>::cast(AllocateRawWithImmortalMap(
           FeedbackCell::kAlignedSize, AllocationType::kOld,
           *many_closures_cell_map()));
   DisallowGarbageCollection no_gc;
-  result->set_value(*value);
+  result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
   result->clear_padding();
   return handle(result, isolate());
@@ -3191,7 +3191,7 @@ Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
   Handle<JSWrappedFunction> wrapped = Handle<JSWrappedFunction>::cast(
       isolate()->factory()->NewJSObjectFromMap(map));
   // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
-  wrapped->set_wrapped_target_function(JSReceiver::cast(*target));
+  wrapped->set_wrapped_target_function(Cast<JSCallable>(*target));
   // 6. Set wrapped.[[Realm]] to callerRealm.
   wrapped->set_context(*creation_context);
   // TODO(v8:11989): https://github.com/tc39/proposal-shadowrealm/pull/348
@@ -3526,7 +3526,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 }
 
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
-    DirectHandle<JSReceiver> target_function, DirectHandle<Object> bound_this,
+    DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
     base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype) {
   DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
@@ -3564,7 +3564,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
       NewJSObjectFromMap(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
   Tagged<JSBoundFunction> raw = *result;
-  raw->set_bound_target_function(*target_function, SKIP_WRITE_BARRIER);
+  raw->set_bound_target_function(Cast<JSCallable>(*target_function),
+                                 SKIP_WRITE_BARRIER);
   raw->set_bound_this(*bound_this, SKIP_WRITE_BARRIER);
   raw->set_bound_arguments(*bound_arguments, SKIP_WRITE_BARRIER);
   return result;
@@ -3805,7 +3806,8 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id,
 }
 
 Handle<CallSiteInfo> Factory::NewCallSiteInfo(
-    DirectHandle<Object> receiver_or_instance, DirectHandle<Object> function,
+    DirectHandle<JSAny> receiver_or_instance,
+    DirectHandle<UnionOf<Smi, JSFunction>> function,
     DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
     int flags, DirectHandle<FixedArray> parameters) {
   auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
@@ -3821,7 +3823,7 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo(
-    DirectHandle<HeapObject> shared_or_script,
+    DirectHandle<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
     int bytecode_offset_or_source_position, DirectHandle<String> function_name,
     bool is_constructor) {
   DCHECK_GE(bytecode_offset_or_source_position, 0);
@@ -4415,9 +4417,11 @@ Handle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
     Tagged<ObjectTemplateInfo> raw = *obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplate(raw, roots, do_not_cache);
-    raw->set_constructor(!constructor.is_null()
-                             ? *constructor
-                             : HeapObject::cast(roots.undefined_value()));
+    if (constructor.is_null()) {
+      raw->set_constructor(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    } else {
+      raw->set_constructor(*constructor);
+    }
     raw->set_data(0);
   }
   return handle(obj, isolate());

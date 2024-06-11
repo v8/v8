@@ -310,9 +310,9 @@ class SourceTextModuleInfoEntry
 
   template <typename IsolateT>
   static Handle<SourceTextModuleInfoEntry> New(
-      IsolateT* isolate, DirectHandle<PrimitiveHeapObject> export_name,
-      DirectHandle<PrimitiveHeapObject> local_name,
-      DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+      IsolateT* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
+      DirectHandle<UnionOf<String, Undefined>> local_name,
+      DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);
 
   using BodyDescriptor = StructBodyDescriptor;

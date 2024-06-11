@@ -2615,7 +2615,7 @@ Handle<StackFrameInfo> FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo()
       isolate()->factory()->NewStringFromAsciiChecked(
           Builtins::NameForStackTrace(isolate(), builtin_));
   return isolate()->factory()->NewStackFrameInfo(
-      Handle<HeapObject>::cast(script()), SourcePosition(), name_str, false);
+      Handle<Script>::cast(script()), SourcePosition(), name_str, false);
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

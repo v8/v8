@@ -12,6 +12,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
@@ -153,7 +154,7 @@ Handle<WasmTableObject> WasmTableObject::New(
     entries->set(i, *initial_value);
   }
 
-  DirectHandle<Object> max;
+  DirectHandle<UnionOf<Number, Undefined>> max;
   if (has_maximum) {
     max = isolate->factory()->NewNumberFromUint(maximum);
   } else {
@@ -1803,11 +1804,10 @@ void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
 }
 
 // static
-Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
-                                         const wasm::FunctionSig* sig,
-                                         uint32_t canonical_type_index,
-                                         DirectHandle<HeapObject> tag,
-                                         Handle<HeapObject> instance) {
+Handle<WasmTagObject> WasmTagObject::New(
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    uint32_t canonical_type_index, DirectHandle<HeapObject> tag,
+    DirectHandle<Union<Undefined, WasmInstanceObject>> instance) {
   Handle<JSFunction> tag_cons(isolate->native_context()->wasm_tag_constructor(),
                               isolate);
 

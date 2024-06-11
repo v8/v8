@@ -162,7 +162,7 @@ struct IndexedDebugProxy {
       descriptor.set_configurable(false);
       descriptor.set_enumerable(true);
       descriptor.set_writable(false);
-      descriptor.set_value(T::Get(isolate, provider, index));
+      descriptor.set_value(Cast<JSAny>(T::Get(isolate, provider, index)));
       info.GetReturnValue().Set(Utils::ToLocal(descriptor.ToObject(isolate)));
       return v8::Intercepted::kYes;
     }

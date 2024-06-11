@@ -1771,7 +1771,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
 namespace {
 Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                   LookupIterator::State original_state,
-                                  Handle<Object> value,
+                                  Handle<JSAny> value,
                                   Maybe<ShouldThrow> should_throw,
                                   StoreOrigin store_origin) {
   // It should not be possible to call DefineOwnDataProperty in a
@@ -1941,8 +1941,9 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       MAYBE_RETURN_NULL(
           JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
     } else {
-      MAYBE_RETURN_NULL(DefineOwnDataProperty(
-          &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
+      MAYBE_RETURN_NULL(
+          DefineOwnDataProperty(&it, original_state, Cast<JSAny>(value),
+                                Nothing<ShouldThrow>(), store_origin));
     }
   } else {
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
@@ -2380,7 +2381,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
-    MaybeHandle<Object> prev_validity_cell) {
+    MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
   // The only case when could keep using non-slow element store handler for
   // a fast array with potentially read-only elements is when it's an
   // initializing store to array literal.
@@ -2403,7 +2404,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().
-  Handle<Object> code;
+  Handle<Code> code;
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
@@ -2439,7 +2440,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   if (IsAnyDefineOwn() || IsStoreInArrayLiteralIC()) return code;
-  Handle<Object> validity_cell;
+  Handle<UnionOf<Smi, Cell>> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
@@ -2491,12 +2492,12 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
         }
       }
 
-      MaybeHandle<Object> validity_cell;
+      MaybeHandle<UnionOf<Smi, Cell>> validity_cell;
       Tagged<HeapObject> old_handler_obj;
       if (!old_handler.is_null() &&
           (*old_handler).GetHeapObject(&old_handler_obj) &&
           IsDataHandler(old_handler_obj)) {
-        validity_cell = MaybeHandle<Object>(
+        validity_cell = handle(
             DataHandler::cast(old_handler_obj)->validity_cell(), isolate());
       }
       // TODO(mythria): Do not recompute the handler if we know there is no

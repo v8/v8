@@ -4496,7 +4496,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                        ValueType result_type) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
-    V<compiler::turboshaft::Union<String, WasmNull, Null>> call;
+    V<internal::UnionOf<String, WasmNull, Null>> call;
     if (const CallOp* array_new = IsArrayNewSegment(array.op)) {
       // We can only pass 3 untagged parameters to the builtin (on 32-bit
       // platforms). The segment index is easy to tag: if it validated, it must

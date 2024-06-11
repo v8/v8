@@ -22,7 +22,7 @@ BUILTIN(ReflectDefineProperty) {
   DCHECK_LE(4, args.length());
   Handle<Object> target = args.at(1);
   Handle<Object> key = args.at(2);
-  Handle<Object> attributes = args.at(3);
+  Handle<JSAny> attributes = args.at<JSAny>(3);
 
   if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

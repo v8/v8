@@ -261,12 +261,12 @@ void Isolate::DidFinishModuleAsyncEvaluation(unsigned ordinal) {
   }
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
-  Handle<type> Isolate::name() {                             \
-    return Handle<type>(raw_native_context()->name(), this); \
-  }                                                          \
-  bool Isolate::is_##name(Tagged<type> value) {              \
-    return raw_native_context()->is_##name(value);           \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)              \
+  Handle<UNPAREN(type)> Isolate::name() {                             \
+    return Handle<UNPAREN(type)>(raw_native_context()->name(), this); \
+  }                                                                   \
+  bool Isolate::is_##name(Tagged<UNPAREN(type)> value) {              \
+    return raw_native_context()->is_##name(value);                    \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR

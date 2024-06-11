@@ -78,10 +78,10 @@ Tagged<Object> ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   //                                   [[Configurable]]: true}.
   PropertyDescriptor desc;
   if (which_accessor == ACCESSOR_GETTER) {
-    desc.set_get(accessor);
+    desc.set_get(Cast<JSAny>(accessor));
   } else {
     DCHECK(which_accessor == ACCESSOR_SETTER);
-    desc.set_set(accessor);
+    desc.set_set(Cast<JSAny>(accessor));
   }
   desc.set_enumerable(true);
   desc.set_configurable(true);

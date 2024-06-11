@@ -2112,6 +2112,7 @@ filegroup(
         "src/objects/tagged-index.h",
         "src/objects/tagged-value.h",
         "src/objects/tagged-value-inl.h",
+        "src/objects/union.h",
         "src/objects/template-objects.cc",
         "src/objects/template-objects.h",
         "src/objects/template-objects-inl.h",

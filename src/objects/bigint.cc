@@ -1004,7 +1004,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
                   NewTypeError(MessageTemplate::kBigIntFromObject, obj));
 }
 
-Handle<Object> BigInt::ToNumber(Isolate* isolate, DirectHandle<BigInt> x) {
+Handle<Number> BigInt::ToNumber(Isolate* isolate, DirectHandle<BigInt> x) {
   if (x->is_zero()) return Handle<Smi>(Smi::zero(), isolate);
   if (x->length() == 1 && x->digit(0) < Smi::kMaxValue) {
     int value = static_cast<int>(x->digit(0));

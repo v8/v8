@@ -617,13 +617,6 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
 
 template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
 OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
-    JSHeapBroker* broker, T object, GetOrCreateDataFlags flags = {}) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return TryMakeRef<T>(broker, Tagged<T>(object), flags);
-}
-
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
-OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {}) {
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
@@ -640,12 +633,6 @@ typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
 }
 
 template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
-typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, T object) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return TryMakeRef(broker, Tagged<T>(object), kCrashOnError).value();
-}
-
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
 typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
                                          Handle<T> object) {
   return TryMakeRef(broker, object, kCrashOnError).value();
@@ -654,13 +641,6 @@ typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
 template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           Tagged<T> object) {
-  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
-}
-
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
-typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
-                                                          T object) {
-  static_assert(kTaggedCanConvertToRawObjects);
   return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 

@@ -467,11 +467,11 @@ Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
                                         DirectHandle<String> identifier);
 
 // #sec-temporal-tointegerthrowoninfinity
-MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
+MaybeHandle<Number> ToIntegerThrowOnInfinity(Isolate* isolate,
                                              Handle<Object> argument);
 
 // #sec-temporal-topositiveinteger
-MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
+MaybeHandle<Number> ToPositiveInteger(Isolate* isolate,
                                       Handle<Object> argument);
 
 inline double modulo(double a, int32_t b) { return a - std::floor(a / b) * b; }
@@ -1047,25 +1047,25 @@ MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
   // [[Years]], [[Months]], [[Weeks]], [[Days]], [[Hours]], [[Minutes]],
   // [[Seconds]], [[Milliseconds]], [[Microseconds]], [[Nanoseconds]] »).
   const TimeDurationRecord& time_duration = duration.time_duration;
-  DirectHandle<Object> years =
+  DirectHandle<Number> years =
       factory->NewNumber(NormalizeMinusZero(duration.years));
-  DirectHandle<Object> months =
+  DirectHandle<Number> months =
       factory->NewNumber(NormalizeMinusZero(duration.months));
-  DirectHandle<Object> weeks =
+  DirectHandle<Number> weeks =
       factory->NewNumber(NormalizeMinusZero(duration.weeks));
-  DirectHandle<Object> days =
+  DirectHandle<Number> days =
       factory->NewNumber(NormalizeMinusZero(time_duration.days));
-  DirectHandle<Object> hours =
+  DirectHandle<Number> hours =
       factory->NewNumber(NormalizeMinusZero(time_duration.hours));
-  DirectHandle<Object> minutes =
+  DirectHandle<Number> minutes =
       factory->NewNumber(NormalizeMinusZero(time_duration.minutes));
-  DirectHandle<Object> seconds =
+  DirectHandle<Number> seconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.seconds));
-  DirectHandle<Object> milliseconds =
+  DirectHandle<Number> milliseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.milliseconds));
-  DirectHandle<Object> microseconds =
+  DirectHandle<Number> microseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.microseconds));
-  DirectHandle<Object> nanoseconds =
+  DirectHandle<Number> nanoseconds =
       factory->NewNumber(NormalizeMinusZero(time_duration.nanoseconds));
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalDuration)
@@ -2560,7 +2560,7 @@ bool IsIntegralNumber(Isolate* isolate, DirectHandle<Object> argument) {
   // 1. If Type(argument) is not Number, return false.
   if (!IsNumber(*argument)) return false;
   // 2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
-  double number = Object::NumberValue(*argument);
+  double number = Object::NumberValue(Cast<Number>(*argument));
   if (!std::isfinite(number)) return false;
   // 3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
   if (std::floor(std::abs(number)) != std::abs(number)) return false;
@@ -2572,7 +2572,7 @@ bool IsIntegralNumber(Isolate* isolate, DirectHandle<Object> argument) {
 Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
                                        Handle<Object> argument) {
   // 1. Let number be ? ToNumber(argument).
-  Handle<Object> number;
+  Handle<Number> number;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
   // 2. If number is NaN, +0𝔽, or −0𝔽 return 0.
@@ -4306,7 +4306,8 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
-  double offset_nanoseconds = Object::NumberValue(*offset_nanoseconds_obj);
+  double offset_nanoseconds =
+      Object::NumberValue(Cast<Number>(*offset_nanoseconds_obj));
 
   // 6. Set offsetNanoseconds to ℝ(offsetNanoseconds).
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
@@ -4320,19 +4321,20 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
 }
 
 // #sec-temporal-topositiveinteger
-MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
+MaybeHandle<Number> ToPositiveInteger(Isolate* isolate,
                                       Handle<Object> argument) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let integer be ? ToInteger(argument).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, argument,
+  Handle<Number> integer;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, integer,
                              ToIntegerThrowOnInfinity(isolate, argument));
   // 2. If integer ≤ 0, then
-  if (NumberToInt32(*argument) <= 0) {
+  if (NumberToInt32(*integer) <= 0) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
-  return argument;
+  return integer;
 }
 
 }  // namespace
@@ -4361,9 +4363,9 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
 }
 
 #define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)             \
-  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                         \
-                                     Handle<JSReceiver> calendar,              \
-                                     Handle<JSReceiver> date_like) {           \
+  MaybeHandle<Smi> Calendar##Name(Isolate* isolate,                            \
+                                  Handle<JSReceiver> calendar,                 \
+                                  Handle<JSReceiver> date_like) {              \
     /* 1. Assert: Type(calendar) is Object.   */                               \
     /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */       \
     Handle<Object> result;                                                     \
@@ -4377,7 +4379,8 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
     }                                                                          \
     /* 4. Return ? Action(result). */                                          \
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result));      \
-    return handle(Smi::FromInt(Object::NumberValue(*result)), isolate);        \
+    return handle(Smi::FromInt(Object::NumberValue(Cast<Number>(*result))),    \
+                  isolate);                                                    \
   }
 
 #define CALENDAR_ABSTRACT_OPERATION(Name, property)                      \
@@ -4652,12 +4655,13 @@ Maybe<TimeRecord> ToTemporalTimeRecordOrPartialTime(
       continue;
     }
     // d. / ii. Set value to ? ToIntegerThrowOnOInfinity(value).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+    Handle<Number> value_number;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value_number,
                                      ToIntegerThrowOnInfinity(isolate, value),
                                      Nothing<TimeRecord>());
     // e. / iii. Set result's internal slot whose name is the Internal Slot
     // value of the current row to value.
-    *(row.second) = Object::NumberValue(*value);
+    *(row.second) = Object::NumberValue(*value_number);
   }
 
   // 5. If _any_ is *false*, then
@@ -4867,19 +4871,20 @@ MaybeHandle<JSReceiver> MergeLargestUnitOption(Isolate* isolate,
 }
 
 // #sec-temporal-tointegerthrowoninfinity
-MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
+MaybeHandle<Number> ToIntegerThrowOnInfinity(Isolate* isolate,
                                              Handle<Object> argument) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let integer be ? ToIntegerOrInfinity(argument).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, argument,
+  Handle<Number> integer;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, integer,
                              Object::ToInteger(isolate, argument));
   // 2. If integer is +∞ or -∞, throw a RangeError exception.
-  if (!std::isfinite(Object::NumberValue(*argument))) {
+  if (!std::isfinite(Object::NumberValue(*integer))) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR());
   }
-  return argument;
+  return integer;
 }
 
 // #sec-temporal-largeroftwotemporalunits
@@ -6367,14 +6372,13 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
   // Note: "day" in fields is always converted by
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the day_obj is always an integer.
-  DCHECK(IsSmi(*day_obj) || IsHeapNumber(*day_obj));
-  result.day = FastD2I(floor(Object::NumberValue(*day_obj)));
+  result.day = FastD2I(floor(Object::NumberValue(Cast<Number>(*day_obj))));
   // 11. Let referenceISOYear be 1972 (the first leap year after the Unix
   // epoch).
   int32_t reference_iso_year = 1972;
   // 12. If monthCode is undefined, then
   if (IsUndefined(*month_code_obj, isolate)) {
-    result.year = FastD2I(floor(Object::NumberValue(*year_obj)));
+    result.year = FastD2I(floor(Object::NumberValue(Cast<Number>(*year_obj))));
     // a. Let result be ? RegulateISODate(year, month, day, overflow).
   } else {
     // 13. Else,
@@ -9596,7 +9600,7 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
     // ToPositiveInteger inside PrepareTemporalFields before calling
     // ResolveISOMonth. Therefore the month_obj is always a positive integer.
     DCHECK(IsSmi(*month_obj) || IsHeapNumber(*month_obj));
-    return Just(FastD2I(Object::NumberValue(*month_obj)));
+    return Just(FastD2I(Object::NumberValue(Cast<Number>(*month_obj))));
   }
   // 4. Assert: Type(monthCode) is String.
   DCHECK(IsString(*month_code_obj));
@@ -9636,7 +9640,7 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   // ToPositiveInteger inside PrepareTemporalFields before calling
   // ResolveISOMonth. Therefore the month_obj is always a positive integer.
   if (!IsUndefined(*month_obj) &&
-      FastD2I(Object::NumberValue(*month_obj)) != number_part) {
+      FastD2I(Object::NumberValue(Cast<Number>(*month_obj))) != number_part) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -9696,9 +9700,10 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
   // Therefore the day_obj is always an integer.
   DCHECK(IsSmi(*day_obj) || IsHeapNumber(*day_obj));
   // 9. Return ? RegulateISODate(year, month, day, overflow).
-  return RegulateISODate(isolate, overflow,
-                         {FastD2I(Object::NumberValue(*year_obj)), month,
-                          FastD2I(Object::NumberValue(*day_obj))});
+  return RegulateISODate(
+      isolate, overflow,
+      {FastD2I(Object::NumberValue(Cast<Number>(*year_obj))), month,
+       FastD2I(Object::NumberValue(Cast<Number>(*day_obj)))});
 }
 
 // #sec-temporal-addisodate
@@ -9955,7 +9960,7 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
                                  Nothing<DateRecord>());
   }
   DateRecord result;
-  result.year = FastD2I(floor(Object::NumberValue(*year_obj)));
+  result.year = FastD2I(floor(Object::NumberValue(Cast<Number>(*year_obj))));
   // 6. Let month be ? ResolveISOMonth(fields).
   int32_t month;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -15437,7 +15442,7 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
   // 11. If fractionalDigitsVal is NaN, +∞𝔽, or -∞𝔽, throw a RangeError
   // exception.
   if (IsNaN(*fractional_digits_val) ||
-      std::isinf(Object::NumberValue(*fractional_digits_val))) {
+      std::isinf(Object::NumberValue(Cast<Number>(*fractional_digits_val)))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
@@ -15445,8 +15450,8 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
         Nothing<StringPrecision>());
   }
   // 12. Let fractionalDigitCount be RoundTowardsZero(ℝ(fractionalDigitsVal)).
-  int64_t fractional_digit_count =
-      RoundTowardsZero(Object::NumberValue(*fractional_digits_val));
+  int64_t fractional_digit_count = RoundTowardsZero(
+      Object::NumberValue(Cast<Number>(*fractional_digits_val)));
   // 13. If fractionalDigitCount < 0 or fractionalDigitCount > 9, throw a
   // RangeError exception.
   if (fractional_digit_count < 0 || fractional_digit_count > 9) {

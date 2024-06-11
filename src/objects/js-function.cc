@@ -543,7 +543,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     return;
   }
 
-  DirectHandle<HeapObject> feedback_cell_array =
+  DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
   // Many closure cell is used as a way to specify that there is no
   // feedback cell for this function and a new feedback cell has to be

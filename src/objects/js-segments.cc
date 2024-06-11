@@ -138,7 +138,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
       Intl::ToString(isolate, unicode_string, start_index, end_index));
-  DirectHandle<Object> index = factory->NewNumberFromInt(start_index);
+  DirectHandle<Number> index = factory->NewNumberFromInt(start_index);
 
   // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).
   DisallowGarbageCollection no_gc;

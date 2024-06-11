@@ -1029,7 +1029,8 @@ Tagged<Object> JSReceiver::DefineProperty(Isolate* isolate,
   // 4. Let desc be ToPropertyDescriptor(Attributes).
   // 5. ReturnIfAbrupt(desc).
   PropertyDescriptor desc;
-  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
+  if (!PropertyDescriptor::ToPropertyDescriptor(
+          isolate, Cast<JSAny>(attributes), &desc)) {
     return ReadOnlyRoots(isolate).exception();
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
@@ -1068,13 +1069,13 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
       isolate, keys,
       KeyAccumulator::GetKeys(isolate, props, KeyCollectionMode::kOwnOnly,
                               ALL_PROPERTIES));
-  // 6. Let descriptors be an empty List.
+  // 6. Let descriptors be an empty List.s
   int capacity = keys->length();
   std::vector<PropertyDescriptor> descriptors(capacity);
   size_t descriptors_index = 0;
   // 7. Repeat for each element nextKey of keys in List order,
   for (int i = 0; i < keys->length(); ++i) {
-    Handle<Object> next_key(keys->get(i), isolate);
+    Handle<JSAny> next_key(Cast<JSAny>(keys->get(i)), isolate);
     // 7a. Let propDesc be props.[[GetOwnProperty]](nextKey).
     // 7b. ReturnIfAbrupt(propDesc).
     PropertyKey key(isolate, next_key);
@@ -1087,8 +1088,9 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
     if (attrs & DONT_ENUM) continue;
     // 7c i. Let descObj be Get(props, nextKey).
     // 7c ii. ReturnIfAbrupt(descObj).
-    Handle<Object> desc_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, desc_obj, Object::GetProperty(&it));
+    Handle<JSAny> desc_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, desc_obj,
+                               Cast<JSAny>(Object::GetProperty(&it)));
     // 7c iii. Let desc be ToPropertyDescriptor(descObj).
     bool success = PropertyDescriptor::ToPropertyDescriptor(
         isolate, desc_obj, &descriptors[descriptors_index]);
@@ -1168,7 +1170,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
 
 namespace {
 
-MaybeHandle<Object> GetPropertyWithInterceptorInternal(
+MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor, bool* done) {
   *done = false;
   Isolate* isolate = it->isolate();
@@ -1181,7 +1183,7 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
   }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  Handle<Object> result;
+  Handle<JSAny> result;
   Handle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
@@ -1191,12 +1193,13 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
                                  *holder, Just(kDontThrow));
 
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedGetter(interceptor, it->array_index());
+    result =
+        Cast<JSAny>(args.CallIndexedGetter(interceptor, it->array_index()));
   } else {
-    result = args.CallNamedGetter(interceptor, it->name());
+    result = Cast<JSAny>(args.CallNamedGetter(interceptor, it->name()));
   }
 
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, MaybeHandle<Object>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, kNullMaybeHandle);
   if (result.is_null()) return isolate->factory()->undefined_value();
   *done = true;
   args.AcceptSideEffects();
@@ -1741,7 +1744,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
   }
 
   PropertyDescriptor new_desc;
-  new_desc.set_value(value);
+  new_desc.set_value(Cast<JSAny>(value));
   new_desc.set_writable(true);
   new_desc.set_enumerable(true);
   new_desc.set_configurable(true);
@@ -1763,7 +1766,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   switch (it->state()) {
     case LookupIterator::JSPROXY: {
       PropertyDescriptor new_desc;
-      new_desc.set_value(value);
+      new_desc.set_value(Cast<JSAny>(value));
       new_desc.set_writable(true);
       new_desc.set_enumerable(true);
       new_desc.set_configurable(true);
@@ -1835,7 +1838,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   Isolate* isolate = it->isolate();
   if (IsUndefined(interceptor->descriptor(), isolate)) return Just(false);
 
-  Handle<Object> result;
+  Handle<JSAny> result;
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
 
   Handle<Object> receiver = it->GetReceiver();
@@ -1908,8 +1911,8 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                           IsAccessorPair(*it->GetAccessors());
   if (!is_accessor_pair) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
-    Handle<Object> value;
-    if (!Object::GetProperty(it).ToHandle(&value)) {
+    Handle<JSAny> value;
+    if (!Cast<JSAny>(Object::GetProperty(it)).ToHandle(&value)) {
       DCHECK(isolate->has_exception());
       return Nothing<bool>();
     }
@@ -2635,14 +2638,14 @@ int JSObject::GetHeaderSize(InstanceType type,
   }
 }
 
-MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
+MaybeHandle<JSAny> JSObject::GetPropertyWithFailedAccessCheck(
     LookupIterator* it) {
   Isolate* isolate = it->isolate();
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   Handle<InterceptorInfo> interceptor =
       it->GetInterceptorForFailedAccessCheck();
   if (!interceptor.is_null()) {
-    Handle<Object> result;
+    Handle<JSAny> result;
     bool done;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
@@ -3160,7 +3163,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Representation old_representation = old_details.representation();
     Representation representation = details.representation();
-    Handle<Object> value;
+    Handle<UnionOf<JSAny, Hole>> value;
     if (old_details.location() == PropertyLocation::kDescriptor) {
       if (old_details.kind() == PropertyKind::kAccessor) {
         // In case of kAccessor -> kData property reconfiguration, the property
@@ -3173,7 +3176,8 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
         }
       } else {
         DCHECK_EQ(PropertyKind::kData, old_details.kind());
-        value = handle(old_descriptors->GetStrongValue(isolate, i), isolate);
+        value = handle(Cast<JSAny>(old_descriptors->GetStrongValue(isolate, i)),
+                       isolate);
         DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
       }
     } else {
@@ -3185,7 +3189,8 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
                        IsUninitialized(*value, isolate));
         value = Object::NewStorageFor(isolate, value, representation);
       } else if (old_representation.IsDouble() && !representation.IsDouble()) {
-        value = Object::WrapForRead(isolate, value, old_representation);
+        value = Object::WrapForRead(isolate, Cast<JSAny>(value),
+                                    old_representation);
       }
     }
     DCHECK(!(representation.IsDouble() && IsSmi(*value)));
@@ -3653,7 +3658,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           descriptor.set_configurable((attributes & DONT_DELETE) != 0);
           descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
           descriptor.set_writable((attributes & READ_ONLY) != 0);
-          descriptor.set_value(value);
+          descriptor.set_value(Cast<JSAny>(value));
           result = DefinePropertyWithInterceptorInternal(
               it, it->GetInterceptor(), should_throw, &descriptor);
         } else {
@@ -4546,19 +4551,19 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   return Just(true);
 }
 
-Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
-                                        DirectHandle<JSObject> object,
-                                        Representation representation,
-                                        FieldIndex index) {
-  Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
+Handle<JSAny> JSObject::FastPropertyAt(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
+                                       Representation representation,
+                                       FieldIndex index) {
+  Handle<JSAny> raw_value(object->RawFastPropertyAt(index), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
 
-Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
-                                        DirectHandle<JSObject> object,
-                                        Representation representation,
-                                        FieldIndex index, SeqCstAccessTag tag) {
-  Handle<Object> raw_value(object->RawFastPropertyAt(index, tag), isolate);
+Handle<JSAny> JSObject::FastPropertyAt(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
+                                       Representation representation,
+                                       FieldIndex index, SeqCstAccessTag tag) {
+  Handle<JSAny> raw_value(object->RawFastPropertyAt(index, tag), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
 
@@ -4789,8 +4794,8 @@ Tagged<Object> JSObject::SlowReverseLookup(Tagged<Object> value) {
         Tagged<Object> property = RawFastPropertyAt(field_index);
         if (field_index.is_double()) {
           DCHECK(IsHeapNumber(property));
-          if (value_is_number &&
-              Object::NumberValue(property) == Object::NumberValue(value)) {
+          if (value_is_number && HeapNumber::cast(property)->value() ==
+                                     Object::NumberValue(Cast<Number>(value))) {
             return descs->GetKey(i);
           }
         } else if (property == value) {
@@ -5084,7 +5089,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   }
   Tagged<PrototypeInfo> prototype_info;
   if (map->TryGetPrototypeInfo(&prototype_info)) {
-    prototype_info->set_prototype_chain_enum_cache(Tagged<Object>());
+    prototype_info->set_prototype_chain_enum_cache(Smi::zero());
   }
 
   // We may inline accesses to constants stored in dictionary mode prototypes in
@@ -5404,7 +5409,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
                Nothing<bool>());
 
   if (IsJSArray(*object, isolate) && index >= old_length) {
-    DirectHandle<Object> new_length =
+    DirectHandle<Number> new_length =
         isolate->factory()->NewNumberFromUint(index + 1);
     JSArray::cast(*object)->set_length(*new_length);
   }
@@ -5546,8 +5551,8 @@ int JSObject::GetFastElementsUsage() {
   return 0;
 }
 
-MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
-                                                         bool* done) {
+MaybeHandle<JSAny> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
+                                                        bool* done) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   return GetPropertyWithInterceptorInternal(it, it->GetInterceptor(), done);
 }
@@ -5623,7 +5628,7 @@ MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
   } else {
     tv = std::numeric_limits<double>::quiet_NaN();
   }
-  DirectHandle<Object> value = isolate->factory()->NewNumber(tv);
+  DirectHandle<Number> value = isolate->factory()->NewNumber(tv);
   Handle<JSDate>::cast(result)->SetValue(*value, std::isnan(tv));
   return Handle<JSDate>::cast(result);
 }
@@ -5665,7 +5670,7 @@ Tagged<Object> JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
     if (stamp != date_cache->stamp() && IsSmi(stamp)) {
       // Since the stamp is not NaN, the value is also not NaN.
       int64_t local_time_ms = date_cache->ToLocal(
-          static_cast<int64_t>(Object::NumberValue(value())));
+          static_cast<int64_t>(Object::NumberValue(Cast<Number>(value()))));
       SetCachedFields(local_time_ms, date_cache);
     }
     switch (index) {
@@ -5689,10 +5694,11 @@ Tagged<Object> JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
   }
 
   if (index >= kFirstUTCField) {
-    return GetUTCField(index, Object::NumberValue(value()), date_cache);
+    return GetUTCField(index, Object::NumberValue(Cast<Number>(value())),
+                       date_cache);
   }
 
-  double time = Object::NumberValue(value());
+  double time = Object::NumberValue(Cast<Number>(value()));
   if (std::isnan(time)) return GetReadOnlyRoots().nan_value();
 
   int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
@@ -5755,13 +5761,13 @@ Tagged<Object> JSDate::GetUTCField(FieldIndex index, double value,
 // static
 Handle<Object> JSDate::SetValue(DirectHandle<JSDate> date, double v) {
   Isolate* const isolate = date->GetIsolate();
-  Handle<Object> value = isolate->factory()->NewNumber(v);
+  Handle<Number> value = isolate->factory()->NewNumber(v);
   bool value_is_nan = std::isnan(v);
   date->SetValue(*value, value_is_nan);
   return value;
 }
 
-void JSDate::SetValue(Tagged<Object> value, bool is_value_nan) {
+void JSDate::SetValue(Tagged<Number> value, bool is_value_nan) {
   set_value(value);
   if (is_value_nan) {
     Tagged<HeapNumber> nan = GetReadOnlyRoots().nan_value();

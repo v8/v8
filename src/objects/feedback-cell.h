@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class Undefined;
+
 #include "torque-generated/src/objects/feedback-cell-tq.inc"
 
 // This is a special cell used to maintain both the link between a

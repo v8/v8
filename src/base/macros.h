@@ -13,15 +13,29 @@
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
-#define EXPAND(x) x
+#define EXPAND(X) X
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, ...) a##__VA_ARGS__
+#define CONCAT(a, ...) CONCAT_(a, __VA_ARGS__)
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
+
+// UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
+// that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
+// that want to support multi argument templates with commas, e.g.
+//
+//   #define FOO(Type, Name) UNPAREN(Type) Name;
+//
+// will work with both
+//
+//   FOO(int, x);
+//   FOO((Foo<int, double, float>), x);
+#define UNPAREN(X) CONCAT(DROP_, UNPAREN_ X)
+#define UNPAREN_(...) UNPAREN_ __VA_ARGS__
+#define DROP_UNPAREN_
 
 #define OFFSET_OF(type, field) offsetof(type, field)
 

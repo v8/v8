@@ -4090,7 +4090,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   void BuildFastArrayForEach(
-      TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
+      TNode<UnionOf<FixedArray, PropertyArray, HeapObject>> array,
       ElementsKind kind, TNode<TIndex> first_element_inclusive,
       TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
       LoopUnrollingMode loop_unrolling_mode,
@@ -4879,7 +4879,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   void StoreFixedArrayOrPropertyArrayElement(
-      TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
+      TNode<UnionOf<FixedArray, PropertyArray>> array, TNode<TIndex> index,
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 

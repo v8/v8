@@ -1381,10 +1381,11 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
   return Local<Signature>::Cast(receiver);
 }
 
-#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)              \
-  do {                                                                \
-    i::DirectHandle<i::Object> foreign = FromCData(i_isolate, cdata); \
-    (obj)->setter(*foreign);                                          \
+#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)      \
+  do {                                                        \
+    i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> foreign = \
+        FromCData(i_isolate, cdata);                          \
+    (obj)->setter(*foreign);                                  \
   } while (false)
 
 void FunctionTemplate::SetCallHandler(
@@ -1739,8 +1740,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto info = i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback);
-  info->set_named_interceptor(i::Tagged<i::Object>());
-  info->set_indexed_interceptor(i::Tagged<i::Object>());
+  info->set_named_interceptor(i::Smi::zero());
+  info->set_indexed_interceptor(i::Smi::zero());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -3742,7 +3743,7 @@ bool Value::IsInt32() const {
   i::Tagged<i::Object> obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return true;
   if (i::IsNumber(obj)) {
-    return i::IsInt32Double(i::Object::NumberValue(obj));
+    return i::IsInt32Double(i::Object::NumberValue(i::Cast<i::Number>(obj)));
   }
   return false;
 }
@@ -3751,7 +3752,7 @@ bool Value::IsUint32() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return i::Smi::ToInt(obj) >= 0;
   if (i::IsNumber(obj)) {
-    double value = i::Object::NumberValue(obj);
+    double value = i::Object::NumberValue(i::Cast<i::Number>(obj));
     return !i::IsMinusZero(value) && value >= 0 && value <= i::kMaxUInt32 &&
            value == i::FastUI2D(i::FastD2UI(value));
   }
@@ -4281,10 +4282,12 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (i::IsNumber(*obj)) return Just(i::Object::NumberValue(*obj));
+  if (i::IsNumber(*obj)) {
+    return Just(i::Object::NumberValue(i::Cast<i::Number>(*obj)));
+  }
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, NumberValue, i::HandleScope);
-  i::Handle<i::Object> num;
+  i::Handle<i::Number> num;
   has_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
   return Just(i::Object::NumberValue(*num));
@@ -4311,8 +4314,9 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   i::Handle<i::Object> num;
   has_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
-  return Just(IsSmi(*num) ? i::Smi::ToInt(*num)
-                          : static_cast<int32_t>(i::Object::NumberValue(*num)));
+  return Just(IsSmi(*num)
+                  ? i::Smi::ToInt(*num)
+                  : static_cast<int32_t>(i::HeapNumber::cast(*num)->value()));
 }
 
 Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
@@ -4325,7 +4329,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
   return Just(IsSmi(*num)
                   ? static_cast<uint32_t>(i::Smi::ToInt(*num))
-                  : static_cast<uint32_t>(i::Object::NumberValue(*num)));
+                  : static_cast<uint32_t>(i::HeapNumber::cast(*num)->value()));
 }
 
 MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
@@ -4489,14 +4493,14 @@ v8::PropertyDescriptor::PropertyDescriptor() : private_(new PrivateData()) {}
 // DataDescriptor
 v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value)
     : private_(new PrivateData()) {
-  private_->desc.set_value(Utils::OpenHandle(*value, true));
+  private_->desc.set_value(Cast<i::JSAny>(Utils::OpenHandle(*value, true)));
 }
 
 // DataDescriptor with writable field
 v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value,
                                            bool writable)
     : private_(new PrivateData()) {
-  private_->desc.set_value(Utils::OpenHandle(*value, true));
+  private_->desc.set_value(Cast<i::JSAny>(Utils::OpenHandle(*value, true)));
   private_->desc.set_writable(writable);
 }
 
@@ -4506,8 +4510,8 @@ v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> get,
     : private_(new PrivateData()) {
   DCHECK(get.IsEmpty() || get->IsUndefined() || get->IsFunction());
   DCHECK(set.IsEmpty() || set->IsUndefined() || set->IsFunction());
-  private_->desc.set_get(Utils::OpenHandle(*get, true));
-  private_->desc.set_set(Utils::OpenHandle(*set, true));
+  private_->desc.set_get(Cast<i::JSAny>(Utils::OpenHandle(*get, true)));
+  private_->desc.set_set(Cast<i::JSAny>(Utils::OpenHandle(*set, true)));
 }
 
 v8::PropertyDescriptor::~PropertyDescriptor() { delete private_; }
@@ -4585,7 +4589,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_writable(!(attributes & v8::ReadOnly));
   desc.set_enumerable(!(attributes & v8::DontEnum));
   desc.set_configurable(!(attributes & v8::DontDelete));
-  desc.set_value(value_obj);
+  desc.set_value(i::Cast<i::JSAny>(value_obj));
 
   if (i::IsJSObject(*self)) {
     // If it's not a JSProxy, i::JSReceiver::DefineOwnProperty should never run
@@ -4645,7 +4649,7 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
     desc.set_writable(true);
     desc.set_enumerable(false);
     desc.set_configurable(true);
-    desc.set_value(value_obj);
+    desc.set_value(i::Cast<i::JSAny>(value_obj));
     return i::JSProxy::SetPrivateSymbol(
         i_isolate, i::Handle<i::JSProxy>::cast(self),
         i::Handle<i::Symbol>::cast(key_obj), &desc, Just(i::kDontThrow));
@@ -5012,8 +5016,8 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   if (!IsJSObject(*self)) return;
-  i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
-  i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
+  i::Handle<i::JSReceiver> getter_i = v8::Utils::OpenHandle(*getter);
+  i::Handle<i::JSAny> setter_i = v8::Utils::OpenHandle(*setter, true);
   if (setter_i.is_null()) setter_i = i_isolate->factory()->null_value();
 
   i::PropertyDescriptor desc;
@@ -6618,9 +6622,9 @@ static i::Handle<ObjectType> CreateEnvironment(
     v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
-    i::Handle<i::HeapObject> named_interceptor(
+    i::Handle<i::UnionOf<i::Undefined, i::InterceptorInfo>> named_interceptor(
         i_isolate->factory()->undefined_value());
-    i::Handle<i::HeapObject> indexed_interceptor(
+    i::Handle<i::UnionOf<i::Undefined, i::InterceptorInfo>> indexed_interceptor(
         i_isolate->factory()->undefined_value());
 
     if (!maybe_global_template.IsEmpty()) {
@@ -7821,7 +7825,8 @@ double v8::NumberObject::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto js_primitive_wrapper = i::DirectHandle<i::JSPrimitiveWrapper>::cast(obj);
   API_RCS_SCOPE(js_primitive_wrapper->GetIsolate(), NumberObject, NumberValue);
-  return i::Object::NumberValue(js_primitive_wrapper->value());
+  return i::Object::NumberValue(
+      i::Cast<i::Number>(js_primitive_wrapper->value()));
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* v8_isolate, int64_t value) {
@@ -7944,7 +7949,7 @@ double v8::Date::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
   API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
-  return i::Object::NumberValue(jsdate->value());
+  return i::Object::NumberValue(i::Cast<i::Number>(jsdate->value()));
 }
 
 v8::Local<v8::String> v8::Date::ToISOString() const {
@@ -7953,8 +7958,8 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
   i::Isolate* i_isolate = jsdate->GetIsolate();
   API_RCS_SCOPE(i_isolate, Date, NumberValue);
   i::DateBuffer buffer = i::ToDateString(
-      i::Object::NumberValue(jsdate->value()), i_isolate->date_cache(),
-      i::ToDateStringMode::kISODateAndTime);
+      i::Object::NumberValue(i::Cast<i::Number>(jsdate->value())),
+      i_isolate->date_cache(), i::ToDateStringMode::kISODateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -7967,8 +7972,8 @@ v8::Local<v8::String> v8::Date::ToUTCString() const {
   i::Isolate* i_isolate = jsdate->GetIsolate();
   API_RCS_SCOPE(i_isolate, Date, NumberValue);
   i::DateBuffer buffer = i::ToDateString(
-      i::Object::NumberValue(jsdate->value()), i_isolate->date_cache(),
-      i::ToDateStringMode::kUTCDateAndTime);
+      i::Object::NumberValue(i::Cast<i::Number>(jsdate->value())),
+      i_isolate->date_cache(), i::ToDateStringMode::kUTCDateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -8070,7 +8075,7 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, int length) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   int real_length = length > 0 ? length : 0;
   i::Handle<i::JSArray> obj = i_isolate->factory()->NewJSArray(real_length);
-  i::DirectHandle<i::Object> length_obj =
+  i::DirectHandle<i::Number> length_obj =
       i_isolate->factory()->NewNumberFromInt(real_length);
   obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
@@ -8124,7 +8129,7 @@ MaybeLocal<v8::Array> v8::Array::New(
 namespace internal {
 
 uint32_t GetLength(Tagged<JSArray> array) {
-  Tagged<Object> length = array->length();
+  Tagged<Number> length = array->length();
   if (IsSmi(length)) return Smi::ToInt(length);
   return static_cast<uint32_t>(Object::NumberValue(length));
 }
@@ -8237,7 +8242,8 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       for (InternalIndex i : dict->IterateEntries()) {
         Tagged<Object> key = dict->KeyAt(isolate, i);
         if (!dict->IsKey(roots, key)) continue;
-        uint32_t index = static_cast<uint32_t>(Object::NumberValue(key));
+        uint32_t index =
+            static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
         sorted.push_back({index, i});
       }
       std::sort(

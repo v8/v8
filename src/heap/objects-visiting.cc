@@ -7,6 +7,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/objects/js-weak-refs.h"
 
 namespace v8 {
 namespace internal {
@@ -88,7 +89,7 @@ static void ClearWeakList(Heap* heap, Tagged<Object> list) {
 
 template <>
 struct WeakListVisitor<Context> {
-  static void SetWeakNext(Tagged<Context> context, Tagged<Object> next) {
+  static void SetWeakNext(Tagged<Context> context, Tagged<HeapObject> next) {
     context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
   }
 
@@ -141,7 +142,7 @@ struct WeakListVisitor<Context> {
 
 template <>
 struct WeakListVisitor<AllocationSite> {
-  static void SetWeakNext(Tagged<AllocationSite> obj, Tagged<Object> next) {
+  static void SetWeakNext(Tagged<AllocationSite> obj, Tagged<HeapObject> next) {
     obj->set_weak_next(next, UPDATE_WRITE_BARRIER);
   }
 
@@ -165,7 +166,8 @@ template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
   static void SetWeakNext(Tagged<JSFinalizationRegistry> obj,
                           Tagged<HeapObject> next) {
-    obj->set_next_dirty(next, UPDATE_WRITE_BARRIER);
+    obj->set_next_dirty(Cast<UnionOf<Undefined, JSFinalizationRegistry>>(next),
+                        UPDATE_WRITE_BARRIER);
   }
 
   static Tagged<Object> WeakNext(Tagged<JSFinalizationRegistry> obj) {

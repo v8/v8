@@ -108,7 +108,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   V8_EXPORT_PRIVATE bool HasInferredFunctionName() const;
 
-  void SetFunctionName(Tagged<Object> name);
+  void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
   void SetInferredFunctionName(Tagged<String> name);
 
   // Does this scope belong to a function?
@@ -123,7 +123,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  V8_EXPORT_PRIVATE Tagged<Object> FunctionName() const;
+  V8_EXPORT_PRIVATE Tagged<UnionOf<Smi, String>> FunctionName() const;
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.

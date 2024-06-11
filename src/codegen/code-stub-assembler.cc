@@ -3674,7 +3674,7 @@ void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
 
 template <typename TIndex>
 void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
-    TNode<UnionT<FixedArray, PropertyArray>> object, TNode<TIndex> index_node,
+    TNode<UnionOf<FixedArray, PropertyArray>> object, TNode<TIndex> index_node,
     TNode<Object> value, WriteBarrierMode barrier_mode, int additional_offset) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
   static_assert(std::is_same<TIndex, Smi>::value ||
@@ -3729,17 +3729,17 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
 
 template V8_EXPORT_PRIVATE void
 CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<Smi>(
-    TNode<UnionT<FixedArray, PropertyArray>>, TNode<Smi>, TNode<Object>,
+    TNode<UnionOf<FixedArray, PropertyArray>>, TNode<Smi>, TNode<Object>,
     WriteBarrierMode, int);
 
 template V8_EXPORT_PRIVATE void
 CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<IntPtrT>(
-    TNode<UnionT<FixedArray, PropertyArray>>, TNode<IntPtrT>, TNode<Object>,
+    TNode<UnionOf<FixedArray, PropertyArray>>, TNode<IntPtrT>, TNode<Object>,
     WriteBarrierMode, int);
 
 template V8_EXPORT_PRIVATE void
 CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<UintPtrT>(
-    TNode<UnionT<FixedArray, PropertyArray>>, TNode<UintPtrT>, TNode<Object>,
+    TNode<UnionOf<FixedArray, PropertyArray>>, TNode<UintPtrT>, TNode<Object>,
     WriteBarrierMode, int);
 
 template <typename TIndex>
@@ -11006,7 +11006,7 @@ template void CodeStubAssembler::LoadPropertyFromDictionary(
 
 // |value| is the property backing store's contents, which is either a value or
 // an accessor pair, as specified by |details|. |holder| is a JSObject or a
-// PropertyCell (TODO: use UnionT). Returns either the original value, or the
+// PropertyCell (TODO: use Union). Returns either the original value, or the
 // result of the getter call.
 TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
     TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
@@ -13509,7 +13509,7 @@ template V8_EXPORT_PRIVATE TNode<RawPtrT> CodeStubAssembler::BuildFastLoop<
 
 template <typename TIndex>
 void CodeStubAssembler::BuildFastArrayForEach(
-    TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
+    TNode<UnionOf<UnionOf<FixedArray, PropertyArray>, HeapObject>> array,
     ElementsKind kind, TNode<TIndex> first_element_inclusive,
     TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
     LoopUnrollingMode loop_unrolling_mode, ForEachDirection direction) {

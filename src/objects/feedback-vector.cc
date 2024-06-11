@@ -207,11 +207,10 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
-  DirectHandle<HeapObject> undefined = isolate->factory()->undefined_value();
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
   for (int i = 0; i < length; i++) {
-    cells.push_back(isolate->factory()->NewNoClosuresCell(undefined));
+    cells.push_back(isolate->factory()->NewNoClosuresCell());
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
@@ -325,8 +324,7 @@ Handle<FeedbackVector> FeedbackVector::NewForTesting(
   DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
   DirectHandle<FeedbackCell> parent_cell =
-      isolate->factory()->NewNoClosuresCell(
-          isolate->factory()->undefined_value());
+      isolate->factory()->NewNoClosuresCell();
 
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,

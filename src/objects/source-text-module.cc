@@ -672,7 +672,8 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
 
 MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
     Isolate* isolate, Handle<SourceTextModule> module) {
-  Handle<HeapObject> import_meta(module->import_meta(kAcquireLoad), isolate);
+  Handle<UnionOf<JSObject, Hole>> import_meta(module->import_meta(kAcquireLoad),
+                                              isolate);
   if (IsTheHole(*import_meta, isolate)) {
     if (!isolate->RunHostInitializeImportMetaObjectCallback(module).ToHandle(
             &import_meta)) {

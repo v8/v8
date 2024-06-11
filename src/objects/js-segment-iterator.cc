@@ -123,7 +123,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     if (code > unibrow::Latin1::kMaxChar) {
       segment = factory->LookupSingleCharacterStringFromCode(code);
     }
-    Handle<Object> index;
+    Handle<Number> index;
     if (!Smi::IsValid(start_index)) index = factory->NewHeapNumber(start_index);
     DirectHandle<Map> map(
         isolate->native_context()->intl_segment_data_object_map(), isolate);

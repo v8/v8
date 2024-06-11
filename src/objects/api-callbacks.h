@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class Undefined;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/api-callbacks-tq.inc"

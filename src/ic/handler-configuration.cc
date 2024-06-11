@@ -126,7 +126,7 @@ Handle<Object> LoadHandler::LoadFromPrototype(
   int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, lookup_start_object_map, data1, maybe_data2);
 
-  DirectHandle<Object> validity_cell =
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate);
 
@@ -149,7 +149,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
   int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, lookup_start_object_map, data1);
 
-  DirectHandle<Object> validity_cell =
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate);
   if (IsSmi(*validity_cell)) {
@@ -192,7 +192,7 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
-    // All the handlers except the Slow Handler that use the
+    // All the handlers except the Slow Handler that use tshe
     // KeyedAccessStoreMode, compute it using KeyedAccessStoreModeForBuiltin
     // method. Hence if any other Handler get to this path, just return
     // KeyedAccessStoreMode::kInBounds.
@@ -210,10 +210,10 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, DirectHandle<Map> receiver_map,
     DirectHandle<Map> transition, KeyedAccessStoreMode store_mode,
-    MaybeHandle<Object> prev_validity_cell) {
-  DirectHandle<Object> code =
+    MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell) {
+  DirectHandle<Code> code =
       ElementsTransitionAndStoreBuiltin(isolate, store_mode);
-  Handle<Object> validity_cell;
+  Handle<UnionOf<Smi, Cell>> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
@@ -283,7 +283,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   DCHECK(!transition_map->is_access_check_needed());
 
   // Get validity cell value if it is necessary for the handler.
-  Handle<Object> validity_cell;
+  Handle<UnionOf<Smi, Cell>> validity_cell;
   if (is_dictionary_map || !transition_map->IsPrototypeValidityCellValid()) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition_map, isolate);
@@ -324,7 +324,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
   int data_size = GetHandlerDataSize<StoreHandler>(
       isolate, &smi_handler, receiver_map, data1, maybe_data2);
 
-  DirectHandle<Object> validity_cell =
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
 
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(data_size);

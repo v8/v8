@@ -35,7 +35,7 @@ inline v8::internal::Address ToCData(
 }
 
 template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
+inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
@@ -44,7 +44,7 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
 }
 
 template <>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
+inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
     return handle(v8::internal::Smi::zero(), isolate);
@@ -273,7 +273,8 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::Tagged<i::FixedArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = i::Object::NumberValue(elements->get(static_cast<int>(i)));
+    double value = i::Object::NumberValue(
+        i::Smi::cast(elements->get(static_cast<int>(i))));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);

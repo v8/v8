@@ -496,7 +496,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // the prototype chain changes. When there's nothing to guard (for example,
   // when direct prototype is null or Proxy) this function returns Smi with
   // |kPrototypeChainValid| sentinel value.
-  static Handle<Object> GetOrCreatePrototypeChainValidityCell(
+  static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
       DirectHandle<Map> map, Isolate* isolate);
   static const int kPrototypeChainValid = 0;
   static const int kPrototypeChainInvalid = 1;

@@ -442,14 +442,14 @@ void CopyObjectToDoubleElements(Tagged<FixedArrayBase> from_base,
   if (copy_size == 0) return;
   Tagged<FixedArray> from = FixedArray::cast(from_base);
   Tagged<FixedDoubleArray> to = FixedDoubleArray::cast(to_base);
-  Tagged<Object> the_hole = from->GetReadOnlyRoots().the_hole_value();
+  Tagged<Hole> the_hole = from->GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + copy_size; from_start < from_end;
        from_start++, to_start++) {
     Tagged<Object> hole_or_object = from->get(from_start);
     if (hole_or_object == the_hole) {
       to->set_the_hole(to_start);
     } else {
-      to->set(to_start, Object::NumberValue(hole_or_object));
+      to->set(to_start, Object::NumberValue(Cast<Number>(hole_or_object)));
     }
   }
 }
@@ -478,7 +478,8 @@ void CopyDictionaryToDoubleElements(Isolate* isolate,
   for (int i = 0; i < copy_size; i++) {
     InternalIndex entry = from->FindEntry(isolate, i + from_start);
     if (entry.is_found()) {
-      to->set(i + to_start, Object::NumberValue(from->ValueAt(entry)));
+      to->set(i + to_start,
+              Object::NumberValue(Cast<Number>(from->ValueAt(entry))));
     } else {
       to->set_the_hole(i + to_start);
     }
@@ -507,7 +508,8 @@ void SortIndices(Isolate* isolate, DirectHandle<FixedArray> indices,
       if (!IsSmi(b) && IsUndefined(b, isolate)) {
         return true;
       }
-      return Object::NumberValue(a) < Object::NumberValue(b);
+      return Object::NumberValue(Cast<Number>(a)) <
+             Object::NumberValue(Cast<Number>(b));
     }
     return !IsSmi(b) && IsUndefined(b, isolate);
   });
@@ -1561,7 +1563,7 @@ class DictionaryElementsAccessor
       }
     }
 
-    DirectHandle<Object> length_obj =
+    DirectHandle<Number> length_obj =
         isolate->factory()->NewNumberFromUint(length);
     array->set_length(*length_obj);
     return Just(true);

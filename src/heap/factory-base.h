@@ -113,15 +113,15 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Object> NewNumber(double value);
+  inline Handle<Number> NewNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Object> NewNumberFromInt(int32_t value);
+  inline Handle<Number> NewNumberFromInt(int32_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Object> NewNumberFromUint(uint32_t value);
+  inline Handle<Number> NewNumberFromUint(uint32_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Object> NewNumberFromSize(size_t value);
+  inline Handle<Number> NewNumberFromSize(size_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Object> NewNumberFromInt64(int64_t value);
+  inline Handle<Number> NewNumberFromInt64(int64_t value);
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
@@ -231,10 +231,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       DirectHandle<FixedArray> cooked_strings);
 
   Handle<Script> NewScript(
-      DirectHandle<PrimitiveHeapObject> source,
+      DirectHandle<UnionOf<String, Undefined>> source,
       ScriptEventType event_type = ScriptEventType::kCreate);
   Handle<Script> NewScriptWithId(
-      DirectHandle<PrimitiveHeapObject> source, int script_id,
+      DirectHandle<UnionOf<String, Undefined>> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
   Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(

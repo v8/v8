@@ -1097,14 +1097,18 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<BigInt> epoch_nanoseconds);
 
 // #sec-temporal-calendaryear
+#define DECLARE_CALENDAR_ABSTRACT_INT_OPERATION(Name)    \
+  V8_WARN_UNUSED_RESULT MaybeHandle<Smi> Calendar##Name( \
+      Isolate* isolate, Handle<JSReceiver> calendar,     \
+      Handle<JSReceiver> date_like);
 #define DECLARE_CALENDAR_ABSTRACT_OPERATION(Name)           \
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Calendar##Name( \
       Isolate* isolate, Handle<JSReceiver> calendar,        \
       Handle<JSReceiver> date_like);
-DECLARE_CALENDAR_ABSTRACT_OPERATION(Year)
-DECLARE_CALENDAR_ABSTRACT_OPERATION(Month)
+DECLARE_CALENDAR_ABSTRACT_INT_OPERATION(Year)
+DECLARE_CALENDAR_ABSTRACT_INT_OPERATION(Month)
 DECLARE_CALENDAR_ABSTRACT_OPERATION(MonthCode)
-DECLARE_CALENDAR_ABSTRACT_OPERATION(Day)
+DECLARE_CALENDAR_ABSTRACT_INT_OPERATION(Day)
 DECLARE_CALENDAR_ABSTRACT_OPERATION(DayOfWeek)
 DECLARE_CALENDAR_ABSTRACT_OPERATION(DayOfYear)
 DECLARE_CALENDAR_ABSTRACT_OPERATION(WeekOfYear)

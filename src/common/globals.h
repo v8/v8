@@ -952,6 +952,7 @@ using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class InstructionStream;
+class BigInt;
 class Code;
 class CodeSpace;
 class Context;
@@ -982,6 +983,10 @@ template <typename T>
 using DirectHandle = Handle<T>;
 #endif
 class Heap;
+class HeapNumber;
+class Boolean;
+class Null;
+class Undefined;
 class HeapObject;
 class IC;
 template <typename T>
@@ -992,6 +997,9 @@ class JSReceiver;
 class JSArray;
 class JSFunction;
 class JSObject;
+class JSProxy;
+class JSBoundFunction;
+class JSWrappedFunction;
 class LocalIsolate;
 class MacroAssembler;
 class Map;
@@ -1071,6 +1079,8 @@ class Struct;
 class Symbol;
 template <typename T>
 class Tagged;
+template <typename... Ts>
+class Union;
 class Variable;
 namespace maglev {
 class MaglevAssembler;
@@ -1079,6 +1089,19 @@ namespace compiler {
 class AccessBuilder;
 }
 
+// Number is either a Smi or a HeapNumber.
+using Number = Union<Smi, HeapNumber>;
+// Numeric is either a Number or a BigInt.
+using Numeric = Union<Smi, HeapNumber, BigInt>;
+// A primitive JavaScript value, which excludes JS objects.
+using JSPrimitive =
+    Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null, Undefined>;
+// A user-exposed JavaScript value, as opposed to V8-internal values like Holes
+// or a FixedArray.
+using JSAny = Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null,
+                    Undefined, JSReceiver>;
+using JSCallable =
+    Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
 using MaybeObject = MaybeWeak<Object>;
 using HeapObjectReference = MaybeWeak<HeapObject>;
 

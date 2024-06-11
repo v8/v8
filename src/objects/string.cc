@@ -744,7 +744,7 @@ int ParseDecimalInteger(const uint8_t* s, int from, int to) {
 }  // namespace
 
 // static
-Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
+Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   // Flatten {subject} string first.
   subject = String::Flatten(isolate, subject);
 

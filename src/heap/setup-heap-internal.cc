@@ -1321,7 +1321,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Allocate FeedbackCell for builtins.
   DirectHandle<FeedbackCell> many_closures_cell =
-      factory->NewManyClosuresCell(factory->undefined_value());
+      factory->NewManyClosuresCell();
   set_many_closures_cell(*many_closures_cell);
 
   set_detached_contexts(roots.empty_weak_array_list());

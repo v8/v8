@@ -114,7 +114,7 @@ enum ContextLookupFlags {
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
-  V(DEBUG_CONTEXT_ID_INDEX, Object, debug_context_id)                          \
+  V(DEBUG_CONTEXT_ID_INDEX, (UnionOf<Smi, Undefined>), debug_context_id)       \
   V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
@@ -626,11 +626,11 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static int IntrinsicIndexForName(DirectHandle<String> name);
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
-#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  inline void set_##name(Tagged<type> value);             \
-  inline bool is_##name(Tagged<type> value) const;        \
-  inline Tagged<type> name() const;                       \
-  inline Tagged<type> name(AcquireLoadTag) const;
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
+  inline void set_##name(Tagged<UNPAREN(type)> value);      \
+  inline bool is_##name(Tagged<UNPAREN(type)> value) const; \
+  inline Tagged<UNPAREN(type)> name() const;                \
+  inline Tagged<UNPAREN(type)> name(AcquireLoadTag) const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 

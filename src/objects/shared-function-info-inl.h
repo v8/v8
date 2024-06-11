@@ -111,7 +111,7 @@ PROTECTED_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline, Code,
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info,
-                          Tagged<Object>, kNameOrScopeInfoOffset)
+                          Tagged<NameOrScopeInfoT>, kNameOrScopeInfoOffset)
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script, Tagged<HeapObject>,
                           kScriptOffset)
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, raw_script, Tagged<Object>,
@@ -578,9 +578,13 @@ Tagged<ScopeInfo> SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
 void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,
                                       WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
-  Tagged<Object> name = name_or_scope_info(kAcquireLoad);
-  if (IsScopeInfo(name)) {
-    name = ScopeInfo::cast(name)->FunctionName();
+  Tagged<NameOrScopeInfoT> name_or_scope_info =
+      this->name_or_scope_info(kAcquireLoad);
+  Tagged<UnionOf<Smi, String>> name;
+  if (IsScopeInfo(name_or_scope_info)) {
+    name = ScopeInfo::cast(name_or_scope_info)->FunctionName();
+  } else {
+    name = Cast<UnionOf<Smi, String>>(name_or_scope_info);
   }
   DCHECK(IsString(name) || name == kNoSharedNameSentinel);
   // Only set the function name for function scopes.

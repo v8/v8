@@ -345,10 +345,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                          isolate->factory()->NewNumberFromSize(byte_length));
 
       auto backing_store = js_array_buffer->GetBackingStore();
-      DirectHandle<Object> array_buffer_data =
-          backing_store
-              ? isolate->factory()->NewNumberFromUint(backing_store->id())
-              : isolate->factory()->null_value();
+      DirectHandle<Object> array_buffer_data;
+      if (backing_store) {
+        array_buffer_data =
+            isolate->factory()->NewNumberFromUint(backing_store->id());
+      } else {
+        array_buffer_data = isolate->factory()->null_value();
+      }
       result = ArrayList::Add(
           isolate, result,
           isolate->factory()->NewStringFromAsciiChecked("[[ArrayBufferData]]"),
@@ -465,7 +468,6 @@ RUNTIME_FUNCTION(Runtime_SetGeneratorScopeVariableValue) {
   return isolate->heap()->ToBoolean(res);
 }
 
-
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -483,7 +485,6 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(break_locations));
 }
-
 
 // Returns the state of break on exceptions
 // args[0]: boolean indicating uncaught exceptions
@@ -527,7 +528,6 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
   return *isolate->factory()->NewJSArrayWithElements(instances);
 }
 
-
 RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -538,7 +538,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   }
   return ReadOnlyRoots(isolate).empty_string();
 }
-
 
 // Performs a GC.
 // Presently, it only does a full GC.

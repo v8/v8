@@ -22,7 +22,7 @@ namespace {
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
 bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
-                          Handle<Object>* value) {
+                          Handle<JSAny>* value) {
   LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
@@ -32,7 +32,7 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
   if (has_property.FromJust() == true) {
     // 6a. Let enum be ToBoolean(Get(Obj, "enumerable")).
     // 6b. ReturnIfAbrupt(enum).
-    if (!Object::GetProperty(&it).ToHandle(value)) return false;
+    if (!Cast<JSAny>(Object::GetProperty(&it)).ToHandle(value)) return false;
   }
   return true;
 }
@@ -98,17 +98,17 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     } else if (key == roots.configurable_string()) {
       desc->set_configurable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.value_string()) {
-      desc->set_value(value);
+      desc->set_value(Cast<JSAny>(value));
     } else if (key == roots.writable_string()) {
       desc->set_writable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.get_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!IsCallable(*value)) return false;
-      desc->set_get(value);
+      desc->set_get(Cast<JSAny>(value));
     } else if (key == roots.set_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!IsCallable(*value)) return false;
-      desc->set_set(value);
+      desc->set_set(Cast<JSAny>(value));
     }
   }
   if ((desc->has_get() || desc->has_set()) &&
@@ -130,7 +130,7 @@ void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
 }  // namespace
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
-Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
+Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
@@ -193,7 +193,7 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
 // Returns false in case of exception.
 // static
 bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
-                                              Handle<Object> obj,
+                                              Handle<JSAny> obj,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
@@ -211,7 +211,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
 
   // enumerable?
-  Handle<Object> enumerable;
+  Handle<JSAny> enumerable;
   // 4 through 6b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
                             &enumerable)) {
@@ -223,7 +223,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
 
   // configurable?
-  Handle<Object> configurable;
+  Handle<JSAny> configurable;
   // 7 through 9b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
                             &configurable)) {
@@ -235,7 +235,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
 
   // value?
-  Handle<Object> value;
+  Handle<JSAny> value;
   // 10 through 12b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
                             &value)) {
@@ -245,7 +245,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!value.is_null()) desc->set_value(value);
 
   // writable?
-  Handle<Object> writable;
+  Handle<JSAny> writable;
   // 13 through 15b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
                             &writable)) {
@@ -256,7 +256,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     desc->set_writable(Object::BooleanValue(*writable, isolate));
 
   // getter?
-  Handle<Object> getter;
+  Handle<JSAny> getter;
   // 16 through 18b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
                             &getter)) {
@@ -274,7 +274,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     desc->set_get(getter);
   }
   // setter?
-  Handle<Object> setter;
+  Handle<JSAny> setter;
   // 19 through 21b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
                             &setter)) {

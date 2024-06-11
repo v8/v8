@@ -611,11 +611,10 @@ class WasmTagObject
   // serialized signature stored within this tag object.
   bool MatchesSignature(uint32_t expected_canonical_type_index);
 
-  static Handle<WasmTagObject> New(Isolate* isolate,
-                                   const wasm::FunctionSig* sig,
-                                   uint32_t canonical_type_index,
-                                   DirectHandle<HeapObject> tag,
-                                   Handle<HeapObject> instance);
+  static Handle<WasmTagObject> New(
+      Isolate* isolate, const wasm::FunctionSig* sig,
+      uint32_t canonical_type_index, DirectHandle<HeapObject> tag,
+      DirectHandle<Union<Undefined, WasmInstanceObject>> instance);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };

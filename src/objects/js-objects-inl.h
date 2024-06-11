@@ -363,15 +363,15 @@ bool JSObject::IsDroppableApiObject() const {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index);
 }
 
-Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                           FieldIndex index) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index) const {
   if (index.is_inobject()) {
-    return TaggedField<Object>::Relaxed_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::Relaxed_Load(cage_base, *this, index.offset());
   } else {
     return property_array(cage_base)->get(cage_base,
                                           index.outobject_array_index());
@@ -380,17 +380,17 @@ Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
 
 // The SeqCst versions of RawFastPropertyAt are used for atomically accessing
 // shared struct fields.
-Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index,
-                                           SeqCstAccessTag tag) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
+                                          SeqCstAccessTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index, tag);
 }
 
-Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                           FieldIndex index,
-                                           SeqCstAccessTag tag) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index,
+                                          SeqCstAccessTag tag) const {
   if (index.is_inobject()) {
-    return TaggedField<Object>::SeqCst_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::SeqCst_Load(cage_base, *this, index.offset());
   } else {
     return property_array(cage_base)->get(cage_base,
                                           index.outobject_array_index(), tag);

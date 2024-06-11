@@ -17,6 +17,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
+#include "src/objects/feedback-cell.h"
 // TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
 
@@ -432,8 +433,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<AccessorInfo> NewAccessorInfo();
 
   Handle<ErrorStackData> NewErrorStackData(
-      DirectHandle<Object> call_site_infos_or_formatted_stack,
-      DirectHandle<Object> limit_or_stack_frame_infos);
+      DirectHandle<UnionOf<JSAny, FixedArray>>
+          call_site_infos_or_formatted_stack,
+      DirectHandle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos);
 
   Handle<Script> CloneScript(DirectHandle<Script> script,
                              DirectHandle<String> source);
@@ -442,11 +444,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<BreakPoint> NewBreakPoint(int id, DirectHandle<String> condition);
 
   Handle<CallSiteInfo> NewCallSiteInfo(
-      DirectHandle<Object> receiver_or_instance, DirectHandle<Object> function,
+      DirectHandle<JSAny> receiver_or_instance,
+      DirectHandle<UnionOf<Smi, JSFunction>> function,
       DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
       int flags, DirectHandle<FixedArray> parameters);
   Handle<StackFrameInfo> NewStackFrameInfo(
-      DirectHandle<HeapObject> shared_or_script,
+      DirectHandle<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
       int bytecode_offset_or_source_position,
       DirectHandle<String> function_name, bool is_constructor);
 
@@ -476,9 +479,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kOld);
   Handle<PropertyCell> NewProtector();
 
-  Handle<FeedbackCell> NewNoClosuresCell(DirectHandle<HeapObject> value);
-  Handle<FeedbackCell> NewOneClosureCell(DirectHandle<HeapObject> value);
-  Handle<FeedbackCell> NewManyClosuresCell(DirectHandle<HeapObject> value);
+  Handle<FeedbackCell> NewNoClosuresCell();
+  Handle<FeedbackCell> NewOneClosureCell(
+      DirectHandle<ClosureFeedbackCellArray> value);
+  Handle<FeedbackCell> NewManyClosuresCell();
 
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
@@ -834,7 +838,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
-      DirectHandle<JSReceiver> target_function, DirectHandle<Object> bound_this,
+      DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
       base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype);
 
   // Allocates a Harmony proxy.

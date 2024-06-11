@@ -125,7 +125,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 
   if (InstanceTypeChecker::IsScript(instance_type)) {
     Handle<FixedArray> host_options;
-    Handle<Object> context_data;
+    Handle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Script::cast(*obj);
@@ -134,7 +134,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       // context_data for now. It is hack to allow debugging for scripts that
       // are included as a part of custom snapshot. (see
       // debug::Script::IsEmbedded())
-      Tagged<Object> raw_context_data = script_obj->context_data();
+      Tagged<UnionOf<Smi, Symbol, Undefined>> raw_context_data =
+          script_obj->context_data();
       if (raw_context_data != roots.undefined_value() &&
           raw_context_data != roots.uninitialized_symbol()) {
         script_obj->set_context_data(roots.undefined_value());

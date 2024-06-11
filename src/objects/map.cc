@@ -2383,8 +2383,8 @@ void Map::SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
 }
 
 // static
-Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(DirectHandle<Map> map,
-                                                          Isolate* isolate) {
+Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
+    DirectHandle<Map> map, Isolate* isolate) {
   Handle<Object> maybe_prototype;
   if (IsJSGlobalObjectMap(*map)) {
     DCHECK(map->is_prototype_map());

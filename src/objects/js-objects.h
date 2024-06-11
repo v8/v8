@@ -34,6 +34,8 @@ class NativeContext;
 class IsCompiledScope;
 class SwissNameDictionary;
 class ElementsAccessor;
+class Undefined;
+class Null;
 
 #include "torque-generated/src/objects/js-objects-tq.inc"
 
@@ -577,7 +579,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // The result must be checked first for exceptions. If there's no exception,
   // the output parameter |done| indicates whether the interceptor has a result
   // or not.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
   static void ValidateElements(Tagged<JSObject> object);
@@ -716,22 +718,22 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       DirectHandle<JSObject> object, InternalIndex dict_index, Heap* heap);
 
   // Access fast-case object properties at index.
-  static Handle<Object> FastPropertyAt(Isolate* isolate,
-                                       DirectHandle<JSObject> object,
-                                       Representation representation,
-                                       FieldIndex index);
-  static Handle<Object> FastPropertyAt(Isolate* isolate,
-                                       DirectHandle<JSObject> object,
-                                       Representation representation,
-                                       FieldIndex index, SeqCstAccessTag tag);
-  inline Tagged<Object> RawFastPropertyAt(FieldIndex index) const;
-  inline Tagged<Object> RawFastPropertyAt(PtrComprCageBase cage_base,
-                                          FieldIndex index) const;
-  inline Tagged<Object> RawFastPropertyAt(FieldIndex index,
-                                          SeqCstAccessTag tag) const;
-  inline Tagged<Object> RawFastPropertyAt(PtrComprCageBase cage_base,
-                                          FieldIndex index,
-                                          SeqCstAccessTag tag) const;
+  static Handle<JSAny> FastPropertyAt(Isolate* isolate,
+                                      DirectHandle<JSObject> object,
+                                      Representation representation,
+                                      FieldIndex index);
+  static Handle<JSAny> FastPropertyAt(Isolate* isolate,
+                                      DirectHandle<JSObject> object,
+                                      Representation representation,
+                                      FieldIndex index, SeqCstAccessTag tag);
+  inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index) const;
+  inline Tagged<JSAny> RawFastPropertyAt(PtrComprCageBase cage_base,
+                                         FieldIndex index) const;
+  inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index,
+                                         SeqCstAccessTag tag) const;
+  inline Tagged<JSAny> RawFastPropertyAt(PtrComprCageBase cage_base,
+                                         FieldIndex index,
+                                         SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
@@ -936,7 +938,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   friend class Object;
 
   // Used from Object::GetProperty().
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny>
   GetPropertyWithFailedAccessCheck(LookupIterator* it);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithFailedAccessCheck(
@@ -1212,7 +1214,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
 
   static Handle<Object> SetValue(DirectHandle<JSDate> date, double v);
 
-  void SetValue(Tagged<Object> value, bool is_value_nan);
+  void SetValue(Tagged<Number> value, bool is_value_nan);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)

@@ -70,17 +70,17 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
       Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
 
   // ES6 9.5.8
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetProperty(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSAny> GetProperty(
       Isolate* isolate, DirectHandle<JSProxy> proxy, Handle<Name> name,
       Handle<Object> receiver, bool* was_found);
 
   enum AccessKind { kGet, kSet };
 
-  static MaybeHandle<Object> CheckGetSetTrapResult(Isolate* isolate,
-                                                   Handle<Name> name,
-                                                   Handle<JSReceiver> target,
-                                                   Handle<Object> trap_result,
-                                                   AccessKind access_kind);
+  static MaybeHandle<JSAny> CheckGetSetTrapResult(Isolate* isolate,
+                                                  Handle<Name> name,
+                                                  Handle<JSReceiver> target,
+                                                  Handle<Object> trap_result,
+                                                  AccessKind access_kind);
 
   // ES6 9.5.9
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(

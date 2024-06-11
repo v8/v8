@@ -403,7 +403,7 @@ class WaiterQueueNode;
     if ((call).IsNothing()) return value; \
   } while (false)
 
-#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, kNullMaybeHandle)
 
 #define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                  \
@@ -1134,8 +1134,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef GLOBAL_ARRAY_ACCESSOR
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
-  inline Handle<type> name();                            \
-  inline bool is_##name(Tagged<type> value);
+  inline Handle<UNPAREN(type)> name();                   \
+  inline bool is_##name(Tagged<UNPAREN(type)> value);
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 

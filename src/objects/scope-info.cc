@@ -787,7 +787,7 @@ bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-void ScopeInfo::SetFunctionName(Tagged<Object> name) {
+void ScopeInfo::SetFunctionName(Tagged<UnionOf<Smi, String>> name) {
   DCHECK(HasFunctionName());
   DCHECK(IsString(name) || name == SharedFunctionInfo::kNoSharedNameSentinel);
   DCHECK_IMPLIES(HasContextAllocatedFunctionName(), IsInternalizedString(name));
@@ -832,7 +832,7 @@ Tagged<StringSet> ScopeInfo::LocalsBlockList() const {
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
-Tagged<Object> ScopeInfo::FunctionName() const {
+Tagged<UnionOf<Smi, String>> ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return function_variable_info_name();
 }
@@ -1174,9 +1174,9 @@ template Handle<ModuleRequest> ModuleRequest::New(
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    IsolateT* isolate, DirectHandle<PrimitiveHeapObject> export_name,
-    DirectHandle<PrimitiveHeapObject> local_name,
-    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    IsolateT* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
+    DirectHandle<UnionOf<String, Undefined>> local_name,
+    DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos) {
   auto result =
       Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
@@ -1194,14 +1194,14 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
 }
 
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, DirectHandle<PrimitiveHeapObject> export_name,
-    DirectHandle<PrimitiveHeapObject> local_name,
-    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    Isolate* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
+    DirectHandle<UnionOf<String, Undefined>> local_name,
+    DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos);
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    LocalIsolate* isolate, DirectHandle<PrimitiveHeapObject> export_name,
-    DirectHandle<PrimitiveHeapObject> local_name,
-    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    LocalIsolate* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
+    DirectHandle<UnionOf<String, Undefined>> local_name,
+    DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos);
 
 template <typename IsolateT>

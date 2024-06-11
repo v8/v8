@@ -42,7 +42,7 @@ Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<Object> FactoryBase<Impl>::NewNumber(double value) {
+Handle<Number> FactoryBase<Impl>::NewNumber(double value) {
   // Materialize as a SMI if possible.
   int32_t int_value;
   if (DoubleToSmiInteger(value, &int_value)) {
@@ -53,7 +53,7 @@ Handle<Object> FactoryBase<Impl>::NewNumber(double value) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<Object> FactoryBase<Impl>::NewNumberFromInt(int32_t value) {
+Handle<Number> FactoryBase<Impl>::NewNumberFromInt(int32_t value) {
   if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
   // Bypass NewNumber to avoid various redundant checks.
   return NewHeapNumber<allocation>(FastI2D(value));
@@ -61,7 +61,7 @@ Handle<Object> FactoryBase<Impl>::NewNumberFromInt(int32_t value) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<Object> FactoryBase<Impl>::NewNumberFromUint(uint32_t value) {
+Handle<Number> FactoryBase<Impl>::NewNumberFromUint(uint32_t value) {
   int32_t int32v = static_cast<int32_t>(value);
   if (int32v >= 0 && Smi::IsValid(int32v)) {
     return handle(Smi::FromInt(int32v), isolate());
@@ -71,7 +71,7 @@ Handle<Object> FactoryBase<Impl>::NewNumberFromUint(uint32_t value) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<Object> FactoryBase<Impl>::NewNumberFromSize(size_t value) {
+Handle<Number> FactoryBase<Impl>::NewNumberFromSize(size_t value) {
   // We can't use Smi::IsValid() here because that operates on a signed
   // intptr_t, and casting from size_t could create a bogus sign bit.
   if (value <= static_cast<size_t>(Smi::kMaxValue)) {
@@ -82,7 +82,7 @@ Handle<Object> FactoryBase<Impl>::NewNumberFromSize(size_t value) {
 
 template <typename Impl>
 template <AllocationType allocation>
-Handle<Object> FactoryBase<Impl>::NewNumberFromInt64(int64_t value) {
+Handle<Number> FactoryBase<Impl>::NewNumberFromInt64(int64_t value) {
   if (value <= std::numeric_limits<int32_t>::max() &&
       value >= std::numeric_limits<int32_t>::min() &&
       Smi::IsValid(static_cast<int32_t>(value))) {

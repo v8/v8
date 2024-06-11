@@ -242,10 +242,10 @@ struct Compressed : public Any {};
 struct InternalTag : public Any {};
 struct FrameState : public InternalTag {};
 
-// A Union type for untagged values. For Tagged types use `UnionT` for now.
+// A Union type for untagged values. For Tagged types use `Union` for now.
 // TODO(nicohartmann@): We should think about a more uniform solution some day.
 template <typename... Ts>
-struct Union : public Any {
+struct UntaggedUnion : public Any {
   using to_list_t = base::tmp::list<Ts...>;
 };
 
@@ -394,7 +394,7 @@ struct v_traits<Simd256> {
 };
 
 template <typename T>
-struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
+struct v_traits<T, std::enable_if_t<is_taggable_v<T> && !is_union_v<T>>> {
   static constexpr bool is_abstract_tag = false;
   using rep_type = RegisterRepresentation;
   static constexpr auto rep = RegisterRepresentation::Tagged();
@@ -406,23 +406,23 @@ struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   struct implicitly_constructible_from
       : std::bool_constant<is_subtype<U, T>::value> {};
   template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
+  struct implicitly_constructible_from<UntaggedUnion<Us...>>
       : std::bool_constant<(
             v_traits<T>::template implicitly_constructible_from<Us>::value &&
             ...)> {};
 };
 
-template <typename T1, typename T2>
-struct v_traits<UnionT<T1, T2>,
-                std::enable_if_t<is_taggable_v<UnionT<T1, T2>>>> {
-  static_assert(!v_traits<T1>::is_abstract_tag);
-  static_assert(!v_traits<T2>::is_abstract_tag);
+template <typename T, typename... Ts>
+struct v_traits<Union<T, Ts...>> {
+  static_assert(!v_traits<T>::is_abstract_tag);
+  static_assert((!v_traits<Ts>::is_abstract_tag && ...));
   static constexpr bool is_abstract_tag = false;
-  static_assert(v_traits<T1>::rep == v_traits<T2>::rep);
-  static_assert(std::is_same_v<typename v_traits<T1>::rep_type,
-                               typename v_traits<T2>::rep_type>);
-  using rep_type = typename v_traits<T1>::rep_type;
-  static constexpr auto rep = v_traits<T1>::rep;
+  static_assert(((v_traits<T>::rep == v_traits<Ts>::rep) && ...));
+  static_assert((std::is_same_v<typename v_traits<T>::rep_type,
+                                typename v_traits<Ts>::rep_type> &&
+                 ...));
+  using rep_type = typename v_traits<T>::rep_type;
+  static constexpr auto rep = v_traits<T>::rep;
   static constexpr bool allows_representation(RegisterRepresentation r) {
     return r == rep;
   }
@@ -430,12 +430,13 @@ struct v_traits<UnionT<T1, T2>,
   template <typename U>
   struct implicitly_constructible_from
       : std::bool_constant<(
-            v_traits<T1>::template implicitly_constructible_from<U>::value ||
-            v_traits<T2>::template implicitly_constructible_from<U>::value)> {};
-  template <typename U1, typename U2>
-  struct implicitly_constructible_from<UnionT<U1, U2>>
-      : std::bool_constant<(implicitly_constructible_from<U1>::value &&
-                            implicitly_constructible_from<U2>::value)> {};
+            v_traits<T>::template implicitly_constructible_from<U>::value ||
+            ... ||
+            v_traits<Ts>::template implicitly_constructible_from<U>::value)> {};
+  template <typename... Us>
+  struct implicitly_constructible_from<Union<Us...>>
+      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
+  };
 };
 
 namespace detail {
@@ -450,7 +451,7 @@ struct RepresentationForUnionBase<T, true> {
 template <typename T>
 struct RepresentationForUnion {};
 template <typename T, typename... Ts>
-struct RepresentationForUnion<Union<T, Ts...>>
+struct RepresentationForUnion<UntaggedUnion<T, Ts...>>
     : RepresentationForUnionBase<T, ((v_traits<T>::rep == v_traits<Ts>::rep) &&
                                      ...)> {
  private:
@@ -471,10 +472,11 @@ struct RepresentationForUnion<Union<T, Ts...>>
 }  // namespace detail
 
 template <typename... Ts>
-struct v_traits<Union<Ts...>> {
+struct v_traits<UntaggedUnion<Ts...>> {
   using rep_type =
-      typename detail::RepresentationForUnion<Union<Ts...>>::rep_type;
-  static constexpr auto rep = detail::RepresentationForUnion<Union<Ts...>>::rep;
+      typename detail::RepresentationForUnion<UntaggedUnion<Ts...>>::rep_type;
+  static constexpr auto rep =
+      detail::RepresentationForUnion<UntaggedUnion<Ts...>>::rep;
   static constexpr bool allows_representation(RegisterRepresentation r) {
     return (v_traits<Ts>::allows_representation(r) || ...);
   }
@@ -485,7 +487,7 @@ struct v_traits<Union<Ts...>> {
             v_traits<Ts>::template implicitly_constructible_from<U>::value ||
             ...)> {};
   template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
+  struct implicitly_constructible_from<UntaggedUnion<Us...>>
       : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
   };
 };
@@ -522,20 +524,18 @@ struct v_traits<Tuple<Ts...>> {
             ...)> {};
 };
 
-using Word = Union<Word32, Word64>;
-using Float = Union<Float32, Float64>;
-using Untagged = Union<Word, Float>;
-using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
-using NumberOrString = UnionT<Number, String>;
-using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
-using StringOrNull = Union<String, Null>;
+using Word = UntaggedUnion<Word32, Word64>;
+using Float = UntaggedUnion<Float32, Float64>;
+using Untagged = UntaggedUnion<Word, Float>;
+using BooleanOrNullOrUndefined = UnionOf<Boolean, Null, Undefined>;
+using NumberOrString = UnionOf<Number, String>;
+using PlainPrimitive = UnionOf<NumberOrString, BooleanOrNullOrUndefined>;
+using StringOrNull = UnionOf<String, Null>;
 
-using NonBigIntPrimitive = Union<Symbol, PlainPrimitive>;
-using Primitive = Union<BigInt, NonBigIntPrimitive>;
-using Numeric = Union<Number, BigInt>;
-using JSPrimitive = Union<Numeric, String, Symbol, Boolean, Null, Undefined>;
-using CallTarget = Union<WordPtr, Code>;
-using AnyOrNone = Union<Any, None>;
+using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
+using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
+using CallTarget = UntaggedUnion<WordPtr, Code>;
+using AnyOrNone = UntaggedUnion<Any, None>;
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;

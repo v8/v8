@@ -1325,8 +1325,7 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractJSGlobalProxyReferences(
-    HeapEntry* entry, Tagged<JSGlobalProxy> proxy) {
-}
+    HeapEntry* entry, Tagged<JSGlobalProxy> proxy) {}
 
 void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                                                Tagged<JSObject> js_obj) {
@@ -2076,8 +2075,8 @@ void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, k)) continue;
-      DCHECK(IsNumber(k));
-      uint32_t index = static_cast<uint32_t>(Object::NumberValue(k));
+      uint32_t index =
+          static_cast<uint32_t>(Object::NumberValue(Cast<Number>(k)));
       SetElementReference(entry, index, dictionary->ValueAt(i));
     }
   }

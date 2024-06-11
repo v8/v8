@@ -64,10 +64,10 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
   DECL_RELEASE_ACQUIRE_ACCESSORS(setter, Tagged<Object>)
 
   // Note: Returns undefined if the component is not set.
-  static Handle<Object> GetComponent(Isolate* isolate,
-                                     Handle<NativeContext> native_context,
-                                     DirectHandle<AccessorPair> accessor_pair,
-                                     AccessorComponent component);
+  static Handle<JSAny> GetComponent(Isolate* isolate,
+                                    Handle<NativeContext> native_context,
+                                    DirectHandle<AccessorPair> accessor_pair,
+                                    AccessorComponent component);
 
   // Set both components, skipping arguments which are a JavaScript null.
   inline void SetComponents(Tagged<Object> getter, Tagged<Object> setter);

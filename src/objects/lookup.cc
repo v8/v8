@@ -132,8 +132,8 @@ template void LookupIterator::RestartInternal<false>(InterceptorState);
 
 // static
 MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, DirectHandle<Object> lookup_start_object, size_t index,
-    Configuration configuration) {
+    Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
+    size_t index, Configuration configuration) {
   // Strings are the only non-JSReceiver objects with properties (only elements
   // and 'length') directly on the wrapper. Hence we can skip generating
   // the wrapper for all other cases.

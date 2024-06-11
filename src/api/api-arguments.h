@@ -97,19 +97,19 @@ class PropertyCallbackArguments final
   // -------------------------------------------------------------------------
   // Accessor Callbacks
   // Also used for AccessorSetterCallback.
-  inline Handle<Object> CallAccessorSetter(DirectHandle<AccessorInfo> info,
-                                           Handle<Name> name,
-                                           Handle<Object> value);
+  inline Handle<JSAny> CallAccessorSetter(DirectHandle<AccessorInfo> info,
+                                          Handle<Name> name,
+                                          Handle<Object> value);
   // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
-  inline Handle<Object> CallAccessorGetter(DirectHandle<AccessorInfo> info,
-                                           Handle<Name> name);
+  inline Handle<JSAny> CallAccessorGetter(DirectHandle<AccessorInfo> info,
+                                          Handle<Name> name);
 
   // -------------------------------------------------------------------------
   // Named Interceptor Callbacks
   inline Handle<Object> CallNamedQuery(Handle<InterceptorInfo> interceptor,
                                        Handle<Name> name);
-  inline Handle<Object> CallNamedGetter(Handle<InterceptorInfo> interceptor,
-                                        Handle<Name> name);
+  inline Handle<JSAny> CallNamedGetter(Handle<InterceptorInfo> interceptor,
+                                       Handle<Name> name);
   inline Handle<Object> CallNamedSetter(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
       Handle<Object> value);
@@ -118,8 +118,8 @@ class PropertyCallbackArguments final
       const v8::PropertyDescriptor& desc);
   inline Handle<Object> CallNamedDeleter(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name);
-  inline Handle<Object> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
-                                            Handle<Name> name);
+  inline Handle<JSAny> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
+                                           Handle<Name> name);
   inline Handle<JSObject> CallNamedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
@@ -127,8 +127,8 @@ class PropertyCallbackArguments final
   // Indexed Interceptor Callbacks
   inline Handle<Object> CallIndexedQuery(Handle<InterceptorInfo> interceptor,
                                          uint32_t index);
-  inline Handle<Object> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
-                                          uint32_t index);
+  inline Handle<JSAny> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
+                                         uint32_t index);
   inline Handle<Object> CallIndexedSetter(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index,
       Handle<Object> value);
@@ -137,7 +137,7 @@ class PropertyCallbackArguments final
       const v8::PropertyDescriptor& desc);
   inline Handle<Object> CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
                                            uint32_t index);
-  inline Handle<Object> CallIndexedDescriptor(
+  inline Handle<JSAny> CallIndexedDescriptor(
       Handle<InterceptorInfo> interceptor, uint32_t index);
   inline Handle<JSObject> CallIndexedEnumerator(
       Handle<InterceptorInfo> interceptor);
