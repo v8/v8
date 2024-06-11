@@ -730,6 +730,18 @@ class MaglevCodeGeneratingNodeProcessor {
     } else {
       __ Prologue(graph);
     }
+
+    // Remove empty blocks.
+    ZoneVector<BasicBlock*>& blocks = graph->blocks();
+    size_t current_ix = 0;
+    for (size_t i = 0; i < blocks.size(); ++i) {
+      BasicBlock* block = blocks[i];
+      if (block->RealJumpTarget() == block) {
+        // This block cannot be replaced.
+        blocks[current_ix++] = block;
+      }
+    }
+    blocks.resize(current_ix);
   }
 
   void PostProcessGraph(Graph* graph) {}
@@ -758,6 +770,8 @@ class MaglevCodeGeneratingNodeProcessor {
     if (v8_flags.maglev_assert_stack_size) {
       __ AssertStackSizeCorrect();
     }
+
+    PatchJumps(node);
 
     // Emit Phi moves before visiting the control node.
     if (std::is_base_of<UnconditionalControlNode, NodeT>::value) {
@@ -957,6 +971,32 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
  private:
+  // Jump threading: instead of jumping to an empty block A which just
+  // unconditionally jumps to B, redirect the jump to B directly.
+  template <typename NodeT>
+  void PatchJumps(NodeT* node) {
+    if constexpr (IsUnconditionalControlNode(Node::opcode_of<NodeT>)) {
+      UnconditionalControlNode* control_node =
+          node->template Cast<UnconditionalControlNode>();
+      control_node->set_target(control_node->target()->RealJumpTarget());
+    } else if constexpr (IsBranchControlNode(Node::opcode_of<NodeT>)) {
+      BranchControlNode* control_node =
+          node->template Cast<BranchControlNode>();
+      control_node->set_if_true(control_node->if_true()->RealJumpTarget());
+      control_node->set_if_false(control_node->if_false()->RealJumpTarget());
+    } else if constexpr (Node::opcode_of<NodeT> == Opcode::kSwitch) {
+      Switch* switch_node = node->template Cast<Switch>();
+      BasicBlockRef* targets = switch_node->targets();
+      for (int i = 0; i < switch_node->size(); ++i) {
+        targets[i].set_block_ptr(targets[i].block_ptr()->RealJumpTarget());
+      }
+      if (switch_node->has_fallthrough()) {
+        switch_node->set_fallthrough(
+            switch_node->fallthrough()->RealJumpTarget());
+      }
+    }
+  }
+
   MaglevAssembler* const masm_;
 };
 

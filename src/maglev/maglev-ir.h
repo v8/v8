@@ -873,6 +873,11 @@ class BasicBlockRef {
     return block_ptr_;
   }
 
+  void set_block_ptr(BasicBlock* block) {
+    DCHECK_EQ(state_, kBlockPointer);
+    block_ptr_ = block;
+  }
+
   BasicBlockRef* next_ref() const {
     DCHECK_EQ(state_, kRefList);
     return next_ref_;
@@ -9050,6 +9055,8 @@ class UnconditionalControlNode : public ControlNode {
   int predecessor_id() const { return predecessor_id_; }
   void set_predecessor_id(int id) { predecessor_id_ = id; }
 
+  void set_target(BasicBlock* block) { target_.set_block_ptr(block); }
+
  protected:
   explicit UnconditionalControlNode(uint64_t bitfield,
                                     BasicBlockRef* target_refs)
@@ -9058,7 +9065,7 @@ class UnconditionalControlNode : public ControlNode {
       : ControlNode(bitfield), target_(target) {}
 
  private:
-  const BasicBlockRef target_;
+  BasicBlockRef target_;
   int predecessor_id_ = 0;
 };
 
@@ -9092,6 +9099,9 @@ class BranchControlNode : public ConditionalControlNode {
 
   BasicBlock* if_true() const { return if_true_.block_ptr(); }
   BasicBlock* if_false() const { return if_false_.block_ptr(); }
+
+  void set_if_true(BasicBlock* block) { if_true_.set_block_ptr(block); }
+  void set_if_false(BasicBlock* block) { if_false_.set_block_ptr(block); }
 
  private:
   BasicBlockRef if_true_;
@@ -9262,13 +9272,18 @@ class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
   int value_base() const { return value_base_; }
-  const BasicBlockRef* targets() const { return targets_; }
+  BasicBlockRef* targets() const { return targets_; }
   int size() const { return size_; }
 
   bool has_fallthrough() const { return fallthrough_.has_value(); }
   BasicBlock* fallthrough() const {
     DCHECK(has_fallthrough());
     return fallthrough_.value().block_ptr();
+  }
+
+  void set_fallthrough(BasicBlock* fallthrough) {
+    DCHECK(has_fallthrough());
+    fallthrough_.value().set_block_ptr(fallthrough);
   }
 
   Input& value() { return input(0); }
@@ -9279,7 +9294,7 @@ class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
 
  private:
   const int value_base_;
-  const BasicBlockRef* targets_;
+  BasicBlockRef* targets_;
   const int size_;
   base::Optional<BasicBlockRef> fallthrough_;
 };

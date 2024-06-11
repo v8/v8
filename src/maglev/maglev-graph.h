@@ -50,6 +50,7 @@ class Graph final : public ZoneObject {
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
 
   int num_blocks() const { return static_cast<int>(blocks_.size()); }
+  ZoneVector<BasicBlock*>& blocks() { return blocks_; }
 
   BlockConstIterator begin() const { return blocks_.begin(); }
   BlockConstIterator end() const { return blocks_.end(); }

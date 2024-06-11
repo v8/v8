@@ -145,7 +145,12 @@ class BasicBlock {
 
   base::SmallVector<BasicBlock*, 2> successors() const;
 
-  Label* label() { return &label_; }
+  Label* label() {
+    // If this fails, jump threading is missing for the node. See
+    // MaglevCodeGeneratingNodeProcessor::PatchJumps.
+    DCHECK_EQ(this, RealJumpTarget());
+    return &label_;
+  }
   MergePointInterpreterFrameState* state() const {
     DCHECK(has_state());
     return state_;
@@ -166,7 +171,63 @@ class BasicBlock {
   ZonePtrList<ValueNode>& reload_hints() { return reload_hints_; }
   ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
 
+  // If the basic block is an empty (unnecessary) block containing only an
+  // unconditional jump to the successor block, return the successor block.
+  BasicBlock* RealJumpTarget() {
+    if (real_jump_target_cache_ != nullptr) {
+      return real_jump_target_cache_;
+    }
+
+    BasicBlock* current = this;
+    while (true) {
+      if (!current->nodes_.is_empty() || current->HasPhisOrRegisterMerges() ||
+          current->is_loop()) {
+        break;
+      }
+      Jump* control = current->control_node()->TryCast<Jump>();
+      if (!control) {
+        break;
+      }
+      BasicBlock* next = control->target();
+      if (next->HasPhisOrRegisterMerges()) {
+        break;
+      }
+      current = next;
+    }
+    real_jump_target_cache_ = current;
+    return current;
+  }
+
  private:
+  bool HasPhisOrRegisterMerges() const {
+    if (!has_state()) {
+      return false;
+    }
+    if (has_phi()) {
+      return true;
+    }
+    bool has_register_merge = false;
+#ifdef V8_ENABLE_MAGLEV
+    state()->register_state().ForEachGeneralRegister(
+        [&](Register reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+    state()->register_state().ForEachDoubleRegister(
+        [&](DoubleRegister reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+#endif  // V8_ENABLE_MAGLEV
+    return has_register_merge;
+  }
+
   enum : uint8_t {
     kMerge,
     kEdgeSplit,
@@ -193,6 +254,7 @@ class BasicBlock {
   // {snapshot_} is used during PhiRepresentationSelection in order to track to
   // phi tagging nodes that come out of this basic block.
   MaybeSnapshot snapshot_;
+  BasicBlock* real_jump_target_cache_ = nullptr;
 };
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {

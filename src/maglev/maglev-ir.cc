@@ -6525,7 +6525,10 @@ void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ SignExtend32To64Bits(val, val);
   __ Switch(scratch, val, value_base(), labels.get(), size());
   if (has_fallthrough()) {
-    DCHECK_EQ(fallthrough(), state.next_block());
+    // If we jump-thread the fallthrough, it's not necessarily the next block.
+    if (fallthrough() != state.next_block()) {
+      __ Jump(fallthrough()->label());
+    }
   } else {
     __ Trap();
   }
