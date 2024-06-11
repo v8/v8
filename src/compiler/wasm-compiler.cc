@@ -8791,6 +8791,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
 }
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::WasmModule* module,
                                          const wasm::FunctionSig* sig,
                                          wasm::ImportCallKind kind,
                                          int expected_arity,
@@ -8811,7 +8812,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                 .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
                 .stub_mode = StubCallMode::kCallBuiltinPointer,
                 .wasm_js_info = {kind, expected_arity, suspend}},
-            nullptr, std::move(name_buffer), WasmAssemblerOptions());
+            module, std::move(name_buffer), WasmAssemblerOptions());
 
     // Compile the wrapper
     if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
@@ -8835,7 +8836,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
         InstructionSelector::AlignmentRequirements());
     MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-    WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
+    WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
                                     WasmGraphBuilder::kWasmApiFunctionRefMode,
                                     nullptr, nullptr,
                                     StubCallMode::kCallBuiltinPointer,

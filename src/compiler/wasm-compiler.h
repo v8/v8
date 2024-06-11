@@ -94,6 +94,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     wasm::WasmFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::WasmModule* module,
                                          const wasm::FunctionSig* sig,
                                          wasm::ImportCallKind kind,
                                          int expected_arity,

@@ -537,8 +537,16 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
   DirectHandle<Object> origin(ref->call_origin(), isolate);
 
+  const wasm::WasmModule* module = nullptr;
+  DirectHandle<WasmInstanceObject> instance_object;
+  if (!IsUndefined(ref->instance())) {
+    instance_object = Handle<WasmInstanceObject>(
+        WasmInstanceObject::cast(ref->instance()), isolate);
+    module = instance_object->trusted_data(isolate)->module();
+  }
   if (IsWasmFuncRef(*origin)) {
-    // The tierup for `WasmInternalFunction is special, as there is no instance.
+    // The tierup for `WasmInternalFunction is special, as there may not be an
+    // instance.
     int suspender_count = ref->suspend() == wasm::kSuspendWithSuspender;
     size_t expected_arity = sig.parameter_count() - suspender_count;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -553,7 +561,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     }
     DirectHandle<Code> wasm_to_js_wrapper_code =
         compiler::CompileWasmToJSWrapper(
-            isolate, &sig, kind, static_cast<int>(expected_arity),
+            isolate, module, &sig, kind, static_cast<int>(expected_arity),
             static_cast<wasm::Suspend>(ref->suspend()))
             .ToHandleChecked();
 
@@ -567,8 +575,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  DirectHandle<WasmInstanceObject> instance_object(
-      WasmInstanceObject::cast(ref->instance()), isolate);
   if (IsTuple2(*origin)) {
     auto tuple = DirectHandle<Tuple2>::cast(origin);
     instance_object =
@@ -580,7 +586,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   // Get the function's canonical signature index.
   uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
-  const wasm::WasmModule* module = trusted_data->module();
   if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
     int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
     canonical_sig_index =

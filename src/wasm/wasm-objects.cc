@@ -2447,8 +2447,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       // call_target directly but load the target from the code object at
       // runtime.
       DirectHandle<Code> wrapper_code =
-          compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
-                                           suspend)
+          compiler::CompileWasmToJSWrapper(isolate, nullptr, sig, kind,
+                                           expected_arity, suspend)
               .ToHandleChecked();
       DirectHandle<WasmApiFunctionRef> api_function_ref{
           WasmApiFunctionRef::cast(internal_function->ref()), isolate};
