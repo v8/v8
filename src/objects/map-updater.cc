@@ -1286,7 +1286,9 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
       continue;
     }
 
-    MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_type));
+    DCHECK_IMPLIES(IsClass(*cur_new_type),
+                   cur_new_representation.IsHeapObject());
+    MaybeObjectHandle wrapped_type(Map::WrapFieldType(cur_new_type));
     Descriptor d = Descriptor::DataField(
         name, descriptors->GetFieldIndex(descriptor), details.attributes(),
         cur_new_constness, cur_new_representation, wrapped_type);
