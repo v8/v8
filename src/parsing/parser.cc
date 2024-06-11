@@ -409,30 +409,18 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     return NewV8RuntimeFunctionForFuzzing(function, args, pos);
   }
 
-  if (function != nullptr) {
-    // Check for possible name clash.
-    DCHECK_EQ(Context::kNotFound,
-              Context::IntrinsicIndexForName(name->raw_data(), name->length()));
-
-    // Check that the expected number of arguments are being passed.
-    if (function->nargs != -1 && function->nargs != args.length()) {
-      ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
-      return FailureExpression();
-    }
-
-    return factory()->NewCallRuntime(function, args, pos);
-  }
-
-  int context_index =
-      Context::IntrinsicIndexForName(name->raw_data(), name->length());
-
-  // Check that the function is defined.
-  if (context_index == Context::kNotFound) {
+  if (function == nullptr) {
     ReportMessage(MessageTemplate::kNotDefined, name);
     return FailureExpression();
   }
 
-  return factory()->NewCallRuntime(context_index, args, pos);
+  // Check that the expected number of arguments are being passed.
+  if (function->nargs != -1 && function->nargs != args.length()) {
+    ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
+    return FailureExpression();
+  }
+
+  return factory()->NewCallRuntime(function, args, pos);
 }
 
 // More permissive runtime-function creation on fuzzers.

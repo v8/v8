@@ -561,32 +561,6 @@ Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
       "Wasm code generation disallowed by embedder");
 }
 
-#define COMPARE_NAME(index, type, name) \
-  if (string->IsOneByteEqualTo(base::StaticCharVector(#name))) return index;
-
-int Context::IntrinsicIndexForName(DirectHandle<String> string) {
-  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
-  return kNotFound;
-}
-
-#undef COMPARE_NAME
-
-#define COMPARE_NAME(index, type, name)                                      \
-  {                                                                          \
-    const int name_length = static_cast<int>(arraysize(#name)) - 1;          \
-    if ((length == name_length) && strncmp(string, #name, name_length) == 0) \
-      return index;                                                          \
-  }
-
-int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
-                                   int length) {
-  const char* string = reinterpret_cast<const char*>(unsigned_string);
-  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
-  return kNotFound;
-}
-
-#undef COMPARE_NAME
-
 #ifdef VERIFY_HEAP
 namespace {
 // TODO(v8:12298): Fix js-context-specialization cctests to set up full

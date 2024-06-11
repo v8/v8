@@ -30,17 +30,13 @@ namespace interpreter {
 
 static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
   switch (idx) {
-#define COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX(NAME, Type, name) \
-  case Context::NAME:                                          \
-    return #name;
-
-    NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX)
-
+    case Context::REFLECT_APPLY_INDEX:
+      return "reflect_apply";
+    case Context::REFLECT_CONSTRUCT_INDEX:
+      return "reflect_construct";
     default:
-      break;
+      return "UnknownIntrinsicIndex";
   }
-
-  return "UnknownIntrinsicIndex";
 }
 
 // static

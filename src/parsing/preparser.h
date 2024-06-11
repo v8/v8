@@ -713,12 +713,6 @@ class PreParserFactory {
     return PreParserStatement::Iteration();
   }
 
-  PreParserExpression NewCallRuntime(
-      Runtime::FunctionId id, ZoneChunkList<PreParserExpression>* arguments,
-      int pos) {
-    return PreParserExpression::Default();
-  }
-
   PreParserExpression NewImportCallExpression(const PreParserExpression& args,
                                               int pos) {
     return PreParserExpression::Default();

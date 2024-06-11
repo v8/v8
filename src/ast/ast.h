@@ -1823,24 +1823,12 @@ class SuperCallForwardArgs final : public Expression {
 };
 
 // The CallRuntime class does not represent any official JavaScript
-// language construct. Instead it is used to call a C or JS function
-// with a set of arguments. This is used from the builtins that are
-// implemented in JavaScript.
+// language construct. Instead it is used to call a runtime function
+// with a set of arguments.
 class CallRuntime final : public Expression {
  public:
   const ZonePtrList<Expression>* arguments() const { return &arguments_; }
-  bool is_jsruntime() const { return function_ == nullptr; }
-
-  int context_index() const {
-    DCHECK(is_jsruntime());
-    return context_index_;
-  }
-  const Runtime::Function* function() const {
-    DCHECK(!is_jsruntime());
-    return function_;
-  }
-
-  const char* debug_name();
+  const Runtime::Function* function() const { return function_; }
 
  private:
   friend class AstNodeFactory;
@@ -1850,15 +1838,10 @@ class CallRuntime final : public Expression {
               const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         function_(function),
-        arguments_(arguments.ToConstVector(), zone) {}
-  CallRuntime(Zone* zone, int context_index,
-              const ScopedPtrList<Expression>& arguments, int pos)
-      : Expression(pos, kCallRuntime),
-        context_index_(context_index),
-        function_(nullptr),
-        arguments_(arguments.ToConstVector(), zone) {}
+        arguments_(arguments.ToConstVector(), zone) {
+    DCHECK_NOT_NULL(function_);
+  }
 
-  int context_index_;
   const Runtime::Function* function_;
   ZonePtrList<Expression> arguments_;
 };
@@ -3237,12 +3220,6 @@ class AstNodeFactory final {
                               const ScopedPtrList<Expression>& arguments,
                               int pos) {
     return zone_->New<CallRuntime>(zone_, function, arguments, pos);
-  }
-
-  CallRuntime* NewCallRuntime(int context_index,
-                              const ScopedPtrList<Expression>& arguments,
-                              int pos) {
-    return zone_->New<CallRuntime>(zone_, context_index, arguments, pos);
   }
 
   UnaryOperation* NewUnaryOperation(Token::Value op,
