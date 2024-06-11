@@ -463,6 +463,7 @@
 
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/wasm-signature-verification': [SKIP],
+  'sandbox/wasm-inlining-sigcheck': [SKIP],
 
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],

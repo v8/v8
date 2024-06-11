@@ -7800,7 +7800,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                       bool is_tail_call, const Value args[], Value returns[]) {
     DCHECK_IMPLIES(is_tail_call, returns == nullptr);
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
-    DCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
+    // In a corrupted sandbox, we can't trust the collected feedback.
+    SBXCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
