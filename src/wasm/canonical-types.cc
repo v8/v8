@@ -22,12 +22,15 @@ TypeCanonicalizer::TypeCanonicalizer() {
   AddPredefinedArrayType(kPredefinedArrayI16Index, kWasmI16);
 }
 
-// We currently store canonical indices in {ValueType} instances, so they
-// must fit into the range of valid module-relative (non-canonical) type
-// indices.
-// TODO(jkummerow): Raise this limit, to make long-lived WasmEngines scale
-// better. Plan: stop constructing ValueTypes from canonical type indices.
-static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// For convenience, limit canonicalized type indices to Smi range.
+// We could squeeze out a few more bits if necessary by passing them
+// from compiled wrappers to runtime functions as Smi-tagged unsigned ints.
+// That would give us "uint31" range on 32-bit platforms, and allow
+// uint32_t (or even more) on 64-bit platforms. But we probably don't want
+// to store that many types in the TypeCanonicalizer anyway.
+static constexpr size_t kMaxCanonicalTypes = kSmiMaxValue;
+static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
+static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
 
 void TypeCanonicalizer::CheckMaxCanonicalIndex() const {
   if (canonical_supertypes_.size() > kMaxCanonicalTypes) {
@@ -154,6 +157,7 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
   group.type.is_relative_supertype = false;
   int canonical_index = FindCanonicalGroup(group);
   if (canonical_index >= 0) return canonical_index;
+  static_assert(kMaxCanonicalTypes <= kMaxInt);
   canonical_index = static_cast<int>(canonical_supertypes_.size());
   // We need to copy the signature in the local zone, or else we risk
   // storing a dangling pointer in the future.
@@ -303,6 +307,7 @@ int TypeCanonicalizer::FindCanonicalGroup(const CanonicalGroup& group) const {
 int TypeCanonicalizer::FindCanonicalGroup(
     const CanonicalSingletonGroup& group) const {
   auto it = canonical_singleton_groups_.find(group);
+  static_assert(kMaxCanonicalTypes <= kMaxInt);
   return it == canonical_singleton_groups_.end() ? -1 : it->second;
 }
 

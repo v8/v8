@@ -56,7 +56,7 @@ void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
     case kExprAnyConvertExtern: {
       const char* error_message = nullptr;
       result->runtime_value = WasmValue(
-          JSToWasmObject(isolate_, input.runtime_value.to_ref(), kWasmAnyRef,
+          JSToWasmObject(isolate_, input.runtime_value.to_ref(), kWasmAnyRef, 0,
                          &error_message)
               .ToHandleChecked(),
           ValueType::RefMaybeNull(HeapType::kAny, input.type.nullability()));

@@ -983,17 +983,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             // Make sure ValueType fits in a Smi.
             static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
 
+            uint32_t canonical_index = kInvalidCanonicalIndex;
             if (type.has_index()) {
               DCHECK_NOT_NULL(module);
-              uint32_t canonical_index =
+              canonical_index =
                   module->isorecursive_canonical_type_ids[type.ref_index()];
-              type = wasm::ValueType::RefMaybeNull(canonical_index,
-                                                   type.nullability());
+              DCHECK_LE(canonical_index, kSmiMaxValue);
             }
 
             std::initializer_list<const OpIndex> inputs = {
-                input, __ IntPtrConstant(
-                           IntToSmi(static_cast<int>(type.raw_bit_field())))};
+                input,
+                __ IntPtrConstant(
+                    IntToSmi(static_cast<int>(type.raw_bit_field()))),
+                __ IntPtrConstant(IntToSmi(static_cast<int>(canonical_index)))};
             return CallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
                                inputs, context);
           }

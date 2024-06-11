@@ -171,6 +171,13 @@ constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
 
+// This needs to survive round-tripping through a Smi without changing
+// its value.
+constexpr uint32_t kInvalidCanonicalIndex = static_cast<uint32_t>(-1);
+static_assert(static_cast<uint32_t>(Internals::SmiValue(Internals::IntToSmi(
+                  static_cast<int>(kInvalidCanonicalIndex)))) ==
+              kInvalidCanonicalIndex);
+
 // The number of calls to an exported Wasm function that will be handled
 // by the generic wrapper. Once the budget is exhausted, a specific wrapper
 // is to be compiled for the function's signature.

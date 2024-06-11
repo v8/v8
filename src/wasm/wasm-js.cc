@@ -1763,8 +1763,9 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
         // no way to specify such types in `new WebAssembly.Global(...)`.
         // TODO(14034): Fix this if that changes.
         DCHECK(!type.has_index());
+        uint32_t unused_canonical_index = 0;
         if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
-                                     &error_message)
+                                     unused_canonical_index, &error_message)
                  .ToHandle(&value_handle)) {
           thrower.TypeError("%s", error_message);
           break;
@@ -1974,21 +1975,19 @@ void EncodeExceptionValues(
       case i::wasm::kRefNull: {
         const char* error_message;
         i::Handle<i::Object> value_handle = Utils::OpenHandle(*value);
-
+        uint32_t canonical_index = i::wasm::kInvalidCanonicalIndex;
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
           i::Tagged<i::HeapObject> maybe_instance = tag_object->instance();
-          CHECK(!i::IsUndefined(maybe_instance));
+          // Indexed types are guaranteed to come from an instance.
+          CHECK(i::IsWasmInstanceObject(maybe_instance));
           auto instance = i::WasmInstanceObject::cast(maybe_instance);
           const i::wasm::WasmModule* module = instance->module();
-          uint32_t canonical_index =
+          canonical_index =
               module->isorecursive_canonical_type_ids[type.ref_index()];
-          type = i::wasm::ValueType::RefMaybeNull(canonical_index,
-                                                  type.nullability());
         }
-
-        if (!internal::wasm::JSToWasmObject(i_isolate, value_handle, type,
-                                            &error_message)
+        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
+                                     canonical_index, &error_message)
                  .ToHandle(&value_handle)) {
           thrower->TypeError("%s", error_message);
           return;

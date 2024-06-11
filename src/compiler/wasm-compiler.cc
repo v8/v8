@@ -7360,20 +7360,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             // Make sure ValueType fits in a Smi.
             static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
 
+            uint32_t canonical_index = wasm::kInvalidCanonicalIndex;
             if (type.has_index()) {
               DCHECK_NOT_NULL(module);
-              uint32_t canonical_index =
+              canonical_index =
                   module->isorecursive_canonical_type_ids[type.ref_index()];
-              type = wasm::ValueType::RefMaybeNull(canonical_index,
-                                                   type.nullability());
+              DCHECK_LE(canonical_index, kSmiMaxValue);
             }
 
-            Node* inputs[] = {
-                input, mcgraph()->IntPtrConstant(
-                           IntToSmi(static_cast<int>(type.raw_bit_field())))};
+            Node* inputs[] = {input,
+                              mcgraph()->IntPtrConstant(IntToSmi(
+                                  static_cast<int>(type.raw_bit_field()))),
+                              mcgraph()->IntPtrConstant(
+                                  IntToSmi(static_cast<int>(canonical_index)))};
 
             return BuildCallToRuntimeWithContext(Runtime::kWasmJSToWasmObject,
-                                                 js_context, inputs, 2);
+                                                 js_context, inputs, 3);
           }
         }
       }

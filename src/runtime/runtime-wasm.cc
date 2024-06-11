@@ -162,46 +162,49 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   int raw_type = args.smi_value_at(2);
 
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  uint32_t canonical_index = wasm::kInvalidCanonicalIndex;
   if (type.has_index()) {
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
         WasmTrustedInstanceData::cast(args[0]), isolate);
     const wasm::WasmModule* module = trusted_instance_data->module();
     DCHECK_NOT_NULL(module);
-    uint32_t canonical_index =
-        module->isorecursive_canonical_type_ids[type.ref_index()];
-    type = wasm::ValueType::RefMaybeNull(canonical_index, type.nullability());
+    canonical_index = module->isorecursive_canonical_type_ids[type.ref_index()];
   }
   const char* error_message;
   Handle<Object> result;
-  if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
+  if (!JSToWasmObject(isolate, value, type, canonical_index, &error_message)
+           .ToHandle(&result)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
   }
   return *result;
 }
 
-// Takes a JS object and a wasm type as Smi. Type checks the object against the
-// type; if the check succeeds, returns the object in its wasm representation;
-// otherwise throws a type error.
+// Parameters:
+// args[0]: the object, any JS value.
+// args[1]: the expected ValueType, Smi-tagged.
+// args[2]: the expected canonical type index, Smi-tagged, if the type is
+//          an indexed reftype.
+// Type checks the object against the type; if the check succeeds, returns the
+// object in its wasm representation; otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
   // and runtime-strings.cc.
   bool thread_in_wasm = trap_handler::IsThreadInWasm();
   if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  // 'raw_instance' can be either a WasmInstanceObject or undefined.
+  DCHECK_EQ(3, args.length());
   Handle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(1);
+  int canonical_index = args.smi_value_at(2);
 
-  wasm::ValueType expected_canonical =
-      wasm::ValueType::FromRawBitField(raw_type);
+  wasm::ValueType expected = wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
   Handle<Object> result;
   bool success =
-      JSToWasmObject(isolate, value, expected_canonical, &error_message)
+      JSToWasmObject(isolate, value, expected, canonical_index, &error_message)
           .ToHandle(&result);
   Tagged<Object> ret = success
                            ? *result

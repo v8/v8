@@ -1309,7 +1309,7 @@ namespace wasm {
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
-                                   ValueType expected_canonical,
+                                   ValueType expected, uint32_t canonical_index,
                                    const char** error_message);
 
 // Utility which canonicalizes {expected} in addition.

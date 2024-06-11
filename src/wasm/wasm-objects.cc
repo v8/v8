@@ -2580,11 +2580,11 @@ Handle<Object> CanonicalizeSmi(Handle<Object> smi, Isolate* isolate) {
 
 namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
-                                   ValueType expected_canonical,
+                                   ValueType expected, uint32_t canonical_index,
                                    const char** error_message) {
-  DCHECK(expected_canonical.is_object_reference());
-  if (expected_canonical.kind() == kRefNull && IsNull(*value, isolate)) {
-    switch (expected_canonical.heap_representation()) {
+  DCHECK(expected.is_object_reference());
+  if (expected.kind() == kRefNull && IsNull(*value, isolate)) {
+    switch (expected.heap_representation()) {
       case HeapType::kStringViewWtf8:
         *error_message = "stringview_wtf8 has no JS representation";
         return {};
@@ -2602,7 +2602,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         return {};
       default: {
         HeapType::Representation repr =
-            expected_canonical.heap_representation_non_shared();
+            expected.heap_representation_non_shared();
         bool is_extern_subtype =
             repr == HeapType::kExtern || repr == HeapType::kNoExtern ||
             repr == HeapType::kExn || repr == HeapType::kNoExn;
@@ -2611,7 +2611,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
     }
   }
 
-  switch (expected_canonical.heap_representation_non_shared()) {
+  switch (expected.heap_representation_non_shared()) {
     case HeapType::kFunc: {
       if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
             WasmCapiFunction::IsWasmCapiFunction(*value))) {
@@ -2707,6 +2707,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
     }
     default: {
       auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
+      DCHECK_NE(canonical_index, kInvalidCanonicalIndex);
 
       if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
         Tagged<WasmExportedFunction> function =
@@ -2714,8 +2715,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         uint32_t real_type_index = function->shared()
                                        ->wasm_exported_function_data()
                                        ->canonical_type_index();
-        if (!type_canonicalizer->IsCanonicalSubtype(
-                real_type_index, expected_canonical.ref_index())) {
+        if (!type_canonicalizer->IsCanonicalSubtype(real_type_index,
+                                                    canonical_index)) {
           *error_message =
               "assigned exported function has to be a subtype of the "
               "expected type";
@@ -2723,8 +2724,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         }
         return handle(WasmExternalFunction::cast(*value)->func_ref(), isolate);
       } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-        if (!WasmJSFunction::cast(*value)->MatchesSignature(
-                expected_canonical.ref_index())) {
+        if (!WasmJSFunction::cast(*value)->MatchesSignature(canonical_index)) {
           *error_message =
               "assigned WebAssembly.Function has to be a subtype of the "
               "expected type";
@@ -2733,7 +2733,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         return handle(WasmExternalFunction::cast(*value)->func_ref(), isolate);
       } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
         if (!WasmCapiFunction::cast(*value)->MatchesSignature(
-                expected_canonical.ref_index())) {
+                canonical_index)) {
           *error_message =
               "assigned C API function has to be a subtype of the expected "
               "type";
@@ -2748,8 +2748,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
             WasmInstanceObject::cast(type_info->instance())->module();
         uint32_t real_canonical_index =
             real_module->isorecursive_canonical_type_ids[real_idx];
-        if (!type_canonicalizer->IsCanonicalSubtype(
-                real_canonical_index, expected_canonical.ref_index())) {
+        if (!type_canonicalizer->IsCanonicalSubtype(real_canonical_index,
+                                                    canonical_index)) {
           *error_message = "object is not a subtype of expected type";
           return {};
         }
@@ -2766,14 +2766,13 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
                                    const char** error_message) {
-  ValueType expected_canonical = expected;
-  if (expected_canonical.has_index()) {
-    uint32_t canonical_index =
-        module->isorecursive_canonical_type_ids[expected_canonical.ref_index()];
-    expected_canonical = ValueType::RefMaybeNull(
-        canonical_index, expected_canonical.nullability());
+  uint32_t canonical_index = kInvalidCanonicalIndex;
+  if (expected.has_index()) {
+    canonical_index =
+        module->isorecursive_canonical_type_ids[expected.ref_index()];
   }
-  return JSToWasmObject(isolate, value, expected_canonical, error_message);
+  return JSToWasmObject(isolate, value, expected, canonical_index,
+                        error_message);
 }
 
 Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value) {
