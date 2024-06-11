@@ -4562,7 +4562,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ StoreWord(scratch, MemOperand(sp, (PCA::kReturnValueIndex + 1) *
                                            kSystemPointerSize));
-  __ StoreWord(scratch,
+  __ StoreWord(zero_reg,
                MemOperand(sp, (PCA::kHolderV2Index + 1) * kSystemPointerSize));
   __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ StoreWord(scratch,
