@@ -3871,12 +3871,12 @@ void Simulator::DecodeRVRType() {
       break;
     case RO_ROL: {
       sreg_t shamt = rs2() & (xlen - 1);
-      set_rd((rs1() << shamt) | (rs1() >> (xlen - shamt)));
+      set_rd((reg_t(rs1()) << shamt) | (reg_t(rs1()) >> (xlen - shamt)));
       break;
     }
     case RO_ROR: {
       sreg_t shamt = rs2() & (xlen - 1);
-      set_rd((rs1() >> shamt) | (rs1() << (xlen - shamt)));
+      set_rd((reg_t(rs1()) >> shamt) | (reg_t(rs1()) << (xlen - shamt)));
       break;
     }
     case RO_BCLR: {
@@ -5315,11 +5315,12 @@ void Simulator::DecodeRVIType() {
           break;
         }
         case RO_RORI: {
+#ifdef V8_TARGET_ARCH_RISCV64
           int16_t shamt = shamt6();
-          if (shamt >= xlen) {
-            shamt = shamt5();
-          }
-          set_rd((rs1() >> shamt) | (rs1() << (xlen - shamt)));
+#else
+          int16_t shamt = shamt5();
+#endif
+          set_rd((reg_t(rs1()) >> shamt) | (reg_t(rs1()) << (xlen - shamt)));
           break;
         }
         case RO_REV8: {

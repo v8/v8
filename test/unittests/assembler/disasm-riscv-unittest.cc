@@ -182,10 +182,10 @@ TEST_F(DisasmRiscvTest, RVB) {
 
   COMPARE(rol(a0, s3, s4), "61499533       rol       a0, s3, s4");
   COMPARE(ror(a0, s3, s4), "6149d533       ror       a0, s3, s4");
-  COMPARE(orcb(a0, s3), "2879d513          orc.b       a0, s3");
+  COMPARE(orcb(a0, s3), "2879d513       orc.b     a0, s3");
 #ifdef V8_TARGET_ARCH_RISCV64
-  COMPARE(rori(a0, s3, 63), "63f9d513      rori      a0, s3, 63");
-  COMPARE(roriw(a0, s3, 31), "61f9d51b       roriw    a0, s3, 31");
+  COMPARE(rori(a0, s3, 63), "63f9d513       rori      a0, s3, 63");
+  COMPARE(roriw(a0, s3, 31), "61f9d51b       roriw     a0, s3, 31");
   COMPARE(rolw(a0, s3, s4), "6149953b       rolw     a0, s3, s4");
   COMPARE(rorw(a0, s3, s4), "6149d53b       rorw     a0, s3, s4");
 #else

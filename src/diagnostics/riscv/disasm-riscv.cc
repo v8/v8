@@ -1025,10 +1025,10 @@ void Decoder::DecodeRType(Instruction* instr) {
       Format(instr, "zext.h    'rd, 'rs1");
       break;
     case RO_ROL:
-      Format(instr, "rol      'rd, 'rs1, 'rs2");
+      Format(instr, "rol       'rd, 'rs1, 'rs2");
       break;
     case RO_ROR:
-      Format(instr, "ror      'rd, 'rs1, 'rs2");
+      Format(instr, "ror       'rd, 'rs1, 'rs2");
       break;
     case RO_BCLR:
       Format(instr, "bclr      'rd, 'rs1, 'rs2");
@@ -1603,14 +1603,14 @@ void Decoder::DecodeIType(Instruction* instr) {
           Format(instr, "bexti     'rd, 'rs1, 's64");
           break;
         case RO_ORCB&(kFunct6Mask | OP_SHR):
-          Format(instr, "orc.b    'rd, 'rs1");
+          Format(instr, "orc.b     'rd, 'rs1");
           break;
         case RO_RORI:
 #ifdef V8_TARGET_ARCH_64_BIT
-          Format(instr, "rori 'rd, 'rs1, 's64");
+          Format(instr, "rori      'rd, 'rs1, 's64");
           break;
 #elif defined(V8_TARGET_ARCH_RISCV32)
-          Format(instr, "rori 'rd, 'rs1, 's32");
+          Format(instr, "rori      'rd, 'rs1, 's32");
           break;
 #endif
         case RO_REV8: {
@@ -1669,7 +1669,7 @@ void Decoder::DecodeIType(Instruction* instr) {
           Format(instr, "sraiw     'rd, 'rs1, 's32");
           break;
         case RO_RORIW:
-          Format(instr, "roriw    'rd, 'rs1, 's32");
+          Format(instr, "roriw     'rd, 'rs1, 's32");
           break;
         default:
           UNSUPPORTED_RISCV();

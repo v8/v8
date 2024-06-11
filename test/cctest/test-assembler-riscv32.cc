@@ -408,7 +408,7 @@ UTEST_R1_FORM_WITH_RES(zexth, int32_t, int32_t, 0xB080, 0xB080)
 UTEST_R2_FORM_WITH_RES(rol, uint32_t, 16, 2, 64)
 UTEST_R2_FORM_WITH_RES(ror, uint32_t, 16, 2, 4)
 UTEST_I_FORM_WITH_RES(rori, int32_t, 16, 2, 4)
-UTEST_R1_FORM_WITH_RES(orcb, int32_t, int32_t, 0x10010011, 0xFFFF00FF)
+UTEST_R1_FORM_WITH_RES(orcb, int32_t, int32_t, 0x10010011, int32_t(0xFFFF00FF))
 
 // -- Memory fences --
 // void fence(uint8_t pred, uint8_t succ);
