@@ -3143,25 +3143,15 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(Register count) {
   Alsl_d(sp, count, sp, kSystemPointerSizeLog2);
-  if (mode == kCountExcludesReceiver) {
-    Add_d(sp, sp, kSystemPointerSize);
-  }
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
-                                                     Register receiver,
-                                                     ArgumentsCountMode mode) {
+                                                     Register receiver) {
   DCHECK(!AreAliased(argc, receiver));
-  if (mode == kCountExcludesReceiver) {
-    // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, kCountIncludesReceiver);
-    St_d(receiver, MemOperand(sp, 0));
-  } else {
-    DropArguments(argc, mode);
-    Push(receiver);
-  }
+  DropArguments(argc);
+  Push(receiver);
 }
 
 void MacroAssembler::Ret(Condition cond, Register rj, const Operand& rk) {

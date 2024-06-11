@@ -4615,25 +4615,15 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(Register count) {
   Dlsa(sp, sp, count, kPointerSizeLog2);
-  if (mode == kCountExcludesReceiver) {
-    Daddu(sp, sp, kSystemPointerSize);
-  }
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
-                                                     Register receiver,
-                                                     ArgumentsCountMode mode) {
+                                                     Register receiver) {
   DCHECK(!AreAliased(argc, receiver));
-  if (mode == kCountExcludesReceiver) {
-    // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, kCountIncludesReceiver);
-    Sd(receiver, MemOperand(sp));
-  } else {
-    DropArguments(argc, mode);
-    push(receiver);
-  }
+  DropArguments(argc);
+  push(receiver);
 }
 
 void MacroAssembler::DropAndRet(int drop) {

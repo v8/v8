@@ -557,9 +557,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // Leave the frame (also dropping the register file).
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
-  // Drop receiver + arguments.
-  __ masm()
-      -> DropArguments(params_size, MacroAssembler::kCountIncludesReceiver);
+  // Drop arguments.
+  __ masm()->DropArguments(params_size);
 
   __ masm()->Ret();
 }
