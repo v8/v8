@@ -3571,8 +3571,17 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   if (!known_node_aspects().IsValid(it)) {
     return StaticTypeForNode(broker(), local_isolate(), node);
   }
-  DCHECK(NodeTypeIs(it->second.type(),
-                    StaticTypeForNode(broker(), local_isolate(), node)));
+#ifdef DEBUG
+  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
+  NodeType actual_type = it->second.type();
+  if (!NodeTypeIs(actual_type, static_type)) {
+    // In case we needed a numerical alternative of a smi value, the type
+    // must generalize. In all other cases the node info type should reflect the
+    // actual type.
+    DCHECK(static_type == NodeType::kSmi && actual_type == NodeType::kNumber &&
+           !known_node_aspects().TryGetInfoFor(node)->alternative().has_none());
+  }
+#endif  // DEBUG
   return it->second.type();
 }
 

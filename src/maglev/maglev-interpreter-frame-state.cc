@@ -655,7 +655,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 }
 void MergePointInterpreterFrameState::MergeLoopValue(
     MaglevGraphBuilder* builder, interpreter::Register owner,
-    KnownNodeAspects& unmerged_aspects, ValueNode* merged,
+    const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
     ValueNode* unmerged) {
   Phi* result = merged->TryCast<Phi>();
   if (result == nullptr || result->merge_state() != this) {

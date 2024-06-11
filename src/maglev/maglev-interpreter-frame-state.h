@@ -950,8 +950,8 @@ class MergePointInterpreterFrameState {
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,
-                      KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-                      ValueNode* unmerged);
+                      const KnownNodeAspects& unmerged_aspects,
+                      ValueNode* merged, ValueNode* unmerged);
 
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
