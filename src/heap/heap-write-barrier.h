@@ -78,6 +78,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 
   static inline void Shared(Tagged<InstructionStream> host, RelocInfo*,
                             Tagged<HeapObject> value);
+  static void Shared(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                     Tagged<TrustedObject> value);
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);

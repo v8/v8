@@ -28,6 +28,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base/basic-slot-set.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
@@ -1914,6 +1915,29 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         });
     if (typed_slot_count == 0) {
       chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
+    }
+
+    const auto protected_slot_count =
+        RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Iterate(
+            chunk,
+            [collector = this](MaybeObjectSlot slot) {
+              ProtectedPointerSlot protected_slot(slot.address());
+              Tagged<MaybeObject> obj = protected_slot.Relaxed_Load();
+              Tagged<HeapObject> heap_object;
+
+              if (obj.GetHeapObject(&heap_object) &&
+                  InWritableSharedSpace(heap_object)) {
+                collector->MarkRootObject(
+                    Root::kClientHeap, heap_object,
+                    MarkingHelper::WorklistTarget::kRegular);
+                return KEEP_SLOT;
+              } else {
+                return REMOVE_SLOT;
+              }
+            },
+            SlotSet::FREE_EMPTY_BUCKETS);
+    if (protected_slot_count == 0) {
+      chunk->ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);
     }
   }
 
@@ -3814,22 +3838,25 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   }
 }
 
+template <typename TSlot>
 static inline SlotCallbackResult UpdateOldToSharedSlot(
-    PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-  Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
+    PtrComprCageBase cage_base, TSlot slot) {
+  typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   Tagged<HeapObject> heap_obj;
 
-  if (obj.GetHeapObject(&heap_obj)) {
-    if (obj.IsWeak()) {
+  if constexpr (TSlot::kCanBeWeak) {
+    if (obj.GetHeapObjectIfWeak(&heap_obj)) {
       UpdateSlot<HeapObjectReferenceType::WEAK>(cage_base, slot, heap_obj);
-    } else {
-      UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, heap_obj);
+      return InWritableSharedSpace(heap_obj) ? KEEP_SLOT : REMOVE_SLOT;
     }
-
-    return InWritableSharedSpace(heap_obj) ? KEEP_SLOT : REMOVE_SLOT;
-  } else {
-    return REMOVE_SLOT;
   }
+
+  if (obj.GetHeapObjectIfStrong(&heap_obj)) {
+    UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, heap_obj);
+    return InWritableSharedSpace(heap_obj) ? KEEP_SLOT : REMOVE_SLOT;
+  }
+
+  return REMOVE_SLOT;
 }
 
 template <typename TSlot>
@@ -5211,8 +5238,23 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    if (slot_count == 0 || chunk->InYoungGeneration())
+    if (slot_count == 0 || chunk->InYoungGeneration()) {
       page->ReleaseSlotSet(OLD_TO_SHARED);
+    }
+
+    const PtrComprCageBase unused_cage_base(kNullAddress);
+
+    const auto protected_slot_count =
+        RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Iterate(
+            page,
+            [unused_cage_base](MaybeObjectSlot slot) {
+              ProtectedPointerSlot protected_slot(slot.address());
+              return UpdateOldToSharedSlot(unused_cage_base, protected_slot);
+            },
+            SlotSet::FREE_EMPTY_BUCKETS);
+    if (protected_slot_count == 0) {
+      page->ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);
+    }
 
     if (!chunk->executable()) {
       DCHECK_NULL(page->typed_slot_set<OLD_TO_SHARED>());
@@ -5572,6 +5614,11 @@ void MarkCompactCollector::Sweep() {
     GCTracer::Scope sweep_scope(
         heap_->tracer(), GCTracer::Scope::MC_SWEEP_TRUSTED, ThreadKind::kMain);
     StartSweepSpace(heap_->trusted_space());
+  }
+  if (heap_->shared_trusted_space()) {
+    GCTracer::Scope sweep_scope(
+        heap_->tracer(), GCTracer::Scope::MC_SWEEP_SHARED, ThreadKind::kMain);
+    StartSweepSpace(heap_->shared_trusted_space());
   }
   {
     GCTracer::Scope sweep_scope(heap_->tracer(),

@@ -4050,6 +4050,8 @@ void Heap::NotifyObjectLayoutChange(
           chunk, clear_range_start, clear_range_end,
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
     }
+
+    DCHECK(!chunk->InTrustedSpace());
   }
 
   // During external pointer table compaction, the external pointer table

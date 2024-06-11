@@ -952,6 +952,8 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
   // during and after a full GC.
   RememberedSet<OLD_TO_SHARED>::RemoveRange(page, free_start, free_end,
                                             SlotSet::KEEP_EMPTY_BUCKETS);
+  RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::RemoveRange(
+      page, free_start, free_end, SlotSet::KEEP_EMPTY_BUCKETS);
 
   if (record_free_ranges) {
     MemoryChunk* chunk = page->Chunk();
@@ -964,6 +966,9 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
 void Sweeper::CleanupTypedSlotsInFreeMemory(
     PageMetadata* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
     SweepingMode sweeping_mode) {
+  // No support for typed trusted-to-shared-trusted pointers.
+  DCHECK_NULL(page->typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>());
+
   if (sweeping_mode == SweepingMode::kEagerDuringGC) {
     page->ClearTypedSlotsInFreeMemory<OLD_TO_NEW>(free_ranges_map);
 
@@ -971,7 +976,6 @@ void Sweeper::CleanupTypedSlotsInFreeMemory(
     // Also code objects are never right-trimmed, so there cannot be any slots
     // in a free range.
     page->AssertNoTypedSlotsInFreeMemory<OLD_TO_OLD>(free_ranges_map);
-
     page->ClearTypedSlotsInFreeMemory<OLD_TO_SHARED>(free_ranges_map);
     return;
   }
@@ -1004,6 +1008,7 @@ void Sweeper::RawSweep(PageMetadata* p,
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
          space->identity() == SHARED_SPACE ||
          space->identity() == TRUSTED_SPACE ||
+         space->identity() == SHARED_TRUSTED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->Chunk()->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());

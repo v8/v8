@@ -183,7 +183,7 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
 
 PagedSpace* Heap::paged_space(int idx) const {
   DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE ||
-         idx == TRUSTED_SPACE);
+         idx == TRUSTED_SPACE || idx == SHARED_TRUSTED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 

@@ -229,8 +229,13 @@ inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
     return;
   }
 
-  // Protected pointers are only used within trusted space.
-  DCHECK(!MemoryChunk::FromHeapObject(value)->IsYoungOrSharedChunk());
+  // Protected pointers are only used within trusted and shared trusted space.
+  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
+                 !MemoryChunk::FromHeapObject(value)->InYoungGeneration());
+
+  if (MemoryChunk::FromHeapObject(value)->InWritableSharedSpace()) {
+    WriteBarrier::Shared(host, slot, value);
+  }
 
   WriteBarrier::Marking(host, slot, value);
 }

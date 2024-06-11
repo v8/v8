@@ -8,6 +8,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
@@ -175,12 +176,17 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // Old-to-shared slots may survive GC but there should never be any slots in
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
-    if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
-        id == NEW_LO_SPACE) {
+    if (IsAnySharedSpace(id) || IsAnyNewSpace(id)) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+      DCHECK_NULL(
+          (chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED, AccessMode::ATOMIC>()));
     }
+
+    // No support for trusted-to-shared-trusted typed slots.
+    DCHECK_NULL((chunk->typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>()));
   }
+
   if (v8_flags.sticky_mark_bits) {
     OldGenerationMemoryChunkIterator::ForAll(
         heap, [](MutablePageMetadata* chunk) {

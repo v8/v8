@@ -6,6 +6,7 @@
 
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set.h"
 
@@ -53,6 +54,12 @@ void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
 
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+
+  DCHECK(!Chunk()->InTrustedSpace());
+  DCHECK_NULL(slot_set<TRUSTED_TO_TRUSTED>());
+  DCHECK_NULL(typed_slot_set<TRUSTED_TO_TRUSTED>());
+  DCHECK_NULL(slot_set<TRUSTED_TO_SHARED_TRUSTED>());
+  DCHECK_NULL(typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>());
 
   // area_end() might not be aligned to a full bucket size with large objects.
   // Align it to bucket size such that the following RemoveRange invocation just

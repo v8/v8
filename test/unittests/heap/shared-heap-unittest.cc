@@ -236,6 +236,125 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedTrustedLargeObjectSpace) {
       });
 }
 
+TEST_F(SharedHeapTest, TrustedToSharedTrustedPointer) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
+               ->Metadata()
+               ->owner()
+               ->identity(),
+           SHARED_TRUSTED_SPACE);
+
+  // Use random bytes here since we don't ever run the bytecode.
+  constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
+  constexpr int kRawBytesSize = sizeof(kRawBytes);
+  constexpr int32_t kFrameSize = 32;
+  constexpr uint16_t kParameterCount = 2;
+  constexpr uint16_t kMaxArguments = 0;
+
+  Handle<BytecodeArray> bc = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
+  CHECK_EQ(MemoryChunk::FromHeapObject(*bc)->Metadata()->owner()->identity(),
+           TRUSTED_SPACE);
+
+  InvokeMajorGC(isolate);
+
+  USE(bc);
+}
+
+namespace {
+class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
+ public:
+  explicit TrustedToSharedTrustedPointerOnClient(ParkingSemaphore* sem_ready,
+                                                 ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("TrustedToSharedTrustedPointerOnClient")),
+        sema_ready_(sem_ready),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    SetupClientIsolateAndRunCallback([this](v8::Isolate* client_isolate,
+                                            Isolate* i_client_isolate) {
+      Factory* factory = i_client_isolate->factory();
+      HandleScope scope(i_client_isolate);
+      Handle<BytecodeArray> keep_alive_bc;
+
+      {
+        HandleScope nested_scope(i_client_isolate);
+        Handle<TrustedFixedArray> constant_pool =
+            factory->NewTrustedFixedArray(0);
+        Handle<TrustedByteArray> handler_table =
+            factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
+        CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
+                     ->Metadata()
+                     ->owner()
+                     ->identity(),
+                 SHARED_TRUSTED_SPACE);
+
+        // Use random bytes here since we don't ever run the bytecode.
+        constexpr uint8_t kRawBytes[] = {0x1, 0x2, 0x3, 0x4};
+        constexpr int kRawBytesSize = sizeof(kRawBytes);
+        constexpr int32_t kFrameSize = 32;
+        constexpr uint16_t kParameterCount = 2;
+        constexpr uint16_t kMaxArguments = 0;
+
+        Handle<BytecodeArray> bc = factory->NewBytecodeArray(
+            kRawBytesSize, kRawBytes, kFrameSize, kParameterCount,
+            kMaxArguments, constant_pool, handler_table);
+        keep_alive_bc = nested_scope.CloseAndEscape(bc);
+      }
+
+      sema_ready_->Signal();
+      sema_done_->ParkedWait(i_client_isolate->main_thread_local_isolate());
+
+      Tagged<TrustedByteArray> handler_table = keep_alive_bc->handler_table();
+      CHECK(IsTrustedByteArray(handler_table));
+      CHECK_EQ(handler_table->length(), 3);
+
+      v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
+                                    client_isolate);
+    });
+  }
+
+ private:
+  ParkingSemaphore* sema_ready_;
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, TrustedToSharedTrustedPointerOnClient) {
+  std::vector<std::unique_ptr<TrustedToSharedTrustedPointerOnClient>> threads;
+  const int kThreads = 4;
+
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_done(0);
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread = std::make_unique<TrustedToSharedTrustedPointerOnClient>(
+        &sema_ready, &sema_done);
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  for (int i = 0; i < kThreads; i++) {
+    sema_ready.ParkedWait(local_isolate);
+  }
+
+  InvokeMajorGC(i_isolate());
+
+  for (int i = 0; i < kThreads; i++) {
+    sema_done.Signal();
+  }
+
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
+}
+
 namespace {
 class SharedMapSpaceAllocationThread final : public ParkingThread {
  public:

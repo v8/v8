@@ -5,6 +5,7 @@
 #include "src/heap/heap-verifier.h"
 
 #include "include/v8-locker.h"
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
@@ -479,8 +480,12 @@ void HeapVerification::VerifyReadOnlyHeap() {
 class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
  public:
   SlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
-                       std::set<std::pair<SlotType, Address>>* typed)
-      : ObjectVisitorWithCageBases(isolate), untyped_(untyped), typed_(typed) {}
+                       std::set<std::pair<SlotType, Address>>* typed,
+                       std::set<Address>* protected_pointer)
+      : ObjectVisitorWithCageBases(isolate),
+        untyped_(untyped),
+        typed_(typed),
+        protected_(protected_pointer) {}
 
   virtual bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
                                       Tagged<MaybeObject> target) = 0;
@@ -539,6 +544,14 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot) override {
+    if (ShouldHaveBeenRecorded(host, slot.load())) {
+      CHECK_NOT_NULL(protected_);
+      CHECK_GT(protected_->count(slot.address()), 0);
+    }
+  }
+
  protected:
   bool InUntypedSet(ObjectSlot slot) {
     return untyped_->count(slot.address()) > 0;
@@ -550,6 +563,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   }
   std::set<Address>* untyped_;
   std::set<std::pair<SlotType, Address>>* typed_;
+  std::set<Address>* protected_;
 };
 
 class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
@@ -558,7 +572,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
       Isolate* isolate, std::set<Address>* untyped,
       std::set<std::pair<SlotType, Address>>* typed,
       EphemeronRememberedSet::TableMap* ephemeron_remembered_set)
-      : SlotVerifyingVisitor(isolate, untyped, typed),
+      : SlotVerifyingVisitor(isolate, untyped, typed, nullptr),
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
@@ -596,8 +610,9 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
 class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
  public:
   OldToSharedSlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
-                                  std::set<std::pair<SlotType, Address>>* typed)
-      : SlotVerifyingVisitor(isolate, untyped, typed) {}
+                                  std::set<std::pair<SlotType, Address>>* typed,
+                                  std::set<Address>* protected_pointer)
+      : SlotVerifyingVisitor(isolate, untyped, typed, protected_pointer) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
                               Tagged<MaybeObject> target) override {
@@ -706,13 +721,25 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
   std::set<std::pair<SlotType, Address>> typed_old_to_shared;
   CollectSlots<OLD_TO_SHARED>(chunk, start, end, &old_to_shared,
                               &typed_old_to_shared);
+  std::set<Address> trusted_to_shared_trusted;
+  CollectSlots<TRUSTED_TO_SHARED_TRUSTED>(chunk, start, end,
+                                          &trusted_to_shared_trusted, nullptr);
   OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
-      isolate(), &old_to_shared, &typed_old_to_shared);
+      isolate(), &old_to_shared, &typed_old_to_shared,
+      &trusted_to_shared_trusted);
   object->IterateBody(cage_base_, &old_to_shared_visitor);
+
+  if (!MemoryChunk::FromHeapObject(object)->IsTrusted()) {
+    CHECK_NULL(chunk->slot_set<TRUSTED_TO_TRUSTED>());
+    CHECK_NULL(chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED>());
+  }
 
   if (InWritableSharedSpace(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
+
+    CHECK_NULL(chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED>());
+    CHECK_NULL(chunk->typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>());
 
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());

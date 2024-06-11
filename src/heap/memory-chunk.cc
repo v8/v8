@@ -143,9 +143,10 @@ bool MemoryChunk::InReadOnlySpace() const {
 
 bool MemoryChunk::IsTrusted() const {
   bool is_trusted = IsFlagSet(IS_TRUSTED);
-  DCHECK_EQ(is_trusted,
-            Metadata()->owner()->identity() == TRUSTED_SPACE ||
-                Metadata()->owner()->identity() == TRUSTED_LO_SPACE);
+#if DEBUG
+  AllocationSpace id = Metadata()->owner()->identity();
+  DCHECK_EQ(is_trusted, IsAnyTrustedSpace(id) || IsAnyCodeSpace(id));
+#endif
   return is_trusted;
 }
 

@@ -6,6 +6,8 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/marking-barrier-inl.h"
+#include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -85,6 +87,17 @@ void WriteBarrier::SharedSlow(Tagged<InstructionStream> host,
   base::MutexGuard write_scope(info.page_metadata->mutex());
   RememberedSet<OLD_TO_SHARED>::InsertTyped(info.page_metadata, info.slot_type,
                                             info.offset);
+}
+
+void WriteBarrier::Shared(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                          Tagged<TrustedObject> value) {
+  DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
+  if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
+    MutablePageMetadata* host_chunk_metadata =
+        MutablePageMetadata::FromHeapObject(host);
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+        host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
+  }
 }
 
 void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
