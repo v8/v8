@@ -1266,8 +1266,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            const char* reason) {
   DCHECK(!fast_map->is_dictionary_map());
 
-  Tagged<Map> meta_map = fast_map->map();
-  Handle<Object> maybe_cache(meta_map->native_context()->normalized_map_cache(),
+  Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
                              isolate);
   if (fast_map->is_prototype_map() || IsUndefined(*maybe_cache, isolate)) {
     use_cache = false;

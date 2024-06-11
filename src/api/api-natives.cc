@@ -405,8 +405,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
       Handle<Object> protoype_provider_templ(
           data->GetPrototypeProviderTemplate(), isolate);
       if (IsUndefined(*protoype_provider_templ, isolate)) {
-        prototype = isolate->factory()->NewJSObject(
-            handle(native_context->object_function(), isolate));
+        prototype = isolate->factory()->NewJSObject(isolate->object_function());
       } else {
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, prototype,
