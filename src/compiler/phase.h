@@ -45,7 +45,7 @@ inline constexpr char kRegisterAllocatorVerifierZoneName[] =
 
 class TFPipelineData;
 class Schedule;
-void PrintCode(Isolate* isolate, Handle<Code> code,
+void PrintCode(Isolate* isolate, DirectHandle<Code> code,
                OptimizedCompilationInfo* info);
 void TraceSchedule(OptimizedCompilationInfo* info, TFPipelineData* data,
                    Schedule* schedule, const char* phase_name);

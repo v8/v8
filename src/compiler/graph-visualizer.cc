@@ -68,7 +68,7 @@ std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
 
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
-                             Handle<BytecodeArray> bytecode_array) {
+                             DirectHandle<BytecodeArray> bytecode_array) {
   os << "\"" << source_id << "\" : {";
   os << "\"sourceId\": " << source_id;
   os << ", \"functionName\": \"" << function_name.get() << "\"";

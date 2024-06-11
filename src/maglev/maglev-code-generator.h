@@ -38,7 +38,7 @@ class MaglevCodeGenerator final {
   void EmitMetadata();
   void RecordInlinedFunctions();
 
-  GlobalHandleVector<Map> CollectRetainedMaps(Handle<Code> code);
+  GlobalHandleVector<Map> CollectRetainedMaps(DirectHandle<Code> code);
   Handle<DeoptimizationData> GenerateDeoptimizationData(
       LocalIsolate* local_isolate);
   MaybeHandle<Code> BuildCodeObject(LocalIsolate* local_isolate);

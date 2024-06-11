@@ -50,7 +50,7 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
   BytecodeGenerator* generator() { return &generator_; }
   template <typename IsolateT>
   void CheckAndPrintBytecodeMismatch(IsolateT* isolate, Handle<Script> script,
-                                     Handle<BytecodeArray> bytecode);
+                                     DirectHandle<BytecodeArray> bytecode);
 
   template <typename IsolateT>
   Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
@@ -152,7 +152,7 @@ void MaybePrintAst(ParseInfo* parse_info,
 #endif  // DEBUG
 }
 
-bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
+bool ShouldPrintBytecode(DirectHandle<SharedFunctionInfo> shared) {
   if (!v8_flags.print_bytecode) return false;
 
   // Checks whether function passed the filter.
@@ -207,13 +207,14 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 #ifdef DEBUG
 template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    IsolateT* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
+    IsolateT* isolate, Handle<Script> script,
+    DirectHandle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
     DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
 
-    Handle<BytecodeArray> new_bytecode =
+    DirectHandle<BytecodeArray> new_bytecode =
         generator()->FinalizeBytecode(isolate, script);
 
     std::cerr << "Bytecode mismatch";
@@ -275,7 +276,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 
   if (compilation_info()->SourcePositionRecordingMode() ==
       SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
-    Handle<TrustedByteArray> source_position_table =
+    DirectHandle<TrustedByteArray> source_position_table =
         generator()->FinalizeSourcePositionTable(isolate);
     bytecodes->set_source_position_table(*source_position_table, kReleaseStore);
   }
@@ -340,7 +341,7 @@ void Interpreter::Initialize() {
 
   // Set the interpreter entry trampoline entry point now that builtins are
   // initialized.
-  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  DirectHandle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
   DCHECK(!code->has_instruction_stream());
   interpreter_entry_trampoline_instruction_start_ = code->instruction_start();

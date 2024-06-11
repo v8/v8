@@ -82,7 +82,7 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
 
 namespace {
 
-bool HasExternalForwardingIndex(Handle<String> string) {
+bool HasExternalForwardingIndex(DirectHandle<String> string) {
   if (!string->IsShared()) return false;
   uint32_t raw_hash = string->raw_hash_field(kAcquireLoad);
   return Name::IsExternalForwardingIndex(raw_hash);
@@ -143,7 +143,7 @@ void ExternalizeStringExtension::Externalize(
 namespace {
 
 MaybeHandle<String> CopyConsStringToOld(Isolate* isolate,
-                                        Handle<ConsString> string) {
+                                        DirectHandle<ConsString> string) {
   return isolate->factory()->NewConsString(handle(string->first(), isolate),
                                            handle(string->second(), isolate),
                                            AllocationType::kOld);

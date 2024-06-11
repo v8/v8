@@ -977,7 +977,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(isolate(), deopt_count);
 
-  Handle<DeoptimizationFrameTranslation> translation_array =
+  DirectHandle<DeoptimizationFrameTranslation> translation_array =
       translations_.ToFrameTranslation(
           isolate()->main_thread_local_isolate()->factory());
 
@@ -991,14 +991,14 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {
-    Handle<SharedFunctionInfoWrapper> sfi_wrapper =
+    DirectHandle<SharedFunctionInfoWrapper> sfi_wrapper =
         isolate()->factory()->NewSharedFunctionInfoWrapper(info->shared_info());
     data->SetSharedFunctionInfoWrapper(*sfi_wrapper);
   } else {
     data->SetSharedFunctionInfoWrapper(Smi::zero());
   }
 
-  Handle<DeoptimizationLiteralArray> literals =
+  DirectHandle<DeoptimizationLiteralArray> literals =
       isolate()->factory()->NewDeoptimizationLiteralArray(
           static_cast<int>(deoptimization_literals_.size()));
   for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
@@ -1008,7 +1008,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetLiteralArray(*literals);
 
-  Handle<TrustedPodArray<InliningPosition>> inl_pos =
+  DirectHandle<TrustedPodArray<InliningPosition>> inl_pos =
       CreateInliningPositions(info, isolate());
   data->SetInliningPositions(*inl_pos);
 

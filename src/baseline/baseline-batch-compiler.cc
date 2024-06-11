@@ -95,7 +95,8 @@ class BaselineCompilerTask {
 
 class BaselineBatchCompilerJob {
  public:
-  BaselineBatchCompilerJob(Isolate* isolate, Handle<WeakFixedArray> task_queue,
+  BaselineBatchCompilerJob(Isolate* isolate,
+                           DirectHandle<WeakFixedArray> task_queue,
                            int batch_size) {
     handles_ = isolate->NewPersistentHandles();
     tasks_.reserve(batch_size);
@@ -253,7 +254,7 @@ bool BaselineBatchCompiler::concurrent() const {
 }
 
 void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
   // Immediately compile the function if batch compilation is disabled.
   if (!is_enabled()) {
     IsCompiledScope is_compiled_scope(
@@ -282,7 +283,7 @@ void BaselineBatchCompiler::EnqueueSFI(Tagged<SharedFunctionInfo> shared) {
   }
 }
 
-void BaselineBatchCompiler::Enqueue(Handle<SharedFunctionInfo> shared) {
+void BaselineBatchCompiler::Enqueue(DirectHandle<SharedFunctionInfo> shared) {
   EnsureQueueCapacity();
   compilation_queue_->set(last_index_++, MakeWeak(*shared));
 }
@@ -300,7 +301,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
     return;
   }
   if (last_index_ >= compilation_queue_->length()) {
-    Handle<WeakFixedArray> new_queue =
+    DirectHandle<WeakFixedArray> new_queue =
         isolate_->factory()->CopyWeakFixedArrayAndGrow(compilation_queue_,
                                                        last_index_);
     GlobalHandles::Destroy(compilation_queue_.location());

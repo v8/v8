@@ -111,7 +111,7 @@ void JSHeapBroker::Retire() {
 }
 
 void JSHeapBroker::SetTargetNativeContextRef(
-    Handle<NativeContext> native_context) {
+    DirectHandle<NativeContext> native_context) {
   DCHECK(!target_native_context_.has_value());
   target_native_context_ = MakeRef(this, *native_context);
 }
@@ -193,7 +193,7 @@ bool JSHeapBroker::StackHasOverflowed() const {
              : StackLimitCheck(isolate_).HasOverflowed();
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
+bool JSHeapBroker::ObjectMayBeUninitialized(DirectHandle<Object> object) const {
   return ObjectMayBeUninitialized(*object);
 }
 
@@ -521,8 +521,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     DCHECK(maps.empty());
     MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
     if (!maybe_handler.is_null()) {
-      Handle<MegaDomHandler> handler =
-          Handle<MegaDomHandler>::cast(maybe_handler.object());
+      DirectHandle<MegaDomHandler> handler =
+          Cast<MegaDomHandler>(maybe_handler.object());
       if (!handler->accessor(kAcquireLoad).IsCleared()) {
         FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
             this, FunctionTemplateInfo::cast(

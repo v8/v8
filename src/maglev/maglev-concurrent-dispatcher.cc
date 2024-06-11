@@ -165,7 +165,7 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 }
 
 GlobalHandleVector<Map> MaglevCompilationJob::CollectRetainedMaps(
-    Isolate* isolate, Handle<Code> code) {
+    Isolate* isolate, DirectHandle<Code> code) {
   if (v8_flags.maglev_build_code_on_background) {
     return info()->code_generator()->RetainedMaps(isolate);
   }

@@ -332,9 +332,10 @@ class V8_NODISCARD LocalIsolateScope {
 };
 
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
-                         int source_id, Handle<SharedFunctionInfo> shared) {
+                         int source_id,
+                         DirectHandle<SharedFunctionInfo> shared) {
   if (!IsUndefined(shared->script(), isolate)) {
-    Handle<Script> script(Script::cast(shared->script()), isolate);
+    DirectHandle<Script> script(Script::cast(shared->script()), isolate);
 
     if (!IsUndefined(script->source(), isolate)) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
@@ -619,7 +620,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, TFPipelineData* data,
 }
 
 // Print the code after compiling it.
-void PrintCode(Isolate* isolate, Handle<Code> code,
+void PrintCode(Isolate* isolate, DirectHandle<Code> code,
                OptimizedCompilationInfo* info) {
   if (v8_flags.print_opt_source && info->IsOptimizing()) {
     PrintParticipatingSource(info, isolate);
@@ -638,7 +639,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     // Print the source code if available.
     const bool print_source = info->IsOptimizing();
     if (print_source) {
-      Handle<SharedFunctionInfo> shared = info->shared_info();
+      DirectHandle<SharedFunctionInfo> shared = info->shared_info();
       if (IsScript(shared->script()) &&
           !IsUndefined(Script::cast(shared->script())->source(), isolate)) {
         os << "--- Raw source ---\n";
@@ -663,7 +664,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
       os << "--- Code ---\n";
     }
     if (print_source) {
-      Handle<SharedFunctionInfo> shared = info->shared_info();
+      DirectHandle<SharedFunctionInfo> shared = info->shared_info();
       os << "source_position = " << shared->StartPosition() << "\n";
     }
     code->Disassemble(debug_name.get(), os, isolate);
@@ -685,7 +686,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 // part of a CheckMaps, this check will always fail afterwards and deoptimize.
 // This in turn relies on a runtime invariant that map migrations always target
 // newly allocated maps.
-bool CheckNoDeprecatedMaps(Handle<Code> code, Isolate* isolate) {
+bool CheckNoDeprecatedMaps(DirectHandle<Code> code, Isolate* isolate) {
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));

@@ -1306,7 +1306,7 @@ class MaglevFrameTranslationBuilder {
   }
 
   void BuildHeapNumber(Float64 number) {
-    Handle<Object> value =
+    DirectHandle<Object> value =
         local_isolate_->factory()->NewHeapNumberFromBits<AllocationType::kOld>(
             number.get_bits());
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
@@ -1567,7 +1567,7 @@ GlobalHandleVector<Map> MaglevCodeGenerator::RetainedMaps(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   GlobalHandleVector<Map> maps(isolate->heap());
   maps.Reserve(retained_maps_.size());
-  for (Handle<Map> map : retained_maps_) maps.Push(*map);
+  for (DirectHandle<Map> map : retained_maps_) maps.Push(*map);
   return maps;
 }
 
@@ -1750,7 +1750,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
 }
 
 GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
-    Handle<Code> code) {
+    DirectHandle<Code> code) {
   DCHECK(code->is_optimized_code());
 
   DisallowGarbageCollection no_gc;
@@ -1781,10 +1781,10 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(local_isolate, deopt_count);
 
-  Handle<DeoptimizationFrameTranslation> translations =
+  DirectHandle<DeoptimizationFrameTranslation> translations =
       frame_translation_builder_.ToFrameTranslation(local_isolate->factory());
 
-  Handle<SharedFunctionInfoWrapper> sfi_wrapper =
+  DirectHandle<SharedFunctionInfoWrapper> sfi_wrapper =
       local_isolate->factory()->NewSharedFunctionInfoWrapper(
           code_gen_state_.compilation_info()
               ->toplevel_compilation_unit()
@@ -1809,10 +1809,10 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   int inlined_functions_size =
       static_cast<int>(graph_->inlined_functions().size());
-  Handle<DeoptimizationLiteralArray> literals =
+  DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
           deopt_literals_.size() + inlined_functions_size + 1);
-  Handle<TrustedPodArray<InliningPosition>> inlining_positions =
+  DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);
 

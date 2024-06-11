@@ -115,9 +115,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   NativeContextRef target_native_context() const {
     return target_native_context_.value();
   }
-  void SetTargetNativeContextRef(Handle<NativeContext> native_context);
+  void SetTargetNativeContextRef(DirectHandle<NativeContext> native_context);
 
-  void InitializeAndStartSerializing(Handle<NativeContext> native_context);
+  void InitializeAndStartSerializing(
+      DirectHandle<NativeContext> native_context);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -383,7 +384,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // If this returns false, the object is guaranteed to be fully initialized and
   // thus safe to read from a memory safety perspective. The converse does not
   // necessarily hold.
-  bool ObjectMayBeUninitialized(Handle<Object> object) const;
+  bool ObjectMayBeUninitialized(DirectHandle<Object> object) const;
   bool ObjectMayBeUninitialized(Tagged<Object> object) const;
   bool ObjectMayBeUninitialized(Tagged<HeapObject> object) const;
 

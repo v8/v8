@@ -372,9 +372,9 @@ base::Optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
 
 // Tries to get the property at {dict_index}. If we are within bounds of the
 // object, we are guaranteed to see valid heap words even if the data is wrong.
-OptionalObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
-                                                   Handle<JSObject> receiver,
-                                                   InternalIndex dict_index) {
+OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
+    JSHeapBroker* broker, DirectHandle<JSObject> receiver,
+    InternalIndex dict_index) {
   Handle<Object> constant;
   {
     DisallowGarbageCollection no_gc;
@@ -597,7 +597,7 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker);
 
   int slack = std::numeric_limits<int>::max();
-  for (Handle<Map> m : maps) {
+  for (DirectHandle<Map> m : maps) {
     slack = std::min(slack, m->UnusedPropertyFields());
   }
 
@@ -611,7 +611,7 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   DCHECK(!serialized_);
 
   TraceScope tracer(broker, this, "JSFunctionData::Cache");
-  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
+  DirectHandle<JSFunction> function = Cast<JSFunction>(object());
 
   // This function may run on the background thread and thus must be individual
   // fields in a thread-safe manner. Consistency between fields is *not*
@@ -679,7 +679,7 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
 bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   DCHECK(serialized_);
 
-  Handle<JSFunction> f = Handle<JSFunction>::cast(object());
+  DirectHandle<JSFunction> f = Cast<JSFunction>(object());
 
   if (*context_->object() != f->context()) {
     TRACE_BROKER_MISSING(broker, "JSFunction::context");
@@ -815,7 +815,8 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
 
 namespace {
 
-bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
+bool IsReadOnlyLengthDescriptor(Isolate* isolate,
+                                DirectHandle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Tagged<DescriptorArray> descriptors =
       jsarray_map->instance_descriptors(isolate, kRelaxedLoad);
@@ -830,7 +831,7 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
 // compiler checks protectors through the compilation dependency mechanism; it
 // doesn't make sense to do that here as part of every MapData construction.
 // Callers *must* take care to take the correct dependency themselves.
-bool SupportsFastArrayIteration(JSHeapBroker* broker, Handle<Map> map) {
+bool SupportsFastArrayIteration(JSHeapBroker* broker, DirectHandle<Map> map) {
   return map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(map->elements_kind()) &&
          IsJSArray(map->prototype()) &&
@@ -838,7 +839,7 @@ bool SupportsFastArrayIteration(JSHeapBroker* broker, Handle<Map> map) {
              JSArray::cast(map->prototype())));
 }
 
-bool SupportsFastArrayResize(JSHeapBroker* broker, Handle<Map> map) {
+bool SupportsFastArrayResize(JSHeapBroker* broker, DirectHandle<Map> map) {
   return SupportsFastArrayIteration(broker, map) && map->is_extensible() &&
          !map->is_dictionary_map() &&
          !IsReadOnlyLengthDescriptor(broker->isolate(), map);
@@ -999,7 +1000,7 @@ OptionalObjectRef ContextRef::TryGetSideData(JSHeapBroker* broker,
 }
 
 void JSHeapBroker::InitializeAndStartSerializing(
-    Handle<NativeContext> target_native_context) {
+    DirectHandle<NativeContext> target_native_context) {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
 
   CHECK_EQ(mode_, kDisabled);
@@ -1980,7 +1981,7 @@ base::Optional<Tagged<Object>> JSObjectRef::GetOwnConstantElementFromHeap(
     ElementsKind elements_kind, uint32_t index) const {
   DCHECK_LE(index, JSObject::kMaxElementIndex);
 
-  Handle<JSObject> holder = object();
+  DirectHandle<JSObject> holder = object();
 
   // This block is carefully constructed to avoid Ref creation and access since
   // this method may be called after the broker has retired.
@@ -2368,7 +2369,7 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info(JSHeapBroker* broker) const {
 }
 
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
-  Handle<Map> map_handle = Handle<Map>::cast(map(broker).object());
+  DirectHandle<Map> map_handle = Cast<Map>(map(broker).object());
   // Note: implemented as an acquire-load.
   if (!map_handle->is_prototype_map()) return {};
 

@@ -51,7 +51,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
  private:
   void Print(char c);
   void Print(const char* str);
-  void Print(Handle<String> str);
+  void Print(DirectHandle<String> str);
 
   void Find(AstNode* node, bool print = false);
 

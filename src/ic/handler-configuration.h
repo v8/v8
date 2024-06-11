@@ -337,8 +337,8 @@ class StoreHandler final : public DataHandler {
       MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
 
   static Handle<Object> StoreElementTransition(
-      Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
-      KeyedAccessStoreMode store_mode,
+      Isolate* isolate, DirectHandle<Map> receiver_map,
+      DirectHandle<Map> transition, KeyedAccessStoreMode store_mode,
       MaybeHandle<Object> prev_validity_cell = MaybeHandle<Object>());
 
   static Handle<Object> StoreProxy(Isolate* isolate, Handle<Map> receiver_map,

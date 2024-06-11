@@ -73,7 +73,7 @@ namespace detail {
 
 #ifdef DEBUG
 bool Clobbers(Register target, Register reg) { return target == reg; }
-bool Clobbers(Register target, Handle<Object> handle) { return false; }
+bool Clobbers(Register target, DirectHandle<Object> handle) { return false; }
 bool Clobbers(Register target, Tagged<Smi> smi) { return false; }
 bool Clobbers(Register target, Tagged<TaggedIndex> index) { return false; }
 bool Clobbers(Register target, int32_t imm) { return false; }
@@ -85,7 +85,7 @@ bool Clobbers(Register target, interpreter::RegisterList list) { return false; }
 // match.
 bool MachineTypeMatches(MachineType type, Register reg) { return true; }
 bool MachineTypeMatches(MachineType type, MemOperand reg) { return true; }
-bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
+bool MachineTypeMatches(MachineType type, DirectHandle<HeapObject> handle) {
   return type.IsTagged() && !type.IsTaggedSigned();
 }
 bool MachineTypeMatches(MachineType type, Tagged<Smi> handle) {
@@ -258,7 +258,7 @@ const int kAverageBytecodeToInstructionRatio = 5;
 const int kAverageBytecodeToInstructionRatio = 7;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
-    Handle<BytecodeArray> bytecodes) {
+    DirectHandle<BytecodeArray> bytecodes) {
   int estimated_size;
   {
     DisallowHeapAllocation no_gc;

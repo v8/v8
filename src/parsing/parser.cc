@@ -561,7 +561,7 @@ void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
 
 }  // namespace
 
-void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
+void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
                           ParseInfo* info,
                           MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   DCHECK_EQ(script->id(), flags().script_id());
@@ -764,7 +764,8 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK_NOT_NULL(isolate);
-  Handle<FixedArray> arguments = maybe_wrapped_arguments_.ToHandleChecked();
+  DirectHandle<FixedArray> arguments =
+      maybe_wrapped_arguments_.ToHandleChecked();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
@@ -868,7 +869,7 @@ Expression* Parser::WrapREPLResult(Expression* value) {
 }
 
 void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
-                           Handle<SharedFunctionInfo> shared_info) {
+                           DirectHandle<SharedFunctionInfo> shared_info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
@@ -893,7 +894,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
       shared_info->HasOuterScopeInfo() &&
       maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
       maybe_outer_scope_info.ToHandleChecked()->EndPosition() == end_position) {
-    Handle<ScopeInfo> outer_scope_info =
+    DirectHandle<ScopeInfo> outer_scope_info =
         maybe_outer_scope_info.ToHandleChecked();
     if (outer_scope_info->HasOuterScopeInfo()) {
       deserialize_start_scope =
@@ -915,7 +916,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
   DCHECK_EQ(factory()->zone(), info->zone());
 
-  Handle<Script> script = handle(Script::cast(shared_info->script()), isolate);
+  DirectHandle<Script> script(Script::cast(shared_info->script()), isolate);
   if (shared_info->is_wrapped()) {
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
@@ -3411,7 +3412,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 template <typename IsolateT>
-void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
+void Parser::HandleSourceURLComments(IsolateT* isolate,
+                                     DirectHandle<Script> script) {
   Handle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3426,11 +3428,11 @@ void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
 }
 
 template void Parser::HandleSourceURLComments(Isolate* isolate,
-                                              Handle<Script> script);
+                                              DirectHandle<Script> script);
 template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
-                                              Handle<Script> script);
+                                              DirectHandle<Script> script);
 
-void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
+void Parser::UpdateStatistics(Isolate* isolate, DirectHandle<Script> script) {
   CHECK_NOT_NULL(isolate);
 
   // Move statistics to Isolate.
@@ -3455,7 +3457,7 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 }
 
 void Parser::UpdateStatistics(
-    Handle<Script> script,
+    DirectHandle<Script> script,
     base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counts,
     int* preparse_skipped) {
   // Move statistics to Isolate.

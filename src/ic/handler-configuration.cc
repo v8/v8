@@ -28,7 +28,7 @@ Tagged<Smi> SetBitFieldValue(Isolate* isolate, Tagged<Smi> smi_handler,
 template <typename ICHandler, bool fill_handler = true>
 int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
                             Tagged<Smi>* smi_handler,
-                            Handle<Map> lookup_start_object_map,
+                            DirectHandle<Map> lookup_start_object_map,
                             MaybeObjectHandle data1,
                             MaybeObjectHandle maybe_data2) {
   int data_size = 1;
@@ -48,7 +48,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     // So we record the original native context to which this handler
     // corresponds.
     if (fill_handler) {
-      Handle<Context> native_context = isolate->native_context();
+      DirectHandle<Context> native_context = isolate->native_context();
       handler->set_data2(MakeWeak(*native_context));
     } else {
       // Enable access checks on the lookup start object.
@@ -126,8 +126,9 @@ Handle<Object> LoadHandler::LoadFromPrototype(
   int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, lookup_start_object_map, data1, maybe_data2);
 
-  Handle<Object> validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
-      lookup_start_object_map, isolate);
+  DirectHandle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
+                                                 isolate);
 
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
@@ -148,8 +149,9 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
   int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, lookup_start_object_map, data1);
 
-  Handle<Object> validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
-      lookup_start_object_map, isolate);
+  DirectHandle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
+                                                 isolate);
   if (IsSmi(*validity_cell)) {
     DCHECK_EQ(1, data_size);
     // Lookup on lookup start object isn't supported in case of a simple smi
@@ -206,9 +208,11 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 
 // static
 Handle<Object> StoreHandler::StoreElementTransition(
-    Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
-    KeyedAccessStoreMode store_mode, MaybeHandle<Object> prev_validity_cell) {
-  Handle<Object> code = ElementsTransitionAndStoreBuiltin(isolate, store_mode);
+    Isolate* isolate, DirectHandle<Map> receiver_map,
+    DirectHandle<Map> transition, KeyedAccessStoreMode store_mode,
+    MaybeHandle<Object> prev_validity_cell) {
+  DirectHandle<Object> code =
+      ElementsTransitionAndStoreBuiltin(isolate, store_mode);
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
@@ -228,7 +232,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
 #ifdef DEBUG
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
-    Handle<DescriptorArray> descriptors(
+    DirectHandle<DescriptorArray> descriptors(
         transition_map->instance_descriptors(isolate), isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsPrivate()) {
@@ -261,7 +265,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
 #ifdef DEBUG
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
-    Handle<DescriptorArray> descriptors(
+    DirectHandle<DescriptorArray> descriptors(
         transition_map->instance_descriptors(isolate), isolate);
     // Private fields must be added via StoreOwnTransition handler.
     DCHECK(!descriptors->GetKey(descriptor)->IsPrivateName());
@@ -320,7 +324,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
   int data_size = GetHandlerDataSize<StoreHandler>(
       isolate, &smi_handler, receiver_map, data1, maybe_data2);
 
-  Handle<Object> validity_cell =
+  DirectHandle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
 
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(data_size);

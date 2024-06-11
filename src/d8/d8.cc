@@ -408,12 +408,13 @@ std::shared_ptr<Worker> GetWorkerFromInternalField(Isolate* isolate,
     return nullptr;
   }
 
-  i::Handle<i::Object> handle = Utils::OpenHandle(*object->GetInternalField(0));
+  i::DirectHandle<i::Object> handle =
+      Utils::OpenDirectHandle(*object->GetInternalField(0));
   if (IsSmi(*handle)) {
     ThrowError(isolate, "Worker is defunct because main thread is terminating");
     return nullptr;
   }
-  auto managed = i::Handle<i::Managed<Worker>>::cast(handle);
+  auto managed = i::Cast<i::Managed<Worker>>(handle);
   return managed->get();
 }
 
@@ -792,9 +793,9 @@ std::shared_ptr<ModuleEmbedderData> GetModuleDataFromContext(
     Local<Context> context) {
   v8::Local<v8::Value> module_data =
       context->GetEmbedderData(kModuleEmbedderDataIndex);
-  i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
-      i::Handle<i::Managed<ModuleEmbedderData>>::cast(
-          Utils::OpenHandle<Value, i::Object>(module_data));
+  i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
+      i::Cast<i::Managed<ModuleEmbedderData>>(
+          Utils::OpenDirectHandle<Value, i::Object>(module_data));
   return module_data_managed->get();
 }
 
@@ -957,7 +958,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   }
   if (options.compile_only) return true;
   if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
-    i::Handle<i::Script> i_script(
+    i::DirectHandle<i::Script> i_script(
         i::Script::cast(Utils::OpenDirectHandle(*script)->shared()->script()),
         i_isolate);
     // TODO(cbruni, chromium:1244145): remove once context-allocated.
@@ -2347,7 +2348,7 @@ void Shell::TestVerifySourcePositions(
         i_isolate);
   }
 
-  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);
+  i::DirectHandle<i::JSFunction> function = i::Cast<i::JSFunction>(callable);
   if (!function->shared()->HasBytecodeArray()) {
     ThrowError(isolate, "Function has no BytecodeArray attached.");
     return;
@@ -5292,7 +5293,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
     HandleScope handle_scope(isolate);
     static constexpr bool kClearRecompilableData = true;
     auto context = v8::Local<v8::Context>::New(isolate, evaluation_context_);
-    i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+    i::DirectHandle<i::Context> i_context = Utils::OpenDirectHandle(*context);
     // Stop concurrent compiles before mutating the heap.
     if (i_isolate->concurrent_recompilation_enabled()) {
       i_isolate->optimizing_compile_dispatcher()->Stop();

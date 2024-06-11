@@ -406,7 +406,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
   // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
-  Handle<DescriptorArray> descriptors =
+  DirectHandle<DescriptorArray> descriptors =
       map.instance_descriptors(broker()).object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
@@ -518,9 +518,9 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     AccessorsObjectGetter get_accessors) {
   if (holder_map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(holder_map.object()->is_prototype_map());
-    Handle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
+    DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
         PrototypeInfo::cast(holder_map.object()->prototype_info()));
-    Handle<JSModuleNamespace> module_namespace =
+    DirectHandle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
             JSModuleNamespace::cast(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
@@ -558,7 +558,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   if (!IsAccessorPair(*maybe_accessors)) {
     return PropertyAccessInfo::Invalid(zone);
   }
-  Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(maybe_accessors);
+  DirectHandle<AccessorPair> accessors = Cast<AccessorPair>(maybe_accessors);
   Handle<Object> accessor = broker->CanonicalPersistentHandle(
       access_mode == AccessMode::kLoad ? accessors->getter(kAcquireLoad)
                                        : accessors->setter(kAcquireLoad));
@@ -690,7 +690,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
       return false;
     }
 
-    Handle<JSObject> holder = maybe_holder->object();
+    DirectHandle<JSObject> holder = maybe_holder->object();
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Tagged<SwissNameDictionary> dict = holder->property_dictionary_swiss();
       *index_out = dict->FindEntry(isolate(), name.object());
@@ -1108,7 +1108,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   MapRef transition_map = maybe_transition_map.value();
 
   InternalIndex const number = transition_map.object()->LastAdded();
-  Handle<DescriptorArray> descriptors =
+  DirectHandle<DescriptorArray> descriptors =
       transition_map.instance_descriptors(broker()).object();
   PropertyDetails const details = descriptors->GetDetails(number);
 

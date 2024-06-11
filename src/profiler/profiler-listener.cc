@@ -120,8 +120,8 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       cached_inline_entries;
   bool is_shared_cross_origin = false;
   if (IsScript(shared->script(cage_base), cage_base)) {
-    Handle<Script> script =
-        handle(Script::cast(shared->script(cage_base)), isolate_);
+    DirectHandle<Script> script(Script::cast(shared->script(cage_base)),
+                                isolate_);
     line_table.reset(new SourcePositionTable());
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
@@ -392,7 +392,7 @@ const char* ProfilerListener::GetFunctionName(
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
+void ProfilerListener::AttachDeoptInlinedFrames(DirectHandle<Code> code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();

@@ -84,7 +84,7 @@ void CallPrinter::Print(const char* str) {
   builder_.AppendCString(str);
 }
 
-void CallPrinter::Print(Handle<String> str) {
+void CallPrinter::Print(DirectHandle<String> str) {
   if (!found_ || done_) return;
   num_prints_++;
   builder_.AppendString(str);

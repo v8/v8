@@ -71,7 +71,7 @@ constexpr int kBlockCountSlotSize = kInt32Size;
 }  // namespace
 
 BasicBlockProfilerData::BasicBlockProfilerData(
-    Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate) {
+    DirectHandle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate) {
   DisallowHeapAllocation no_gc;
   CopyFromJSHeap(*js_heap_data);
 }
@@ -110,7 +110,7 @@ Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
   CHECK(id_array_size_in_bytes >= 0 &&
         static_cast<size_t>(id_array_size_in_bytes) / kBlockIdSlotSize ==
             n_blocks());  // Overflow
-  Handle<FixedInt32Array> block_ids = FixedInt32Array::New(
+  DirectHandle<FixedInt32Array> block_ids = FixedInt32Array::New(
       isolate, id_array_size_in_bytes, AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
     block_ids->set(i, block_ids_[i]);
@@ -121,21 +121,21 @@ Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
   CHECK(counts_array_size_in_bytes >= 0 &&
         static_cast<size_t>(counts_array_size_in_bytes) / kBlockCountSlotSize ==
             n_blocks());  // Overflow
-  Handle<FixedUInt32Array> counts = FixedUInt32Array::New(
+  DirectHandle<FixedUInt32Array> counts = FixedUInt32Array::New(
       isolate, counts_array_size_in_bytes, AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
     counts->set(i, counts_[i]);
   }
 
-  Handle<PodArray<std::pair<int32_t, int32_t>>> branches =
+  DirectHandle<PodArray<std::pair<int32_t, int32_t>>> branches =
       PodArray<std::pair<int32_t, int32_t>>::New(
           isolate, static_cast<int>(branches_.size()), AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(branches_.size()); ++i) {
     branches->set(i, branches_[i]);
   }
-  Handle<String> name = CopyStringToJSHeap(function_name_, isolate);
-  Handle<String> schedule = CopyStringToJSHeap(schedule_, isolate);
-  Handle<String> code = CopyStringToJSHeap(code_, isolate);
+  DirectHandle<String> name = CopyStringToJSHeap(function_name_, isolate);
+  DirectHandle<String> schedule = CopyStringToJSHeap(schedule_, isolate);
+  DirectHandle<String> code = CopyStringToJSHeap(code_, isolate);
 
   return isolate->factory()->NewOnHeapBasicBlockProfilerData(
       block_ids, counts, branches, name, schedule, code, hash_,
@@ -147,10 +147,10 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
     data->ResetCounts();
   }
   HandleScope scope(isolate);
-  Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
-                         isolate);
+  DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
+                               isolate);
   for (int i = 0; i < list->length(); ++i) {
-    Handle<FixedUInt32Array> counts(
+    DirectHandle<FixedUInt32Array> counts(
         OnHeapBasicBlockProfilerData::cast(list->get(i))->counts(), isolate);
     for (int j = 0; j < counts->length() / kBlockCountSlotSize; ++j) {
       counts->set(j, 0);
@@ -169,8 +169,8 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
     os << *data;
   }
   HandleScope scope(isolate);
-  Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
-                         isolate);
+  DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
+                               isolate);
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(
@@ -186,8 +186,8 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
 
 void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
   HandleScope scope(isolate);
-  Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
-                         isolate);
+  DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
+                               isolate);
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(

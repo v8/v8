@@ -1391,8 +1391,8 @@ void AppendCodeCreateHeader(Isolate* isolate, LogFile::MessageBuilder& msg,
 //   <fns> is the function table encoded as a sequence of strings
 //      S<shared-function-info-address>
 
-void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
-                                            Handle<SharedFunctionInfo> shared) {
+void V8FileLogger::LogSourceCodeInformation(
+    Handle<AbstractCode> code, DirectHandle<SharedFunctionInfo> shared) {
   PtrComprCageBase cage_base(isolate_);
   Tagged<Object> script_object = shared->script(cage_base);
   if (!IsScript(script_object, cage_base)) return;
@@ -1460,7 +1460,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
+void V8FileLogger::LogCodeDisassemble(DirectHandle<AbstractCode> code) {
   if (!v8_flags.log_code_disassemble) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   PtrComprCageBase cage_base(isolate_);
@@ -1613,7 +1613,8 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void V8FileLogger::CallbackEventInternal(const char* prefix, Handle<Name> name,
+void V8FileLogger::CallbackEventInternal(const char* prefix,
+                                         DirectHandle<Name> name,
                                          Address entry_point) {
   if (!v8_flags.log_code) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
@@ -1684,8 +1685,9 @@ void V8FileLogger::CodeDisableOptEvent(Handle<AbstractCode> code,
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
-                                     const char* kind, const char* reason) {
+void V8FileLogger::ProcessDeoptEvent(DirectHandle<Code> code,
+                                     SourcePosition position, const char* kind,
+                                     const char* reason) {
   VMStateIfMainThread<LOGGING> state(isolate_);
   MSG_BUILDER();
   msg << Event::kCodeDeopt << kNext << Time() << kNext
@@ -1967,8 +1969,9 @@ void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
 }
 
 void V8FileLogger::ICEvent(const char* type, bool keyed, Handle<Map> map,
-                           Handle<Object> key, char old_state, char new_state,
-                           const char* modifier, const char* slow_stub_reason) {
+                           DirectHandle<Object> key, char old_state,
+                           char new_state, const char* modifier,
+                           const char* slow_stub_reason) {
   if (!v8_flags.log_ic) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   int line;
@@ -2645,8 +2648,8 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
     }
   } else if (shared->IsApiFunction()) {
     // API function.
-    Handle<FunctionTemplateInfo> fun_data =
-        handle(shared->api_func_data(), isolate_);
+    DirectHandle<FunctionTemplateInfo> fun_data(shared->api_func_data(),
+                                                isolate_);
     if (fun_data->has_callback(isolate_)) {
       Address entry_point = fun_data->callback(isolate_);
 #if USES_FUNCTION_DESCRIPTORS

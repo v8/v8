@@ -203,7 +203,7 @@ Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
 #endif
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
-      Handle<Object> value =
+      DirectHandle<Object> value =
           slice->At(slice->start_index() + i).ToHandle(isolate);
       fixed_array->set(array_index++, *value);
     }

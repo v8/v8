@@ -22,7 +22,7 @@ namespace parsing {
 
 namespace {
 
-void MaybeReportStatistics(ParseInfo* info, Handle<Script> script,
+void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
                            Isolate* isolate, Parser* parser,
                            ReportStatisticsMode mode) {
   switch (mode) {

@@ -260,7 +260,7 @@ template <bool IsFirstUpdate, Bytecode bytecode>
 void UpdateOutLiveness(BytecodeLiveness& liveness,
                        BytecodeLivenessState* next_bytecode_in_liveness,
                        const interpreter::BytecodeArrayIterator& iterator,
-                       Handle<BytecodeArray> bytecode_array,
+                       DirectHandle<BytecodeArray> bytecode_array,
                        const BytecodeLivenessMap& liveness_map, Zone* zone) {
   // On subsequent updates, only update out-liveness manually if it isn't
   // already aliasing the next bytecode's in-liveness.

@@ -457,7 +457,7 @@ Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {
   DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     if (!builder->HasData()) continue;
-    Handle<PreparseData> child_data = builder->Serialize(isolate);
+    DirectHandle<PreparseData> child_data = builder->Serialize(isolate);
     data->set_child(i++, *child_data);
   }
   DCHECK_EQ(i, data->children_length());
@@ -473,7 +473,7 @@ Handle<PreparseData> PreparseDataBuilder::Serialize(LocalIsolate* isolate) {
   DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     if (!builder->HasData()) continue;
-    Handle<PreparseData> child_data = builder->Serialize(isolate);
+    DirectHandle<PreparseData> child_data = builder->Serialize(isolate);
     data->set_child(i++, *child_data);
   }
   DCHECK_EQ(i, data->children_length());
@@ -799,7 +799,7 @@ Handle<PreparseData> ZonePreparseData::Serialize(Isolate* isolate) {
   for (int i = 0; i < child_data_length; i++) {
     ZonePreparseData* child = get_child(i);
     DCHECK_NOT_NULL(child);
-    Handle<PreparseData> child_data = child->Serialize(isolate);
+    DirectHandle<PreparseData> child_data = child->Serialize(isolate);
     result->set_child(i, *child_data);
   }
   return result;
@@ -815,7 +815,7 @@ Handle<PreparseData> ZonePreparseData::Serialize(LocalIsolate* isolate) {
   for (int i = 0; i < child_data_length; i++) {
     ZonePreparseData* child = get_child(i);
     DCHECK_NOT_NULL(child);
-    Handle<PreparseData> child_data = child->Serialize(isolate);
+    DirectHandle<PreparseData> child_data = child->Serialize(isolate);
     result->set_child(i, *child_data);
   }
   return result;

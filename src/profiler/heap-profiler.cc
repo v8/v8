@@ -224,7 +224,7 @@ HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
   return snapshots_.at(index).get();
 }
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(DirectHandle<Object> obj) {
   if (!IsHeapObject(*obj)) return v8::HeapProfiler::kUnknownObjectId;
   return ids_->FindEntry(HeapObject::cast(*obj).address());
 }
@@ -292,7 +292,7 @@ Heap* HeapProfiler::heap() const { return ids_->heap(); }
 
 Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
-void HeapProfiler::QueryObjects(Handle<Context> context,
+void HeapProfiler::QueryObjects(DirectHandle<Context> context,
                                 v8::QueryObjectPredicate* predicate,
                                 std::vector<v8::Global<v8::Object>>* objects) {
   // We need a stack marker here to allow deterministic passes over the stack.

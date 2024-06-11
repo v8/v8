@@ -378,7 +378,8 @@ inline bool ClobberedBy(RegList written_registers, Register reg) {
 inline bool ClobberedBy(RegList written_registers, DoubleRegister reg) {
   return false;
 }
-inline bool ClobberedBy(RegList written_registers, Handle<Object> handle) {
+inline bool ClobberedBy(RegList written_registers,
+                        DirectHandle<Object> handle) {
   return false;
 }
 inline bool ClobberedBy(RegList written_registers, Tagged<Smi> smi) {
@@ -405,7 +406,7 @@ inline bool ClobberedBy(DoubleRegList written_registers, DoubleRegister reg) {
   return written_registers.has(reg);
 }
 inline bool ClobberedBy(DoubleRegList written_registers,
-                        Handle<Object> handle) {
+                        DirectHandle<Object> handle) {
   return false;
 }
 inline bool ClobberedBy(DoubleRegList written_registers, Tagged<Smi> smi) {
@@ -437,7 +438,8 @@ inline bool MachineTypeMatches(MachineType type, DoubleRegister reg) {
 inline bool MachineTypeMatches(MachineType type, MemOperand reg) {
   return true;
 }
-inline bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
+inline bool MachineTypeMatches(MachineType type,
+                               DirectHandle<HeapObject> handle) {
   return type.IsTagged() && !type.IsTaggedSigned();
 }
 inline bool MachineTypeMatches(MachineType type, Tagged<Smi> smi) {

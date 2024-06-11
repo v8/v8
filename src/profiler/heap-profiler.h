@@ -86,7 +86,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount() const;
   bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
-  SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
@@ -122,7 +122,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
+  void QueryObjects(DirectHandle<Context> context,
+                    QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
   void set_native_move_listener(
       std::unique_ptr<HeapProfilerNativeMoveListener> listener) {

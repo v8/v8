@@ -15,7 +15,7 @@ namespace internal {
 namespace maglev {
 
 MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
-                                             Handle<JSFunction> function)
+                                             DirectHandle<JSFunction> function)
     : MaglevCompilationUnit(
           info, nullptr,
           MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(

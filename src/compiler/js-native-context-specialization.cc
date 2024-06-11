@@ -175,7 +175,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
   if (number_matcher.HasResolvedValue()) {
-    Handle<Object> num_obj =
+    DirectHandle<Object> num_obj =
         broker()
             ->local_isolate_or_isolate()
             ->factory()
@@ -200,7 +200,7 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
   DCHECK(IrOpcode::IsConstantOpcode(node->opcode()));
   NumberMatcher number_matcher(node);
   if (number_matcher.HasResolvedValue()) {
-    Handle<Object> num_obj =
+    DirectHandle<Object> num_obj =
         broker()
             ->local_isolate_or_isolate()
             ->factory()

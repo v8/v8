@@ -43,7 +43,7 @@ class MaglevCompilationUnit : public ZoneObject {
   }
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
-                        Handle<JSFunction> function);
+                        DirectHandle<JSFunction> function);
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
                         const MaglevCompilationUnit* caller,

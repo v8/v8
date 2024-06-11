@@ -163,13 +163,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Scope::DeserializationMode::kScopesOnly);
 
   // Move statistics to Isolate
-  void UpdateStatistics(Isolate* isolate, Handle<Script> script);
+  void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);
   void UpdateStatistics(
-      Handle<Script> script,
+      DirectHandle<Script> script,
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
   template <typename IsolateT>
-  void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
+  void HandleSourceURLComments(IsolateT* isolate, DirectHandle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
@@ -221,12 +221,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void PrepareGeneratorVariables();
 
   // Sets the literal on |info| if parsing succeeded.
-  void ParseProgram(Isolate* isolate, Handle<Script> script, ParseInfo* info,
+  void ParseProgram(Isolate* isolate, DirectHandle<Script> script,
+                    ParseInfo* info,
                     MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseFunction(Isolate* isolate, ParseInfo* info,
-                     Handle<SharedFunctionInfo> shared_info);
+                     DirectHandle<SharedFunctionInfo> shared_info);
 
   template <typename IsolateT>
   void PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
