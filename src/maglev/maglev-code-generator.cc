@@ -1375,7 +1375,7 @@ class MaglevFrameTranslationBuilder {
                                    object->double_elements());
     }
     DCHECK_EQ(object->type(), VirtualObject::kDefault);
-    translation_array_builder_->BeginCapturedObject(object->slot_count());
+    translation_array_builder_->BeginCapturedObject(object->slot_count() + 1);
     translation_array_builder_->StoreLiteral(
         GetDeoptLiteral(*object->map().object()));
     for (uint32_t i = 0; i < object->slot_count(); i++) {
