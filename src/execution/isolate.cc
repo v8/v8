@@ -6513,29 +6513,16 @@ void Isolate::DetachGlobal(Handle<Context> env) {
   env->native_context()->set_microtask_queue(this, nullptr);
 }
 
-double Isolate::LoadStartTimeMs() {
-  base::MutexGuard guard(&rail_mutex_);
-  return load_start_time_ms_;
-}
-
-void Isolate::UpdateLoadStartTime() {
-  base::MutexGuard guard(&rail_mutex_);
-  load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
-}
+void Isolate::UpdateLoadStartTime() { heap()->UpdateLoadStartTime(); }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
   RAILMode old_rail_mode = rail_mode_.load();
   if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
-    base::MutexGuard guard(&rail_mutex_);
-    load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
+    heap()->NotifyLoadingStarted();
   }
   rail_mode_.store(rail_mode);
   if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
-    if (auto* job = heap()->incremental_marking()->incremental_marking_job()) {
-      // The task will start incremental marking (if needed not already started)
-      // and advance marking if incremental marking is active.
-      job->ScheduleTask();
-    }
+    heap()->NotifyLoadingEnded();
   }
   if (v8_flags.trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));

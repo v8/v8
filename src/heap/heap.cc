@@ -1998,6 +1998,8 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
 
+  RecomputeLimitsAfterLoadingIfNeeded();
+
   // Now that sweeping is completed, we can start the next full GC cycle.
   tracer()->StartCycle(collector, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
@@ -2419,6 +2421,9 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   ResumeConcurrentThreadsInClients(std::move(paused_clients));
 
   RecomputeLimits(collector, atomic_pause_end_time);
+  if (ShouldOptimizeForLoadTime()) {
+    update_allocation_limits_after_loading_ = true;
+  }
 
   // After every full GC the old generation allocation limit should be
   // configured.
@@ -2546,6 +2551,50 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   sweeper()->EnsurePageIsSwept(page);
 }
 
+// static
+Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
+  double v8_gc_speed =
+      heap->tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
+  double v8_mutator_speed =
+      heap->tracer()
+          ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
+  double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
+      heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
+  double embedder_gc_speed =
+      heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
+  double embedder_speed =
+      heap->tracer()
+          ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
+  double embedder_growing_factor =
+      (embedder_gc_speed > 0 && embedder_speed > 0)
+          ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
+                heap, heap->max_global_memory_size_, embedder_gc_speed,
+                embedder_speed)
+          : 0;
+  double global_growing_factor =
+      std::max(v8_growing_factor, embedder_growing_factor);
+
+  size_t old_gen_size = heap->OldGenerationConsumedBytes();
+  size_t global_size = heap->GlobalConsumedBytes();
+  size_t new_space_capacity = heap->NewSpaceTargetCapacity();
+  HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
+
+  size_t new_old_generation_allocation_limit =
+      MemoryController<V8HeapTrait>::CalculateAllocationLimit(
+          heap, old_gen_size, heap->min_old_generation_size_,
+          heap->max_old_generation_size(), new_space_capacity,
+          v8_growing_factor, mode);
+
+  DCHECK_GT(global_growing_factor, 0);
+  size_t new_global_allocation_limit =
+      MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
+          heap, global_size, heap->min_global_memory_size_,
+          heap->max_global_memory_size_, new_space_capacity,
+          global_growing_factor, mode);
+
+  return {new_old_generation_allocation_limit, new_global_allocation_limit};
+}
+
 void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
   if (!((collector == GarbageCollector::MARK_COMPACTOR) ||
         (HasLowYoungGenerationAllocationRate() &&
@@ -2553,75 +2602,69 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     return;
   }
 
-  double v8_gc_speed =
-      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
-  double v8_mutator_speed =
-      tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
-  double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
-      this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
-  double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
-  double embedder_speed =
-      tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
-  double embedder_growing_factor =
-      (embedder_gc_speed > 0 && embedder_speed > 0)
-          ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
-                this, max_global_memory_size_, embedder_gc_speed,
-                embedder_speed)
-          : 0;
-  double global_growing_factor =
-      std::max(v8_growing_factor, embedder_growing_factor);
-
-  size_t old_gen_size = OldGenerationConsumedBytes();
-  size_t global_size = GlobalConsumedBytes();
-  size_t new_space_capacity = NewSpaceTargetCapacity();
-  HeapGrowingMode mode = CurrentHeapGrowingMode();
+  auto new_limits = ComputeNewAllocationLimits(this);
+  size_t new_old_generation_allocation_limit =
+      new_limits.old_generation_allocation_limit;
+  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     external_memory_.ResetAfterGC();
 
-    size_t new_old_generation_allocation_limit =
-        MemoryController<V8HeapTrait>::CalculateAllocationLimit(
-            this, old_gen_size, min_old_generation_size_,
-            max_old_generation_size(), new_space_capacity, v8_growing_factor,
-            mode);
-    DCHECK_GT(global_growing_factor, 0);
-    size_t new_global_allocation_limit =
-        MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-            this, global_size, min_global_memory_size_, max_global_memory_size_,
-            new_space_capacity, global_growing_factor, mode);
-
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
-      mb_->RecomputeLimits(
-          new_global_allocation_limit - new_old_generation_allocation_limit,
-          time);
+      mb_->RecomputeLimits(new_limits.global_allocation_limit -
+                               new_limits.old_generation_allocation_limit,
+                           time);
     } else {
       SetOldGenerationAndGlobalAllocationLimit(
-          new_old_generation_allocation_limit, new_global_allocation_limit);
+          new_limits.old_generation_allocation_limit,
+          new_limits.global_allocation_limit);
     }
 
     CheckIneffectiveMarkCompact(
-        old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
+        OldGenerationConsumedBytes(),
+        tracer()->AverageMarkCompactMutatorUtilization());
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate() &&
            old_generation_allocation_limit_configured());
-    size_t new_old_generation_allocation_limit =
-        MemoryController<V8HeapTrait>::CalculateAllocationLimit(
-            this, old_gen_size, min_old_generation_size_,
-            max_old_generation_size(), new_space_capacity, v8_growing_factor,
-            mode);
     new_old_generation_allocation_limit = std::min(
         new_old_generation_allocation_limit, old_generation_allocation_limit());
-    DCHECK_GT(global_growing_factor, 0);
-    size_t new_global_allocation_limit =
-        MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-            this, global_size, min_global_memory_size_, max_global_memory_size_,
-            new_space_capacity, global_growing_factor, mode);
     new_global_allocation_limit =
         std::min(new_global_allocation_limit, global_allocation_limit());
     SetOldGenerationAndGlobalAllocationLimit(
         new_old_generation_allocation_limit, new_global_allocation_limit);
   }
+
+  CHECK_EQ(max_global_memory_size_,
+           GlobalMemorySizeFromV8Size(max_old_generation_size_));
+  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
+}
+
+void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
+  if (!v8_flags.update_allocation_limits_after_loading) return;
+
+  if (!update_allocation_limits_after_loading_) return;
+  update_allocation_limits_after_loading_ = false;
+
+  if ((OldGenerationSpaceAvailable() > 0) && (GlobalMemoryAvailable() > 0)) {
+    // Only recompute limits if memory accumulated during loading may lead to
+    // atomic GC. If there is still room to allocate, keep the current limits.
+    // TODO(346498599): Consider removing this bailout.
+    DCHECK(!AllocationLimitOvershotByLargeMargin());
+    return;
+  }
+
+  auto new_limits = ComputeNewAllocationLimits(this);
+  size_t new_old_generation_allocation_limit =
+      new_limits.old_generation_allocation_limit;
+  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
+
+  new_old_generation_allocation_limit = std::max(
+      new_old_generation_allocation_limit, old_generation_allocation_limit());
+  new_global_allocation_limit =
+      std::max(new_global_allocation_limit, global_allocation_limit());
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
 
   CHECK_EQ(max_global_memory_size_,
            GlobalMemorySizeFromV8Size(max_old_generation_size_));
@@ -5286,11 +5329,12 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
 }
 
-bool Heap::ShouldOptimizeForLoadTime() {
+bool Heap::ShouldOptimizeForLoadTime() const {
   return isolate()->rail_mode() == PERFORMANCE_LOAD &&
          !AllocationLimitOvershotByLargeMargin() &&
          MonotonicallyIncreasingTimeInMs() <
-             isolate()->LoadStartTimeMs() + kMaxLoadTimeMs;
+             (load_start_time_ms_.load(std::memory_order_relaxed) +
+              kMaxLoadTimeMs);
 }
 
 // This predicate is called when an old generation space cannot allocated from
@@ -7589,6 +7633,25 @@ void Heap::EnsureYoungSweepingCompleted() {
   paged_new_space()->paged_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
+}
+
+void Heap::NotifyLoadingStarted() {
+  update_allocation_limits_after_loading_ = true;
+  UpdateLoadStartTime();
+}
+
+void Heap::NotifyLoadingEnded() {
+  RecomputeLimitsAfterLoadingIfNeeded();
+  if (auto* job = incremental_marking()->incremental_marking_job()) {
+    // The task will start incremental marking (if needed not already started)
+    // and advance marking if incremental marking is active.
+    job->ScheduleTask();
+  }
+}
+
+void Heap::UpdateLoadStartTime() {
+  load_start_time_ms_.store(MonotonicallyIncreasingTimeInMs(),
+                            std::memory_order_relaxed);
 }
 
 EmbedderStackStateScope::EmbedderStackStateScope(

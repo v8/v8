@@ -1949,8 +1949,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return code_coverage_mode_.load(std::memory_order_relaxed);
   }
 
-  double LoadStartTimeMs();
-
   void UpdateLoadStartTime();
 
   void IsolateInForegroundNotification();
@@ -2435,9 +2433,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       host_initialize_import_meta_object_callback_ = nullptr;
   HostCreateShadowRealmContextCallback
       host_create_shadow_realm_context_callback_ = nullptr;
-
-  base::Mutex rail_mutex_;
-  double load_start_time_ms_ = 0;
 
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;

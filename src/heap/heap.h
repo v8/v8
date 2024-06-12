@@ -1920,7 +1920,10 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
-  V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime();
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
+  void NotifyLoadingStarted();
+  void NotifyLoadingEnded();
+  void UpdateLoadStartTime();
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);
@@ -1980,6 +1983,12 @@ class Heap final {
   size_t GlobalMemoryAvailable();
 
   void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
+  void RecomputeLimitsAfterLoadingIfNeeded();
+  struct LimitsCompuatationResult {
+    size_t old_generation_allocation_limit;
+    size_t global_allocation_limit;
+  };
+  static LimitsCompuatationResult ComputeNewAllocationLimits(Heap* heap);
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2399,6 +2408,9 @@ class Heap final {
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
   std::unique_ptr<MemoryBalancer> mb_;
+
+  std::atomic<double> load_start_time_ms_{0};
+  bool update_allocation_limits_after_loading_ = false;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
