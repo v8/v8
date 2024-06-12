@@ -9,7 +9,10 @@
 #include "src/compiler/backend/jump-threading.h"
 #include "src/compiler/backend/move-optimizer.h"
 #include "src/compiler/backend/register-allocator.h"
+#include "src/compiler/turboshaft/block-instrumentation-reducer.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 

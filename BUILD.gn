@@ -3420,6 +3420,8 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/analyzer-iterator.h",
     "src/compiler/turboshaft/assembler.h",
     "src/compiler/turboshaft/assert-types-reducer.h",
+    "src/compiler/turboshaft/block-instrumentation-phase.h",
+    "src/compiler/turboshaft/block-instrumentation-reducer.h",
     "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/build-graph-phase.h",
     "src/compiler/turboshaft/builtin-call-descriptors.h",
@@ -5113,6 +5115,8 @@ v8_source_set("v8_turboshaft") {
   sources = [
     "src/compiler/turboshaft/analyzer-iterator.cc",
     "src/compiler/turboshaft/assembler.cc",
+    "src/compiler/turboshaft/block-instrumentation-phase.cc",
+    "src/compiler/turboshaft/block-instrumentation-reducer.cc",
     "src/compiler/turboshaft/build-graph-phase.cc",
     "src/compiler/turboshaft/code-elimination-and-simplification-phase.cc",
     "src/compiler/turboshaft/copying-phase.cc",

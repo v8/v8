@@ -15,6 +15,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -138,7 +139,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
         Asm().output_graph().source_positions()[index] =
-            Asm().input_graph().source_positions()[origin];
+            origin.valid() ? Asm().input_graph().source_positions()[origin]
+                           : SourcePosition::Unknown();
       }
     }
     // Updating the operation origins.
@@ -146,7 +148,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (origins) {
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
-        origins->SetNodeOrigin(index.id(), origin.id());
+        if (origin.valid()) {
+          origins->SetNodeOrigin(index.id(), origin.id());
+        }
       }
     }
 
@@ -490,6 +494,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
+    Asm().SetCurrentOrigin(OpIndex::Invalid());
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
     if constexpr (trace_reduction) {

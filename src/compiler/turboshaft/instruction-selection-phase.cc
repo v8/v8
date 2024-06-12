@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -292,9 +293,23 @@ void PropagateDeferred(Graph& graph) {
   }
 }
 
-base::Optional<BailoutReason> InstructionSelectionPhase::Run(
-    PipelineData* data, Zone* temp_zone, const CallDescriptor* call_descriptor,
-    Linkage* linkage, CodeTracer* code_tracer) {
+void ProfileApplicationPhase::Run(PipelineData* data, Zone* temp_zone,
+                                  const ProfileDataFromFile* profile) {
+  Graph& graph = data->graph();
+  for (auto& op : graph.AllOperations()) {
+    if (BranchOp* branch = op.TryCast<BranchOp>()) {
+      uint32_t true_block_id = branch->if_true->index().id();
+      uint32_t false_block_id = branch->if_false->index().id();
+      BranchHint hint = profile->GetHint(true_block_id, false_block_id);
+      if (hint != BranchHint::kNone) {
+        // We update the hint in-place.
+        branch->hint = hint;
+      }
+    }
+  }
+}
+
+void SpecialRPOSchedulingPhase::Run(PipelineData* data, Zone* temp_zone) {
   Graph& graph = data->graph();
 
   // Compute special RPO order....
@@ -307,10 +322,12 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
 
   // Determine deferred blocks.
   PropagateDeferred(graph);
+}
 
-  // Print graph once before instruction selection.
-  turboshaft::PrintTurboshaftGraph(data, temp_zone, code_tracer,
-                                   "before instruction selection");
+base::Optional<BailoutReason> InstructionSelectionPhase::Run(
+    PipelineData* data, Zone* temp_zone, const CallDescriptor* call_descriptor,
+    Linkage* linkage, CodeTracer* code_tracer) {
+  Graph& graph = data->graph();
 
   // Initialize an instruction sequence.
   data->InitializeInstructionComponent(call_descriptor);

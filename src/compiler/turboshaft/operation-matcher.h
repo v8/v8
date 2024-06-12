@@ -16,7 +16,7 @@ namespace v8::internal::compiler::turboshaft {
 
 class OperationMatcher {
  public:
-  explicit OperationMatcher(Graph& graph) : graph_(graph) {}
+  explicit OperationMatcher(const Graph& graph) : graph_(graph) {}
 
   template <class Op>
   bool Is(OpIndex op_idx) const {
@@ -468,7 +468,7 @@ class OperationMatcher {
   }
 
  private:
-  Graph& graph_;
+  const Graph& graph_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft
