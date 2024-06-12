@@ -208,8 +208,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
   DCHECK(it->GetName()->IsPrivateName());
   Isolate* isolate = it->isolate();
   Handle<String> name_string(
-      String::cast(Handle<Symbol>::cast(it->GetName())->description()),
-      isolate);
+      String::cast(Cast<Symbol>(it->GetName())->description()), isolate);
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::TRANSITION:
@@ -220,11 +219,10 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
-          RETURN_ON_EXCEPTION_VALUE(
-              isolate,
-              isolate->ReportFailedAccessCheck(
-                  Handle<JSObject>::cast(it->GetReceiver())),
-              Nothing<bool>());
+          RETURN_ON_EXCEPTION_VALUE(isolate,
+                                    isolate->ReportFailedAccessCheck(
+                                        Cast<JSObject>(it->GetReceiver())),
+                                    Nothing<bool>());
           UNREACHABLE();
         }
         continue;
@@ -290,7 +288,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   // cached representation of the source. Preventively upgrade the target.
   // Do this on each iteration since any property load could cause deprecation.
   if (target->map()->is_deprecated()) {
-    JSObject::MigrateInstance(isolate, Handle<JSObject>::cast(target));
+    JSObject::MigrateInstance(isolate, Cast<JSObject>(target));
   }
 
   DirectHandle<Map> map(JSReceiver::cast(*source)->map(), isolate);
@@ -298,7 +296,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   if (!IsJSObjectMap(*map)) return Just(false);
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
-  Handle<JSObject> from = Handle<JSObject>::cast(source);
+  Handle<JSObject> from = Cast<JSObject>(source);
   if (from->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
     return Just(false);
   }
@@ -450,7 +448,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
           from->property_dictionary()->NumberOfEnumerableProperties();
     }
     if (source_length > kMaxNumberOfDescriptors) {
-      JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
+      JSObject::NormalizeProperties(isolate, Cast<JSObject>(target),
                                     CLEAR_INOBJECT_PROPERTIES, source_length,
                                     "Copying data properties");
     }
@@ -570,8 +568,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
     Handle<Object> maybe_constructor(receiver->map()->GetConstructor(),
                                      isolate);
     if (IsJSFunction(*maybe_constructor)) {
-      Handle<JSFunction> constructor =
-          Handle<JSFunction>::cast(maybe_constructor);
+      Handle<JSFunction> constructor = Cast<JSFunction>(maybe_constructor);
       Handle<String> name = SharedFunctionInfo::DebugName(
           isolate, handle(constructor->shared(), isolate));
       if (name->length() != 0 &&
@@ -592,7 +589,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
         &it_to_string_tag, AllocationPolicy::kAllocationDisallowed);
     if (IsString(*maybe_to_string_tag)) {
       return std::make_pair(MaybeHandle<JSFunction>(),
-                            Handle<String>::cast(maybe_to_string_tag));
+                            Cast<String>(maybe_to_string_tag));
     }
 
     // Consider the following example:
@@ -612,7 +609,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
       auto maybe_constructor = JSReceiver::GetDataProperty(
           &it_constructor, AllocationPolicy::kAllocationDisallowed);
       if (IsJSFunction(*maybe_constructor)) {
-        auto constructor = Handle<JSFunction>::cast(maybe_constructor);
+        auto constructor = Cast<JSFunction>(maybe_constructor);
         auto name = SharedFunctionInfo::DebugName(
             isolate, handle(constructor->shared(), isolate));
 
@@ -688,21 +685,18 @@ MaybeHandle<NativeContext> JSReceiver::GetContextForMicrotask(
   Isolate* isolate = receiver->GetIsolate();
   while (IsJSBoundFunction(*receiver) || IsJSProxy(*receiver)) {
     if (IsJSBoundFunction(*receiver)) {
-      receiver = direct_handle(DirectHandle<JSBoundFunction>::cast(receiver)
-                                   ->bound_target_function(),
-                               isolate);
+      receiver = direct_handle(
+          Cast<JSBoundFunction>(receiver)->bound_target_function(), isolate);
     } else {
       DCHECK(IsJSProxy(*receiver));
-      DirectHandle<Object> target(
-          DirectHandle<JSProxy>::cast(receiver)->target(), isolate);
+      DirectHandle<Object> target(Cast<JSProxy>(receiver)->target(), isolate);
       if (!IsJSReceiver(*target)) return MaybeHandle<NativeContext>();
-      receiver = DirectHandle<JSReceiver>::cast(target);
+      receiver = Cast<JSReceiver>(target);
     }
   }
 
   if (!IsJSFunction(*receiver)) return MaybeHandle<NativeContext>();
-  return handle(DirectHandle<JSFunction>::cast(receiver)->native_context(),
-                isolate);
+  return handle(Cast<JSFunction>(receiver)->native_context(), isolate);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
@@ -1034,9 +1028,8 @@ Tagged<Object> JSReceiver::DefineProperty(Isolate* isolate,
     return ReadOnlyRoots(isolate).exception();
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
-  Maybe<bool> success =
-      DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object), key, &desc,
-                        Just(kThrowOnError));
+  Maybe<bool> success = DefineOwnProperty(isolate, Cast<JSReceiver>(object),
+                                          key, &desc, Just(kThrowOnError));
   // 7. ReturnIfAbrupt(success).
   MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
   CHECK(success.FromJust());
@@ -1108,8 +1101,8 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
     // 8b. Let desc be the second element of pair.
     // 8c. Let status be DefinePropertyOrThrow(O, P, desc).
     Maybe<bool> status =
-        DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
-                          desc->name(), desc, Just(kThrowOnError));
+        DefineOwnProperty(isolate, Cast<JSReceiver>(object), desc->name(), desc,
+                          Just(kThrowOnError));
     // 8d. ReturnIfAbrupt(status).
     if (status.IsNothing()) return MaybeHandle<Object>();
     CHECK(status.FromJust());
@@ -1125,21 +1118,20 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
                                           PropertyDescriptor* desc,
                                           Maybe<ShouldThrow> should_throw) {
   if (IsJSArray(*object)) {
-    return JSArray::DefineOwnProperty(isolate, Handle<JSArray>::cast(object),
-                                      key, desc, should_throw);
+    return JSArray::DefineOwnProperty(isolate, Cast<JSArray>(object), key, desc,
+                                      should_throw);
   }
   if (IsJSProxy(*object)) {
-    return JSProxy::DefineOwnProperty(isolate, Handle<JSProxy>::cast(object),
-                                      key, desc, should_throw);
+    return JSProxy::DefineOwnProperty(isolate, Cast<JSProxy>(object), key, desc,
+                                      should_throw);
   }
   if (IsJSTypedArray(*object)) {
-    return JSTypedArray::DefineOwnProperty(
-        isolate, Handle<JSTypedArray>::cast(object), key, desc, should_throw);
+    return JSTypedArray::DefineOwnProperty(isolate, Cast<JSTypedArray>(object),
+                                           key, desc, should_throw);
   }
   if (IsJSModuleNamespace(*object)) {
     return JSModuleNamespace::DefineOwnProperty(
-        isolate, Handle<JSModuleNamespace>::cast(object), key, desc,
-        should_throw);
+        isolate, Cast<JSModuleNamespace>(object), key, desc, should_throw);
   }
   if (IsWasmObject(*object)) {
     RETURN_FAILURE(isolate, kThrowOnError,
@@ -1147,15 +1139,15 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
   }
   if (IsAlwaysSharedSpaceJSObject(*object)) {
     return AlwaysSharedSpaceJSObject::DefineOwnProperty(
-        isolate, Handle<AlwaysSharedSpaceJSObject>::cast(object), key, desc,
+        isolate, Cast<AlwaysSharedSpaceJSObject>(object), key, desc,
         should_throw);
   }
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
   // (ES#sec-arguments-exotic-objects-defineownproperty-p-desc).
-  return OrdinaryDefineOwnProperty(isolate, Handle<JSObject>::cast(object), key,
-                                   desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, Cast<JSObject>(object), key, desc,
+                                   should_throw);
 }
 
 // static
@@ -1327,8 +1319,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, getter,
           ApiNatives::InstantiateFunction(
-              isolate, Handle<FunctionTemplateInfo>::cast(getter),
-              MaybeHandle<Name>()),
+              isolate, Cast<FunctionTemplateInfo>(getter), MaybeHandle<Name>()),
           Nothing<bool>());
     }
     Handle<Object> setter = desc->set();
@@ -1336,8 +1327,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, setter,
           ApiNatives::InstantiateFunction(
-              isolate, Handle<FunctionTemplateInfo>::cast(setter),
-              MaybeHandle<Name>()),
+              isolate, Cast<FunctionTemplateInfo>(setter), MaybeHandle<Name>()),
           Nothing<bool>());
     }
     descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),
@@ -1485,7 +1475,7 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
         Handle<Object> value(
             desc->has_value()
                 ? desc->value()
-                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+                : Cast<Object>(isolate->factory()->undefined_value()));
         MaybeHandle<Object> result =
             JSObject::DefineOwnPropertyIgnoreAttributes(it, value,
                                                         desc->ToAttributes());
@@ -1503,13 +1493,11 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
         Handle<Object> getter(
-            desc->has_get()
-                ? desc->get()
-                : Handle<Object>::cast(isolate->factory()->null_value()));
+            desc->has_get() ? desc->get()
+                            : Cast<Object>(isolate->factory()->null_value()));
         Handle<Object> setter(
-            desc->has_set()
-                ? desc->set()
-                : Handle<Object>::cast(isolate->factory()->null_value()));
+            desc->has_set() ? desc->set()
+                            : Cast<Object>(isolate->factory()->null_value()));
         MaybeHandle<Object> result =
             JSObject::DefineOwnAccessorIgnoreAttributes(it, getter, setter,
                                                         desc->ToAttributes());
@@ -1681,7 +1669,7 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
           desc->has_value() ? desc->value()
           : current->has_value()
               ? current->value()
-              : Handle<Object>::cast(isolate->factory()->undefined_value()));
+              : Cast<Object>(isolate->factory()->undefined_value()));
       return JSObject::DefineOwnPropertyIgnoreAttributes(it, value, attrs,
                                                          should_throw);
     } else {
@@ -1692,12 +1680,12 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
           desc->has_get() ? desc->get()
           : current->has_get()
               ? current->get()
-              : Handle<Object>::cast(isolate->factory()->null_value()));
+              : Cast<Object>(isolate->factory()->null_value()));
       Handle<Object> setter(
           desc->has_set() ? desc->set()
           : current->has_set()
               ? current->set()
-              : Handle<Object>::cast(isolate->factory()->null_value()));
+              : Cast<Object>(isolate->factory()->null_value()));
       MaybeHandle<Object> result = JSObject::DefineOwnAccessorIgnoreAttributes(
           it, getter, setter, attrs);
       if (result.is_null()) return Nothing<bool>();
@@ -1728,8 +1716,8 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
     return Object::CannotCreateProperty(isolate, object, key.GetName(isolate),
                                         value, Nothing<ShouldThrow>());
   }
-  return CreateDataProperty(isolate, Handle<JSReceiver>::cast(object), key,
-                            value, should_throw);
+  return CreateDataProperty(isolate, Cast<JSReceiver>(object), key, value,
+                            should_throw);
 }
 
 // static
@@ -1739,8 +1727,8 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
                                            Handle<Object> value,
                                            Maybe<ShouldThrow> should_throw) {
   if (IsJSObject(*object)) {
-    return JSObject::CreateDataProperty(isolate, Handle<JSObject>::cast(object),
-                                        key, value, should_throw);  // Shortcut.
+    return JSObject::CreateDataProperty(isolate, Cast<JSObject>(object), key,
+                                        value, should_throw);  // Shortcut.
   }
 
   PropertyDescriptor new_desc;
@@ -1757,11 +1745,11 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
 Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
                                         Handle<Object> value,
                                         Maybe<ShouldThrow> should_throw) {
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Handle<JSReceiver> receiver = Cast<JSReceiver>(it->GetReceiver());
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   Isolate* isolate = it->isolate();
   DCHECK(it->GetName()->IsPrivateName());
-  Handle<Symbol> symbol = Handle<Symbol>::cast(it->GetName());
+  Handle<Symbol> symbol = Cast<Symbol>(it->GetName());
 
   switch (it->state()) {
     case LookupIterator::JSPROXY: {
@@ -1770,8 +1758,8 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
       new_desc.set_writable(true);
       new_desc.set_enumerable(true);
       new_desc.set_configurable(true);
-      return JSProxy::SetPrivateSymbol(isolate, Handle<JSProxy>::cast(receiver),
-                                       symbol, &new_desc, should_throw);
+      return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver), symbol,
+                                       &new_desc, should_throw);
     }
     case LookupIterator::WASM_OBJECT:
       RETURN_FAILURE(isolate, kThrowOnError,
@@ -1921,7 +1909,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     desc->set_writable((attrs & READ_ONLY) == 0);
   } else {
     // 6. Else X is an accessor property, so
-    auto accessors = DirectHandle<AccessorPair>::cast(it->GetAccessors());
+    auto accessors = Cast<AccessorPair>(it->GetAccessors());
     Handle<NativeContext> holder_realm(
         it->GetHolder<JSReceiver>()->GetCreationContext().value(), isolate);
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
@@ -1948,7 +1936,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Isolate* isolate,
   DCHECK(level == SEALED || level == FROZEN);
 
   if (IsJSObject(*receiver)) {
-    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    Handle<JSObject> object = Cast<JSObject>(receiver);
 
     if (!object->HasSloppyArgumentsElements() &&
         !IsJSModuleNamespace(*object)) {  // Fast path.
@@ -2050,8 +2038,8 @@ Maybe<bool> JSReceiver::TestIntegrityLevel(Isolate* isolate,
                                            Handle<JSReceiver> receiver,
                                            IntegrityLevel level) {
   if (!IsCustomElementsReceiverMap(receiver->map())) {
-    return JSObject::TestIntegrityLevel(
-        isolate, Handle<JSObject>::cast(receiver), level);
+    return JSObject::TestIntegrityLevel(isolate, Cast<JSObject>(receiver),
+                                        level);
   }
   return GenericTestIntegrityLevel(isolate, receiver, level);
 }
@@ -2060,27 +2048,26 @@ Maybe<bool> JSReceiver::PreventExtensions(Isolate* isolate,
                                           Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
   if (IsJSProxy(*object)) {
-    return JSProxy::PreventExtensions(Handle<JSProxy>::cast(object),
-                                      should_throw);
+    return JSProxy::PreventExtensions(Cast<JSProxy>(object), should_throw);
   }
   if (IsWasmObject(*object)) {
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
   DCHECK(IsJSObject(*object));
-  return JSObject::PreventExtensions(isolate, Handle<JSObject>::cast(object),
+  return JSObject::PreventExtensions(isolate, Cast<JSObject>(object),
                                      should_throw);
 }
 
 Maybe<bool> JSReceiver::IsExtensible(Isolate* isolate,
                                      Handle<JSReceiver> object) {
   if (IsJSProxy(*object)) {
-    return JSProxy::IsExtensible(Handle<JSProxy>::cast(object));
+    return JSProxy::IsExtensible(Cast<JSProxy>(object));
   }
   if (IsWasmObject(*object)) {
     return Just(false);
   }
-  return Just(JSObject::IsExtensible(isolate, Handle<JSObject>::cast(object)));
+  return Just(JSObject::IsExtensible(isolate, Cast<JSObject>(object)));
 }
 
 // static
@@ -2322,10 +2309,10 @@ Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
   }
 
   if (IsJSProxy(*object)) {
-    return JSProxy::SetPrototype(isolate, Handle<JSProxy>::cast(object), value,
+    return JSProxy::SetPrototype(isolate, Cast<JSProxy>(object), value,
                                  from_javascript, should_throw);
   }
-  return JSObject::SetPrototype(isolate, Handle<JSObject>::cast(object), value,
+  return JSObject::SetPrototype(isolate, Cast<JSObject>(object), value,
                                 from_javascript, should_throw);
 }
 
@@ -2402,7 +2389,7 @@ MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
   // TODO(bmeurer): Use a dedicated cache for Object.create; think about
   // slack tracking for Object.create.
   DirectHandle<Map> map =
-      Map::GetObjectCreateMap(isolate, Handle<HeapObject>::cast(prototype));
+      Map::GetObjectCreateMap(isolate, Cast<HeapObject>(prototype));
 
   // Actually allocate the object.
   return isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
@@ -2708,7 +2695,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
   uint32_t hash = name->hash();
 
   if (IsJSGlobalObject(*object)) {
-    auto global_obj = DirectHandle<JSGlobalObject>::cast(object);
+    auto global_obj = Cast<JSGlobalObject>(object);
     Handle<GlobalDictionary> dictionary(
         global_obj->global_dictionary(kAcquireLoad), isolate);
     ReadOnlyRoots roots(isolate);
@@ -3297,7 +3284,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
         value = handle(object->RawFastPropertyAt(isolate, index), isolate);
         if (details.representation().IsDouble()) {
           DCHECK(IsHeapNumber(*value, isolate));
-          double old_value = Handle<HeapNumber>::cast(value)->value();
+          double old_value = Cast<HeapNumber>(value)->value();
           value = isolate->factory()->NewHeapNumber(old_value);
         }
       } else {
@@ -3725,7 +3712,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         // The non-matching attribute case for JSTypedArrays has already been
         // handled by JSTypedArray::DefineOwnProperty.
         DCHECK(!it->IsElement() ||
-               !Handle<JSObject>::cast(it->GetReceiver())
+               !Cast<JSObject>(it->GetReceiver())
                     ->HasTypedArrayOrRabGsabTypedArrayElements());
         // Reconfigure the data property if the attributes mismatch.
         it->ReconfigureDataProperty(value, attributes);
@@ -4224,8 +4211,7 @@ Maybe<bool> JSObject::TestIntegrityLevel(Isolate* isolate,
       !object->HasSloppyArgumentsElements()) {
     return Just(FastTestIntegrityLevel(*object, level));
   }
-  return GenericTestIntegrityLevel(isolate, Handle<JSReceiver>::cast(object),
-                                   level);
+  return GenericTestIntegrityLevel(isolate, Cast<JSReceiver>(object), level);
 }
 
 Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
@@ -4301,7 +4287,7 @@ MaybeHandle<Object> JSObject::ReadFromOptionsBag(Handle<Object> options,
                                                  Handle<String> option_name,
                                                  Isolate* isolate) {
   if (IsJSReceiver(*options)) {
-    Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
+    Handle<JSReceiver> js_options = Cast<JSReceiver>(options);
     return JSObject::GetProperty(isolate, js_options, option_name);
   }
   return MaybeHandle<Object>(isolate->factory()->undefined_value());
@@ -4338,7 +4324,7 @@ Handle<NumberDictionary> CreateElementDictionary(Isolate* isolate,
       !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
     int length = IsJSArray(*object)
-                     ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
+                     ? Smi::ToInt(Cast<JSArray>(object)->length())
                      : object->elements()->length();
     new_element_dictionary =
         length == 0 ? isolate->factory()->empty_slow_element_dictionary()
@@ -4706,7 +4692,7 @@ MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
     it->Next();
   }
 
-  auto object = DirectHandle<JSObject>::cast(it->GetReceiver());
+  auto object = Cast<JSObject>(it->GetReceiver());
   // Ignore accessors on typed arrays.
   if (it->IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     return it->factory()->undefined_value();
@@ -4773,8 +4759,7 @@ Maybe<bool> JSObject::CheckIfCanDefineAsConfigurable(
     }
     // Property does not exist, check object extensibility.
   }
-  if (!JSObject::IsExtensible(isolate,
-                              Handle<JSObject>::cast(it->GetReceiver()))) {
+  if (!JSObject::IsExtensible(isolate, Cast<JSObject>(it->GetReceiver()))) {
     RETURN_FAILURE(
         isolate, GetShouldThrow(isolate, should_throw),
         NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
@@ -4838,12 +4823,12 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
                                   WhereToStart where_to_start,
                                   Isolate* isolate) {
   if (!IsJSReceiver(*receiver)) return;
-  for (PrototypeIterator iter(isolate, Handle<JSReceiver>::cast(receiver),
+  for (PrototypeIterator iter(isolate, Cast<JSReceiver>(receiver),
                               where_to_start);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*current)) return;
-    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
+    Handle<JSObject> current_obj = Cast<JSObject>(current);
     Tagged<Map> current_map = current_obj->map();
     if (current_map->is_prototype_map()) {
       // If the map is already marked as should be fast, we're done. Its
@@ -5000,7 +4985,7 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
     // anyway. Additionally, registering users of shared objects is not
     // threadsafe.
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
-    auto proto = DirectHandle<JSObject>::cast(maybe_proto);
+    auto proto = Cast<JSObject>(maybe_proto);
     Handle<PrototypeInfo> proto_info =
         Map::GetOrCreatePrototypeInfo(proto, isolate);
     Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
@@ -5008,7 +4993,7 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
         IsSmi(*maybe_registry)
             ? handle(ReadOnlyRoots(isolate->heap()).empty_weak_array_list(),
                      isolate)
-            : Handle<WeakArrayList>::cast(maybe_registry);
+            : Cast<WeakArrayList>(maybe_registry);
     int slot = 0;
     Handle<WeakArrayList> new_array =
         PrototypeUsers::Add(isolate, registry, current_user, &slot);
@@ -5255,9 +5240,9 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   Handle<Map> new_map =
       v8_flags.move_prototype_transitions_first
           ? MapUpdater(isolate, map)
-                .ApplyPrototypeTransition(Handle<HeapObject>::cast(value))
+                .ApplyPrototypeTransition(Cast<HeapObject>(value))
           : Map::TransitionToUpdatePrototype(isolate, map,
-                                             Handle<HeapObject>::cast(value));
+                                             Cast<HeapObject>(value));
 
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);
@@ -5629,8 +5614,8 @@ MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
     tv = std::numeric_limits<double>::quiet_NaN();
   }
   DirectHandle<Number> value = isolate->factory()->NewNumber(tv);
-  Handle<JSDate>::cast(result)->SetValue(*value, std::isnan(tv));
-  return Handle<JSDate>::cast(result);
+  Cast<JSDate>(result)->SetValue(*value, std::isnan(tv));
+  return Cast<JSDate>(result);
 }
 
 // static

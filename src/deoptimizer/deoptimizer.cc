@@ -1163,11 +1163,10 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
   // Read the trusted instance data from the input frame.
   Tagged<WasmTrustedInstanceData> wasm_trusted_instance =
-      Tagged<WasmTrustedInstanceData>::cast(
-          (Tagged<Object>(input_->GetFrameSlot(
-              input_->GetFrameSize() -
-              (2 + input_->parameter_count()) * kSystemPointerSize -
-              WasmLiftoffFrameConstants::kInstanceDataOffset))));
+      Cast<WasmTrustedInstanceData>((Tagged<Object>(input_->GetFrameSlot(
+          input_->GetFrameSize() -
+          (2 + input_->parameter_count()) * kSystemPointerSize -
+          WasmLiftoffFrameConstants::kInstanceDataOffset))));
 
   for (int i = 0; i < output_count_; ++i) {
     TranslatedFrame& frame = translated_state_.frames()[i];
@@ -2588,7 +2587,7 @@ void Deoptimizer::MaterializeHeapObjects() {
     DirectHandle<Object> closure = fbv_materialization.value_->GetValue();
     DCHECK(IsJSFunction(*closure));
     Tagged<Object> feedback_vector =
-        Tagged<JSFunction>::cast(*closure)->raw_feedback_cell()->value();
+        Cast<JSFunction>(*closure)->raw_feedback_cell()->value();
     CHECK(IsFeedbackVector(feedback_vector));
     *(reinterpret_cast<Address*>(fbv_materialization.output_slot_address_)) =
         feedback_vector.ptr();

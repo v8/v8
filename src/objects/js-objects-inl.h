@@ -226,8 +226,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     if (mode == ALLOW_COPIED_DOUBLE_ELEMENTS) {
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
-    ObjectSlot objects =
-        Handle<FixedArray>::cast(elements)->RawFieldOfFirstElement();
+    ObjectSlot objects = Cast<FixedArray>(elements)->RawFieldOfFirstElement();
     EnsureCanContainElements(object, objects, length, mode);
     return;
   }
@@ -236,7 +235,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
     TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
   } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
-    auto double_array = DirectHandle<FixedDoubleArray>::cast(elements);
+    auto double_array = Cast<FixedDoubleArray>(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
         TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);

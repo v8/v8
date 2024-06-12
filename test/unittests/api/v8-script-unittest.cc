@@ -153,8 +153,8 @@ class CompileHintsTest : public ScriptTest {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result = script->Run(v8_context());
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     return builtin != i::Builtin::kCompileLazy;
@@ -559,8 +559,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was not compiled lazily.
@@ -577,8 +577,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f2 was not compiled lazily.
@@ -618,8 +618,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was compiled lazily.
@@ -636,8 +636,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
 
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
@@ -677,8 +677,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was compiled lazily.
@@ -732,8 +732,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was not compiled lazily.
@@ -750,8 +750,8 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f2 was not compiled lazily.

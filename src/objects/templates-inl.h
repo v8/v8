@@ -315,7 +315,7 @@ MaybeHandle<ReturnType> TemplateInfo::ProbeInstantiationsCache(
     if (IsTheHole(*object, isolate)) {
       return {};
     }
-    return Handle<ReturnType>::cast(object);
+    return Cast<ReturnType>(object);
   }
   if (caching_mode == CachingMode::kUnlimited ||
       (serial_number < TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {

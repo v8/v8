@@ -1057,7 +1057,7 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
     if (IsUndefined(*obj, isolate)) {
       continue;
     }
-    auto breakpoint_info = DirectHandle<BreakPointInfo>::cast(obj);
+    auto breakpoint_info = Cast<BreakPointInfo>(obj);
     Handle<BreakPoint> breakpoint;
     if (BreakPointInfo::GetBreakPointById(isolate, breakpoint_info,
                                           breakpoint_id)
@@ -1239,14 +1239,12 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(
   DirectHandle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
                                              isolate);
   if (IsUndefined(*maybe_breakpoint_info, isolate)) return {};
-  auto breakpoint_info =
-      DirectHandle<BreakPointInfo>::cast(maybe_breakpoint_info);
+  auto breakpoint_info = Cast<BreakPointInfo>(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
   DirectHandle<Object> break_points(breakpoint_info->break_points(), isolate);
   if (!IsFixedArray(*break_points)) {
-    if (!CheckBreakPoint(isolate, DirectHandle<BreakPoint>::cast(break_points),
-                         frame_id)) {
+    if (!CheckBreakPoint(isolate, Cast<BreakPoint>(break_points), frame_id)) {
       // A breakpoint that doesn't break mutes traps. (Rule enables the
       // "Never Pause Here" feature.)
       isolate->debug()->SetMutedWasmLocation(script, position);
@@ -1259,7 +1257,7 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(
     return break_points_hit;
   }
 
-  auto array = DirectHandle<FixedArray>::cast(break_points);
+  auto array = Cast<FixedArray>(break_points);
   Handle<FixedArray> break_points_hit =
       isolate->factory()->NewFixedArray(array->length());
   int break_points_hit_count = 0;

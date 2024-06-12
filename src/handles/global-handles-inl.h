@@ -18,7 +18,7 @@ Handle<T> GlobalHandles::Create(Tagged<T> value) {
   static_assert(is_subtype_v<T, Object>, "static type violation");
   // The compiler should only pick this method if T is not Object.
   static_assert(!std::is_same<Object, T>::value, "compiler error");
-  return Handle<T>::cast(Create(Tagged<Object>(value)));
+  return Cast<T>(Create(Tagged<Object>(value)));
 }
 
 template <typename T>

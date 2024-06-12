@@ -360,7 +360,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
         if (IsCode(dst)) {
-          PromoteCodePointerEntryFor(Tagged<Code>::cast(dst));
+          PromoteCodePointerEntryFor(Cast<Code>(dst));
         }
       }
 #endif  // V8_ENABLE_SANDBOX

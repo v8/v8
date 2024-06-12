@@ -567,7 +567,7 @@ void TransitionsAccessor::SetMigrationTarget(Isolate* isolate,
 
 Tagged<Map> TransitionsAccessor::GetMigrationTarget() {
   if (encoding() == kMigrationTarget) {
-    return Tagged<Map>::cast(map_->raw_transitions(kAcquireLoad));
+    return Cast<Map>(map_->raw_transitions(kAcquireLoad));
   }
   return Tagged<Map>();
 }

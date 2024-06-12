@@ -391,9 +391,8 @@ class ObjectDescriptor {
   }
 
   Handle<Object> properties_template() const {
-    return HasDictionaryProperties()
-               ? properties_dictionary_template_
-               : Handle<Object>::cast(descriptor_array_template_);
+    return HasDictionaryProperties() ? properties_dictionary_template_
+                                     : Cast<Object>(descriptor_array_template_);
   }
 
   Handle<NumberDictionary> elements_template() const {
@@ -534,11 +533,11 @@ class ObjectDescriptor {
 
  private:
   Handle<NameDictionary> properties_dictionary_template() const {
-    return Handle<NameDictionary>::cast(properties_dictionary_template_);
+    return Cast<NameDictionary>(properties_dictionary_template_);
   }
 
   Handle<SwissNameDictionary> properties_ordered_dictionary_template() const {
-    return Handle<SwissNameDictionary>::cast(properties_dictionary_template_);
+    return Cast<SwissNameDictionary>(properties_dictionary_template_);
   }
 
   const int property_slack_;
@@ -716,7 +715,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  auto result = Handle<ClassBoilerplate>::cast(
+  auto result = Cast<ClassBoilerplate>(
       factory->NewStruct(CLASS_BOILERPLATE_TYPE, allocation));
 
   result->set_arguments_count(dynamic_argument_index);

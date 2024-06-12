@@ -368,8 +368,8 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
               isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
 
   // 19. Return durationFormat.
-  Handle<JSDurationFormat> duration_format = Handle<JSDurationFormat>::cast(
-      factory->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSDurationFormat> duration_format =
+      Cast<JSDurationFormat>(factory->NewFastOrSlowJSObjectFromMap(map));
   duration_format->set_style_flags(0);
   duration_format->set_display_flags(0);
   duration_format->set_style(style);

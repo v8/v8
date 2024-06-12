@@ -375,7 +375,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
-  Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
+  Handle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =

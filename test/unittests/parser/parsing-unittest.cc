@@ -276,7 +276,7 @@ class ParsingTest : public TestWithContextAndZone {
       CHECK(isolate->has_exception());
       i::Handle<i::JSObject> exception_handle(
           i::JSObject::cast(isolate->exception()), isolate);
-      i::Handle<i::String> message_string = i::Handle<i::String>::cast(
+      i::Handle<i::String> message_string = i::Cast<i::String>(
           i::JSReceiver::GetProperty(isolate, exception_handle, "message")
               .ToHandleChecked());
       isolate->clear_exception();
@@ -4219,7 +4219,7 @@ TEST_F(ParsingTest, AsmModuleFlag) {
 
   v8::Local<v8::Value> v = RunJS(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-  i::Handle<i::JSObject> m = i::Handle<i::JSObject>::cast(o);
+  i::Handle<i::JSObject> m = i::Cast<i::JSObject>(o);
 
   // The asm.js module should be marked as such.
   i::Scope* s = DeserializeFunctionScope(isolate, zone(), m, "f");

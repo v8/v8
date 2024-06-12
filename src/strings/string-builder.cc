@@ -218,7 +218,7 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     uint8_t* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
-    joined_string = DirectHandle<String>::cast(seq);
+    joined_string = Cast<String>(seq);
   } else {
     // Two-byte.
     DirectHandle<SeqTwoByteString> seq;
@@ -230,7 +230,7 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     base::uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
-    joined_string = DirectHandle<String>::cast(seq);
+    joined_string = Cast<String>(seq);
   }
   return joined_string;
 }
@@ -327,17 +327,17 @@ void IncrementalStringBuilder::AppendStringByCopy(DirectHandle<String> string) {
   {
     DisallowGarbageCollection no_gc;
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      String::WriteToFlat(*string,
-                          DirectHandle<SeqOneByteString>::cast(current_part())
-                                  ->GetChars(no_gc) +
-                              current_index_,
-                          0, string->length());
+      String::WriteToFlat(
+          *string,
+          Cast<SeqOneByteString>(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
     } else {
-      String::WriteToFlat(*string,
-                          DirectHandle<SeqTwoByteString>::cast(current_part())
-                                  ->GetChars(no_gc) +
-                              current_index_,
-                          0, string->length());
+      String::WriteToFlat(
+          *string,
+          Cast<SeqTwoByteString>(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
     }
   }
   current_index_ += string->length();

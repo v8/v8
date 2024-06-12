@@ -596,8 +596,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
   return *zone()->New<GlobalAccessFeedback>(
-      MakeRefAssumeMemoryFence(this,
-                               Handle<PropertyCell>::cast(feedback_value)),
+      MakeRefAssumeMemoryFence(this, Cast<PropertyCell>(feedback_value)),
       nexus.kind());
 }
 

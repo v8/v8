@@ -111,7 +111,7 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
             FrameSummary::JavaScriptFrameSummary const& java_script =
                 summary.AsJavaScript();
             offset = java_script.code_offset();
-            script = Handle<Script>::cast(java_script.script());
+            script = Cast<Script>(java_script.script());
           } else if (summary.IsWasm()) {
             FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
             offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),

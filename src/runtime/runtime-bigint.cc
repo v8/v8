@@ -84,7 +84,7 @@ RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
   if (IsJSReceiver(*x)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, x,
-        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(x),
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(x),
                                 ToPrimitiveHint::kNumber));
   }
 
@@ -105,8 +105,8 @@ RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kBigIntMixedTypes));
   }
-  auto left = Handle<BigInt>::cast(left_obj);
-  auto right = DirectHandle<BigInt>::cast(right_obj);
+  auto left = Cast<BigInt>(left_obj);
+  auto right = Cast<BigInt>(right_obj);
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::Exponentiate(isolate, left, right));
 }
 

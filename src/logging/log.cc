@@ -1426,8 +1426,7 @@ void V8FileLogger::LogSourceCodeInformation(
   int maxInlinedId = -1;
   if (hasInlined) {
     Tagged<TrustedPodArray<InliningPosition>> inlining_positions =
-        DeoptimizationData::cast(
-            Handle<Code>::cast(code)->deoptimization_data())
+        DeoptimizationData::cast(Cast<Code>(code)->deoptimization_data())
             ->InliningPositions();
     for (int i = 0; i < inlining_positions->length(); i++) {
       InliningPosition inlining_pos = inlining_positions->get(i);
@@ -1447,8 +1446,8 @@ void V8FileLogger::LogSourceCodeInformation(
   }
   msg << V8FileLogger::kNext;
   if (hasInlined) {
-    Tagged<DeoptimizationData> deopt_data = DeoptimizationData::cast(
-        Handle<Code>::cast(code)->deoptimization_data());
+    Tagged<DeoptimizationData> deopt_data =
+        DeoptimizationData::cast(Cast<Code>(code)->deoptimization_data());
     msg << std::hex;
     for (int i = 0; i <= maxInlinedId; i++) {
       msg << "S"

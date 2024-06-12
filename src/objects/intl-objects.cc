@@ -770,7 +770,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // RangeError exception.
 
   if (IsString(*locale_in)) {
-    locale_str = Handle<String>::cast(locale_in);
+    locale_str = Cast<String>(locale_in);
   } else if (IsJSReceiver(*locale_in)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
                                      Object::ToString(isolate, locale_in),
@@ -807,7 +807,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     // Since this value came from JSLocale, which is already went though the
     // CanonializeLanguageTag process once, therefore there are no need to
     // call CanonializeLanguageTag again.
-    seen.push_back(JSLocale::ToString(Handle<JSLocale>::cast(locales)));
+    seen.push_back(JSLocale::ToString(Cast<JSLocale>(locales)));
     return Just(seen);
   }
   if (IsString(*locales)) {
@@ -860,7 +860,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     std::string canonicalized_tag;
     if (IsJSLocale(*k_value)) {
       // 7c iii. 1. Let tag be kValue.[[Locale]].
-      canonicalized_tag = JSLocale::ToString(Handle<JSLocale>::cast(k_value));
+      canonicalized_tag = JSLocale::ToString(Cast<JSLocale>(k_value));
       // 7c iv. Else,
     } else {
       // 7c iv 1. Let tag be ? ToString(kValue).
@@ -968,7 +968,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
 
   if (!IsString(*locales)) return CompareStringsOptions::kNone;
 
-  auto locales_string = DirectHandle<String>::cast(locales);
+  auto locales_string = Cast<String>(locales);
   for (const char* fast_locale : kFastLocales) {
     if (locales_string->IsEqualTo(base::CStrVector(fast_locale), isolate)) {
       return CompareStringsOptions::kTryFastPath;

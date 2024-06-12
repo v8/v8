@@ -127,8 +127,8 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate,
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSListFormat> list_format = Handle<JSListFormat>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSListFormat> list_format =
+      Cast<JSListFormat>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   list_format->set_flags(0);
   list_format->set_icu_formatter(*managed_formatter);
@@ -203,7 +203,7 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
   for (int i = 0; i < length; i++) {
     Handle<Object> item(array->get(i), isolate);
     DCHECK(IsString(*item));
-    Handle<String> item_str = Handle<String>::cast(item);
+    Handle<String> item_str = Cast<String>(item);
     if (!item_str->IsFlat()) item_str = String::Flatten(isolate, item_str);
     result.push_back(Intl::ToICUUnicodeString(isolate, item_str));
   }

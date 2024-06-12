@@ -22,7 +22,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
-  auto array_buffer = DirectHandle<JSArrayBuffer>::cast(args.at(0));
+  auto array_buffer = Cast<JSArrayBuffer>(args.at(0));
   constexpr bool kForceForWasmMemory = false;
   MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer, kForceForWasmMemory,
                                      args.atOrUndefined(isolate, 1)),
@@ -41,7 +41,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
-  auto array_buffer = DirectHandle<JSArrayBuffer>::cast(argument);
+  auto array_buffer = Cast<JSArrayBuffer>(argument);
   array_buffer->set_detach_key(*key);
   return ReadOnlyRoots(isolate).undefined_value();
 }

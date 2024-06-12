@@ -312,7 +312,7 @@ TNode<String> CodeAssembler::StringConstant(const char* str) {
 TNode<Boolean> CodeAssembler::BooleanConstant(bool value) {
   Handle<Boolean> object = isolate()->factory()->ToBoolean(value);
   return UncheckedCast<Boolean>(
-      jsgraph()->HeapConstantNoHole(Handle<HeapObject>::cast(object)));
+      jsgraph()->HeapConstantNoHole(i::Cast<HeapObject>(object)));
 }
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
@@ -797,7 +797,7 @@ Node* CodeAssembler::PackMapWord(Node* value) {
 TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
 #ifdef V8_MAP_PACKING
   Handle<Object> root = isolate()->root_handle(root_index);
-  Node* map = HeapConstantNoHole(Handle<Map>::cast(root));
+  Node* map = HeapConstantNoHole(Cast<Map>(root));
   map = PackMapWord(map);
   return ReinterpretCast<AnyTaggedT>(map);
 #else
@@ -811,7 +811,7 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
     if (IsSmi(*root)) {
       return SmiConstant(Smi::cast(*root));
     } else {
-      return HeapConstantMaybeHole(Handle<HeapObject>::cast(root));
+      return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
     }
   }
 

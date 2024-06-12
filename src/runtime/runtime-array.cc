@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   Handle<HeapObject> type_info = args.at<HeapObject>(argc + 2);
   // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
   Handle<AllocationSite> site = IsAllocationSite(*type_info)
-                                    ? Handle<AllocationSite>::cast(type_info)
+                                    ? Cast<AllocationSite>(type_info)
                                     : Handle<AllocationSite>::null();
 
   Factory* factory = isolate->factory();
@@ -113,7 +113,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     allocation_site = site;
   }
 
-  Handle<JSArray> array = Handle<JSArray>::cast(factory->NewJSObjectFromMap(
+  Handle<JSArray> array = Cast<JSArray>(factory->NewJSObjectFromMap(
       initial_map, AllocationType::kYoung, allocation_site));
 
   factory->NewJSArrayStorage(
@@ -293,7 +293,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   if (!IsSpecialReceiverMap(object->map()) &&
       len <= JSObject::kMaxElementCount &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
-    Handle<JSObject> obj = Handle<JSObject>::cast(object);
+    Handle<JSObject> obj = Cast<JSObject>(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
     Maybe<bool> result =
         elements->IncludesValue(isolate, obj, search_element, index, len);
@@ -391,7 +391,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   // uint32_t, perform fast operation tailored to specific ElementsKinds.
   if (!IsSpecialReceiverMap(object->map()) && len <= kMaxUInt32 &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
-    Handle<JSObject> obj = Handle<JSObject>::cast(object);
+    Handle<JSObject> obj = Cast<JSObject>(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
     Maybe<int64_t> result = elements->IndexOfValue(isolate, obj, search_element,
                                                    static_cast<uint32_t>(index),

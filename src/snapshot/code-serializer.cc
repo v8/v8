@@ -196,7 +196,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
                  instance_type)) {
     Handle<UncompiledDataWithoutPreparseDataWithJob> data =
-        Handle<UncompiledDataWithoutPreparseDataWithJob>::cast(obj);
+        Cast<UncompiledDataWithoutPreparseDataWithJob>(obj);
     Address job = data->job();
     data->set_job(kNullAddress);
     SerializeGeneric(data, slot_type);
@@ -205,7 +205,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   } else if (InstanceTypeChecker::IsUncompiledDataWithPreparseDataAndJob(
                  instance_type)) {
     Handle<UncompiledDataWithPreparseDataAndJob> data =
-        Handle<UncompiledDataWithPreparseDataAndJob>::cast(obj);
+        Cast<UncompiledDataWithPreparseDataAndJob>(obj);
     Address job = data->job();
     data->set_job(kNullAddress);
     SerializeGeneric(data, slot_type);
@@ -287,7 +287,7 @@ void CreateInterpreterDataForDeserializedCode(
 
     if (!log_code_creation) continue;
 
-    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+    Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, sfi->StartPosition(), &info);
     int line_num = info.line_start + 1;
@@ -360,7 +360,7 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 
   Handle<String> name(IsString(script->name())
-                          ? Tagged<String>::cast(script->name())
+                          ? Cast<String>(script->name())
                           : ReadOnlyRoots(isolate).empty_string(),
                       isolate);
 

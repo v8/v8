@@ -19,7 +19,7 @@ Handle<FixedArray> MaterializedObjectStore::Get(Address fp) {
   }
   DirectHandle<FixedArray> array = GetStackEntries();
   CHECK_GT(array->length(), index);
-  return Handle<FixedArray>::cast(Handle<Object>(array->get(index), isolate()));
+  return Cast<FixedArray>(Handle<Object>(array->get(index), isolate()));
 }
 
 void MaterializedObjectStore::Set(

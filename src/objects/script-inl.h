@@ -169,7 +169,7 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 bool Script::HasValidSource() {
   Tagged<Object> src = this->source();
   if (!IsString(src)) return true;
-  Tagged<String> src_str = Tagged<String>::cast(src);
+  Tagged<String> src_str = Cast<String>(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
     return ExternalOneByteString::cast(src)->resource() != nullptr;

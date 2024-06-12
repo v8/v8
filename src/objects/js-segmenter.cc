@@ -105,8 +105,8 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate,
                                                  std::move(icu_break_iterator));
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSSegmenter> segmenter = Handle<JSSegmenter>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSSegmenter> segmenter =
+      Cast<JSSegmenter>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   segmenter->set_flags(0);
 

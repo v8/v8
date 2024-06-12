@@ -109,7 +109,7 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
 
       // Recurse into string results from type conversions, as they
       // can themselves contain formatting specifiers.
-      states.push({Handle<String>::cast(current), 0});
+      states.push({Cast<String>(current), 0});
     } else if (specifier == 'c' || specifier == 'o' || specifier == 'O' ||
                specifier == '_') {
       // We leave the interpretation of %c (CSS), %o (optimally useful
@@ -157,7 +157,7 @@ void ConsoleCall(
       isolate, args.target(),
       isolate->factory()->console_context_name_symbol());
   Handle<String> context_name = IsString(*context_name_obj)
-                                    ? Handle<String>::cast(context_name_obj)
+                                    ? Cast<String>(context_name_obj)
                                     : isolate->factory()->anonymous_string();
   (isolate->console_delegate()->*func)(
       wrapper,

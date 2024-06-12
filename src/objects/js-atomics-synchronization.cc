@@ -41,7 +41,7 @@ MaybeHandle<JSPromise> PerformPromiseThen(
       Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
                              arraysize(argv), argv));
 
-  return Handle<JSPromise>::cast(then_result);
+  return Cast<JSPromise>(then_result);
 }
 
 MaybeHandle<Context> SetAsyncUnlockHandlers(
@@ -309,15 +309,15 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
 
   Handle<T> GetSynchronizationPrimitive() {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(requester_);
-    Handle<T> synchronization_primitive = Handle<T>::cast(
-        Utils::OpenHandle(*synchronization_primitive_.Get(v8_isolate)));
+    Handle<T> synchronization_primitive =
+        Cast<T>(Utils::OpenHandle(*synchronization_primitive_.Get(v8_isolate)));
     return synchronization_primitive;
   }
 
   Handle<JSPromise> GetUnlockedPromise() {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(requester_);
-    Handle<JSPromise> unlocked_promise = Handle<JSPromise>::cast(
-        Utils::OpenHandle(*unlocked_promise_.Get(v8_isolate)));
+    Handle<JSPromise> unlocked_promise =
+        Cast<JSPromise>(Utils::OpenHandle(*unlocked_promise_.Get(v8_isolate)));
     return unlocked_promise;
   }
 
@@ -360,8 +360,7 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
     native_context_ =
         GetWeakGlobal(requester, Utils::ToLocal(requester->native_context()));
     synchronization_primitive_ = GetWeakGlobal(
-        requester,
-        Utils::ToLocal(Handle<JSObject>::cast(synchronization_primitive)));
+        requester, Utils::ToLocal(Cast<JSObject>(synchronization_primitive)));
   }
 
   explicit AsyncWaiterQueueNode(Isolate* requester,
@@ -377,8 +376,7 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
     native_context_ =
         GetWeakGlobal(requester, Utils::ToLocal(requester->native_context()));
     synchronization_primitive_ = GetWeakGlobal(
-        requester,
-        Utils::ToLocal(Handle<JSObject>::cast(synchronization_primitive)));
+        requester, Utils::ToLocal(Cast<JSObject>(synchronization_primitive)));
     internal_waiting_promise_ = GetWeakGlobal(
         requester, Utils::PromiseToLocal(internal_waiting_promise));
     if (!unlocked_promise.is_null()) {
@@ -821,7 +819,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, waiting_for_callback_promise,
       PerformPromiseThen(requester, internal_locked_promise,
-                         Handle<JSFunction>::cast(callback)));
+                         Cast<JSFunction>(callback)));
   Handle<JSPromise> unlocked_promise = requester->factory()->NewJSPromise();
   // Set the async unlock handlers here so we can throw without any additional
   // cleanup if the inner `promise_then` call fails. Keep a reference to

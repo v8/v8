@@ -532,7 +532,7 @@ class Tagged<HeapObject> : public StrongTaggedBase {
   template <typename U>
   static constexpr Tagged<HeapObject> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);
-    return Tagged<HeapObject>::cast(Tagged<U>(other));
+    return Cast<HeapObject>(Tagged<U>(other));
   }
 
   Address address() const { return this->ptr() - kHeapObjectTag; }
@@ -764,7 +764,7 @@ class Tagged<Union<Ts...>> : public detail::BaseForTagged<Union<Ts...>>::type {
 };
 
 // Generic Tagged<T> for any T that is a subclass of HeapObject. There are
-// separate Tagged<T> specializations for T==Smi and T==Object, so we know that
+// separate Tagged<T> specialaizations for T==Smi and T==Object, so we know that
 // all other Tagged<T> are definitely pointers and not Smis.
 template <typename T>
 class Tagged : public detail::BaseForTagged<T>::type {
@@ -844,7 +844,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   template <typename U>
   static constexpr Tagged<T> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);
-    return Tagged<T>::cast(Tagged<U>(other));
+    return Cast<T>(Tagged<U>(other));
   }
 
  private:

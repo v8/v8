@@ -216,7 +216,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
                                                           icu_formatter);
 
   Handle<JSRelativeTimeFormat> relative_time_format_holder =
-      Handle<JSRelativeTimeFormat>::cast(
+      Cast<JSRelativeTimeFormat>(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
   DisallowGarbageCollection no_gc;

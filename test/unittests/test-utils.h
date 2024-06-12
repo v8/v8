@@ -394,7 +394,7 @@ class WithInternalIsolateMixin : public TMixin {
 
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(const char* source) {
@@ -403,7 +403,7 @@ class WithInternalIsolateMixin : public TMixin {
 
   template <typename T = Object>
   Handle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(

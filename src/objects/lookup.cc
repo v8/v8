@@ -146,7 +146,7 @@ MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
       // native context, ensuring that we don't leak it into JS?
       Handle<JSFunction> constructor = isolate->string_function();
       Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-      Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
+      Cast<JSPrimitiveWrapper>(result)->set_value(*lookup_start_object);
       return result;
     }
   } else if (own_property_lookup) {
@@ -161,12 +161,12 @@ MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     isolate->PushStackTraceAndDie(
         reinterpret_cast<void*>((*lookup_start_object).ptr()));
   }
-  return Handle<JSReceiver>::cast(root);
+  return Cast<JSReceiver>(root);
 }
 
 Handle<Map> LookupIterator::GetReceiverMap() const {
   if (IsNumber(*receiver_, isolate_)) return factory()->heap_number_map();
-  return handle(Handle<HeapObject>::cast(receiver_)->map(isolate_), isolate_);
+  return handle(Cast<HeapObject>(receiver_)->map(isolate_), isolate_);
 }
 
 bool LookupIterator::HasAccess() const {
@@ -189,7 +189,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                              DirectHandle<Name> name) {
   if (isolate->bootstrapper()->IsActive()) return;
   if (!IsHeapObject(*receiver_generic)) return;
-  auto receiver = DirectHandle<HeapObject>::cast(receiver_generic);
+  auto receiver = Cast<HeapObject>(receiver_generic);
 
   ReadOnlyRoots roots(isolate);
   if (*name == roots.constructor_string()) {
@@ -371,7 +371,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
   if (IsJSProxy(*holder, isolate_)) return;
 
   if (IsElement(*holder)) {
-    Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
+    Handle<JSObject> holder_obj = Cast<JSObject>(holder);
     ElementsKind kind = holder_obj->GetElementsKind(isolate_);
     ElementsKind to = Object::OptimalElementsKind(*value, isolate_);
     if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
@@ -438,7 +438,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
 
   if (!holder->HasFastProperties(isolate_)) return;
 
-  auto holder_obj = DirectHandle<JSObject>::cast(holder);
+  auto holder_obj = Cast<JSObject>(holder);
   Handle<Map> old_map(holder->map(isolate_), isolate_);
 
   Handle<Map> new_map = Map::Update(isolate_, old_map);
@@ -499,7 +499,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     return;
   }
 
-  Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
+  Handle<JSObject> holder_obj = Cast<JSObject>(holder);
   if (IsElement(*holder)) {
     DCHECK(!holder_obj->HasTypedArrayOrRabGsabTypedArrayElements(isolate_));
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
@@ -659,7 +659,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
     JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
 
     // Install a property cell.
-    auto global = DirectHandle<JSGlobalObject>::cast(receiver);
+    auto global = Cast<JSGlobalObject>(receiver);
     DCHECK(!global->HasFastProperties());
     Handle<GlobalDictionary> dictionary(
         global->global_dictionary(isolate_, kAcquireLoad), isolate_);
@@ -689,8 +689,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (!IsJSProxy(*receiver, isolate_)) {
-    JSObject::MigrateToMap(isolate_, Handle<JSObject>::cast(receiver),
-                           transition);
+    JSObject::MigrateToMap(isolate_, Cast<JSObject>(receiver), transition);
   }
 
   if (simple_transition) {
@@ -736,9 +735,9 @@ void LookupIterator::ApplyTransitionToDataProperty(
 }
 
 void LookupIterator::Delete() {
-  Handle<JSReceiver> holder = Handle<JSReceiver>::cast(holder_);
+  Handle<JSReceiver> holder = Cast<JSReceiver>(holder_);
   if (IsElement(*holder)) {
-    Handle<JSObject> object = Handle<JSObject>::cast(holder);
+    Handle<JSObject> object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
     accessor->Delete(object, number_);
   } else {
@@ -753,13 +752,13 @@ void LookupIterator::Delete() {
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
 
     if (holder->HasFastProperties(isolate_)) {
-      JSObject::NormalizeProperties(isolate_, Handle<JSObject>::cast(holder),
-                                    mode, 0, "DeletingProperty");
+      JSObject::NormalizeProperties(isolate_, Cast<JSObject>(holder), mode, 0,
+                                    "DeletingProperty");
       ReloadPropertyInformation<false>();
     }
     JSReceiver::DeleteNormalizedProperty(holder, dictionary_entry());
     if (IsJSObject(*holder, isolate_)) {
-      JSObject::ReoptimizeIfPrototype(Handle<JSObject>::cast(holder));
+      JSObject::ReoptimizeIfPrototype(Cast<JSObject>(holder));
     }
   }
   state_ = NOT_FOUND;
@@ -809,7 +808,7 @@ void LookupIterator::TransitionToAccessorProperty(
 
   Handle<AccessorPair> pair;
   if (state() == ACCESSOR && IsAccessorPair(*GetAccessors(), isolate_)) {
-    pair = Handle<AccessorPair>::cast(GetAccessors());
+    pair = Cast<AccessorPair>(GetAccessors());
     // If the component and attributes are identical, nothing has to be done.
     if (pair->Equals(*getter, *setter)) {
       if (property_details().attributes() == attributes) {
@@ -896,8 +895,8 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   if (!check_prototype_chain()) return true;
   if (*receiver_ == *holder_) return true;
   if (!IsJSGlobalProxy(*receiver_, isolate_)) return false;
-  return Handle<JSGlobalProxy>::cast(receiver_)->map(isolate_)->prototype(
-             isolate_) == *holder_;
+  return Cast<JSGlobalProxy>(receiver_)->map(isolate_)->prototype(isolate_) ==
+         *holder_;
 }
 
 Handle<Object> LookupIterator::FetchValue(
@@ -1080,7 +1079,7 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   if (IsElement(*holder)) {
-    Handle<JSObject> object = Handle<JSObject>::cast(holder);
+    Handle<JSObject> object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
     accessor->Set(object, number_, *value);
   } else if (holder->HasFastProperties(isolate_)) {
@@ -1404,7 +1403,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
 
   DisallowGarbageCollection no_gc;
   Tagged<AccessCheckInfo> access_check_info =
-      AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
+      AccessCheckInfo::Get(isolate_, Cast<JSObject>(holder_));
   if (!access_check_info.is_null()) {
     // There is currently no way to create objects with typed array elements
     // and access checks.
@@ -1430,7 +1429,7 @@ bool LookupIterator::TryLookupCachedProperty() {
 
   Handle<Object> accessor_pair = GetAccessors();
   return IsAccessorPair(*accessor_pair, isolate_) &&
-         LookupCachedProperty(Handle<AccessorPair>::cast(accessor_pair));
+         LookupCachedProperty(Cast<AccessorPair>(accessor_pair));
 }
 
 bool LookupIterator::LookupCachedProperty(

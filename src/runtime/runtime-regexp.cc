@@ -602,7 +602,7 @@ StringReplaceGlobalAtomRegExpWithString(
   }
   Handle<SeqString> untyped_res;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
-  Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(untyped_res);
+  Handle<ResultSeqString> result = Cast<ResultSeqString>(untyped_res);
 
   DisallowGarbageCollection no_gc;
   for (int index : *indices) {
@@ -753,10 +753,10 @@ StringReplaceGlobalRegExpWithEmptyString(
 
   Handle<ResultSeqString> answer;
   if (ResultSeqString::kHasOneByteEncoding) {
-    answer = Handle<ResultSeqString>::cast(
+    answer = Cast<ResultSeqString>(
         isolate->factory()->NewRawOneByteString(new_length).ToHandleChecked());
   } else {
-    answer = Handle<ResultSeqString>::cast(
+    answer = Cast<ResultSeqString>(
         isolate->factory()->NewRawTwoByteString(new_length).ToHandleChecked());
   }
 
@@ -837,7 +837,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     if (*cached_answer != Smi::zero()) {
       // The cache FixedArray is a COW-array and can therefore be reused.
       DirectHandle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
-          DirectHandle<FixedArray>::cast(cached_answer));
+          Cast<FixedArray>(cached_answer));
       return *result;
     }
   }
@@ -1095,7 +1095,7 @@ class VectorBackedMatch : public String::Match {
 
     DCHECK(IsUndefined(*groups_obj, isolate) || IsJSReceiver(*groups_obj));
     has_named_captures_ = !IsUndefined(*groups_obj, isolate);
-    if (has_named_captures_) groups_obj_ = Handle<JSReceiver>::cast(groups_obj);
+    if (has_named_captures_) groups_obj_ = Cast<JSReceiver>(groups_obj);
   }
 
   Handle<String> GetMatch() override { return match_; }
@@ -1321,8 +1321,7 @@ static Tagged<Object> SearchRegExpMultiple(
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
-          Handle<FixedArray> capture_map =
-              Handle<FixedArray>::cast(maybe_capture_map);
+          Handle<FixedArray> capture_map = Cast<FixedArray>(maybe_capture_map);
           DirectHandle<JSObject> groups = ConstructNamedCaptureGroupsObject(
               isolate, capture_map, [=](int ix) { return elements->get(ix); });
           elements->set(cursor++, *groups);
@@ -1420,7 +1419,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
       return string;
     }
 
-    auto match_indices = Handle<RegExpMatchInfo>::cast(match_indices_obj);
+    auto match_indices = Cast<RegExpMatchInfo>(match_indices_obj);
 
     const int start_index = match_indices->capture(0);
     const int end_index = match_indices->capture(1);
@@ -1558,7 +1557,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     return *subject;
   }
 
-  auto match_indices = DirectHandle<RegExpMatchInfo>::cast(match_indices_obj);
+  auto match_indices = Cast<RegExpMatchInfo>(match_indices_obj);
 
   const int index = match_indices->capture(0);
   const int end_of_match = match_indices->capture(1);
@@ -1713,7 +1712,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
         isolate, splitter_obj,
         Execution::New(isolate, ctor, argc, argv.begin()));
 
-    splitter = Handle<JSReceiver>::cast(splitter_obj);
+    splitter = Cast<JSReceiver>(splitter_obj);
   }
 
   uint32_t limit;
@@ -1846,7 +1845,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string, replace));
+        RegExpReplace(isolate, Cast<JSRegExp>(recv), string, replace));
     DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, recv));
     return *result;
   }

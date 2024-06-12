@@ -5378,7 +5378,7 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
           num_args());  // not including receiver
 
   __ Move(CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
-          Handle<HeapObject>::cast(function_template_info_.object()));
+          i::Cast<HeapObject>(function_template_info_.object()));
 
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
   ApiFunction function(function_template_info_.callback(broker));
@@ -5436,7 +5436,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   ASM_CODE_COMMENT_STRING(masm, "inlined CallApiCallbackOptimized builtin");
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   // kNewTarget, kTarget, kReturnValue, kContext
-  __ Push(scratch, Handle<HeapObject>::cast(function_template_info_.object()),
+  __ Push(scratch, i::Cast<HeapObject>(function_template_info_.object()),
           scratch, kContextRegister);
   __ Move(scratch, ER::isolate_address(masm->isolate()));
   // kIsolate, kHolder

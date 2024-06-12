@@ -61,7 +61,7 @@ Tagged<Map> FieldType::AsClass(Tagged<FieldType> type) {
 // static
 Handle<Map> FieldType::AsClass(Handle<FieldType> type) {
   DCHECK(IsClass(*type));
-  return Handle<Map>::cast(type);
+  return Cast<Map>(type);
 }
 
 // static

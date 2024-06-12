@@ -378,7 +378,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
+    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
@@ -386,7 +386,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
+    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =

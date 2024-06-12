@@ -133,7 +133,7 @@ class BytecodeGraphTester {
                                .ToLocalChecked())
             .ToLocalChecked());
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
+        Cast<JSFunction>(v8::Utils::OpenHandle(*api_function));
     IsCompiledScope is_compiled_scope(
         function->shared()->is_compiled_scope(isolate_));
     JSFunction::EnsureFeedbackVector(isolate_, function, &is_compiled_scope);

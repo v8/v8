@@ -940,7 +940,7 @@ class RefImpl {
 #ifdef DEBUG
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate());
 #endif  // DEBUG
-    return i::Handle<JSType>::cast(val_);
+    return i::Cast<JSType>(val_);
   }
 
   void* get_host_info() const { return store()->GetHostInfo(v8_object()); }
@@ -1547,7 +1547,7 @@ auto Func::type() const -> own<FuncType> {
     return SignatureHelper::Deserialize(SignatureHelper::GetSig(func));
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
-  auto function = i::DirectHandle<i::WasmExportedFunction>::cast(func);
+  auto function = i::Cast<i::WasmExportedFunction>(func);
   return FunctionSigToFuncType(function->instance_data()
                                    ->module()
                                    ->functions[function->function_index()]
@@ -1562,7 +1562,7 @@ auto Func::param_arity() const -> size_t {
         SignatureHelper::GetSig(func));
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
-  auto function = i::DirectHandle<i::WasmExportedFunction>::cast(func);
+  auto function = i::Cast<i::WasmExportedFunction>(func);
   const i::wasm::FunctionSig* sig = function->instance_data()
                                         ->module()
                                         ->functions[function->function_index()]
@@ -1578,7 +1578,7 @@ auto Func::result_arity() const -> size_t {
         SignatureHelper::GetSig(func));
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
-  auto function = i::DirectHandle<i::WasmExportedFunction>::cast(func);
+  auto function = i::Cast<i::WasmExportedFunction>(func);
   const i::wasm::FunctionSig* sig = function->instance_data()
                                         ->module()
                                         ->functions[function->function_index()]
@@ -1590,8 +1590,7 @@ namespace {
 
 own<Ref> V8RefValueToWasm(StoreImpl* store, i::Handle<i::Object> value) {
   if (IsNull(*value, store->i_isolate())) return nullptr;
-  return implement<Ref>::type::make(store,
-                                    i::Handle<i::JSReceiver>::cast(value));
+  return implement<Ref>::type::make(store, i::Cast<i::JSReceiver>(value));
 }
 
 i::Handle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
@@ -1708,7 +1707,7 @@ own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
 i::Handle<i::JSReceiver> GetProperException(
     i::Isolate* isolate, i::Handle<i::Object> maybe_exception) {
   if (IsJSReceiver(*maybe_exception)) {
-    return i::Handle<i::JSReceiver>::cast(maybe_exception);
+    return i::Cast<i::JSReceiver>(maybe_exception);
   }
   i::MaybeHandle<i::String> maybe_string =
       i::Object::ToString(isolate, maybe_exception);
@@ -1720,7 +1719,7 @@ i::Handle<i::JSReceiver> GetProperException(
   }
   // {NewError} cannot fail when its input is a plain String, so we always
   // get an Error object here.
-  return i::Handle<i::JSReceiver>::cast(
+  return i::Cast<i::JSReceiver>(
       isolate->factory()->NewError(isolate->error_function(), string));
 }
 
@@ -2260,7 +2259,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
     i::LookupIterator module_it(isolate, imports_obj, module_str,
                                 i::LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (i::JSObject::HasProperty(&module_it).ToChecked()) {
-      module_obj = i::Handle<i::JSObject>::cast(
+      module_obj = i::Cast<i::JSObject>(
           i::Object::GetProperty(&module_it).ToHandleChecked());
     } else {
       module_obj = isolate->factory()->NewJSObject(isolate->object_function());
@@ -2336,19 +2335,19 @@ auto Instance::exports() const -> ownvec<Extern> {
       case EXTERN_FUNC: {
         DCHECK(i::WasmExternalFunction::IsWasmExternalFunction(*obj));
         exports[i] = implement<Func>::type::make(
-            store, i::Handle<i::WasmExternalFunction>::cast(obj));
+            store, i::Cast<i::WasmExternalFunction>(obj));
       } break;
       case EXTERN_GLOBAL: {
         exports[i] = implement<Global>::type::make(
-            store, i::Handle<i::WasmGlobalObject>::cast(obj));
+            store, i::Cast<i::WasmGlobalObject>(obj));
       } break;
       case EXTERN_TABLE: {
         exports[i] = implement<Table>::type::make(
-            store, i::Handle<i::WasmTableObject>::cast(obj));
+            store, i::Cast<i::WasmTableObject>(obj));
       } break;
       case EXTERN_MEMORY: {
         exports[i] = implement<Memory>::type::make(
-            store, i::Handle<i::WasmMemoryObject>::cast(obj));
+            store, i::Cast<i::WasmMemoryObject>(obj));
       } break;
     }
   }

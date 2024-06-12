@@ -2309,7 +2309,7 @@ CompilationJob::Status FinalizeWrapperCompilation(
 
     if (isolate->IsLoggingCodeCreation()) {
       PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kStub,
-                                       Handle<AbstractCode>::cast(code),
+                                       Cast<AbstractCode>(code),
                                        info->GetDebugName().get()));
     }
     return CompilationJob::SUCCEEDED;
@@ -2336,7 +2336,7 @@ CompilationJob::Status FinalizeWrapperCompilation(
 
   if (isolate->IsLoggingCodeCreation()) {
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kStub,
-                                     Handle<AbstractCode>::cast(code),
+                                     Cast<AbstractCode>(code),
                                      info->GetDebugName().get()));
   }
   return CompilationJob::SUCCEEDED;

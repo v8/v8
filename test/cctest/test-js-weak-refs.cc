@@ -23,10 +23,10 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
       factory->NewStringFromStaticChars("FinalizationRegistry");
   Handle<Object> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> finalization_registry_fun = Handle<JSFunction>::cast(
+  Handle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, finalization_registry_name)
           .ToHandleChecked());
-  auto finalization_registry = Handle<JSFinalizationRegistry>::cast(
+  auto finalization_registry = Cast<JSFinalizationRegistry>(
       JSObject::New(finalization_registry_fun, finalization_registry_fun,
                     Handle<AllocationSite>::null())
           .ToHandleChecked());
@@ -50,9 +50,9 @@ Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
   Handle<String> weak_ref_name = factory->WeakRef_string();
   Handle<Object> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> weak_ref_fun = Handle<JSFunction>::cast(
+  Handle<JSFunction> weak_ref_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());
-  auto weak_ref = Handle<JSWeakRef>::cast(
+  auto weak_ref = Cast<JSWeakRef>(
       JSObject::New(weak_ref_fun, weak_ref_fun, Handle<AllocationSite>::null())
           .ToHandleChecked());
   weak_ref->set_target(*target);
@@ -78,7 +78,7 @@ Handle<WeakCell> FinalizationRegistryRegister(
     Handle<JSObject> target, Handle<Object> held_value,
     Handle<Object> unregister_token, Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<JSFunction> regfunc = Handle<JSFunction>::cast(
+  Handle<JSFunction> regfunc = Cast<JSFunction>(
       Object::GetProperty(isolate, finalization_registry,
                           factory->NewStringFromStaticChars("register"))
           .ToHandleChecked());
@@ -921,8 +921,8 @@ TEST(JSWeakRefScavengedInWorklist) {
 
     // Store weak_ref in Global such that it is part of the root set when
     // starting incremental marking.
-    v8::Global<Value> global_weak_ref(
-        CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
+    v8::Global<Value> global_weak_ref(CcTest::isolate(),
+                                      Utils::ToLocal(Cast<Object>(weak_ref)));
 
     // Do marking. This puts the WeakRef above into the js_weak_refs worklist
     // since its target isn't marked.
@@ -971,8 +971,8 @@ TEST(JSWeakRefTenuredInWorklist) {
   }
   // Store weak_ref such that it is part of the root set when starting
   // incremental marking.
-  v8::Global<Value> global_weak_ref(
-      CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
+  v8::Global<Value> global_weak_ref(CcTest::isolate(),
+                                    Utils::ToLocal(Cast<Object>(weak_ref)));
   Address old_weak_ref_location = weak_ref->address();
 
   // Do marking. This puts the WeakRef above into the js_weak_refs worklist

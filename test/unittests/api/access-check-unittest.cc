@@ -206,7 +206,7 @@ class AccessRegressionTest : public AccessCheckTest {
     i::Handle<i::JSReceiver> r =
         Utils::OpenHandle(*Local<Function>::Cast(getter));
     EXPECT_TRUE(IsJSFunction(*r));
-    return i::Handle<i::JSFunction>::cast(r);
+    return i::Cast<i::JSFunction>(r);
   }
 };
 

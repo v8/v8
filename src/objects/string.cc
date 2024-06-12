@@ -760,8 +760,7 @@ Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
     if (len == 0) return handle(Smi::zero(), isolate);
 
     DisallowGarbageCollection no_gc;
-    uint8_t const* data =
-        Handle<SeqOneByteString>::cast(subject)->GetChars(no_gc);
+    uint8_t const* data = Cast<SeqOneByteString>(subject)->GetChars(no_gc);
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 

@@ -16,9 +16,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
   if (IsJSFunction(*function)) {
-    Handle<Object> script(
-        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
-    if (IsScript(*script)) return Handle<Script>::cast(script)->source();
+    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                          isolate);
+    if (IsScript(*script)) return Cast<Script>(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -29,10 +29,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
   if (IsJSFunction(*function)) {
-    Handle<Object> script(
-        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
+    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                          isolate);
     if (IsScript(*script)) {
-      return Smi::FromInt(Handle<Script>::cast(script)->id());
+      return Smi::FromInt(Cast<Script>(script)->id());
     }
   }
   return Smi::FromInt(-1);
@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
   if (IsJSFunction(*function)) {
     DirectHandle<SharedFunctionInfo> shared(
-        DirectHandle<JSFunction>::cast(function)->shared(), isolate);
+        Cast<JSFunction>(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(isolate, shared);
   }
   return ReadOnlyRoots(isolate).undefined_value();

@@ -57,7 +57,7 @@ void JSArray::SetContent(Handle<JSArray> array,
   } else {
     DCHECK_NE(map, roots.fixed_double_array_map());
     if (IsSmiElementsKind(array->GetElementsKind())) {
-      auto elems = Handle<FixedArray>::cast(storage);
+      auto elems = Cast<FixedArray>(storage);
       Tagged<Object> the_hole = roots.the_hole_value();
       for (int i = 0; i < elems->length(); i++) {
         Tagged<Object> candidate = elems->get(i);

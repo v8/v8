@@ -76,7 +76,7 @@ DEF_HEAP_OBJECT_PREDICATE(Name, IsUniqueName) {
   uint32_t type = obj->map()->instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
-  SLOW_DCHECK(result == IsUniqueName(Tagged<HeapObject>::cast(obj)));
+  SLOW_DCHECK(result == IsUniqueName(Cast<HeapObject>(obj)));
   DCHECK_IMPLIES(result, obj->HasHashCode());
   return result;
 }
@@ -96,8 +96,7 @@ bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
       IsSymbol(*one) || IsSymbol(*two)) {
     return false;
   }
-  return String::SlowEquals(isolate, Handle<String>::cast(one),
-                            Handle<String>::cast(two));
+  return String::SlowEquals(isolate, Cast<String>(one), Cast<String>(two));
 }
 
 // static

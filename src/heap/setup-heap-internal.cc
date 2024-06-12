@@ -1286,9 +1286,8 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info =
-      DirectHandle<InterceptorInfo>::cast(isolate()->factory()->NewStruct(
-          INTERCEPTOR_INFO_TYPE, AllocationType::kReadOnly));
+  auto info = Cast<InterceptorInfo>(isolate()->factory()->NewStruct(
+      INTERCEPTOR_INFO_TYPE, AllocationType::kReadOnly));
   info->set_flags(0);
   set_noop_interceptor_info(*info);
 }

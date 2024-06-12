@@ -546,8 +546,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
       isolate->factory()->NewStringFromAsciiChecked(
           (collator_locale != icu_locale) ? r.locale.c_str() : "");
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSCollator> collator = Handle<JSCollator>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSCollator> collator =
+      Cast<JSCollator>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   collator->set_icu_collator(*managed_collator);
   collator->set_locale(*locale_str);

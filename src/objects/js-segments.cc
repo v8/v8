@@ -44,7 +44,7 @@ MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
                         isolate);
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
 
-  Handle<JSSegments> segments = Handle<JSSegments>::cast(result);
+  Handle<JSSegments> segments = Cast<JSSegments>(result);
   segments->set_flags(0);
 
   // 3. Set segments.[[SegmentsSegmenter]] to segmenter.
@@ -129,7 +129,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
           : isolate->native_context()->intl_segment_data_object_map(),
       isolate);
   Handle<JSSegmentDataObject> result =
-      Handle<JSSegmentDataObject>::cast(factory->NewJSObjectFromMap(map));
+      Cast<JSSegmentDataObject>(factory->NewJSObjectFromMap(map));
 
   // 6. Let segment be the String value equal to the substring of string
   // consisting of the code units at indices startIndex (inclusive) through

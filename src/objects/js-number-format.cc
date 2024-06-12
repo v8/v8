@@ -1058,7 +1058,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
                                      "UnwrapNumberFormat")));
   }
   // 5. Return nf.
-  return Handle<JSNumberFormat>::cast(object);
+  return Cast<JSNumberFormat>(object);
 }
 
 // static
@@ -1464,7 +1464,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
               isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
+  Handle<JSNumberFormat> number_format = Cast<JSNumberFormat>(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   number_format->set_locale(*locale_str);
@@ -1505,10 +1505,10 @@ MaybeHandle<String> IntlMathematicalValue::ToString(Isolate* isolate) const {
     return isolate->factory()->NumberToString(value_);
   }
   if (IsBigInt(*value_)) {
-    return BigInt::ToString(isolate, Handle<BigInt>::cast(value_));
+    return BigInt::ToString(isolate, Cast<BigInt>(value_));
   }
   DCHECK(IsString(*value_));
-  return Handle<String>::cast(value_);
+  return Cast<String>(value_);
 }
 
 namespace {
@@ -1520,7 +1520,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   // If it is BigInt, handle it differently.
   UErrorCode status = U_ZERO_ERROR;
   if (IsBigInt(*numeric_obj)) {
-    auto big_int = DirectHandle<BigInt>::cast(numeric_obj);
+    auto big_int = Cast<BigInt>(numeric_obj);
     Handle<String> big_int_string;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, big_int_string,
                                      BigInt::ToString(isolate, big_int),
@@ -1538,7 +1538,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
       // TODO(ftang) Correct the handling of string after the resolution of
       // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
       DirectHandle<String> string =
-          String::Flatten(isolate, Handle<String>::cast(numeric_obj));
+          String::Flatten(isolate, Cast<String>(numeric_obj));
       DisallowGarbageCollection no_gc;
       const String::FlatContent& flat = string->GetFlatContent(no_gc);
       int32_t length = string->length();
@@ -1681,7 +1681,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
   if (IsJSReceiver(*value)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, prim_value,
-        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(value),
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(value),
                                 ToPrimitiveHint::kNumber),
         Nothing<IntlMathematicalValue>());
   } else {
@@ -1692,11 +1692,11 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
   // primValue.
   if (IsBigInt(*prim_value)) {
     result.value_ = prim_value;
-    result.approx_ = Handle<BigInt>::cast(prim_value)->AsInt64();
+    result.approx_ = Cast<BigInt>(prim_value)->AsInt64();
     return Just(result);
   }
   if (IsOddball(*prim_value)) {
-    prim_value = Oddball::ToNumber(isolate, Handle<Oddball>::cast(prim_value));
+    prim_value = Oddball::ToNumber(isolate, Cast<Oddball>(prim_value));
   }
   if (IsNumber(*prim_value)) {
     result.value_ = prim_value;
@@ -1711,7 +1711,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
     result.approx_ = Object::NumberValue(*result.value_);
     return Just(result);
   }
-  Handle<String> string = Handle<String>::cast(prim_value);
+  Handle<String> string = Cast<String>(prim_value);
 
   string = TrimWhiteSpaceOrLineTerminator(isolate, string);
   if (string->length() == 0) {

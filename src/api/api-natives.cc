@@ -59,10 +59,10 @@ MaybeHandle<Object> Instantiate(
     Isolate* isolate, Handle<Object> data,
     MaybeHandle<Name> maybe_name = MaybeHandle<Name>()) {
   if (IsFunctionTemplateInfo(*data)) {
-    return InstantiateFunction(
-        isolate, Handle<FunctionTemplateInfo>::cast(data), maybe_name);
+    return InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(data),
+                               maybe_name);
   } else if (IsObjectTemplateInfo(*data)) {
-    return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
+    return InstantiateObject(isolate, Cast<ObjectTemplateInfo>(data),
                              Handle<JSReceiver>(), false);
   } else {
     return data;
@@ -83,19 +83,17 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
       FunctionTemplateInfo::cast(*getter)->BreakAtEntry(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, getter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(getter)));
+        InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(getter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Handle<JSFunction>::cast(getter)->set_code(*trampoline);
+    Cast<JSFunction>(getter)->set_code(*trampoline);
   }
   if (IsFunctionTemplateInfo(*setter) &&
       FunctionTemplateInfo::cast(*setter)->BreakAtEntry(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, setter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(setter)));
+        InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(setter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Handle<JSFunction>::cast(setter)->set_code(*trampoline);
+    Cast<JSFunction>(setter)->set_code(*trampoline);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
                                    object, name, getter, setter, attributes));
@@ -295,7 +293,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   bool should_cache = info->should_cache();
   if (!new_target.is_null()) {
     if (IsSimpleInstantiation(isolate, *info, *new_target)) {
-      constructor = Handle<JSFunction>::cast(new_target);
+      constructor = Cast<JSFunction>(new_target);
     } else {
       // Disable caching for subclass instantiation.
       should_cache = false;
@@ -372,8 +370,8 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
   Handle<JSFunction> parent_instance;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, parent_instance,
-      InstantiateFunction(
-          isolate, Handle<FunctionTemplateInfo>::cast(function_template)));
+      InstantiateFunction(isolate,
+                          Cast<FunctionTemplateInfo>(function_template)));
   Handle<Object> instance_prototype;
   // TODO(cbruni): decide what to do here.
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -395,7 +393,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
             isolate, native_context, data->serial_number(),
             TemplateInfo::CachingMode::kUnlimited)
             .ToHandle(&result)) {
-      return Handle<JSFunction>::cast(result);
+      return Cast<JSFunction>(result);
     }
   }
   Handle<Object> prototype;
@@ -415,8 +413,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
-          InstantiateObject(isolate,
-                            Handle<ObjectTemplateInfo>::cast(prototype_templ),
+          InstantiateObject(isolate, Cast<ObjectTemplateInfo>(prototype_templ),
                             Handle<JSReceiver>(), true));
     }
     Handle<Object> parent(data->GetParentTemplate(), isolate);
@@ -425,8 +422,8 @@ MaybeHandle<JSFunction> InstantiateFunction(
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent));
       CHECK(IsHeapObject(*parent_prototype));
-      JSObject::ForceSetPrototype(isolate, Handle<JSObject>::cast(prototype),
-                                  Handle<HeapObject>::cast(parent_prototype));
+      JSObject::ForceSetPrototype(isolate, Cast<JSObject>(prototype),
+                                  Cast<HeapObject>(parent_prototype));
     }
   }
   InstanceType function_type = JS_SPECIAL_API_OBJECT_TYPE;
@@ -470,9 +467,8 @@ void AddPropertyToPropertyList(Isolate* isolate,
   templ->set_number_of_properties(templ->number_of_properties() + 1);
   for (int i = 0; i < length; i++) {
     DirectHandle<Object> value =
-        data[i].is_null()
-            ? Handle<Object>::cast(isolate->factory()->undefined_value())
-            : data[i];
+        data[i].is_null() ? Cast<Object>(isolate->factory()->undefined_value())
+                          : data[i];
     list = ArrayList::Add(isolate, list, value);
   }
   templ->set_property_list(*list);
@@ -626,7 +622,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (IsTheHole(*prototype, isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
   } else if (IsUndefined(obj->GetPrototypeProviderTemplate(), isolate)) {
-    JSObject::AddProperty(isolate, Handle<JSObject>::cast(prototype),
+    JSObject::AddProperty(isolate, Cast<JSObject>(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
   }
@@ -686,8 +682,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (immutable_proto) map->set_is_immutable_proto(true);
 
-  JSFunction::SetInitialMap(isolate, result, map,
-                            Handle<JSObject>::cast(prototype));
+  JSFunction::SetInitialMap(isolate, result, map, Cast<JSObject>(prototype));
   return result;
 }
 

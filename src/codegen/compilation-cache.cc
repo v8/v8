@@ -241,7 +241,7 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
     if (IsFixedArray(*result)) break;
   }
   if (IsFixedArray(*result)) {
-    Handle<FixedArray> data = Handle<FixedArray>::cast(result);
+    Handle<FixedArray> data = Cast<FixedArray>(result);
     if (generation != 0) {
       Put(source, flags, data);
     }

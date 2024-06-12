@@ -590,7 +590,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
                                  ->NewConsString(initial_fst, initial_snd)
                                  .ToHandleChecked();
   CHECK(IsConsString(*str));
-  auto cons = i::Handle<i::ConsString>::cast(str);
+  auto cons = i::Cast<i::ConsString>(str);
 
   const int initial_length = cons->length();
 
@@ -682,7 +682,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     static_assert(kTaggedCanConvertToRawObjects);
     Tagged<String> flat_string_ptr =
         IsConsString(*flat_string)
-            ? Tagged(Tagged<ConsString>::cast(*flat_string)->first())
+            ? Tagged(Cast<ConsString>(*flat_string)->first())
             : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
@@ -1427,8 +1427,8 @@ TEST(SliceFromExternal) {
   CHECK(IsExternalString(SlicedString::cast(*slice)->parent()));
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(string)->SetResource(
-      CcTest::i_isolate(), nullptr);
+  i::Cast<i::ExternalOneByteString>(string)->SetResource(CcTest::i_isolate(),
+                                                         nullptr);
 }
 
 static void ExternalizeDuringJsonStringifyCallback(
@@ -1928,8 +1928,7 @@ TEST(InternalizeExternalString) {
   CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
-  DirectHandle<ExternalString> external =
-      DirectHandle<ExternalString>::cast(string);
+  DirectHandle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(!external->is_uncached());
 
   // Internalize succesfully, without a copy.
@@ -1954,8 +1953,7 @@ TEST(InternalizeExternalStringTwoByte) {
   CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
-  DirectHandle<ExternalString> external =
-      DirectHandle<ExternalString>::cast(string);
+  DirectHandle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(!external->is_uncached());
 
   // Internalize succesfully, without a copy.
@@ -1996,7 +1994,7 @@ TEST(InternalizeExternalStringUncachedWithCopy) {
   CHECK(IsExternalString(*string));
 
   // Check it is uncached.
-  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  Handle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(external->is_uncached());
 
   // Internalize succesfully, with a copy.
@@ -2039,7 +2037,7 @@ TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
   CHECK(IsExternalString(*string));
 
   // Check it is uncached.
-  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  Handle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(external->is_uncached());
 
   // Internalize succesfully, with a copy.

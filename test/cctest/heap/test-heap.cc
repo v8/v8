@@ -317,7 +317,7 @@ TEST(HeapObjects) {
   CHECK(IsString(*s));
   CHECK_EQ(10, s->length());
 
-  Handle<String> object_string = Handle<String>::cast(factory->Object_string());
+  Handle<String> object_string = Cast<String>(factory->Object_string());
   Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
                                 isolate);
   CHECK(Just(true) ==
@@ -394,7 +394,7 @@ TEST(GarbageCollection) {
   Handle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
-  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+  Handle<JSFunction> function = Cast<JSFunction>(func_value);
 
   {
     HandleScope inner_scope(isolate);
@@ -770,7 +770,7 @@ TEST(ObjectProperties) {
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
+  Handle<JSFunction> constructor = Cast<JSFunction>(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
@@ -868,12 +868,12 @@ TEST(JSArray) {
   Handle<Object> fun_obj =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
           .ToHandleChecked();
-  Handle<JSFunction> function = Handle<JSFunction>::cast(fun_obj);
+  Handle<JSFunction> function = Cast<JSFunction>(fun_obj);
 
   // Allocate the object.
   Handle<Object> element;
   Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  Handle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
   JSArray::Initialize(array, 0);
 
@@ -921,7 +921,7 @@ TEST(JSObjectCopy) {
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
+  Handle<JSFunction> constructor = Cast<JSFunction>(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
@@ -1115,7 +1115,7 @@ TEST(TestBytecodeFlushing) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
 
     // The code will survive at least two GCs.
@@ -1189,7 +1189,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSFunction> function = Cast<JSFunction>(func_value);
     Handle<SharedFunctionInfo> shared = handle(function->shared(), i_isolate);
     CHECK(shared->is_compiled());
 
@@ -1269,7 +1269,7 @@ HEAP_TEST(Regress10560) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
     CHECK(!function->has_feedback_vector());
 
@@ -1443,7 +1443,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
       Object::GetProperty(isolate, isolate->global_object(), foo_name)
           .ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
-  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+  Handle<JSFunction> function = Cast<JSFunction>(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
@@ -3265,11 +3265,10 @@ TEST(Regress1465) {
 }
 
 static i::Handle<JSObject> GetByName(const char* name) {
-  return i::Handle<JSObject>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-          CcTest::global()
-              ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
-              .ToLocalChecked())));
+  return i::Cast<JSObject>(v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
+          .ToLocalChecked())));
 }
 
 #ifdef DEBUG
@@ -3850,8 +3849,7 @@ void DetailedErrorStackTraceTest(const char* src,
   CHECK(try_catch.HasCaught());
   Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
 
-  test(CcTest::i_isolate()->GetSimpleStackTrace(
-      Handle<JSReceiver>::cast(exception)));
+  test(CcTest::i_isolate()->GetSimpleStackTrace(Cast<JSReceiver>(exception)));
 }
 
 Tagged<FixedArray> ParametersOf(DirectHandle<FixedArray> stack_trace,
@@ -4274,16 +4272,15 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     // One allocation site should have been created.
     int new_count = AllocationSitesCount(heap);
     CHECK_EQ(new_count, (count + 1));
-    site = Handle<AllocationSite>::cast(global_handles->Create(
+    site = Cast<AllocationSite>(global_handles->Create(
         AllocationSite::cast(heap->allocation_sites_list())));
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
-    Handle<JSFunction> bar_handle = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()
-                ->Get(context.local(), v8_str("bar"))
-                .ToLocalChecked())));
+    Handle<JSFunction> bar_handle = Cast<JSFunction>(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("bar"))
+                                           .ToLocalChecked())));
 
     // Expect a dependent code object for transitioning and pretenuring.
     Tagged<DependentCode> dependency = site->dependent_code();
@@ -4682,11 +4679,10 @@ TEST(WeakFunctionInConstructor) {
       "function createObj(obj) {"
       "  return new obj();"
       "}");
-  i::Handle<JSFunction> createObj = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()
-              ->Get(env.local(), v8_str("createObj"))
-              .ToLocalChecked())));
+  i::Handle<JSFunction> createObj = Cast<JSFunction>(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CcTest::global()
+                                         ->Get(env.local(), v8_str("createObj"))
+                                         .ToLocalChecked())));
 
   v8::Persistent<v8::Object> garbage;
   {
@@ -4930,7 +4926,7 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
   Handle<Object> obj =
       Object::GetProperty(isolate, isolate->global_object(), str)
           .ToHandleChecked();
-  return Handle<JSFunction>::cast(obj);
+  return Cast<JSFunction>(obj);
 }
 
 void CheckIC(DirectHandle<JSFunction> function, int slot_index,
@@ -5359,7 +5355,7 @@ void CheckMapRetainingFor(int n) {
     v8::Local<v8::Context> ctx = v8::Context::New(isolate);
     Handle<Context> context = Utils::OpenHandle(*ctx);
     CHECK(IsNativeContext(*context));
-    native_context = Handle<NativeContext>::cast(context);
+    native_context = Cast<NativeContext>(context);
     global_ctxt.Reset(isolate, ctx);
     ctx->Enter();
   }
@@ -5852,8 +5848,7 @@ TEST(Regress598319) {
           get()->set(i, *tmp);
         }
       }
-      global_root.Reset(CcTest::isolate(),
-                        Utils::ToLocal(Handle<Object>::cast(root)));
+      global_root.Reset(CcTest::isolate(), Utils::ToLocal(Cast<Object>(root)));
     }
 
     Tagged<FixedArray> get() { return FixedArray::cast(root->get(0)); }
@@ -6081,8 +6076,7 @@ TEST(Regress631969) {
     s3->MakeExternal(&external_string);
     heap::InvokeMajorGC(heap);
     // This avoids the GC from trying to free stack allocated resources.
-    i::Handle<i::ExternalOneByteString>::cast(s3)->SetResource(isolate,
-                                                               nullptr);
+    i::Cast<i::ExternalOneByteString>(s3)->SetResource(isolate, nullptr);
   }
 }
 

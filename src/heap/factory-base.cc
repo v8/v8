@@ -42,7 +42,7 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
   Tagged<Map> map = read_only_roots().heap_number_map();
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       sizeof(HeapNumber), allocation, map, kDoubleUnaligned);
-  return handle(Tagged<HeapNumber>::cast(result), isolate());
+  return handle(Cast<HeapNumber>(result), isolate());
 }
 
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
@@ -81,7 +81,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   DirectHandle<CodeWrapper> wrapper = NewCodeWrapper();
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
-  Tagged<Code> code = Tagged<Code>::cast(
+  Tagged<Code> code = Cast<Code>(
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   code->init_self_indirect_pointer(isolate());
@@ -216,7 +216,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   DCHECK(ReadOnlyHeap::Contains(*map));
   DCHECK(ReadOnlyHeap::Contains(*filler));
   result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = Tagged<FixedArray>::cast(result);
+  Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
   return handle(array, isolate());
@@ -234,7 +234,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(read_only_roots().fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = Tagged<FixedArray>::cast(result);
+  Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
   return handle(array, isolate());
@@ -257,7 +257,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   DisallowGarbageCollection no_gc;
-  Tagged<WeakFixedArray> array = Tagged<WeakFixedArray>::cast(result);
+  Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(result);
   array->set_length(length);
   MemsetTagged(ObjectSlot(array->RawFieldOfFirstElement()),
                read_only_roots().undefined_value(), length);
@@ -320,15 +320,13 @@ Handle<ExternalPointerArray> FactoryBase<Impl>::NewExternalPointerArray(
 template <typename Impl>
 Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
-  return Handle<DeoptimizationLiteralArray>::cast(
-      NewTrustedWeakFixedArray(length));
+  return Cast<DeoptimizationLiteralArray>(NewTrustedWeakFixedArray(length));
 }
 
 template <typename Impl>
 Handle<DeoptimizationFrameTranslation>
 FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
-  return Handle<DeoptimizationFrameTranslation>::cast(
-      NewTrustedByteArray(length));
+  return Cast<DeoptimizationFrameTranslation>(NewTrustedByteArray(length));
 }
 
 template <typename Impl>
@@ -531,9 +529,8 @@ template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
-  Tagged<PreparseData> result =
-      Tagged<PreparseData>::cast(AllocateRawWithImmortalMap(
-          size, AllocationType::kOld, read_only_roots().preparse_data_map()));
+  Tagged<PreparseData> result = Cast<PreparseData>(AllocateRawWithImmortalMap(
+      size, AllocationType::kOld, read_only_roots().preparse_data_map()));
   DisallowGarbageCollection no_gc;
   result->set_data_length(data_length);
   result->set_children_length(children_length);
@@ -691,7 +688,7 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
   DCHECK_LE(0, slot_count);
   int size = FeedbackMetadata::SizeFor(slot_count);
   Tagged<FeedbackMetadata> result =
-      Tagged<FeedbackMetadata>::cast(AllocateRawWithImmortalMap(
+      Cast<FeedbackMetadata>(AllocateRawWithImmortalMap(
           size, allocation, read_only_roots().feedback_metadata_map()));
   result->set_slot_count(slot_count);
   result->set_create_closure_slot_count(create_closure_slot_count);
@@ -961,7 +958,7 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
 
-  Tagged<ConsString> result = Tagged<ConsString>::cast(
+  Tagged<ConsString> result = Cast<ConsString>(
       one_byte ? NewWithImmortalMap(
                      read_only_roots().cons_one_byte_string_map(), allocation)
                : NewWithImmortalMap(
@@ -1032,14 +1029,13 @@ Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
   SLOW_DCHECK(IsNumber(*number));
   if (IsSmi(*number)) return SmiToString(Smi::cast(*number), mode);
 
-  double double_value = DirectHandle<HeapNumber>::cast(number)->value();
+  double double_value = Cast<HeapNumber>(number)->value();
   // Try to canonicalize doubles.
   int smi_value;
   if (DoubleToSmiInteger(double_value, &smi_value)) {
     return SmiToString(Smi::FromInt(smi_value), mode);
   }
-  return HeapNumberToString(DirectHandle<HeapNumber>::cast(number),
-                            double_value, mode);
+  return HeapNumberToString(Cast<HeapNumber>(number), double_value, mode);
 }
 
 template <typename Impl>
@@ -1051,7 +1047,7 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
 
   if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = impl()->NumberToStringCacheGet(*number, hash);
-    if (!IsUndefined(*cached, isolate())) return Handle<String>::cast(cached);
+    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
   }
 
   Handle<String> result;
@@ -1080,7 +1076,7 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
 
   if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = impl()->NumberToStringCacheGet(number, hash);
-    if (!IsUndefined(*cached, isolate())) return Handle<String>::cast(cached);
+    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
   }
 
   Handle<String> result;
@@ -1122,8 +1118,7 @@ Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       BigInt::SizeFor(length), allocation, read_only_roots().bigint_map());
   DisallowGarbageCollection no_gc;
-  Tagged<FreshlyAllocatedBigInt> bigint =
-      Tagged<FreshlyAllocatedBigInt>::cast(result);
+  Tagged<FreshlyAllocatedBigInt> bigint = Cast<FreshlyAllocatedBigInt>(result);
   bigint->clear_padding();
   return handle(bigint, isolate());
 }
@@ -1143,7 +1138,7 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
 
 template <typename Impl>
 Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
-  return Handle<SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
+  return Cast<SourceTextModuleInfo>(NewFixedArrayWithMap(
       read_only_roots().module_info_map_handle(), SourceTextModuleInfo::kLength,
       AllocationType::kOld));
 }
@@ -1219,7 +1214,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
                                                : AllocationType::kOld,
           map);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
-  Tagged<SeqOneByteString> answer = Tagged<SeqOneByteString>::cast(result);
+  Tagged<SeqOneByteString> answer = Cast<SeqOneByteString>(result);
   DisallowGarbageCollection no_gc;
   answer->clear_padding_destructively(length);
   answer->set_length(length);

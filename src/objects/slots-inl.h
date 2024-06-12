@@ -169,7 +169,7 @@ void FullMaybeObjectSlot::Release_CompareAndSwap(
 //
 
 Tagged<HeapObjectReference> FullHeapObjectSlot::operator*() const {
-  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(*location()));
+  return Cast<HeapObjectReference>(Tagged<MaybeObject>(*location()));
 }
 
 Tagged<HeapObjectReference> FullHeapObjectSlot::load(

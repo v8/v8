@@ -24,8 +24,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   int len = array->length();
   if (index >= len) {
     int new_capacity = FixedArray::NewCapacityForIndex(index, len);
-    array = Handle<FixedArray>::cast(
-        FixedArray::Resize(isolate, array, new_capacity));
+    array = Cast<FixedArray>(FixedArray::Resize(isolate, array, new_capacity));
     // TODO(jgruber): This is somewhat subtle - other FixedArray methods
     // use `undefined` as a filler. Make this more explicit.
     array->FillWithHoles(len, new_capacity);

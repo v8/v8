@@ -44,7 +44,7 @@ class StringTable::OffHeapStringHashSet
   template <typename IsolateT, typename StringTableKey>
   static bool KeyIsMatch(IsolateT* isolate, StringTableKey* key,
                          Tagged<Object> obj) {
-    auto string = Tagged<String>::cast(obj);
+    auto string = Cast<String>(obj);
     if (string->hash() != key->hash()) return false;
     if (string->length() != key->length()) return false;
     return key->IsMatch(isolate, string);

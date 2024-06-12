@@ -124,7 +124,7 @@ Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
 
 Local<String> GetDateDescription(Local<Date> date) {
   auto receiver = Utils::OpenDirectHandle(*date);
-  auto jsdate = i::DirectHandle<i::JSDate>::cast(receiver);
+  auto jsdate = i::Cast<i::JSDate>(receiver);
   i::Isolate* i_isolate = jsdate->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   auto buffer = i::ToDateString(
@@ -140,11 +140,11 @@ Local<String> GetFunctionDescription(Local<Function> function) {
   auto i_isolate = receiver->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (IsJSBoundFunction(*receiver)) {
-    return Utils::ToLocal(i::JSBoundFunction::ToString(
-        i::Handle<i::JSBoundFunction>::cast(receiver)));
+    return Utils::ToLocal(
+        i::JSBoundFunction::ToString(i::Cast<i::JSBoundFunction>(receiver)));
   }
   if (IsJSFunction(*receiver)) {
-    auto js_function = i::Handle<i::JSFunction>::cast(receiver);
+    auto js_function = i::Cast<i::JSFunction>(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     if (js_function->shared()->HasWasmExportedFunctionData()) {
       i::DirectHandle<i::WasmExportedFunctionData> function_data(
@@ -434,7 +434,7 @@ bool CanBreakProgram(Isolate* v8_isolate) {
 size_t ScriptSource::Length() const {
   auto source = Utils::OpenDirectHandle(this);
   if (IsString(*source)) {
-    return i::DirectHandle<i::String>::cast(source)->length();
+    return i::Cast<i::String>(source)->length();
   }
   return Size();
 }
@@ -448,14 +448,14 @@ size_t ScriptSource::Size() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
   auto source = Utils::OpenDirectHandle(this);
   if (!IsString(*source)) return 0;
-  auto string = i::DirectHandle<i::String>::cast(source);
+  auto string = i::Cast<i::String>(source);
   return string->length() * (string->IsTwoByteRepresentation() ? 2 : 1);
 }
 
 MaybeLocal<String> ScriptSource::JavaScriptCode() const {
   i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
   if (!IsString(*source)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::Handle<i::String>::cast(source));
+  return Utils::ToLocal(i::Cast<i::String>(source));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -537,7 +537,7 @@ MaybeLocal<String> Script::Name() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::Object> value(script->name(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::DirectHandle<i::String>::cast(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
 }
 
 MaybeLocal<String> Script::SourceURL() const {
@@ -545,7 +545,7 @@ MaybeLocal<String> Script::SourceURL() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::PrimitiveHeapObject> value(script->source_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::DirectHandle<i::String>::cast(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
 }
 
 MaybeLocal<String> Script::SourceMappingURL() const {
@@ -553,7 +553,7 @@ MaybeLocal<String> Script::SourceMappingURL() const {
   i::Isolate* isolate = script->GetIsolate();
   i::DirectHandle<i::Object> value(script->source_mapping_url(), isolate);
   if (!IsString(*value)) return MaybeLocal<String>();
-  return Utils::ToLocal(i::DirectHandle<i::String>::cast(value), isolate);
+  return Utils::ToLocal(i::Cast<i::String>(value), isolate);
 }
 
 MaybeLocal<String> Script::GetSha256Hash() const {
@@ -673,7 +673,7 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
   }
 
   i::Script::InitLineEnds(script->GetIsolate(), script);
-  auto line_ends = i::DirectHandle<i::FixedArray>::cast(
+  auto line_ends = i::Cast<i::FixedArray>(
       i::direct_handle(script->line_ends(), script->GetIsolate()));
   if (line < 0) {
     if (mode == GetSourceOffsetMode::kClamp) {
@@ -1040,7 +1040,7 @@ int EstimatedValueSize(Isolate* v8_isolate, Local<Value> value) {
   auto object = Utils::OpenDirectHandle(*value);
   if (IsSmi(*object)) return i::kTaggedSize;
   CHECK(IsHeapObject(*object));
-  return i::DirectHandle<i::HeapObject>::cast(object)->Size();
+  return i::Cast<i::HeapObject>(object)->Size();
 }
 
 void AccessorPair::CheckCast(Value* that) {
@@ -1063,8 +1063,7 @@ bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
 }
 
 Local<String> WasmValueObject::type() const {
-  auto object =
-      i::DirectHandle<i::WasmValueObject>::cast(Utils::OpenDirectHandle(this));
+  auto object = i::Cast<i::WasmValueObject>(Utils::OpenDirectHandle(this));
   i::Isolate* isolate = object->GetIsolate();
   i::DirectHandle<i::String> type(object->type(), isolate);
   return Utils::ToLocal(type, isolate);
@@ -1237,7 +1236,7 @@ int64_t GetNextRandomInt64(v8::Isolate* v8_isolate) {
 int GetDebuggingId(v8::Local<v8::Function> function) {
   auto callable = v8::Utils::OpenDirectHandle(*function);
   if (!IsJSFunction(*callable)) return i::DebugInfo::kNoDebuggingId;
-  auto func = i::DirectHandle<i::JSFunction>::cast(callable);
+  auto func = i::Cast<i::JSFunction>(callable);
   int id = func->GetIsolate()->debug()->GetFunctionDebuggingId(func);
   DCHECK_NE(i::DebugInfo::kNoDebuggingId, id);
   return id;
@@ -1247,7 +1246,7 @@ bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
                            v8::Local<v8::String> condition, BreakpointId* id) {
   auto callable = Utils::OpenDirectHandle(*function);
   if (!IsJSFunction(*callable)) return false;
-  auto jsfunction = i::DirectHandle<i::JSFunction>::cast(callable);
+  auto jsfunction = i::Cast<i::JSFunction>(callable);
   i::Isolate* isolate = jsfunction->GetIsolate();
   i::DirectHandle<i::String> condition_string =
       condition.IsEmpty()
@@ -1337,8 +1336,7 @@ void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
 MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  auto self = i::DirectHandle<i::EphemeronHashTable>::cast(
-      Utils::OpenDirectHandle(this));
+  auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenDirectHandle(this));
   i::Handle<i::Object> internal_key = Utils::OpenHandle(*key);
   DCHECK(IsJSReceiver(*internal_key));
 
@@ -1351,7 +1349,7 @@ MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
 Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key,
                                           v8::Local<v8::Value> value) {
-  auto self = i::Handle<i::EphemeronHashTable>::cast(Utils::OpenHandle(this));
+  auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenHandle(this));
   i::Handle<i::Object> internal_key = Utils::OpenHandle(*key);
   i::Handle<i::Object> internal_value = Utils::OpenHandle(*value);
   DCHECK(IsJSReceiver(*internal_key));
@@ -1401,8 +1399,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
   if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();
-  return ToApiHandle<Message>(
-      i::Handle<i::JSMessageObject>::cast(maybeMessage));
+  return ToApiHandle<Message>(i::Cast<i::JSMessageObject>(maybeMessage));
 }
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {

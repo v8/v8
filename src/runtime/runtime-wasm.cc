@@ -575,7 +575,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   }
 
   if (IsTuple2(*origin)) {
-    auto tuple = DirectHandle<Tuple2>::cast(origin);
+    auto tuple = Cast<Tuple2>(origin);
     instance_object =
         direct_handle(WasmInstanceObject::cast(tuple->value1()), isolate);
     origin = direct_handle(tuple->value2(), isolate);
@@ -625,7 +625,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   int expected_arity =
       static_cast<int>(sig.parameter_count()) - suspender_count;
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
-    expected_arity = Handle<JSFunction>::cast(callable)
+    expected_arity = Cast<JSFunction>(callable)
                          ->shared()
                          ->internal_formal_parameter_count_without_receiver();
   }
@@ -1177,10 +1177,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     // If the segment is initialized in the instance, we have to get its length
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
-    int segment_length =
-        IsFixedArray(*elem_segment_raw)
-            ? Handle<FixedArray>::cast(elem_segment_raw)->length()
-            : module_elem_segment->element_count;
+    int segment_length = IsFixedArray(*elem_segment_raw)
+                             ? Cast<FixedArray>(elem_segment_raw)->length()
+                             : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(offset, length, segment_length)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
@@ -1254,10 +1253,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // If the segment is initialized in the instance, we have to get its length
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
-    int segment_length =
-        IsFixedArray(*elem_segment_raw)
-            ? Handle<FixedArray>::cast(elem_segment_raw)->length()
-            : module_elem_segment->element_count;
+    int segment_length = IsFixedArray(*elem_segment_raw)
+                             ? Cast<FixedArray>(elem_segment_raw)->length()
+                             : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(segment_offset, length, segment_length)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);

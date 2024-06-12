@@ -497,7 +497,7 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<Code>::cast(
+    return Cast<Code>(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }

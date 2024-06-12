@@ -935,7 +935,7 @@ TEST(BailoutReason) {
                                          "Debugger")
                                          .As<v8::Function>();
   i::Handle<i::JSFunction> i_function =
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
+      i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*function));
   USE(i_function);
 
   CompileRun(

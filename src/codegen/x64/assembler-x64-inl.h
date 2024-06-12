@@ -302,7 +302,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
     DCHECK(IsFullEmbeddedObject(rmode_));
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+    return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
 

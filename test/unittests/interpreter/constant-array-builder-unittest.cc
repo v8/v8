@@ -42,8 +42,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   ast_factory.Internalize(isolate());
   for (size_t i = 0; i < k16BitCapacity; i++) {
     CHECK_EQ(
-        Handle<HeapNumber>::cast(builder.At(i, isolate()).ToHandleChecked())
-            ->value(),
+        Cast<HeapNumber>(builder.At(i, isolate()).ToHandleChecked())->value(),
         i + 0.5);
   }
 }

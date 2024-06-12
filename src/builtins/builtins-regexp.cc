@@ -84,7 +84,7 @@ BUILTIN(RegExpInputGetter) {
   DirectHandle<Object> obj(isolate->regexp_last_match_info()->last_input(),
                            isolate);
   return IsUndefined(*obj, isolate) ? ReadOnlyRoots(isolate).empty_string()
-                                    : Tagged<String>::cast(*obj);
+                                    : Cast<String>(*obj);
 }
 
 BUILTIN(RegExpInputSetter) {

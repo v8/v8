@@ -2622,11 +2622,10 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
     // embedding the relocatable value.
     // TODO(v8:9706): Fix-it! This load will always uncompress the value
     // even when we are loading a compressed embedded object.
-    IndirectLoadConstant(kScratchRegister, Handle<HeapObject>::cast(source));
+    IndirectLoadConstant(kScratchRegister, Cast<HeapObject>(source));
     cmp_tagged(dst, kScratchRegister);
   } else if (COMPRESS_POINTERS_BOOL) {
-    EmbeddedObjectIndex index =
-        AddEmbeddedObject(Handle<HeapObject>::cast(source));
+    EmbeddedObjectIndex index = AddEmbeddedObject(Cast<HeapObject>(source));
     DCHECK(is_uint32(index));
     cmpl(dst, Immediate(static_cast<int>(index),
                         RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
@@ -2646,16 +2645,15 @@ void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
     // embedding the relocatable value.
     // TODO(v8:9706): Fix-it! This load will always uncompress the value
     // even when we are loading a compressed embedded object.
-    IndirectLoadConstant(kScratchRegister, Handle<HeapObject>::cast(source));
+    IndirectLoadConstant(kScratchRegister, Cast<HeapObject>(source));
     cmp_tagged(dst, kScratchRegister);
   } else if (COMPRESS_POINTERS_BOOL) {
-    EmbeddedObjectIndex index =
-        AddEmbeddedObject(Handle<HeapObject>::cast(source));
+    EmbeddedObjectIndex index = AddEmbeddedObject(Cast<HeapObject>(source));
     DCHECK(is_uint32(index));
     cmpl(dst, Immediate(static_cast<int>(index),
                         RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
   } else {
-    Move(kScratchRegister, Handle<HeapObject>::cast(source),
+    Move(kScratchRegister, Cast<HeapObject>(source),
          RelocInfo::FULL_EMBEDDED_OBJECT);
     cmp_tagged(dst, kScratchRegister);
   }

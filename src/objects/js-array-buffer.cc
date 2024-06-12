@@ -24,7 +24,7 @@ bool CanonicalNumericIndexString(Isolate* isolate,
   *is_minus_zero = false;
   if (lookup_key.is_element()) return true;
 
-  Handle<String> key = Handle<String>::cast(lookup_key.name());
+  Handle<String> key = Cast<String>(lookup_key.name());
 
   // 3. Let n be ! ToNumber(argument).
   Handle<Object> result = String::ToNumber(isolate, key);

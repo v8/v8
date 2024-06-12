@@ -43,7 +43,7 @@ void SharedHeapDeserializer::DeserializeStringTable() {
   DirectHandleVector<String> strings(isolate());
   strings.reserve(length);
   for (int i = 0; i < length; ++i) {
-    strings.emplace_back(Handle<String>::cast(ReadObject()));
+    strings.emplace_back(Cast<String>(ReadObject()));
   }
 
   StringTable* t = isolate()->string_table();

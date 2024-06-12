@@ -44,7 +44,7 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
       isolate->factory()->InternalizeString(base::StaticCharVector("Math")));
   Handle<Object> math = JSReceiver::GetDataProperty(isolate, stdlib, math_name);
   if (!IsJSReceiver(*math)) return isolate->factory()->undefined_value();
-  Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
+  Handle<JSReceiver> math_receiver = Cast<JSReceiver>(math);
   Handle<Object> value =
       JSReceiver::GetDataProperty(isolate, math_receiver, name);
   return value;
@@ -75,8 +75,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
         base::StaticCharVector(#fname)));                                  \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
     if (!IsJSFunction(*value)) return false;                               \
-    Tagged<SharedFunctionInfo> shared =                                    \
-        Handle<JSFunction>::cast(value)->shared();                         \
+    Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(value)->shared(); \
     if (!shared->HasBuiltinId() ||                                         \
         shared->builtin_id() != Builtin::kMath##FName) {                   \
       return false;                                                        \
@@ -105,7 +104,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
         base::StaticCharVector(#FName)));                                      \
     Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name); \
     if (!IsJSFunction(*value)) return false;                                   \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);                 \
+    Handle<JSFunction> func = Cast<JSFunction>(value);                         \
     if (!func.is_identical_to(isolate->fname())) return false;                 \
   }
   STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)

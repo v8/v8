@@ -56,8 +56,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
   DisallowGarbageCollection no_gc;
-  Handle<JSSegmentIterator> segment_iterator =
-      Handle<JSSegmentIterator>::cast(result);
+  Handle<JSSegmentIterator> segment_iterator = Cast<JSSegmentIterator>(result);
 
   segment_iterator->set_flags(0);
   segment_iterator->set_granularity(granularity);
@@ -127,8 +126,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     if (!Smi::IsValid(start_index)) index = factory->NewHeapNumber(start_index);
     DirectHandle<Map> map(
         isolate->native_context()->intl_segment_data_object_map(), isolate);
-    segment_data =
-        Handle<JSSegmentDataObject>::cast(factory->NewJSObjectFromMap(map));
+    segment_data = Cast<JSSegmentDataObject>(factory->NewJSObjectFromMap(map));
     Tagged<JSSegmentDataObject> raw = *segment_data;
     DisallowHeapAllocation no_gc;
     // We can skip write barriers because {segment_data} is the last object

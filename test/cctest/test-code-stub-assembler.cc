@@ -244,12 +244,12 @@ TEST(ToUint32) {
 
     // Check with Smi input.
     if (IsSmi(*input_obj)) {
-      Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
+      Handle<Smi> input_smi = Cast<Smi>(input_obj);
       DirectHandle<Object> result = ft.Call(input_smi).ToHandleChecked();
       CheckToUint32Result(expectations[i], result);
       input_num = factory->NewHeapNumber(inputs[i]);
     } else {
-      input_num = Handle<HeapNumber>::cast(input_obj);
+      input_num = Cast<HeapNumber>(input_obj);
     }
 
     // Check with HeapNumber input.
@@ -560,7 +560,7 @@ TEST(ToString) {
     Handle<String> expected(String::cast(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(IsString(*result));
-    CHECK(String::Equals(isolate, Handle<String>::cast(result), expected));
+    CHECK(String::Equals(isolate, Cast<String>(result), expected));
   }
 }
 
@@ -1767,7 +1767,7 @@ TEST(TryLookupElement) {
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
-    Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
+    Cast<JSPrimitiveWrapper>(object)->set_value(*str);
     AddElement(object, 13, smi0);
     CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
 
@@ -1782,7 +1782,7 @@ TEST(TryLookupElement) {
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
-    Handle<JSPrimitiveWrapper>::cast(object)->set_value(*str);
+    Cast<JSPrimitiveWrapper>(object)->set_value(*str);
     AddElement(object, 13, smi0);
     JSObject::NormalizeElements(object);
     CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
@@ -1889,7 +1889,7 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     // TODO(cbruni): handle in-object properties
-    Handle<JSObject> object = Handle<JSObject>::cast(
+    Handle<JSObject> object = Cast<JSObject>(
         v8::Utils::OpenHandle(*CompileRun("var object = {a:1,b:2, 1:1, 2:2}; "
                                           "object")));
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
@@ -2106,7 +2106,7 @@ TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
   if (IsSmi(*value)) {
     return m.SmiConstant(Smi::ToInt(*value));
   }
-  return m.HeapConstantNoHole(Handle<HeapObject>::cast(value));
+  return m.HeapConstantNoHole(Cast<HeapObject>(value));
 }
 
 // Buids a CSA function that calls |target| function with given arguments
@@ -2263,16 +2263,16 @@ TEST(OneToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopy) {
@@ -2296,16 +2296,16 @@ TEST(OneToOneByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopyNonZeroStart) {
@@ -2329,13 +2329,13 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
-  CHECK_EQ(100, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(101, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(102, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqOneByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqOneByteString>(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(100, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(101, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(102, Cast<SeqOneByteString>(string2)->GetChars(no_gc)[2]);
 }
 
 TEST(TwoToTwoByteStringCopy) {
@@ -2362,16 +2362,16 @@ TEST(TwoToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[0],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[1],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[2],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[3],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Cast<SeqTwoByteString>(string1)->GetChars(no_gc)[4],
+           Cast<SeqTwoByteString>(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(Arguments) {
@@ -3123,7 +3123,7 @@ TEST(NewPromiseCapability) {
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
     Handle<JSFunction> constructor_fn =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*CompileRun(
+        Cast<JSFunction>(v8::Utils::OpenHandle(*CompileRun(
             "(function FakePromise(executor) {"
             "  var self = this;"
             "  function resolve(value) { self.resolvedValue = value; }"
@@ -3783,8 +3783,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 
-  Handle<FixedDoubleArray> source_double = Handle<FixedDoubleArray>::cast(
-      isolate->factory()->NewFixedDoubleArray(5));
+  Handle<FixedDoubleArray> source_double =
+      Cast<FixedDoubleArray>(isolate->factory()->NewFixedDoubleArray(5));
   source_double->set(0, 10);
   source_double->set(1, 11);
   source_double->set(2, 12);
@@ -3913,39 +3913,37 @@ TEST(IsDoubleElementsKind) {
         m.IsDoubleElementsKind(m.SmiToInt32(m.Parameter<Smi>(1))))));
   }
   FunctionTester ft(ft_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(
-      (*Handle<Smi>::cast(
-           ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS), isolate))
-               .ToHandleChecked()))
-          .value(),
-      1);
-  CHECK_EQ(
-      (*Handle<Smi>::cast(
-           ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS), isolate))
-               .ToHandleChecked()))
-          .value(),
-      1);
-  CHECK_EQ((*Handle<Smi>::cast(
-                ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
-                    .ToHandleChecked()))
+  CHECK_EQ((*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS),
+                                           isolate))
+                           .ToHandleChecked()))
                .value(),
-           0);
-  CHECK_EQ((*Handle<Smi>::cast(
-                ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
-                    .ToHandleChecked()))
+           1);
+  CHECK_EQ((*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS),
+                                           isolate))
+                           .ToHandleChecked()))
                .value(),
-           0);
-  CHECK_EQ((*Handle<Smi>::cast(
+           1);
+  CHECK_EQ(
+      (*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
+                      .ToHandleChecked()))
+          .value(),
+      0);
+  CHECK_EQ(
+      (*Cast<Smi>(ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
+                      .ToHandleChecked()))
+          .value(),
+      0);
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(PACKED_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
            0);
-  CHECK_EQ((*Handle<Smi>::cast(
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
            0);
-  CHECK_EQ((*Handle<Smi>::cast(
+  CHECK_EQ((*Cast<Smi>(
                 ft.Call(Handle<Smi>(Smi::FromInt(DICTIONARY_ELEMENTS), isolate))
                     .ToHandleChecked()))
                .value(),
@@ -3988,7 +3986,7 @@ void TestCallJumpBuiltin(CallJumpMode mode,
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
   CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
-                       Handle<String>::cast(result.ToHandleChecked())));
+                       Cast<String>(result.ToHandleChecked())));
 }
 
 }  // namespace

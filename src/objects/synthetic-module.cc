@@ -56,7 +56,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (IsCell(*object)) return Handle<Cell>::cast(object);
+  if (IsCell(*object)) return Cast<Cell>(object);
 
   if (!must_resolve) return kNullMaybeHandle;
 
@@ -107,7 +107,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
           module->evaluation_steps()->foreign_address<kGenericForeignTag>());
   v8::Local<v8::Value> result;
   if (!evaluation_steps(Utils::ToLocal(isolate->native_context()),
-                        Utils::ToLocal(Handle<Module>::cast(module)))
+                        Utils::ToLocal(Cast<Module>(module)))
            .ToLocal(&result)) {
     module->RecordError(isolate, isolate->exception());
     return MaybeHandle<Object>();
@@ -119,7 +119,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
 
   Handle<JSPromise> capability;
   if (IsJSPromise(*result_from_callback)) {
-    capability = Handle<JSPromise>::cast(result_from_callback);
+    capability = Cast<JSPromise>(result_from_callback);
   } else {
     // The host's evaluation steps should have returned a resolved Promise,
     // but as an allowance to hosts that have not yet finished the migration

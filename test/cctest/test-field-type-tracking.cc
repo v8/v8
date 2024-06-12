@@ -159,7 +159,7 @@ class Expectations {
   Handle<FieldType> GetFieldType(int index) {
     CHECK(index < MAX_PROPERTIES);
     CHECK_EQ(PropertyLocation::kField, locations_[index]);
-    return Handle<FieldType>::cast(values_[index]);
+    return Cast<FieldType>(values_[index]);
   }
 
   void SetDataField(int index, PropertyAttributes attrs,
@@ -580,7 +580,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
       Object::GetProperty(isolate, isolate->global_object(), obj_name)
           .ToHandleChecked();
   CHECK(IsJSObject(*obj_value));
-  Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
+  Handle<JSObject> obj = Cast<JSObject>(obj_value);
 
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   InternalIndex first(0);

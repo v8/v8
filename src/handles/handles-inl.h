@@ -45,13 +45,6 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
   return Handle(HandleScope::CreateHandle(isolate, object.ptr()));
 }
 
-template <typename T>
-template <typename S>
-const Handle<T> Handle<T>::cast(Handle<S> that) {
-  Tagged<T>::cast(*FullObjectSlot(that.location()));
-  return Handle<T>(that.location_);
-}
-
 template <typename To, typename From>
 inline Handle<To> Cast(Handle<From> value) {
   DCHECK_IMPLIES(!value.is_null(), Is<To>(*value));
@@ -113,21 +106,6 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
 template <typename T>
 V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
     : DirectHandle(object.ptr()) {}
-
-template <typename T>
-template <typename S>
-V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(DirectHandle<S> that) {
-  T::cast(Tagged<Object>(that.address()));
-  return DirectHandle<T>(that.address());
-}
-
-template <typename T>
-template <typename S>
-V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
-  DCHECK(that.location() != nullptr);
-  T::cast(*FullObjectSlot(that.address()));
-  return DirectHandle<T>(*that.location());
-}
 
 template <typename To, typename From>
 inline DirectHandle<To> Cast(DirectHandle<From> value) {

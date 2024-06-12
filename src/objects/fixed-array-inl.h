@@ -307,7 +307,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<FixedArray> result =
-      Handle<FixedArray>::cast(Allocate(isolate, capacity, &no_gc, allocation));
+      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
                capacity);
@@ -329,7 +329,7 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
   // The same is true for the other trusted-space arrays below.
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
+  Handle<TrustedFixedArray> result = Cast<TrustedFixedArray>(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
@@ -346,7 +346,7 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<ProtectedFixedArray> result = Handle<ProtectedFixedArray>::cast(
+  Handle<ProtectedFixedArray> result = Cast<ProtectedFixedArray>(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
@@ -718,8 +718,7 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  return Handle<FixedDoubleArray>::cast(
-      Allocate(isolate, length, &no_gc, allocation));
+  return Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
 }
 
 // static
@@ -821,8 +820,8 @@ Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<WeakFixedArray> result = Handle<WeakFixedArray>::cast(
-      Allocate(isolate, capacity, &no_gc, allocation));
+  Handle<WeakFixedArray> result =
+      Cast<WeakFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
                capacity);
@@ -839,7 +838,7 @@ Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedWeakFixedArray> result = Handle<TrustedWeakFixedArray>::cast(
+  Handle<TrustedWeakFixedArray> result = Cast<TrustedWeakFixedArray>(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
@@ -908,7 +907,7 @@ Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<ArrayList> result =
-      Handle<ArrayList>::cast(Allocate(isolate, capacity, &no_gc, allocation));
+      Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
   result->set_length(0);
   ReadOnlyRoots roots{isolate};
   MemsetTagged(result->RawFieldOfFirstElement(), roots.undefined_value(),
@@ -928,7 +927,7 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<ByteArray> result =
-      Handle<ByteArray>::cast(Allocate(isolate, length, &no_gc, allocation));
+      Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(result->AddressOfElementAt(length), 0, padding_size);
@@ -959,7 +958,7 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedByteArray> result = Handle<TrustedByteArray>::cast(
+  Handle<TrustedByteArray> result = Cast<TrustedByteArray>(
       Allocate(isolate, length, &no_gc, allocation_type));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
@@ -992,7 +991,7 @@ template <typename... MoreArgs>
 // static
 Handle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
     Isolate* isolate, int length, MoreArgs&&... more_args) {
-  return Handle<FixedAddressArrayBase>::cast(
+  return Cast<FixedAddressArrayBase>(
       Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
 }
 
@@ -1011,7 +1010,7 @@ FixedIntegerArrayBase<T, Base>::FixedIntegerArrayBase(Address ptr) : Base(ptr) {
 template <typename T, typename Base>
 Tagged<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::cast(
     Tagged<Object> object) {
-  Tagged<Base> base = Tagged<Base>::cast(object);
+  Tagged<Base> base = Cast<Base>(object);
   DCHECK_EQ(0, base->length() % sizeof(T));
   return FixedIntegerArrayBase<T, Base>{base.ptr()};
 }
@@ -1023,7 +1022,7 @@ Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
     Isolate* isolate, int length, MoreArgs&&... more_args) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<FixedIntegerArrayBase<T, Base>>::cast(
+  return Cast<FixedIntegerArrayBase<T, Base>>(
       Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
 }
 
@@ -1081,7 +1080,7 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
                                      AllocationType allocation) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<PodArray<T>>::cast(
+  return Cast<PodArray<T>>(
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
@@ -1091,7 +1090,7 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
                                      AllocationType allocation) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<PodArray<T>>::cast(
+  return Cast<PodArray<T>>(
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
@@ -1107,7 +1106,7 @@ Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
                                                    int length) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<TrustedPodArray<T>>::cast(
+  return Cast<TrustedPodArray<T>>(
       isolate->factory()->NewTrustedByteArray(byte_length));
 }
 
@@ -1117,7 +1116,7 @@ Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
                                                    int length) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<TrustedPodArray<T>>::cast(
+  return Cast<TrustedPodArray<T>>(
       isolate->factory()->NewTrustedByteArray(byte_length));
 }
 

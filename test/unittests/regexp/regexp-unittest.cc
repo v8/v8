@@ -653,8 +653,7 @@ static Handle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
   Factory* factory = isolate->factory();
   Handle<JSFunction> constructor = isolate->regexp_function();
-  Handle<JSRegExp> regexp =
-      Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
+  Handle<JSRegExp> regexp = Cast<JSRegExp>(factory->NewJSObject(constructor));
 
   factory->SetRegExpIrregexpData(regexp, source, {}, 0,
                                  JSRegExp::kNoBacktrackLimit);
@@ -686,7 +685,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSuccess) {
 
   Handle<String> source = factory->NewStringFromStaticChars("");
   Handle<Object> code_object = m.GetCode(source);
-  DirectHandle<Code> code = Handle<Code>::cast(code_object);
+  DirectHandle<Code> code = Cast<Code>(code_object);
   DirectHandle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
@@ -738,7 +737,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimple) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
@@ -751,7 +750,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimple) {
   CHECK_EQ(-1, captures[3]);
 
   input = factory->NewStringFromStaticChars("barbarbar");
-  seq_input = Handle<SeqOneByteString>::cast(input);
+  seq_input = Cast<SeqOneByteString>(input);
   start_adr = seq_input->GetCharsAddress();
 
   result = Execute(*regexp, *input, 0, start_adr, start_adr + input->length(),
@@ -799,7 +798,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimpleUC16) {
       factory
           ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
           .ToHandleChecked();
-  Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
+  Handle<SeqTwoByteString> seq_input = Cast<SeqTwoByteString>(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
@@ -817,7 +816,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimpleUC16) {
       factory
           ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data2, 9))
           .ToHandleChecked();
-  seq_input = Handle<SeqTwoByteString>::cast(input);
+  seq_input = Cast<SeqTwoByteString>(input);
   start_adr = seq_input->GetCharsAddress();
 
   result = Execute(*regexp, *input, 0, start_adr,
@@ -1881,7 +1880,7 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
   Handle<String> source = factory->NewStringFromStaticChars("dummy");
 
   v8_flags.regexp_peephole_optimization = false;
-  DirectHandle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  DirectHandle<ByteArray> array = Cast<ByteArray>(orig.GetCode(source));
   int length = array->length();
 
   v8_flags.regexp_peephole_optimization = true;
@@ -2083,7 +2082,7 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
   Handle<String> source = factory->NewStringFromStaticChars("dummy");
 
   v8_flags.regexp_peephole_optimization = false;
-  DirectHandle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  DirectHandle<ByteArray> array = Cast<ByteArray>(orig.GetCode(source));
   int length = array->length();
 
   v8_flags.regexp_peephole_optimization = true;

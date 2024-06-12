@@ -31,8 +31,7 @@ namespace {
 template <typename T, typename M>
 bool EQUALS(Isolate* isolate, Handle<T> left, Handle<M> right) {
   if (*left == *right) return true;
-  return Object::Equals(isolate, Handle<Object>::cast(left),
-                        Handle<Object>::cast(right))
+  return Object::Equals(isolate, Cast<Object>(left), Cast<Object>(right))
       .FromJust();
 }
 

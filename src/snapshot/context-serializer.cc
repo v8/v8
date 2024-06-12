@@ -199,9 +199,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   InstanceType instance_type = obj->map()->instance_type();
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
     // Clear literal boilerplates and feedback.
-    Handle<FeedbackVector>::cast(obj)->ClearSlots(isolate());
+    Cast<FeedbackVector>(obj)->ClearSlots(isolate());
   } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
-    Handle<JSObject> js_obj = Handle<JSObject>::cast(obj);
+    Handle<JSObject> js_obj = Cast<JSObject>(obj);
     int embedder_fields_count = js_obj->GetEmbedderFieldCount();
     if (embedder_fields_count > 0) {
       DCHECK(!js_obj->NeedsRehashing(cage_base()));
@@ -235,13 +235,12 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   } else if (InstanceTypeChecker::IsEmbedderDataArray(instance_type) &&
              !allow_active_isolate_for_testing()) {
     DCHECK_EQ(*obj, context_->embedder_data());
-    Handle<EmbedderDataArray> embedder_data =
-        Handle<EmbedderDataArray>::cast(obj);
+    Handle<EmbedderDataArray> embedder_data = Cast<EmbedderDataArray>(obj);
     int embedder_fields_count = embedder_data->length();
     if (embedder_data->length() > 0) {
       Handle<Context> context_handle(context_, isolate());
       v8::Local<v8::Context> api_obj =
-          v8::Utils::ToLocal(Handle<NativeContext>::cast(context_handle));
+          v8::Utils::ToLocal(Cast<NativeContext>(context_handle));
       v8::SerializeContextDataCallback user_callback =
           serialize_embedder_fields_.context_callback;
       SerializeObjectWithEmbedderFields(embedder_data, embedder_fields_count,
@@ -257,7 +256,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   ObjectSerializer serializer(this, obj, &sink_);
   serializer.Serialize(slot_type);
   if (IsJSApiWrapperObject(obj->map())) {
-    SerializeApiWrapperFields(Handle<JSObject>::cast(obj));
+    SerializeApiWrapperFields(Cast<JSObject>(obj));
   }
 }
 

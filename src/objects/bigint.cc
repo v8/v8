@@ -29,6 +29,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/casting.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
@@ -75,10 +76,6 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
         New(isolate, 0, allocation).ToHandleChecked());
   }
 
-  static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
-    SLOW_DCHECK(IsBigInt(*bigint));
-    return Handle<MutableBigInt>::cast(bigint);
-  }
   static Tagged<MutableBigInt> cast(Tagged<Object> o) {
     SLOW_DCHECK(IsBigInt(o));
     return MutableBigInt::unchecked_cast(o);
@@ -151,6 +148,9 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
 
 NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
+template <>
+struct CastTraits<MutableBigInt> : public CastTraits<BigInt> {};
+
 bigint::Digits BigIntBase::digits() const {
   return bigint::Digits(reinterpret_cast<const digit_t*>(raw_digits()),
                         length());
@@ -181,7 +181,7 @@ MaybeHandle<MutableBigInt> MutableBigInt::New(IsolateT* isolate, int length,
     return ThrowBigIntTooBig<MutableBigInt>(isolate);
   }
   Handle<MutableBigInt> result =
-      Cast(isolate->factory()->NewBigInt(length, allocation));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length, allocation));
   result->initialize_bitfield(false, length);
 #if DEBUG
   result->InitializeDigits(length, 0xBF);
@@ -191,7 +191,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::New(IsolateT* isolate, int length,
 
 Handle<BigInt> MutableBigInt::NewFromInt(Isolate* isolate, int value) {
   if (value == 0) return Zero(isolate);
-  Handle<MutableBigInt> result = Cast(isolate->factory()->NewBigInt(1));
+  Handle<MutableBigInt> result =
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(1));
   bool sign = value < 0;
   result->initialize_bitfield(sign, 1);
   if (!sign) {
@@ -220,7 +221,8 @@ Handle<BigInt> MutableBigInt::NewFromDouble(Isolate* isolate, double value) {
   DCHECK_GE(raw_exponent, 0x3FF);
   int exponent = raw_exponent - 0x3FF;
   int digits = exponent / kDigitBits + 1;
-  Handle<MutableBigInt> result = Cast(isolate->factory()->NewBigInt(digits));
+  Handle<MutableBigInt> result =
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(digits));
   result->initialize_bitfield(sign, digits);
 
   // We construct a BigInt from the double {value} by shifting its mantissa
@@ -298,7 +300,7 @@ MaybeHandle<BigInt> MutableBigInt::MakeImmutable(
 template <typename IsolateT>
 Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   MutableBigInt::Canonicalize(*result);
-  return Handle<BigInt>::cast(result);
+  return Cast<BigInt>(result);
 }
 
 void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
@@ -671,7 +673,7 @@ bool BigInt::EqualToNumber(DirectHandle<BigInt> x, Handle<Object> y) {
             static_cast<digit_t>(std::abs(static_cast<int64_t>(value))));
   }
   DCHECK(IsHeapNumber(*y));
-  double value = Handle<HeapNumber>::cast(y)->value();
+  double value = Cast<HeapNumber>(y)->value();
   return CompareToDouble(x, value) == ComparisonResult::kEqual;
 }
 
@@ -700,7 +702,7 @@ ComparisonResult BigInt::CompareToNumber(DirectHandle<BigInt> x,
     return ComparisonResult::kEqual;
   }
   DCHECK(IsHeapNumber(*y));
-  double value = DirectHandle<HeapNumber>::cast(y)->value();
+  double value = Cast<HeapNumber>(y)->value();
   return CompareToDouble(x, value);
 }
 
@@ -965,7 +967,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (IsJSReceiver(*obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
-        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(obj),
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(obj),
                                 ToPrimitiveHint::kNumber));
   }
 
@@ -974,15 +976,15 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
                                      Object::BooleanValue(*obj, isolate));
   }
   if (IsBigInt(*obj)) {
-    return Handle<BigInt>::cast(obj);
+    return Cast<BigInt>(obj);
   }
   if (IsString(*obj)) {
     Handle<BigInt> n;
-    if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
+    if (!StringToBigInt(isolate, Cast<String>(obj)).ToHandle(&n)) {
       if (isolate->has_exception()) {
         return MaybeHandle<BigInt>();
       } else {
-        Handle<String> str = Handle<String>::cast(obj);
+        Handle<String> str = Cast<String>(obj);
         constexpr int kMaxRenderedLength = 1000;
         if (str->length() > kMaxRenderedLength) {
           Factory* factory = isolate->factory();
@@ -1240,7 +1242,7 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   // There is no -0n. Reject corrupted serialized data.
   if (length == 0 && sign == true) return {};
   Handle<MutableBigInt> result =
-      MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
   result->initialize_bitfield(sign, length);
   UnalignedValueMember<digit_t>* digits = result->raw_digits();
 #if defined(V8_TARGET_LITTLE_ENDIAN)
@@ -1316,7 +1318,7 @@ Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
   bool sign = n < 0;
   result->initialize_bitfield(sign, length);
   uint64_t absolute;
@@ -1338,7 +1340,7 @@ Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
-      MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
+      Cast<MutableBigInt>(isolate->factory()->NewBigInt(length));
   result->initialize_bitfield(false, length);
   result->set_64_bits(n);
   return MutableBigInt::MakeImmutable(result);
@@ -1466,7 +1468,7 @@ void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::Add(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1484,7 +1486,7 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::Subtract(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1498,7 +1500,7 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   Isolate* isolate;
   if (!GetIsolateFromHeapObject(x, &isolate)) {
@@ -1522,7 +1524,7 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
   DCHECK_GE(result->length(),
             bigint::DivideResultLength(x->digits(), y->digits()));
 
@@ -1548,7 +1550,7 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   Isolate* isolate;
   if (!GetIsolateFromHeapObject(x, &isolate)) {
@@ -1572,7 +1574,7 @@ void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseAnd_PosPos(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1584,7 +1586,7 @@ void MutableBigInt_BitwiseAndNegNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseAnd_NegNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1596,7 +1598,7 @@ void MutableBigInt_BitwiseAndPosNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseAnd_PosNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1608,7 +1610,7 @@ void MutableBigInt_BitwiseOrPosPosAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseOr_PosPos(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1620,7 +1622,7 @@ void MutableBigInt_BitwiseOrNegNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseOr_NegNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1632,7 +1634,7 @@ void MutableBigInt_BitwiseOrPosNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseOr_PosNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1644,7 +1646,7 @@ void MutableBigInt_BitwiseXorPosPosAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseXor_PosPos(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1656,7 +1658,7 @@ void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseXor_NegNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1668,7 +1670,7 @@ void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<BigInt> y = BigInt::cast(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::BitwiseXor_PosNeg(result->rw_digits(), x->digits(), y->digits());
   MutableBigInt::Canonicalize(result);
@@ -1678,7 +1680,7 @@ void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
                                             intptr_t shift) {
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
   bigint::LeftShift(result->rw_digits(), x->digits(), shift);
   MutableBigInt::Canonicalize(result);
@@ -1702,7 +1704,7 @@ void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
                                              uint32_t must_round_down) {
   Tagged<BigInt> x = BigInt::cast(Tagged<Object>(x_addr));
   Tagged<MutableBigInt> result =
-      MutableBigInt::cast(Tagged<Object>(result_addr));
+      Cast<MutableBigInt>(Tagged<Object>(result_addr));
   bigint::RightShiftState state{must_round_down == 1};
   bigint::RightShift(result->rw_digits(), x->digits(), shift, state);
   MutableBigInt::Canonicalize(result);

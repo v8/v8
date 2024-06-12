@@ -343,7 +343,7 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
                                    DirectHandle<JSReceiver> callable) {
   DirectHandle<JSFunction> target;
   if (IsJSBoundFunction(*callable)) {
-    auto bound_target = DirectHandle<JSBoundFunction>::cast(callable);
+    auto bound_target = Cast<JSBoundFunction>(callable);
     // Nested bound functions and arguments not supported yet.
     if (bound_target->bound_arguments()->length() > 0) {
       return false;
@@ -356,9 +356,9 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
     if (!IsJSFunction(*bound_target_function)) {
       return false;
     }
-    target = DirectHandle<JSFunction>::cast(bound_target_function);
+    target = Cast<JSFunction>(bound_target_function);
   } else if (IsJSFunction(*callable)) {
-    target = DirectHandle<JSFunction>::cast(callable);
+    target = Cast<JSFunction>(callable);
   } else {
     return false;
   }
@@ -441,7 +441,7 @@ WellKnownImport CheckForWellKnownImport(
   // First part: check that the callable is a bound function whose target
   // is {Function.prototype.call}, and which only binds a receiver.
   if (!IsJSBoundFunction(*callable)) return kGeneric;
-  auto bound = DirectHandle<JSBoundFunction>::cast(callable);
+  auto bound = Cast<JSBoundFunction>(callable);
   if (bound->bound_arguments()->length() != 0) return kGeneric;
   if (!IsJSFunction(bound->bound_target_function())) return kGeneric;
   Tagged<SharedFunctionInfo> sfi =
@@ -694,7 +694,7 @@ ImportCallKind WasmImportData::ComputeKind(
         handle(WasmSuspendingObject::cast(*callable_)->callable(), isolate);
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*callable_)) {
-    auto imported_function = Handle<WasmExportedFunction>::cast(callable_);
+    auto imported_function = Cast<WasmExportedFunction>(callable_);
     if (!imported_function->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
     }
@@ -710,7 +710,7 @@ ImportCallKind WasmImportData::ComputeKind(
     callable_ = handle(entry.callable(), isolate);
   }
   if (WasmJSFunction::IsWasmJSFunction(*callable_)) {
-    auto js_function = Handle<WasmJSFunction>::cast(callable_);
+    auto js_function = Cast<WasmJSFunction>(callable_);
     suspend_ = js_function->GetSuspend();
     if (!js_function->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
@@ -719,7 +719,7 @@ ImportCallKind WasmImportData::ComputeKind(
     callable_ = handle(js_function->GetCallable(), isolate);
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
-    auto capi_function = Handle<WasmCapiFunction>::cast(callable_);
+    auto capi_function = Cast<WasmCapiFunction>(callable_);
     if (!capi_function->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
     }
@@ -741,7 +741,7 @@ ImportCallKind WasmImportData::ComputeKind(
   }
   // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
-    auto function = DirectHandle<JSFunction>::cast(callable_);
+    auto function = Cast<JSFunction>(callable_);
     DirectHandle<SharedFunctionInfo> shared(function->shared(),
                                             function->GetIsolate());
 
@@ -1667,7 +1667,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   Handle<Object> value_of = value_of_it.GetDataValue();
   if (!IsJSFunction(*value_of)) return false;
   Builtin value_of_builtin_id =
-      Handle<JSFunction>::cast(value_of)->code(isolate)->builtin_id();
+      Cast<JSFunction>(value_of)->code(isolate)->builtin_id();
   if (value_of_builtin_id != Builtin::kObjectPrototypeValueOf) return false;
 
   // The {toString} member must be the default "FunctionPrototypeToString".
@@ -1677,7 +1677,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   Handle<Object> to_string = to_string_it.GetDataValue();
   if (!IsJSFunction(*to_string)) return false;
   Builtin to_string_builtin_id =
-      Handle<JSFunction>::cast(to_string)->code(isolate)->builtin_id();
+      Cast<JSFunction>(to_string)->code(isolate)->builtin_id();
   if (to_string_builtin_id != Builtin::kFunctionPrototypeToString) return false;
 
   // Just a default function, which will convert to "Nan". Accept this.
@@ -1706,7 +1706,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
   // Perform lookup of the given {import_name} without causing any observable
   // side-effect. We only accept accesses that resolve to data properties,
   // which is indicated by the asm.js spec in section 7 ("Linking") as well.
-  PropertyKey key(isolate_, Handle<Name>::cast(import_name));
+  PropertyKey key(isolate_, Cast<Name>(import_name));
   LookupIterator it(isolate_, ffi_.ToHandleChecked(), key);
   switch (it.state()) {
     case LookupIterator::ACCESS_CHECK:
@@ -1731,8 +1731,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
       // the case as long as "valueOf" (or others) are not overwritten).
       if (IsJSFunction(*value) &&
           module_->import_table[index].kind == kExternalGlobal &&
-          !HasDefaultToNumberBehaviour(isolate_,
-                                       Handle<JSFunction>::cast(value))) {
+          !HasDefaultToNumberBehaviour(isolate_, Cast<JSFunction>(value))) {
         thrower_->LinkError("%s: function has special ToNumber behaviour",
                             ImportName(index, import_name).c_str());
         return {};
@@ -1934,7 +1933,7 @@ bool InstanceBuilder::ProcessImportedFunction(
     trusted_instance_data->func_refs()->set(
         func_index, WasmExternalFunction::cast(*value)->func_ref());
   }
-  auto js_receiver = Handle<JSReceiver>::cast(value);
+  auto js_receiver = Cast<JSReceiver>(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
   uint32_t sig_index = module_->functions[func_index].sig_index;
   uint32_t canonical_type_index =
@@ -1962,7 +1961,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       return false;
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
-      auto imported_function = Handle<WasmExportedFunction>::cast(js_receiver);
+      auto imported_function = Cast<WasmExportedFunction>(js_receiver);
       // The import reference is the instance object itself.
       Address imported_target = imported_function->GetWasmCallTarget();
       imported_entry.SetWasmToWasm(imported_function->instance_data(),
@@ -2024,7 +2023,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       int expected_arity =
           static_cast<int>(expected_sig->parameter_count()) - suspender_count;
       if (kind == ImportCallKind::kJSFunctionArityMismatch) {
-        auto function = DirectHandle<JSFunction>::cast(js_receiver);
+        auto function = Cast<JSFunction>(js_receiver);
         Tagged<SharedFunctionInfo> shared = function->shared();
         expected_arity =
             shared->internal_formal_parameter_count_without_receiver();
@@ -2094,7 +2093,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     FunctionTargetAndRef entry(isolate_, target_instance_data, function_index);
     Handle<Object> ref = entry.ref();
     if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
-      auto orig_ref = DirectHandle<WasmApiFunctionRef>::cast(ref);
+      auto orig_ref = Cast<WasmApiFunctionRef>(ref);
       Handle<WasmApiFunctionRef> new_ref =
           isolate_->factory()->NewWasmApiFunctionRef(orig_ref);
       WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
@@ -2122,7 +2121,7 @@ bool InstanceBuilder::ProcessImportedTable(
   }
   const WasmTable& table = module_->tables[table_index];
 
-  auto table_object = Handle<WasmTableObject>::cast(value);
+  auto table_object = Cast<WasmTableObject>(value);
 
   uint32_t imported_table_size =
       static_cast<uint32_t>(table_object->current_length());
@@ -2221,8 +2220,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       // It is safe in this case to store the raw pointer to the buffer
       // since the backing store of the JSArrayBuffer will not be
       // relocated.
-      Address address = reinterpret_cast<Address>(raw_buffer_ptr(
-          Handle<JSArrayBuffer>::cast(buffer), global_object->offset()));
+      Address address = reinterpret_cast<Address>(
+          raw_buffer_ptr(Cast<JSArrayBuffer>(buffer), global_object->offset()));
       trusted_instance_data->imported_mutable_globals()->set_sandboxed_pointer(
           global.index, address);
     }
@@ -2309,7 +2308,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
   }
 
   if (IsWasmGlobalObject(*value)) {
-    auto global_object = Handle<WasmGlobalObject>::cast(value);
+    auto global_object = Cast<WasmGlobalObject>(value);
     return ProcessImportedWasmGlobalObject(trusted_instance_data, import_index,
                                            global, global_object);
   }
@@ -2384,7 +2383,7 @@ void InstanceBuilder::CompileImportWrappers(
         (!IsCallable(*value) && !IsWasmSuspendingObject(*value))) {
       continue;
     }
-    auto js_receiver = Handle<JSReceiver>::cast(value);
+    auto js_receiver = Cast<JSReceiver>(value);
     uint32_t func_index = module_->import_table[index].index;
     const FunctionSig* sig = module_->functions[func_index].sig;
     uint32_t sig_index = module_->functions[func_index].sig_index;
@@ -2408,7 +2407,7 @@ void InstanceBuilder::CompileImportWrappers(
     int expected_arity =
         static_cast<int>(sig->parameter_count() - suspender_count);
     if (kind == ImportCallKind::kJSFunctionArityMismatch) {
-      auto function = DirectHandle<JSFunction>::cast(resolved.callable());
+      auto function = Cast<JSFunction>(resolved.callable());
       Tagged<SharedFunctionInfo> shared = function->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
@@ -2500,7 +2499,7 @@ int InstanceBuilder::ProcessImports(
                               ImportName(index).c_str());
           return -1;
         }
-        Handle<WasmTagObject> imported_tag = Handle<WasmTagObject>::cast(value);
+        Handle<WasmTagObject> imported_tag = Cast<WasmTagObject>(value);
         if (!imported_tag->MatchesSignature(
                 module_->isorecursive_canonical_type_ids
                     [module_->tags[import.index].sig_index])) {
@@ -2551,7 +2550,7 @@ bool InstanceBuilder::ProcessImportedMemories(
       return false;
     }
     uint32_t memory_index = import.index;
-    auto memory_object = DirectHandle<WasmMemoryObject>::cast(value);
+    auto memory_object = Cast<WasmMemoryObject>(value);
 
     DirectHandle<JSArrayBuffer> buffer{memory_object->array_buffer(), isolate_};
     uint32_t imported_cur_pages =

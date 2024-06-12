@@ -47,23 +47,23 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count) {
-  return Handle<DeoptimizationData>::cast(
+  return Cast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
                                                    int deopt_entry_count) {
-  return Handle<DeoptimizationData>::cast(
+  return Cast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  return Handle<DeoptimizationData>::cast(
+  return Cast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return Handle<DeoptimizationData>::cast(
+  return Cast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 

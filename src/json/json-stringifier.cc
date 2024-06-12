@@ -511,8 +511,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
     Handle<Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_obj,
-        Object::GetLengthFromArrayLike(isolate_,
-                                       Handle<JSReceiver>::cast(replacer)),
+        Object::GetLengthFromArrayLike(isolate_, Cast<JSReceiver>(replacer)),
         false);
     uint32_t length;
     if (!Object::ToUint32(*length_obj, &length)) length = kMaxUInt32;
@@ -525,8 +524,8 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, key, Object::ToString(isolate_, element), false);
       } else if (IsJSPrimitiveWrapper(*element)) {
-        DirectHandle<Object> value(
-            Handle<JSPrimitiveWrapper>::cast(element)->value(), isolate_);
+        DirectHandle<Object> value(Cast<JSPrimitiveWrapper>(element)->value(),
+                                   isolate_);
         if (IsNumber(*value) || IsString(*value)) {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate_, key, Object::ToString(isolate_, element), false);
@@ -546,7 +545,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
         isolate_, set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
   } else if (IsCallable(*replacer)) {
-    replacer_function_ = Handle<JSReceiver>::cast(replacer);
+    replacer_function_ = Cast<JSReceiver>(replacer);
   }
   return true;
 }
@@ -555,7 +554,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   DCHECK_NULL(gap_);
   HandleScope scope(isolate_);
   if (IsJSPrimitiveWrapper(*gap)) {
-    DirectHandle<Object> value(Handle<JSPrimitiveWrapper>::cast(gap)->value(),
+    DirectHandle<Object> value(Cast<JSPrimitiveWrapper>(gap)->value(),
                                isolate_);
     if (IsString(*value)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
@@ -567,7 +566,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   }
 
   if (IsString(*gap)) {
-    auto gap_string = DirectHandle<String>::cast(gap);
+    auto gap_string = Cast<String>(gap);
     if (gap_string->length() > 0) {
       int gap_length = std::min(gap_string->length(), 10);
       gap_ = NewArray<base::uc16>(gap_length + 1);
@@ -717,7 +716,7 @@ class CircularStructureMessageBuilder {
   void AppendConstructorName(Handle<Object> object) {
     builder_.AppendCharacter('\'');
     DirectHandle<String> constructor_name = JSReceiver::GetConstructorName(
-        builder_.isolate(), Handle<JSReceiver>::cast(object));
+        builder_.isolate(), Cast<JSReceiver>(object));
     builder_.AppendString(constructor_name);
     builder_.AppendCharacter('\'');
   }
@@ -731,7 +730,7 @@ class CircularStructureMessageBuilder {
     }
 
     CHECK(IsString(*key));
-    DirectHandle<String> key_as_string = DirectHandle<String>::cast(key);
+    DirectHandle<String> key_as_string = Cast<String>(key);
     if (key_as_string->length() == 0) {
       builder_.AppendCStringLiteral("<anonymous>");
     } else {
@@ -848,7 +847,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   switch (instance_type) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
-      return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
+      return SerializeHeapNumber(Cast<HeapNumber>(object));
     case BIGINT_TYPE:
       isolate_->Throw(
           *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
@@ -872,26 +871,25 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       }
     case JS_ARRAY_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
-      return SerializeJSArray(Handle<JSArray>::cast(object), key);
+      return SerializeJSArray(Cast<JSArray>(object), key);
     case JS_PRIMITIVE_WRAPPER_TYPE:
       if (!need_stack_) {
         need_stack_ = true;
         return NEED_STACK;
       }
       if (deferred_string_key) SerializeDeferredKey(comma, key);
-      return SerializeJSPrimitiveWrapper(
-          Handle<JSPrimitiveWrapper>::cast(object), key);
+      return SerializeJSPrimitiveWrapper(Cast<JSPrimitiveWrapper>(object), key);
     case SYMBOL_TYPE:
       return UNCHANGED;
     case JS_RAW_JSON_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       {
-        Handle<JSRawJson> raw_json_obj = Handle<JSRawJson>::cast(object);
+        Handle<JSRawJson> raw_json_obj = Cast<JSRawJson>(object);
         Handle<String> raw_json;
         if (raw_json_obj->HasInitialLayout(isolate_)) {
           // Fast path: the object returned by JSON.rawJSON has its initial map
           // intact.
-          raw_json = Handle<String>::cast(handle(
+          raw_json = Cast<String>(handle(
               raw_json_obj->InObjectPropertyAt(JSRawJson::kRawJsonInitialIndex),
               isolate_));
         } else {
@@ -900,7 +898,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           // be a property named "rawJSON" that is a String. Their initial maps
           // only change due to VM-internal operations like being optimized for
           // being used as a prototype.
-          raw_json = Handle<String>::cast(
+          raw_json = Cast<String>(
               JSObject::GetProperty(isolate_, raw_json_obj,
                                     isolate_->factory()->raw_json_string())
                   .ToHandleChecked());
@@ -918,7 +916,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
-        SerializeString<false>(Handle<String>::cast(object));
+        SerializeString<false>(Cast<String>(object));
         return SUCCESS;
       } else {
         // Make sure that we have a JSReceiver before we cast it to one.
@@ -929,11 +927,11 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
-          return SerializeJSProxy(Handle<JSProxy>::cast(object), key);
+          return SerializeJSProxy(Cast<JSProxy>(object), key);
         }
         // WASM_{STRUCT,ARRAY}_TYPE are handled in `case:` blocks above.
         DCHECK(IsJSObject(*object));
-        return SerializeJSObject(Handle<JSObject>::cast(object), key);
+        return SerializeJSObject(Cast<JSObject>(object), key);
       }
   }
 
@@ -947,13 +945,13 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
-    SerializeString<false>(Handle<String>::cast(value));
+    SerializeString<false>(Cast<String>(value));
   } else if (IsNumber(raw)) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
     if (IsSmi(*value)) return SerializeSmi(Smi::cast(*value));
-    SerializeHeapNumber(Handle<HeapNumber>::cast(value));
+    SerializeHeapNumber(Cast<HeapNumber>(value));
   } else if (IsBigInt(raw)) {
     isolate_->Throw(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
@@ -1125,7 +1123,7 @@ JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
       return UNCHANGED;
     }
     Tagged<Object> current_element =
-        Tagged<FixedArray>::cast(array->elements())->get(i);
+        Cast<FixedArray>(array->elements())->get(i);
     if (is_holey && IsTheHole(current_element)) {
       if (should_check_treat_hole_as_undefined) {
         if (!CanTreatHoleAsUndefined(isolate_, *array)) {
@@ -1350,8 +1348,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
     Handle<Object> length_object;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_object,
-        Object::GetLengthFromArrayLike(isolate_,
-                                       Handle<JSReceiver>::cast(object)),
+        Object::GetLengthFromArrayLike(isolate_, Cast<JSReceiver>(object)),
         EXCEPTION);
     uint32_t length;
     if (!Object::ToUint32(*length_object, &length)) {
@@ -1591,7 +1588,7 @@ void JsonStringifier::Separator(bool first) {
 void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
                                            Handle<Object> deferred_key) {
   Separator(!deferred_comma);
-  Handle<String> string_key = Handle<String>::cast(deferred_key);
+  Handle<String> string_key = Cast<String>(deferred_key);
   bool wrote_simple = false;
   {
     DisallowGarbageCollection no_gc;

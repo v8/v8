@@ -735,9 +735,9 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a = {'regular_prop':5};"
       "b = {'regular_prop':5};");
 
-  Handle<JSObject> a = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  Handle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("a")).ToLocalChecked()));
-  DirectHandle<JSObject> b = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> b = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("b")).ToLocalChecked()));
 
   CHECK(a->map() == b->map());

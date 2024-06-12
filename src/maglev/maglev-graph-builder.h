@@ -1225,7 +1225,7 @@ class MaglevGraphBuilder {
     // from the constant pool are safe.
     return MakeRefAssumeMemoryFence(
         broker(), broker()->CanonicalPersistentHandle(
-                      Handle<T>::cast(iterator_.GetConstantForIndexOperand(
+                      Cast<T>(iterator_.GetConstantForIndexOperand(
                           operand_index, local_isolate()))));
   }
 

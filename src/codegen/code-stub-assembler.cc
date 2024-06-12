@@ -2011,7 +2011,7 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
   RootIndex map_idx = Map::TryGetMapRootIdxFor(instance_type).value();
   return HeapConstantNoHole(
-      Handle<Map>::cast(ReadOnlyRoots(isolate()).handle_at(map_idx)));
+      i::Cast<Map>(ReadOnlyRoots(isolate()).handle_at(map_idx)));
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {

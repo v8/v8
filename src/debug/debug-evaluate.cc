@@ -267,7 +267,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
       CHECK(IsStringSet(*block_list));
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
-                                        Handle<StringSet>::cast(block_list));
+                                        Cast<StringSet>(block_list));
     }
 
     evaluation_context_ = factory->NewDebugEvaluateContext(

@@ -77,12 +77,12 @@ void FunctionTester::CheckCall(DirectHandle<Object> expected, Handle<Object> a,
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
-  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  return Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 }
 
 Handle<JSObject> FunctionTester::NewObject(const char* source) {
-  return Handle<JSObject>::cast(
+  return Cast<JSObject>(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(CompileRun(source))));
 }
 

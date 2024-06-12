@@ -151,8 +151,7 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Value> value) {
   TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
-  auto managed =
-      i::Handle<i::Managed<WasmStreaming>>::cast(Utils::OpenHandle(*value));
+  auto managed = i::Cast<i::Managed<WasmStreaming>>(Utils::OpenHandle(*value));
   return managed->get();
 }
 
@@ -187,7 +186,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
       thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
       return {};                                                     \
     }                                                                \
-    return i::Handle<i::Wasm##Type##Object>::cast(arg0);             \
+    return i::Cast<i::Wasm##Type##Object>(arg0);                     \
   }
 
 GET_FIRST_ARGUMENT_AS(Module)
@@ -244,7 +243,7 @@ i::MaybeHandle<i::JSReceiver> ImportsAsMaybeReceiver(Local<Value> ffi) {
   if (ffi->IsUndefined()) return {};
 
   Local<Object> obj = Local<Object>::Cast(ffi);
-  return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
+  return i::Cast<i::JSReceiver>(v8::Utils::OpenHandle(*obj));
 }
 
 // This class resolves the result of WebAssembly.compile. It just places the
@@ -268,7 +267,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
                         ->wasm_async_resolve_promise_callback();
     CHECK(callback);
     callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(i::Handle<i::Object>::cast(result)),
+             Utils::ToLocal(i::Cast<i::Object>(result)),
              WasmAsyncSuccess::kSuccess);
   }
 
@@ -315,7 +314,7 @@ class InstantiateModuleResultResolver
                         ->wasm_async_resolve_promise_callback();
     CHECK(callback);
     callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(i::Handle<i::Object>::cast(instance)),
+             Utils::ToLocal(i::Cast<i::Object>(instance)),
              WasmAsyncSuccess::kSuccess);
   }
 
@@ -379,12 +378,11 @@ class InstantiateBytesResultResolver
           handle(i::JSObject::cast(i_isolate->exception()), i_isolate));
       success = WasmAsyncSuccess::kFail;
     }
-    if (V8_UNLIKELY(
-            result
-                ->CreateDataProperty(
-                    context, v8_str(isolate_, "instance"),
-                    Utils::ToLocal(i::Handle<i::Object>::cast(instance)))
-                .IsNothing())) {
+    if (V8_UNLIKELY(result
+                        ->CreateDataProperty(
+                            context, v8_str(isolate_, "instance"),
+                            Utils::ToLocal(i::Cast<i::Object>(instance)))
+                        .IsNothing())) {
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
       CHECK(i::IsTerminationException(i_isolate->exception()));
       result = Utils::ToLocal(
@@ -447,7 +445,7 @@ class AsyncInstantiateCompileResultResolver
         reinterpret_cast<i::Isolate*>(isolate_),
         std::make_unique<InstantiateBytesResultResolver>(
             isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-            Utils::ToLocal(i::Handle<i::Object>::cast(result))),
+            Utils::ToLocal(i::Cast<i::Object>(result))),
         result, ImportsAsMaybeReceiver(imports_.Get(isolate_)));
   }
 
@@ -536,7 +534,7 @@ CompileTimeImports ArgumentToCompileOptions(
   if (!enabled_features.has_imported_strings()) return {};
   i::Handle<i::Object> arg = Utils::OpenHandle(*arg_value);
   if (!i::IsJSReceiver(*arg)) return {};
-  i::Handle<i::JSReceiver> receiver = i::Handle<i::JSReceiver>::cast(arg);
+  i::Handle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);
   CompileTimeImports result;
 
   // ==================== Builtins ====================
@@ -548,8 +546,8 @@ CompileTimeImports ArgumentToCompileOptions(
     i::Handle<i::Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, length_obj,
-        i::Object::GetLengthFromArrayLike(
-            isolate, i::Handle<i::JSReceiver>::cast(builtins)),
+        i::Object::GetLengthFromArrayLike(isolate,
+                                          i::Cast<i::JSReceiver>(builtins)),
         {});
     double raw_length = i::Object::NumberValue(*length_obj);
     // Technically we should probably iterate up to 2^53-1 if {length_obj} says
@@ -726,14 +724,12 @@ void WebAssemblyCompileStreaming(
               i_isolate, kAPIMethodName, compile_imports, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
-  ASSIGN(
-      v8::Function, compile_callback,
-      v8::Function::New(context, i_isolate->wasm_streaming_callback(),
-                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
-  ASSIGN(
-      v8::Function, reject_callback,
-      v8::Function::New(context, WasmStreamingPromiseFailedCallback,
-                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+  ASSIGN(v8::Function, compile_callback,
+         v8::Function::New(context, i_isolate->wasm_streaming_callback(),
+                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
+  ASSIGN(v8::Function, reject_callback,
+         v8::Function::New(context, WasmStreamingPromiseFailedCallback,
+                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
 
   // The parameter may be of type {Response} or of type {Promise<Response>}.
   // Treat either case of parameter as Promise.resolve(parameter)
@@ -938,7 +934,7 @@ void WebAssemblyModuleCustomSectionsImpl(
   if (!maybe_name.ToHandle(&name)) return;
   auto custom_sections =
       i::wasm::GetCustomSections(i_isolate, maybe_module.ToHandleChecked(),
-                                 i::Handle<i::String>::cast(name), &thrower);
+                                 i::Cast<i::String>(name), &thrower);
   if (thrower.error()) return;
   info.GetReturnValue().Set(Utils::ToLocal(custom_sections));
 }
@@ -1078,14 +1074,12 @@ void WebAssemblyInstantiateStreaming(
               compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
-  ASSIGN(
-      v8::Function, compile_callback,
-      v8::Function::New(context, i_isolate->wasm_streaming_callback(),
-                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
-  ASSIGN(
-      v8::Function, reject_callback,
-      v8::Function::New(context, WasmStreamingPromiseFailedCallback,
-                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+  ASSIGN(v8::Function, compile_callback,
+         v8::Function::New(context, i_isolate->wasm_streaming_callback(),
+                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
+  ASSIGN(v8::Function, reject_callback,
+         v8::Function::New(context, WasmStreamingPromiseFailedCallback,
+                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
 
   // The parameter may be of type {Response} or of type {Promise<Response>}.
   // Treat either case of parameter as Promise.resolve(parameter)
@@ -1148,7 +1142,7 @@ void WebAssemblyInstantiateImpl(
 
   if (IsWasmModuleObject(*first_arg)) {
     i::Handle<i::WasmModuleObject> module_obj =
-        i::Handle<i::WasmModuleObject>::cast(first_arg);
+        i::Cast<i::WasmModuleObject>(first_arg);
 
     i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
                                                module_obj,
@@ -1435,7 +1429,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
   }
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(i::Handle<i::JSObject>::cast(table_obj)));
+  return_value.Set(Utils::ToLocal(i::Cast<i::JSObject>(table_obj)));
 }
 
 void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -1537,8 +1531,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   if (shared == i::SharedFlag::kShared) {
     i::Handle<i::JSArrayBuffer> buffer(
-        i::Handle<i::WasmMemoryObject>::cast(memory_obj)->array_buffer(),
-        i_isolate);
+        i::Cast<i::WasmMemoryObject>(memory_obj)->array_buffer(), i_isolate);
     Maybe<bool> result =
         buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
     if (!result.FromJust()) {
@@ -2028,7 +2021,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.TypeError("Argument 0 must be a WebAssembly tag");
     return;
   }
-  auto tag_object = i::DirectHandle<i::WasmTagObject>::cast(arg0);
+  auto tag_object = i::Cast<i::WasmTagObject>(arg0);
   i::DirectHandle<i::WasmExceptionTag> tag(
       i::WasmExceptionTag::cast(tag_object->tag()), i_isolate);
   auto js_tag = i::WasmTagObject::cast(i_isolate->context()->wasm_js_tag());
@@ -2040,9 +2033,9 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
   // The constructor above should guarantee that the cast below succeeds.
-  i::Handle<i::FixedArray> values = i::Handle<i::FixedArray>::cast(
-      i::WasmExceptionPackage::GetExceptionValues(i_isolate,
-                                                  runtime_exception));
+  i::Handle<i::FixedArray> values =
+      i::Cast<i::FixedArray>(i::WasmExceptionPackage::GetExceptionValues(
+          i_isolate, runtime_exception));
   i::DirectHandle<i::PodArray<i::wasm::ValueType>> signature(
       tag_object->serialized_signature(), i_isolate);
   EncodeExceptionValues(isolate, signature, tag_object, info[1], &thrower,
@@ -2075,7 +2068,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   info.GetReturnValue().Set(
-      Utils::ToLocal(i::Handle<i::Object>::cast(runtime_exception)));
+      Utils::ToLocal(i::Cast<i::Object>(runtime_exception)));
 }
 
 namespace {
@@ -2167,15 +2160,16 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate};
 
   int num_imported_functions = module->num_imported_functions;
-  i::DirectHandle<i::ExposedTrustedObject> ref =
-      func_index >= num_imported_functions
-          ? trusted_instance_data
-          : i::DirectHandle<i::ExposedTrustedObject>::cast(
-                i_isolate->factory()->NewWasmApiFunctionRef(direct_handle(
-                    i::WasmApiFunctionRef::cast(
-                        trusted_instance_data->dispatch_table_for_imports()
-                            ->ref(func_index)),
-                    i_isolate)));
+  i::DirectHandle<i::ExposedTrustedObject> ref;
+  if (func_index >= num_imported_functions) {
+    ref = trusted_instance_data;
+  } else {
+    ref = i_isolate->factory()->NewWasmApiFunctionRef(direct_handle(
+        i::Cast<i::WasmApiFunctionRef>(
+            trusted_instance_data->dispatch_table_for_imports()->ref(
+                func_index)),
+        i_isolate));
+  }
 
 #if V8_ENABLE_SANDBOX
   uint64_t signature_hash =
@@ -2191,8 +2185,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
   internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
   if (func_index < num_imported_functions) {
-    i::DirectHandle<i::WasmApiFunctionRef>::cast(ref)->set_call_origin(
-        *func_ref);
+    i::Cast<i::WasmApiFunctionRef>(ref)->set_call_origin(*func_ref);
   }
 
   i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
@@ -2402,8 +2395,7 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   bool with_suspender_param = false;
   i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
       i_isolate, data, thrower, with_suspender_param);
-  info.GetReturnValue().Set(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(result)));
+  info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
   return;
 }
 
@@ -2430,8 +2422,7 @@ void WebAssemblySuspendingImpl(
 
   i::Handle<i::WasmSuspendingObject> result =
       i::WasmSuspendingObject::New(i_isolate, callable);
-  info.GetReturnValue().Set(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(result)));
+  info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
 }
 
 // WebAssembly.Function.prototype.type() -> FunctionType
@@ -2447,8 +2438,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::Object> fun = Utils::OpenHandle(*info.This());
   if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
-    auto wasm_exported_function =
-        i::Handle<i::WasmExportedFunction>::cast(fun);
+    auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(fun);
     i::Tagged<i::WasmExportedFunctionData> data =
         wasm_exported_function->shared()->wasm_exported_function_data();
     sig = wasm_exported_function->sig();
@@ -2475,7 +2465,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
       sig = builder.Build();
     }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
-    sig = i::Handle<i::WasmJSFunction>::cast(fun)->GetSignature(&zone);
+    sig = i::Cast<i::WasmJSFunction>(fun)->GetSignature(&zone);
   } else {
     thrower.TypeError("Receiver must be a WebAssembly.Function");
     return;
@@ -2500,7 +2490,7 @@ constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
       thrower.TypeError("Receiver is not a %s", kName_##WasmType);   \
       return;                                                        \
     }                                                                \
-    var = i::Handle<i::WasmType>::cast(this_arg);                    \
+    var = i::Cast<i::WasmType>(this_arg);                            \
   }
 
 void WebAssemblyInstanceGetExportsImpl(
@@ -2834,7 +2824,7 @@ void WebAssemblyExceptionGetArgImpl(
   }
 
   DCHECK(!IsUndefined(*maybe_values));
-  auto values = i::Handle<i::FixedArray>::cast(maybe_values);
+  auto values = i::Cast<i::FixedArray>(maybe_values);
   auto signature = tag->serialized_signature();
   if (index >= static_cast<uint32_t>(signature->length())) {
     thrower.RangeError("Index out of range");
@@ -3494,7 +3484,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
       JSReceiver::GetProperty(isolate, global, "WebAssembly");
   Handle<Object> wasm_obj;
   if (!maybe_wasm.ToHandle(&wasm_obj) || !IsJSObject(*wasm_obj)) return;
-  Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
+  Handle<JSObject> webassembly = Cast<JSObject>(wasm_obj);
   if (!webassembly->map()->is_extensible()) return;
   if (webassembly->map()->is_access_check_needed()) return;
 

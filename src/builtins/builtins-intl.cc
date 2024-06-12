@@ -134,7 +134,7 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
                               factory->NewStringFromAsciiChecked(method_name),
                               date_format_holder));
   }
-  auto dtf = DirectHandle<JSDateTimeFormat>::cast(date_format_holder);
+  auto dtf = Cast<JSDateTimeFormat>(date_format_holder);
 
   Handle<Object> x = args.atOrUndefined(isolate, 1);
   RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::FormatToParts(
@@ -224,7 +224,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   if (IsUndefined(*args.new_target(), isolate)) {
     new_target = args.target();
   } else {
-    new_target = Handle<JSReceiver>::cast(args.new_target());
+    new_target = Cast<JSReceiver>(args.new_target());
   }
 
   // [[Construct]]
@@ -260,7 +260,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
                                       method_name),
                                   receiver));
       }
-      Handle<JSReceiver> rec = Handle<JSReceiver>::cast(receiver);
+      Handle<JSReceiver> rec = Cast<JSReceiver>(receiver);
       // a. Perform ? DefinePropertyOrThrow(this,
       // %Intl%.[[FallbackSymbol]], PropertyDescriptor{ [[Value]]: format,
       // [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
@@ -301,7 +301,7 @@ Tagged<Object> DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   Handle<Map> map;
   // 2. Let result be OrdinaryCreateFromConstructor(NewTarget,
@@ -328,7 +328,7 @@ Tagged<Object> CallOrConstructConstructor(BuiltinArguments args,
   if (IsUndefined(*args.new_target(), isolate)) {
     new_target = args.target();
   } else {
-    new_target = Handle<JSReceiver>::cast(args.new_target());
+    new_target = Cast<JSReceiver>(args.new_target());
   }
 
   // [[Construct]]
@@ -670,7 +670,7 @@ BUILTIN(LocaleConstructor) {
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   Handle<Object> tag = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
@@ -692,7 +692,7 @@ BUILTIN(LocaleConstructor) {
   // slot, then
   if (IsJSLocale(*tag)) {
     // a. Let tag be tag.[[Locale]].
-    locale_string = JSLocale::ToString(isolate, Handle<JSLocale>::cast(tag));
+    locale_string = JSLocale::ToString(isolate, Cast<JSLocale>(tag));
   } else {  // 9. Else,
     // a. Let tag be ? ToString(tag).
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, locale_string,

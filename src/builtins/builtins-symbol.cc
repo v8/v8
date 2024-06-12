@@ -51,7 +51,7 @@ BUILTIN(SymbolKeyFor) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kSymbolKeyFor, obj));
   }
-  auto symbol = DirectHandle<Symbol>::cast(obj);
+  auto symbol = Cast<Symbol>(obj);
   DisallowGarbageCollection no_gc;
   Tagged<Object> result;
   if (symbol->is_in_public_symbol_table()) {

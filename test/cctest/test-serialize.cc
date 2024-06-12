@@ -513,7 +513,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
                      v8::DeserializeInternalFieldsCallback()))
                  .ToHandleChecked();
       CHECK(IsContext(*root));
-      CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
+      CHECK(Cast<Context>(root)->global_proxy() == *global_proxy);
     }
 
     Handle<Object> root2;
@@ -694,12 +694,12 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                      v8::DeserializeInternalFieldsCallback()))
                  .ToHandleChecked();
       CHECK(IsContext(*root));
-      Handle<NativeContext> context = Handle<NativeContext>::cast(root);
+      Handle<NativeContext> context = Cast<NativeContext>(root);
 
       // Add context to the weak native context list
-      Handle<Context>::cast(context)->set(
-          Context::NEXT_CONTEXT_LINK, isolate->heap()->native_contexts_list(),
-          UPDATE_WRITE_BARRIER);
+      Cast<Context>(context)->set(Context::NEXT_CONTEXT_LINK,
+                                  isolate->heap()->native_contexts_list(),
+                                  UPDATE_WRITE_BARRIER);
       isolate->heap()->set_native_contexts_list(*context);
 
       CHECK(context->global_proxy() == *global_proxy);
@@ -1539,8 +1539,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStackOverflow) {
 }
 
 bool IsCompiled(const char* name) {
-  return i::Handle<i::JSFunction>::cast(
-             v8::Utils::OpenHandle(*CompileRun(name)))
+  return i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*CompileRun(name)))
       ->shared()
       ->is_compiled();
 }
@@ -2094,8 +2093,7 @@ TEST(CompileFunctionCompilationCache) {
             v8::ScriptCompiler::kEagerCompile)
             .ToLocalChecked();
     cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
-    auto js_function =
-        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    auto js_function = Cast<JSFunction>(Utils::OpenDirectHandle(*fun));
     sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
   }
 
@@ -2107,8 +2105,7 @@ TEST(CompileFunctionCompilationCache) {
             env.local(), &script_source, args.size(), args.data(), 0, nullptr,
             v8::ScriptCompiler::kConsumeCodeCache)
             .ToLocalChecked();
-    auto js_function =
-        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    auto js_function = Cast<JSFunction>(Utils::OpenDirectHandle(*fun));
     CHECK_EQ(js_function->shared(), *sfi);
   }
 
@@ -2272,8 +2269,7 @@ TEST(CompileFunctionCompilationCache) {
             v8::ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheNoReason)
             .ToLocalChecked();
-    auto js_function =
-        DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*fun));
+    auto js_function = Cast<JSFunction>(Utils::OpenDirectHandle(*fun));
     other_sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
     CHECK_NE(*other_sfi, *sfi);
   }
@@ -2357,7 +2353,7 @@ TEST(CodeSerializerInternalizedString) {
   DirectHandle<String> expected =
       isolate->factory()->NewStringFromAsciiChecked("string1");
 
-  CHECK(Handle<String>::cast(copy_result)->Equals(*expected));
+  CHECK(Cast<String>(copy_result)->Equals(*expected));
   CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cached_data;
@@ -2551,7 +2547,7 @@ TEST(CodeSerializerLargeStrings) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
+  CHECK_EQ(6 * 1999999, Cast<String>(copy_result)->length());
   Handle<Object> property = JSReceiver::GetDataProperty(
       isolate, isolate->global_object(), f->NewStringFromAsciiChecked("s"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
@@ -2754,9 +2750,9 @@ TEST(CodeSerializerExternalString) {
   CHECK_EQ(15.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(one_byte_string)
+  i::Cast<i::ExternalOneByteString>(one_byte_string)
       ->SetResource(isolate, nullptr);
-  i::Handle<i::ExternalTwoByteString>::cast(two_byte_string)
+  i::Cast<i::ExternalTwoByteString>(two_byte_string)
       ->SetResource(isolate, nullptr);
   delete cache;
 }
@@ -2820,8 +2816,7 @@ TEST(CodeSerializerLargeExternalString) {
   CHECK_EQ(42.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
-                                                               nullptr);
+  i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
   string.Dispose();
 }
@@ -2876,8 +2871,7 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK_EQ(10.0, Object::NumberValue(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
-                                                               nullptr);
+  i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
 }
 
@@ -5083,8 +5077,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
       i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
       CHECK(IsJSArray(*i_a));
       CHECK(IsJSObject(*i_a));
-      CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
-      CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
+      CHECK(!i::Cast<i::JSArray>(i_a)->HasFastElements());
+      CHECK(!i::Cast<i::JSObject>(i_o)->HasFastProperties());
       ExpectInt32("a[2111]", 5);
       ExpectInt32("o.c", 3);
       creator.SetDefaultContext(context);
@@ -5112,8 +5106,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
     CHECK(IsJSArray(*i_a));
     CHECK(IsJSObject(*i_a));
-    CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
-    CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
+    CHECK(!i::Cast<i::JSArray>(i_a)->HasFastElements());
+    CHECK(!i::Cast<i::JSObject>(i_o)->HasFastProperties());
     ExpectInt32("a[2111]", 5);
     ExpectInt32("o.c", 3);
   }
@@ -6087,7 +6081,7 @@ TEST(CachedCompileFunctionRespectsEager) {
             ->Call(env.local(), v8::Undefined(CcTest::isolate()), 0, nullptr)
             .ToLocalChecked();
 
-    auto i_fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
+    auto i_fun = i::Cast<i::JSFunction>(Utils::OpenHandle(*fun));
 
     // Function should be compiled iff kEagerCompile was used.
     CHECK_EQ(i_fun->shared()->is_compiled(), eager_compile);

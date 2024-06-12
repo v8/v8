@@ -136,8 +136,7 @@ MeasureMemoryDelegate::~MeasureMemoryDelegate() {
 }
 
 bool MeasureMemoryDelegate::ShouldMeasure(v8::Local<v8::Context> context) {
-  auto native_context =
-      DirectHandle<NativeContext>::cast(Utils::OpenDirectHandle(*context));
+  auto native_context = Cast<NativeContext>(Utils::OpenDirectHandle(*context));
   return context_->security_token() == native_context->security_token();
 }
 

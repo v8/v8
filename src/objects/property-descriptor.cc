@@ -73,7 +73,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     Handle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        value = JSObject::FastPropertyAt(isolate, Handle<JSObject>::cast(obj),
+        value = JSObject::FastPropertyAt(isolate, Cast<JSObject>(obj),
                                          details.representation(),
                                          FieldIndex::ForDetails(*map, details));
       } else {
@@ -123,7 +123,7 @@ void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
   Isolate* isolate = object->GetIsolate();
   Maybe<bool> result = JSObject::CreateDataProperty(
-      isolate, object, PropertyKey(isolate, Handle<Name>::cast(name)), value);
+      isolate, object, PropertyKey(isolate, Cast<Name>(name)), value);
   CHECK(result.IsJust() && result.FromJust());
 }
 
@@ -205,7 +205,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(obj);
+  Handle<JSReceiver> receiver = Cast<JSReceiver>(obj);
   if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }

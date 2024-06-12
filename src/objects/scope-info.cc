@@ -1155,7 +1155,7 @@ template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(
     IsolateT* isolate, DirectHandle<String> specifier,
     DirectHandle<FixedArray> import_attributes, int position) {
-  auto result = Handle<ModuleRequest>::cast(
+  auto result = Cast<ModuleRequest>(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<ModuleRequest> raw = *result;
@@ -1178,9 +1178,8 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     DirectHandle<UnionOf<String, Undefined>> local_name,
     DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
     int cell_index, int beg_pos, int end_pos) {
-  auto result =
-      Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
-          SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
+  auto result = Cast<SourceTextModuleInfoEntry>(isolate->factory()->NewStruct(
+      SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModuleInfoEntry> raw = *result;
   raw->set_export_name(*export_name);

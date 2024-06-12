@@ -53,19 +53,19 @@ BUILTIN(DateConstructor) {
   // [Construct]
   int const argc = args.length() - 1;
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
   double time_val;
   if (argc == 0) {
     time_val = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else if (argc == 1) {
     Handle<Object> value = args.at(1);
     if (IsJSDate(*value)) {
-      time_val = Object::NumberValue(Handle<JSDate>::cast(value)->value());
+      time_val = Object::NumberValue(Cast<JSDate>(value)->value());
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                          Object::ToPrimitive(isolate, value));
       if (IsString(*value)) {
-        time_val = ParseDateTimeString(isolate, Handle<String>::cast(value));
+        time_val = ParseDateTimeString(isolate, Cast<String>(value));
       } else {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                            Object::ToNumber(isolate, value));

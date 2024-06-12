@@ -454,7 +454,7 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Tagged<WasmTrustedInstanceData>::cast(Tagged<Object>{trusted_data_addr});
+      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
@@ -475,7 +475,7 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Tagged<WasmTrustedInstanceData>::cast(Tagged<Object>{trusted_data_addr});
+      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t dst_mem_size = trusted_data->memory_size(dst_mem_index);
   uint64_t src_mem_size = trusted_data->memory_size(src_mem_index);
@@ -494,7 +494,7 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
   DisallowGarbageCollection no_gc;
 
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Tagged<WasmTrustedInstanceData>::cast(Tagged<Object>{trusted_data_addr});
+      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;

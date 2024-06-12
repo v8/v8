@@ -127,7 +127,7 @@ struct IndexedDebugProxy {
 
   template <typename V>
   static Handle<JSObject> GetHolder(const PropertyCallbackInfo<V>& info) {
-    return Handle<JSObject>::cast(Utils::OpenHandle(*info.HolderV2()));
+    return Cast<JSObject>(Utils::OpenHandle(*info.HolderV2()));
   }
 
   static Handle<Provider> GetProvider(DirectHandle<JSObject> holder,
@@ -217,7 +217,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     Handle<Object> table_or_undefined =
         JSObject::GetProperty(isolate, holder, symbol).ToHandleChecked();
     if (!IsUndefined(*table_or_undefined, isolate)) {
-      return Handle<NameDictionary>::cast(table_or_undefined);
+      return Cast<NameDictionary>(table_or_undefined);
     }
     auto provider = T::GetProvider(holder, isolate);
     auto count = T::Count(isolate, provider);
@@ -495,7 +495,7 @@ Handle<FixedArray> GetOrCreateInstanceProxyCache(
     cache = isolate->factory()->NewFixedArrayWithHoles(kNumInstanceProxies);
     Object::SetProperty(isolate, instance, symbol, cache).Check();
   }
-  return Handle<FixedArray>::cast(cache);
+  return Cast<FixedArray>(cache);
 }
 
 // Creates an instance of the |Proxy| on-demand and caches that on the
@@ -602,9 +602,9 @@ class ContextProxyPrototype {
 
   static v8::Intercepted NamedGetter(
       Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
-    auto name_string = Handle<String>::cast(Utils::OpenHandle(*name));
+    auto name_string = Cast<String>(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-    auto receiver = Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
+    auto receiver = Cast<JSObject>(Utils::OpenHandle(*info.This()));
     Handle<Object> value;
     if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
@@ -811,8 +811,8 @@ Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
   }
   DirectHandle<Map> value_map(Map::cast(maps->get(kWasmValueMapIndex)),
                               isolate);
-  auto object = Handle<WasmValueObject>::cast(
-      isolate->factory()->NewJSObjectFromMap(value_map));
+  auto object =
+      Cast<WasmValueObject>(isolate->factory()->NewJSObjectFromMap(value_map));
   object->set_type(*type);
   object->set_value(*value);
   return object;
@@ -973,7 +973,7 @@ Handle<WasmValueObject> WasmValueObject::New(
             WasmInstanceObject::cast(type_info->instance())->module_object(),
             isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
-        v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref), module);
+        v = StructProxy::Create(isolate, Cast<WasmStruct>(ref), module);
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             HeapObject::cast(*ref)->map()->wasm_type_info();
@@ -984,7 +984,7 @@ Handle<WasmValueObject> WasmValueObject::New(
             WasmInstanceObject::cast(type_info->instance())->module_object(),
             isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
-        v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
+        v = ArrayProxy::Create(isolate, Cast<WasmArray>(ref), module);
       } else if (IsWasmFuncRef(*ref)) {
         DirectHandle<WasmInternalFunction> internal_fct{
             WasmFuncRef::cast(*ref)->internal(isolate), isolate};

@@ -330,7 +330,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   int line_num = info.line + 1;
   int column_num = info.column + 1;
   Handle<String> script_name(IsString(script->name())
-                                 ? Tagged<String>::cast(script->name())
+                                 ? Cast<String>(script->name())
                                  : ReadOnlyRoots(isolate).empty_string(),
                              isolate);
   LogEventListener::CodeTag log_tag =
@@ -445,8 +445,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
-    abstract_code =
-        Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+    abstract_code = Cast<AbstractCode>(BUILTIN_CODE(isolate, InstantiateAsmJs));
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -625,7 +624,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
 void TurbofanCompilationJob::RecordFunctionCompilation(
     LogEventListener::CodeTag code_type, Isolate* isolate) const {
   Handle<AbstractCode> abstract_code =
-      Handle<AbstractCode>::cast(compilation_info()->code());
+      Cast<AbstractCode>(compilation_info()->code());
 
   double time_taken_ms = time_taken_to_prepare_.InMillisecondsF() +
                          time_taken_to_execute_.InMillisecondsF() +
@@ -699,13 +698,13 @@ void Compiler::InstallInterpreterTrampolineCopy(
   }
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+  Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
   Script::PositionInfo info;
   Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
   int line_num = info.line + 1;
   int column_num = info.column + 1;
   Handle<String> script_name =
-      handle(IsString(script->name()) ? Tagged<String>::cast(script->name())
+      handle(IsString(script->name()) ? Cast<String>(script->name())
                                       : ReadOnlyRoots(isolate).empty_string(),
              isolate);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,
@@ -2799,7 +2798,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
     LogFunctionCompilation(isolate, LogEventListener::CodeTag::kFunction,
                            handle(Script::cast(shared->script()), isolate),
                            shared, Handle<FeedbackVector>(),
-                           Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+                           Cast<AbstractCode>(code), CodeKind::BASELINE,
                            time_taken_ms);
   }
   return true;
@@ -3089,7 +3088,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   // the same.
   if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
       IsString(*original_source)) {
-    return {Handle<String>::cast(original_source), false};
+    return {Cast<String>(original_source), false};
   }
 
   // Check if the context allows code generation for this string.
@@ -3104,7 +3103,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     if (!IsString(*original_source)) {
       return {MaybeHandle<String>(), true};
     }
-    Handle<String> string_source = Handle<String>::cast(original_source);
+    Handle<String> string_source = Cast<String>(original_source);
     if (!CodeGenerationFromStringsAllowed(isolate, context, string_source)) {
       return {MaybeHandle<String>(), false};
     }
@@ -3123,7 +3122,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     if (!IsString(*modified_source)) {
       return {MaybeHandle<String>(), true};
     }
-    return {Handle<String>::cast(modified_source), false};
+    return {Cast<String>(modified_source), false};
   }
 
   if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
@@ -3476,7 +3475,7 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
 
 bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
   if (!IsJSError(*obj, isolate)) return false;
-  Handle<JSReceiver> js_obj = Handle<JSReceiver>::cast(obj);
+  Handle<JSReceiver> js_obj = Cast<JSReceiver>(obj);
   Handle<JSReceiver> constructor;
   if (!JSReceiver::GetConstructor(isolate, js_obj).ToHandle(&constructor)) {
     return false;
@@ -4166,7 +4165,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                job->specialize_to_function_context());
 
     RecordMaglevFunctionCompilation(isolate, function,
-                                    Handle<AbstractCode>::cast(code));
+                                    Cast<AbstractCode>(code));
     job->RecordCompilationStats(isolate);
     if (v8_flags.profile_guided_optimization &&
         shared->cached_tiering_decision() == CachedTieringDecision::kPending) {

@@ -1381,8 +1381,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<Object> proto_template(global_constructor->GetPrototypeTemplate(),
                                   isolate());
     if (!IsUndefined(*proto_template, isolate())) {
-      js_global_object_template =
-          Handle<ObjectTemplateInfo>::cast(proto_template);
+      js_global_object_template = Cast<ObjectTemplateInfo>(proto_template);
     }
   }
 
@@ -1589,7 +1588,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   // Already initialized?
   Handle<HeapObject> maybe_temporal(native_context->temporal_object(), isolate);
   if (IsJSObject(*maybe_temporal)) {
-    return Handle<JSObject>::cast(maybe_temporal);
+    return Cast<JSObject>(maybe_temporal);
   }
 
   isolate->CountUsage(v8::Isolate::kTemporalObject);
@@ -2692,7 +2691,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::NUMBER_FUNCTION_INDEX);
 
     // Create the %NumberPrototype%
-    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(number_fun, AllocationType::kOld));
     prototype->set_value(Smi::zero());
     JSFunction::SetPrototype(number_fun, prototype);
@@ -2777,7 +2776,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::BOOLEAN_FUNCTION_INDEX);
 
     // Create the %BooleanPrototype%
-    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(boolean_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).false_value());
     JSFunction::SetPrototype(boolean_fun, prototype);
@@ -2830,7 +2829,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
 
     // Create the %StringPrototype%
-    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(string_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).empty_string());
     JSFunction::SetPrototype(string_fun, prototype);
@@ -5670,7 +5669,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
 
   ReadOnlyRoots roots(isolate());
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSObject> atomics_object = Handle<JSObject>::cast(
+  Handle<JSObject> atomics_object = Cast<JSObject>(
       JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
 
   {
@@ -5855,7 +5854,7 @@ void Genesis::InitializeGlobal_js_float16array() {
   if (!v8_flags.js_float16array) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSObject> math = Handle<JSObject>::cast(
+  Handle<JSObject> math = Cast<JSObject>(
       JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
 
   SimpleInstallFunction(isolate_, math, "f16round", Builtin::kMathF16round, 1,
@@ -5944,7 +5943,7 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {
 
 void Genesis::InitializeGlobal_harmony_intl_duration_format() {
   if (!v8_flags.harmony_intl_duration_format) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
+  Handle<JSObject> intl = Cast<JSObject>(
       JSReceiver::GetProperty(
           isolate(),
           Handle<JSReceiver>(native_context()->global_object(), isolate()),
@@ -6233,7 +6232,7 @@ bool Genesis::InstallABunchOfRandomThings() {
     // Temporarily instantiate a full template_literal_object to get the final
     // map.
     auto template_object =
-        Handle<JSArray>::cast(factory()->NewJSObjectFromMap(template_map));
+        Cast<JSArray>(factory()->NewJSObjectFromMap(template_map));
     {
       DisallowGarbageCollection no_gc;
       Tagged<JSArray> raw = *template_object;
@@ -6970,7 +6969,7 @@ Genesis::Genesis(Isolate* isolate,
                                          context_snapshot_index,
                                          embedder_fields_deserializer)
             .ToHandle(&context)) {
-      native_context_ = Handle<NativeContext>::cast(context);
+      native_context_ = Cast<NativeContext>(context);
     }
   }
 

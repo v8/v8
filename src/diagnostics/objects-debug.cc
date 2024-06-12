@@ -968,7 +968,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
         expected_field_index += details.field_width_in_words();
       } else {
         CHECK(!value.IsWeakOrCleared());
-        CHECK(!IsMap(Tagged<Object>::cast(value)));
+        CHECK(!IsMap(Cast<Object>(value)));
       }
     }
   }
@@ -986,7 +986,7 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
     // same source map.
     if (!TransitionsAccessor::IsSpecialSidestepTransition(roots, GetKey(i))) {
       Tagged<Map> parent =
-          Tagged<Map>::cast(GetTarget(i)->constructor_or_back_pointer());
+          Cast<Map>(GetTarget(i)->constructor_or_back_pointer());
       if (owner.is_null()) {
         parent = owner;
       } else {

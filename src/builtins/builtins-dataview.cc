@@ -30,7 +30,7 @@ BUILTIN(DataViewConstructor) {
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
   Handle<Object> buffer = args.atOrUndefined(isolate, 1);
   Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
   Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
@@ -40,7 +40,7 @@ BUILTIN(DataViewConstructor) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
   }
-  auto array_buffer = DirectHandle<JSArrayBuffer>::cast(buffer);
+  auto array_buffer = Cast<JSArrayBuffer>(buffer);
 
   // 3. Let offset be ? ToIndex(byteOffset).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -121,7 +121,7 @@ BUILTIN(DataViewConstructor) {
         JSObject::New(target, new_target, Handle<AllocationSite>::null(),
                       NewJSObjectType::kAPIWrapper));
   }
-  auto data_view = DirectHandle<JSDataViewOrRabGsabDataView>::cast(result);
+  auto data_view = Cast<JSDataViewOrRabGsabDataView>(result);
   {
     // Must fully initialize the JSDataViewOrRabGsabDataView here so that it
     // passes ObjectVerify, which may for example be triggered when allocating

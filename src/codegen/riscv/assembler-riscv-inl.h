@@ -174,7 +174,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_)) {
-    return Handle<HeapObject>::cast(
+    return Cast<HeapObject>(
         origin->code_target_object_handle_at(pc_, constant_pool_));
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);
@@ -244,7 +244,7 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
   int32_t code_target_index = BrachlongOffset(instr1, instr2);
-  return Handle<Code>::cast(GetEmbeddedObject(code_target_index));
+  return Cast<Code>(GetEmbeddedObject(code_target_index));
 }
 
 Builtin Assembler::target_builtin_at(Address pc) {

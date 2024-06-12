@@ -383,7 +383,7 @@ void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
 }
 template <typename Type>
 Handle<Type> BaselineCompiler::Constant(int operand_index) {
-  return Handle<Type>::cast(
+  return Cast<Type>(
       iterator().GetConstantForIndexOperand(operand_index, local_isolate_));
 }
 Tagged<Smi> BaselineCompiler::ConstantSmi(int operand_index) {

@@ -70,8 +70,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   }
 
   bool HasObject(Handle<HeapObject> obj) {
-    if (IsJSObject(*obj) &&
-        Handle<JSObject>::cast(obj)->GetEmbedderFieldCount()) {
+    if (IsJSObject(*obj) && Cast<JSObject>(obj)->GetEmbedderFieldCount()) {
       // Embedder may store any pointers using embedder fields and implements
       // non trivial logic, e.g. create wrappers lazily and store pointer to
       // native object inside embedder field. We should consider all objects
@@ -821,14 +820,14 @@ bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
       debug_info->GetBreakPoints(isolate_, location.position());
   DCHECK(!IsUndefined(*break_points, isolate_));
   if (!IsFixedArray(*break_points)) {
-    const auto break_point = DirectHandle<BreakPoint>::cast(break_points);
+    const auto break_point = Cast<BreakPoint>(break_points);
     return break_point->id() == kInstrumentationId;
   }
 
   DirectHandle<FixedArray> array(FixedArray::cast(*break_points), isolate_);
   for (int i = 0; i < array->length(); ++i) {
     const auto break_point =
-        DirectHandle<BreakPoint>::cast(direct_handle(array->get(i), isolate_));
+        Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     if (break_point->id() == kInstrumentationId) {
       return true;
     }
@@ -1014,7 +1013,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
       FindInnermostContainingFunctionInfo(script, *source_position);
   if (IsUndefined(*result, isolate_)) return false;
 
-  auto shared = Handle<SharedFunctionInfo>::cast(result);
+  auto shared = Cast<SharedFunctionInfo>(result);
   if (!EnsureBreakInfo(shared)) return false;
   PrepareFunctionForDebugExecution(shared);
 
@@ -1271,7 +1270,7 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(
   bool is_break_at_entry = debug_info->BreakAtEntry();
   DCHECK(!IsUndefined(*break_points, isolate_));
   if (!IsFixedArray(*break_points)) {
-    const auto break_point = DirectHandle<BreakPoint>::cast(break_points);
+    const auto break_point = Cast<BreakPoint>(break_points);
     *has_break_points = break_point->id() != kInstrumentationId;
     if (!CheckBreakPoint(break_point, is_break_at_entry)) {
       return {};
@@ -1289,7 +1288,7 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(
   *has_break_points = false;
   for (int i = 0; i < num_objects; ++i) {
     const auto break_point =
-        DirectHandle<BreakPoint>::cast(direct_handle(array->get(i), isolate_));
+        Cast<BreakPoint>(direct_handle(array->get(i), isolate_));
     *has_break_points |= break_point->id() != kInstrumentationId;
     if (CheckBreakPoint(break_point, is_break_at_entry)) {
       break_points_hit->set(break_points_hit_count++, *break_point);
@@ -1526,8 +1525,7 @@ void Debug::PrepareStep(StepAction step_action) {
               isolate_, return_value,
               isolate_->factory()->promise_awaited_by_symbol());
           if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
-            auto weak_fixed_array =
-                DirectHandle<WeakFixedArray>::cast(awaited_by_holder);
+            auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
             if (weak_fixed_array->length() == 1 &&
                 weak_fixed_array->get(0).IsWeak()) {
               DirectHandle<HeapObject> awaited_by(
@@ -1920,13 +1918,13 @@ void Debug::InstallDebugBreakTrampoline() {
     Handle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
-      Handle<JSFunction>::cast(getter)->set_code(*trampoline);
+      Cast<JSFunction>(getter)->set_code(*trampoline);
     }
 
     DirectHandle<Object> setter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *setter)) {
-      DirectHandle<JSFunction>::cast(setter)->set_code(*trampoline);
+      Cast<JSFunction>(setter)->set_code(*trampoline);
     }
   }
 
@@ -1989,8 +1987,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     if (IsUndefined(*result, isolate_)) return false;
 
     // Make sure the function has set up the debug info.
-    Handle<SharedFunctionInfo> shared =
-        Handle<SharedFunctionInfo>::cast(result);
+    Handle<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(result);
     if (!EnsureBreakInfo(shared)) return false;
     PrepareFunctionForDebugExecution(shared);
 
@@ -2386,7 +2383,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   if (!IsWeakArrayList(*factory->script_list())) {
     return factory->empty_fixed_array();
   }
-  auto array = DirectHandle<WeakArrayList>::cast(factory->script_list());
+  auto array = Cast<WeakArrayList>(factory->script_list());
   Handle<FixedArray> results = factory->NewFixedArray(array->length());
   int length = 0;
   {
@@ -2461,7 +2458,7 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   if (in_debug_scope() || ignore_events()) return;
   MaybeHandle<JSPromise> maybe_promise;
   if (IsJSPromise(*promise)) {
-    Handle<JSPromise> js_promise = Handle<JSPromise>::cast(promise);
+    Handle<JSPromise> js_promise = Cast<JSPromise>(promise);
     if (js_promise->is_silent()) {
       return;
     }
@@ -2680,7 +2677,7 @@ bool Debug::ShouldBeSkipped() {
   Handle<Object> script_obj = summary.script();
   if (!IsScript(*script_obj)) return false;
 
-  Handle<Script> script = Handle<Script>::cast(script_obj);
+  Handle<Script> script = Cast<Script>(script_obj);
   summary.EnsureSourcePositionsAvailable();
   int source_position = summary.SourcePosition();
   Script::PositionInfo info;
@@ -2898,7 +2895,7 @@ void Debug::PrintBreakLocation() {
   inspector.GetFunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (IsScript(*script_obj)) {
-    Handle<Script> script = Handle<Script>::cast(script_obj);
+    Handle<Script> script = Cast<Script>(script_obj);
     DirectHandle<String> source(String::cast(script->source()), isolate_);
     Script::InitLineEnds(isolate_, script);
     Script::PositionInfo info;
@@ -3286,7 +3283,7 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   if (IsNumber(*object)) return true;
   if (IsName(*object)) return true;
 
-  if (temporary_objects_->HasObject(Handle<HeapObject>::cast(object))) {
+  if (temporary_objects_->HasObject(Cast<HeapObject>(object))) {
     return true;
   }
 

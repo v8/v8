@@ -32,10 +32,9 @@ Handle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(Isolate* isolate) {
       context->get(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
       isolate);
 
-  auto js_mutex = DirectHandle<JSAtomicsMutex>::cast(mutex);
-  auto js_unlock_promise = Handle<JSPromise>::cast(unlock_promise);
-  auto async_locked_waiter_wrapper =
-      DirectHandle<Foreign>::cast(waiter_wrapper_obj);
+  auto js_mutex = Cast<JSAtomicsMutex>(mutex);
+  auto js_unlock_promise = Cast<JSPromise>(unlock_promise);
+  auto async_locked_waiter_wrapper = Cast<Foreign>(waiter_wrapper_obj);
   js_mutex->UnlockAsyncLockedMutex(isolate, async_locked_waiter_wrapper);
   return js_unlock_promise;
 }
@@ -60,7 +59,7 @@ BUILTIN(AtomicsMutexLock) {
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
   }
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
   if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -102,7 +101,7 @@ BUILTIN(AtomicsMutexTryLock) {
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
   }
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
   if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -141,7 +140,7 @@ BUILTIN(AtomicsMutexLockWithTimeout) {
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
   }
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
   if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -200,7 +199,7 @@ BUILTIN(AtomicsMutexLockAsync) {
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
   }
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
   if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -294,8 +293,8 @@ BUILTIN(AtomicsConditionWait) {
                                   method_name)));
   }
 
-  auto js_condition = DirectHandle<JSAtomicsCondition>::cast(js_condition_obj);
-  auto js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  auto js_condition = Cast<JSAtomicsCondition>(js_condition_obj);
+  auto js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
 
   if (!js_mutex->IsCurrentThreadOwner()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -336,7 +335,7 @@ BUILTIN(AtomicsConditionNotify) {
     count = static_cast<uint32_t>(count_double);
   }
 
-  auto js_condition = DirectHandle<JSAtomicsCondition>::cast(js_condition_obj);
+  auto js_condition = Cast<JSAtomicsCondition>(js_condition_obj);
   return *isolate->factory()->NewNumberFromUint(
       JSAtomicsCondition::Notify(isolate, js_condition, count));
 }
@@ -368,8 +367,8 @@ BUILTIN(AtomicsConditionWaitAsync) {
   }
 
   Handle<JSAtomicsCondition> js_condition =
-      Handle<JSAtomicsCondition>::cast(js_condition_obj);
-  auto js_mutex = DirectHandle<JSAtomicsMutex>::cast(js_mutex_obj);
+      Cast<JSAtomicsCondition>(js_condition_obj);
+  auto js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
 
   if (!js_mutex->IsCurrentThreadOwner()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -391,7 +390,7 @@ BUILTIN(AtomicsConditionAcquireLock) {
   DirectHandle<Context> context(isolate->context(), isolate);
   Handle<Object> js_mutex_obj = Handle<Object>(
       context->get(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
-  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   DirectHandle<JSPromise> lock_promise =
       JSAtomicsMutex::LockAsyncWrapperForWait(isolate, js_mutex);
   return *lock_promise;

@@ -8,6 +8,7 @@
 #ifdef V8_COMPRESS_POINTERS
 
 #include "src/common/ptr-compr-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/maybe-object-inl.h"
 
@@ -175,14 +176,14 @@ void CompressedMaybeObjectSlot::Release_CompareAndSwap(
 
 Tagged<HeapObjectReference> CompressedHeapObjectSlot::operator*() const {
   Tagged_t value = *location();
-  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(
+  return Cast<HeapObjectReference>(Tagged<MaybeObject>(
       TCompressionScheme::DecompressTagged(address(), value)));
 }
 
 Tagged<HeapObjectReference> CompressedHeapObjectSlot::load(
     PtrComprCageBase cage_base) const {
   Tagged_t value = *location();
-  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(
+  return Cast<HeapObjectReference>(Tagged<MaybeObject>(
       TCompressionScheme::DecompressTagged(cage_base, value)));
 }
 

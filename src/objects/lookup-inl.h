@@ -187,7 +187,7 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
     valid_key = isolate->factory()->NumberToString(valid_key);
   }
   DCHECK(IsName(*valid_key));
-  name_ = Handle<Name>::cast(valid_key);
+  name_ = Cast<Name>(valid_key);
   if (!name_->AsIntegerIndex(&index_)) {
     index_ = LookupIterator::kInvalidIndex;
     name_ = isolate->factory()->InternalizeName(name_);
@@ -239,18 +239,18 @@ bool LookupIterator::is_dictionary_holder() const {
 
 Handle<Map> LookupIterator::transition_map() const {
   DCHECK_EQ(TRANSITION, state_);
-  return Handle<Map>::cast(transition_);
+  return Cast<Map>(transition_);
 }
 
 Handle<PropertyCell> LookupIterator::transition_cell() const {
   DCHECK_EQ(TRANSITION, state_);
-  return Handle<PropertyCell>::cast(transition_);
+  return Cast<PropertyCell>(transition_);
 }
 
 template <class T>
 Handle<T> LookupIterator::GetHolder() const {
   DCHECK(IsFound());
-  return Handle<T>::cast(holder_);
+  return Cast<T>(holder_);
 }
 
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
@@ -331,11 +331,10 @@ MaybeHandle<JSReceiver> LookupIterator::GetRoot(
     Isolate* isolate, Handle<JSAny> lookup_start_object, size_t index,
     Configuration configuration) {
   if (IsJSReceiver(*lookup_start_object, isolate)) {
-    return Handle<JSReceiver>::cast(lookup_start_object);
+    return Cast<JSReceiver>(lookup_start_object);
   }
-  return GetRootForNonJSReceiver(isolate,
-                                 Handle<JSPrimitive>::cast(lookup_start_object),
-                                 index, configuration);
+  return GetRootForNonJSReceiver(
+      isolate, Cast<JSPrimitive>(lookup_start_object), index, configuration);
 }
 
 template <class T>
@@ -348,7 +347,7 @@ Handle<T> LookupIterator::GetStoreTarget() const {
       return handle(JSGlobalObject::cast(prototype), isolate_);
     }
   }
-  return Handle<T>::cast(receiver_);
+  return Cast<T>(receiver_);
 }
 
 template <bool is_element>

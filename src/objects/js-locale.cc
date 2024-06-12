@@ -374,8 +374,8 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, DirectHandle<Map> map,
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSLocale> locale = Handle<JSLocale>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSLocale> locale =
+      Cast<JSLocale>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
@@ -396,8 +396,8 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor));
 
-  Handle<JSLocale> locale = Handle<JSLocale>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSLocale> locale =
+      Cast<JSLocale>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
@@ -710,7 +710,7 @@ MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
 
   // Let wi be ! WeekInfoOfLocale(loc).
   // Let we be ! CreateArrayFromList( wi.[[Weekend]] ).
-  Handle<FixedArray> wi = Handle<FixedArray>::cast(factory->NewFixedArray(2));
+  Handle<FixedArray> wi = Cast<FixedArray>(factory->NewFixedArray(2));
   int32_t length = 0;
   for (int32_t i = 1; i <= 7; i++) {
     UCalendarDaysOfWeek day =

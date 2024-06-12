@@ -27,9 +27,8 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
   d.AddAttachedObject(source);
 
   Handle<HeapObject> result;
-  return d.Deserialize().ToHandle(&result)
-             ? Handle<SharedFunctionInfo>::cast(result)
-             : MaybeHandle<SharedFunctionInfo>();
+  return d.Deserialize().ToHandle(&result) ? Cast<SharedFunctionInfo>(result)
+                                           : MaybeHandle<SharedFunctionInfo>();
 }
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize() {
@@ -100,7 +99,7 @@ OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
   if (!d.Deserialize(deserialized_scripts).ToHandle(&result)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
-  return Handle<SharedFunctionInfo>::cast(result);
+  return Cast<SharedFunctionInfo>(result);
 }
 
 MaybeHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(

@@ -188,8 +188,7 @@ V8_INLINE Factory* IncrementalStringBuilder::factory() {
 V8_INLINE void IncrementalStringBuilder::ShrinkCurrentPart() {
   DCHECK(current_index_ < part_length_);
   set_current_part(SeqString::Truncate(
-      isolate_,
-      indirect_handle(DirectHandle<SeqString>::cast(current_part()), isolate_),
+      isolate_, indirect_handle(Cast<SeqString>(current_part()), isolate_),
       current_index_));
 }
 

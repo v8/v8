@@ -280,7 +280,7 @@ TEST(ArrayBuffer_LivePromotion) {
     // Store array in Global such that it is part of the root set when
     // starting incremental marking.
     v8::Global<Value> global_root(CcTest::isolate(),
-                                  Utils::ToLocal(Handle<Object>::cast(root)));
+                                  Utils::ToLocal(Cast<Object>(root)));
     heap::SimulateIncrementalMarking(heap, true);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     heap::InvokeMinorGC(heap);

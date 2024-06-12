@@ -18,7 +18,7 @@ class FeedbackVectorTest : public TestWithContext {
     v8::MaybeLocal<v8::Value> v8_f =
         v8_context()->Global()->Get(v8_context(), NewString(name));
     Handle<JSFunction> f =
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
+        Cast<JSFunction>(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
     return f;
   }
 };

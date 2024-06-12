@@ -131,8 +131,7 @@ void DebugInfo::SetBreakPoint(Isolate* isolate,
       debug_info->GetBreakPointInfo(isolate, source_position), isolate);
   if (!IsUndefined(*break_point_info, isolate)) {
     BreakPointInfo::SetBreakPoint(
-        isolate, DirectHandle<BreakPointInfo>::cast(break_point_info),
-        break_point);
+        isolate, Cast<BreakPointInfo>(break_point_info), break_point);
     return;
   }
 

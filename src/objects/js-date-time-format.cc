@@ -897,8 +897,7 @@ Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
   // Handle<String> by ensure it will not return undefined.
   CHECK(IsString(*time_zone_obj));
   Handle<JSTemporalTimeZone> time_zone =
-      temporal::CreateTemporalTimeZone(isolate,
-                                       Handle<String>::cast(time_zone_obj))
+      temporal::CreateTemporalTimeZone(isolate, Cast<String>(time_zone_obj))
           .ToHandleChecked();
   // 9. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone, plainDateTime,
   // "compatible").
@@ -1061,7 +1060,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
       GetTimeZone(isolate, date_time_format);
   DCHECK(IsString(*date_time_format_time_zone));
   Handle<String> date_time_format_time_zone_string =
-      Handle<String>::cast(date_time_format_time_zone);
+      Cast<String>(date_time_format_time_zone);
   if (!String::Equals(isolate, date_time_format_time_zone_string,
                       Intl::DefaultTimeZone(isolate)) &&
       !String::Equals(isolate, time_zone, date_time_format_time_zone_string)) {
@@ -1228,49 +1227,47 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
       // i. Return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
       return HandleDateTimeTemporalDate(
           isolate, date_time_format, date_time_format_calendar,
-          Handle<JSTemporalPlainDate>::cast(x), method_name);
+          Cast<JSTemporalPlainDate>(x), method_name);
     }
     // b. If x has an [[InitializedTemporalYearMonth]] internal slot, then
     if (IsJSTemporalPlainYearMonth(*x)) {
       // i. Return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
       return HandleDateTimeTemporalYearMonth(
           isolate, date_time_format, date_time_format_calendar,
-          Handle<JSTemporalPlainYearMonth>::cast(x), method_name);
+          Cast<JSTemporalPlainYearMonth>(x), method_name);
     }
     // c. If x has an [[InitializedTemporalMonthDay]] internal slot, then
     if (IsJSTemporalPlainMonthDay(*x)) {
       // i. Return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
       return HandleDateTimeTemporalMonthDay(
           isolate, date_time_format, date_time_format_calendar,
-          Handle<JSTemporalPlainMonthDay>::cast(x), method_name);
+          Cast<JSTemporalPlainMonthDay>(x), method_name);
     }
     // d. If x has an [[InitializedTemporalTime]] internal slot, then
     if (IsJSTemporalPlainTime(*x)) {
       // i. Return ? HandleDateTimeTemporalTime(dateTimeFormat, x).
-      return HandleDateTimeTemporalTime(isolate, date_time_format,
-                                        Handle<JSTemporalPlainTime>::cast(x),
-                                        method_name);
+      return HandleDateTimeTemporalTime(
+          isolate, date_time_format, Cast<JSTemporalPlainTime>(x), method_name);
     }
     // e. If x has an [[InitializedTemporalDateTime]] internal slot, then
     if (IsJSTemporalPlainDateTime(*x)) {
       // i. Return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
       return HandleDateTimeTemporalDateTime(
           isolate, date_time_format, date_time_format_calendar,
-          Handle<JSTemporalPlainDateTime>::cast(x), method_name);
+          Cast<JSTemporalPlainDateTime>(x), method_name);
     }
     // f. If x has an [[InitializedTemporalInstant]] internal slot, then
     if (IsJSTemporalInstant(*x)) {
       // i. Return ? HandleDateTimeTemporalInstant(dateTimeFormat, x).
-      return HandleDateTimeTemporalInstant(isolate, date_time_format,
-                                           Handle<JSTemporalInstant>::cast(x),
-                                           method_name);
+      return HandleDateTimeTemporalInstant(
+          isolate, date_time_format, Cast<JSTemporalInstant>(x), method_name);
     }
     // g. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
     DCHECK(IsJSTemporalZonedDateTime(*x));
     // h. Return ? HandleDateTimeTemporalZonedDateTime(dateTimeFormat, x).
     return HandleDateTimeTemporalZonedDateTime(
         isolate, date_time_format, date_time_format_calendar,
-        Handle<JSTemporalZonedDateTime>::cast(x), method_name);
+        Cast<JSTemporalZonedDateTime>(x), method_name);
   }
 
   // 2. Return ? HandleDateTimeOthers(dateTimeFormat, x).
@@ -1551,7 +1548,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  factory->Date_string()));
   }
-  double const x = Object::NumberValue(Handle<JSDate>::cast(date)->value());
+  double const x = Object::NumberValue(Cast<JSDate>(date)->value());
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
     return factory->Invalid_Date_string();
@@ -1642,7 +1639,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
                                  format_holder));
   }
   // 3. Return dtf.
-  return Handle<JSDateTimeFormat>::cast(dtf);
+  return Cast<JSDateTimeFormat>(dtf);
 }
 
 // Convert the input in the form of
@@ -2644,7 +2641,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       Managed<icu::DateIntervalFormat>::FromRawPtr(isolate, 0, nullptr);
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSDateTimeFormat> date_time_format = Handle<JSDateTimeFormat>::cast(
+  Handle<JSDateTimeFormat> date_time_format = Cast<JSDateTimeFormat>(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   date_time_format->set_flags(0);

@@ -93,7 +93,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
-    function = Handle<JSFunction>::cast(result);
+    function = Cast<JSFunction>(result);
     function->shared()->set_name_should_print_as_anonymous(true);
   }
 
@@ -106,8 +106,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   Handle<Object> unchecked_new_target = args.new_target();
   if (!IsUndefined(*unchecked_new_target, isolate) &&
       !unchecked_new_target.is_identical_to(target)) {
-    Handle<JSReceiver> new_target =
-        Handle<JSReceiver>::cast(unchecked_new_target);
+    Handle<JSReceiver> new_target = Cast<JSReceiver>(unchecked_new_target);
     Handle<Map> initial_map;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, initial_map,
@@ -153,7 +152,7 @@ BUILTIN(AsyncFunctionConstructor) {
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
-  auto func = DirectHandle<JSFunction>::cast(maybe_func);
+  auto func = Cast<JSFunction>(maybe_func);
   DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
@@ -171,7 +170,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
-  auto func = DirectHandle<JSFunction>::cast(maybe_func);
+  auto func = Cast<JSFunction>(maybe_func);
   DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
@@ -253,10 +252,10 @@ BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (IsJSBoundFunction(*receiver)) {
-    return *JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(receiver));
+    return *JSBoundFunction::ToString(Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
+    return *JSFunction::ToString(Cast<JSFunction>(receiver));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.

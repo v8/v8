@@ -996,8 +996,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+  return Cast<HeapObject>(code);
 }
 
 void RegExpMacroAssemblerRISCV::GoTo(Label* to) {

@@ -99,10 +99,10 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
     v8::Local<v8::Module> module) const {
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
-  return i::handle(SharedFunctionInfo::cast(
-                       Handle<i::SourceTextModule>::cast(i_module)->code())
-                       ->GetBytecodeArray(i_isolate()),
-                   i_isolate());
+  return i::handle(
+      SharedFunctionInfo::cast(Cast<i::SourceTextModule>(i_module)->code())
+          ->GetBytecodeArray(i_isolate()),
+      i_isolate());
 }
 
 i::Handle<i::BytecodeArray>

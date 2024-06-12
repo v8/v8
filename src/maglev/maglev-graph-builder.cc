@@ -10266,8 +10266,8 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         properties.equals(MakeRef(
             broker(), local_isolate()->factory()->empty_fixed_array())) ||
         properties.equals(MakeRef(
-            broker(), Handle<Object>::cast(
-                          local_isolate()->factory()->empty_property_array())));
+            broker(),
+            Cast<Object>(local_isolate()->factory()->empty_property_array())));
     if (!empty) return {};
   }
 

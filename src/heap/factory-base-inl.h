@@ -36,8 +36,8 @@ MUTABLE_ROOT_LIST(MUTABLE_ROOT_ACCESSOR)
 
 template <typename Impl>
 Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
-  return value ? Handle<Boolean>::cast(impl()->true_value())
-               : Handle<Boolean>::cast(impl()->false_value());
+  return value ? Cast<Boolean>(impl()->true_value())
+               : Cast<Boolean>(impl()->false_value());
 }
 
 template <typename Impl>
@@ -129,7 +129,7 @@ Tagged<Struct> FactoryBase<Impl>::NewStructInternal(ReadOnlyRoots roots,
                                                     AllocationType allocation) {
   DCHECK_EQ(size, map->instance_size());
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
-  Tagged<Struct> str = Tagged<Struct>::cast(result);
+  Tagged<Struct> str = Cast<Struct>(result);
   Tagged<Undefined> undefined = roots.undefined_value();
   int length = (size >> kTaggedSizeLog2) - 1;
   MemsetTagged(str->RawField(Struct::kHeaderSize), undefined, length);

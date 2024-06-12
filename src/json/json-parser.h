@@ -367,7 +367,7 @@ class JsonParser final {
 
   void UpdatePointers() {
     DisallowGarbageCollection no_gc;
-    const Char* chars = Handle<SeqString>::cast(source_)->GetChars(no_gc);
+    const Char* chars = Cast<SeqString>(source_)->GetChars(no_gc);
     if (chars_ != chars) {
       size_t position = cursor_ - chars_;
       size_t length = end_ - chars_;

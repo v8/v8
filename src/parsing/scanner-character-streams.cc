@@ -884,13 +884,12 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
         start_offset, static_cast<size_t>(end_pos));
   } else if (IsSeqOneByteString(*data)) {
     return new BufferedCharacterStream<OnHeapStream>(
-        static_cast<size_t>(start_pos), Handle<SeqOneByteString>::cast(data),
+        static_cast<size_t>(start_pos), Cast<SeqOneByteString>(data),
         start_offset, static_cast<size_t>(end_pos));
   } else if (IsSeqTwoByteString(*data)) {
     return new RelocatingCharacterStream(
-        isolate, static_cast<size_t>(start_pos),
-        Handle<SeqTwoByteString>::cast(data), start_offset,
-        static_cast<size_t>(end_pos));
+        isolate, static_cast<size_t>(start_pos), Cast<SeqTwoByteString>(data),
+        start_offset, static_cast<size_t>(end_pos));
   } else {
     UNREACHABLE();
   }

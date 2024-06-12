@@ -39,7 +39,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   DirectHandle<Name> name;
   DirectHandle<String> name_string;
   if (maybe_name.ToHandle(&name) && IsString(*name)) {
-    name_string = DirectHandle<String>::cast(name);
+    name_string = Cast<String>(name);
   } else if (IsString(info->class_name())) {
     name_string = direct_handle(String::cast(info->class_name()), isolate);
   } else {
@@ -212,8 +212,8 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
       continue;
     }
     properties = PropertyDictionary::Add(
-        isolate, Handle<PropertyDictionary>::cast(properties),
-        Handle<String>::cast(handle(property_names->get(i), isolate)),
+        isolate, Cast<PropertyDictionary>(properties),
+        Cast<String>(handle(property_names->get(i), isolate)),
         Utils::OpenHandle(*property_value), PropertyDetails::Empty());
   }
   object->set_raw_properties_or_hash(*properties);
@@ -313,7 +313,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
     if (!property_values[i].ToLocal(&property_value)) {
       continue;
     }
-    auto name = Handle<String>::cast(handle(property_names->get(i), isolate));
+    auto name = Cast<String>(handle(property_names->get(i), isolate));
     DirectHandle<Object> value = Utils::OpenDirectHandle(*property_value);
     constexpr PropertyAttributes attributes = PropertyAttributes::NONE;
     constexpr PropertyConstness constness = PropertyConstness::kConst;

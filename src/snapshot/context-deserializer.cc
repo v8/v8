@@ -41,7 +41,7 @@ MaybeHandle<Context> ContextDeserializer::DeserializeContext(
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result)) return {};
 
-  return Handle<Context>::cast(result);
+  return Cast<Context>(result);
 }
 
 MaybeHandle<Object> ContextDeserializer::Deserialize(
@@ -62,7 +62,7 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     result = ReadObject();
     DCHECK(IsNativeContext(*result));
     DeserializeDeferredObjects();
-    DeserializeEmbedderFields(Handle<NativeContext>::cast(result),
+    DeserializeEmbedderFields(Cast<NativeContext>(result),
                               embedder_fields_deserializer);
     DeserializeApiWrapperFields(
         embedder_fields_deserializer.api_wrapper_callback);
@@ -110,13 +110,13 @@ void ContextDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     Handle<HeapObject> heap_object =
-        Handle<HeapObject>::cast(GetBackReferencedObject());
+        Cast<HeapObject>(GetBackReferencedObject());
     const int index = source()->GetUint30();
     const int size = source()->GetUint30();
     buffer.EnsureCapacity(size);
     source()->CopyRaw(buffer.data(), size);
     if (IsJSObject(*heap_object)) {
-      Handle<JSObject> obj = Handle<JSObject>::cast(heap_object);
+      Handle<JSObject> obj = Cast<JSObject>(heap_object);
       v8::DeserializeInternalFieldsCallback callback =
           embedder_fields_deserializer.js_object_callback;
       DCHECK_NOT_NULL(callback.callback);
@@ -151,8 +151,7 @@ void ContextDeserializer::DeserializeApiWrapperFields(
   for (int code = source()->Get(); code != kSynchronize;
        code = source()->Get()) {
     HandleScope scope(isolate());
-    Handle<JSObject> js_object =
-        Handle<JSObject>::cast(GetBackReferencedObject());
+    Handle<JSObject> js_object = Cast<JSObject>(GetBackReferencedObject());
     const int size = source()->GetUint30();
     buffer.EnsureCapacity(size);
     source()->CopyRaw(buffer.data(), size);

@@ -537,7 +537,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
       Managed<DisplayNamesInternal>::FromRawPtr(isolate, 0, internal);
 
   Handle<JSDisplayNames> display_names =
-      Handle<JSDisplayNames>::cast(factory->NewFastOrSlowJSObjectFromMap(map));
+      Cast<JSDisplayNames>(factory->NewFastOrSlowJSObjectFromMap(map));
   display_names->set_flags(0);
   display_names->set_style(style_enum);
   display_names->set_fallback(fallback_enum);

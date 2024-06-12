@@ -8179,10 +8179,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* target_node;
     Node* receiver_node;
     if (IsJSBoundFunction(*callable)) {
-      target = handle(
-          JSFunction::cast(
-              Handle<JSBoundFunction>::cast(callable)->bound_target_function()),
-          callable->GetIsolate());
+      target =
+          handle(JSFunction::cast(
+                     Cast<JSBoundFunction>(callable)->bound_target_function()),
+                 callable->GetIsolate());
       target_node =
           gasm_->Load(MachineType::TaggedPointer(), callable_node,
                       wasm::ObjectAccess::ToTagged(
@@ -8192,7 +8192,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           wasm::ObjectAccess::ToTagged(JSBoundFunction::kBoundThisOffset));
     } else {
       DCHECK(IsJSFunction(*callable));
-      target = Handle<JSFunction>::cast(callable);
+      target = Cast<JSFunction>(callable);
       target_node = callable_node;
       receiver_node =
           BuildReceiverNode(callable_node, native_context, undefined_node);

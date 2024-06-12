@@ -102,7 +102,7 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
       return;
     } else {
       DCHECK(IsHeapObject(*object));
-      mov(destination, Handle<HeapObject>::cast(object));
+      mov(destination, Cast<HeapObject>(object));
       return;
     }
   }
@@ -136,7 +136,7 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
   if (IsHeapObject(*object)) {
-    cmp(with, Handle<HeapObject>::cast(object));
+    cmp(with, Cast<HeapObject>(object));
   } else {
     cmp(with, Immediate(Smi::cast(*object)));
   }
@@ -154,7 +154,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
   if (IsHeapObject(*object)) {
-    Push(Handle<HeapObject>::cast(object));
+    Push(Cast<HeapObject>(object));
   } else {
     Push(Smi::cast(*object));
   }

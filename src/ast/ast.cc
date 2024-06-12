@@ -38,9 +38,7 @@ namespace internal {
 
 #ifdef DEBUG
 
-void AstNode::Print(Isolate* isolate) {
-  AstPrinter::PrintOut(isolate, this);
-}
+void AstNode::Print(Isolate* isolate) { AstPrinter::PrintOut(isolate, this); }
 
 #endif  // DEBUG
 

@@ -195,7 +195,7 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
   base::Semaphore vector_ready(0);
   base::Semaphore vector_consumed(0);
   Handle<FeedbackVector> persistent_vector =
-      Handle<FeedbackVector>::cast(ph->NewHandle(vector));
+      Cast<FeedbackVector>(ph->NewHandle(vector));
   std::unique_ptr<FeedbackVectorExplorationThread> thread(
       new FeedbackVectorExplorationThread(i_isolate()->heap(), &sema_started,
                                           &vector_ready, &vector_consumed,

@@ -21,7 +21,7 @@ BUILTIN(ShadowRealmConstructor) {
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   // 3. Let realmRec be CreateRealm().
   // 5. Let context be a new execution context.
@@ -46,7 +46,7 @@ BUILTIN(ShadowRealmConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  auto O = DirectHandle<JSShadowRealm>::cast(result);
+  auto O = Cast<JSShadowRealm>(result);
 
   // 4. Set O.[[ShadowRealm]] to realmRec.
   // 9. Set O.[[ExecutionContext]] to context.
@@ -80,7 +80,7 @@ MaybeHandle<Object> GetWrappedValue(
   }
   // 1b. Return ? WrappedFunctionCreate(callerRealm, value).
   return JSWrappedFunction::Create(isolate, creation_context,
-                                   Handle<JSReceiver>::cast(value));
+                                   Cast<JSReceiver>(value));
 }
 
 }  // namespace
@@ -100,7 +100,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver));
   }
-  auto shadow_realm = DirectHandle<JSShadowRealm>::cast(receiver);
+  auto shadow_realm = Cast<JSShadowRealm>(receiver);
 
   // 3. If Type(sourceText) is not String, throw a TypeError exception.
   if (!IsString(*source_text)) {
@@ -193,8 +193,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     Handle<Object> exception(isolate->exception(), isolate);
     isolate->clear_internal_exception();
     if (is_parse_failed) {
-      auto error_object = Handle<JSObject>::cast(exception);
-      auto message = DirectHandle<String>::cast(JSReceiver::GetDataProperty(
+      auto error_object = Cast<JSObject>(exception);
+      auto message = Cast<String>(JSReceiver::GetDataProperty(
           isolate, error_object, factory->message_string()));
 
       return isolate->ReThrow(

@@ -68,7 +68,6 @@ bool HasFieldRepresentationDependenciesOnMap(
 
 }  // namespace
 
-
 std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   switch (access_mode) {
     case AccessMode::kLoad:
@@ -786,10 +785,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
       if (IsDefiningStore(access_mode)) {
         if (details.attributes() != PropertyAttributes::NONE) {
-          // We should store the property with WEC attributes, but that's not the
-          // attributes of the property that we found. We just bail out and let
-          // the runtime figure out what to do (which probably requires changing
-          // the object's map).
+          // We should store the property with WEC attributes, but that's not
+          // the attributes of the property that we found. We just bail out and
+          // let the runtime figure out what to do (which probably requires
+          // changing the object's map).
           return Invalid();
         }
       }

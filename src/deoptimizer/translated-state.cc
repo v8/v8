@@ -685,7 +685,7 @@ Handle<Object> TranslatedValue::GetValue() {
   }
 
   if (*value != ReadOnlyRoots(isolate()).arguments_marker()) {
-    set_initialized_storage(Handle<HeapObject>::cast(value));
+    set_initialized_storage(Cast<HeapObject>(value));
     return storage_;
   }
 
@@ -1974,7 +1974,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // The map should never be materialized, so let us check we already have
   // an existing object here.
   CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
-  auto map = DirectHandle<Map>::cast(frame->values_[value_index].GetValue());
+  auto map = Cast<Map>(frame->values_[value_index].GetValue());
   CHECK(IsMap(*map));
   value_index++;
 
@@ -2045,8 +2045,8 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   DirectHandle<Map> map) {
   int length = frame->values_[*value_index].GetSmiValue();
   (*value_index)++;
-  Handle<FixedDoubleArray> array = Handle<FixedDoubleArray>::cast(
-      isolate()->factory()->NewFixedDoubleArray(length));
+  Handle<FixedDoubleArray> array =
+      Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
   CHECK_GT(length, 0);
   for (int i = 0; i < length; i++) {
     CHECK_NE(TranslatedValue::kCapturedObject,
@@ -2112,7 +2112,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
   // The map should never be materialized, so let us check we already have
   // an existing object here.
   CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
-  auto map = DirectHandle<Map>::cast(frame->values_[value_index].GetValue());
+  auto map = Cast<Map>(frame->values_[value_index].GetValue());
   CHECK(IsMap(*map));
   value_index++;
 
@@ -2238,15 +2238,15 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
 void TranslatedValue::ReplaceElementsArrayWithCopy() {
   DCHECK_EQ(kind(), TranslatedValue::kTagged);
   DCHECK_EQ(materialization_state(), TranslatedValue::kFinished);
-  auto elements = Handle<FixedArrayBase>::cast(GetValue());
+  auto elements = Cast<FixedArrayBase>(GetValue());
   DCHECK(IsFixedArray(*elements) || IsFixedDoubleArray(*elements));
   if (IsFixedDoubleArray(*elements)) {
     DCHECK(!elements->IsCowArray());
     set_storage(isolate()->factory()->CopyFixedDoubleArray(
-        Handle<FixedDoubleArray>::cast(elements)));
+        Cast<FixedDoubleArray>(elements)));
   } else if (!elements->IsCowArray()) {
-    set_storage(isolate()->factory()->CopyFixedArray(
-        Handle<FixedArray>::cast(elements)));
+    set_storage(
+        isolate()->factory()->CopyFixedArray(Cast<FixedArray>(elements)));
   }
 }
 
@@ -2371,7 +2371,7 @@ Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
 void TranslatedState::InitializeJSObjectAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
-  auto object_storage = DirectHandle<HeapObject>::cast(slot->storage_);
+  auto object_storage = Cast<HeapObject>(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
   int children_count = slot->GetChildrenCount();
 
@@ -2451,7 +2451,7 @@ void TranslatedState::InitializeJSObjectAt(
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
-  auto object_storage = DirectHandle<HeapObject>::cast(slot->storage_);
+  auto object_storage = Cast<HeapObject>(slot->storage_);
   int children_count = slot->GetChildrenCount();
 
   // Skip the writes if we already have the canonical empty fixed array.
@@ -2664,7 +2664,7 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
         Handle<Object> object(previously_materialized_objects->get(i),
                               isolate_);
         CHECK(IsHeapObject(*object));
-        value_info->set_initialized_storage(Handle<HeapObject>::cast(object));
+        value_info->set_initialized_storage(Cast<HeapObject>(object));
       }
     }
   }

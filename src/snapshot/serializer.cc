@@ -672,7 +672,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   // For external strings with known resources, we replace the resource field
   // with the encoded external reference, which we restore upon deserialize.
   // For the rest we serialize them to look like ordinary sequential strings.
-  auto string = DirectHandle<ExternalString>::cast(object_);
+  auto string = Cast<ExternalString>(object_);
   Address resource = string->resource_as_address();
   ExternalReferenceEncoder::Value reference;
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
@@ -700,7 +700,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   ReadOnlyRoots roots(isolate());
   PtrComprCageBase cage_base(isolate());
   DCHECK(IsExternalString(*object_, cage_base));
-  Handle<ExternalString> string = Handle<ExternalString>::cast(object_);
+  Handle<ExternalString> string = Cast<ExternalString>(object_);
   int length = string->length();
   Tagged<Map> map;
   int content_size;
@@ -714,14 +714,14 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
     allocation_size = SeqOneByteString::SizeFor(length);
     content_size = length * kCharSize;
     resource = reinterpret_cast<const uint8_t*>(
-        Handle<ExternalOneByteString>::cast(string)->resource()->data());
+        Cast<ExternalOneByteString>(string)->resource()->data());
   } else {
     map = internalized ? roots.internalized_two_byte_string_map()
                        : roots.seq_two_byte_string_map();
     allocation_size = SeqTwoByteString::SizeFor(length);
     content_size = length * kShortSize;
     resource = reinterpret_cast<const uint8_t*>(
-        Handle<ExternalTwoByteString>::cast(string)->resource()->data());
+        Cast<ExternalTwoByteString>(string)->resource()->data());
   }
 
   SnapshotSpace space = SnapshotSpace::kOld;
@@ -834,8 +834,8 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   }
   if (InstanceTypeChecker::IsScript(instance_type)) {
     // Clear cached line ends & compiled lazy function positions.
-    Handle<Script>::cast(object_)->set_line_ends(Smi::zero());
-    Handle<Script>::cast(object_)->set_compiled_lazy_function_positions(
+    Cast<Script>(object_)->set_line_ends(Smi::zero());
+    Cast<Script>(object_)->set_compiled_lazy_function_positions(
         ReadOnlyRoots(isolate()).undefined_value());
   }
 

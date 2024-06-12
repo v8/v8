@@ -11,9 +11,9 @@ namespace internal {
 template <class IsolateT>
 CallOptimization::CallOptimization(IsolateT* isolate, Handle<Object> function) {
   if (IsJSFunction(*function)) {
-    Initialize(isolate, Handle<JSFunction>::cast(function));
+    Initialize(isolate, Cast<JSFunction>(function));
   } else if (IsFunctionTemplateInfo(*function)) {
-    Initialize(isolate, Handle<FunctionTemplateInfo>::cast(function));
+    Initialize(isolate, Cast<FunctionTemplateInfo>(function));
   }
 }
 

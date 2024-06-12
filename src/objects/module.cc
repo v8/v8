@@ -116,7 +116,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   for (int i = 0; i < requested_modules->length(); ++i) {
     Handle<Object> descendant(requested_modules->get(i), isolate);
     if (IsModule(*descendant)) {
-      ResetGraph(isolate, Handle<Module>::cast(descendant));
+      ResetGraph(isolate, Cast<Module>(descendant));
     } else {
       DCHECK(IsUndefined(*descendant, isolate));
     }
@@ -138,7 +138,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
       ObjectHashTable::New(isolate, export_count);
 
   if (IsSourceTextModule(*module)) {
-    SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
+    SourceTextModule::Reset(isolate, Cast<SourceTextModule>(module));
   }
 
   module->set_exports(*exports);
@@ -162,12 +162,12 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::ResolveExport(
-        isolate, Handle<SourceTextModule>::cast(module), module_specifier,
-        export_name, loc, must_resolve, resolve_set);
+        isolate, Cast<SourceTextModule>(module), module_specifier, export_name,
+        loc, must_resolve, resolve_set);
   } else {
     return SyntheticModule::ResolveExport(
-        isolate, Handle<SyntheticModule>::cast(module), module_specifier,
-        export_name, loc, must_resolve);
+        isolate, Cast<SyntheticModule>(module), module_specifier, export_name,
+        loc, must_resolve);
   }
 }
 
@@ -208,10 +208,10 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback);
+        isolate, Cast<SourceTextModule>(module), context, callback);
   } else {
     return SyntheticModule::PrepareInstantiate(
-        isolate, Handle<SyntheticModule>::cast(module), context);
+        isolate, Cast<SyntheticModule>(module), context);
   }
 }
 
@@ -225,11 +225,10 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::FinishInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), stack, dfs_index,
-        zone);
+        isolate, Cast<SourceTextModule>(module), stack, dfs_index, zone);
   } else {
-    return SyntheticModule::FinishInstantiate(
-        isolate, Handle<SyntheticModule>::cast(module));
+    return SyntheticModule::FinishInstantiate(isolate,
+                                              Cast<SyntheticModule>(module));
   }
 }
 
@@ -264,7 +263,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   //    module.[[CycleRoot]].
   // A Synthetic Module has no children so it is its own cycle root.
   if (module_status == kEvaluated && IsSourceTextModule(*module)) {
-    module = Handle<SourceTextModule>::cast(module)->GetCycleRoot(isolate);
+    module = Cast<SourceTextModule>(module)->GetCycleRoot(isolate);
   }
 
   // 4. If module.[[TopLevelCapability]] is not undefined, then
@@ -275,11 +274,9 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   DCHECK(IsUndefined(module->top_level_capability()));
 
   if (IsSourceTextModule(*module)) {
-    return SourceTextModule::Evaluate(isolate,
-                                      Handle<SourceTextModule>::cast(module));
+    return SourceTextModule::Evaluate(isolate, Cast<SourceTextModule>(module));
   } else {
-    return SyntheticModule::Evaluate(isolate,
-                                     Handle<SyntheticModule>::cast(module));
+    return SyntheticModule::Evaluate(isolate, Cast<SyntheticModule>(module));
   }
 }
 
@@ -289,7 +286,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   ReadOnlyRoots roots(isolate);
   if (!IsUndefined(*object, roots)) {
     // Namespace object already exists.
-    return Handle<JSModuleNamespace>::cast(object);
+    return Cast<JSModuleNamespace>(object);
   }
 
   // Collect the export names.
@@ -297,8 +294,8 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   UnorderedModuleSet visited(&zone);
 
   if (IsSourceTextModule(*module)) {
-    SourceTextModule::FetchStarExports(
-        isolate, Handle<SourceTextModule>::cast(module), &zone, &visited);
+    SourceTextModule::FetchStarExports(isolate, Cast<SourceTextModule>(module),
+                                       &zone, &visited);
   }
 
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
@@ -389,7 +386,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
 Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
     LookupIterator* it) {
   DirectHandle<JSModuleNamespace> object = it->GetHolder<JSModuleNamespace>();
-  Handle<String> name = Handle<String>::cast(it->GetName());
+  Handle<String> name = Cast<String>(it->GetName());
   DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
 
   Isolate* isolate = it->isolate();
@@ -398,8 +395,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
                               isolate);
   if (IsTheHole(*lookup, isolate)) return Just(ABSENT);
 
-  DirectHandle<Object> value(DirectHandle<Cell>::cast(lookup)->value(),
-                             isolate);
+  DirectHandle<Object> value(Cast<Cell>(lookup)->value(), isolate);
   if (IsTheHole(*value, isolate)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, name));

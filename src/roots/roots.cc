@@ -73,17 +73,14 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
      * oddball kind instead. Do the casts via Tagged<Object> to satisfy cast  \
      * compatibility static_asserts in the Tagged class. */                   \
     if (std::is_same_v<Type, Undefined>) {                                    \
-      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
+      return Cast<Oddball>(Tagged<Object>(value))->kind() ==                  \
              Oddball::kUndefined;                                             \
     } else if (std::is_same_v<Type, Null>) {                                  \
-      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
-             Oddball::kNull;                                                  \
+      return Cast<Oddball>(Tagged<Object>(value))->kind() == Oddball::kNull;  \
     } else if (std::is_same_v<Type, True>) {                                  \
-      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
-             Oddball::kTrue;                                                  \
+      return Cast<Oddball>(Tagged<Object>(value))->kind() == Oddball::kTrue;  \
     } else if (std::is_same_v<Type, False>) {                                 \
-      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
-             Oddball::kFalse;                                                 \
+      return Cast<Oddball>(Tagged<Object>(value))->kind() == Oddball::kFalse; \
     } else {                                                                  \
       return Is##Type(value);                                                 \
     }                                                                         \

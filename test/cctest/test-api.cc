@@ -21616,11 +21616,10 @@ THREADED_TEST(FunctionNew) {
   Local<Value> result = CompileRun("func();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result).FromJust());
   // Serial number should be invalid => should not be cached.
-  auto serial_number =
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
-          ->shared()
-          ->api_func_data()
-          ->serial_number();
+  auto serial_number = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*func))
+                           ->shared()
+                           ->api_func_data()
+                           ->serial_number();
   CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
 
   // Verify that each Function::New creates a new function instance
@@ -23889,8 +23888,8 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     }
   }
 
-  first_function = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*first_function_untyped));
+  first_function =
+      i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*first_function_untyped));
 
   // Run the same script in another Context without streaming.
   {
@@ -23912,8 +23911,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
              run_gc ? v8::ScriptCompiler::InMemoryCacheResult::kPartial
                     : v8::ScriptCompiler::InMemoryCacheResult::kHit);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
-    second_function =
-        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+    second_function = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*result));
   }
 
   // The functions created by both copies of the script should refer to the same
@@ -24197,7 +24195,7 @@ TEST(CreateSyntheticModule) {
   CHECK(
       IsCell(*i::Handle<i::Object>(exports->Lookup(default_name), i_isolate)));
   CHECK(IsUndefined(
-      i::Handle<i::Cell>::cast(
+      i::Cast<i::Cell>(
           i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
           ->value()));
   CHECK_EQ(i_module->export_names()->length(), 1);
@@ -24301,8 +24299,7 @@ TEST(SyntheticModuleSetExports) {
   CHECK_EQ(exports->Lookup(v8::Utils::OpenHandle(*foo_string)), *foo_cell);
 
   // Test that the export value was actually set.
-  CHECK(i::Handle<i::String>::cast(
-            i::Handle<i::Object>(foo_cell->value(), i_isolate))
+  CHECK(i::Cast<i::String>(i::Handle<i::Object>(foo_cell->value(), i_isolate))
             ->Equals(*v8::Utils::OpenDirectHandle(*bar_string)));
 }
 
@@ -25645,7 +25642,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
 
   auto values = Local<Function>::Cast(
       object->Get(env.local(), v8_str("values")).ToLocalChecked());
-  auto fn = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values));
+  auto fn = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*values));
   auto ctx = v8::Utils::OpenHandle(*env.local());
   CHECK_EQ(fn->GetCreationContext().value(), *ctx);
 
@@ -25661,7 +25658,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
 
     auto values2 = Local<Function>::Cast(
         object2->Get(env2.local(), v8_str("values")).ToLocalChecked());
-    auto fn2 = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values2));
+    auto fn2 = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*values2));
     auto ctx2 = v8::Utils::OpenHandle(*env2.local());
     CHECK_EQ(fn2->GetCreationContext().value(), *ctx2);
   }
@@ -26317,7 +26314,7 @@ TEST(ImportMeta) {
   i::Handle<i::JSObject> meta =
       i::SourceTextModule::GetImportMeta(
           i_isolate,
-          i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)))
+          i::Cast<i::SourceTextModule>(v8::Utils::OpenHandle(*module)))
           .ToHandleChecked();
   Local<Object> meta_obj = Local<Object>::Cast(v8::Utils::ToLocal(meta));
   CHECK(meta_obj->Get(context.local(), v8_str("foo"))

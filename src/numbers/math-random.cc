@@ -16,7 +16,7 @@ namespace internal {
 
 void MathRandom::InitializeContext(Isolate* isolate,
                                    DirectHandle<Context> native_context) {
-  auto cache = DirectHandle<FixedDoubleArray>::cast(
+  auto cache = Cast<FixedDoubleArray>(
       isolate->factory()->NewFixedDoubleArray(kCacheSize));
   for (int i = 0; i < kCacheSize; i++) cache->set(i, 0);
   native_context->set_math_random_cache(*cache);

@@ -114,7 +114,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("test"))
           .ToLocalChecked());
   Handle<JSFunction> test =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function_test));
+      Cast<JSFunction>(v8::Utils::OpenHandle(*function_test));
   Handle<SharedFunctionInfo> test_sfi(test->shared(), isolate);
   DCHECK(test_sfi->HasBytecodeArray());
   IsCompiledScope compiled_scope_test(*test_sfi, isolate);
@@ -125,8 +125,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
       CcTest::global()
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("f"))
           .ToLocalChecked());
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function_f));
+  Handle<JSFunction> f = Cast<JSFunction>(v8::Utils::OpenHandle(*function_f));
   Handle<SharedFunctionInfo> f_sfi(f->shared(), isolate);
   DCHECK(f_sfi->HasBytecodeArray());
   OptimizedCompilationInfo f_info(&zone, isolate, f_sfi, f, CodeKind::TURBOFAN);

@@ -122,7 +122,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
 }
 
 Handle<OrderedHashSet> KeyAccumulator::keys() {
-  return Handle<OrderedHashSet>::cast(keys_);
+  return Cast<OrderedHashSet>(keys_);
 }
 
 ExceptionStatus KeyAccumulator::AddKey(Tagged<Object> key,
@@ -149,7 +149,7 @@ ExceptionStatus KeyAccumulator::AddKey(Handle<Object> key,
   }
   uint32_t index;
   if (convert == CONVERT_TO_ARRAY_INDEX && IsString(*key) &&
-      Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      Cast<String>(key)->AsArrayIndex(&index)) {
     key = isolate_->factory()->NewNumberFromUint(index);
   }
   MaybeHandle<OrderedHashSet> new_set_candidate =
@@ -248,7 +248,7 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
   // [[GetPrototypeOf]] trap on the last iteration when using
   // AdvanceFollowingProxies.
   if (mode_ == KeyCollectionMode::kOwnOnly && IsJSProxy(*object)) {
-    MAYBE_RETURN(CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(object)),
+    MAYBE_RETURN(CollectOwnJSProxyKeys(receiver, Cast<JSProxy>(object)),
                  Nothing<bool>());
     return Just(true);
   }
@@ -265,7 +265,7 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (IsJSProxy(*current)) {
-      result = CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(current));
+      result = CollectOwnJSProxyKeys(receiver, Cast<JSProxy>(current));
     } else if (IsWasmObject(*current)) {
       if (mode_ == KeyCollectionMode::kIncludePrototypes) {
         RETURN_FAILURE(isolate_, kThrowOnError,
@@ -276,7 +276,7 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
       }
     } else {
       DCHECK(IsJSObject(*current));
-      result = CollectOwnKeys(receiver, Handle<JSObject>::cast(current));
+      result = CollectOwnKeys(receiver, Cast<JSObject>(current));
     }
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
@@ -476,7 +476,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
 
   // From this point on we are certain to only collect own keys.
   DCHECK(IsJSObject(*receiver_));
-  Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
+  Handle<JSObject> object = Cast<JSObject>(receiver_);
 
   // Do not try to use the enum-cache for dict-mode objects.
   if (map->is_dictionary_map()) {
@@ -568,7 +568,7 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
 
 MaybeHandle<FixedArray>
 FastKeyAccumulator::GetOwnKeysWithUninitializedEnumLength() {
-  auto object = DirectHandle<JSObject>::cast(receiver_);
+  auto object = Cast<JSObject>(receiver_);
   // Uninitialized enum length
   Tagged<Map> map = object->map();
   if (object->elements() != ReadOnlyRoots(isolate_).empty_fixed_array() &&
@@ -612,17 +612,15 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
     MaybeHandle<FixedArray> maybe_own_keys;
     if (receiver_->map()->is_dictionary_map()) {
       maybe_own_keys = GetOwnKeysWithElements<false>(
-          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
-          skip_indices_);
+          isolate_, Cast<JSObject>(receiver_), keys_conversion, skip_indices_);
     } else {
       maybe_own_keys = GetOwnKeysWithElements<true>(
-          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
-          skip_indices_);
+          isolate_, Cast<JSObject>(receiver_), keys_conversion, skip_indices_);
     }
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, own_keys, maybe_own_keys);
   } else {
     own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
-        isolate_, Handle<JSObject>::cast(receiver_));
+        isolate_, Cast<JSObject>(receiver_));
   }
   Handle<FixedArray> prototype_chain_keys;
   if (has_prototype_info_cache_) {
@@ -664,7 +662,7 @@ bool FastKeyAccumulator::MayHaveElements(Tagged<JSReceiver> receiver) {
 
 bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
   if (may_have_elements_ && !only_own_has_simple_elements_) return false;
-  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+  Handle<JSObject> object = Cast<JSObject>(receiver);
   if (!object->HasFastProperties()) return false;
   if (object->HasNamedInterceptor()) return false;
   if (IsAccessCheckNeeded(*object) &&
@@ -711,8 +709,7 @@ KeyAccumulator::FilterForEnumerableProperties(
       attributes = args.CallIndexedQuery(interceptor, number);
     } else {
       CHECK(IsName(*element));
-      attributes =
-          args.CallNamedQuery(interceptor, Handle<Name>::cast(element));
+      attributes = args.CallNamedQuery(interceptor, Cast<Name>(element));
     }
 
     if (!attributes.is_null()) {
@@ -1035,7 +1032,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       // throws for uninitialized exports.
       for (int i = 0, n = enum_keys->length(); i < n; ++i) {
         Handle<String> key(String::cast(enum_keys->get(i)), isolate_);
-        if (Handle<JSModuleNamespace>::cast(object)
+        if (Cast<JSModuleNamespace>(object)
                 ->GetExport(isolate(), key)
                 .is_null()) {
           return Nothing<bool>();
@@ -1231,7 +1228,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, trap,
-      Object::GetMethod(isolate_, Handle<JSReceiver>::cast(handler),
+      Object::GetMethod(isolate_, Cast<JSReceiver>(handler),
                         isolate_->factory()->ownKeys_string()),
       Nothing<bool>());
   // 6. If trap is undefined, then

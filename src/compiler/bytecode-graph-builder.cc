@@ -384,8 +384,8 @@ class BytecodeGraphBuilder {
     // The BytecodeArray itself was fetched by using a barrier so all reads
     // from the constant pool are safe.
     return MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(Handle<T>::cast(
-                      bytecode_iterator().GetConstantForIndexOperand(
+        broker(), broker()->CanonicalPersistentHandle(
+                      Cast<T>(bytecode_iterator().GetConstantForIndexOperand(
                           operand_index, local_isolate_))));
   }
 

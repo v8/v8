@@ -1388,7 +1388,7 @@ TEST(Regress1163547) {
   // At this point, the C.prototype - which holds the "f" accessor - is in
   // dictionary mode.
   auto constructor_fun =
-      Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*constructor));
+      Cast<i::JSFunction>(v8::Utils::OpenHandle(*constructor));
   CHECK(!i::JSObject::cast(constructor_fun->prototype())->HasFastProperties());
 
   // Run with breakpoint.

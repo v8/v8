@@ -23,7 +23,7 @@ namespace internal {
         NewTypeError(MessageTemplate::kCallSiteMethod,                        \
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }                                                                           \
-  auto frame = IndirectHandle<CallSiteInfo>::cast(it.GetDataValue())
+  auto frame = Cast<CallSiteInfo>(it.GetDataValue())
 
 namespace {
 

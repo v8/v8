@@ -17,8 +17,8 @@ namespace internal {
 Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
     Handle<Object> maybe_names) {
-  Handle<JSRegExpResultIndices> indices(Handle<JSRegExpResultIndices>::cast(
-      isolate->factory()->NewJSObjectFromMap(
+  Handle<JSRegExpResultIndices> indices(
+      Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
 
   // Initialize indices length to avoid having a partially initialized object
@@ -65,7 +65,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
-  auto names = DirectHandle<FixedArray>::cast(maybe_names);
+  auto names = Cast<FixedArray>(maybe_names);
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -74,7 +74,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
   Handle<PropertyDictionary> group_names_dict =
-      Handle<PropertyDictionary>::cast(group_names);
+      Cast<PropertyDictionary>(group_names);
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
     int name_offset = base_offset;
@@ -84,7 +84,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Handle<Object> capture_indices(indices_array->get(smi_index.value()),
                                    isolate);
     if (!IsUndefined(*capture_indices, isolate)) {
-      capture_indices = Handle<JSArray>::cast(capture_indices);
+      capture_indices = Cast<JSArray>(capture_indices);
     }
     InternalIndex group_entry = group_names_dict->FindEntry(isolate, name);
     // Duplicate group entries are possible if the capture groups are in
@@ -110,8 +110,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // result indices.
   DirectHandle<FixedArrayBase> elements =
       isolate->factory()->empty_fixed_array();
-  Handle<HeapObject> null =
-      Handle<HeapObject>::cast(isolate->factory()->null_value());
+  Handle<HeapObject> null = Cast<HeapObject>(isolate->factory()->null_value());
   DirectHandle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
@@ -158,7 +157,7 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
                                     Flags flags, uint32_t backtrack_limit) {
   Handle<JSFunction> constructor = isolate->regexp_function();
   Handle<JSRegExp> regexp =
-      Handle<JSRegExp>::cast(isolate->factory()->NewJSObject(constructor));
+      Cast<JSRegExp>(isolate->factory()->NewJSObject(constructor));
 
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }

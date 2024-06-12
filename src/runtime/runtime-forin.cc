@@ -67,8 +67,8 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
             return isolate->factory()->undefined_value();
           }
           // We already have a stack-check in JSProxy::GetPrototype.
-          return HasEnumerableProperty(
-              isolate, Handle<JSReceiver>::cast(prototype), key);
+          return HasEnumerableProperty(isolate, Cast<JSReceiver>(prototype),
+                                       key);
         } else if (result.FromJust() & DONT_ENUM) {
           return isolate->factory()->undefined_value();
         } else {

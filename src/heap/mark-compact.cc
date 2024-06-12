@@ -1151,7 +1151,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       : marking_state_(marking_state) {}
 
   Tagged<Object> RetainAs(Tagged<Object> object) override {
-    Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(object);
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     if (marking_state_->IsMarked(heap_object)) {
       return object;
     } else if (IsAllocationSite(object) &&
@@ -4006,12 +4006,12 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
 
 static Tagged<String> UpdateReferenceInExternalStringTableEntry(
     Heap* heap, FullObjectSlot p) {
-  Tagged<HeapObject> old_string = Tagged<HeapObject>::cast(*p);
+  Tagged<HeapObject> old_string = Cast<HeapObject>(*p);
   MapWord map_word = old_string->map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
     Tagged<String> new_string =
-        Tagged<String>::cast(map_word.ToForwardingAddress(old_string));
+        Cast<String>(map_word.ToForwardingAddress(old_string));
 
     if (IsExternalString(new_string)) {
       MutablePageMetadata::MoveExternalBackingStoreBytes(
@@ -4023,7 +4023,7 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
     return new_string;
   }
 
-  return Tagged<String>::cast(*p);
+  return Cast<String>(*p);
 }
 
 void MarkCompactCollector::EvacuatePrologue() {
@@ -4579,7 +4579,7 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
  public:
   Tagged<Object> RetainAs(Tagged<Object> object) override {
     if (object.IsHeapObject()) {
-      Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(object);
+      Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
       MapWord map_word = heap_object->map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         return map_word.ToForwardingAddress(heap_object);

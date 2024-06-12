@@ -115,8 +115,7 @@ void Accessors::ReconfigureToDataProperty(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kReconfigureToDataProperty);
   HandleScope scope(isolate);
   Handle<Object> receiver = Utils::OpenHandle(*info.This());
-  Handle<JSObject> holder =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<JSObject> holder = Cast<JSObject>(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
   MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
@@ -171,7 +170,7 @@ void Accessors::ArrayLengthSetter(
                            ReadOnlyRoots(isolate).length_string()));
 
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
-  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  Handle<JSArray> array = Cast<JSArray>(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
   bool was_readonly = JSArray::HasReadOnlyLength(array);
@@ -239,7 +238,7 @@ void Accessors::ModuleNamespaceEntryGetter(
   Tagged<JSModuleNamespace> holder =
       JSModuleNamespace::cast(*Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result;
-  if (holder->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
+  if (holder->GetExport(isolate, Cast<String>(Utils::OpenHandle(*name)))
           .ToHandle(&result)) {
     info.GetReturnValue().Set(Utils::ToLocal(result));
   }
@@ -252,7 +251,7 @@ void Accessors::ModuleNamespaceEntrySetter(
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
   Handle<JSModuleNamespace> holder =
-      Handle<JSModuleNamespace>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSModuleNamespace>(Utils::OpenHandle(*info.Holder()));
 
   if (info.ShouldThrowOnError()) {
     isolate->Throw(*factory->NewTypeError(
@@ -327,7 +326,7 @@ void Accessors::FunctionPrototypeGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionPrototypeGetter);
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
   DCHECK(function->has_prototype_property());
   Handle<Object> result = GetFunctionPrototype(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -341,7 +340,7 @@ void Accessors::FunctionPrototypeSetter(
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
   Handle<JSFunction> object =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
   DCHECK(object->has_prototype_property());
   JSFunction::SetPrototype(object, value);
   info.GetReturnValue().Set(true);
@@ -361,8 +360,7 @@ void Accessors::FunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionLengthGetter);
   HandleScope scope(isolate);
-  auto function =
-      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   int length = function->length();
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -381,8 +379,7 @@ void Accessors::FunctionNameGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  auto function =
-      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result = JSFunction::GetName(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -414,7 +411,7 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
 
   // Materialize the function.
   bool should_deoptimize = iter->IsMaterializedObject();
-  Handle<JSFunction> function = Handle<JSFunction>::cast(iter->GetValue());
+  Handle<JSFunction> function = Cast<JSFunction>(iter->GetValue());
   iter++;
 
   // Skip the receiver.
@@ -527,8 +524,7 @@ void Accessors::FunctionArgumentsGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
   HandleScope scope(isolate);
-  auto function =
-      DirectHandle<JSFunction>::cast(Utils::OpenDirectHandle(*info.Holder()));
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result = isolate->factory()->null_value();
   if (!function->shared()->native()) {
     // Find the top invocation of the function by traversing frames.
@@ -618,7 +614,7 @@ class FrameFunctionIterator {
       translated_values.StoreMaterializedValuesAndDeopt(frame);
     }
 
-    return Handle<JSFunction>::cast(value);
+    return Cast<JSFunction>(value);
   }
 
  private:
@@ -703,7 +699,7 @@ void Accessors::FunctionCallerGetter(
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   MaybeHandle<JSFunction> maybe_caller;
   maybe_caller = FindCaller(isolate, function);
@@ -733,7 +729,7 @@ void Accessors::BoundFunctionLengthGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   HandleScope scope(isolate);
   Handle<JSBoundFunction> function =
-      Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSBoundFunction>(Utils::OpenHandle(*info.Holder()));
 
   int length = 0;
   if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
@@ -758,7 +754,7 @@ void Accessors::BoundFunctionNameGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionNameGetter);
   HandleScope scope(isolate);
   Handle<JSBoundFunction> function =
-      Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
+      Cast<JSBoundFunction>(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSBoundFunction::GetName(isolate, function).ToHandle(&result)) {
     return;
@@ -780,8 +776,8 @@ void Accessors::WrappedFunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   HandleScope scope(isolate);
-  auto function = DirectHandle<JSWrappedFunction>::cast(
-      Utils::OpenDirectHandle(*info.Holder()));
+  auto function =
+      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.Holder()));
 
   int length = 0;
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
@@ -823,8 +819,8 @@ void Accessors::WrappedFunctionNameGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kWrappedFunctionNameGetter);
   HandleScope scope(isolate);
-  auto function = DirectHandle<JSWrappedFunction>::cast(
-      Utils::OpenDirectHandle(*info.Holder()));
+  auto function =
+      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
     return;
@@ -852,8 +848,8 @@ void Accessors::ErrorStackGetter(
   Handle<Object> formatted_stack = isolate->factory()->undefined_value();
   Handle<JSReceiver> maybe_error_object = Utils::OpenHandle(*info.This());
   if (IsJSObject(*maybe_error_object)) {
-    if (!ErrorUtils::GetFormattedStack(
-             isolate, Handle<JSObject>::cast(maybe_error_object))
+    if (!ErrorUtils::GetFormattedStack(isolate,
+                                       Cast<JSObject>(maybe_error_object))
              .ToHandle(&formatted_stack)) {
       return;
     }
@@ -870,8 +866,7 @@ void Accessors::ErrorStackSetter(
   Handle<JSReceiver> maybe_error_object = Utils::OpenHandle(*info.This());
   if (IsJSObject(*maybe_error_object)) {
     v8::Local<v8::Value> value = info[0];
-    ErrorUtils::SetFormattedStack(isolate,
-                                  Handle<JSObject>::cast(maybe_error_object),
+    ErrorUtils::SetFormattedStack(isolate, Cast<JSObject>(maybe_error_object),
                                   Utils::OpenHandle(*value));
   }
 }

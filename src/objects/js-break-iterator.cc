@@ -109,9 +109,8 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSV8BreakIterator> break_iterator_holder =
-      Handle<JSV8BreakIterator>::cast(
-          isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  Handle<JSV8BreakIterator> break_iterator_holder = Cast<JSV8BreakIterator>(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   break_iterator_holder->set_locale(*locale_str);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);

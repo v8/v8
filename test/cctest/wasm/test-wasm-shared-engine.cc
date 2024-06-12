@@ -166,7 +166,7 @@ Handle<WasmInstanceObject> CompileAndInstantiateAsync(
       ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);
   while (!IsWasmInstanceObject(*maybe_instance)) PumpMessageLoop(isolate);
   Handle<WasmInstanceObject> instance =
-      Handle<WasmInstanceObject>::cast(maybe_instance);
+      Cast<WasmInstanceObject>(maybe_instance);
   return instance;
 }
 

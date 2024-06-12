@@ -217,7 +217,7 @@ bool PropertyCellData::Cache(JSHeapBroker* broker) {
   if (serialized()) return true;
 
   TraceScope tracer(broker, this, "PropertyCellData::Serialize");
-  auto cell = Handle<PropertyCell>::cast(object());
+  auto cell = Cast<PropertyCell>(object());
 
   // While this code runs on a background thread, the property cell might
   // undergo state transitions via calls to PropertyCell::Transition. These
@@ -654,11 +654,11 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
       has_instance_prototype_ = true;
       instance_prototype_ =
           MakeRefAssumeMemoryFence(
-              broker, Handle<Map>::cast(initial_map_->object())->prototype())
+              broker, Cast<Map>(initial_map_->object())->prototype())
               .data();
     } else if (prototype_or_initial_map_->IsHeapObject() &&
-               !IsTheHole(*Handle<HeapObject>::cast(
-                   prototype_or_initial_map_->object()))) {
+               !IsTheHole(
+                   *Cast<HeapObject>(prototype_or_initial_map_->object()))) {
       has_instance_prototype_ = true;
       instance_prototype_ = prototype_or_initial_map_;
     }
@@ -804,7 +804,7 @@ base::Optional<bool> HeapObjectData::TryGetBooleanValueImpl(
 InstanceType HeapObjectData::GetMapInstanceType() const {
   ObjectData* map_data = map();
   if (map_data->should_access_heap()) {
-    return Handle<Map>::cast(map_data->object())->instance_type();
+    return Cast<Map>(map_data->object())->instance_type();
   }
   if (this == map_data) {
     // Handle infinite recursion in case this object is a contextful meta map.
@@ -1076,7 +1076,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   if (i::Is##Name(*object)) {                                         \
     entry = refs_->LookupOrInsert(object.address());                  \
     object_data = zone()->New<ref_traits<Name>::data_type>(           \
-        this, &entry->value, Handle<Name>::cast(object),              \
+        this, &entry->value, Cast<Name>(object),                      \
         ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
     /* NOLINTNEXTLINE(readability/braces) */                          \
   } else
@@ -2166,8 +2166,7 @@ OddballType GetOddballType(Isolate* isolate, Tagged<Map> map) {
 
 HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
-    Tagged<Map> map =
-        Handle<HeapObject>::cast(object())->map(broker->cage_base());
+    Tagged<Map> map = Cast<HeapObject>(object())->map(broker->cage_base());
     HeapObjectType::Flags flags(0);
     if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map->is_callable()) flags |= HeapObjectType::kCallable;
@@ -2249,9 +2248,7 @@ bool NameRef::IsUniqueName() const {
   return IsInternalizedString() || IsSymbol();
 }
 
-Handle<Object> ObjectRef::object() const {
-  return data_->object();
-}
+Handle<Object> ObjectRef::object() const { return data_->object(); }
 
 #ifdef DEBUG
 #define DEF_OBJECT_GETTER(T)                                                 \
@@ -2378,8 +2375,7 @@ OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
   if (!IsPrototypeInfo(*maybe_proto_info)) return {};
 
   Tagged<MaybeObject> maybe_object_create_map =
-      Handle<PrototypeInfo>::cast(maybe_proto_info)
-          ->ObjectCreateMap(kAcquireLoad);
+      Cast<PrototypeInfo>(maybe_proto_info)->ObjectCreateMap(kAcquireLoad);
   if (!maybe_object_create_map.IsWeak()) return {};
 
   return MapRef(broker->GetOrCreateData(

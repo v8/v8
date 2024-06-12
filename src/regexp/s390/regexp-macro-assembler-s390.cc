@@ -1080,8 +1080,8 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+  return Cast<HeapObject>(code);
 }
 
 void RegExpMacroAssemblerS390::GoTo(Label* to) { BranchOrBacktrack(al, to); }

@@ -99,7 +99,7 @@ TEST_F(ConcurrentJsArrayTest, ArrayWithCowElements) {
 
   for (int i = 0; i < kNumArrays; i++) {
     Handle<JSArray> x =
-        Handle<JSArray>::cast(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
+        Cast<JSArray>(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
     EXPECT_EQ(x->elements()->map(),
               ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
     handles.push_back(x);

@@ -195,7 +195,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
   // a string in old space in that case.
   if (IsConsString(*string, isolate) && !string->IsFlat()) {
     Handle<String> result;
-    if (CopyConsStringToOld(isolate, Handle<ConsString>::cast(string))
+    if (CopyConsStringToOld(isolate, Cast<ConsString>(string))
             .ToHandle(&result)) {
       DCHECK(result->SupportsExternalization(encoding));
       info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -213,7 +213,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
       DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
+      info.GetReturnValue().Set(Utils::ToLocal(Cast<String>(result)));
       return;
     }
   } else {
@@ -226,7 +226,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
       DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Handle<String>::cast(result)));
+      info.GetReturnValue().Set(Utils::ToLocal(Cast<String>(result)));
       return;
     }
   }

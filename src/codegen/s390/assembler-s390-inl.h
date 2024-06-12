@@ -161,7 +161,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsRelativeCodeTarget(rmode_) || IsCodeTarget(rmode_) ||
          IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_) || IsRelativeCodeTarget(rmode_)) {
-    return Handle<HeapObject>::cast(origin->code_target_object_handle_at(pc_));
+    return Cast<HeapObject>(origin->code_target_object_handle_at(pc_));
   } else {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);

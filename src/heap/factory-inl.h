@@ -48,9 +48,9 @@ Handle<Name> Factory::InternalizeName(Handle<T> name) {
   // T should be a subtype of Name, which is enforced by the second template
   // argument.
   if (IsUniqueName(*name)) return name;
-  return indirect_handle(isolate()->string_table()->LookupString(
-                             isolate(), DirectHandle<String>::cast(name)),
-                         isolate());
+  return indirect_handle(
+      isolate()->string_table()->LookupString(isolate(), Cast<String>(name)),
+      isolate());
 }
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -67,8 +67,7 @@ DirectHandle<Name> Factory::InternalizeName(DirectHandle<T> name) {
   // T should be a subtype of Name, which is enforced by the second template
   // argument.
   if (IsUniqueName(*name)) return name;
-  return isolate()->string_table()->LookupString(
-      isolate(), DirectHandle<String>::cast(name));
+  return isolate()->string_table()->LookupString(isolate(), Cast<String>(name));
 }
 #endif
 
@@ -122,7 +121,7 @@ Handle<Foreign> Factory::NewForeign(Address addr,
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *foreign_map();
-  Tagged<Foreign> foreign = Tagged<Foreign>::cast(
+  Tagged<Foreign> foreign = Cast<Foreign>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
   DisallowGarbageCollection no_gc;
   foreign->init_foreign_address<tag>(isolate(), addr);

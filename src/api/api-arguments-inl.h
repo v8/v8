@@ -44,7 +44,7 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   Tagged<Object> raw_object = *slot;
   if (IsTheHole(raw_object, isolate)) return Handle<V>();
   DCHECK(IsApiCallResultType(raw_object));
-  return Handle<V>::cast(Handle<Object>(slot.location()));
+  return Cast<V>(Handle<Object>(slot.location()));
 }
 
 template <typename T>
@@ -57,7 +57,7 @@ Handle<V> CustomArguments<T>::GetReturnValueNoHoleCheck(
   // return value to the hole.
   CHECK(!IsTheHole(*slot, isolate));
   DCHECK(IsApiCallResultType(*slot));
-  return Handle<V>::cast(Handle<Object>(slot.location()));
+  return Cast<V>(Handle<Object>(slot.location()));
 }
 
 inline Tagged<JSObject> PropertyCallbackArguments::holder() const {

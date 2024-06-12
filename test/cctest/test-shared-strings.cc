@@ -1205,7 +1205,7 @@ UNINITIALIZED_TEST(ShareExternalString) {
   }
   CHECK(IsExternalString(*one_byte));
   Handle<ExternalOneByteString> one_byte_external =
-      Handle<ExternalOneByteString>::cast(one_byte);
+      Cast<ExternalOneByteString>(one_byte);
   DirectHandle<String> shared_one_byte =
       ShareAndVerify(i_isolate1, one_byte_external);
   CHECK_EQ(*shared_one_byte, *one_byte);

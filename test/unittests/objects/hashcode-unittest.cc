@@ -29,7 +29,7 @@ class HashcodeTest : public TestWithContext {
     Handle<Object> value =
         Object::GetProperty(i_isolate(), i_isolate()->global_object(), str_name)
             .ToHandleChecked();
-    return Handle<T>::cast(value);
+    return Cast<T>(value);
   }
 
   int AddToSetAndGetHash(DirectHandle<JSObject> obj, bool has_fast_properties) {

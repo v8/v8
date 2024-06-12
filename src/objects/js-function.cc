@@ -306,7 +306,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
     if (IsString(*target_name)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, name,
-          Name::ToFunctionName(isolate, Handle<String>::cast(target_name)),
+          Name::ToFunctionName(isolate, Cast<String>(target_name)),
           Nothing<bool>());
       if (!prefix.is_null()) {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -439,7 +439,7 @@ Maybe<int> JSWrappedFunction::GetLength(
   }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
-  return Just(Handle<JSFunction>::cast(target)->length());
+  return Just(Cast<JSFunction>(target)->length());
 }
 
 // static
@@ -459,7 +459,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // wrapped function won't cause a side effect in the creation realm.
   // Unwrap here to avoid nested unwrapping at the call site.
   if (IsJSWrappedFunction(*value)) {
-    auto target_wrapped = DirectHandle<JSWrappedFunction>::cast(value);
+    auto target_wrapped = Cast<JSWrappedFunction>(value);
     value =
         Handle<JSReceiver>(target_wrapped->wrapped_target_function(), isolate);
   }
@@ -705,7 +705,7 @@ void SetInstancePrototype(Isolate* isolate, DirectHandle<JSFunction> function,
       function->set_prototype_or_initial_map(*value, kReleaseStore);
       if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
         // Optimize as prototype to detach it from its transition tree.
-        JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
+        JSObject::OptimizeAsPrototype(Cast<JSObject>(value));
       }
     } else {
       Handle<Map> new_map =
@@ -725,7 +725,7 @@ void SetInstancePrototype(Isolate* isolate, DirectHandle<JSFunction> function,
     function->set_prototype_or_initial_map(*value, kReleaseStore);
     if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
       // Optimize as prototype to detach it from its transition tree.
-      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
+      JSObject::OptimizeAsPrototype(Cast<JSObject>(value));
     }
   }
 }
@@ -772,7 +772,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
             : native_context->initial_object_prototype(),
         isolate);
   } else {
-    construct_prototype = Handle<JSReceiver>::cast(value);
+    construct_prototype = Cast<JSReceiver>(value);
     function->map()->set_has_non_instance_prototype(false);
   }
 
@@ -1064,7 +1064,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // be a JSReceiver.
   InstanceType new_target_instance_type = new_target->map()->instance_type();
   if (InstanceTypeChecker::IsJSFunction(new_target_instance_type)) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
+    Handle<JSFunction> function = Cast<JSFunction>(new_target);
     if (FastInitializeDerivedMap(isolate, function, constructor,
                                  constructor_initial_map)) {
       return handle(function->initial_map(), isolate);
@@ -1076,8 +1076,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // fall back to the intrinsicDefaultProto.
   Handle<Object> prototype;
   if (InstanceTypeChecker::IsJSFunction(new_target_instance_type) &&
-      Handle<JSFunction>::cast(new_target)->has_prototype_slot()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
+      Cast<JSFunction>(new_target)->has_prototype_slot()) {
+    Handle<JSFunction> function = Cast<JSFunction>(new_target);
     // Make sure the new.target.prototype is cached.
     EnsureHasInitialMap(function);
     prototype = handle(function->prototype(), isolate);
@@ -1114,7 +1114,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
             *constructor);
   return Map::GetDerivedMap(isolate, constructor_initial_map,
-                            Handle<JSReceiver>::cast(prototype));
+                            Cast<JSReceiver>(prototype));
 }
 
 namespace {
@@ -1254,7 +1254,7 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
     // in case of the fast-path.
     Handle<Object> name =
         GetDataProperty(isolate, function, isolate->factory()->name_string());
-    if (IsString(*name)) return Handle<String>::cast(name);
+    if (IsString(*name)) return Cast<String>(name);
   }
   return SharedFunctionInfo::DebugName(isolate,
                                        handle(function->shared(), isolate));
@@ -1356,7 +1356,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
         v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
     return NativeCodeFunctionSourceString(isolate, shared_info);
   }
-  return Handle<String>::cast(
+  return Cast<String>(
       SharedFunctionInfo::GetSourceCodeHarmony(isolate, shared_info));
 }
 
@@ -1369,7 +1369,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     if (!IsJSFunction(*current)) break;
-    Handle<JSFunction> func = Handle<JSFunction>::cast(current);
+    Handle<JSFunction> func = Cast<JSFunction>(current);
     // The super constructor should be compiled for the number of expected
     // properties to be available.
     DirectHandle<SharedFunctionInfo> shared(func->shared(), isolate);

@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  auto function = DirectHandle<JSFunction>::cast(function_object);
+  auto function = Cast<JSFunction>(function_object);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function);
@@ -370,7 +370,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  Handle<JSFunction> function = Cast<JSFunction>(function_object);
 
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate));
@@ -383,7 +383,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     Handle<Object> type = args.at(1);
     if (!IsString(*type)) return CrashUnlessFuzzing(isolate);
-    if (Handle<String>::cast(type)->IsOneByteEqualTo(
+    if (Cast<String>(type)->IsOneByteEqualTo(
             base::StaticCharVector("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
@@ -442,7 +442,7 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   }
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  Handle<JSFunction> function = Cast<JSFunction>(function_object);
 
   IsCompiledScope is_compiled_scope =
       function->shared(isolate)->is_compiled_scope(isolate);
@@ -871,7 +871,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   if (!IsJSFunction(*function_object, cage_base)) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto function = DirectHandle<JSFunction>::cast(function_object);
+  auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
   CodeKind code_kind = sfi->abstract_code(isolate)->kind(cage_base);
   switch (code_kind) {
@@ -928,7 +928,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (IsUndefined(*function_object)) return Smi::FromInt(status);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
 
-  auto function = DirectHandle<JSFunction>::cast(function_object);
+  auto function = Cast<JSFunction>(function_object);
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
   switch (function->tiering_state()) {
@@ -1054,7 +1054,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  auto function = DirectHandle<JSFunction>::cast(function_object);
+  auto function = Cast<JSFunction>(function_object);
 
   SharedFunctionInfo::DiscardCompiled(
       isolate, handle(function->shared(isolate), isolate));
@@ -2080,7 +2080,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
   }
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(IsString(*obj) &&
-                                    Handle<String>::cast(obj)->IsShared());
+                                    Cast<String>(obj)->IsShared());
 }
 
 RUNTIME_FUNCTION(Runtime_ShareObject) {

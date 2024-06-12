@@ -491,11 +491,11 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       // happen before we assign object IDs.
       // TODO(jbroman): It may be possible to avoid materializing a typed
       // array's buffer here.
-      Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(object);
+      Handle<JSArrayBufferView> view = Cast<JSArrayBufferView>(object);
       if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         Handle<JSArrayBuffer> buffer(
             InstanceTypeChecker::IsJSTypedArray(instance_type)
-                ? Handle<JSTypedArray>::cast(view)->GetBuffer()
+                ? Cast<JSTypedArray>(view)->GetBuffer()
                 : handle(JSArrayBuffer::cast(view->buffer()), isolate_));
         if (!WriteJSReceiver(buffer).FromMaybe(false)) return Nothing<bool>();
       }
@@ -503,10 +503,10 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     }
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
-        WriteString(Handle<String>::cast(object));
+        WriteString(Cast<String>(object));
         return ThrowIfOutOfMemory();
       } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
-        return WriteJSReceiver(Handle<JSReceiver>::cast(object));
+        return WriteJSReceiver(Cast<JSReceiver>(object));
       } else {
         return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
       }
@@ -598,7 +598,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   HandleScope scope(isolate_);
   switch (instance_type) {
     case JS_ARRAY_TYPE:
-      return WriteJSArray(Handle<JSArray>::cast(receiver));
+      return WriteJSArray(Cast<JSArray>(receiver));
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
@@ -611,7 +611,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
     case JS_API_OBJECT_TYPE: {
-      Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
+      Handle<JSObject> js_object = Cast<JSObject>(receiver);
       Maybe<bool> is_host_object = IsHostObject(js_object);
       if (is_host_object.IsNothing()) {
         return is_host_object;
@@ -623,40 +623,39 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       }
     }
     case JS_SPECIAL_API_OBJECT_TYPE:
-      return WriteHostObject(Handle<JSObject>::cast(receiver));
+      return WriteHostObject(Cast<JSObject>(receiver));
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
       return ThrowIfOutOfMemory();
     case JS_PRIMITIVE_WRAPPER_TYPE:
-      return WriteJSPrimitiveWrapper(
-          Handle<JSPrimitiveWrapper>::cast(receiver));
+      return WriteJSPrimitiveWrapper(Cast<JSPrimitiveWrapper>(receiver));
     case JS_REG_EXP_TYPE:
-      WriteJSRegExp(Handle<JSRegExp>::cast(receiver));
+      WriteJSRegExp(Cast<JSRegExp>(receiver));
       return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
-      return WriteJSMap(Handle<JSMap>::cast(receiver));
+      return WriteJSMap(Cast<JSMap>(receiver));
     case JS_SET_TYPE:
-      return WriteJSSet(Handle<JSSet>::cast(receiver));
+      return WriteJSSet(Cast<JSSet>(receiver));
     case JS_ARRAY_BUFFER_TYPE:
-      return WriteJSArrayBuffer(Handle<JSArrayBuffer>::cast(receiver));
+      return WriteJSArrayBuffer(Cast<JSArrayBuffer>(receiver));
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
-      return WriteJSError(Handle<JSObject>::cast(receiver));
+      return WriteJSError(Cast<JSObject>(receiver));
     case JS_SHARED_ARRAY_TYPE:
-      return WriteJSSharedArray(Handle<JSSharedArray>::cast(receiver));
+      return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
     case JS_SHARED_STRUCT_TYPE:
-      return WriteJSSharedStruct(Handle<JSSharedStruct>::cast(receiver));
+      return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
     case JS_ATOMICS_MUTEX_TYPE:
     case JS_ATOMICS_CONDITION_TYPE:
       return WriteSharedObject(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
-      return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
+      return WriteWasmModule(Cast<WasmModuleObject>(receiver));
     case WASM_MEMORY_OBJECT_TYPE:
-      return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
+      return WriteWasmMemory(Cast<WasmMemoryObject>(receiver));
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       break;
@@ -1095,7 +1094,7 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   }
   if (IsString(*stack)) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kStack));
-    WriteString(Handle<String>::cast(stack));
+    WriteString(Cast<String>(stack));
   }
 
   // The {cause} can self-reference the error. We add at the end, so that we can
@@ -1547,7 +1546,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
   if (result.ToHandle(&object) && V8_UNLIKELY(IsJSArrayBuffer(*object)) &&
       PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
     ConsumeTag(SerializationTag::kArrayBufferView);
-    result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
+    result = ReadJSArrayBufferView(Cast<JSArrayBuffer>(object));
   }
 
   if (result.is_null() && !suppress_deserialization_errors_ &&
@@ -1679,7 +1678,7 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
   if (!ReadObject().ToHandle(&object) || !IsString(*object, isolate_)) {
     return MaybeHandle<String>();
   }
-  return Handle<String>::cast(object);
+  return Cast<String>(object);
 }
 
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
@@ -1924,19 +1923,19 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
   Handle<JSPrimitiveWrapper> value;
   switch (tag) {
     case SerializationTag::kTrueObject:
-      value = Handle<JSPrimitiveWrapper>::cast(
+      value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->boolean_function()));
       value->set_value(ReadOnlyRoots(isolate_).true_value());
       break;
     case SerializationTag::kFalseObject:
-      value = Handle<JSPrimitiveWrapper>::cast(
+      value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->boolean_function()));
       value->set_value(ReadOnlyRoots(isolate_).false_value());
       break;
     case SerializationTag::kNumberObject: {
       double number;
       if (!ReadDouble().To(&number)) return MaybeHandle<JSPrimitiveWrapper>();
-      value = Handle<JSPrimitiveWrapper>::cast(
+      value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->number_function()));
       DirectHandle<Number> number_object =
           isolate_->factory()->NewNumber(number);
@@ -1947,7 +1946,7 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       Handle<BigInt> bigint;
       if (!ReadBigInt().ToHandle(&bigint))
         return MaybeHandle<JSPrimitiveWrapper>();
-      value = Handle<JSPrimitiveWrapper>::cast(
+      value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->bigint_function()));
       value->set_value(*bigint);
       break;
@@ -1956,7 +1955,7 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       Handle<String> string;
       if (!ReadString().ToHandle(&string))
         return MaybeHandle<JSPrimitiveWrapper>();
-      value = Handle<JSPrimitiveWrapper>::cast(
+      value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->string_function()));
       value->set_value(*string);
       break;
@@ -2361,8 +2360,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
     return MaybeHandle<JSObject>();
   }
   uint32_t id = next_id_++;
-  Handle<JSObject> module =
-      Handle<JSObject>::cast(Utils::OpenHandle(*module_value));
+  Handle<JSObject> module = Cast<JSObject>(Utils::OpenHandle(*module_value));
   AddObjectWithID(id, module);
   return module;
 }
@@ -2381,7 +2379,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   if (!ReadObject().ToHandle(&buffer_object)) return {};
   if (!IsJSArrayBuffer(*buffer_object)) return {};
 
-  Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
+  Handle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
@@ -2449,8 +2447,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
     RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     return MaybeHandle<JSObject>();
   }
-  Handle<JSObject> js_object =
-      Handle<JSObject>::cast(Utils::OpenHandle(*object));
+  Handle<JSObject> js_object = Cast<JSObject>(Utils::OpenHandle(*object));
   AddObjectWithID(id, js_object);
   return js_object;
 }
@@ -2523,11 +2520,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           return Nothing<uint32_t>();
         }
         if (IsString(*key, isolate_)) {
-          key =
-              isolate_->factory()->InternalizeString(Handle<String>::cast(key));
+          key = isolate_->factory()->InternalizeString(Cast<String>(key));
           // Don't reuse |transitions| because it could be stale.
           transitioning = TransitionsAccessor(isolate_, *map)
-                              .FindTransitionToField(Handle<String>::cast(key))
+                              .FindTransitionToField(Cast<String>(key))
                               .ToHandle(&target);
         } else {
           transitioning = false;

@@ -255,7 +255,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         info->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
-                                      Handle<AbstractCode>::cast(code), name));
+                                      Cast<AbstractCode>(code), name));
   }
   return code;
 }

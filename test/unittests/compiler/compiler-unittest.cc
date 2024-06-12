@@ -235,8 +235,8 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
 
   Handle<Object> argv[] = {
       isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
-  Execution::Call(isolate, Handle<JSFunction>::cast(fun1), global,
-                  arraysize(argv), argv)
+  Execution::Call(isolate, Cast<JSFunction>(fun1), global, arraysize(argv),
+                  argv)
       .Check();
 }
 
@@ -613,7 +613,7 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
       v8::ScriptCompiler::CompileFunction(context(), &script_source)
           .ToLocalChecked();
   EXPECT_TRUE(!fun.IsEmpty());
-  auto fun_i = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
+  auto fun_i = i::Cast<i::JSFunction>(Utils::OpenHandle(*fun));
   EXPECT_TRUE(IsSharedFunctionInfo(fun_i->shared()));
   EXPECT_TRUE(Utils::ToLocal(
                   i::handle(i::Script::cast(fun_i->shared()->script())->name(),

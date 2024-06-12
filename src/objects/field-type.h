@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FIELD_TYPE_H_
 
 #include "src/handles/handles.h"
+#include "src/objects/casting.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {

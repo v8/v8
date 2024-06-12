@@ -347,7 +347,7 @@ struct ObjectLiteralHelper {
                                         Handle<HeapObject> description,
                                         int flags, AllocationType allocation) {
     auto object_boilerplate_description =
-        DirectHandle<ObjectBoilerplateDescription>::cast(description);
+        Cast<ObjectBoilerplateDescription>(description);
     return CreateObjectLiteral(isolate, object_boilerplate_description, flags,
                                allocation);
   }
@@ -359,7 +359,7 @@ struct ArrayLiteralHelper {
                                         int flags_not_used,
                                         AllocationType allocation) {
     auto array_boilerplate_description =
-        DirectHandle<ArrayBoilerplateDescription>::cast(description);
+        Cast<ArrayBoilerplateDescription>(description);
     return CreateArrayLiteral(isolate, array_boilerplate_description,
                               allocation);
   }
@@ -405,14 +405,12 @@ Handle<JSObject> CreateObjectLiteral(
 
     if (IsHeapObject(*value)) {
       if (IsArrayBoilerplateDescription(HeapObject::cast(*value), isolate)) {
-        auto array_boilerplate =
-            DirectHandle<ArrayBoilerplateDescription>::cast(value);
+        auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
 
       } else if (IsObjectBoilerplateDescription(HeapObject::cast(*value),
                                                 isolate)) {
-        auto object_boilerplate =
-            DirectHandle<ObjectBoilerplateDescription>::cast(value);
+        auto object_boilerplate = Cast<ObjectBoilerplateDescription>(value);
         value = CreateObjectLiteral(isolate, object_boilerplate,
                                     object_boilerplate->flags(), allocation);
       }
@@ -428,7 +426,7 @@ Handle<JSObject> CreateObjectLiteral(
                                               NONE)
           .Check();
     } else {
-      Handle<String> name = Handle<String>::cast(key);
+      Handle<String> name = Cast<String>(key);
       DCHECK(!name->AsArrayIndex(&element_index));
       JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
           .Check();
@@ -458,7 +456,7 @@ Handle<JSObject> CreateArrayLiteral(
   Handle<FixedArrayBase> copied_elements_values;
   if (IsDoubleElementsKind(constant_elements_kind)) {
     copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
-        Handle<FixedDoubleArray>::cast(constant_elements_values));
+        Cast<FixedDoubleArray>(constant_elements_values));
   } else {
     DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
     const bool is_cow = (constant_elements_values->map(isolate) ==
@@ -466,15 +464,14 @@ Handle<JSObject> CreateArrayLiteral(
     if (is_cow) {
       copied_elements_values = constant_elements_values;
       if (DEBUG_BOOL) {
-        auto fixed_array_values =
-            DirectHandle<FixedArray>::cast(copied_elements_values);
+        auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
           DCHECK(!IsFixedArray(fixed_array_values->get(i)));
         }
       }
     } else {
       Handle<FixedArray> fixed_array_values =
-          Handle<FixedArray>::cast(constant_elements_values);
+          Cast<FixedArray>(constant_elements_values);
       Handle<FixedArray> fixed_array_values_copy =
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
@@ -528,16 +525,16 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     return CreateLiteralWithoutAllocationSite<LiteralHelper>(
         isolate, description, flags);
   }
-  auto vector = DirectHandle<FeedbackVector>::cast(maybe_vector);
+  auto vector = Cast<FeedbackVector>(maybe_vector);
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
-  Handle<Object> literal_site(Tagged<Object>::cast(vector->Get(literals_slot)),
+  Handle<Object> literal_site(Cast<Object>(vector->Get(literals_slot)),
                               isolate);
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
 
   if (HasBoilerplate(literal_site)) {
-    site = Handle<AllocationSite>::cast(literal_site);
+    site = Cast<AllocationSite>(literal_site);
     boilerplate = Handle<JSObject>(site->boilerplate(), isolate);
   } else {
     // Eagerly create AllocationSites for literals that contain an Array.
@@ -616,10 +613,10 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
         isolate, JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
   }
 
-  auto vector = DirectHandle<FeedbackVector>::cast(maybe_vector);
+  auto vector = Cast<FeedbackVector>(maybe_vector);
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
-  DirectHandle<Object> literal_site(
-      Tagged<Object>::cast(vector->Get(literal_slot)), isolate);
+  DirectHandle<Object> literal_site(Cast<Object>(vector->Get(literal_slot)),
+                                    isolate);
 
   // This function must not be called when a boilerplate already exists (if it
   // exists, callers should instead copy the boilerplate into a new JSRegExp
@@ -647,8 +644,8 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
           Smi::FromInt(static_cast<int>(regexp_instance->flags())));
 
   vector->SynchronizedSet(literal_slot, *boilerplate);
-  DCHECK(HasBoilerplate(
-      handle(Tagged<Object>::cast(vector->Get(literal_slot)), isolate)));
+  DCHECK(
+      HasBoilerplate(handle(Cast<Object>(vector->Get(literal_slot)), isolate)));
 
   return *regexp_instance;
 }

@@ -30,13 +30,13 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
 void DependentCode::SetDependentCode(Handle<HeapObject> object,
                                      DirectHandle<DependentCode> dep) {
   if (IsMap(*object)) {
-    DirectHandle<Map>::cast(object)->set_dependent_code(*dep);
+    Cast<Map>(object)->set_dependent_code(*dep);
   } else if (IsPropertyCell(*object)) {
-    DirectHandle<PropertyCell>::cast(object)->set_dependent_code(*dep);
+    Cast<PropertyCell>(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
-    DirectHandle<AllocationSite>::cast(object)->set_dependent_code(*dep);
+    Cast<AllocationSite>(object)->set_dependent_code(*dep);
   } else if (IsConstTrackingLetCell(*object)) {
-    DirectHandle<ConstTrackingLetCell>::cast(object)->set_dependent_code(*dep);
+    Cast<ConstTrackingLetCell>(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }
@@ -88,7 +88,7 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   // As the Code object lives outside of the sandbox in trusted space, we need
   // to use its in-sandbox wrapper object here.
   MaybeObjectHandle code_slot(MakeWeak(code->wrapper()), isolate);
-  entries = Handle<DependentCode>::cast(WeakArrayList::AddToEnd(
+  entries = Cast<DependentCode>(WeakArrayList::AddToEnd(
       isolate, entries, code_slot, Smi::FromInt(groups)));
   return entries;
 }

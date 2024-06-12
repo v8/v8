@@ -39,8 +39,8 @@ ValueOrError EvaluateConstantExpression(
       return WasmValue(
           expected == kWasmExternRef || expected == kWasmNullExternRef ||
                   expected == kWasmNullExnRef || expected == kWasmExnRef
-              ? Handle<Object>::cast(isolate->factory()->null_value())
-              : Handle<Object>::cast(isolate->factory()->wasm_null()),
+              ? Cast<Object>(isolate->factory()->null_value())
+              : Cast<Object>(isolate->factory()->wasm_null()),
           ValueType::RefNull(expr.repr()));
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();

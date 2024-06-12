@@ -1630,8 +1630,7 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
   }
 
   Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
-  CHECK_EQ(Handle<HeapNumber>::cast(return_value)->value(),
-           256.0 / 2 * (1.5 + 256.5));
+  CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 256.0 / 2 * (1.5 + 256.5));
 }
 
 TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
@@ -1671,7 +1670,7 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
   }
 
   Handle<Object> return_value = RunBytecode(bytecode_array);
-  CHECK_EQ(Handle<HeapNumber>::cast(return_value)->value(), 65536.5);
+  CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 65536.5);
 }
 
 static const Token::Value kComparisonTypes[] = {
@@ -2144,7 +2143,7 @@ TEST_F(InterpreterTest, InterpreterInstanceOf) {
   Handle<i::JSFunction> func = factory->NewFunctionForTesting(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
   Handle<i::Object> other = factory->NewNumber(3.3333);
-  Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
+  Handle<i::Object> cases[] = {Cast<i::Object>(instance), other};
   for (size_t i = 0; i < arraysize(cases); i++) {
     bool expected_value = (i == 0);
     FeedbackVectorSpec feedback_spec(zone());
@@ -4876,7 +4875,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4912,7 +4911,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4946,9 +4945,8 @@ void CheckStringEqual(const char* expected_ptr, const char* actual_ptr) {
 }
 
 void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
-  v8::String::Utf8Value utf8(
-      v8::Isolate::GetCurrent(),
-      v8::Utils::ToLocal(Handle<String>::cast(actual_handle)));
+  v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(),
+                             v8::Utils::ToLocal(Cast<String>(actual_handle)));
   CheckStringEqual(expected_ptr, *utf8);
 }
 
@@ -4969,7 +4967,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());

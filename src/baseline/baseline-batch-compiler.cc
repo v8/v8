@@ -81,7 +81,7 @@ class BaselineCompilerTask {
           isolate, LogEventListener::CodeTag::kFunction,
           handle(Script::cast(shared_function_info_->script()), isolate),
           shared_function_info_, Handle<FeedbackVector>(),
-          Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+          Cast<AbstractCode>(code), CodeKind::BASELINE,
           time_taken_.InMillisecondsF());
     }
   }

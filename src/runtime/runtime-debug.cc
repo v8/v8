@@ -201,8 +201,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                                     Handle<Object> object) {
   Handle<ArrayList> result = ArrayList::New(isolate, 8 * 2);
   if (IsJSObject(*object)) {
-    PrototypeIterator iter(isolate, Handle<JSObject>::cast(object),
-                           kStartAtReceiver);
+    PrototypeIterator iter(isolate, Cast<JSObject>(object), kStartAtReceiver);
     if (iter.HasAccess()) {
       iter.Advance();
       Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
@@ -221,7 +220,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     }
   }
   if (IsJSBoundFunction(*object)) {
-    auto function = DirectHandle<JSBoundFunction>::cast(object);
+    auto function = Cast<JSBoundFunction>(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -238,13 +237,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
             isolate->factory()->CopyFixedArray(
                 handle(function->bound_arguments(), isolate))));
   } else if (IsJSMapIterator(*object)) {
-    Handle<JSMapIterator> iterator = Handle<JSMapIterator>::cast(object);
+    Handle<JSMapIterator> iterator = Cast<JSMapIterator>(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (IsJSSetIterator(*object)) {
-    Handle<JSSetIterator> iterator = Handle<JSSetIterator>::cast(object);
+    Handle<JSSetIterator> iterator = Cast<JSSetIterator>(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (IsJSGeneratorObject(*object)) {
-    auto generator = DirectHandle<JSGeneratorObject>::cast(object);
+    auto generator = Cast<JSGeneratorObject>(object);
 
     const char* status = "suspended";
     if (generator->is_closed()) {
@@ -268,7 +267,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewStringFromAsciiChecked("[[GeneratorReceiver]]"),
         handle(generator->receiver(), isolate));
   } else if (IsJSPromise(*object)) {
-    auto promise = DirectHandle<JSPromise>::cast(object);
+    auto promise = Cast<JSPromise>(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -282,7 +281,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
             ? isolate->factory()->undefined_value()
             : handle(promise->result(), isolate));
   } else if (IsJSProxy(*object)) {
-    auto js_proxy = DirectHandle<JSProxy>::cast(object);
+    auto js_proxy = Cast<JSProxy>(object);
 
     result = ArrayList::Add(
         isolate, result,
@@ -297,21 +296,21 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewStringFromAsciiChecked("[[IsRevoked]]"),
         isolate->factory()->ToBoolean(js_proxy->IsRevoked()));
   } else if (IsJSPrimitiveWrapper(*object)) {
-    auto js_value = DirectHandle<JSPrimitiveWrapper>::cast(object);
+    auto js_value = Cast<JSPrimitiveWrapper>(object);
 
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
         handle(js_value->value(), isolate));
   } else if (IsJSWeakRef(*object)) {
-    auto js_weak_ref = DirectHandle<JSWeakRef>::cast(object);
+    auto js_weak_ref = Cast<JSWeakRef>(object);
 
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
         handle(js_weak_ref->target(), isolate));
   } else if (IsJSArrayBuffer(*object)) {
-    Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
+    Handle<JSArrayBuffer> js_array_buffer = Cast<JSArrayBuffer>(object);
     if (js_array_buffer->was_detached()) {
       // Mark a detached JSArrayBuffer and such and don't even try to
       // create views for it, since the TypedArray constructors will
@@ -371,13 +370,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 #if V8_ENABLE_WEBASSEMBLY
   } else if (IsWasmInstanceObject(*object)) {
     result = AddWasmInstanceObjectInternalProperties(
-        isolate, result, Handle<WasmInstanceObject>::cast(object));
+        isolate, result, Cast<WasmInstanceObject>(object));
   } else if (IsWasmModuleObject(*object)) {
     result = AddWasmModuleObjectInternalProperties(
-        isolate, result, Handle<WasmModuleObject>::cast(object));
+        isolate, result, Cast<WasmModuleObject>(object));
   } else if (IsWasmTableObject(*object)) {
     result = AddWasmTableObjectInternalProperties(
-        isolate, result, Handle<WasmTableObject>::cast(object));
+        isolate, result, Cast<WasmTableObject>(object));
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return isolate->factory()->NewJSArrayWithElements(
@@ -483,7 +482,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   }
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
-      Handle<FixedArray>::cast(break_locations));
+      Cast<FixedArray>(break_locations));
 }
 
 // Returns the state of break on exceptions
@@ -858,7 +857,7 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
   HandleScope scope(isolate);
   Handle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
-    isolate->OnPromiseThen(Handle<JSPromise>::cast(promise));
+    isolate->OnPromiseThen(Cast<JSPromise>(promise));
   }
   return *promise;
 }

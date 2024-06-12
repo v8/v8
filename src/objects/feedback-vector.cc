@@ -352,7 +352,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
     Isolate* isolate, DirectHandle<FeedbackVector> vector) {
   DCHECK(!isolate->is_best_effort_code_coverage());
   if (!vector->shared_function_info()->IsSubjectToDebugging()) return;
-  Handle<ArrayList> list = Handle<ArrayList>::cast(
+  Handle<ArrayList> list = Cast<ArrayList>(
       isolate->factory()->feedback_vectors_for_profiling_tools());
   list = ArrayList::Add(isolate, list, vector);
   isolate->SetFeedbackVectorsForProfilingTools(*list);
@@ -990,7 +990,7 @@ void FeedbackNexus::ConfigureCloneObject(
     case InlineCacheState::POLYMORPHIC: {
       const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
                                kCloneObjectPolymorphicEntrySize;
-      Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
+      Handle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
@@ -1033,7 +1033,7 @@ void FeedbackNexus::ConfigureCloneObject(
 int FeedbackNexus::GetCallCount() {
   DCHECK(IsCallICKind(kind()));
 
-  Tagged<Object> call_count = Tagged<Object>::cast(GetFeedbackExtra());
+  Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return CallCountField::decode(value);
@@ -1042,7 +1042,7 @@ int FeedbackNexus::GetCallCount() {
 void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   DCHECK(IsCallICKind(kind()));
 
-  Tagged<Object> call_count = Tagged<Object>::cast(GetFeedbackExtra());
+  Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
   count = SpeculationModeField::update(count, mode);
@@ -1056,7 +1056,7 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
 SpeculationMode FeedbackNexus::GetSpeculationMode() {
   DCHECK(IsCallICKind(kind()));
 
-  Tagged<Object> call_count = Tagged<Object>::cast(GetFeedbackExtra());
+  Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return SpeculationModeField::decode(value);
@@ -1065,7 +1065,7 @@ SpeculationMode FeedbackNexus::GetSpeculationMode() {
 CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
   DCHECK(IsCallICKind(kind()));
 
-  Tagged<Object> call_count = Tagged<Object>::cast(GetFeedbackExtra());
+  Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return CallFeedbackContentField::decode(value);
@@ -1302,8 +1302,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     // The first handler that isn't the slow handler will have the bits we need.
     Builtin builtin_handler = Builtin::kNoBuiltinId;
     if (IsStoreHandler(*maybe_code_handler.object())) {
-      auto data_handler =
-          DirectHandle<StoreHandler>::cast(maybe_code_handler.object());
+      auto data_handler = Cast<StoreHandler>(maybe_code_handler.object());
 
       if (IsSmi(data_handler->smi_handler())) {
         // Decode the KeyedAccessStoreMode information from the Handler.
@@ -1354,7 +1353,7 @@ IcCheckType FeedbackNexus::GetKeyType() const {
   auto pair = GetFeedbackPair();
   Tagged<MaybeObject> feedback = pair.first;
   if (feedback == MegamorphicSentinel()) {
-    return static_cast<IcCheckType>(Smi::ToInt(Tagged<Smi>::cast(pair.second)));
+    return static_cast<IcCheckType>(Smi::ToInt(Cast<Smi>(pair.second)));
   }
   Tagged<MaybeObject> maybe_name =
       IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||

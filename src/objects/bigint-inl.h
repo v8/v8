@@ -6,6 +6,7 @@
 #define V8_OBJECTS_BIGINT_INL_H_
 
 #include "src/objects/bigint.h"
+#include "src/objects/casting.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

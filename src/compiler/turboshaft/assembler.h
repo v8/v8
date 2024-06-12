@@ -1491,8 +1491,7 @@ class TurboshaftAssemblerOpInterface
 
   V<Word32> RootEqual(V<Object> input, RootIndex root, Isolate* isolate) {
     return __ TaggedEqual(
-        input,
-        __ HeapConstant(Handle<HeapObject>::cast(isolate->root_handle(root))));
+        input, __ HeapConstant(Cast<HeapObject>(isolate->root_handle(root))));
   }
 
 #define DECL_SINGLE_REP_EQUAL_V(name, tag)                            \

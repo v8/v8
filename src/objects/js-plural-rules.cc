@@ -156,7 +156,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
               new icu::number::LocalizedNumberFormatter(icu_number_formatter));
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSPluralRules> plural_rules = Handle<JSPluralRules>::cast(
+  Handle<JSPluralRules> plural_rules = Cast<JSPluralRules>(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   plural_rules->set_flags(0);

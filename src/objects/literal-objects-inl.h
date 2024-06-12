@@ -46,7 +46,7 @@ Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
   // even on empty descriptions.
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  auto result = Handle<ObjectBoilerplateDescription>::cast(
+  auto result = Cast<ObjectBoilerplateDescription>(
       Allocate(isolate, capacity, &no_gc, allocation));
   result->set_flags(0);
   result->set_backing_store_size(backing_store_size);

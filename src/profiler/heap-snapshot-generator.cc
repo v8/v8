@@ -2695,11 +2695,10 @@ V8HeapExplorer::CollectTemporaryGlobalObjectsTags() {
       isolate, [this, isolate,
                 &global_object_tags](Handle<JSGlobalObject> global_object) {
         if (const char* tag = global_object_name_resolver_->GetName(
-                Utils::ToLocal(Handle<JSObject>::cast(global_object)))) {
+                Utils::ToLocal(Cast<JSObject>(global_object)))) {
           global_object_tags.emplace_back(
-              Global<v8::Object>(
-                  reinterpret_cast<v8::Isolate*>(isolate),
-                  Utils::ToLocal(Handle<JSObject>::cast(global_object))),
+              Global<v8::Object>(reinterpret_cast<v8::Isolate*>(isolate),
+                                 Utils::ToLocal(Cast<JSObject>(global_object))),
               tag);
           global_object_tags.back().first.SetWeak();
         }

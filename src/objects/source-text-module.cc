@@ -186,7 +186,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
-    return Handle<Cell>::cast(object);
+    return Cast<Cell>(object);
   }
 
   // Check for cycle before recursing.
@@ -214,7 +214,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
 
   if (IsSourceTextModuleInfoEntry(*object)) {
     // Not yet resolved indirect export.
-    auto entry = DirectHandle<SourceTextModuleInfoEntry>::cast(object);
+    auto entry = Cast<SourceTextModuleInfoEntry>(object);
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
     Handle<Script> script(module->GetScript(), isolate);
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
@@ -341,7 +341,7 @@ bool SourceTextModule::PrepareInstantiate(
                                          isolate);
     if (!callback(context, v8::Utils::ToLocal(specifier),
                   v8::Utils::FixedArrayToLocal(import_attributes),
-                  v8::Utils::ToLocal(Handle<Module>::cast(module)))
+                  v8::Utils::ToLocal(Cast<Module>(module)))
              .ToLocal(&api_requested_module)) {
       return false;
     }
@@ -381,8 +381,7 @@ bool SourceTextModule::PrepareInstantiate(
         SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
     Handle<Object> export_name(entry->export_name(), isolate);
     if (IsUndefined(*export_name, isolate)) continue;  // Star export.
-    CreateIndirectExport(isolate, module, Handle<String>::cast(export_name),
-                         entry);
+    CreateIndirectExport(isolate, module, Cast<String>(export_name), entry);
   }
 
   DCHECK_EQ(module->status(), kPreLinking);
@@ -408,7 +407,7 @@ bool SourceTextModule::RunInitializationCode(
     DCHECK(isolate->has_exception());
     return false;
   }
-  DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
+  DCHECK_EQ(*function, Cast<JSGeneratorObject>(generator)->function());
   module->set_code(JSGeneratorObject::cast(*generator));
   return true;
 }
@@ -523,8 +522,8 @@ bool SourceTextModule::FinishInstantiate(
     if (IsUndefined(*name, isolate)) continue;  // Star export.
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
-    if (ResolveExport(isolate, module, Handle<String>(),
-                      Handle<String>::cast(name), loc, true, &resolve_set)
+    if (ResolveExport(isolate, module, Handle<String>(), Cast<String>(name),
+                      loc, true, &resolve_set)
             .is_null()) {
       return false;
     }
@@ -565,8 +564,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
 
     // Recurse.
     if (IsSourceTextModule(*requested_module))
-      FetchStarExports(isolate,
-                       Handle<SourceTextModule>::cast(requested_module), zone,
+      FetchStarExports(isolate, Cast<SourceTextModule>(requested_module), zone,
                        visited);
 
     // Collect all of [requested_module]'s exports that must be added to
@@ -681,7 +679,7 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
     }
     module->set_import_meta(*import_meta, kReleaseStore);
   }
-  return Handle<JSObject>::cast(import_meta);
+  return Cast<JSObject>(import_meta);
 }
 
 bool SourceTextModule::MaybeHandleEvaluationException(
@@ -1243,8 +1241,8 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
                                          isolate);
     Handle<SharedFunctionInfo> shared(found->GetSharedFunctionInfo(), isolate);
     Handle<Object> script(shared->script(), isolate);
-    MessageLocation location = MessageLocation(Handle<Script>::cast(script),
-                                               shared, code->code_offset());
+    MessageLocation location =
+        MessageLocation(Cast<Script>(script), shared, code->code_offset());
     Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
         isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
         isolate->factory()->null_value(), Handle<FixedArray>());

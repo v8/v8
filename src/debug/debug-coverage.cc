@@ -512,7 +512,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
       // Feedback vectors are already listed to prevent losing them to GC.
       DCHECK(IsArrayList(
           *isolate->factory()->feedback_vectors_for_profiling_tools()));
-      auto list = DirectHandle<ArrayList>::cast(
+      auto list = Cast<ArrayList>(
           isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->length(); i++) {
         Tagged<FeedbackVector> vector = FeedbackVector::cast(list->get(i));

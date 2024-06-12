@@ -124,20 +124,20 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 
   if (USE_SIMULATOR_BOOL && IsAccessorInfo(*obj, cage_base)) {
     // Wipe external reference redirects in the accessor info.
-    auto info = DirectHandle<AccessorInfo>::cast(obj);
+    auto info = Cast<AccessorInfo>(obj);
     info->remove_getter_redirection(isolate());
     accessor_infos_.Push(*info);
   } else if (USE_SIMULATOR_BOOL && IsFunctionTemplateInfo(*obj, cage_base)) {
-    auto info = DirectHandle<FunctionTemplateInfo>::cast(obj);
+    auto info = Cast<FunctionTemplateInfo>(obj);
     info->remove_callback_redirection(isolate());
     function_template_infos_.Push(*info);
   } else if (IsScript(*obj, cage_base) &&
-             Handle<Script>::cast(obj)->IsUserJavaScript()) {
-    Handle<Script>::cast(obj)->set_context_data(
+             Cast<Script>(obj)->IsUserJavaScript()) {
+    Cast<Script>(obj)->set_context_data(
         ReadOnlyRoots(isolate()).uninitialized_symbol());
   } else if (IsSharedFunctionInfo(*obj, cage_base)) {
     // Clear inferred name for native functions.
-    auto shared = DirectHandle<SharedFunctionInfo>::cast(obj);
+    auto shared = Cast<SharedFunctionInfo>(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
       shared->uncompiled_data()->set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());

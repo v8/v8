@@ -230,7 +230,7 @@ inline FullObjectSlot ApiAccessorExitFrame::holder_slot() const {
 }
 
 Tagged<Name> ApiAccessorExitFrame::property_name() const {
-  return Tagged<Name>::cast(*property_name_slot());
+  return Cast<Name>(*property_name_slot());
 }
 
 Tagged<Object> ApiAccessorExitFrame::receiver() const {

@@ -48,7 +48,7 @@ Handle<Object> GetExport(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  exports_object = Handle<JSObject>::cast(
+  exports_object = Cast<JSObject>(
       JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
@@ -260,8 +260,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     char buffer[22];
     snprintf(buffer, sizeof buffer, "f%zu", i);
     // Execute corresponding function.
-    auto function = Handle<WasmExportedFunction>::cast(
-        GetExport(i_isolate, instance, buffer));
+    auto function =
+        Cast<WasmExportedFunction>(GetExport(i_isolate, instance, buffer));
     Handle<Object> undefined = i_isolate->factory()->undefined_value();
     Handle<Object> function_result =
         Execution::Call(i_isolate, function, undefined, 0, {})
@@ -269,7 +269,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     // Get global value.
     snprintf(buffer, sizeof buffer, "g%zu", i);
     auto global =
-        Handle<WasmGlobalObject>::cast(GetExport(i_isolate, instance, buffer));
+        Cast<WasmGlobalObject>(GetExport(i_isolate, instance, buffer));
     switch (global->type().kind()) {
       case ValueKind::kF32: {
         float global_val = global->GetF32();

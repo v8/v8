@@ -80,8 +80,8 @@ Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
                                         DirectHandle<JSFunction> function) {
   DirectHandle<String> super_name;
   if (IsJSFunction(*constructor)) {
-    super_name = direct_handle(
-        Handle<JSFunction>::cast(constructor)->shared()->Name(), isolate);
+    super_name =
+        direct_handle(Cast<JSFunction>(constructor)->shared()->Name(), isolate);
   } else if (IsOddball(*constructor)) {
     DCHECK(IsNull(*constructor, isolate));
     super_name = isolate->factory()->null_string();
@@ -122,7 +122,7 @@ Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key) {
   static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   DCHECK(IsName(*key));
-  return Handle<Name>::cast(key);
+  return Cast<Name>(key);
 }
 
 template <>
@@ -214,7 +214,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     Handle<Object> key(maybe_key, isolate);
     Handle<Object> value(dictionary->ValueAt(i), isolate);
     if (IsAccessorPair(*value)) {
-      auto pair = DirectHandle<AccessorPair>::cast(value);
+      auto pair = Cast<AccessorPair>(value);
       Tagged<Object> tmp = pair->getter();
       if (IsSmi(tmp)) {
         Handle<Object> result;
@@ -428,7 +428,7 @@ bool AddDescriptorsByTemplate(
     Handle<Object> key = args.at(key_index);
     DCHECK(IsName(*key));
     uint32_t element;
-    Handle<Name> name = Handle<Name>::cast(key);
+    Handle<Name> name = Cast<Name>(key);
     if (name->AsArrayIndex(&element)) {
       ClassBoilerplate::AddToElementsTemplate(
           isolate, elements_dictionary, element, key_index, value_kind, value);
@@ -505,8 +505,7 @@ bool InitClassPrototype(Isolate* isolate,
       class_boilerplate->instance_properties_template(), isolate);
 
   if (IsDescriptorArray(*properties_template)) {
-    auto descriptors_template =
-        DirectHandle<DescriptorArray>::cast(properties_template);
+    auto descriptors_template = Cast<DescriptorArray>(properties_template);
 
     // The size of the prototype object is known at this point.
     // So we can create it now and then add the rest instance methods to the
@@ -521,7 +520,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_construction_counter(Map::kNoSlackTracking);
 
     auto properties_dictionary_template =
-        Handle<PropertyDictionary>::cast(properties_template);
+        Cast<PropertyDictionary>(properties_template);
     return AddDescriptorsByTemplate(
         isolate, map, properties_dictionary_template,
         elements_dictionary_template, computed_properties, prototype, args);
@@ -555,8 +554,7 @@ bool InitClassConstructor(Isolate* isolate,
       class_boilerplate->static_properties_template(), isolate);
 
   if (IsDescriptorArray(*properties_template)) {
-    auto descriptors_template =
-        DirectHandle<DescriptorArray>::cast(properties_template);
+    auto descriptors_template = Cast<DescriptorArray>(properties_template);
 
     return AddDescriptorsByTemplate(isolate, map, descriptors_template,
                                     elements_dictionary_template, constructor,
@@ -571,14 +569,14 @@ bool InitClassConstructor(Isolate* isolate,
 
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       auto properties_dictionary_template =
-          Handle<SwissNameDictionary>::cast(properties_template);
+          Cast<SwissNameDictionary>(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, constructor, args);
     } else {
       auto properties_dictionary_template =
-          Handle<NameDictionary>::cast(properties_template);
+          Cast<NameDictionary>(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, constructor, args);
@@ -601,7 +599,7 @@ MaybeHandle<Object> DefineClass(
     } else if (IsConstructor(*super_class)) {
       DCHECK(!IsJSFunction(*super_class) ||
              !IsResumableFunction(
-                 Handle<JSFunction>::cast(super_class)->shared()->kind()));
+                 Cast<JSFunction>(super_class)->shared()->kind()));
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
@@ -635,8 +633,8 @@ MaybeHandle<Object> DefineClass(
   if (!InitClassConstructor(isolate, class_boilerplate, constructor_parent,
                             constructor, args) ||
       !InitClassPrototype(isolate, class_boilerplate, prototype,
-                          Handle<HeapObject>::cast(prototype_parent),
-                          constructor, args)) {
+                          Cast<HeapObject>(prototype_parent), constructor,
+                          args)) {
     DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
@@ -694,7 +692,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
     Handle<Name> name = key->GetName(isolate);
     THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name));
   }
-  return Handle<JSReceiver>::cast(proto);
+  return Cast<JSReceiver>(proto);
 }
 
 MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,

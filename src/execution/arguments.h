@@ -94,7 +94,7 @@ template <ArgumentsType T>
 template <class S>
 Handle<S> Arguments<T>::at(int index) const {
   Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
-  return Handle<S>::cast(obj);
+  return Cast<S>(obj);
 }
 
 template <ArgumentsType T>

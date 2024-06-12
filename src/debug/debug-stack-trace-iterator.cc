@@ -139,7 +139,7 @@ v8::Local<v8::debug::Script> DebugStackTraceIterator::GetScript() const {
   DCHECK(!Done());
   Handle<Object> value = frame_inspector_->GetScript();
   if (!IsScript(*value)) return v8::Local<v8::debug::Script>();
-  return ToApiHandle<debug::Script>(Handle<Script>::cast(value));
+  return ToApiHandle<debug::Script>(Cast<Script>(value));
 }
 
 debug::Location DebugStackTraceIterator::GetSourceLocation() const {

@@ -94,7 +94,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  exports_object = Handle<JSObject>::cast(
+  exports_object = Cast<JSObject>(
       JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
@@ -104,7 +104,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
   if (!property_found.FromMaybe(false)) return {};
   if (!IsJSFunction(*desc.value())) return {};
 
-  return Handle<WasmExportedFunction>::cast(desc.value());
+  return Cast<WasmExportedFunction>(desc.value());
 }
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
@@ -140,7 +140,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
 
   // Multi-value returns, get the first return value (see InterpretWasmModule).
   if (IsJSArray(*result)) {
-    auto receiver = Handle<JSReceiver>::cast(result);
+    auto receiver = Cast<JSReceiver>(result);
     result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
   }
 

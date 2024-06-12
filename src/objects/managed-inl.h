@@ -51,7 +51,7 @@ Handle<Managed<CppType>> Managed<CppType>::FromSharedPtr(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       Destructor);
   Handle<Managed<CppType>> handle =
-      Handle<Managed<CppType>>::cast(isolate->factory()->NewForeign<kTag>(
+      Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
   Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
   destructor->global_handle_location_ = global_handle.location();

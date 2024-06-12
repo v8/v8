@@ -930,25 +930,24 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
   Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();
   CHECK(IsWasmArray(*h_result));
-  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+  CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
   h_result = tester.GetResultObject(kAllocateStatic).ToHandleChecked();
   CHECK(IsWasmArray(*h_result));
-  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+  CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
   Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
   CHECK(IsWasmArray(*init_result));
-  CHECK_EQ(3, Handle<WasmArray>::cast(init_result)->length());
-  CHECK_EQ(10, Handle<WasmArray>::cast(init_result)->GetElement(0).to_i32());
-  CHECK_EQ(20, Handle<WasmArray>::cast(init_result)->GetElement(1).to_i32());
-  CHECK_EQ(30, Handle<WasmArray>::cast(init_result)->GetElement(2).to_i32());
+  CHECK_EQ(3, Cast<WasmArray>(init_result)->length());
+  CHECK_EQ(10, Cast<WasmArray>(init_result)->GetElement(0).to_i32());
+  CHECK_EQ(20, Cast<WasmArray>(init_result)->GetElement(1).to_i32());
+  CHECK_EQ(30, Cast<WasmArray>(init_result)->GetElement(2).to_i32());
 
   MaybeHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
   Handle<Object> large_result = maybe_large_result.ToHandleChecked();
   CHECK(IsWasmArray(*large_result));
-  CHECK(Handle<WasmArray>::cast(large_result)->Size() >
-        kMaxRegularHeapObjectSize);
+  CHECK(Cast<WasmArray>(large_result)->Size() > kMaxRegularHeapObjectSize);
 
   tester.CheckHasThrown(kAllocateTooLarge, "requested new array is too large");
 }
@@ -1154,8 +1153,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
       Handle<Object> res =
           tester.GetResultObject(kCopyRef, i).ToHandleChecked();
       CHECK(IsWasmArray(*res));
-      CHECK_EQ(Handle<WasmArray>::cast(res)->length(),
-               static_cast<uint32_t>(i));
+      CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
     }
   }
   CHECK(IsWasmNull(
@@ -1163,12 +1161,12 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   Handle<Object> res0 =
       tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
   CHECK(IsWasmArray(*res0));
-  CHECK_EQ(Handle<WasmArray>::cast(res0)->length(), static_cast<uint32_t>(2));
+  CHECK_EQ(Cast<WasmArray>(res0)->length(), static_cast<uint32_t>(2));
   for (int i = 2; i <= 5; i++) {
     Handle<Object> res =
         tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
     CHECK(IsWasmArray(*res));
-    CHECK_EQ(Handle<WasmArray>::cast(res)->length(), static_cast<uint32_t>(i));
+    CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
   }
 
   tester.CheckHasThrown(kOobSource);
@@ -1431,7 +1429,7 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
   CHECK(IsWasmArray(*result));
   CHECK_EQ(
-      Handle<WasmArray>::cast(result)->map(),
+      Cast<WasmArray>(result)->map(),
       tester.trusted_instance_data()->managed_object_maps()->get(type_index));
 }
 

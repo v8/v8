@@ -32,7 +32,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
   }
-  context_ = Handle<Context>::cast(frame_inspector->GetContext());
+  context_ = Cast<Context>(frame_inspector->GetContext());
 
 #if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
@@ -84,7 +84,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
 void ScopeIterator::Restart() {
   DCHECK_NOT_NULL(frame_inspector_);
   function_ = frame_inspector_->GetFunction();
-  context_ = Handle<Context>::cast(frame_inspector_->GetContext());
+  context_ = Cast<Context>(frame_inspector_->GetContext());
   current_scope_ = start_scope_;
   DCHECK_NOT_NULL(current_scope_);
   UnwrapEvaluationContext();

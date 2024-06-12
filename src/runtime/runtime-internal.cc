@@ -713,7 +713,7 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
                           isolate->factory()->next_string()));
 
   return *isolate->factory()->NewJSAsyncFromSyncIterator(
-      Handle<JSReceiver>::cast(sync_iterator), next);
+      Cast<JSReceiver>(sync_iterator), next);
 }
 
 RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
@@ -788,7 +788,7 @@ RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForConstTrackingLet) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   auto const_tracking_let_cell =
-      DirectHandle<ConstTrackingLetCell>::cast(args.at<HeapObject>(0));
+      Cast<ConstTrackingLetCell>(args.at<HeapObject>(0));
   DependentCode::DeoptimizeDependencyGroups(
       isolate, *const_tracking_let_cell,
       DependentCode::kConstTrackingLetChangedGroup);

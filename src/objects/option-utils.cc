@@ -22,7 +22,7 @@ MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
   // 2. If Type(options) is Object, then
   if (IsJSReceiver(*options)) {
     // a. Return options.
-    return Handle<JSReceiver>::cast(options);
+    return Cast<JSReceiver>(options);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
@@ -40,7 +40,7 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
   // 2. Return ? ToObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                              Object::ToObject(isolate, options, method_name));
-  return Handle<JSReceiver>::cast(options);
+  return Cast<JSReceiver>(options);
 }
 
 Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,

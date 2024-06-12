@@ -208,10 +208,10 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     bool is_var = IsString(*decl);
 
     if (is_var) {
-      name = Handle<String>::cast(decl);
+      name = Cast<String>(decl);
       value = isolate->factory()->undefined_value();
     } else {
-      Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(decl);
+      Handle<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(decl);
       name = handle(sfi->Name(), isolate);
       int index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell(
@@ -339,8 +339,8 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   if (attributes != ABSENT && IsJSGlobalObject(*holder)) {
     // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
-    return DeclareGlobal(isolate, Handle<JSGlobalObject>::cast(holder), name,
-                         value, NONE, is_var, RedeclarationType::kTypeError);
+    return DeclareGlobal(isolate, Cast<JSGlobalObject>(holder), name, value,
+                         NONE, is_var, RedeclarationType::kTypeError);
   }
   if (context->has_extension() && IsJSGlobalObject(context->extension())) {
     Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
@@ -367,7 +367,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       return ReadOnlyRoots(isolate).undefined_value();
     }
 
-    object = Handle<JSObject>::cast(holder);
+    object = Cast<JSObject>(holder);
 
   } else if (context->has_extension() && !is_debug_evaluate_in_module) {
     object = handle(context->extension_object(), isolate);
@@ -731,7 +731,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // The slot was found in a JSReceiver, either a context extension object,
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
-  Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
+  Handle<JSReceiver> object = Cast<JSReceiver>(holder);
   Maybe<bool> result = JSReceiver::DeleteProperty(object, name);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -756,7 +756,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     Handle<Object> receiver = isolate->factory()->undefined_value();
     if (receiver_return) *receiver_return = receiver;
     return SourceTextModule::LoadVariable(
-        isolate, Handle<SourceTextModule>::cast(holder), index);
+        isolate, Cast<SourceTextModule>(holder), index);
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
@@ -786,7 +786,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     if (receiver_return) {
       *receiver_return =
           (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))
-              ? Handle<Object>::cast(isolate->factory()->undefined_value())
+              ? Cast<Object>(isolate->factory()->undefined_value())
               : holder;
     }
     return value;
@@ -875,8 +875,8 @@ MaybeHandle<Object> StoreLookupSlot(
     if (isolate->has_exception()) return MaybeHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
     if ((attributes & READ_ONLY) == 0) {
-      SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
-                                      index, value);
+      SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
+                                      value);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -885,7 +885,7 @@ MaybeHandle<Object> StoreLookupSlot(
   }
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
-    auto holder_context = Handle<Context>::cast(holder);
+    auto holder_context = Cast<Context>(holder);
     if (flag == kNeedsInitialization &&
         IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -896,7 +896,7 @@ MaybeHandle<Object> StoreLookupSlot(
         Context::UpdateConstTrackingLetSideData(holder_context, index, value,
                                                 isolate);
       }
-      Handle<Context>::cast(holder)->set(index, *value);
+      Cast<Context>(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -910,7 +910,7 @@ MaybeHandle<Object> StoreLookupSlot(
   Handle<JSReceiver> object;
   if (attributes != ABSENT) {
     // The property exists on the holder.
-    object = Handle<JSReceiver>::cast(holder);
+    object = Cast<JSReceiver>(holder);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
     THROW_NEW_ERROR(isolate,

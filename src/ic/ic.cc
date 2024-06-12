@@ -298,7 +298,7 @@ void IC::UpdateState(DirectHandle<Object> lookup_start_object,
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
-  if (ShouldRecomputeHandler(Handle<String>::cast(name))) {
+  if (ShouldRecomputeHandler(Cast<String>(name))) {
     MarkRecomputeHandler(name);
   }
 }
@@ -338,7 +338,7 @@ namespace {
 
 bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   if (!IsJSObject(*object)) return false;
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+  Handle<JSObject> receiver = Cast<JSObject>(object);
   if (!receiver->map()->is_deprecated()) return false;
   JSObject::MigrateInstance(isolate, receiver);
   return true;
@@ -485,7 +485,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
 
   if (IsString(*name)) {
     // Look up in script context table.
-    Handle<String> str_name = Handle<String>::cast(name);
+    Handle<String> str_name = Cast<String>(name);
     DirectHandle<ScriptContextTable> script_contexts(
         global->native_context()->script_context_table(), isolate());
 
@@ -621,7 +621,7 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler,
     fti = handle(JSFunction::cast(*accessor_obj)->shared()->api_func_data(),
                  isolate());
   } else {
-    fti = Handle<FunctionTemplateInfo>::cast(accessor_obj);
+    fti = Cast<FunctionTemplateInfo>(accessor_obj);
   }
 
   Handle<MegaDomHandler> new_handler = isolate()->factory()->NewMegaDomHandler(
@@ -933,8 +933,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (IsJSModuleNamespace(*holder)) {
         DirectHandle<ObjectHashTable> exports(
-            Handle<JSModuleNamespace>::cast(holder)->module()->exports(),
-            isolate());
+            Cast<JSModuleNamespace>(holder)->module()->exports(), isolate());
         InternalIndex entry =
             exports->FindEntry(isolate(), roots, lookup->name(),
                                Smi::ToInt(Object::GetHash(*lookup->name())));
@@ -952,8 +951,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
       Handle<Object> accessors = lookup->GetAccessors();
       if (IsAccessorPair(*accessors)) {
-        Handle<AccessorPair> accessor_pair =
-            Handle<AccessorPair>::cast(accessors);
+        Handle<AccessorPair> accessor_pair = Cast<AccessorPair>(accessors);
         if (lookup->TryLookupCachedProperty(accessor_pair)) {
           DCHECK_EQ(LookupIterator::DATA, lookup->state());
           return MaybeObjectHandle(ComputeHandler(lookup));
@@ -1208,7 +1206,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
     if ((IsJSObject(*receiver) &&
          IsMoreGeneralElementsKindTransition(
              target_receiver_maps.at(0)->elements_kind(),
-             Handle<JSObject>::cast(receiver)->GetElementsKind())) ||
+             Cast<JSObject>(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
       Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
@@ -1309,8 +1307,7 @@ bool AllowReadingHoleElement(ElementsKind elements_kind) {
 KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
                                         Handle<HeapObject> receiver,
                                         size_t index, bool is_found) {
-  DirectHandle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(),
-                                 isolate);
+  DirectHandle<Map> receiver_map(Cast<HeapObject>(receiver)->map(), isolate);
   if (!AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
     return KeyedAccessLoadMode::kInBounds;
   }
@@ -1482,7 +1479,7 @@ KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
     return kIntPtr;
   }
   if (IsString(*key)) {
-    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
+    key = isolate->factory()->InternalizeString(Cast<String>(key));
     uint32_t maybe_array_index;
     if (String::cast(*key)->AsArrayIndex(&maybe_array_index)) {
       if (maybe_array_index <= INT_MAX) {
@@ -1493,11 +1490,11 @@ KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
       // that the IC could handle. Don't try to take the named-property path.
       return kBailout;
     }
-    *name_out = Handle<String>::cast(key);
+    *name_out = Cast<String>(key);
     return kName;
   }
   if (IsSymbol(*key)) {
-    *name_out = Handle<Symbol>::cast(key);
+    *name_out = Cast<Symbol>(key);
     return kName;
   }
   return kBailout;
@@ -1589,8 +1586,8 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 
   size_t index;
   if (key_type == kIntPtr && CanCache(object, state()) &&
-      IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object), &index)) {
-    Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
+      IntPtrKeyToSize(maybe_index, Cast<HeapObject>(object), &index)) {
+    Handle<HeapObject> receiver = Cast<HeapObject>(object);
     KeyedAccessLoadMode load_mode =
         GetNewKeyedLoadMode(isolate(), receiver, index, is_found);
     UpdateLoadElement(receiver, load_mode);
@@ -1613,7 +1610,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   Handle<Object> object = it->GetReceiver();
   if (IsJSProxy(*object)) return true;
   if (!IsJSObject(*object)) return false;
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+  Handle<JSObject> receiver = Cast<JSObject>(object);
   DCHECK(!receiver->map()->is_deprecated());
 
   for (;; it->Next()) {
@@ -1710,7 +1707,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   DCHECK(IsString(*name));
 
   // Look up in script context table.
-  Handle<String> str_name = Handle<String>::cast(name);
+  Handle<String> str_name = Cast<String>(name);
   Handle<JSGlobalObject> global = isolate()->global_object();
   DirectHandle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate());
@@ -1907,7 +1904,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // bound by configurability or extensibility checks, and errors would've
   // been thrown if the private field already exists in the object.
   if (IsAnyDefineOwn() && !name->IsPrivateName() && IsJSObject(*object) &&
-      !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
+      !Cast<JSObject>(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
     MAYBE_RETURN_NULL(can_define);
@@ -2050,7 +2047,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::ACCESSOR: {
       // This is currently guaranteed by checks in StoreIC::Store.
-      Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
+      Handle<JSObject> receiver = Cast<JSObject>(lookup->GetReceiver());
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
 
@@ -2092,8 +2089,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
             isolate(), lookup_start_object_map(), holder, *smi_handler));
 
       } else if (IsAccessorPair(*accessors)) {
-        Handle<AccessorPair> accessor_pair =
-            Handle<AccessorPair>::cast(accessors);
+        Handle<AccessorPair> accessor_pair = Cast<AccessorPair>(accessors);
         Handle<Object> setter(accessor_pair->setter(), isolate());
         if (!IsCallableJSFunction(*setter) &&
             !IsFunctionTemplateInfo(*setter)) {
@@ -2159,7 +2155,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::DATA: {
       // This is currently guaranteed by checks in StoreIC::Store.
-      Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
+      Handle<JSObject> receiver = Cast<JSObject>(lookup->GetReceiver());
       USE(receiver);
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
@@ -2215,8 +2211,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
     }
     case LookupIterator::JSPROXY: {
-      Handle<JSReceiver> receiver =
-          Handle<JSReceiver>::cast(lookup->GetReceiver());
+      Handle<JSReceiver> receiver = Cast<JSReceiver>(lookup->GetReceiver());
       Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
 
       // IsDefineNamedOwnIC() is true when we are defining public fields on a
@@ -2652,10 +2647,10 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       if (is_arguments) {
         set_slow_stub_reason("arguments receiver");
       } else if (IsJSArray(*object) && StoreModeCanGrow(store_mode) &&
-                 JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
+                 JSArray::HasReadOnlyLength(Cast<JSArray>(object))) {
         set_slow_stub_reason("array has read only length");
-      } else if (IsJSObject(*object) && MayHaveTypedArrayInPrototypeChain(
-                                            Handle<JSObject>::cast(object))) {
+      } else if (IsJSObject(*object) &&
+                 MayHaveTypedArrayInPrototypeChain(Cast<JSObject>(object))) {
         // Make sure we don't handle this in IC if there's any JSTypedArray in
         // the {receiver}'s prototype chain, since that prototype is going to
         // swallow all stores that are out-of-bounds for said prototype, and we
@@ -2834,7 +2829,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
   }
 
   FeedbackSlotKind kind = (typeof_mode == TypeofMode::kInside)
@@ -2893,7 +2888,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
   }
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   KeyedLoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kLoadKeyed);
@@ -2922,7 +2917,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     DCHECK(!vector_slot.IsInvalid());
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
 
@@ -2951,7 +2946,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     DCHECK(!vector_slot.IsInvalid());
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
 
@@ -3095,7 +3090,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
     int slot = args.tagged_index_value_at(1);
     vector_slot = FeedbackVector::ToSlot(slot);
     kind = vector->GetKind(vector_slot);
@@ -3115,8 +3110,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     DCHECK(IsNumber(*key));
     StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(
-        isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             ic.Store(Cast<JSArray>(receiver), key, value));
   }
 }
 
@@ -3135,7 +3130,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
     kind = vector->GetKind(vector_slot);
     DCHECK(IsDefineKeyedOwnICKind(kind));
   }
@@ -3159,14 +3154,14 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
   }
   DCHECK(IsJSArray(*receiver));
   DCHECK(IsNumber(*key));
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           ic.Store(Cast<JSArray>(receiver), key, value));
 }
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
@@ -3200,7 +3195,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
   Handle<Object> value = args.at(0);
   Handle<Object> array = args.at(1);
   Handle<Object> index = args.at(2);
-  StoreOwnElement(isolate, Handle<JSArray>::cast(array), index, value);
+  StoreOwnElement(isolate, Cast<JSArray>(array), index, value);
   return *value;
 }
 
@@ -3218,12 +3213,12 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
 
   if (IsJSObject(*object)) {
-    JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
+    JSObject::TransitionElementsKind(Cast<JSObject>(object),
                                      map->elements_kind());
   }
 
   if (IsStoreInArrayLiteralICKind(kind)) {
-    StoreOwnElement(isolate, Handle<JSArray>::cast(object), key, value);
+    StoreOwnElement(isolate, Cast<JSArray>(object), key, value);
     return *value;
   } else {
     DCHECK(IsKeyedStoreICKind(kind) || IsSetNamedICKind(kind) ||
@@ -3584,11 +3579,11 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
     if (IsFeedbackVector(*maybe_vector)) {
       int index = args.tagged_index_value_at(2);
       FeedbackSlot slot = FeedbackVector::ToSlot(index);
-      nexus.emplace(Handle<FeedbackVector>::cast(maybe_vector), slot);
+      nexus.emplace(Cast<FeedbackVector>(maybe_vector), slot);
     }
     if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
       bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
-      Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(), isolate);
+      Handle<Map> source_map(Cast<HeapObject>(source)->map(), isolate);
       auto UpdateNexus = [&](Handle<Object> target_map) {
         if (!nexus) return;
         nexus->ConfigureCloneObject(source_map, MaybeObjectHandle(target_map));
@@ -3632,7 +3627,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           Handle<Object> res;
           ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
               isolate, res, CloneObjectSlowPath(isolate, source, flags));
-          Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(), isolate);
+          Handle<Map> result_map(Cast<HeapObject>(res)->map(), isolate);
           if (CanFastCloneObjectWithDifferentMaps(
                   source_map, result_map, null_proto_literal, isolate)) {
             DCHECK(result_map->OnlyHasSimpleProperties());
@@ -3839,7 +3834,7 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    vector = Cast<FeedbackVector>(maybe_vector);
   }
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   KeyedLoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kHasKeyed);

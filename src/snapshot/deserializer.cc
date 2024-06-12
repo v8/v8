@@ -538,7 +538,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         // TODO(leszeks): This handle patching is ugly, consider adding an
         // explicit internalized string bytecode. Also, the new thin string
         // should be dead, try immediately freeing it.
-        Handle<String> string = Handle<String>::cast(obj);
+        Handle<String> string = Cast<String>(obj);
 
         StringTableInsertionKey key(
             isolate(), string,
@@ -554,13 +554,13 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         }
         return;
       } else if (InstanceTypeChecker::IsScript(instance_type)) {
-        new_scripts_.push_back(Handle<Script>::cast(obj));
+        new_scripts_.push_back(Cast<Script>(obj));
       } else if (InstanceTypeChecker::IsAllocationSite(instance_type)) {
         // We should link new allocation sites, but we can't do this immediately
         // because |AllocationSite::HasWeakNext()| internally accesses
         // |Heap::roots_| that may not have been initialized yet. So defer this
         // to |ObjectDeserializer::CommitPostProcessedObjects()|.
-        new_allocation_sites_.push_back(Handle<AllocationSite>::cast(obj));
+        new_allocation_sites_.push_back(Cast<AllocationSite>(obj));
       } else {
         // We dont defer ByteArray because JSTypedArray needs the base_pointer
         // ByteArray immediately if it's on heap.
@@ -575,7 +575,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     // Hence we only remember each individual code object when deserializing
     // user code.
     if (deserializing_user_code()) {
-      new_code_objects_.push_back(Handle<InstructionStream>::cast(obj));
+      new_code_objects_.push_back(Cast<InstructionStream>(obj));
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Tagged<Code> code = Code::cast(raw_obj);
@@ -595,15 +595,15 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     if (v8_flags.log_maps) {
       // Keep track of all seen Maps to log them later since they might be only
       // partially initialized at this point.
-      new_maps_.push_back(Handle<Map>::cast(obj));
+      new_maps_.push_back(Cast<Map>(obj));
     }
   } else if (InstanceTypeChecker::IsAccessorInfo(instance_type)) {
 #ifdef USE_SIMULATOR
-    accessor_infos_.push_back(Handle<AccessorInfo>::cast(obj));
+    accessor_infos_.push_back(Cast<AccessorInfo>(obj));
 #endif
   } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
 #ifdef USE_SIMULATOR
-    function_template_infos_.push_back(Handle<FunctionTemplateInfo>::cast(obj));
+    function_template_infos_.push_back(Cast<FunctionTemplateInfo>(obj));
 #endif
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(ExternalString::cast(raw_obj),
@@ -611,11 +611,11 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
   } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     // PostProcessNewJSReceiver may trigger GC.
     no_gc.Release();
-    return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
+    return PostProcessNewJSReceiver(raw_map, Cast<JSReceiver>(obj),
                                     instance_type, space);
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
-    auto descriptors = DirectHandle<DescriptorArray>::cast(obj);
+    auto descriptors = Cast<DescriptorArray>(obj);
     new_descriptor_arrays_.Push(*descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     NativeContext::cast(raw_obj)->init_microtask_queue(main_thread_isolate(),
@@ -686,7 +686,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // then you're probably serializing the meta-map, in which case you want to
   // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
-  Handle<Map> map = Handle<Map>::cast(ReadObject());
+  Handle<Map> map = Cast<Map>(ReadObject());
 
   AllocationType allocation = SpaceToAllocation(space);
 
@@ -811,7 +811,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   Map::unchecked_cast(*obj)->set_instance_type(MAP_TYPE);
 
   ReadData(obj, 1, size_in_tagged);
-  PostProcessNewObject(Handle<Map>::cast(obj), obj, space);
+  PostProcessNewObject(Cast<Map>(obj), obj, space);
 
   return obj;
 }
@@ -1021,7 +1021,7 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
   int id = source_.GetUint30();
   RootIndex root_index = static_cast<RootIndex>(id);
   Handle<HeapObject> heap_object =
-      Handle<HeapObject>::cast(isolate()->root_handle(root_index));
+      Cast<HeapObject>(isolate()->root_handle(root_index));
   hot_objects_.Add(heap_object);
   return WriteHeapPointer(slot_accessor, heap_object,
                           GetAndResetNextReferenceDescriptor());
@@ -1306,7 +1306,7 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
 
   RootIndex root_index = RootArrayConstant::Decode(data);
   Handle<HeapObject> heap_object =
-      Handle<HeapObject>::cast(isolate()->root_handle(root_index));
+      Cast<HeapObject>(isolate()->root_handle(root_index));
   return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
 }
 

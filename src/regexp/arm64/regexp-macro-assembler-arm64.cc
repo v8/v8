@@ -1192,8 +1192,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+  return Cast<HeapObject>(code);
 }
 
 

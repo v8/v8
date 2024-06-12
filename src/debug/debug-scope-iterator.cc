@@ -20,7 +20,7 @@ std::unique_ptr<debug::ScopeIterator> debug::ScopeIterator::CreateForFunction(
   // JSFunctions.
   if (!IsJSFunction(*receiver)) return nullptr;
 
-  auto function = internal::DirectHandle<internal::JSFunction>::cast(receiver);
+  auto function = internal::Cast<internal::JSFunction>(receiver);
 
   CHECK(function->has_context());
   return std::unique_ptr<debug::ScopeIterator>(new internal::DebugScopeIterator(
@@ -35,7 +35,7 @@ debug::ScopeIterator::CreateForGeneratorObject(
   DCHECK(IsJSGeneratorObject(*generator));
   return std::unique_ptr<debug::ScopeIterator>(new internal::DebugScopeIterator(
       reinterpret_cast<internal::Isolate*>(v8_isolate),
-      internal::Handle<internal::JSGeneratorObject>::cast(generator)));
+      internal::Cast<internal::JSGeneratorObject>(generator)));
 }
 
 namespace internal {

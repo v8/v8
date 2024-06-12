@@ -26,7 +26,7 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
 
   is_constructor_ = summary.is_constructor();
   source_position_ = summary.SourcePosition();
-  script_ = Handle<Script>::cast(summary.script());
+  script_ = Cast<Script>(summary.script());
   receiver_ = summary.receiver();
 
   if (summary.IsJavaScript()) {

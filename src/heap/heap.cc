@@ -2790,7 +2790,7 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
   if (InFromPage(obj)) {
     if (!first_word.IsForwardingAddress()) {
       // Unreachable external string can be finalized.
-      Tagged<String> string = Tagged<String>::cast(obj);
+      Tagged<String> string = Cast<String>(obj);
       if (!IsExternalString(string, cage_base)) {
         // Original external string has been internalized.
         DCHECK(IsThinString(string, cage_base));
@@ -2799,9 +2799,9 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
       heap->FinalizeExternalString(string);
       return Tagged<String>();
     }
-    new_string = Tagged<String>::cast(first_word.ToForwardingAddress(obj));
+    new_string = Cast<String>(first_word.ToForwardingAddress(obj));
   } else {
-    new_string = Tagged<String>::cast(obj);
+    new_string = Cast<String>(obj);
   }
 
   // String is still reachable.
@@ -2828,8 +2828,7 @@ void Heap::ExternalStringTable::VerifyYoung() {
   std::map<MutablePageMetadata*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   for (size_t i = 0; i < young_strings_.size(); ++i) {
-    Tagged<String> obj =
-        Tagged<String>::cast(Tagged<Object>(young_strings_[i]));
+    Tagged<String> obj = Cast<String>(Tagged<Object>(young_strings_[i]));
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    mc->Chunk()->InYoungGeneration());
@@ -2839,7 +2838,7 @@ void Heap::ExternalStringTable::VerifyYoung() {
     // Note: we can have repeated elements in the table.
     DCHECK_EQ(0, visited_map.count(obj));
     visited_map.insert(obj);
-    size_map[mc] += Tagged<ExternalString>::cast(obj)->ExternalPayloadSize();
+    size_map[mc] += Cast<ExternalString>(obj)->ExternalPayloadSize();
   }
   for (std::map<MutablePageMetadata*, size_t>::iterator it = size_map.begin();
        it != size_map.end(); it++)
@@ -2854,7 +2853,7 @@ void Heap::ExternalStringTable::Verify() {
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   VerifyYoung();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
-    Tagged<String> obj = Tagged<String>::cast(Tagged<Object>(old_strings_[i]));
+    Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
@@ -2864,7 +2863,7 @@ void Heap::ExternalStringTable::Verify() {
     // Note: we can have repeated elements in the table.
     DCHECK_EQ(0, visited_map.count(obj));
     visited_map.insert(obj);
-    size_map[mc] += Tagged<ExternalString>::cast(obj)->ExternalPayloadSize();
+    size_map[mc] += Cast<ExternalString>(obj)->ExternalPayloadSize();
   }
   for (std::map<MutablePageMetadata*, size_t>::iterator it = size_map.begin();
        it != size_map.end(); it++)
@@ -2997,12 +2996,11 @@ void Heap::ForeachAllocationSite(
   DisallowGarbageCollection no_gc;
   Tagged<Object> current = list;
   while (IsAllocationSite(current)) {
-    Tagged<AllocationSite> site = Tagged<AllocationSite>::cast(current);
+    Tagged<AllocationSite> site = Cast<AllocationSite>(current);
     visitor(site);
     Tagged<Object> current_nested = site->nested_site();
     while (IsAllocationSite(current_nested)) {
-      Tagged<AllocationSite> nested_site =
-          Tagged<AllocationSite>::cast(current_nested);
+      Tagged<AllocationSite> nested_site = Cast<AllocationSite>(current_nested);
       visitor(nested_site);
       current_nested = nested_site->nested_site();
     }
@@ -3495,7 +3493,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
                       Smi::FromInt(len - elements_to_trim));
 
   Tagged<FixedArrayBase> new_object =
-      Tagged<FixedArrayBase>::cast(HeapObject::FromAddress(new_start));
+      Cast<FixedArrayBase>(HeapObject::FromAddress(new_start));
 
   if (isolate()->log_object_relocation()) {
     // Notify the heap profiler of change in object layout.
@@ -6288,7 +6286,7 @@ void Heap::CompactWeakArrayLists() {
     for (Tagged<HeapObject> o = iterator.Next(); !o.is_null();
          o = iterator.Next()) {
       if (IsPrototypeInfo(*o)) {
-        Tagged<PrototypeInfo> prototype_info = Tagged<PrototypeInfo>::cast(o);
+        Tagged<PrototypeInfo> prototype_info = Cast<PrototypeInfo>(o);
         if (IsWeakArrayList(prototype_info->prototype_users())) {
           prototype_infos.emplace_back(handle(prototype_info, isolate()));
         }
@@ -6873,7 +6871,7 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = Tagged<JSFinalizationRegistry>::cast(
+    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
         dirty_js_finalization_registries_list_tail());
     tail->set_next_dirty(finalization_registry);
     gc_notify_updated_slot(
@@ -6911,13 +6909,13 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(
   Tagged<Object> current = dirty_js_finalization_registries_list();
   while (!IsUndefined(current, isolate)) {
     Tagged<JSFinalizationRegistry> finalization_registry =
-        Tagged<JSFinalizationRegistry>::cast(current);
+        Cast<JSFinalizationRegistry>(current);
     if (finalization_registry->native_context() == context) {
       if (IsUndefined(prev, isolate)) {
         set_dirty_js_finalization_registries_list(
             finalization_registry->next_dirty());
       } else {
-        Tagged<JSFinalizationRegistry>::cast(prev)->set_next_dirty(
+        Cast<JSFinalizationRegistry>(prev)->set_next_dirty(
             finalization_registry->next_dirty());
       }
       finalization_registry->set_scheduled_for_cleanup(false);
@@ -6995,7 +6993,7 @@ size_t Heap::NumberOfNativeContexts() {
   Tagged<Object> context = native_contexts_list();
   while (!IsUndefined(context, isolate())) {
     ++result;
-    Tagged<Context> native_context = Tagged<Context>::cast(context);
+    Tagged<Context> native_context = Cast<Context>(context);
     context = native_context->next_context_link();
   }
   return result;
@@ -7005,7 +7003,7 @@ std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
   std::vector<Handle<NativeContext>> result;
   Tagged<Object> context = native_contexts_list();
   while (!IsUndefined(context, isolate())) {
-    Tagged<NativeContext> native_context = Tagged<NativeContext>::cast(context);
+    Tagged<NativeContext> native_context = Cast<NativeContext>(context);
     result.push_back(handle(native_context, isolate()));
     context = native_context->next_context_link();
   }
@@ -7016,7 +7014,7 @@ std::vector<Tagged<WeakArrayList>> Heap::FindAllRetainedMaps() {
   std::vector<Tagged<WeakArrayList>> result;
   Tagged<Object> context = native_contexts_list();
   while (!IsUndefined(context, isolate())) {
-    Tagged<NativeContext> native_context = Tagged<NativeContext>::cast(context);
+    Tagged<NativeContext> native_context = Cast<NativeContext>(context);
     result.push_back(WeakArrayList::cast(native_context->retained_maps()));
     context = native_context->next_context_link();
   }
@@ -7234,7 +7232,7 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
                                             Address key_slot_address,
                                             Isolate* isolate) {
   Tagged<EphemeronHashTable> table =
-      Tagged<EphemeronHashTable>::cast(Tagged<Object>(raw_object));
+      Cast<EphemeronHashTable>(Tagged<Object>(raw_object));
   ObjectSlot key_slot(key_slot_address);
   CombinedEphemeronWriteBarrier(table, key_slot, *key_slot,
                                 UPDATE_WRITE_BARRIER);

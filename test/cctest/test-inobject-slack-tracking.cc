@@ -21,7 +21,7 @@ static const int kMaxInobjectProperties = JSObject::kMaxInObjectProperties;
 template <typename T>
 static Handle<T> OpenHandle(v8::Local<v8::Value> value) {
   Handle<Object> obj = v8::Utils::OpenHandle(*value);
-  return Handle<T>::cast(obj);
+  return Cast<T>(obj);
 }
 
 
@@ -50,7 +50,7 @@ Handle<T> GetLexical(const char* name) {
         script_contexts->get(lookup_result.context_index);
     Handle<Object> result(script_context->get(lookup_result.slot_index),
                           isolate);
-    return Handle<T>::cast(result);
+    return Cast<T>(result);
   }
   return Handle<T>();
 }

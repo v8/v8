@@ -75,17 +75,17 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
-                                      Handle<JSReceiver>::cast(new_target)));
+                                      Cast<JSReceiver>(new_target)));
     argv[BuiltinArguments::kReceiverArgsOffset] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
     DCHECK(IsJSReceiver(*receiver));
-    js_receiver = Handle<JSReceiver>::cast(receiver);
+    js_receiver = Cast<JSReceiver>(receiver);
 
     if (!fun_data->accept_any_receiver() && IsAccessCheckNeeded(*js_receiver)) {
       // Proxies never need access checks.
       DCHECK(IsJSObject(*js_receiver));
-      Handle<JSObject> js_object = Handle<JSObject>::cast(js_receiver);
+      Handle<JSObject> js_object = Cast<JSObject>(js_receiver);
       if (!isolate->MayAccess(isolate->native_context(), js_object)) {
         RETURN_ON_EXCEPTION(isolate,
                             isolate->ReportFailedAccessCheck(js_object));
@@ -180,7 +180,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 
   // We assume that all lazy accessor pairs have been instantiated when setting
   // a break point on any API function.
-  DCHECK(!Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry(isolate));
+  DCHECK(!Cast<FunctionTemplateInfo>(function)->BreakAtEntry(isolate));
 
   base::SmallVector<Address, 32> argv(argc + 1);
   argv[0] = (*receiver).ptr();

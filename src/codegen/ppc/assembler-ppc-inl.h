@@ -168,7 +168,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_)) {
-    return Handle<HeapObject>::cast(
+    return Cast<HeapObject>(
         origin->code_target_object_handle_at(pc_, constant_pool_));
   } else {
     if (IsCompressedEmbeddedObject(rmode_)) {

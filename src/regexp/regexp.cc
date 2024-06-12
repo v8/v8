@@ -1037,14 +1037,14 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kNative) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
-      auto code = DirectHandle<Code>::cast(result.code);
+      auto code = Cast<Code>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       code->Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
-      auto bytecode = DirectHandle<ByteArray>::cast(result.code);
+      auto bytecode = Cast<ByteArray>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),
                                 pattern_cstring.get());

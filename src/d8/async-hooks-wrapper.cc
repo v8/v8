@@ -33,7 +33,7 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
   }
 
   i::Handle<i::Object> handle = Utils::OpenHandle(*hook->GetInternalField(0));
-  return i::Handle<i::Managed<AsyncHooksWrap>>::cast(handle)->get();
+  return Cast<i::Managed<AsyncHooksWrap>>(handle)->get();
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {

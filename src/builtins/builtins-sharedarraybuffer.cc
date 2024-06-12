@@ -54,7 +54,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
   if (IsJSTypedArray(*object)) {
-    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
+    Handle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
@@ -244,7 +244,7 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   if (sta->type() == kExternalBigInt64Array) {
     return FutexEmulation::WaitJs64(
         isolate, mode, array_buffer, GetAddress64(i, sta->byte_offset()),
-        Handle<BigInt>::cast(value)->AsInt64(), timeout_number);
+        Cast<BigInt>(value)->AsInt64(), timeout_number);
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
     return FutexEmulation::WaitJs32(isolate, mode, array_buffer,

@@ -162,7 +162,7 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<Object> func_value =
         Object::GetProperty(isolate, global, func_name).ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSFunction> function = Cast<JSFunction>(func_value);
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");

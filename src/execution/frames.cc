@@ -2615,7 +2615,7 @@ Handle<StackFrameInfo> FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo()
       isolate()->factory()->NewStringFromAsciiChecked(
           Builtins::NameForStackTrace(isolate(), builtin_));
   return isolate()->factory()->NewStackFrameInfo(
-      Handle<Script>::cast(script()), SourcePosition(), name_str, false);
+      Cast<Script>(script()), SourcePosition(), name_str, false);
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2756,7 +2756,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       // Get the correct function in the optimized frame.
       CHECK(!translated_values->IsMaterializedObject());
       DirectHandle<JSFunction> function =
-          Handle<JSFunction>::cast(translated_values->GetValue());
+          Cast<JSFunction>(translated_values->GetValue());
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
@@ -2772,9 +2772,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           it->kind() ==
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
-        abstract_code =
-            Handle<AbstractCode>::cast(isolate()->builtins()->code_handle(
-                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));
+        abstract_code = Cast<AbstractCode>(isolate()->builtins()->code_handle(
+            Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);
         code_offset = it->bytecode_offset().ToInt();

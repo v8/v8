@@ -451,7 +451,7 @@ Tagged<FieldType> Map::UnwrapFieldType(Tagged<MaybeObject> wrapped_type) {
   if (wrapped_type.GetHeapObjectIfWeak(&heap_object)) {
     return FieldType::cast(heap_object);
   }
-  return Tagged<FieldType>::cast(wrapped_type);
+  return Cast<FieldType>(wrapped_type);
 }
 
 MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
@@ -889,7 +889,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     return isolate->slow_object_with_null_prototype_map();
   }
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+    Handle<JSObject> js_prototype = Cast<JSObject>(prototype);
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
@@ -898,7 +898,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     // TODO(verwaest): Use inobject slack tracking for this map.
     Tagged<HeapObject> map_obj;
     if (info->ObjectCreateMap().GetHeapObjectIfWeak(&map_obj)) {
-      map = handle(Tagged<Map>::cast(map_obj), isolate);
+      map = handle(Cast<Map>(map_obj), isolate);
     } else {
       map = Map::CopyInitialMap(isolate, map);
       Map::SetPrototype(isolate, map, prototype);
@@ -916,7 +916,7 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
   DCHECK(IsUndefined(from->GetBackPointer()));
 
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+    Handle<JSObject> js_prototype = Cast<JSObject>(prototype);
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
@@ -925,7 +925,7 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
     Tagged<HeapObject> map_obj;
     Handle<Map> map;
     if (info->GetDerivedMap(from).GetHeapObjectIfWeak(&map_obj)) {
-      map = handle(Tagged<Map>::cast(map_obj), isolate);
+      map = handle(Cast<Map>(map_obj), isolate);
     } else {
       map = Map::CopyInitialMap(isolate, from);
       map->set_new_target_is_base(false);
@@ -1276,8 +1276,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
         meta_map->native_context()->normalized_map_cache();
     use_cache = !IsUndefined(normalized_map_cache, isolate);
     if (use_cache) {
-      cache = Handle<NormalizedMapCache>::cast(
-          handle(normalized_map_cache, isolate));
+      cache = Cast<NormalizedMapCache>(handle(normalized_map_cache, isolate));
     }
   }
 
@@ -2015,7 +2014,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     if (v8_flags.feedback_normalization && map->new_target_is_base() &&
         IsJSFunction(*maybe_constructor) &&
         !JSFunction::cast(*maybe_constructor)->shared()->native()) {
-      auto constructor = DirectHandle<JSFunction>::cast(maybe_constructor);
+      auto constructor = Cast<JSFunction>(maybe_constructor);
       DCHECK_NE(*constructor, constructor->native_context()->object_function());
       Handle<Map> initial_map(constructor->initial_map(), isolate);
       result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
@@ -2087,7 +2086,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                             "TransitionToAccessorFromNonPair");
     }
 
-    auto pair = DirectHandle<AccessorPair>::cast(maybe_pair);
+    auto pair = Cast<AccessorPair>(maybe_pair);
     if (!pair->Equals(*getter, *setter)) {
       return Map::Normalize(isolate, map, mode,
                             "TransitionToDifferentAccessor");
@@ -2118,7 +2117,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonPair");
     }
 
-    auto current_pair = DirectHandle<AccessorPair>::cast(maybe_pair);
+    auto current_pair = Cast<AccessorPair>(maybe_pair);
     if (current_pair->Equals(*getter, *setter)) return map;
 
     bool overwriting_accessor = false;
@@ -2137,7 +2136,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                             "AccessorsOverwritingAccessors");
     }
 
-    pair = AccessorPair::Copy(isolate, Handle<AccessorPair>::cast(maybe_pair));
+    pair = AccessorPair::Copy(isolate, Cast<AccessorPair>(maybe_pair));
   } else if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors ||
              map->TooManyFastProperties(StoreOrigin::kNamed)) {
     return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,
@@ -2404,7 +2403,7 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
   if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_prototype)) {
     return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
-  auto prototype = DirectHandle<JSObject>::cast(maybe_prototype);
+  auto prototype = Cast<JSObject>(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.
   JSObject::LazyRegisterPrototypeUser(handle(prototype->map(), isolate),
@@ -2444,7 +2443,7 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
+    Handle<JSObject> prototype_jsobj = Cast<JSObject>(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
     DCHECK(IsNull(*prototype, isolate) || IsJSProxy(*prototype) ||
@@ -2498,7 +2497,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
 Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
   Handle<WeakFixedArray> array(
       isolate->factory()->NewWeakFixedArray(kEntries, AllocationType::kOld));
-  return Handle<NormalizedMapCache>::cast(array);
+  return Cast<NormalizedMapCache>(array);
 }
 
 MaybeHandle<Map> NormalizedMapCache::Get(DirectHandle<Map> fast_map,

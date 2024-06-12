@@ -374,6 +374,16 @@ WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExportedFunction)
 
+template <>
+struct CastTraits<WasmExportedFunction> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return WasmExportedFunction::IsWasmExportedFunction(value);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return WasmExportedFunction::IsWasmExportedFunction(value);
+  }
+};
+
 // WasmApiFunctionRef
 
 CODE_POINTER_ACCESSORS(WasmApiFunctionRef, code, kCodeOffset)
@@ -412,17 +422,47 @@ WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmJSFunction)
 
+template <>
+struct CastTraits<WasmJSFunction> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return WasmJSFunction::IsWasmJSFunction(value);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return WasmJSFunction::IsWasmJSFunction(value);
+  }
+};
+
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));
 }
 CAST_ACCESSOR(WasmCapiFunction)
 
+template <>
+struct CastTraits<WasmCapiFunction> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return WasmCapiFunction::IsWasmCapiFunction(value);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return WasmCapiFunction::IsWasmCapiFunction(value);
+  }
+};
+
 // WasmExternalFunction
 WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExternalFunction(*this));
 }
 CAST_ACCESSOR(WasmExternalFunction)
+
+template <>
+struct CastTraits<WasmExternalFunction> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return WasmExternalFunction::IsWasmExternalFunction(value);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return WasmExternalFunction::IsWasmExternalFunction(value);
+  }
+};
 
 Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
   return shared()->wasm_function_data()->func_ref();

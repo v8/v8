@@ -49,7 +49,7 @@ MaybeObjectHandle::MaybeObjectHandle(Tagged<MaybeObject> object,
     handle_ = handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = handle(Tagged<Object>::cast(object), isolate);
+    handle_ = handle(Cast<Object>(object), isolate);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }
@@ -62,7 +62,7 @@ MaybeObjectHandle::MaybeObjectHandle(Tagged<MaybeObject> object,
     handle_ = handle(heap_object, local_heap);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = handle(Tagged<Object>::cast(object), local_heap);
+    handle_ = handle(Cast<Object>(object), local_heap);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }
@@ -179,7 +179,7 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<MaybeObject> object,
     handle_ = direct_handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = direct_handle(Tagged<Object>::cast(object), isolate);
+    handle_ = direct_handle(Cast<Object>(object), isolate);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }
@@ -192,7 +192,7 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<MaybeObject> object,
     handle_ = direct_handle(heap_object, local_heap);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = direct_handle(Tagged<Object>::cast(object), local_heap);
+    handle_ = direct_handle(Cast<Object>(object), local_heap);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }

@@ -612,7 +612,7 @@ void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
 void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
   if (IsString(*value)) {
     if (quote) Print("\"");
-    Print(Handle<String>::cast(value));
+    Print(Cast<String>(value));
     if (quote) Print("\"");
   } else if (IsNull(*value, isolate_)) {
     Print("null");
@@ -626,8 +626,7 @@ void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     Print(isolate_->factory()->NumberToString(value));
   } else if (IsSymbol(*value)) {
     // Symbols can only occur as literals if they were inserted by the parser.
-    PrintLiteral(handle(Handle<Symbol>::cast(value)->description(), isolate_),
-                 false);
+    PrintLiteral(handle(Cast<Symbol>(value)->description(), isolate_), false);
   }
 }
 

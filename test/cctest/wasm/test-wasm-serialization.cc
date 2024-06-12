@@ -151,7 +151,7 @@ class WasmSerializationTest {
       CHECK(weak_native_module.lock());
 
       v8::Local<v8::Object> v8_module_obj =
-          v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
+          v8::Utils::ToLocal(Cast<JSObject>(module_object));
       CHECK(v8_module_obj->IsWasmModuleObject());
 
       v8::Local<v8::WasmModuleObject> v8_module_object =
@@ -305,7 +305,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
         maybe_module_object.ToHandleChecked();
     v8::Local<v8::WasmModuleObject> v8_module =
         v8::Local<v8::WasmModuleObject>::Cast(
-            v8::Utils::ToLocal(Handle<JSObject>::cast(module_object)));
+            v8::Utils::ToLocal(Cast<JSObject>(module_object)));
     store.push_back(v8_module->GetCompiledModule());
     original_native_module = module_object->shared_native_module();
   }
@@ -401,7 +401,7 @@ TEST(SerializeTieringBudget) {
     memcpy(native_module->tiering_budget_array(), mock_budget,
            arraysize(mock_budget) * sizeof(uint32_t));
     v8::Local<v8::Object> v8_module_obj =
-        v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
+        v8::Utils::ToLocal(Cast<JSObject>(module_object));
     CHECK(v8_module_obj->IsWasmModuleObject());
 
     v8::Local<v8::WasmModuleObject> v8_module_object =

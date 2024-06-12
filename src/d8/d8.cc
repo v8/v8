@@ -2039,7 +2039,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
       info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
   i::Handle<i::JSReceiver> i_object = Utils::OpenHandle(*object);
   if (IsJSGlobalProxy(*i_object) &&
-      i::Handle<i::JSGlobalProxy>::cast(i_object)->IsDetached()) {
+      i::Cast<i::JSGlobalProxy>(i_object)->IsDetached()) {
     return;
   }
   Local<Context> creation_context;
@@ -2070,8 +2070,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (IsJSGlobalObject(*i_global)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
     i::Handle<i::JSObject> i_global_proxy =
-        handle(i::Handle<i::JSGlobalObject>::cast(i_global)->global_proxy(),
-               i_isolate);
+        handle(i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
     global = Utils::ToLocal(i_global_proxy);
   }
   info.GetReturnValue().Set(global);
@@ -2323,7 +2322,7 @@ void Shell::TestVerifySourcePositions(
   auto arg_handle = Utils::OpenHandle(*info[0]);
   if (!IsHeapObject(*arg_handle) ||
       !IsJSFunctionOrBoundFunctionOrWrappedFunction(
-          *i::Handle<i::HeapObject>::cast(arg_handle))) {
+          *i::Cast<i::HeapObject>(arg_handle))) {
     ThrowError(isolate, "Expected function as single argument.");
     return;
   }
@@ -2332,11 +2331,10 @@ void Shell::TestVerifySourcePositions(
   HandleScope handle_scope(isolate);
 
   auto callable =
-      i::Handle<i::JSFunctionOrBoundFunctionOrWrappedFunction>::cast(
-          arg_handle);
+      i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(arg_handle);
   while (IsJSBoundFunction(*callable)) {
     internal::DisallowGarbageCollection no_gc;
-    auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
+    auto bound_function = i::Cast<i::JSBoundFunction>(callable);
     auto bound_target = bound_function->bound_target_function();
     if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(bound_target)) {
       internal::AllowGarbageCollection allow_gc;

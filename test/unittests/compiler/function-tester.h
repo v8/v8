@@ -47,7 +47,7 @@ class FunctionTester {
   template <typename T, typename... Args>
   Handle<T> CallChecked(Args... args) {
     Handle<Object> result = Call(args...).ToHandleChecked();
-    return Handle<T>::cast(result);
+    return Cast<T>(result);
   }
 
   void CheckThrows(Handle<Object> a);

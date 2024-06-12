@@ -159,9 +159,6 @@ class Handle final : public HandleBase {
     return Tagged<T>(*location());
   }
 
-  template <typename S>
-  inline static const Handle<T> cast(Handle<S> that);
-
   // Consider declaring values that contain empty handles as
   // MaybeHandle to force validation before being used as handles.
   static const Handle<T> null() { return Handle<T>(); }
@@ -505,12 +502,6 @@ class DirectHandle : public DirectHandleBase {
     return Tagged<T>(address());
   }
 
-  template <typename S>
-  V8_INLINE static const DirectHandle<T> cast(DirectHandle<S> that);
-
-  template <typename S>
-  V8_INLINE static const DirectHandle<T> cast(Handle<S> that);
-
   // Consider declaring values that contain empty handles as
   // MaybeDirectHandle to force validation before being used as handles.
   V8_INLINE static const DirectHandle<T> null() { return DirectHandle<T>(); }
@@ -538,6 +529,8 @@ class DirectHandle : public DirectHandleBase {
   friend class MaybeDirectHandle;
   friend class DirectHandleUnchecked<T>;
   // Casts are allowed to access location_.
+  template <typename To, typename From>
+  friend inline DirectHandle<To> Cast(Handle<From> value);
   template <typename To, typename From>
   friend inline DirectHandle<To> Cast(DirectHandle<From> value);
 

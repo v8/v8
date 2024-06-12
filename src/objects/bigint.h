@@ -182,12 +182,6 @@ V8_OBJECT class FreshlyAllocatedBigInt : public BigIntBase {
     memset(padding_, 0, arraysize(padding_));
 #endif
   }
-
- private:
-  // Only serves to make macros happy; other code should use IsBigInt.
-  static bool IsFreshlyAllocatedBigInt(Tagged<FreshlyAllocatedBigInt>) {
-    return true;
-  }
 } V8_OBJECT_END;
 
 // Arbitrary precision integers in JavaScript.

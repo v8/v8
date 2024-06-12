@@ -221,7 +221,7 @@ namespace {
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
                                      DirectHandle<Script> script) {
   Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
-  if (IsString(*sourceURL)) return Handle<String>::cast(sourceURL);
+  if (IsString(*sourceURL)) return Cast<String>(sourceURL);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("eval at ");
@@ -248,7 +248,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
         // eval script originated from "real" source.
         DirectHandle<Object> eval_script_name(eval_script->name(), isolate);
         if (IsString(*eval_script_name)) {
-          builder.AppendString(DirectHandle<String>::cast(eval_script_name));
+          builder.AppendString(Cast<String>(eval_script_name));
           Script::PositionInfo info;
           if (Script::GetPositionInfo(eval_script,
                                       Script::GetEvalPosition(isolate, script),
@@ -337,7 +337,7 @@ Handle<String> CallSiteInfo::GetFunctionDebugName(
         info->GetWasmFunctionIndex());
   }
   if (info->IsBuiltin()) {
-    return Handle<String>::cast(GetFunctionName(info));
+    return Cast<String>(GetFunctionName(info));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
@@ -403,7 +403,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromDictionary(
     }
     if (name != key) {
       name = IsUndefined(name, isolate)
-                 ? Tagged<PrimitiveHeapObject>::cast(key)
+                 ? Cast<PrimitiveHeapObject>(key)
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
   }
@@ -487,7 +487,7 @@ Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
   }
 
   if (name->length() != 0) {
-    PropertyKey key(isolate, Handle<Name>::cast(name));
+    PropertyKey key(isolate, Cast<Name>(name));
     LookupIterator it(isolate, receiver, key,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {
@@ -497,7 +497,7 @@ Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
     } else if (it.state() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it.GetAccessors();
       if (IsAccessorPair(*accessors)) {
-        auto pair = DirectHandle<AccessorPair>::cast(accessors);
+        auto pair = Cast<AccessorPair>(accessors);
         if (pair->getter() == *function || pair->setter() == *function) {
           return name;
         }
@@ -666,14 +666,13 @@ void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
   Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
                                            isolate);
   if (!IsString(*script_name_or_source_url) && frame->IsEval()) {
-    builder->AppendString(
-        Handle<String>::cast(CallSiteInfo::GetEvalOrigin(frame)));
+    builder->AppendString(Cast<String>(CallSiteInfo::GetEvalOrigin(frame)));
     // Expecting source position to follow.
     builder->AppendCStringLiteral(", ");
   }
 
   if (IsNonEmptyString(script_name_or_source_url)) {
-    builder->AppendString(Handle<String>::cast(script_name_or_source_url));
+    builder->AppendString(Cast<String>(script_name_or_source_url));
   } else {
     // Source code does not originate from a file and is not native, but we
     // can still get the source position inside the source string, e.g. in
@@ -733,16 +732,16 @@ void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
 
   Handle<Object> receiver(frame->receiver_or_instance(), isolate);
   if (IsJSClassConstructor(*receiver)) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(receiver);
+    Handle<JSFunction> function = Cast<JSFunction>(receiver);
     Handle<String> class_name = JSFunction::GetDebugName(function);
     if (class_name->length() != 0) {
       type_name = class_name;
     }
   }
   if (IsNonEmptyString(function_name)) {
-    Handle<String> function_string = Handle<String>::cast(function_name);
+    Handle<String> function_string = Cast<String>(function_name);
     if (IsNonEmptyString(type_name)) {
-      Handle<String> type_string = Handle<String>::cast(type_name);
+      Handle<String> type_string = Cast<String>(type_name);
       if (String::IsIdentifier(isolate, function_string) &&
           !String::Equals(isolate, function_string, type_string)) {
         builder->AppendString(type_string);
@@ -752,7 +751,7 @@ void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
     builder->AppendString(function_string);
 
     if (IsNonEmptyString(method_name)) {
-      Handle<String> method_string = Handle<String>::cast(method_name);
+      Handle<String> method_string = Cast<String>(method_name);
       if (!StringEndsWithMethodName(isolate, function_string, method_string)) {
         builder->AppendCStringLiteral(" [as ");
         builder->AppendString(method_string);
@@ -761,11 +760,11 @@ void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
     }
   } else {
     if (IsNonEmptyString(type_name)) {
-      builder->AppendString(Handle<String>::cast(type_name));
+      builder->AppendString(Cast<String>(type_name));
       builder->AppendCharacter('.');
     }
     if (IsNonEmptyString(method_name)) {
-      builder->AppendString(Handle<String>::cast(method_name));
+      builder->AppendString(Cast<String>(method_name));
     } else {
       builder->AppendCStringLiteral("<anonymous>");
     }
@@ -780,7 +779,7 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
     if (frame->IsPromiseAll() || frame->IsPromiseAny() ||
         frame->IsPromiseAllSettled()) {
       builder->AppendCStringLiteral("Promise.");
-      builder->AppendString(Handle<String>::cast(function_name));
+      builder->AppendString(Cast<String>(function_name));
       builder->AppendCStringLiteral(" (index ");
       builder->AppendInt(CallSiteInfo::GetSourcePosition(frame));
       builder->AppendCharacter(')');
@@ -792,12 +791,12 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
   } else if (frame->IsConstructor()) {
     builder->AppendCStringLiteral("new ");
     if (IsNonEmptyString(function_name)) {
-      builder->AppendString(Handle<String>::cast(function_name));
+      builder->AppendString(Cast<String>(function_name));
     } else {
       builder->AppendCStringLiteral("<anonymous>");
     }
   } else if (IsNonEmptyString(function_name)) {
-    builder->AppendString(Handle<String>::cast(function_name));
+    builder->AppendString(Cast<String>(function_name));
   } else {
     AppendFileLocation(isolate, frame, builder);
     return;
@@ -815,12 +814,12 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
   const bool has_name = !IsNull(*module_name) || !IsNull(*function_name);
   if (has_name) {
     if (IsNull(*module_name)) {
-      builder->AppendString(Handle<String>::cast(function_name));
+      builder->AppendString(Cast<String>(function_name));
     } else {
-      builder->AppendString(Handle<String>::cast(module_name));
+      builder->AppendString(Cast<String>(module_name));
       if (!IsNull(*function_name)) {
         builder->AppendCharacter('.');
-        builder->AppendString(Handle<String>::cast(function_name));
+        builder->AppendString(Cast<String>(function_name));
       }
     }
     builder->AppendCStringLiteral(" (");
@@ -828,7 +827,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
 
   Handle<Object> url(frame->GetScriptNameOrSourceURL(), isolate);
   if (IsNonEmptyString(url)) {
-    builder->AppendString(Handle<String>::cast(url));
+    builder->AppendString(Cast<String>(url));
   } else {
     builder->AppendCStringLiteral("<anonymous>");
   }
@@ -850,8 +849,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
 void SerializeBuiltinStackFrame(Isolate* isolate,
                                 DirectHandle<CallSiteInfo> frame,
                                 IncrementalStringBuilder* builder) {
-  builder->AppendString(
-      Handle<String>::cast(CallSiteInfo::GetFunctionName(frame)));
+  builder->AppendString(Cast<String>(CallSiteInfo::GetFunctionName(frame)));
   builder->AppendCStringLiteral(" (<anonymous>)");
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

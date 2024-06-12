@@ -132,7 +132,7 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
     Isolate* isolate, Handle<Object> result, Handle<Object> reviver,
     Handle<String> source, MaybeHandle<Object> val_node) {
   DCHECK(IsCallable(*reviver));
-  JsonParseInternalizer internalizer(isolate, Handle<JSReceiver>::cast(reviver),
+  JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
                                      source);
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -162,7 +162,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       with_source == kWithSource && Object::SameValue(*value, *snapshot);
 
   if (IsJSReceiver(*value)) {
-    Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
+    Handle<JSReceiver> object = Cast<JSReceiver>(value);
     Maybe<bool> is_array = Object::IsArray(object);
     if (is_array.IsNothing()) return MaybeHandle<Object>();
     if (is_array.FromJust()) {
@@ -172,7 +172,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           Object::GetLengthFromArrayLike(isolate_, object));
       double length = Object::NumberValue(*length_object);
       if (pass_source_to_reviver) {
-        auto val_nodes_and_snapshots = DirectHandle<FixedArray>::cast(val_node);
+        auto val_nodes_and_snapshots = Cast<FixedArray>(val_node);
         int snapshot_length = val_nodes_and_snapshots->length() / 2;
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
@@ -215,8 +215,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString));
       if (pass_source_to_reviver) {
-        auto val_nodes_and_snapshots =
-            DirectHandle<ObjectTwoHashTable>::cast(val_node);
+        auto val_nodes_and_snapshots = Cast<ObjectTwoHashTable>(val_node);
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(String::cast(contents->get(i)), isolate_);
@@ -2006,7 +2005,7 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       if (Matches(data, hint)) return hint;
     }
     if (chars_may_relocate_) {
-      return factory()->InternalizeString(Handle<SeqString>::cast(source_),
+      return factory()->InternalizeString(Cast<SeqString>(source_),
                                           string.start(), string.length(),
                                           string.needs_conversion());
     }

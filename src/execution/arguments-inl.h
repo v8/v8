@@ -51,7 +51,7 @@ double Arguments<T>::number_value_at(int index) const {
 template <ArgumentsType T>
 Handle<Object> Arguments<T>::atOrUndefined(Isolate* isolate, int index) const {
   if (index >= length_) {
-    return Handle<Object>::cast(isolate->factory()->undefined_value());
+    return Cast<Object>(isolate->factory()->undefined_value());
   }
   return at<Object>(index);
 }

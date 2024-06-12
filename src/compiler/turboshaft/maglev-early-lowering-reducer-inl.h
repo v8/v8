@@ -46,8 +46,8 @@ class MaglevEarlyLoweringReducer : public Next {
         base::Optional<RootIndex> expected_index =
             InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type);
         CHECK(expected_index.has_value());
-        Handle<HeapObject> expected_map = Handle<HeapObject>::cast(
-            isolate_->root_handle(expected_index.value()));
+        Handle<HeapObject> expected_map =
+            Cast<HeapObject>(isolate_->root_handle(expected_index.value()));
         __ DeoptimizeIfNot(__ TaggedEqual(map, __ HeapConstant(expected_map)),
                            frame_state, DeoptimizeReason::kWrongInstanceType,
                            feedback);

@@ -60,7 +60,7 @@ Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
   MapWord map_word = heap_obj->map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    return Tagged<T>::cast(map_word.ToForwardingAddress(heap_obj));
+    return Cast<T>(map_word.ToForwardingAddress(heap_obj));
   } else if (Heap::InFromPage(heap_obj)) {
     DCHECK(!v8_flags.minor_ms);
     return Tagged<T>();
@@ -110,16 +110,15 @@ int64_t Heap::update_external_memory(int64_t delta) {
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                     \
-  Tagged<Type> Heap::name() {                                    \
-    return Tagged<Type>::cast(                                   \
-        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
+  Tagged<Type> Heap::name() {                                                  \
+    return Cast<Type>(Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
   }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 Tagged<FixedArray> Heap::single_character_string_table() {
-  return Tagged<FixedArray>::cast(
+  return Cast<FixedArray>(
       Tagged<Object>(roots_table()[RootIndex::kSingleCharacterStringTable]));
 }
 
@@ -152,8 +151,7 @@ Tagged<FixedArray> Heap::single_character_string_table() {
       /* to HeapObject (these Smis will anyway be excluded by */               \
       /* RootsTable::IsImmortalImmovable but this isn't enough for the*/       \
       /* compiler, even with `if constexpr`)*/                                 \
-      DCHECK(                                                                  \
-          IsImmovable(Tagged<HeapObject>::cast(Tagged<Object>::cast(value)))); \
+      DCHECK(IsImmovable(Cast<HeapObject>(Cast<Object>(value))));              \
     }                                                                          \
     DCHECK_STATIC_ROOT(value, CamelName);                                      \
     roots_table()[RootIndex::k##CamelName] = value.ptr();                      \
@@ -255,7 +253,7 @@ void Heap::RegisterExternalString(Tagged<String> string) {
 
 void Heap::FinalizeExternalString(Tagged<String> string) {
   DCHECK(IsExternalString(string));
-  Tagged<ExternalString> ext_string = Tagged<ExternalString>::cast(string);
+  Tagged<ExternalString> ext_string = Cast<ExternalString>(string);
 
   if (!v8_flags.enable_third_party_heap) {
     PageMetadata* page = PageMetadata::FromHeapObject(string);

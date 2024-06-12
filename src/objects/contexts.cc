@@ -205,15 +205,14 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, unscopables,
-      JSReceiver::GetProperty(isolate,
-                              Handle<JSReceiver>::cast(it->GetReceiver()),
+      JSReceiver::GetProperty(isolate, Cast<JSReceiver>(it->GetReceiver()),
                               isolate->factory()->unscopables_symbol()),
       Nothing<bool>());
   if (!IsJSReceiver(*unscopables)) return Just(true);
   Handle<Object> blocklist;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, blocklist,
-      JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(unscopables),
+      JSReceiver::GetProperty(isolate, Cast<JSReceiver>(unscopables),
                               it->name()),
       Nothing<bool>());
   return Just(!Object::BooleanValue(*blocklist, isolate));
@@ -674,10 +673,7 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
   if (IsUndefined(*hook)) return;
 
   int argc = type == PromiseHookType::kInit ? 2 : 1;
-  Handle<Object> argv[2] = {
-    Handle<Object>::cast(promise),
-    parent
-  };
+  Handle<Object> argv[2] = {Cast<Object>(promise), parent};
 
   Handle<Object> receiver = isolate->global_proxy();
 

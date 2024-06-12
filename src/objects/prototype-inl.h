@@ -75,7 +75,7 @@ bool PrototypeIterator::HasAccess() const {
   DCHECK(!handle_.is_null());
   if (IsAccessCheckNeeded(*handle_)) {
     return isolate_->MayAccess(isolate_->native_context(),
-                               Handle<JSObject>::cast(handle_));
+                               Cast<JSObject>(handle_));
   }
   return true;
 }
@@ -133,8 +133,7 @@ PrototypeIterator::AdvanceFollowingProxiesIgnoringAccessChecks() {
     isolate_->StackOverflow();
     return false;
   }
-  MaybeHandle<HeapObject> proto =
-      JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
+  MaybeHandle<HeapObject> proto = JSProxy::GetPrototype(Cast<JSProxy>(handle_));
   if (!proto.ToHandle(&handle_)) return false;
   is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || IsNull(*handle_, isolate_);
   return true;
