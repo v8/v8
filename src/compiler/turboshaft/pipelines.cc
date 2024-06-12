@@ -11,6 +11,8 @@ namespace v8::internal::compiler::turboshaft {
 
 void Pipeline::RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
                                      Linkage* linkage) {
+  Run<turboshaft::DecompressionOptimizationPhase>();
+
   Run<turboshaft::RecreateSchedulePhase>(turbofan_data, linkage);
   TraceSchedule(turbofan_data->info(), turbofan_data, turbofan_data->schedule(),
                 turboshaft::RecreateSchedulePhase::phase_name());

@@ -5038,8 +5038,11 @@ struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
   // but pretending so ensures the we do not remove the debug print even though
   // it is unused. We assume that the debug print doesn't affect memory so that
   // the scheduling of loads is not affected.
-  static constexpr OpEffects effects =
-      OpEffects().CanChangeControlFlow().CanDependOnChecks().CanReadMemory();
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanChangeControlFlow()
+                                           .CanDependOnChecks()
+                                           .CanReadMemory()
+                                           .RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(

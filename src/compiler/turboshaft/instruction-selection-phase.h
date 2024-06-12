@@ -7,6 +7,10 @@
 
 #include "src/compiler/turboshaft/phase.h"
 
+namespace v8::internal {
+class ProfileDataFromFile;
+}
+
 namespace v8::internal::compiler::turboshaft {
 
 // Compute the special reverse-post-order block ordering, which is essentially
@@ -104,6 +108,19 @@ class V8_EXPORT_PRIVATE TurboshaftSpecialRPONumberer {
 };
 
 V8_EXPORT_PRIVATE void PropagateDeferred(Graph& graph);
+
+struct ProfileApplicationPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(ProfileApplication)
+
+  void Run(PipelineData* data, Zone* temp_zone,
+           const ProfileDataFromFile* profile);
+};
+
+struct SpecialRPOSchedulingPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(SpecialRPOScheduling)
+
+  void Run(PipelineData* data, Zone* temp_zone);
+};
 
 struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
