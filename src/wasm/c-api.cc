@@ -1709,6 +1709,11 @@ i::Handle<i::JSReceiver> GetProperException(
   if (IsJSReceiver(*maybe_exception)) {
     return i::Cast<i::JSReceiver>(maybe_exception);
   }
+  if (v8::internal::IsTerminationException(*maybe_exception)) {
+    i::Handle<i::String> string =
+        isolate->factory()->NewStringFromAsciiChecked("TerminationException");
+    return isolate->factory()->NewError(isolate->error_function(), string);
+  }
   i::MaybeHandle<i::String> maybe_string =
       i::Object::ToString(isolate, maybe_exception);
   i::Handle<i::String> string = isolate->factory()->empty_string();
