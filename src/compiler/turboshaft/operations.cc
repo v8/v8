@@ -794,14 +794,17 @@ void DidntThrowOp::Validate(const Graph& graph) const {
   switch (graph.Get(throwing_operation()).opcode) {
     case Opcode::kCall: {
       auto& call_op = graph.Get(throwing_operation()).Cast<CallOp>();
-      DCHECK(call_op.descriptor->out_reps == outputs_rep());
+      DCHECK_EQ(call_op.descriptor->out_reps, outputs_rep());
       break;
     }
-    case Opcode::kFastApiCall: {
-      auto& call_op = graph.Get(throwing_operation()).Cast<FastApiCallOp>();
-      DCHECK(call_op.kOutReps == outputs_rep());
-      break;
-    }
+#define STATIC_OUTPUT_CASE(Name)                                           \
+  case Opcode::k##Name: {                                                  \
+    const Name##Op& op = graph.Get(throwing_operation()).Cast<Name##Op>(); \
+    DCHECK_EQ(op.kOutReps, outputs_rep());                                 \
+    break;                                                                 \
+  }
+      TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(STATIC_OUTPUT_CASE)
+#undef STATIC_OUTPUT_CASE
     default:
       UNREACHABLE();
   }

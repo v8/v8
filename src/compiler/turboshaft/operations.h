@@ -299,11 +299,16 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 // These are operations used in the frontend and are mostly tied to JS
 // semantics.
-#define TURBOSHAFT_JS_OPERATION_LIST(V) \
-  V(SpeculativeNumberBinop)             \
-  V(GenericBinop)                       \
-  V(GenericUnop)                        \
+#define TURBOSHAFT_JS_NON_THROWING_OPERATION_LIST(V) V(SpeculativeNumberBinop)
+
+#define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
+  V(GenericBinop)                                \
+  V(GenericUnop)                                 \
   V(ToNumberOrNumeric)
+
+#define TURBOSHAFT_JS_OPERATION_LIST(V)        \
+  TURBOSHAFT_JS_NON_THROWING_OPERATION_LIST(V) \
+  TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -372,11 +377,16 @@ inline constexpr bool IsBlockTerminator(Opcode opcode) {
   return OpcodeIndex(opcode) < kNumberOfBlockTerminatorOpcodes;
 }
 
+// Operations that can throw and that have static output representations.
+#define TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(V) \
+  TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)                    \
+  V(FastApiCall)
+
 // This list repeats the operations that may throw and need to be followed by
 // `DidntThrow`.
-#define TURBOSHAFT_THROWING_OPERATIONS_LIST(V) \
-  V(Call)                                      \
-  V(FastApiCall)
+#define TURBOSHAFT_THROWING_OPERATIONS_LIST(V)          \
+  TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(V) \
+  V(Call)
 
 // Operations that need to be followed by `DidntThrowOp`.
 inline constexpr bool MayThrow(Opcode opcode) {
@@ -389,6 +399,31 @@ inline constexpr bool MayThrow(Opcode opcode) {
   }
 #undef CASE
 }
+
+// For Throwing operations, outputs_rep() are empty, because the values are
+// produced by the subsequent DidntThrow. Nevertheless, the operation has to
+// define its output representations in an array that DidntThrow can then reuse
+// to know what its outputs are. Additionally, when using Maglev as a frontend,
+// catch handlers that have never been reach so far are not emitted, and instead
+// the throwing operations lazy deopt instead of throwing.
+//
+// That's where the THROWING_OP_BOILERPLATE macro comes in: it creates  an array
+// of representations that DidntThrow can use, and will define outputs_rep() to
+// be empty, and takes care of creating a LazyDeoptOnThrow member. For instance:
+//
+//    THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged(),
+//                            RegisterRepresentation::Word32())
+//
+// Warning: don't forget to add `lazy_deopt_on_throw` to the `options` of your
+// Operation (you'll get a compile-time error if you forget it).
+#define THROWING_OP_BOILERPLATE(...)                                         \
+  static constexpr RegisterRepresentation kOutputRepsStorage[]{__VA_ARGS__}; \
+  static constexpr base::Vector<const RegisterRepresentation> kOutReps =     \
+      base::VectorOf(kOutputRepsStorage, arraysize(kOutputRepsStorage));     \
+  base::Vector<const RegisterRepresentation> outputs_rep() const {           \
+    return {};                                                               \
+  }                                                                          \
+  LazyDeoptOnThrow lazy_deopt_on_throw;
 
 template <typename T>
 inline base::Vector<T> InitVectorOf(
@@ -1342,9 +1377,8 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
   Kind kind;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -1358,11 +1392,14 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
   V<Context> context() const { return input<Context>(3); }
 
   GenericBinopOp(V<Object> left, V<Object> right, V<FrameState> frame_state,
-                 V<Context> context, Kind kind)
-      : Base(left, right, frame_state, context), kind(kind) {}
+                 V<Context> context, Kind kind,
+                 LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(left, right, frame_state, context),
+        kind(kind),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            GenericBinopOp::Kind kind);
@@ -1381,9 +1418,8 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
   Kind kind;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -1395,11 +1431,13 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
   V<Context> context() const { return Base::input<Context>(2); }
 
   GenericUnopOp(V<Object> input, V<FrameState> frame_state, V<Context> context,
-                Kind kind)
-      : Base(input, frame_state, context), kind(kind) {}
+                Kind kind, LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(input, frame_state, context),
+        kind(kind),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            GenericUnopOp::Kind kind);
@@ -1408,9 +1446,9 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   Object::Conversion kind;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
+
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
@@ -1421,11 +1459,14 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   V<Context> context() const { return Base::input<Context>(2); }
 
   ToNumberOrNumericOp(V<Object> input, OpIndex frame_state, V<Context> context,
-                      Object::Conversion kind)
-      : Base(input, frame_state, context), kind(kind) {}
+                      Object::Conversion kind,
+                      LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(input, frame_state, context),
+        kind(kind),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
@@ -6058,27 +6099,18 @@ struct FastApiCallParameters : public NON_EXPORTED_BASE(ZoneObject) {
 struct FastApiCallOp : OperationT<FastApiCallOp> {
   static constexpr uint32_t kSuccessValue = 1;
   static constexpr uint32_t kFailureValue = 0;
-  // We define the kOutReps vector here not as a return value of
-  // `outputs_rep()`, but to be passed to `DidntThrowOp` to be used there for
-  // `outputs_rep()`. The only consumer of the values of `FastApiCallOp` are
-  // `CheckExceptionOp` and `DidntThrowOp`, and `outputs_rep()` is not used for
-  // validation there. However, `DidntThrowOp` passes the return values forward,
-  // so the outputs of `DidntThrowOp` have to have correct type information.
+
+  const FastApiCallParameters* parameters;
+
   // FastApiCallOp has two outputs so far:
   // (1) a `should_fallback` flag, indicating that a slow call should be done;
   // (2) the actual return value, which is always tagged.
   // TODO(ahaas) Remove the `should_fallback` flag once fast api functions don't
   // use it anymore.
-  static constexpr RegisterRepresentation kOutputRepsStorage[]{
-      RegisterRepresentation::Word32(), RegisterRepresentation::Tagged()};
-  static constexpr base::Vector<const RegisterRepresentation> kOutReps =
-      base::VectorOf(kOutputRepsStorage, 2);
-
-  const FastApiCallParameters* parameters;
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Word32(),
+                          RegisterRepresentation::Tagged())
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  // The outputs are produced by the `DidntThrow` operation.
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   // There are three inputs that are not parameters, the frame state, the data
   // argument, and the context.
@@ -6154,7 +6186,9 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   FastApiCallOp(V<FrameState> frame_state, OpIndex data_argument,
                 V<Context> context, base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters)
-      : Base(kNumNonParamInputs + arguments.size()), parameters(parameters) {
+      : Base(kNumNonParamInputs + arguments.size()),
+        parameters(parameters),
+        lazy_deopt_on_throw(LazyDeoptOnThrow::kNo) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = frame_state;
     inputs[1] = data_argument;
@@ -6185,7 +6219,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
                      data_argument, context, arguments, parameters);
   }
 
-  auto options() const { return std::tuple{parameters}; }
+  auto options() const { return std::tuple{parameters, lazy_deopt_on_throw}; }
 };
 
 struct RuntimeAbortOp : FixedArityOperationT<0, RuntimeAbortOp> {
@@ -8743,6 +8777,49 @@ Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
   DCHECK_GE(input_count, op->input_count);
   return op;
 }
+
+// Checking that throwing operations have the required members and options.
+namespace details {
+
+template <typename T, typename Tuple>
+struct TupleHasType;
+
+template <typename T, typename... Ts>
+struct TupleHasType<T, std::tuple<Ts...>> {
+  static constexpr bool value = (std::is_same_v<T, Ts> || ...);
+};
+
+template <typename Op, typename = void>
+struct ThrowingOpHasProperMembers : std::false_type {};
+template <typename Op>
+struct ThrowingOpHasProperMembers<
+    Op, std::void_t<std::conjunction<decltype(Op::kOutputRepsStorage),
+                                     decltype(Op::lazy_deopt_on_throw)>>>
+    : std::true_type {};
+
+template <typename Op, typename = void>
+struct ThrowingOpHasLazyDeoptOption : std::false_type {};
+
+template <typename Op>
+struct ThrowingOpHasLazyDeoptOption<
+    Op, std::enable_if_t<TupleHasType<
+            LazyDeoptOnThrow, decltype(std::declval<Op>().options())>::value>>
+    : std::true_type {};
+
+// CallOp has special handling because its outputs_rep are dynamic (and found on
+// its call descriptor).
+template <>
+struct ThrowingOpHasLazyDeoptOption<CallOp, void> : std::true_type {};
+template <>
+struct ThrowingOpHasProperMembers<CallOp, void> : std::true_type {};
+
+}  // namespace details
+
+#define THROWING_OP_LOOKS_VALID(Name)                             \
+  static_assert(details::ThrowingOpHasProperMembers<Name##Op>()); \
+  static_assert(details::ThrowingOpHasLazyDeoptOption<Name##Op>());
+TURBOSHAFT_THROWING_OPERATIONS_LIST(THROWING_OP_LOOKS_VALID)
+#undef THROWING_OP_LOOKS_VALID
 
 }  // namespace v8::internal::compiler::turboshaft
 

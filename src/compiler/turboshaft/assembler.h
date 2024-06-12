@@ -1037,23 +1037,18 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                             effects);
   }
 
-  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
-                              V<Context> context,
-                              base::Vector<const OpIndex> arguments,
-                              const FastApiCallParameters* parameters) {
-    OpIndex raw_call = Base::ReduceFastApiCall(frame_state, data_argument,
-                                               context, arguments, parameters);
-    OpEffects effects = OpEffects().RequiredWhenUnused().CanCallAnything();
-    bool has_catch_block = CatchIfInCatchScope(raw_call);
-
-    return ReduceDidntThrow(raw_call, has_catch_block,
-                            &Asm()
-                                 .output_graph()
-                                 .Get(raw_call)
-                                 .template Cast<FastApiCallOp>()
-                                 .kOutReps,
-                            effects);
+#define REDUCE_THROWING_OP(Name)                                             \
+  template <typename... Args>                                                \
+  V<Any> Reduce##Name(Args... args) {                                        \
+    OpIndex raw_op_index = Base::Reduce##Name(args...);                      \
+    bool has_catch_block = CatchIfInCatchScope(raw_op_index);                \
+    const Name##Op& raw_op =                                                 \
+        Asm().output_graph().Get(raw_op_index).template Cast<Name##Op>();    \
+    return ReduceDidntThrow(raw_op_index, has_catch_block, &raw_op.kOutReps, \
+                            raw_op.Effects());                               \
   }
+  TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(REDUCE_THROWING_OP)
+#undef REDUCE_THROWING_OP
 
  private:
   // These reduce functions are private, as they should only be emitted
@@ -1238,49 +1233,56 @@ class TurboshaftAssemblerOpInterface
 
   V<Object> GenericBinop(V<Object> left, V<Object> right,
                          V<turboshaft::FrameState> frame_state,
-                         V<Context> context, GenericBinopOp::Kind kind) {
+                         V<Context> context, GenericBinopOp::Kind kind,
+                         LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ReduceIfReachableGenericBinop(left, right, frame_state, context,
-                                         kind);
+                                         kind, lazy_deopt_on_throw);
   }
-#define DECL_GENERIC_BINOP(Name)                                 \
-  V<Object> Generic##Name(V<Object> left, V<Object> right,       \
-                          V<turboshaft::FrameState> frame_state, \
-                          V<Context> context) {                  \
-    return GenericBinop(left, right, frame_state, context,       \
-                        GenericBinopOp::Kind::k##Name);          \
+#define DECL_GENERIC_BINOP(Name)                                              \
+  V<Object> Generic##Name(                                                    \
+      V<Object> left, V<Object> right, V<turboshaft::FrameState> frame_state, \
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {             \
+    return GenericBinop(left, right, frame_state, context,                    \
+                        GenericBinopOp::Kind::k##Name, lazy_deopt_on_throw);  \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP)
 #undef DECL_GENERIC_BINOP
 
   V<Object> GenericUnop(V<Object> input, V<turboshaft::FrameState> frame_state,
-                        V<Context> context, GenericUnopOp::Kind kind) {
-    return ReduceIfReachableGenericUnop(input, frame_state, context, kind);
+                        V<Context> context, GenericUnopOp::Kind kind,
+                        LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return ReduceIfReachableGenericUnop(input, frame_state, context, kind,
+                                        lazy_deopt_on_throw);
   }
-#define DECL_GENERIC_UNOP(Name)                                  \
-  V<Object> Generic##Name(V<Object> input,                       \
-                          V<turboshaft::FrameState> frame_state, \
-                          V<Context> context) {                  \
-    return GenericUnop(input, frame_state, context,              \
-                       GenericUnopOp::Kind::k##Name);            \
+#define DECL_GENERIC_UNOP(Name)                                            \
+  V<Object> Generic##Name(                                                 \
+      V<Object> input, V<turboshaft::FrameState> frame_state,              \
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {          \
+    return GenericUnop(input, frame_state, context,                        \
+                       GenericUnopOp::Kind::k##Name, lazy_deopt_on_throw); \
   }
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
 #undef DECL_GENERIC_UNOP
 
   V<Object> ToNumberOrNumeric(V<Object> input,
                               V<turboshaft::FrameState> frame_state,
-                              V<Context> context, Object::Conversion kind) {
-    return ReduceIfReachableToNumberOrNumeric(input, frame_state, context,
-                                              kind);
+                              V<Context> context, Object::Conversion kind,
+                              LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return ReduceIfReachableToNumberOrNumeric(input, frame_state, context, kind,
+                                              lazy_deopt_on_throw);
   }
   V<Object> ToNumber(V<Object> input, V<turboshaft::FrameState> frame_state,
-                     V<Context> context) {
+                     V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ToNumberOrNumeric(input, frame_state, context,
-                             Object::Conversion::kToNumber);
+                             Object::Conversion::kToNumber,
+                             lazy_deopt_on_throw);
   }
   V<Object> ToNumeric(V<Object> input, V<turboshaft::FrameState> frame_state,
-                      V<Context> context) {
+                      V<Context> context,
+                      LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ToNumberOrNumeric(input, frame_state, context,
-                             Object::Conversion::kToNumeric);
+                             Object::Conversion::kToNumeric,
+                             lazy_deopt_on_throw);
   }
 
 #define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)               \
@@ -2831,8 +2833,8 @@ class TurboshaftAssemblerOpInterface
   std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context,
-              const typename Descriptor::arguments_t& args) {
+              V<Context> context, const typename Descriptor::arguments_t& args,
+              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -2849,7 +2851,8 @@ class TurboshaftAssemblerOpInterface
     return result_t::Cast(CallBuiltinImpl(
         isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
-                           Asm().output_graph().graph_zone()),
+                           Asm().output_graph().graph_zone(),
+                           lazy_deopt_on_throw),
         Descriptor::kEffects));
   }
 
@@ -2881,7 +2884,8 @@ class TurboshaftAssemblerOpInterface
   std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              const typename Descriptor::arguments_t& args) {
+              const typename Descriptor::arguments_t& args,
+              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -2896,7 +2900,8 @@ class TurboshaftAssemblerOpInterface
     return result_t::Cast(CallBuiltinImpl(
         isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
-                           Asm().output_graph().graph_zone()),
+                           Asm().output_graph().graph_zone(),
+                           lazy_deopt_on_throw),
         Descriptor::kEffects));
   }
   template <typename Descriptor>
@@ -2990,37 +2995,41 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                  \
-  V<Object> CallBuiltin_##Name(                                \
-      Isolate* isolate, V<turboshaft::FrameState> frame_state, \
-      V<Context> context, V<Object> lhs, V<Object> rhs) {      \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(  \
-        isolate, frame_state, context, {lhs, rhs});            \
+#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                            \
+  V<Object> CallBuiltin_##Name(                                          \
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,           \
+      V<Context> context, V<Object> lhs, V<Object> rhs,                  \
+      LazyDeoptOnThrow lazy_deopt_on_throw) {                            \
+    return CallBuiltin<typename BuiltinCallDescriptor::Name>(            \
+        isolate, frame_state, context, {lhs, rhs}, lazy_deopt_on_throw); \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
 #undef DECL_GENERIC_BINOP_BUILTIN_CALL
 
-#define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                          \
-  V<Object> CallBuiltin_##Name(Isolate* isolate,                      \
-                               V<turboshaft::FrameState> frame_state, \
-                               V<Context> context, V<Object> input) { \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(         \
-        isolate, frame_state, context, {input});                      \
+#define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                           \
+  V<Object> CallBuiltin_##Name(Isolate* isolate,                       \
+                               V<turboshaft::FrameState> frame_state,  \
+                               V<Context> context, V<Object> input,    \
+                               LazyDeoptOnThrow lazy_deopt_on_throw) { \
+    return CallBuiltin<typename BuiltinCallDescriptor::Name>(          \
+        isolate, frame_state, context, {input}, lazy_deopt_on_throw);  \
   }
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
 #undef DECL_GENERIC_UNOP_BUILTIN_CALL
 
   V<Number> CallBuiltin_ToNumber(Isolate* isolate,
                                  V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input) {
+                                 V<Context> context, V<Object> input,
+                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToNumber>(
-        isolate, frame_state, context, {input});
+        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
   V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate,
                                    V<turboshaft::FrameState> frame_state,
-                                   V<Context> context, V<Object> input) {
+                                   V<Context> context, V<Object> input,
+                                   LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToNumeric>(
-        isolate, frame_state, context, {input});
+        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
 
   void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,

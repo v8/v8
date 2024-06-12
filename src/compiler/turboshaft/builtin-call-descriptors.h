@@ -9,6 +9,7 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/frame.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -20,7 +21,9 @@ struct BuiltinCallDescriptor {
  private:
   template <typename Derived>
   struct Descriptor {
-    static const TSCallDescriptor* Create(StubCallMode call_mode, Zone* zone) {
+    static const TSCallDescriptor* Create(
+        StubCallMode call_mode, Zone* zone,
+        LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
       CallInterfaceDescriptor interface_descriptor =
           Builtins::CallInterfaceDescriptorFor(Derived::kFunction);
       auto descriptor = Linkage::GetStubCallDescriptor(
@@ -35,7 +38,7 @@ struct BuiltinCallDescriptor {
       bool can_throw = !(Derived::kProperties & Operator::kNoThrow);
       return TSCallDescriptor::Create(
           descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo,
-          LazyDeoptOnThrow::kNo, zone);
+          lazy_deopt_on_throw, zone);
     }
 
 #ifdef DEBUG

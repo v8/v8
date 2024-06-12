@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_GLOBALS_H_
 #define V8_COMPILER_GLOBALS_H_
 
+#include <ostream>
+
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/js-objects.h"
@@ -45,6 +47,16 @@ inline Runtime::FunctionId GetBuiltinForStackCheckKind(StackCheckKind kind) {
 
 enum class CanThrow : uint8_t { kNo, kYes };
 enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                LazyDeoptOnThrow lazy_deopt_on_throw) {
+  switch (lazy_deopt_on_throw) {
+    case LazyDeoptOnThrow::kYes:
+      return os << "LazyDeoptOnThrow";
+    case LazyDeoptOnThrow::kNo:
+      return os << "DoNOTLazyDeoptOnThrow";
+  }
+}
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
   switch (kind) {

@@ -2624,31 +2624,37 @@ class GraphBuilder {
 #define PROCESS_GENERIC_BINOP(Name)                                            \
   maglev::ProcessResult Process(maglev::Generic##Name* node,                   \
                                 const maglev::ProcessingState& state) {        \
+    ThrowingScope throwing_scope(this, node);                                  \
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());      \
     SetMap(node,                                                               \
            __ Generic##Name(Map(node->left_input()), Map(node->right_input()), \
-                            frame_state, native_context()));                   \
+                            frame_state, native_context(),                     \
+                            ShouldLazyDeoptOnThrow(node)));                    \
     return maglev::ProcessResult::kContinue;                                   \
   }
   GENERIC_BINOP_LIST(PROCESS_GENERIC_BINOP)
 #undef PROCESS_GENERIC_BINOP
 
-#define PROCESS_GENERIC_UNOP(Name)                                         \
-  maglev::ProcessResult Process(maglev::Generic##Name* node,               \
-                                const maglev::ProcessingState& state) {    \
-    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());  \
-    SetMap(node, __ Generic##Name(Map(node->operand_input()), frame_state, \
-                                  native_context()));                      \
-    return maglev::ProcessResult::kContinue;                               \
+#define PROCESS_GENERIC_UNOP(Name)                                            \
+  maglev::ProcessResult Process(maglev::Generic##Name* node,                  \
+                                const maglev::ProcessingState& state) {       \
+    ThrowingScope throwing_scope(this, node);                                 \
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());     \
+    SetMap(node,                                                              \
+           __ Generic##Name(Map(node->operand_input()), frame_state,          \
+                            native_context(), ShouldLazyDeoptOnThrow(node))); \
+    return maglev::ProcessResult::kContinue;                                  \
   }
   GENERIC_UNOP_LIST(PROCESS_GENERIC_UNOP)
 #undef PROCESS_GENERIC_UNOP
 
   maglev::ProcessResult Process(maglev::ToNumberOrNumeric* node,
                                 const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
     V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     SetMap(node, __ ToNumberOrNumeric(Map(node->value_input()), frame_state,
-                                      native_context(), node->mode()));
+                                      native_context(), node->mode(),
+                                      ShouldLazyDeoptOnThrow(node)));
     return maglev::ProcessResult::kContinue;
   }
 
