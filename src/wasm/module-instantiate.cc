@@ -1756,23 +1756,20 @@ void InstanceBuilder::LoadDataSegments(
 
     const WasmMemory& dst_memory = module_->memories[segment.memory_index];
     size_t dest_offset;
+    ValueOrError result = EvaluateConstantExpression(
+        &init_expr_zone_, segment.dest_addr,
+        dst_memory.is_memory64 ? kWasmI64 : kWasmI32, isolate_,
+        trusted_instance_data, shared_trusted_instance_data);
+    if (MaybeMarkError(result, thrower_)) return;
     if (dst_memory.is_memory64) {
-      ValueOrError result = EvaluateConstantExpression(
-          &init_expr_zone_, segment.dest_addr, kWasmI64, isolate_,
-          trusted_instance_data, shared_trusted_instance_data);
-      if (MaybeMarkError(result, thrower_)) return;
       uint64_t dest_offset_64 = to_value(result).to_u64();
 
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
-      // invalid offset.
+      // invalid offset, so we always fail the bounds check below.
       DCHECK_GT(std::numeric_limits<size_t>::max(), dst_memory.max_memory_size);
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      ValueOrError result = EvaluateConstantExpression(
-          &init_expr_zone_, segment.dest_addr, kWasmI32, isolate_,
-          trusted_instance_data, shared_trusted_instance_data);
-      if (MaybeMarkError(result, thrower_)) return;
       dest_offset = to_value(result).to_u32();
     }
 
@@ -3086,22 +3083,35 @@ void InstanceBuilder::LoadTableSegments(
 
     const uint32_t table_index = elem_segment.table_index;
 
-    bool table_is_shared = module_->tables[table_index].shared;
-
-    ValueOrError maybe_dst = EvaluateConstantExpression(
-        &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_,
+    const WasmTable* table = &module_->tables[table_index];
+    size_t dest_offset;
+    ValueOrError result = EvaluateConstantExpression(
+        &init_expr_zone_, elem_segment.offset,
+        table->is_table64 ? kWasmI64 : kWasmI32, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
-    if (MaybeMarkError(maybe_dst, thrower_)) return;
-    const uint32_t dst = to_value(maybe_dst).to_u32();
+    if (MaybeMarkError(result, thrower_)) return;
+    if (table->is_table64) {
+      uint64_t dest_offset_64 = to_value(result).to_u64();
+      // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
+      // invalid offset, so we always fail the bounds check below.
+      DCHECK_GT(std::numeric_limits<size_t>::max(),
+                v8_flags.wasm_max_table_size);
+      dest_offset = static_cast<size_t>(std::min(
+          dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
+    } else {
+      dest_offset = to_value(result).to_u32();
+    }
+
     const size_t count = elem_segment.element_count;
 
     Handle<WasmTableObject> table_object = handle(
-        WasmTableObject::cast((table_is_shared ? shared_trusted_instance_data
-                                               : trusted_instance_data)
+        WasmTableObject::cast((table->shared ? shared_trusted_instance_data
+                                             : trusted_instance_data)
                                   ->tables()
                                   ->get(table_index)),
         isolate_);
-    if (!base::IsInBounds<size_t>(dst, count, table_object->current_length())) {
+    if (!base::IsInBounds<size_t>(dest_offset, count,
+                                  table_object->current_length())) {
       thrower_->RuntimeError("%s",
                              MessageFormatter::TemplateString(
                                  MessageTemplate::kWasmTrapTableOutOfBounds));
@@ -3118,7 +3128,7 @@ void InstanceBuilder::LoadTableSegments(
 
     if (is_function_table) {
       for (size_t i = 0; i < count; i++) {
-        int entry_index = static_cast<int>(dst + i);
+        int entry_index = static_cast<int>(dest_offset + i);
         ValueOrError computed_element = ConsumeElementSegmentEntry(
             &init_expr_zone_, isolate_, trusted_instance_data,
             shared_trusted_instance_data, elem_segment, decoder,
@@ -3142,7 +3152,7 @@ void InstanceBuilder::LoadTableSegments(
       }
     } else {
       for (size_t i = 0; i < count; i++) {
-        int entry_index = static_cast<int>(dst + i);
+        int entry_index = static_cast<int>(dest_offset + i);
         ValueOrError computed_element = ConsumeElementSegmentEntry(
             &init_expr_zone_, isolate_, trusted_instance_data,
             shared_trusted_instance_data, elem_segment, decoder,

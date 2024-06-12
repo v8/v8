@@ -70,6 +70,8 @@ using MakeSig = FixedSizeSignature<ValueType>;
 
 enum MemoryType { kMemory32, kMemory64 };
 
+enum TableType { kTable32, kTable64 };
+
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
 class TestModuleBuilder {
@@ -116,7 +118,7 @@ class TestModuleBuilder {
   }
 
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
-                   uint32_t maximum_size) {
+                   uint32_t maximum_size, TableType table_type = kTable32) {
     CHECK(type.is_object_reference());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
@@ -124,6 +126,7 @@ class TestModuleBuilder {
     table.initial_size = initial_size;
     table.has_maximum_size = has_maximum_size;
     table.maximum_size = maximum_size;
+    table.is_table64 = table_type == kTable64;
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
 
@@ -160,9 +163,12 @@ class TestModuleBuilder {
     memory.maximum_pages = 100;
   }
 
-  uint8_t InitializeTable(wasm::ValueType type) {
+  uint8_t InitializeTable(wasm::ValueType type,
+                          TableType table_type = kTable32) {
     mod.tables.emplace_back();
-    mod.tables.back().type = type;
+    WasmTable& table = mod.tables.back();
+    table.type = type;
+    table.is_table64 = table_type == kTable64;
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
 
@@ -1593,8 +1599,8 @@ TEST_F(FunctionBodyDecoderTest, LoadMemOffset_varint) {
   builder.InitializeMemory();
   ExpectValidates(sigs.i_i(),
                   {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT, U32V_1(0x45)});
-  ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                               U32V_2(0x3999)});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT, U32V_2(0x3999)});
   ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
                                U32V_3(0x344445)});
   ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
@@ -5413,6 +5419,164 @@ TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
   Validate(false, sigs.i_v(),
            {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
             1 /* memory index */, 0 /* offset */});
+}
+
+/*******************************************************************************
+ * Table64.
+ ******************************************************************************/
+
+class FunctionBodyDecoderTestTable64
+    : public FunctionBodyDecoderTestBase<
+          WithDefaultPlatformMixin<::testing::TestWithParam<TableType>>> {
+ public:
+  FunctionBodyDecoderTestTable64() {
+    if (is_table64()) enabled_features_.Add(kFeature_memory64);
+  }
+
+  bool is_table64() const { return GetParam() == kTable64; }
+};
+
+std::string PrintTableType(::testing::TestParamInfo<TableType> info) {
+  switch (info.param) {
+    case kTable32:
+      return "kTable32";
+    case kTable64:
+      return "kTable64";
+  }
+  UNREACHABLE();
+}
+
+INSTANTIATE_TEST_SUITE_P(Table64Tests, FunctionBodyDecoderTestTable64,
+                         ::testing::Values(kTable32, kTable64), PrintTableType);
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Set) {
+  TableType table_type = GetParam();
+  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+
+  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
+  FunctionSig sig(0, 2, sig_types);
+  uint8_t local_ref = 0;
+  uint8_t local_func = 1;
+
+  Validate(is_table64(), &sig,
+           {WASM_TABLE_SET(tab_ref1, WASM_I64V(6), WASM_LOCAL_GET(local_ref))});
+  Validate(
+      is_table64(), &sig,
+      {WASM_TABLE_SET(tab_func1, WASM_I64V(7), WASM_LOCAL_GET(local_func))});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Get) {
+  TableType table_type = GetParam();
+  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+
+  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
+  FunctionSig sig(0, 2, sig_types);
+  uint8_t local_ref = 0;
+  uint8_t local_func = 1;
+
+  Validate(is_table64(), &sig,
+           {WASM_LOCAL_SET(local_ref, WASM_TABLE_GET(tab_ref1, WASM_I64V(6)))});
+  Validate(
+      is_table64(), &sig,
+      {WASM_LOCAL_SET(local_func, WASM_TABLE_GET(tab_func1, WASM_I64V(5)))});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64CallIndirect) {
+  TableType table_type = GetParam();
+  const FunctionSig* sig = sigs.i_i();
+  builder.AddTable(kWasmFuncRef, 20, false, 20, table_type);
+
+  uint8_t sig0 = builder.AddSignature(sigs.i_v());
+  uint8_t sig1 = builder.AddSignature(sigs.i_i());
+  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+
+  Validate(is_table64(), sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO64)});
+  Validate(is_table64(), sig,
+           {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO64)});
+  Validate(is_table64(), sig,
+           {WASM_CALL_INDIRECT(sig2, WASM_I32V_1(32), WASM_I32V_2(72),
+                               WASM_ZERO64)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64ReturnCallIndirect) {
+  TableType table_type = GetParam();
+  const FunctionSig* sig = sigs.i_i();
+  builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+
+  uint8_t sig0 = builder.AddSignature(sigs.i_v());
+  uint8_t sig1 = builder.AddSignature(sigs.i_i());
+  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+
+  Validate(is_table64(), sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO64)});
+  Validate(is_table64(), sig,
+           {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO64)});
+  Validate(is_table64(), sig,
+           {WASM_RETURN_CALL_INDIRECT(sig2, WASM_I32V_1(32), WASM_I32V_2(72),
+                                      WASM_ZERO64)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Grow) {
+  TableType table_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
+  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+
+  Validate(
+      is_table64(), sigs.l_c(),
+      {WASM_TABLE_GROW(tab_func, WASM_REF_NULL(kFuncRefCode), WASM_ONE64)});
+  Validate(
+      is_table64(), sigs.l_a(),
+      {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL(kExternRefCode), WASM_ONE64)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Size) {
+  TableType table_type = GetParam();
+  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
+  Validate(is_table64(), sigs.l_v(), {WASM_TABLE_SIZE(tab)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Fill) {
+  TableType table_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
+  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  Validate(is_table64(), sigs.v_c(),
+           {WASM_TABLE_FILL(tab_func, WASM_ONE64, WASM_REF_NULL(kFuncRefCode),
+                            WASM_ONE64)});
+  Validate(is_table64(), sigs.v_a(),
+           {WASM_TABLE_FILL(tab_ref, WASM_ONE64, WASM_REF_NULL(kExternRefCode),
+                            WASM_ONE64)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Init) {
+  TableType table_type = GetParam();
+  uint8_t tab_func = builder.InitializeTable(kWasmFuncRef, table_type);
+  uint8_t elem_seg = builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
+
+  Validate(
+      is_table64(), sigs.v_v(),
+      {WASM_TABLE_INIT(tab_func, elem_seg, WASM_ZERO64, WASM_ZERO, WASM_ZERO)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64Copy) {
+  TableType table_type = GetParam();
+  uint8_t table = builder.InitializeTable(wasm::kWasmVoid, table_type);
+
+  Validate(
+      is_table64(), sigs.v_v(),
+      {WASM_TABLE_COPY(table, table, WASM_ZERO64, WASM_ZERO64, WASM_ZERO64)});
+}
+
+TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
+  TableType table_type = GetParam();
+  uint8_t table = builder.InitializeTable(wasm::kWasmVoid, table_type);
+  uint8_t table_diff_type = builder.InitializeTable(
+      wasm::kWasmVoid, table_type == kTable32 ? kTable64 : kTable32);
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_COPY(table, table_diff_type, WASM_ZERO64,
+                                 WASM_ZERO64, WASM_ZERO64)},
+                kAppendEnd, "copying between tables of different type");
 }
 
 #undef B1

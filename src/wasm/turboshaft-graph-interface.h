@@ -83,6 +83,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   using Word32 = compiler::turboshaft::Word32;
   using Word64 = compiler::turboshaft::Word64;
   using WordPtr = compiler::turboshaft::WordPtr;
+  using Word = compiler::turboshaft::Word;
   using Any = compiler::turboshaft::Any;
 
   template <typename T>

@@ -197,7 +197,7 @@ builtin WasmMemoryGrow(memIndex: int32, numPages: int32): int32 {
 }
 
 builtin WasmTableInit(
-    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
+    dstRaw: intptr, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
     segmentIndex: Smi, extractSharedData: Smi): JSAny {
   try {
     const trustedData: WasmTrustedInstanceData =
@@ -214,7 +214,7 @@ builtin WasmTableInit(
 }
 
 builtin WasmTableCopy(
-    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, dstTable: Smi,
+    dstRaw: intptr, srcRaw: intptr, sizeRaw: intptr, dstTable: Smi,
     srcTable: Smi, extractSharedData: Smi): JSAny {
   try {
     const trustedData: WasmTrustedInstanceData =
@@ -231,7 +231,7 @@ builtin WasmTableCopy(
 }
 
 builtin WasmTableFill(
-    startRaw: uint32, countRaw: uint32, extractSharedData: bool, table: Smi,
+    startRaw: intptr, countRaw: intptr, extractSharedData: bool, table: Smi,
     value: Object): JSAny {
   try {
     const trustedData: WasmTrustedInstanceData =
@@ -249,7 +249,7 @@ builtin WasmTableFill(
 }
 
 builtin WasmTableGrow(
-    table: Smi, deltaRaw: uint32, extractSharedData: bool, value: Object): Smi {
+    table: Smi, deltaRaw: intptr, extractSharedData: bool, value: Object): Smi {
   try {
     const trustedData: WasmTrustedInstanceData =
         LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
@@ -263,20 +263,20 @@ builtin WasmTableGrow(
   }
 }
 
-builtin WasmTableGet(tableIndex: intptr, index: uint32): Object {
+builtin WasmTableGet(tableIndex: intptr, index: intptr): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
-    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
-    if (index >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uintptr =
+        Unsigned(ChangeInt32ToIntPtr(SmiToInt32(table.current_length)));
+    if (Unsigned(index) >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
-    const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+    const entry: Object = LoadFixedArrayElement(entries, index);
     return entry;
   } label IndexOutOfRange deferred {
     tail ThrowWasmTrapTableOutOfBounds();
@@ -284,11 +284,10 @@ builtin WasmTableGet(tableIndex: intptr, index: uint32): Object {
 }
 
 builtin WasmTableSet(
-    tableIndex: intptr, extractSharedData: bool, index: uint32,
+    tableIndex: intptr, extractSharedData: bool, index: intptr,
     value: Object): Object {
   const trustedData: WasmTrustedInstanceData =
       LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
-  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
@@ -296,11 +295,12 @@ builtin WasmTableSet(
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
 
-    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
-    if (index >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uintptr =
+        Unsigned(ChangeInt32ToIntPtr(SmiToInt32(table.current_length)));
+    if (Unsigned(index) >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
-    StoreFixedArrayElement(entries, entryIndex, value);
+    StoreFixedArrayElement(entries, index, value);
     return Undefined;
   } label IndexOutOfRange deferred {
     tail ThrowWasmTrapTableOutOfBounds();
@@ -308,21 +308,21 @@ builtin WasmTableSet(
 }
 
 // Returns WasmFuncRef or WasmNull, or throws an exception.
-builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
+builtin WasmTableGetFuncRef(tableIndex: intptr, index: intptr): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
-    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
-    if (index >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uintptr =
+        Unsigned(ChangeInt32ToIntPtr(SmiToInt32(table.current_length)));
+    if (Unsigned(index) >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
     const entry: HeapObject =
-        UnsafeCast<HeapObject>(LoadFixedArrayElement(entries, entryIndex));
+        UnsafeCast<HeapObject>(LoadFixedArrayElement(entries, index));
 
     dcheck(Is<WasmFuncRef>(entry) || Is<WasmNull>(entry) || Is<Tuple2>(entry));
     if (IsTuple2Map(entry.map)) goto CallRuntime;
@@ -332,7 +332,7 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
   } label CallRuntime deferred {
     tail runtime::WasmFunctionTableGet(
         LoadContextFromInstanceData(trustedData), trustedData,
-        SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex));
+        SmiFromIntPtr(tableIndex), SmiFromIntPtr(index));
   } label IndexOutOfRange deferred {
     tail ThrowWasmTrapTableOutOfBounds();
   }
@@ -341,21 +341,22 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
 // Stub to wrap around the slow path (runtime call) of table.get for funcref
 // tables for which the reference is not yet initialized.
 builtin WasmFunctionTableGet(
-    tableIndex: intptr, index: int32, extractSharedData: bool): Object {
+    tableIndex: intptr, index: intptr, extractSharedData: bool): Object {
   const trustedData: WasmTrustedInstanceData =
       LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+  dcheck(IsValidPositiveSmi(tableIndex));
+  dcheck(IsValidPositiveSmi(index));
   tail runtime::WasmFunctionTableGet(
       LoadContextFromInstanceData(trustedData), trustedData,
-      SmiFromIntPtr(tableIndex), SmiFromInt32(index));
+      SmiFromIntPtr(tableIndex), SmiFromIntPtr(index));
 }
 
 builtin WasmTableSetFuncRef(
-    tableIndex: intptr, extractSharedData: bool, index: uint32,
+    tableIndex: intptr, extractSharedData: bool, index: intptr,
     value: WasmFuncRef): Object {
   const trustedData: WasmTrustedInstanceData =
       LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
   dcheck(Is<WasmFuncRef>(value) || Is<WasmNull>(value));
-  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
@@ -363,12 +364,13 @@ builtin WasmTableSetFuncRef(
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
 
-    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
-    if (index >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uintptr =
+        Unsigned(ChangeInt32ToIntPtr(SmiToInt32(table.current_length)));
+    if (Unsigned(index) >= entriesCount) goto IndexOutOfRange;
 
     tail runtime::WasmFunctionTableSet(
         LoadContextFromInstanceData(trustedData), trustedData,
-        SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex), value);
+        SmiFromIntPtr(tableIndex), SmiFromIntPtr(index), value);
   } label IndexOutOfRange deferred {
     tail ThrowWasmTrapTableOutOfBounds();
   }

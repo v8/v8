@@ -1524,10 +1524,9 @@ class WasmGraphBuildingInterface {
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
-                 const Value* args) {
-    builder_->TableInit(imm.table.index, imm.element_segment.index,
-                        args[0].node, args[1].node, args[2].node,
-                        decoder->position());
+                 const Value& dst, const Value& src, const Value& size) {
+    builder_->TableInit(imm.table.index, imm.element_segment.index, dst.node,
+                        src.node, size.node, decoder->position());
   }
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
@@ -1535,15 +1534,16 @@ class WasmGraphBuildingInterface {
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
-                 const Value args[]) {
-    builder_->TableCopy(imm.table_dst.index, imm.table_src.index, args[0].node,
-                        args[1].node, args[2].node, decoder->position());
+                 const Value& dst, const Value& src, const Value& size) {
+    builder_->TableCopy(imm.table_dst.index, imm.table_src.index, dst.node,
+                        src.node, size.node, decoder->position());
   }
 
   void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& value, const Value& delta, Value* result) {
     SetAndTypeNode(result,
-                   builder_->TableGrow(imm.index, value.node, delta.node));
+                   builder_->TableGrow(imm.index, value.node, delta.node,
+                                       decoder->position()));
   }
 
   void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
@@ -1553,7 +1553,8 @@ class WasmGraphBuildingInterface {
 
   void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
-    builder_->TableFill(imm.index, start.node, value.node, count.node);
+    builder_->TableFill(imm.index, start.node, value.node, count.node,
+                        decoder->position());
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,

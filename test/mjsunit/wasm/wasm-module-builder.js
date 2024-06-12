@@ -1222,7 +1222,7 @@ function checkExpr(expr) {
 }
 
 class WasmTableBuilder {
-  constructor(module, type, initial_size, max_size, init_expr, is_shared) {
+  constructor(module, type, initial_size, max_size, init_expr, is_shared, is_table64) {
     // TODO(manoskouk): Add the table index.
     this.module = module;
     this.type = type;
@@ -1232,6 +1232,7 @@ class WasmTableBuilder {
     this.init_expr = init_expr;
     this.has_init = init_expr !== undefined;
     this.is_shared = is_shared;
+    this.is_table64 = is_table64;
   }
 
   exportAs(name) {
@@ -1448,18 +1449,26 @@ class WasmModuleBuilder {
     return glob;
   }
 
-  addTable(type, initial_size, max_size = undefined, init_expr = undefined,
-           is_shared = false) {
+  addTable(
+      type, initial_size, max_size = undefined, init_expr = undefined,
+      is_shared = false, is_table64 = false) {
     if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
         type == kWasmF64 || type == kWasmS128 || type == kWasmVoid) {
       throw new Error('Tables must be of a reference type');
     }
     if (init_expr != undefined) checkExpr(init_expr);
     let table = new WasmTableBuilder(
-        this, type, initial_size, max_size, init_expr, is_shared);
+        this, type, initial_size, max_size, init_expr, is_shared, is_table64);
     table.index = this.tables.length + this.num_imported_tables;
     this.tables.push(table);
     return table;
+  }
+
+  addTable64(
+      type, initial_size, max_size = undefined, init_expr = undefined,
+      is_shared = false) {
+    return this.addTable(
+        type, initial_size, max_size, init_expr, is_shared, true);
   }
 
   addTag(type) {
@@ -1833,10 +1842,13 @@ class WasmModuleBuilder {
             section.emit_u8(0x00);  // Reserved byte.
           }
           section.emit_type(table.type);
-          section.emit_u8((table.has_max ? 1 : 0) |
-                          (table.is_shared ? 0b10 : 0));
-          section.emit_u32v(table.initial_size);
-          if (table.has_max) section.emit_u32v(table.max_size);
+          let limits_byte = (table.is_table64 ? 4 : 0) |
+              (table.is_shared ? 2 : 0) | (table.has_max ? 1 : 0);
+          section.emit_u8(limits_byte);
+          let emit = val => table.is_table64 ? section.emit_u64v(val) :
+                                               section.emit_u32v(val);
+          emit(table.initial_size);
+          if (table.has_max) emit(table.max_size);
           if (table.has_init) section.emit_init_expr(table.init_expr);
         }
       });

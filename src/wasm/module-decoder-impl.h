@@ -2388,7 +2388,10 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->Description(", offset:");
         tracer_->NextLine();
       }
-      offset = consume_init_expr(module_.get(), kWasmI32, is_shared);
+      offset = consume_init_expr(
+          module_.get(),
+          module_->tables[table_index].is_table64 ? kWasmI64 : kWasmI32,
+          is_shared);
       // Failed to parse offset initializer, return early.
       if (failed()) return {};
     }

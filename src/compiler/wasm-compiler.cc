@@ -2962,6 +2962,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Bounds check the index.
   Node* index = args[0];
   const wasm::WasmTable& table = env_->module->tables[table_index];
+  TableTypeToUintPtrOrOOBTrap(table.is_table64, {&index}, position);
   const bool needs_dynamic_size =
       !table.has_maximum_size || table.maximum_size != table.initial_size;
   Node* table_size =
@@ -2970,7 +2971,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                 MachineType::Int32(), dispatch_table,
                 wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset))
           : Int32Constant(table.initial_size);
-  Node* in_bounds = gasm_->Uint32LessThan(index, table_size);
+  Node* in_bounds = Is64() ? gasm_->Uint64LessThan(
+                                 index, gasm_->ChangeUint32ToUint64(table_size))
+                           : gasm_->Uint32LessThan(index, table_size);
   TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
 
   wasm::ValueType table_type = env_->module->tables[table_index].type;
@@ -2979,11 +2982,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
       env_->module);
   bool needs_null_check = table_type.is_nullable();
 
-  Node* index_intptr = gasm_->BuildChangeUint32ToUintPtr(index);
   Node* dispatch_table_entry_offset = gasm_->IntAdd(
       gasm_->IntPtrConstant(
           wasm::ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset)),
-      gasm_->IntMul(index_intptr,
+      gasm_->IntMul(index,
                     gasm_->IntPtrConstant(WasmDispatchTable::kEntrySize)));
 
   // Skip check if table type matches declared signature.
@@ -3550,6 +3552,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
   auto stub =
       is_funcref ? Builtin::kWasmTableGetFuncRef : Builtin::kWasmTableGet;
 
+  TableTypeToUintPtrOrOOBTrap(table.is_table64, {&index}, position);
   return gasm_->CallBuiltinThroughJumptable(
       stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index);
 }
@@ -3560,7 +3563,7 @@ void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
   bool is_funcref = IsSubtypeOf(table.type, wasm::kWasmFuncRef, env_->module);
   auto stub =
       is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
-
+  TableTypeToUintPtrOrOOBTrap(table.is_table64, {&index}, position);
   gasm_->CallBuiltinThroughJumptable(stub, Operator::kNoThrow,
                                      gasm_->IntPtrConstant(table_index),
                                      gasm_->Int32Constant(0), index, val);
@@ -5313,13 +5316,27 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
     bool is_memory64, std::initializer_list<Node**> nodes,
     wasm::WasmCodePosition position) {
-  if (!is_memory64) {
+  MemOrTableTypeToUintPtrOrOOBTrap(is_memory64, nodes, position,
+                                   wasm::kTrapMemOutOfBounds);
+}
+
+void WasmGraphBuilder::TableTypeToUintPtrOrOOBTrap(
+    bool is_table64, std::initializer_list<Node**> nodes,
+    wasm::WasmCodePosition position) {
+  MemOrTableTypeToUintPtrOrOOBTrap(is_table64, nodes, position,
+                                   wasm::kTrapTableOutOfBounds);
+}
+
+void WasmGraphBuilder::MemOrTableTypeToUintPtrOrOOBTrap(
+    bool index_type_is_64bit, std::initializer_list<Node**> nodes,
+    wasm::WasmCodePosition position, wasm::TrapReason trap_reason) {
+  if (!index_type_is_64bit) {
     for (Node** node : nodes) {
       *node = gasm_->BuildChangeUint32ToUintPtr(*node);
     }
     return;
   }
-  if (kSystemPointerSize == kInt64Size) return;  // memory64 on 64-bit
+  if constexpr (Is64()) return;
   Node* any_high_word = nullptr;
   for (Node** node : nodes) {
     Node* high_word =
@@ -5329,7 +5346,7 @@ void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
     // Only keep the low word as uintptr_t.
     *node = gasm_->TruncateInt64ToInt32(*node);
   }
-  TrapIfTrue(wasm::kTrapMemOutOfBounds, any_high_word, position);
+  TrapIfTrue(trap_reason, any_high_word, position);
 }
 
 void WasmGraphBuilder::MemoryCopy(const wasm::WasmMemory* dst_memory,
@@ -5377,6 +5394,8 @@ void WasmGraphBuilder::TableInit(uint32_t table_index,
                                  uint32_t elem_segment_index, Node* dst,
                                  Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
+  const wasm::WasmTable& table = env_->module->tables[table_index];
+  TableTypeToUintPtrOrOOBTrap(table.is_table64, {&dst}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableInit, Operator::kNoThrow, dst, src, size,
       gasm_->NumberConstant(table_index),
@@ -5400,6 +5419,18 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                  uint32_t table_src_index, Node* dst, Node* src,
                                  Node* size, wasm::WasmCodePosition position) {
+  const wasm::WasmTable& table_dst = env_->module->tables[table_dst_index];
+  const wasm::WasmTable& table_src = env_->module->tables[table_src_index];
+  // TODO(crbug.com/338024338): Merge the `TableTypeToUintPtrOrOOBTrap` calls
+  // into one. This would result in smaller graphs because we would have a
+  // single `TrapIf` node that uses the combined high words of `dst`, `src`, and
+  // `size`.
+  TableTypeToUintPtrOrOOBTrap(table_dst.is_table64, {&dst}, position);
+  TableTypeToUintPtrOrOOBTrap(table_src.is_table64, {&src}, position);
+  // TODO(crbug.com/345274931): Allow copying between table32 and table64, and
+  // take the type of the table that has smaller size.
+  DCHECK_EQ(table_src.is_table64, table_dst.is_table64);
+  TableTypeToUintPtrOrOOBTrap(table_src.is_table64, {&size}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableCopy, Operator::kNoThrow, dst, src, size,
       gasm_->NumberConstant(table_dst_index),
@@ -5407,11 +5438,32 @@ void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
-                                  Node* delta) {
-  return gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltinThroughJumptable(
-      Builtin::kWasmTableGrow, Operator::kNoThrow,
-      gasm_->NumberConstant(table_index), delta, gasm_->Int32Constant(0),
-      value));
+                                  Node* delta,
+                                  wasm::WasmCodePosition position) {
+  const wasm::WasmTable& table = env_->module->tables[table_index];
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+
+  // If `delta` is OOB, return -1.
+  if (!table.is_table64) {
+    delta = gasm_->BuildChangeUint32ToUintPtr(delta);
+  } else if constexpr (!Is64()) {
+    Node* high_word =
+        gasm_->TruncateInt64ToInt32(gasm_->Word64Shr(delta, Int32Constant(32)));
+    gasm_->GotoIf(high_word, &done, Int32Constant(-1));
+    delta = gasm_->TruncateInt64ToInt32(delta);
+  }
+
+  Node* result =
+      gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltinThroughJumptable(
+          Builtin::kWasmTableGrow, Operator::kNoThrow,
+          gasm_->NumberConstant(table_index), delta, gasm_->Int32Constant(0),
+          value));
+  gasm_->Goto(&done, result);
+
+  gasm_->Bind(&done);
+  result = done.PhiAt(0);
+
+  return table.is_table64 ? gasm_->ChangeInt32ToInt64(result) : result;
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
@@ -5423,12 +5475,16 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
   Node* length_smi = gasm_->LoadFromObject(
       assert_size(length_field_size, MachineType::TaggedSigned()), table,
       wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset));
-
-  return gasm_->BuildChangeSmiToInt32(length_smi);
+  Node* length32 = gasm_->BuildChangeSmiToInt32(length_smi);
+  return env_->module->tables[table_index].is_table64
+             ? gasm_->ChangeInt32ToInt64(length32)
+             : length32;
 }
 
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
-                                 Node* count) {
+                                 Node* count, wasm::WasmCodePosition position) {
+  const wasm::WasmTable& table = env_->module->tables[table_index];
+  TableTypeToUintPtrOrOOBTrap(table.is_table64, {&start, &count}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableFill, Operator::kNoThrow, start, count,
       gasm_->Int32Constant(false), gasm_->NumberConstant(table_index), value);
