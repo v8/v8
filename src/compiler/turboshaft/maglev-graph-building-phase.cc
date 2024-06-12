@@ -660,17 +660,48 @@ class GraphBuilder {
     }
 
     if (node->has_feedback()) {
-      arguments.push_back(__ TaggedIndexConstant(node->feedback().index()));
+      V<Any> feedback_slot;
+      switch (node->slot_type()) {
+        case maglev::CallBuiltin::kTaggedIndex:
+          feedback_slot = __ TaggedIndexConstant(node->feedback().index());
+          break;
+        case maglev::CallBuiltin::kSmi:
+          feedback_slot = __ WordPtrConstant(node->feedback().index());
+          break;
+      }
+      arguments.push_back(feedback_slot);
       arguments.push_back(__ HeapConstant(node->feedback().vector));
     }
 
-    if (Builtins::CallInterfaceDescriptorFor(node->builtin())
-            .HasContextParameter()) {
+    auto descriptor = Builtins::CallInterfaceDescriptorFor(node->builtin());
+    if (descriptor.HasContextParameter()) {
       arguments.push_back(Map(node->context_input()));
     }
 
-    V<Any> call_idx = GenerateBuiltinCall(node, node->builtin(), frame_state,
-                                          base::VectorOf(arguments));
+    int stack_arg_count =
+        node->InputCountWithoutContext() - node->InputsInRegisterCount();
+    if (node->has_feedback()) {
+      // We might need to take the feedback slot and vector into account for
+      // {stack_arg_count}. There are three possibilities:
+      // 1. Feedback slot and vector are in register.
+      // 2. Feedback slot is in register and vector is on stack.
+      // 3. Feedback slot and vector are on stack.
+      int slot_index = node->InputCountWithoutContext();
+      int vector_index = slot_index + 1;
+      if (vector_index < descriptor.GetRegisterParameterCount()) {
+        // stack_arg_count is already correct.
+      } else if (vector_index == descriptor.GetRegisterParameterCount()) {
+        // feedback vector is on the stack
+        stack_arg_count += 1;
+      } else {
+        // feedback slot and vector on the stack
+        stack_arg_count += 2;
+      }
+    }
+
+    V<Any> call_idx =
+        GenerateBuiltinCall(node, node->builtin(), frame_state,
+                            base::VectorOf(arguments), stack_arg_count);
     const Operation& call_op = __ output_graph().Get(call_idx);
     if (const TupleOp* tuple = call_op.TryCast<TupleOp>()) {
       // If the builtin call returned multiple values, then in Maglev, {node} is
