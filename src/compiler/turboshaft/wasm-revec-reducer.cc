@@ -448,50 +448,15 @@ bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
   return true;
 }
 
-std::pair<bool, bool> IsPackableSignExtensionOp(Operation& op0,
-                                                Operation& op1) {
-#define UNOP_CASE(op_low, not_used, op_high)          \
-  case Simd128UnaryOp::Kind::k##op_low: {             \
-    if (const Simd128UnaryOp* unop1 =                 \
-            op1.TryCast<Opmask::kSimd128##op_high>(); \
-        unop1 && unop0->input() == unop1->input()) {  \
-      return {true, true};                            \
-    }                                                 \
-    [[fallthrough]];                                  \
-  }                                                   \
-  case Simd128UnaryOp::Kind::k##op_high:              \
-    return {true, false};
-
-#define BINOP_CASE(op_low, not_used, op_high)         \
-  case Simd128BinopOp::Kind::k##op_low: {             \
-    if (const Simd128BinopOp* binop1 =                \
-            op1.TryCast<Opmask::kSimd128##op_high>(); \
-        binop1 && binop1->left() == binop0->left() && \
-        binop1->right() == binop0->right()) {         \
-      return {true, true};                            \
-    }                                                 \
-    [[fallthrough]];                                  \
-  }                                                   \
-  case Simd128BinopOp::Kind::k##op_high:              \
-    return {true, false};
-
-  if (const Simd128BinopOp* binop0 = op0.TryCast<Simd128BinopOp>()) {
-    switch (binop0->kind) {
-      SIMD256_BINOP_SIGN_EXTENSION_OP(BINOP_CASE)
-      default:
-        return {false, false};
-    }
-  } else if (const Simd128UnaryOp* unop0 = op0.TryCast<Simd128UnaryOp>()) {
-    switch (unop0->kind) {
-      SIMD256_UNARY_SIGN_EXTENSION_OP(UNOP_CASE)
-      default:
-        return {false, false};
-    }
-  } else {
-    return {false, false};
+bool IsSignExtensionOp(Operation& op) {
+  if (const Simd128UnaryOp* unop = op.TryCast<Simd128UnaryOp>()) {
+    return unop->kind >= Simd128UnaryOp::Kind::kFirstSignExtensionOp &&
+           unop->kind <= Simd128UnaryOp::Kind::kLastSignExtensionOp;
+  } else if (const Simd128BinopOp* binop = op.TryCast<Simd128BinopOp>()) {
+    return binop->kind >= Simd128BinopOp::Kind::kFirstSignExtensionOp &&
+           binop->kind <= Simd128BinopOp::Kind::kLastSignExtensionOp;
   }
-#undef UNOP_CASE
-#undef BINOP_CASE
+  return false;
 }
 
 bool SLPTree::CanBePacked(const NodeGroup& node_group) {
@@ -517,16 +482,9 @@ bool SLPTree::CanBePacked(const NodeGroup& node_group) {
     return false;
   }
 
-  auto [is_sign_ext, is_packable_sign_ext] =
-      IsPackableSignExtensionOp(op0, op1);
-  if (is_sign_ext) {
-    if (!is_packable_sign_ext) {
-      TRACE("Illegal sign extension op pair");
-    }
-    return is_packable_sign_ext;
-  }
+  auto is_sign_ext = IsSignExtensionOp(op0) && IsSignExtensionOp(op1);
 
-  if (!IsSameOpAndKind(op0, op1)) {
+  if (!is_sign_ext && !IsSameOpAndKind(op0, op1)) {
     TRACE("(%s, %s) have different op\n", GetSimdOpcodeName(op0).c_str(),
           GetSimdOpcodeName(op1).c_str());
     return false;
@@ -714,13 +672,27 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
     case Opcode::kSimd128Unary: {
 #define UNARY_CASE(op_128, not_used) case Simd128UnaryOp::Kind::k##op_128:
-#define UNARY_SING_EXTENSION_CASE(op_low, not_used1, not_used2) \
-  case Simd128UnaryOp::Kind::k##op_low:
+#define UNARY_SIGN_EXTENSION_CASE(op_low, not_used1, op_high)                 \
+  case Simd128UnaryOp::Kind::k##op_low: {                                     \
+    if (const Simd128UnaryOp* unop1 =                                         \
+            op1.TryCast<Opmask::kSimd128##op_high>();                         \
+        unop1 && op0.Cast<Simd128UnaryOp>().input() == unop1->input()) {      \
+      return NewPackNode(node_group);                                         \
+    }                                                                         \
+    [[fallthrough]];                                                          \
+  }                                                                           \
+  case Simd128UnaryOp::Kind::k##op_high: {                                    \
+    if (op1.Cast<Simd128UnaryOp>().kind == op0.Cast<Simd128UnaryOp>().kind) { \
+      auto force_pack_type = node0 == node1                                   \
+                                 ? PackNode::ForcePackType::kSplat            \
+                                 : PackNode::ForcePackType::kGeneral;         \
+      return NewForcePackNode(node_group, force_pack_type, graph_);           \
+    } else {                                                                  \
+      return nullptr;                                                         \
+    }                                                                         \
+  }
       switch (op0.Cast<Simd128UnaryOp>().kind) {
-        SIMD256_UNARY_SIGN_EXTENSION_OP(UNARY_SING_EXTENSION_CASE) {
-          TRACE("Added a vector of sign extension unop and stop build tree\n");
-          return NewPackNode(node_group);
-        }
+        SIMD256_UNARY_SIGN_EXTENSION_OP(UNARY_SIGN_EXTENSION_CASE)
         SIMD256_UNARY_SIMPLE_OP(UNARY_CASE) {
           TRACE("Added a vector of Unary\n");
           PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
@@ -734,16 +706,32 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         }
       }
 #undef UNARY_CASE
+#undef UNARY_SIGN_EXTENSION_CASE
     }
     case Opcode::kSimd128Binop: {
 #define BINOP_CASE(op_128, not_used) case Simd128BinopOp::Kind::k##op_128:
-#define BINOP_SING_EXTENSION_CASE(op_low, not_used1, not_used2) \
-  case Simd128BinopOp::Kind::k##op_low:
+#define BINOP_SIGN_EXTENSION_CASE(op_low, not_used1, op_high)                 \
+  case Simd128BinopOp::Kind::k##op_low: {                                     \
+    if (const Simd128BinopOp* binop1 =                                        \
+            op1.TryCast<Opmask::kSimd128##op_high>();                         \
+        binop1 && op0.Cast<Simd128BinopOp>().left() == binop1->left() &&      \
+        op0.Cast<Simd128BinopOp>().right() == binop1->right()) {              \
+      return NewPackNode(node_group);                                         \
+    }                                                                         \
+    [[fallthrough]];                                                          \
+  }                                                                           \
+  case Simd128BinopOp::Kind::k##op_high: {                                    \
+    if (op1.Cast<Simd128BinopOp>().kind == op0.Cast<Simd128BinopOp>().kind) { \
+      auto force_pack_type = node0 == node1                                   \
+                                 ? PackNode::ForcePackType::kSplat            \
+                                 : PackNode::ForcePackType::kGeneral;         \
+      return NewForcePackNode(node_group, force_pack_type, graph_);           \
+    } else {                                                                  \
+      return nullptr;                                                         \
+    }                                                                         \
+  }
       switch (op0.Cast<Simd128BinopOp>().kind) {
-        SIMD256_BINOP_SIGN_EXTENSION_OP(BINOP_SING_EXTENSION_CASE) {
-          TRACE("Added a vector of sign extension binop and stop build tree\n");
-          return NewPackNode(node_group);
-        }
+        SIMD256_BINOP_SIGN_EXTENSION_OP(BINOP_SIGN_EXTENSION_CASE)
         SIMD256_BINOP_SIMPLE_OP(BINOP_CASE) {
           TRACE("Added a vector of Binop\n");
           PackNode* pnode =
@@ -757,7 +745,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         }
       }
 #undef BINOP_CASE
-#undef BINOP_SING_EXTENSION_CASE
+#undef BINOP_SIGN_EXTENSION_CASE
     }
     case Opcode::kSimd128Shift: {
       Simd128ShiftOp& shift_op0 = op0.Cast<Simd128ShiftOp>();

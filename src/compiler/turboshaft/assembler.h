@@ -4282,6 +4282,7 @@ class TurboshaftAssemblerOpInterface
 
   V<Simd256> Simd256Unary(V<Simd128> input, Simd256UnaryOp::Kind kind) {
     DCHECK_GE(kind, Simd256UnaryOp::Kind::kFirstSignExtensionOp);
+    DCHECK_LE(kind, Simd256UnaryOp::Kind::kLastSignExtensionOp);
     return ReduceIfReachableSimd256Unary(input, kind);
   }
 
@@ -4293,6 +4294,7 @@ class TurboshaftAssemblerOpInterface
   V<Simd256> Simd256Binop(V<Simd128> left, V<Simd128> right,
                           Simd256BinopOp::Kind kind) {
     DCHECK_GE(kind, Simd256BinopOp::Kind::kFirstSignExtensionOp);
+    DCHECK_LE(kind, Simd256BinopOp::Kind::kLastSignExtensionOp);
     return ReduceIfReachableSimd256Binop(left, right, kind);
   }
 

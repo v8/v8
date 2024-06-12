@@ -7222,11 +7222,15 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   FOREACH_SIMD_128_BINARY_SPECIAL_OPCODE(V)
 
 struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
+  // clang-format off
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_128_BINARY_OPCODE(DEFINE_KIND)
+    kFirstSignExtensionOp = kI16x8ExtMulLowI8x16S,
+    kLastSignExtensionOp = kI64x2ExtMulHighI32x4U,
 #undef DEFINE_KIND
   };
+  // clang-format on
 
   Kind kind;
 
@@ -7345,11 +7349,15 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V)
 
 struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
+  // clang-format off
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_128_UNARY_OPCODE(DEFINE_KIND)
+    kFirstSignExtensionOp = kI16x8SConvertI8x16Low,
+    kLastSignExtensionOp = kI64x2UConvertI32x4High,
 #undef DEFINE_KIND
   };
+  // clang-format on
 
   Kind kind;
 
@@ -8062,6 +8070,7 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_256_UNARY_OPCODE(DEFINE_KIND)
     kFirstSignExtensionOp = kI16x16SConvertI8x16,
+    kLastSignExtensionOp = kI64x4UConvertI32x4,
 #undef DEFINE_KIND
   };
   // clang-format on
@@ -8203,6 +8212,7 @@ struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_256_BINARY_OPCODE(DEFINE_KIND)
     kFirstSignExtensionOp = kI64x4ExtMulI32x4S,
+    kLastSignExtensionOp = kI16x16ExtMulI8x16U,
 #undef DEFINE_KIND
   };
   // clang-format on
