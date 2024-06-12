@@ -4177,7 +4177,6 @@ void Evacuator::EvacuatePage(MutablePageMetadata* page) {
   double evacuation_time = 0.0;
   bool success = false;
   {
-    AlwaysAllocateScope always_allocate(heap_);
     TimedScope timed_scope(&evacuation_time);
     success = RawEvacuatePage(page);
   }

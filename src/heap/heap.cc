@@ -502,12 +502,6 @@ bool Heap::IsOldGenerationExpansionAllowed(
   return OldGenerationCapacity() + size <= max_old_generation_size();
 }
 
-namespace {
-bool IsIsolateDeserializationActive(LocalHeap* local_heap) {
-  return local_heap && !local_heap->heap()->deserialization_complete();
-}
-}  // anonymous namespace
-
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
   size_t new_space_capacity = NewSpaceTargetCapacity();
   size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
@@ -2700,8 +2694,6 @@ void Heap::MinorMarkSweep() {
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MS);
 
-  AlwaysAllocateScope always_allocate(this);
-
   SetGCState(MINOR_MARK_SWEEP);
   minor_mark_sweep_collector_->CollectGarbage();
   SetGCState(NOT_IN_GC);
@@ -2744,10 +2736,6 @@ void Heap::Scavenge() {
   ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
   CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
       CppHeap::From(cpp_heap_));
-  // There are soft limits in the allocation code, designed to trigger a mark
-  // sweep collection by failing allocations. There is no sense in trying to
-  // trigger one during scavenge: scavenges allocation should always succeed.
-  AlwaysAllocateScope scope(this);
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
@@ -5324,9 +5312,13 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   // was initiated.
   if (gc_state() == TEAR_DOWN) return true;
 
-  // If allocating isolate is deserialized at the moment then always allow
-  // allocation.
-  if (IsIsolateDeserializationActive(local_heap)) return true;
+  // Allocations need to succeed during isolate deserialization. With shared
+  // heap allocations, a client isolate may perform shared heap allocations
+  // during isolate deserialization as well.
+  if (!deserialization_complete() ||
+      !local_heap->heap()->deserialization_complete()) {
+    return true;
+  }
 
   // Make it more likely that retry of allocations succeeds.
   if (local_heap->IsRetryOfFailedAllocation()) return true;

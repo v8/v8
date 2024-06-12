@@ -374,7 +374,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class CollectionBarrier;
   friend class GlobalSafepoint;
   friend class Heap;
-  friend class HeapAllocator;
   friend class Isolate;
   friend class IsolateSafepoint;
   friend class IsolateSafepointScope;
