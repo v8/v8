@@ -623,7 +623,7 @@ Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
   auto target = Local<v8::Data>::FromSlot(&implicit_args_[kTargetIndex]);
-  return GetFunctionTemplateData(GetIsolate(), target);
+  return api_internal::GetFunctionTemplateData(GetIsolate(), target);
 }
 
 template <typename T>
