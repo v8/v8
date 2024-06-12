@@ -121,6 +121,9 @@ extern class ScopeInfo extends HeapObject {
   // context.
   const context_local_count: Smi;
 
+  // Contains two slots with a) the startPosition and b) the endPosition.
+  position_info: PositionInfo;
+
   // This value must be before any object values, so that the GC can correctly
   // determine the size of a partially initialized object during
   // deserialization.
@@ -159,17 +162,6 @@ extern class ScopeInfo extends HeapObject {
           FunctionVariableInfo;
 
   inferred_function_name?[flags.has_inferred_function_name]: String|Undefined;
-
-  // Contains two slots with a) the startPosition and b) the endPosition if
-  // the scope belongs to a function or script.
-  position_info?
-      [flags.scope_type == ScopeType::FUNCTION_SCOPE ||
-       flags.scope_type == ScopeType::SCRIPT_SCOPE ||
-       flags.scope_type == ScopeType::EVAL_SCOPE ||
-       flags.scope_type == ScopeType::MODULE_SCOPE ||
-       flags.scope_type == ScopeType::SHADOW_REALM_SCOPE ||
-       (flags.is_empty ? false : flags.scope_type == ScopeType::CLASS_SCOPE)]:
-          PositionInfo;
 
   outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
 

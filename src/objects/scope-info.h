@@ -282,7 +282,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 #define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
   V(Flags)                                   \
   V(ParameterCount)                          \
-  V(ContextLocalCount)
+  V(ContextLocalCount)                       \
+  V(PositionInfo)
 
 #define FIELD_ACCESSORS(name)       \
   inline int name() const;
@@ -293,7 +294,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 #define DECL_INDEX(name) k##name,
     FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
 #undef DECL_INDEX
-        kVariablePartIndex
+        kVariablePartIndex = kPositionInfo + 2
   };
 
   static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
@@ -318,14 +319,11 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int SavedClassVariableInfoIndex() const;
   int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
-  int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
   V8_EXPORT_PRIVATE int LocalsBlockListIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
-
-  static bool NeedsPositionInfo(ScopeType type);
 
   // Raw access by slot index. These functions rely on the fact that everything
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is
@@ -375,8 +373,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   static const int kFunctionNameEntries =
       TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;
-  static const int kPositionInfoEntries =
-      TorqueGeneratedPositionInfoOffsets::kSize / kTaggedSize;
   static const int kModuleVariableEntryLength =
       TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
 

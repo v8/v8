@@ -922,6 +922,8 @@ bool Heap::CreateImportantReadOnlyObjects() {
     ScopeInfo::cast(obj)->set_flags(flags);
     ScopeInfo::cast(obj)->set_context_local_count(0);
     ScopeInfo::cast(obj)->set_parameter_count(0);
+    ScopeInfo::cast(obj)->set_position_info_start(0);
+    ScopeInfo::cast(obj)->set_position_info_end(0);
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 

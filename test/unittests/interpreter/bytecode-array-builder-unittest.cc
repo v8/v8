@@ -484,6 +484,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   scope_info->set_flags(flags);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
+  scope_info->set_position_info_start(0);
+  scope_info->set_position_info_end(0);
   scope.SetScriptScopeInfo(scope_info);
 
   ast_factory.Internalize(isolate());

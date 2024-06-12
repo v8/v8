@@ -26,8 +26,8 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        bool is_live_edit_compare) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
-    if (is_live_edit_compare && HasPositionInfo() &&
-        index >= PositionInfoIndex() && index <= PositionInfoIndex() + 1) {
+    if (is_live_edit_compare && index >= kPositionInfo &&
+        index <= kPositionInfo + 1) {
       continue;
     }
     Tagged<Object> entry = get(index);
@@ -161,7 +161,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           : false;
   const bool has_function_name =
       function_name_info != VariableAllocationInfo::NONE;
-  const bool has_position_info = NeedsPositionInfo(scope->scope_type());
   const int parameter_count =
       scope->is_declaration_scope()
           ? scope->AsDeclarationScope()->num_parameters()
@@ -188,7 +187,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                      (should_save_class_variable_index ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
-                     (has_position_info ? kPositionInfoEntries : 0) +
                      (has_outer_scope_info ? 1 : 0) +
                      (scope->is_module_scope()
                           ? 2 + kModuleVariableEntryLength * module_vars_count
@@ -254,6 +252,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
     scope_info->set_parameter_count(parameter_count);
     scope_info->set_context_local_count(context_local_count);
+
+    scope_info->set_position_info_start(scope->start_position());
+    scope_info->set_position_info_end(scope->end_position());
 
     if (scope->is_module_scope()) {
       scope_info->set_module_variable_count(module_vars_count);
@@ -390,12 +391,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       index++;
     }
 
-    DCHECK_EQ(index, scope_info->PositionInfoIndex());
-    if (has_position_info) {
-      scope_info->set(index++, Smi::FromInt(scope->start_position()));
-      scope_info->set(index++, Smi::FromInt(scope->end_position()));
-    }
-
     // If present, add the outer scope info.
     DCHECK(index == scope_info->OuterScopeInfoIndex());
     if (has_outer_scope_info) {
@@ -460,10 +455,12 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   scope_info->set_parameter_count(0);
   scope_info->set_context_local_count(0);
 
+  scope_info->set_position_info_start(0);
+  scope_info->set_position_info_end(0);
+
   int index = kVariablePartIndex;
   DCHECK_EQ(index, scope_info->FunctionVariableInfoIndex());
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
-  DCHECK_EQ(index, scope_info->PositionInfoIndex());
   DCHECK(index == scope_info->OuterScopeInfoIndex());
   if (has_outer_scope_info) {
     scope_info->set(index++, *outer_scope.ToHandleChecked());
@@ -508,13 +505,11 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   const int context_local_count =
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
-  const bool has_position_info = true;
   // NOTE: Local names are always inlined here, since context_local_count < 2.
   DCHECK_LT(context_local_count, kScopeInfoMaxInlinedLocalNamesSize);
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (is_empty_function ? kFunctionNameEntries : 0) +
-                     (has_inferred_function_name ? 1 : 0) +
-                     (has_position_info ? kPositionInfoEntries : 0);
+                     (has_inferred_function_name ? 1 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info =
@@ -551,6 +546,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
   raw_scope_info->set_context_local_count(context_local_count);
+  raw_scope_info->set_position_info_start(0);
+  raw_scope_info->set_position_info_end(0);
 
   int index = kVariablePartIndex;
 
@@ -580,10 +577,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   if (has_inferred_function_name) {
     raw_scope_info->set(index++, roots.empty_string());
   }
-  DCHECK_EQ(index, raw_scope_info->PositionInfoIndex());
-  // Store dummy position to be in sync with the {scope_type}.
-  raw_scope_info->set(index++, Smi::zero());
-  raw_scope_info->set(index++, Smi::zero());
   DCHECK_EQ(index, raw_scope_info->OuterScopeInfoIndex());
   DCHECK_EQ(index, raw_scope_info->length());
   DCHECK_EQ(raw_scope_info->ParameterCount(), parameter_count);
@@ -661,6 +654,8 @@ Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
                            WriteBarrierMode::UPDATE_WRITE_BARRIER);
   scope_info->set_flags(
       HasLocalsBlockListBit::update(scope_info->Flags(), true));
+  scope_info->set_position_info_start(original->position_info_start());
+  scope_info->set_position_info_end(original->position_info_end());
 
   // Copy the dynamic part including the provided blocklist:
   //   1) copy all the fields up to the blocklist index
@@ -772,16 +767,7 @@ bool ScopeInfo::HasInferredFunctionName() const {
   return HasInferredFunctionNameBit::decode(Flags());
 }
 
-bool ScopeInfo::HasPositionInfo() const {
-  if (this->IsEmpty()) return false;
-  return NeedsPositionInfo(scope_type());
-}
-
-// static
-bool ScopeInfo::NeedsPositionInfo(ScopeType type) {
-  return type == FUNCTION_SCOPE || type == SCRIPT_SCOPE || type == EVAL_SCOPE ||
-         type == MODULE_SCOPE || type == CLASS_SCOPE;
-}
+bool ScopeInfo::HasPositionInfo() const { return !this->IsEmpty(); }
 
 bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
@@ -1074,10 +1060,6 @@ int ScopeInfo::FunctionVariableInfoIndex() const {
 
 int ScopeInfo::InferredFunctionNameIndex() const {
   return ConvertOffsetToIndex(InferredFunctionNameOffset());
-}
-
-int ScopeInfo::PositionInfoIndex() const {
-  return ConvertOffsetToIndex(PositionInfoOffset());
 }
 
 int ScopeInfo::OuterScopeInfoIndex() const {

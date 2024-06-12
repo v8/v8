@@ -775,19 +775,12 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
               position_info_struct_field_list.push_back(
                   std::make_unique<StructProperty>("end", kObjectAsStoredInHeap,
                                                    4, 0, 0));
-              auto indexed_field_slice_position_info =
-                  TqDebugFieldSliceScopeInfoPositionInfo(memory_accessor,
-                                                         scope_info_address);
-              if (indexed_field_slice_position_info.validity ==
-                  d::MemoryAccessResult::kOk) {
-                props.push_back(std::make_unique<ObjectProperty>(
-                    "function_character_offset", "",
-                    scope_info_address - i::kHeapObjectTag +
-                        std::get<1>(indexed_field_slice_position_info.value),
-                    std::get<2>(indexed_field_slice_position_info.value),
-                    i::kTaggedSize, std::move(position_info_struct_field_list),
-                    d::PropertyKind::kSingle));
-              }
+              TqScopeInfo scope_info(scope_info_address);
+              props.push_back(std::make_unique<ObjectProperty>(
+                  "function_character_offset", kTaggedValue,
+                  scope_info.GetPositionInfoAddress(), 1, i::kTaggedSize,
+                  std::move(position_info_struct_field_list),
+                  d::PropertyKind::kSingle));
             }
           }
         }
