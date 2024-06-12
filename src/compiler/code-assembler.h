@@ -636,8 +636,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   static_assert(kTargetParameterIndex == -1);
 
   template <class T>
-  TNode<T> Parameter(
-      int value, cppgc::SourceLocation loc = cppgc::SourceLocation::Current()) {
+  TNode<T> Parameter(int value,
+                     const SourceLocation& loc = SourceLocation::Current()) {
     static_assert(
         std::is_convertible<TNode<T>, TNode<Object>>::value,
         "Parameter is only for tagged types. Use UncheckedParameter instead.");
@@ -685,12 +685,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;
-    SourceLocation loc;
+    const SourceLocation& loc;
 
     // Allow implicit construction, necessary for the hack.
     // NOLINTNEXTLINE
-    MessageWithSourceLocation(const char* message,
-                              SourceLocation loc = SourceLocation::Current())
+    MessageWithSourceLocation(
+        const char* message,
+        const SourceLocation& loc = SourceLocation::Current())
         : message(message), loc(loc) {}
   };
   template <class... Args>

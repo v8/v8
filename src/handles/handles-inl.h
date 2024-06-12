@@ -46,9 +46,10 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
 }
 
 template <typename To, typename From>
-inline Handle<To> Cast(Handle<From> value) {
-  DCHECK_IMPLIES(!value.is_null(), Is<To>(*value));
-  return Handle<To>(value.location_);
+inline Handle<To> Cast(Handle<From> value, const v8::SourceLocation& loc) {
+  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  return Handle<To>(value.location());
 }
 
 template <typename T>
@@ -108,8 +109,10 @@ V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
     : DirectHandle(object.ptr()) {}
 
 template <typename To, typename From>
-inline DirectHandle<To> Cast(DirectHandle<From> value) {
-  DCHECK(Is<To>(*value));
+inline DirectHandle<To> Cast(DirectHandle<From> value,
+                             const v8::SourceLocation& loc) {
+  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return DirectHandle<To>(value.obj_);
 }
 

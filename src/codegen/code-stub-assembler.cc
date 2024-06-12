@@ -97,7 +97,7 @@ void CodeStubAssembler::HandleBreakOnNode() {
 void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               SourceLocation loc) {
+                               const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(branch, message, file, line, extra_nodes, loc);
@@ -108,7 +108,7 @@ void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
 void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               SourceLocation loc) {
+                               const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(condition_body, message, file, line, extra_nodes, loc);
@@ -119,7 +119,7 @@ void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
 void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes,
-                               SourceLocation loc) {
+                               const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
     Check(condition_node, message, file, line, extra_nodes, loc);
@@ -130,7 +130,7 @@ void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
 void CodeStubAssembler::Check(const BranchGenerator& branch,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              SourceLocation loc) {
+                              const SourceLocation& loc) {
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
   if (message != nullptr) {
@@ -154,7 +154,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              SourceLocation loc) {
+                              const SourceLocation& loc) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
     TNode<BoolT> condition = condition_body();
     Branch(condition, ok, not_ok);
@@ -166,7 +166,7 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
 void CodeStubAssembler::Check(TNode<Word32T> condition_node,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes,
-                              SourceLocation loc) {
+                              const SourceLocation& loc) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
     Branch(condition_node, ok, not_ok);
   };
@@ -199,7 +199,7 @@ void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
 
 void CodeStubAssembler::FailAssert(
     const char* message, const std::vector<FileAndLine>& files_and_lines,
-    std::initializer_list<ExtraNode> extra_nodes, SourceLocation loc) {
+    std::initializer_list<ExtraNode> extra_nodes, const SourceLocation& loc) {
   DCHECK_NOT_NULL(message);
   base::EmbeddedVector<char, 1024> chars;
   std::stringstream stream;

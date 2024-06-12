@@ -187,6 +187,16 @@ V8_INLINE Dest bit_cast(Source const& source) {
   V8_CLANG_NO_SANITIZE("function")
 #endif
 
+// V8_PRETTY_FUNCTION_VALUE_OR(ELSE) emits a pretty function value, if
+// available for this compiler, otherwise it emits ELSE.
+#if defined(V8_CC_GNU)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __PRETTY_FUNCTION__
+#elif defined(V8_CC_MSVC)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __FUNCSIG__
+#else
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) ELSE
+#endif
+
 namespace v8 {
 namespace base {
 

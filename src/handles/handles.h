@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/objects/casting.h"
 #include "src/objects/tagged.h"
 #include "v8-handle-base.h"  // NOLINT(build/include_directory)
 
@@ -196,7 +197,8 @@ class Handle final : public HandleBase {
   friend class MaybeHandle;
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline Handle<To> Cast(Handle<From> value);
+  friend inline Handle<To> Cast(Handle<From> value,
+                                const v8::SourceLocation& loc);
 };
 
 template <typename T>
@@ -528,11 +530,10 @@ class DirectHandle : public DirectHandleBase {
   template <typename>
   friend class MaybeDirectHandle;
   friend class DirectHandleUnchecked<T>;
-  // Casts are allowed to access location_.
+  // Casts are allowed to access obj_.
   template <typename To, typename From>
-  friend inline DirectHandle<To> Cast(Handle<From> value);
-  template <typename To, typename From>
-  friend inline DirectHandle<To> Cast(DirectHandle<From> value);
+  friend inline DirectHandle<To> Cast(DirectHandle<From> value,
+                                      const v8::SourceLocation& loc);
 
   explicit DirectHandle(no_checking_tag do_not_check)
       : DirectHandleBase(kTaggedNullAddress, do_not_check) {}

@@ -122,12 +122,20 @@ enum class OOMType {
 
 #ifdef DEBUG
 
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                \
+  do {                                                                  \
+    if (V8_UNLIKELY(!(condition))) {                                    \
+      V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message); \
+    }                                                                   \
+  } while (false)
 #define DCHECK_WITH_MSG(condition, message)   \
   do {                                        \
     if (V8_UNLIKELY(!(condition))) {          \
       V8_Dcheck(__FILE__, __LINE__, message); \
     }                                         \
   } while (false)
+#define DCHECK_WITH_LOC(condition, loc) \
+  DCHECK_WITH_MSG_AND_LOC(condition, #condition, loc)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
 // Helper macro for binary operators.
@@ -441,6 +449,8 @@ DEFINE_CHECK_OP_IMPL(GT, > )
   DCHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
 #else
 #define DCHECK(condition)      ((void) 0)
+#define DCHECK_WITH_LOC(condition, location) ((void)0)
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, location) ((void)0)
 #define DCHECK_EQ(v1, v2)      ((void) 0)
 #define DCHECK_NE(v1, v2)      ((void) 0)
 #define DCHECK_GT(v1, v2)      ((void) 0)

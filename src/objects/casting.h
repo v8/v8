@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_CASTING_H_
 #define V8_OBJECTS_CASTING_H_
 
+#include "include/v8-source-location.h"
+#include "src/base/logging.h"
 #include "src/objects/tagged.h"
 
 namespace v8::internal {
@@ -43,26 +45,43 @@ inline bool Is(Tagged<U> value) {
   return CastTraits<T>::AllowFrom(value);
 }
 
+// Only initialise the SourceLocation in debug mode.
+#ifdef DEBUG
+#define INIT_SOURCE_LOCATION_IN_DEBUG v8::SourceLocation::Current()
+#else
+#define INIT_SOURCE_LOCATION_IN_DEBUG v8::SourceLocation()
+#endif
+
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
 // check that `value` is a tagged object of type `T`.
 template <typename To, typename From>
-inline Tagged<To> Cast(Tagged<From> value) {
-  DCHECK(Is<To>(value));
+inline Tagged<To> Cast(Tagged<From> value, const v8::SourceLocation& loc =
+                                               INIT_SOURCE_LOCATION_IN_DEBUG) {
+  DCHECK_WITH_MSG_AND_LOC(Is<To>(value),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
 }
 template <typename To, typename From>
-inline Tagged<To> Cast(const From& value) {
-  return Cast<To>(Tagged(value));
+inline Tagged<To> Cast(const From& value, const v8::SourceLocation& loc =
+                                              INIT_SOURCE_LOCATION_IN_DEBUG) {
+  return Cast<To>(Tagged(value), loc);
 }
 template <typename To, typename From>
-inline Handle<To> Cast(Handle<From> value);
+inline Handle<To> Cast(Handle<From> value, const v8::SourceLocation& loc =
+                                               INIT_SOURCE_LOCATION_IN_DEBUG);
 template <typename To, typename From>
-inline MaybeHandle<To> Cast(MaybeHandle<From> value);
+inline MaybeHandle<To> Cast(
+    MaybeHandle<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG);
 #if V8_ENABLE_DIRECT_HANDLE_BOOL
 template <typename To, typename From>
-inline DirectHandle<To> Cast(DirectHandle<From> value);
+inline DirectHandle<To> Cast(
+    DirectHandle<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG);
 template <typename To, typename From>
-inline MaybeDirectHandle<To> Cast(MaybeDirectHandle<From> value);
+inline MaybeDirectHandle<To> Cast(
+    MaybeDirectHandle<From> value,
+    const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG);
 #endif
 
 // `UncheckedCast<T>(value)` casts `value` to a tagged object of type `T`,
@@ -126,5 +145,7 @@ struct CastTraits<HeapObject> {
 };
 
 }  // namespace v8::internal
+
+#undef INIT_SOURCE_LOCATION_IN_DEBUG
 
 #endif  // V8_OBJECTS_CASTING_H_

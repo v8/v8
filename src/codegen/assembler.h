@@ -408,8 +408,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  V8_INLINE void RecordComment(const char* comment,
-                               SourceLocation loc = SourceLocation::Current()) {
+  V8_INLINE void RecordComment(
+      const char* comment,
+      const SourceLocation& loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
@@ -422,8 +423,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  V8_INLINE void RecordComment(std::string comment,
-                               SourceLocation loc = SourceLocation::Current()) {
+  V8_INLINE void RecordComment(
+      std::string comment,
+      const SourceLocation& loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
@@ -443,8 +445,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     // that returns a value convertible to std::string which is invoked lazily
     // when code comments are enabled.
     template <typename CommentGen>
-    V8_NODISCARD CodeComment(Assembler* assembler, CommentGen&& comment,
-                             SourceLocation loc = SourceLocation::Current())
+    V8_NODISCARD CodeComment(
+        Assembler* assembler, CommentGen&& comment,
+        const SourceLocation& loc = SourceLocation::Current())
         : assembler_(assembler) {
       if (!v8_flags.code_comments) return;
       if constexpr (std::is_invocable_v<CommentGen>) {

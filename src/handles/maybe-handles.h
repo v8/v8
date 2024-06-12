@@ -99,7 +99,8 @@ class MaybeHandle final {
 #endif
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value);
+  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value,
+                                     const v8::SourceLocation& loc);
 };
 
 template <typename T>
@@ -221,7 +222,8 @@ class MaybeDirectHandle final {
   friend class MaybeHandle;
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline MaybeHandle<To> Cast(MaybeHandle<From> value);
+  friend inline MaybeDirectHandle<To> Cast(MaybeDirectHandle<From> value,
+                                           const v8::SourceLocation& loc);
 };
 
 class MaybeObjectDirectHandle {
