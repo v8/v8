@@ -6,18 +6,25 @@
 // Flags: --experimental-wasm-inlining --liftoff
 // Flags: --turboshaft-wasm-instruction-selection-staged
 // Flags: --wasm-inlining-ignore-call-counts --no-jit-fuzzing
+// Flags: --experimental-wasm-inlining-call-indirect
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDeoptInlined() {
   let inlineeIndex = 2;
   let sig = 1;
+  // These different tests define the call "kind" for the inlining of the
+  // function called "inlinee", not the speculative inlining for add / mul.
   let tests = [
     {name: "callDirect", ops: [kExprCallFunction, inlineeIndex]},
     {name: "callRef", ops: [kExprRefFunc, inlineeIndex, kExprCallRef, sig]},
+    {name: "callIndirect",
+     ops: [kExprI32Const, 0, kExprCallIndirect, sig, kTableZero]},
     {name: "returnCall", ops: [kExprReturnCall, inlineeIndex]},
     {name: "returnCallRef",
      ops: [kExprRefFunc, inlineeIndex, kExprReturnCallRef, sig]},
+    {name: "returnCallIndirect",
+     ops: [kExprI32Const, 0, kExprReturnCallIndirect, sig, kTableZero]},
   ];
 
   for (let test of tests) {
@@ -62,6 +69,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprLocalGet, 2,
         ...test.ops,
     ]).exportFunc();
+
+    let table = builder.addTable(kWasmFuncRef, 1);
+    builder.addActiveElementSegment(table.index, wasmI32Const(0),
+      [[kExprRefFunc, inlinee.index]], kWasmFuncRef);
 
     let wasm = builder.instantiate().exports;
 

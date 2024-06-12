@@ -8058,8 +8058,6 @@ class LiftoffCompiler {
             env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
           DCHECK_EQ(env_->deopt_location_kind,
                     LocationKindForDeopt::kInlinedCall);
-          // TODO(mliedtke): We need to do the same for all other inlineable
-          // call targets and provide test coverage for them.
           // TODO(mliedtke): Should we do this in `FinishCall` instead?
           StoreFrameDescriptionForDeopt(decoder);
         }
@@ -8381,6 +8379,12 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
+
+        if (v8_flags.wasm_deopt &&
+            env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+            env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
+          StoreFrameDescriptionForDeopt(decoder);
+        }
 
         FinishCall(decoder, &sig, call_descriptor);
       }

@@ -2643,8 +2643,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                 decoder->module_->functions[inlined_index].sig;
             V<FrameState> frame_state =
                 CreateFrameState(decoder, sig, &index, args);
-            DeoptIfNot(decoder, __ WordPtrEqual(target, inlined_target), sig,
-                       args, frame_state);
+            DeoptIfNot(decoder, __ WordPtrEqual(target, inlined_target),
+                       frame_state);
           } else {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
@@ -2893,7 +2893,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           V<FrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
-                     sig, args, frame_state);
+                     frame_state);
         } else {
           TSBlock* inline_block = __ NewBlock();
           BranchHint hint =
@@ -5576,7 +5576,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // The first input is the closure for JS. (The instruction selector will
     // just skip this input as the liftoff frame doesn't have a closure.)
-    builder.AddInput(MachineType::AnyTagged(), __ SmiConstant(0));
+    V<Object> dummy_tagged = __ SmiConstant(0);
+    builder.AddInput(MachineType::AnyTagged(), dummy_tagged);
     // Add the parameters.
     size_t param_count = decoder->sig_->parameter_count();
     for (size_t i = 0; i < param_count; ++i) {
@@ -5584,7 +5585,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // Add the context. Wasm doesn't have a JS context, so this is another
     // value skipped by the instruction selector.
-    builder.AddInput(MachineType::AnyTagged(), __ SmiConstant(0));
+    builder.AddInput(MachineType::AnyTagged(), dummy_tagged);
 
     // Add the wasm locals.
     for (size_t i = param_count; i < ssa_env_.size(); ++i) {
@@ -5628,13 +5629,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
+
+    // TODO(mliedtke): If there are too many inputs, we cannot create a
+    // FrameState. In this case we probably shouldn't emit a deopt node in the
+    // first place, probably much earlier than thousands of inputs.
+    CHECK_LT(builder.Inputs().size(),
+             std::numeric_limits<decltype(Operation::input_count)>::max());
+
     return __ FrameState(
         builder.Inputs(), builder.inlined(),
         builder.AllocateFrameStateData(*frame_state_info, zone));
   }
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  const FunctionSig* callee_sig, const Value args[],
                   V<FrameState> frame_state) {
     CHECK(v8_flags.wasm_deopt);
     __ DeoptimizeIfNot(deopt_condition, frame_state,
