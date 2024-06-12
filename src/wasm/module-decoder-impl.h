@@ -714,31 +714,26 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->ImportOffset(pc_offset());
 
-      module_->import_table.push_back({
-          {0, 0},             // module_name
-          {0, 0},             // field_name
-          kExternalFunction,  // kind
-          0                   // index
-      });
-      WasmImport* import = &module_->import_table.back();
       const uint8_t* pos = pc_;
-      import->module_name = consume_utf8_string(this, "module name", tracer_);
-      import->field_name = consume_utf8_string(this, "field name", tracer_);
-      import->kind =
+      WireBytesRef module_name =
+          consume_utf8_string(this, "module name", tracer_);
+      WireBytesRef field_name =
+          consume_utf8_string(this, "field name", tracer_);
+      ImportExportKindCode kind =
           static_cast<ImportExportKindCode>(consume_u8("kind", tracer_));
-      if (tracer_) tracer_->Description(ExternalKindName(import->kind));
-      switch (import->kind) {
+      if (tracer_) tracer_->Description(ExternalKindName(kind));
+      module_->import_table.push_back(WasmImport{
+          .module_name = module_name, .field_name = field_name, .kind = kind});
+      WasmImport* import = &module_->import_table.back();
+      switch (kind) {
         case kExternalFunction: {
           // ===== Imported function ===========================================
           import->index = static_cast<uint32_t>(module_->functions.size());
           module_->num_imported_functions++;
-          module_->functions.push_back({nullptr,        // sig
-                                        import->index,  // func_index
-                                        0,              // sig_index
-                                        {0, 0},         // code
-                                        true,           // imported
-                                        false,          // exported
-                                        false});        // declared
+          module_->functions.push_back(WasmFunction{
+              .func_index = import->index,
+              .imported = true,
+          });
           WasmFunction* function = &module_->functions.back();
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
@@ -806,23 +801,23 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalGlobal: {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
-          module_->num_imported_globals++;
-          module_->globals.push_back(
-              {kWasmVoid, false, {}, {0}, false, true, false});
-          WasmGlobal* global = &module_->globals.back();
-          global->type = consume_value_type();
+          ValueType type = consume_value_type();
           auto [mutability, shared] = consume_global_flags();
           if (V8_UNLIKELY(failed())) break;
-          if (V8_UNLIKELY(shared && !IsShared(global->type, module_.get()))) {
+          if (V8_UNLIKELY(shared && !IsShared(type, module_.get()))) {
             error("shared imported global must have shared type");
             break;
           }
-          global->mutability = mutability;
-          global->shared = shared;
+          module_->globals.push_back(
+              WasmGlobal{.type = type,
+                         .mutability = mutability,
+                         .index = 0,  // set later in CalculateGlobalOffsets
+                         .shared = shared,
+                         .imported = true});
+          module_->num_imported_globals++;
+          DCHECK_EQ(module_->globals.size(), module_->num_imported_globals);
           if (shared) module_->has_shared_part = true;
-          if (global->mutability) {
-            module_->num_imported_mutable_globals++;
-          }
+          if (mutability) module_->num_imported_mutable_globals++;
           if (tracer_) tracer_->NextLine();
           break;
         }
@@ -837,7 +832,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         default:
-          errorf(pos, "unknown import kind 0x%02x", import->kind);
+          errorf(pos, "unknown import kind 0x%02x", kind);
           break;
       }
     }
@@ -995,7 +990,11 @@ class ModuleDecoderImpl : public Decoder {
       // {consume_init_expr}.
       ConstantExpression init = consume_init_expr(module_.get(), type, shared);
       module_->globals.push_back(
-          {type, mutability, init, {0}, shared, false, false});
+          WasmGlobal{.type = type,
+                     .mutability = mutability,
+                     .init = init,
+                     .index = 0,  // set later in CalculateGlobalOffsets
+                     .shared = shared});
       if (shared) module_->has_shared_part = true;
     }
   }
@@ -1013,23 +1012,20 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->NextLine();
       }
 
-      module_->export_table.push_back({
-          {0, 0},             // name
-          kExternalFunction,  // kind
-          0                   // index
-      });
+      WireBytesRef name = consume_utf8_string(this, "field name", tracer_);
+
+      const uint8_t* kind_pos = pc();
+      ImportExportKindCode kind =
+          static_cast<ImportExportKindCode>(consume_u8("kind", tracer_));
+
+      module_->export_table.push_back(WasmExport{.name = name, .kind = kind});
       WasmExport* exp = &module_->export_table.back();
 
-      exp->name = consume_utf8_string(this, "field name", tracer_);
-
-      const uint8_t* pos = pc();
-      exp->kind =
-          static_cast<ImportExportKindCode>(consume_u8("kind", tracer_));
       if (tracer_) {
         tracer_->Description(ExternalKindName(exp->kind));
         tracer_->Description(" ");
       }
-      switch (exp->kind) {
+      switch (kind) {
         case kExternalFunction: {
           WasmFunction* func = nullptr;
           exp->index = consume_func_index(module_.get(), &func);
@@ -1050,10 +1046,12 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalMemory: {
+          const uint8_t* index_pos = pc();
           exp->index = consume_u32v("memory index", tracer_);
           size_t num_memories = module_->memories.size();
           if (exp->index >= module_->memories.size()) {
-            errorf(pos, "invalid exported memory index %u (having %zu memor%s)",
+            errorf(index_pos,
+                   "invalid exported memory index %u (having %zu memor%s)",
                    exp->index, num_memories, num_memories == 1 ? "y" : "ies");
             break;
           }
@@ -1074,7 +1072,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         default:
-          errorf(pos, "invalid export kind 0x%02x", exp->kind);
+          errorf(kind_pos, "invalid export kind 0x%02x", exp->kind);
           break;
       }
       if (tracer_) tracer_->NextLine();

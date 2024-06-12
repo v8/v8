@@ -9197,27 +9197,27 @@ const wasm::FunctionSig* GetI32Sig(Zone* zone, const wasm::FunctionSig* sig) {
   return ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2);
 }
 AssemblerOptions WasmAssemblerOptions() {
-  AssemblerOptions options;
-  // Relocation info required to serialize {WasmCode} for proper functions.
-  options.record_reloc_info_for_serialization = true;
-  options.enable_root_relative_access = false;
-  options.is_wasm = true;
+  return AssemblerOptions{
+      // Relocation info required to serialize {WasmCode} for proper functions.
+      .record_reloc_info_for_serialization = true,
+      .enable_root_relative_access = false,
 #ifdef USE_SIMULATOR
-  options.enable_simulator_code = true;
+      .enable_simulator_code = true,
 #endif
-  return options;
+      .is_wasm = true,
+  };
 }
 
 AssemblerOptions WasmStubAssemblerOptions() {
-  AssemblerOptions options;
-  // Relocation info not necessary because stubs are not serialized.
-  options.record_reloc_info_for_serialization = false;
-  options.enable_root_relative_access = false;
-  options.is_wasm = true;
+  return AssemblerOptions{
+      // Relocation info not necessary because stubs are not serialized.
+      .record_reloc_info_for_serialization = false,
+      .enable_root_relative_access = false,
 #ifdef USE_SIMULATOR
-  options.enable_simulator_code = true;
+      .enable_simulator_code = true,
 #endif
-  return options;
+      .is_wasm = true,
+  };
 }
 
 #undef FATAL_UNSUPPORTED_OPCODE

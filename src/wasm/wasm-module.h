@@ -73,9 +73,9 @@ struct WasmFunction {
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  ValueType type;           // type of the global.
-  bool mutability;          // {true} if mutable.
-  ConstantExpression init;  // the initialization expression of the global.
+  ValueType type;                // type of the global.
+  bool mutability = false;       // {true} if mutable.
+  ConstantExpression init = {};  // the initialization expression of the global.
   union {
     // Index of imported mutable global.
     uint32_t index;
@@ -83,9 +83,9 @@ struct WasmGlobal {
     // for value-typed globals, and in tagged words for reference-typed globals.
     uint32_t offset;
   };
-  bool shared;
-  bool imported;  // true if imported.
-  bool exported;  // true if exported.
+  bool shared = false;
+  bool imported = false;
+  bool exported = false;
 };
 
 // Note: An exception tag signature only uses the params portion of a function
@@ -267,14 +267,14 @@ struct WasmImport {
   WireBytesRef module_name;   // module name.
   WireBytesRef field_name;    // import name.
   ImportExportKindCode kind;  // kind of the import.
-  uint32_t index;             // index into the respective space.
+  uint32_t index = 0;         // index into the respective space.
 };
 
 // Static representation of a wasm export.
 struct WasmExport {
   WireBytesRef name;          // exported name.
   ImportExportKindCode kind;  // kind of the export.
-  uint32_t index;             // index into the respective space.
+  uint32_t index = 0;         // index into the respective space.
 };
 
 enum class WasmCompilationHintStrategy : uint8_t {

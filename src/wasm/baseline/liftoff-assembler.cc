@@ -353,9 +353,9 @@ int LiftoffAssembler::OolSpillCount() const {
 namespace {
 
 AssemblerOptions DefaultLiftoffOptions() {
-  AssemblerOptions options = AssemblerOptions{};
-  options.is_wasm = true;
-  return options;
+  return AssemblerOptions{
+      .is_wasm = true,
+  };
 }
 
 }  // namespace
