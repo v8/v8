@@ -128,7 +128,7 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
 
 void HeapAllocator::CollectGarbage(AllocationType allocation) {
   if (IsSharedAllocationType(allocation)) {
-    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
+    heap_->CollectGarbageShared(local_heap_,
                                 GarbageCollectionReason::kAllocationFailure);
   } else if (local_heap_->is_main_thread()) {
     // On the main thread we can directly start the GC.
