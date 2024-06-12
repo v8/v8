@@ -432,6 +432,34 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
   }
 }
 
+namespace {
+
+#if V8_ENABLE_SANDBOX || DEBUG
+bool FunctionSigMatchesTable(uint32_t canonical_sig_id,
+                             const WasmModule* module, int table_index) {
+  wasm::ValueType table_type = module->tables[table_index].type;
+  DCHECK(table_type.is_object_reference());
+  // When in-sandbox data is corrupted, we can't trust the statically
+  // checked types; to prevent sandbox escapes, we have to verify actual
+  // types before installing the dispatch table entry. There are three
+  // alternative success conditions:
+  // (1) Generic "funcref" tables can hold any function entry.
+  if (table_type.heap_representation_non_shared() == wasm::HeapType::kFunc) {
+    return true;
+  }
+  // (2) Most function types are expected to be final, so they can be compared
+  //     cheaply by canonicalized index equality.
+  uint32_t canonical_table_type =
+      module->isorecursive_canonical_type_ids[table_type.ref_index()];
+  if (V8_LIKELY(canonical_sig_id == canonical_table_type)) return true;
+  // (3) In the remaining cases, perform the full subtype check.
+  return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
+      canonical_sig_id, canonical_table_type);
+}
+#endif  // V8_ENABLE_SANDBOX || DEBUG
+
+}  // namespace
+
 // static
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
@@ -455,15 +483,15 @@ void WasmTableObject::UpdateDispatchTables(
           : target_instance_data;
   Address call_target = target_instance_data->GetCallTarget(func->func_index);
 
-  int original_sig_id = func->sig_index;
+  const WasmModule* target_module = target_instance_data->module();
+  uint32_t canonical_sig_id =
+      target_module->isorecursive_canonical_type_ids[func->sig_index];
 
   for (int i = 0, len = uses->length(); i < len; i += TableUses::kNumElements) {
     int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     DirectHandle<WasmInstanceObject> instance_object(
         WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset)),
         isolate);
-    int sig_id = target_instance_data->module()
-                     ->isorecursive_canonical_type_ids[original_sig_id];
     if (v8_flags.wasm_to_js_generic_wrapper &&
         IsWasmApiFunctionRef(*call_ref)) {
       auto orig_ref = Cast<WasmApiFunctionRef>(call_ref);
@@ -479,8 +507,10 @@ void WasmTableObject::UpdateDispatchTables(
     }
     Tagged<WasmTrustedInstanceData> instance_data =
         instance_object->trusted_data(isolate);
+    SBXCHECK(FunctionSigMatchesTable(canonical_sig_id, instance_data->module(),
+                                     table_index));
     instance_data->dispatch_table(table_index)
-        ->Set(entry_index, *call_ref, call_target, sig_id);
+        ->Set(entry_index, *call_ref, call_target, canonical_sig_id);
   }
 }
 

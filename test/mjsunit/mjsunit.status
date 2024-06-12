@@ -462,8 +462,9 @@
   'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
-  'sandbox/wasm-signature-verification': [SKIP],
   'sandbox/wasm-inlining-sigcheck': [SKIP],
+  'sandbox/wasm-signature-verification': [SKIP],
+  'sandbox/wasm-table-sigcheck': [SKIP],
 
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],
