@@ -65,7 +65,7 @@ inline WireBytesRef consume_string(Decoder* decoder,
                                    unibrow::Utf8Variant grammar,
                                    const char* name, ITracer* tracer) {
   if (tracer) tracer->Description(name);
-  uint32_t length = decoder->consume_u32v(" length:", tracer);
+  uint32_t length = decoder->consume_u32v("length", tracer);
   if (tracer) {
     tracer->Description(length);
     tracer->NextLine();
@@ -221,7 +221,7 @@ class WasmSectionIterator {
     section_start_ = decoder_->pc();
     // Empty line before next section.
     if (tracer_) tracer_->NextLine();
-    uint8_t section_code = decoder_->consume_u8("section kind: ", tracer_);
+    uint8_t section_code = decoder_->consume_u8("section kind", tracer_);
     if (tracer_) {
       tracer_->Description(SectionName(static_cast<SectionCode>(section_code)));
       tracer_->NextLine();
@@ -547,7 +547,7 @@ class ModuleDecoderImpl : public Decoder {
   TypeDefinition consume_base_type_definition() {
     const bool is_final = true;
     bool shared = false;
-    uint8_t kind = consume_u8(" kind: ", tracer_);
+    uint8_t kind = consume_u8(" kind", tracer_);
     if (kind == kSharedFlagCode) {
       if (!v8_flags.experimental_wasm_shared) {
         errorf(pc() - 1,
@@ -725,7 +725,7 @@ class ModuleDecoderImpl : public Decoder {
       import->module_name = consume_utf8_string(this, "module name", tracer_);
       import->field_name = consume_utf8_string(this, "field name", tracer_);
       import->kind =
-          static_cast<ImportExportKindCode>(consume_u8("kind: ", tracer_));
+          static_cast<ImportExportKindCode>(consume_u8("kind", tracer_));
       if (tracer_) tracer_->Description(ExternalKindName(import->kind));
       switch (import->kind) {
         case kExternalFunction: {
@@ -1024,7 +1024,7 @@ class ModuleDecoderImpl : public Decoder {
 
       const uint8_t* pos = pc();
       exp->kind =
-          static_cast<ImportExportKindCode>(consume_u8("kind: ", tracer_));
+          static_cast<ImportExportKindCode>(consume_u8("kind", tracer_));
       if (tracer_) {
         tracer_->Description(ExternalKindName(exp->kind));
         tracer_->Description(" ");
@@ -1882,7 +1882,7 @@ class ModuleDecoderImpl : public Decoder {
   template <typename T>
   uint32_t consume_index(const char* name, std::vector<T>* vector, T** ptr) {
     const uint8_t* pos = pc_;
-    uint32_t index = consume_u32v("index:", tracer_);
+    uint32_t index = consume_u32v("index", tracer_);
     if (tracer_) tracer_->Description(index);
     if (index >= vector->size()) {
       errorf(pos, "%s index %u out of bounds (%d entr%s)", name, index,
@@ -2333,7 +2333,7 @@ class ModuleDecoderImpl : public Decoder {
                                   kHasTableIndexOrIsDeclarativeMask |
                                   kExpressionsAsElementsMask | kSharedFlag;
 
-    uint32_t flag = consume_u32v("flag: ", tracer_);
+    uint32_t flag = consume_u32v("flag", tracer_);
     if ((flag & kFullMask) != flag) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
@@ -2412,7 +2412,7 @@ class ModuleDecoderImpl : public Decoder {
       if (!backwards_compatible_mode) {
         // We have to check that there is an element kind of type Function. All
         // other element kinds are not valid yet.
-        uint8_t val = consume_u8(" element type: function", tracer_);
+        uint8_t val = consume_u8("element type: function", tracer_);
         if (V8_UNLIKELY(static_cast<ImportExportKindCode>(val) !=
                         kExternalFunction)) {
           errorf(pos, "illegal element kind 0x%x. Must be 0x%x", val,
@@ -2454,7 +2454,7 @@ class ModuleDecoderImpl : public Decoder {
 
   DataSegmentHeader consume_data_segment_header() {
     const uint8_t* pos = pc();
-    uint32_t flag = consume_u32v("flag: ", tracer_);
+    uint32_t flag = consume_u32v("flag", tracer_);
 
     if (flag & ~0b1011) {
       errorf(pos, "illegal flag value %u", flag);
