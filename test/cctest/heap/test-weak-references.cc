@@ -35,7 +35,7 @@ TEST(WeakReferencesBasic) {
       CcTest::heap());
   HandleScope outer_scope(isolate);
 
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
 
   if (!v8_flags.single_generation) CHECK(Heap::InYoungGeneration(*lh));
 
@@ -53,7 +53,7 @@ TEST(WeakReferencesBasic) {
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
+    IndirectHandle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(IsCode(*code));
 
@@ -194,13 +194,13 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
   Address lh_object_location = lh->address();
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
-    Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
     CHECK(Heap::InYoungGeneration(*fixed_array));
     lh->set_data1(MakeWeak(*fixed_array));
     // inner_scope will go out of scope, so when marking the next time,
@@ -366,7 +366,7 @@ TEST(WeakArraysBasic) {
   HandleScope outer_scope(isolate);
 
   const int length = 4;
-  Handle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
+  IndirectHandle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
   CHECK_EQ(array->length(), length);
@@ -379,17 +379,17 @@ TEST(WeakArraysBasic) {
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
   }
 
-  Handle<HeapObject> saved;
+  IndirectHandle<HeapObject> saved;
   {
     HandleScope inner_scope(isolate);
-    Handle<FixedArray> index0 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index0 = factory->NewFixedArray(1);
     index0->set(0, Smi::FromInt(2016));
-    Handle<FixedArray> index1 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index1 = factory->NewFixedArray(1);
     index1->set(0, Smi::FromInt(2017));
 
-    Handle<FixedArray> index2 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index2 = factory->NewFixedArray(1);
     index2->set(0, Smi::FromInt(2018));
-    Handle<FixedArray> index3 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index3 = factory->NewFixedArray(1);
     index3->set(0, Smi::FromInt(2019));
 
     array->set(0, MakeWeak(*index0));

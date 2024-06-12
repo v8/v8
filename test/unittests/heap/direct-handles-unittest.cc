@@ -18,7 +18,7 @@ TEST_F(DirectHandlesTest, CreateDirectHandleFromLocal) {
   Local<String> foo = String::NewFromUtf8Literal(isolate(), "foo");
 
   i::DirectHandle<i::String> direct = Utils::OpenDirectHandle(*foo);
-  i::Handle<i::String> handle = Utils::OpenHandle(*foo);
+  i::IndirectHandle<i::String> handle = Utils::OpenIndirectHandle(*foo);
 
   EXPECT_EQ(*direct, *handle);
 }

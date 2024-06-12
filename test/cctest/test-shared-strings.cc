@@ -278,7 +278,7 @@ UNINITIALIZED_TEST(YoungInternalization) {
 class ConcurrentStringThreadBase : public ParkingThread {
  public:
   ConcurrentStringThreadBase(const char* name, MultiClientIsolateTest* test,
-                             Handle<FixedArray> shared_strings,
+                             IndirectHandle<FixedArray> shared_strings,
                              ParkingSemaphore* sema_ready,
                              ParkingSemaphore* sema_execute_start,
                              ParkingSemaphore* sema_execute_complete)
@@ -320,7 +320,7 @@ class ConcurrentStringThreadBase : public ParkingThread {
  protected:
   Isolate* i_isolate;
   MultiClientIsolateTest* test_;
-  Handle<FixedArray> shared_strings_;
+  IndirectHandle<FixedArray> shared_strings_;
   ParkingSemaphore* sema_ready_;
   ParkingSemaphore* sema_execute_start_;
   ParkingSemaphore* sema_execute_complete_;
@@ -332,7 +332,7 @@ class ConcurrentInternalizationThread final
     : public ConcurrentStringThreadBase {
  public:
   ConcurrentInternalizationThread(MultiClientIsolateTest* test,
-                                  Handle<FixedArray> shared_strings,
+                                  IndirectHandle<FixedArray> shared_strings,
                                   TestHitOrMiss hit_or_miss,
                                   ParkingSemaphore* sema_ready,
                                   ParkingSemaphore* sema_execute_start,
@@ -388,14 +388,13 @@ std::pair<Handle<String>, MaybeHandle<String>> CreateSharedOneByteString(
   return std::make_pair(string, internalized);
 }
 
-Handle<FixedArray> CreateSharedOneByteStrings(Isolate* isolate,
-                                              Factory* factory, int count,
-                                              int lo_count, int min_length = 2,
-                                              bool internalize = false) {
-  Handle<FixedArray> shared_strings =
+IndirectHandle<FixedArray> CreateSharedOneByteStrings(
+    Isolate* isolate, Factory* factory, int count, int lo_count,
+    int min_length = 2, bool internalize = false) {
+  IndirectHandle<FixedArray> shared_strings =
       factory->NewFixedArray(count + lo_count, AllocationType::kSharedOld);
   // Buffer to keep internalized strings alive in the current scope.
-  Handle<FixedArray> internalized_handles;
+  DirectHandle<FixedArray> internalized_handles;
   if (internalize) {
     internalized_handles =
         factory->NewFixedArray(count + lo_count, AllocationType::kOld);
@@ -442,7 +441,7 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings =
+  IndirectHandle<FixedArray> shared_strings =
       CreateSharedOneByteStrings(i_isolate, factory, kStrings - kLOStrings,
                                  kLOStrings, 2, hit_or_miss == kTestHit);
 
@@ -485,7 +484,7 @@ class ConcurrentStringTableLookupThread final
     : public ConcurrentStringThreadBase {
  public:
   ConcurrentStringTableLookupThread(MultiClientIsolateTest* test,
-                                    Handle<FixedArray> shared_strings,
+                                    IndirectHandle<FixedArray> shared_strings,
                                     ParkingSemaphore* sema_ready,
                                     ParkingSemaphore* sema_execute_start,
                                     ParkingSemaphore* sema_execute_complete)
@@ -525,7 +524,7 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+  IndirectHandle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, false);
 
   ParkingSemaphore sema_ready(0);
@@ -835,7 +834,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     // heap::SealCurrentObjects(heap);
     // heap::SealCurrentObjects(shared_heap);
 
-    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
 
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
@@ -846,9 +845,13 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     heap::InvokeMajorGC(heap);
     heap::ForceEvacuationCandidate(
         i::PageMetadata::FromHeapObject(*one_byte_seq));
-    // We need to invoke GC without stack, otherwise no compaction is performed.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
+
+    {
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      heap::InvokeMajorGC(heap);
+    }
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -971,12 +974,12 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   {
     HandleScope scope(i_isolate);
 
-    Handle<FixedArray> old_object =
+    IndirectHandle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
     MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
-    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
@@ -987,9 +990,12 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
         MutablePageMetadata::cast(old_object_chunk->Metadata()),
         slot.address()));
 
-    // We need to invoke GC without stack, otherwise no compaction is performed.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
+    {
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      heap::InvokeMajorGC(heap);
+    }
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -1027,12 +1033,12 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   {
     HandleScope scope(i_isolate);
 
-    Handle<FixedArray> old_object =
+    IndirectHandle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
     MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
-    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
@@ -1053,9 +1059,12 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
         slot.address()));
 
     heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*one_byte_seq));
-    // We need to invoke GC without stack, otherwise no compaction is performed.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
+    {
+      // We need to invoke GC without stack, otherwise no compaction is
+      // performed.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      heap::InvokeMajorGC(heap);
+    }
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -1618,7 +1627,7 @@ class ConcurrentExternalizationThread final
     : public ConcurrentStringThreadBase {
  public:
   ConcurrentExternalizationThread(MultiClientIsolateTest* test,
-                                  Handle<FixedArray> shared_strings,
+                                  IndirectHandle<FixedArray> shared_strings,
                                   std::vector<OneByteResource*> resources,
                                   bool share_resources,
                                   ParkingSemaphore* sema_ready,
@@ -1655,8 +1664,8 @@ void CreateExternalResources(Isolate* i_isolate,
   HandleScope scope(i_isolate);
   resources.reserve(strings->length());
   for (int i = 0; i < strings->length(); i++) {
-    Handle<String> input_string(String::cast(strings->get(i)), i_isolate);
-    CHECK(Utils::ToLocal(input_string)
+    DirectHandle<String> input_string(String::cast(strings->get(i)), i_isolate);
+    CHECK(Utils::ToLocal(input_string, i_isolate)
               ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
     const int length = input_string->length();
     char* buffer = new char[length + 1];
@@ -1727,7 +1736,7 @@ void TestConcurrentExternalization(bool share_resources) {
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+  IndirectHandle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
       sizeof(UncachedExternalString), false);
 
@@ -1805,11 +1814,9 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   Factory* factory = i_isolate->factory();
 
   ManualGCScope manual_gc_scope(i_isolate);
-  DisableConservativeStackScanningScopeForTesting no_css(i_isolate->heap());
-
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+  IndirectHandle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
       sizeof(UncachedExternalString), false);
 
@@ -1850,11 +1857,11 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  Handle<String> empty_string =
-      handle(ReadOnlyRoots(i_isolate->heap()).empty_string(), i_isolate);
+  DirectHandle<String> empty_string(
+      ReadOnlyRoots(i_isolate->heap()).empty_string(), i_isolate);
   for (int i = 0; i < shared_strings->length(); i++) {
-    Handle<String> input_string(String::cast(shared_strings->get(i)),
-                                i_isolate);
+    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+                                      i_isolate);
     // Patch every third string to empty. The next GC will dispose the external
     // resources.
     if (i % 3 == 0) {
@@ -1868,8 +1875,8 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                           GarbageCollectionReason::kTesting);
 
   for (int i = 0; i < shared_strings->length(); i++) {
-    Handle<String> input_string(String::cast(shared_strings->get(i)),
-                                i_isolate);
+    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+                                      i_isolate);
     const bool should_be_alive = i % 3 != 0;
     Tagged<String> string = *input_string;
     CheckStringAndResource(string, i, should_be_alive, *empty_string,
@@ -1886,8 +1893,8 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                             GarbageCollectionReason::kTesting);
 
     for (int i = 0; i < shared_strings->length(); i++) {
-      Handle<String> input_string(String::cast(shared_strings->get(i)),
-                                  i_isolate);
+      DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+                                        i_isolate);
       const bool should_be_alive = i % 3 != 0;
       Tagged<String> string = *input_string;
       CheckStringAndResource(string, i, should_be_alive, *empty_string, true,
@@ -1937,7 +1944,7 @@ void TestConcurrentExternalizationAndInternalization(
 
   HandleScope scope(i_isolate);
 
-  Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
+  IndirectHandle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
       sizeof(UncachedExternalString), hit_or_miss == kTestHit);
 
@@ -2288,12 +2295,12 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       v8::Isolate::Scope isolate_scope(client_isolate_);
       HandleScope scope(i_client);
 
-      DirectHandle<FixedArray> young_object =
+      IndirectHandle<FixedArray> young_object =
           factory->NewFixedArray(1, AllocationType::kYoung);
       CHECK(Heap::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
-      std::vector<Handle<FixedArray>> handles;
+      std::vector<IndirectHandle<FixedArray>> handles;
       // Make the whole page transition from new->old, getting the buffers
       // processed in the sweeper (relying on marking information) instead of
       // processing during newspace evacuation.
@@ -2301,8 +2308,8 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 
       // Create a new to shared reference.
       CHECK(!weak_ref_->IsEmpty());
-      DirectHandle<String> shared_string =
-          Utils::OpenDirectHandle<v8::String, String>(
+      IndirectHandle<String> shared_string =
+          Utils::OpenHandle<v8::String, String>(
               weak_ref_->Get(client_isolate_));
       CHECK(!heap->Contains(*shared_string));
       CHECK(heap->SharedHeapContains(*shared_string));
@@ -2324,6 +2331,10 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
           ->GetForegroundTaskRunner(test_->main_isolate())
           ->PostTask(std::make_unique<WakeupTask>(
               test_->i_main_isolate(), test_->main_isolate_wakeup_counter()));
+
+      // We need to ensure that the shared GC does not scan the stack for this
+      // client, otherwise some objects may survive.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
       // Wait for main thread to do a shared GC.
       while (wakeup_counter_ < 1) {

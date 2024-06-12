@@ -814,7 +814,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   Heap* heap = isolate->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
+  IndirectHandle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
 
   CHECK(!IsUndefined(weak_ref->target(), isolate));
 

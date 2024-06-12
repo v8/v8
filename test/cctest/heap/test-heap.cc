@@ -639,16 +639,18 @@ TEST(BytecodeArray) {
   HandleScope scope(isolate);
 
   heap::SimulateFullSpace(heap->old_space());
-  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(5);
+  IndirectHandle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(5);
   for (int i = 0; i < 5; i++) {
-    Handle<Object> number = factory->NewHeapNumber(i);
+    IndirectHandle<Object> number = factory->NewHeapNumber(i);
     constant_pool->set(i, *number);
   }
 
-  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(3);
+  IndirectHandle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3);
 
   // Allocate and initialize BytecodeArray
-  Handle<BytecodeArray> array = factory->NewBytecodeArray(
+  IndirectHandle<BytecodeArray> array = factory->NewBytecodeArray(
       kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
       constant_pool, handler_table);
 
@@ -1102,7 +1104,7 @@ TEST(TestBytecodeFlushing) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    IndirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
 
     // This compile will add the code to the compilation cache.
     {
@@ -1111,11 +1113,11 @@ TEST(TestBytecodeFlushing) {
     }
 
     // Check function is compiled.
-    Handle<Object> func_value =
+    IndirectHandle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Cast<JSFunction>(func_value);
+    IndirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
 
     // The code will survive at least two GCs.
@@ -1176,7 +1178,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    IndirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
 
     // This compile will add the code to the compilation cache.
     {
@@ -1189,12 +1191,12 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Cast<JSFunction>(func_value);
-    Handle<SharedFunctionInfo> shared = handle(function->shared(), i_isolate);
+    IndirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+    IndirectHandle<SharedFunctionInfo> shared(function->shared(), i_isolate);
     CHECK(shared->is_compiled());
 
     // Make a copy of the SharedFunctionInfo which points to the same bytecode.
-    Handle<SharedFunctionInfo> copy =
+    IndirectHandle<SharedFunctionInfo> copy =
         i_isolate->factory()->CloneSharedFunctionInfo(shared);
 
     if (sparkplug_compile) {
@@ -1430,7 +1432,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
       "  var z = x + y;"
       "};"
       "foo()";
-  Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+  IndirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
 
   // This compile will add the code to the compilation cache.
   {
@@ -1439,11 +1441,11 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   }
 
   // Check function is compiled.
-  Handle<Object> func_value =
+  IndirectHandle<Object> func_value =
       Object::GetProperty(isolate, isolate->global_object(), foo_name)
           .ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
-  Handle<JSFunction> function = Cast<JSFunction>(func_value);
+  IndirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
@@ -3238,8 +3240,8 @@ TEST(Regress1465) {
     CompileRun("var root = new F;");
   }
 
-  i::Handle<JSReceiver> root =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+  i::IndirectHandle<JSReceiver> root =
+      v8::Utils::OpenIndirectHandle(*v8::Local<v8::Object>::Cast(
           CcTest::global()
               ->Get(isolate->GetCurrentContext(), v8_str("root"))
               .ToLocalChecked()));
@@ -4043,7 +4045,7 @@ TEST(LargeObjectSlotRecording) {
 
   // Create an object on an evacuation candidate.
   heap::SimulateFullSpace(heap->old_space());
-  Handle<FixedArray> lit =
+  IndirectHandle<FixedArray> lit =
       isolate->factory()->NewFixedArray(4, AllocationType::kOld);
   PageMetadata* evac_page = PageMetadata::FromHeapObject(*lit);
   heap::ForceEvacuationCandidate(evac_page);
@@ -4052,7 +4054,7 @@ TEST(LargeObjectSlotRecording) {
   // Allocate a large object.
   int size = std::max(1000000, kMaxRegularHeapObjectSize + KB);
   CHECK_LT(kMaxRegularHeapObjectSize, size);
-  Handle<FixedArray> lo =
+  IndirectHandle<FixedArray> lo =
       isolate->factory()->NewFixedArray(size, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*lo));
 
@@ -4095,9 +4097,9 @@ TEST(PersistentHandles) {
   Heap* heap = isolate->heap();
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
   HandleScopeData* data = isolate->handle_scope_data();
-  Handle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
+  IndirectHandle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
   while (data->next < data->limit) {
-    Handle<Object> obj(ReadOnlyRoots(heap).empty_string(), isolate);
+    IndirectHandle<Object> obj(ReadOnlyRoots(heap).empty_string(), isolate);
   }
   // An entire block of handles has been filled.
   // Next handle would require a new block.
@@ -4256,7 +4258,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   if (!isolate->use_optimizer()) return;
 
   // The allocation site at the head of the list is ours.
-  Handle<AllocationSite> site;
+  IndirectHandle<AllocationSite> site;
   {
     LocalContext context;
     v8::HandleScope scope(context->GetIsolate());
@@ -4277,10 +4279,11 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
-    Handle<JSFunction> bar_handle = Cast<JSFunction>(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CcTest::global()
-                                           ->Get(context.local(), v8_str("bar"))
-                                           .ToLocalChecked())));
+    IndirectHandle<JSFunction> bar_handle = Cast<JSFunction>(
+        v8::Utils::OpenIndirectHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()
+                ->Get(context.local(), v8_str("bar"))
+                .ToLocalChecked())));
 
     // Expect a dependent code object for transitioning and pretenuring.
     Tagged<DependentCode> dependency = site->dependent_code();
@@ -4679,10 +4682,11 @@ TEST(WeakFunctionInConstructor) {
       "function createObj(obj) {"
       "  return new obj();"
       "}");
-  i::Handle<JSFunction> createObj = Cast<JSFunction>(v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(CcTest::global()
-                                         ->Get(env.local(), v8_str("createObj"))
-                                         .ToLocalChecked())));
+  i::IndirectHandle<JSFunction> createObj = Cast<JSFunction>(
+      v8::Utils::OpenIndirectHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()
+              ->Get(env.local(), v8_str("createObj"))
+              .ToLocalChecked())));
 
   v8::Persistent<v8::Object> garbage;
   {
@@ -4714,8 +4718,8 @@ TEST(WeakFunctionInConstructor) {
   // We've determined the constructor in createObj has had it's weak cell
   // cleared. Now, verify that one additional call with a new function
   // allows monomorphicity.
-  Handle<FeedbackVector> feedback_vector =
-      Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
+  IndirectHandle<FeedbackVector> feedback_vector(createObj->feedback_vector(),
+                                                 CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
     Tagged<MaybeObject> slot_value = feedback_vector->Get(FeedbackSlot(0));
     CHECK(slot_value.IsWeakOrCleared());
@@ -5345,7 +5349,7 @@ void CheckMapRetainingFor(int n) {
   Isolate* i_isolate = CcTest::i_isolate();
   Heap* heap = i_isolate->heap();
 
-  Handle<NativeContext> native_context;
+  IndirectHandle<NativeContext> native_context;
   // This global is used to visit the object's constructor alive when starting
   // incremental marking. The native context keeps the constructor alive. The
   // constructor needs to be alive to retain the map.
@@ -5353,14 +5357,14 @@ void CheckMapRetainingFor(int n) {
 
   {
     v8::Local<v8::Context> ctx = v8::Context::New(isolate);
-    Handle<Context> context = Utils::OpenHandle(*ctx);
+    IndirectHandle<Context> context = Utils::OpenIndirectHandle(*ctx);
     CHECK(IsNativeContext(*context));
     native_context = Cast<NativeContext>(context);
     global_ctxt.Reset(isolate, ctx);
     ctx->Enter();
   }
 
-  Handle<WeakFixedArray> array_with_map =
+  IndirectHandle<WeakFixedArray> array_with_map =
       AddRetainedMap(i_isolate, native_context);
   CHECK(array_with_map->get(0).IsWeak());
   for (int i = 0; i < n; i++) {
@@ -6408,12 +6412,14 @@ TEST(RememberedSet_OldToOld) {
   heap::SealCurrentObjects(heap);
   HandleScope scope(isolate);
 
-  Handle<FixedArray> arr = factory->NewFixedArray(10, AllocationType::kOld);
+  IndirectHandle<FixedArray> arr =
+      factory->NewFixedArray(10, AllocationType::kOld);
   {
     HandleScope short_lived(isolate);
     factory->NewFixedArray(100, AllocationType::kOld);
   }
-  Handle<Object> ref = factory->NewFixedArray(100, AllocationType::kOld);
+  IndirectHandle<Object> ref =
+      factory->NewFixedArray(100, AllocationType::kOld);
   arr->set(0, *ref);
 
   // To force compaction of the old space, fill it with garbage and start a new
@@ -6427,11 +6433,13 @@ TEST(RememberedSet_OldToOld) {
   heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*arr));
   const auto prev_location = *arr;
 
-  // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
-  // create OLD_TO_OLD remembered set to track the reference.
-  // We need to invoke GC without stack, otherwise no compaction is performed.
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::InvokeMajorGC(heap);
+  {
+    // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
+    // create OLD_TO_OLD remembered set to track the reference.
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    heap::InvokeMajorGC(heap);
+  }
   CHECK_NE(prev_location.ptr(), arr->ptr());
 }
 

@@ -152,7 +152,7 @@ TEST(ArrayBuffer_Compaction) {
 
   v8::HandleScope handle_scope(isolate);
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
-  Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
+  IndirectHandle<JSArrayBuffer> buf1 = v8::Utils::OpenIndirectHandle(*ab1);
   CHECK(IsTracked(heap, *buf1));
   heap::InvokeAtomicMajorGC(heap);
 
@@ -160,9 +160,12 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(heap, *buf1));
 
-  // We need to invoke GC without stack, otherwise no compaction is performed.
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::InvokeMajorGC(heap);
+  {
+    // We need to invoke GC without stack, otherwise no compaction is
+    // performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    heap::InvokeMajorGC(heap);
+  }
 
   PageMetadata* page_after_gc = PageMetadata::FromHeapObject(*buf1);
   CHECK(IsTracked(heap, *buf1));
@@ -471,7 +474,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab1 =
         v8::ArrayBuffer::New(isolate, kArraybufferSize);
-    Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
+    IndirectHandle<JSArrayBuffer> buf1 = v8::Utils::OpenIndirectHandle(*ab1);
     CHECK(IsTracked(heap, *buf1));
     heap::InvokeAtomicMajorGC(heap);
 

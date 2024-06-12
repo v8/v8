@@ -85,12 +85,12 @@ TEST_F(PersistentHandlesTest, Iterate) {
 
   size_t handles_in_empty_scope = count_handles(isolate);
 
-  Handle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
+  IndirectHandle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
   Address* old_limit = data->limit;
   CHECK_EQ(count_handles(isolate), handles_in_empty_scope + 1);
 
   std::unique_ptr<PersistentHandles> ph;
-  Handle<String> verify_handle;
+  IndirectHandle<String> verify_handle;
 
   {
     PersistentHandlesScope persistent_scope(isolate);

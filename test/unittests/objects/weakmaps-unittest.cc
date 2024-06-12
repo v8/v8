@@ -58,19 +58,17 @@ TEST_F(WeakMapsTest, Weakness) {
   v8_flags.incremental_marking = false;
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      isolate->heap());
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  IndirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   GlobalHandles* global_handles = isolate->global_handles();
 
   // Keep global reference to the key.
-  Handle<Object> key;
+  IndirectHandle<Object> key;
   {
     HandleScope inner_scope(isolate);
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
     key = global_handles->Create(*object);
   }
   CHECK(!global_handles->IsWeak(key.location()));
@@ -78,10 +76,10 @@ TEST_F(WeakMapsTest, Weakness) {
   // Put two chained entries into weak map.
   {
     HandleScope inner_scope(isolate);
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-    Handle<Smi> smi(Smi::FromInt(23), isolate);
+    DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
     JSWeakCollection::Set(weakmap, key, object, hash);
     int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
@@ -91,13 +89,19 @@ TEST_F(WeakMapsTest, Weakness) {
   {
     HandleScope inner_scope(isolate);
     Handle<Symbol> symbol = factory->NewSymbol();
-    Handle<Smi> smi(Smi::FromInt(23), isolate);
+    DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
   }
   CHECK_EQ(3, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
-  InvokeAtomicMajorGC();
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
+    InvokeAtomicMajorGC();
+  }
   CHECK_EQ(0, NumberOfWeakCalls);
   // Symbol key should be deleted.
   CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
@@ -105,13 +109,19 @@ TEST_F(WeakMapsTest, Weakness) {
       1, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
-  std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
+  std::pair<IndirectHandle<Object>*, int> handle_and_id(&key, 1234);
   GlobalHandles::MakeWeak(
       key.location(), reinterpret_cast<void*>(&handle_and_id),
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  InvokeAtomicMajorGC();
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
+    InvokeAtomicMajorGC();
+  }
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
@@ -124,7 +134,7 @@ TEST_F(WeakMapsTest, Shrinking) {
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       isolate->heap());
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
   CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
@@ -132,11 +142,11 @@ TEST_F(WeakMapsTest, Shrinking) {
   // Fill up weak map to trigger capacity change.
   {
     HandleScope inner_scope(isolate);
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-      Handle<Smi> smi(Smi::FromInt(i), isolate);
+      DirectHandle<Smi> smi(Smi::FromInt(i), isolate);
       int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
       JSWeakCollection::Set(weakmap, object, smi, object_hash);
     }
@@ -173,16 +183,16 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   InvokeMajorGC();
 
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
 
-  Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+  DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-  Handle<Smi> smi(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
 
