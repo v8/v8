@@ -2425,7 +2425,6 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
         // We haven't untagged, so we need to sign extend.
         __ SignExtend32To64Bits(field_index, field_index);
       }
-      __ SignExtend32To64Bits(field_index, field_index);
       __ LoadTaggedFieldByIndex(
           result_reg, object, field_index, scale,
           JSObject::kHeaderSize - (kIsDoubleBit << (kTaggedSizeLog2 - 1)));
