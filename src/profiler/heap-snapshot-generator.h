@@ -630,7 +630,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
   // The HeapEntriesMap instance is used to track a mapping between
   // real heap objects and their representations in heap snapshots.
-  using HeapEntriesMap = std::unordered_map<HeapThing, HeapEntry*>;
+  using HeapEntriesMap = base::HashMap;
   // The SmiEntriesMap instance is used to track a mapping between smi and
   // their representations in heap snapshots.
   using SmiEntriesMap = std::unordered_map<int, HeapEntry*>;
@@ -644,24 +644,14 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool GenerateSnapshotAfterGC();
 
   HeapEntry* FindEntry(HeapThing ptr) {
-    auto it = entries_map_.find(ptr);
-    return it != entries_map_.end() ? it->second : nullptr;
+    HeapEntriesMap::Entry* entry =
+        entries_map_.Lookup(ptr, ComputePointerHash(ptr));
+    return entry ? static_cast<HeapEntry*>(entry->value) : nullptr;
   }
 
   HeapEntry* FindEntry(Tagged<Smi> smi) {
     auto it = smis_map_.find(smi.value());
     return it != smis_map_.end() ? it->second : nullptr;
-  }
-
-  HeapEntry* AddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    HeapEntry* result =
-        entries_map_.emplace(ptr, allocator->AllocateEntry(ptr)).first->second;
-#ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
-    if (v8_flags.heap_snapshot_verify) {
-      reverse_entries_map_.emplace(result, ptr);
-    }
-#endif
-    return result;
   }
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
@@ -687,8 +677,19 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   }
 
   HeapEntry* FindOrAddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    HeapEntry* entry = FindEntry(ptr);
-    return entry != nullptr ? entry : AddEntry(ptr, allocator);
+    HeapEntriesMap::Entry* entry =
+        entries_map_.LookupOrInsert(ptr, ComputePointerHash(ptr));
+    if (entry->value != nullptr) {
+      return static_cast<HeapEntry*>(entry->value);
+    }
+    HeapEntry* result = allocator->AllocateEntry(ptr);
+    entry->value = result;
+#ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
+    if (v8_flags.heap_snapshot_verify) {
+      reverse_entries_map_.emplace(result, ptr);
+    }
+#endif
+    return result;
   }
 
   HeapEntry* FindOrAddEntry(Tagged<Smi> smi, HeapEntriesAllocator* allocator) {
