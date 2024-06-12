@@ -180,8 +180,9 @@ class BasicBlock {
 
     BasicBlock* current = this;
     while (true) {
-      if (!current->nodes_.is_empty() || current->HasPhisOrRegisterMerges() ||
-          current->is_loop()) {
+      if (!current->nodes_.is_empty() || current->is_loop() ||
+          current->is_exception_handler_block() ||
+          current->HasPhisOrRegisterMerges()) {
         break;
       }
       Jump* control = current->control_node()->TryCast<Jump>();
