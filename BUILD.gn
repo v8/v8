@@ -68,12 +68,10 @@ declare_args() {
   v8_promise_internal_field_count = 0
 
   # Sets the number of internal fields on array buffer objects.
-  # TODO(346350847): Switch default to 0.
-  v8_array_buffer_internal_field_count = 2
+  v8_array_buffer_internal_field_count = 0
 
   # Sets the number of internal fields on array buffer view objects.
-  # TODO(346350847): Switch default to 0.
-  v8_array_buffer_view_internal_field_count = 2
+  v8_array_buffer_view_internal_field_count = 0
 
   # Sets -dENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
@@ -862,6 +860,9 @@ config("external_startup_data") {
 # Make sure the |v8_generate_features_json| action is also updated when adding
 # or removing defines below.
 external_v8_defines = [
+  "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
+  "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
+  "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
   "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
@@ -886,7 +887,11 @@ external_v8_defines = [
   "V8_TARGET_OS_CHROMEOS",
 ]
 
-enabled_external_v8_defines = []
+enabled_external_v8_defines = [
+  "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
+  "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
+  "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
+]
 
 if (v8_enable_v8_checks) {
   enabled_external_v8_defines += [ "V8_ENABLE_CHECKS" ]
@@ -1039,7 +1044,8 @@ config("features") {
   # Only targets in this file and its subdirs can depend on this.
   visibility = [ "./*" ]
 
-  defines = []
+  defines =
+      [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
 
   configs = [
     ":v8_header_features",
@@ -1068,19 +1074,6 @@ config("features") {
   if (v8_log_builtins_block_count_input != "") {
     defines += [ "LOG_BUILTIN_BLOCK_COUNT" ]
   }
-  if (v8_promise_internal_field_count != 0) {
-    defines +=
-        [ "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}" ]
-  }
-  if (v8_array_buffer_internal_field_count != 0) {
-    defines += [ "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}" ]
-  }
-  if (v8_array_buffer_view_internal_field_count != 0) {
-    defines += [ "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}" ]
-  }
-  defines +=
-      [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
-
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
   }
