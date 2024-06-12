@@ -1266,13 +1266,20 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            const char* reason) {
   DCHECK(!fast_map->is_dictionary_map());
 
-  Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
-                             isolate);
-  if (fast_map->is_prototype_map() || IsUndefined(*maybe_cache, isolate)) {
+  Tagged<Map> meta_map = fast_map->map();
+  if (fast_map->is_prototype_map()) {
     use_cache = false;
   }
   Handle<NormalizedMapCache> cache;
-  if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
+  if (use_cache) {
+    Tagged<Object> normalized_map_cache =
+        meta_map->native_context()->normalized_map_cache();
+    use_cache = !IsUndefined(normalized_map_cache, isolate);
+    if (use_cache) {
+      cache = Handle<NormalizedMapCache>::cast(
+          handle(normalized_map_cache, isolate));
+    }
+  }
 
   Handle<Map> new_map;
   if (use_cache && cache
