@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
+#include <limits>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -2852,12 +2853,22 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,
                                 const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    const FeedbackSource& feedback =
+        node->eager_deopt_info()->feedback_to_update();
     OpIndex result = __ ConvertJSPrimitiveToUntaggedOrDeopt(
-        Map(node->object_input()), BuildFrameState(node->eager_deopt_info()),
+        Map(node->object_input()), frame_state,
         ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumberOrString,
         ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
-        CheckForMinusZeroMode::kCheckForMinusZero,
-        node->eager_deopt_info()->feedback_to_update());
+        CheckForMinusZeroMode::kCheckForMinusZero, feedback);
+    if constexpr (Is64()) {
+      // ArrayIndex is 32-bit in Maglev, but 64 in Turboshaft. This means that
+      // we have to convert it to 32-bit before the following `SetMap`, and we
+      // thus have to check that it actually fits in a Uint32.
+      __ DeoptimizeIfNot(__ Uint64LessThanOrEqual(
+                             result, std::numeric_limits<uint32_t>::max()),
+                         frame_state, DeoptimizeReason::kNotInt32, feedback);
+    }
     SetMap(node, Is64() ? __ TruncateWord64ToWord32(result) : result);
     return maglev::ProcessResult::kContinue;
   }
