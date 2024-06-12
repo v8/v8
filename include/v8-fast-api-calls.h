@@ -580,6 +580,8 @@ struct FastApiCallbackOptions {
     return {};
   }
 
+  v8::Isolate* isolate = nullptr;
+
   /**
    * If the callback wants to signal an error condition or to perform an
    * allocation, it must set options.fallback to true and do an early return

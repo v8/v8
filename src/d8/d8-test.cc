@@ -16,6 +16,13 @@
 namespace v8 {
 namespace {
 
+#define CHECK_SELF_OR_THROW_FAST_OPTIONS(return_value)                      \
+  if (!self) {                                                              \
+    options.isolate->ThrowError(                                            \
+        "This method is not defined on objects inheriting from FastCAPI."); \
+    return return_value;                                                    \
+  }
+
 #define CHECK_SELF_OR_THROW_FAST(return_value)                              \
   if (!self) {                                                              \
     receiver->GetIsolate()->ThrowError(                                     \
@@ -113,7 +120,7 @@ class FastCApiObject {
                                    double arg_f64,
                                    FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     return static_cast<double>(arg_i32) + static_cast<double>(arg_u32) +
@@ -253,7 +260,7 @@ class FastCApiObject {
                                          Local<Array> seq_arg,
                                          FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     uint32_t length = seq_arg->Length();
@@ -352,7 +359,7 @@ class FastCApiObject {
       Local<Object> receiver, const FastApiTypedArray<T>& typed_array_arg,
       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     T sum = 0;
@@ -447,7 +454,7 @@ class FastCApiObject {
                                      int32_t arg_i32, uint32_t arg_u32,
                                      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     return arg_i32 + arg_u32;
@@ -515,7 +522,7 @@ class FastCApiObject {
       int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32, uint32_t arg6_u32,
       uint32_t arg7_u32, uint32_t arg8_u32, FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
@@ -529,7 +536,7 @@ class FastCApiObject {
       int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32, uint32_t arg6_u32,
       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
@@ -953,7 +960,7 @@ class FastCApiObject {
                                          uint32_t address,
                                          FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(false);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(false);
     self->fast_call_count_++;
 
     if (i::v8_flags.fuzzing) {
@@ -1003,7 +1010,7 @@ class FastCApiObject {
   static void* GetPointerFastCallback(Local<Object> receiver,
                                       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(nullptr);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(nullptr);
     self->fast_call_count_++;
 
     return static_cast<void*>(self);
@@ -1022,7 +1029,7 @@ class FastCApiObject {
   static void* GetNullPointerFastCallback(Local<Object> receiver,
                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(nullptr);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(nullptr);
     self->fast_call_count_++;
 
     return nullptr;
@@ -1042,7 +1049,7 @@ class FastCApiObject {
   static void* PassPointerFastCallback(Local<Object> receiver, void* pointer,
                                        FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(nullptr);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(nullptr);
     self->fast_call_count_++;
 
     return pointer;
@@ -1080,7 +1087,7 @@ class FastCApiObject {
                                           void* pointer_a, void* pointer_b,
                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(false);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(false);
     self->fast_call_count_++;
 
     return pointer_a == pointer_b;
@@ -1131,7 +1138,7 @@ class FastCApiObject {
                                       int64_t b,
                                       FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     return a + b;
@@ -1224,7 +1231,7 @@ class FastCApiObject {
                                         uint64_t b,
                                         FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
-    CHECK_SELF_OR_THROW_FAST(0);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
     return a + b;
@@ -1370,6 +1377,7 @@ class FastCApiObject {
 
 #undef CHECK_SELF_OR_THROW_SLOW
 #undef CHECK_SELF_OR_THROW_FAST
+#undef CHECK_SELF_OR_THROW_FAST_OPTIONS
 
 // The object is statically initialized for simplicity, typically the embedder
 // will take care of managing their C++ objects lifetime.

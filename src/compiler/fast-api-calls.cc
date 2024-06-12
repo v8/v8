@@ -320,7 +320,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    static_assert(kSize == sizeof(uintptr_t) * 3);
+    static_assert(kSize == sizeof(uintptr_t) * 4);
     stack_slot = __ StackSlot(kSize, kAlign);
 
     __ Store(
@@ -328,6 +328,12 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         stack_slot,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         __ Int32Constant(0));
+
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             static_cast<int>(offsetof(v8::FastApiCallbackOptions, isolate)),
+             __ ExternalConstant(ExternalReference::isolate_address(isolate_)));
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
