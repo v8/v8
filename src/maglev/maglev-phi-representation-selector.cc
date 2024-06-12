@@ -1002,13 +1002,10 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
 
 template <typename DeoptInfoT>
 void MaglevPhiRepresentationSelector::BypassIdentities(DeoptInfoT* deopt_info) {
-  detail::DeepForEachInput(deopt_info,
-                           [&](ValueNode*& node, InputLocation* input) {
-                             if (node->Is<Identity>()) {
-                               node = node->input(0).node();
-                             }
-                           });
+  detail::DeepForEachInputRemovingIdentities(
+      deopt_info, [&](ValueNode* node, InputLocation* input) {});
 }
+
 template void MaglevPhiRepresentationSelector::BypassIdentities<EagerDeoptInfo>(
     EagerDeoptInfo*);
 template void MaglevPhiRepresentationSelector::BypassIdentities<LazyDeoptInfo>(

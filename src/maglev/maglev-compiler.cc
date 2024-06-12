@@ -562,25 +562,19 @@ class LiveRangeAndNextUseProcessor {
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(deopt_info,
-                             [&](ValueNode*& node, InputLocation* input) {
-                               if (node->Is<Identity>()) {
-                                 node = node->input(0).node();
-                               }
-                               MarkUse(node, use_id, input, loop_used_nodes);
-                             });
+    detail::DeepForEachInputRemovingIdentities(
+        deopt_info, [&](ValueNode* node, InputLocation* input) {
+          MarkUse(node, use_id, input, loop_used_nodes);
+        });
   }
   void MarkCheckpointNodes(NodeBase* node, LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(deopt_info,
-                             [&](ValueNode*& node, InputLocation* input) {
-                               if (node->Is<Identity>()) {
-                                 node = node->input(0).node();
-                               }
-                               MarkUse(node, use_id, input, loop_used_nodes);
-                             });
+    detail::DeepForEachInputRemovingIdentities(
+        deopt_info, [&](ValueNode* node, InputLocation* input) {
+          MarkUse(node, use_id, input, loop_used_nodes);
+        });
   }
 
   MaglevCompilationInfo* compilation_info_;
