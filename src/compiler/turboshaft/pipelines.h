@@ -123,8 +123,15 @@ class Pipeline final {
 
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
-    Run<turboshaft::MaglevGraphBuildingPhase>();
+    base::Optional<BailoutReason> bailout =
+        Run<turboshaft::MaglevGraphBuildingPhase>();
     EndPhaseKind();
+
+    if (bailout.has_value()) {
+      data_->info()->AbortOptimization(bailout.value());
+      return false;
+    }
+
     return true;
   }
 
