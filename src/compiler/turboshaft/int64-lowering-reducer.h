@@ -273,6 +273,31 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
+  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(OptionalV<Word32> index,
+                                                       int32_t offset,
+                                                       int32_t add_offset,
+                                                       bool tagged_base) {
+    // Note that the offset will just wrap around. Still, we need to always
+    // use an offset that is not std::numeric_limits<int32_t>::min() on tagged
+    // loads.
+    // TODO(dmercadier): Replace LoadOp::OffsetIsValid by taking care of this
+    // special case in the LoadStoreSimplificationReducer instead.
+    int32_t new_offset =
+        static_cast<uint32_t>(offset) + static_cast<uint32_t>(add_offset);
+    OptionalV<Word32> new_index = index;
+    if (!LoadOp::OffsetIsValid(new_offset, tagged_base)) {
+      // We cannot encode the new offset so we use the old offset
+      // instead and use the Index to represent the extra offset.
+      new_offset = offset;
+      if (index.has_value()) {
+        new_index = __ Word32Add(new_index.value(), add_offset);
+      } else {
+        new_index = __ Word32Constant(sizeof(int32_t));
+      }
+    }
+    return {new_index, new_offset};
+  }
+
   OpIndex REDUCE(Load)(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
@@ -295,13 +320,15 @@ class Int64LoweringReducer : public Next {
     }
     if (loaded_rep == MemoryRepresentation::Int64() ||
         loaded_rep == MemoryRepresentation::Uint64()) {
+      auto [high_index, high_offset] =
+          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
       return __ Tuple(
           Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(), offset,
                            element_scale),
-          Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
-                           RegisterRepresentation::Word32(),
-                           offset + sizeof(int32_t), element_scale));
+          Next::ReduceLoad(
+              base, high_index, kind, MemoryRepresentation::Int32(),
+              RegisterRepresentation::Word32(), high_offset, element_scale));
     }
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_scale);
@@ -327,18 +354,8 @@ class Int64LoweringReducer : public Next {
           base, index, low, kind, MemoryRepresentation::Int32(), write_barrier,
           offset, element_size_log2, maybe_initializing_or_transitioning,
           maybe_indirect_pointer_tag);
-      int32_t high_offset = offset + sizeof(int32_t);
-      OptionalOpIndex high_index = index;
-      if (!LoadOp::OffsetIsValid(high_offset, kind.tagged_base)) {
-        // We cannot encode {high_offset} as an offset, so we use {offset}
-        // instead and use the Index to represent the "+ sizeof(int32_t)".
-        high_offset = offset;
-        if (high_index.has_value()) {
-          high_index = __ Word32Add(high_index.value(), sizeof(int32_t));
-        } else {
-          high_index = __ Word32Constant(sizeof(int32_t));
-        }
-      }
+      auto [high_index, high_offset] =
+          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
       OpIndex high_store = Next::ReduceStore(
           base, high_index, high, kind, MemoryRepresentation::Int32(),
           write_barrier, high_offset, element_size_log2,
