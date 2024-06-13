@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
 
 function cmp_float64(which, a, b) {
   if (which == 0) { return a > b; }

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan --no-maglev-inline-api-calls
+// Flags: --no-maglev-inline-api-calls
 // Flags: --no-rcs
 
 function g() { }

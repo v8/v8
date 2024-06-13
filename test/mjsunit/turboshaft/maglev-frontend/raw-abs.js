@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
 
 function f64_abs(n) {
   let v = n + 3.125;

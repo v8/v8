@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
 
 function ret_bool(a) {
   let v = a * 1.35;

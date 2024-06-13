@@ -927,7 +927,7 @@
   'regress/regress-779407': [SKIP],
 
   # MIPS64 port doesn't support maglev yet.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -938,7 +938,7 @@
   'wasm/float-constant-folding': [SKIP],
 
   # Loong64 port doesn't support maglev yet.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -984,7 +984,7 @@
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
   # Disabling Turboshaft's from-Maglev graph building until support maglev
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
@@ -1346,7 +1346,7 @@
 ['pointer_compression and not pointer_compression_shared_cage', {
 
   # The test requires shared heap but it is not shared in the multi cage mode.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 
 }],  # pointer_compression and not pointer_compression_shared_cage'
 
@@ -1699,8 +1699,6 @@
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
   'regress/regress-740784': [PASS, ['tsan', SKIP]],
   'regress/regress-crbug-820312': [PASS, SLOW],
-  # Bug(chromium:42204525): Re-enable once this is supported.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
@@ -1816,7 +1814,7 @@
   # Flaky under this variant, skipping per https://crbug.com/v8/14560#c2
   'turboshaft/turboshaft-frontend-test': [SKIP],
   # Flaky under this variant, skipping per https://crbug.com/v8/14630#c3
-  'turboshaft/turboshaft-maglev-frontend': [SKIP]
+  'turboshaft/maglev-frontend/*': [SKIP]
 }],  # variant == stress_concurrent_inlining
 
 ##############################################################################
@@ -1857,7 +1855,7 @@
 
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
   # supported by the Maglev->Turboshaft graph builder.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 }], # single_generation
 
 ################################################################################
@@ -2068,7 +2066,7 @@
   'regress/regress-trap-allocation-memento': [FAIL],
 
   # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
+  'turboshaft/maglev-frontend/*': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds

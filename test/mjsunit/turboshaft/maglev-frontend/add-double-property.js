@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
 
 function add_double_property(o) {
   o.x = 1.1;

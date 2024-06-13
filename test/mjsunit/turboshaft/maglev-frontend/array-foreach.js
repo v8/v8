@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
 
 function for_each_input_fun(f) {
   [1, 2, 3].forEach(f);
