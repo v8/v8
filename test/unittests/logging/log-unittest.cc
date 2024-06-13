@@ -316,7 +316,7 @@ TEST_F(TestWithIsolate, Issue23768) {
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::DirectHandle<i::ExternalTwoByteString> i_source(
-      i::ExternalTwoByteString::cast(*v8::Utils::OpenDirectHandle(*source)),
+      i::Cast<i::ExternalTwoByteString>(*v8::Utils::OpenDirectHandle(*source)),
       i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
@@ -909,7 +909,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
     uintptr_t address = obj.ptr();
     if (map_create_addresses.find(address) == map_create_addresses.end()) {
       // logger->PrintLog();
-      i::Print(i::Map::cast(obj));
+      i::Print(i::Cast<i::Map>(obj));
       FATAL(
           "Map (%p, #%zu) creation not logged during startup with "
           "--log-maps!"
@@ -919,7 +919,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
     } else if (map_details_addresses.find(address) ==
                map_details_addresses.end()) {
       // logger->PrintLog();
-      i::Print(i::Map::cast(obj));
+      i::Print(i::Cast<i::Map>(obj));
       FATAL(
           "Map (%p, #%zu) details not logged during startup with "
           "--log-maps!"

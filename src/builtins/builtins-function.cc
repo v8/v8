@@ -153,7 +153,7 @@ BUILTIN(AsyncFunctionConstructor) {
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
   auto func = Cast<JSFunction>(maybe_func);
-  DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -171,7 +171,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
   auto func = Cast<JSFunction>(maybe_func);
-  DirectHandle<Script> script(Script::cast(func->shared()->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(func->shared()->script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -214,7 +214,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     DirectHandle<NativeContext> native_context(
         isolate->global_object()->native_context(), isolate);
     auto function_proto = native_context->function_function()->prototype();
-    proto = handle(HeapObject::cast(function_proto), isolate);
+    proto = handle(Cast<HeapObject>(function_proto), isolate);
   } else {
     UNREACHABLE();
   }
@@ -260,7 +260,7 @@ BUILTIN(FunctionPrototypeToString) {
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
   if (IsJSReceiver(*receiver) &&
-      JSReceiver::cast(*receiver)->map()->is_callable()) {
+      Cast<JSReceiver>(*receiver)->map()->is_callable()) {
     return ReadOnlyRoots(isolate).function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(

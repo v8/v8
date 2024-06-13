@@ -92,7 +92,7 @@ TEST_F(WeakMapsTest, Weakness) {
     DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
   }
-  CHECK_EQ(3, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(3, Cast<EphemeronHashTable>(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
   {
@@ -104,9 +104,9 @@ TEST_F(WeakMapsTest, Weakness) {
   }
   CHECK_EQ(0, NumberOfWeakCalls);
   // Symbol key should be deleted.
-  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, Cast<EphemeronHashTable>(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      1, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      1, Cast<EphemeronHashTable>(weakmap->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<IndirectHandle<Object>*, int> handle_and_id(&key, 1234);
@@ -123,9 +123,9 @@ TEST_F(WeakMapsTest, Weakness) {
     InvokeAtomicMajorGC();
   }
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(0, Cast<EphemeronHashTable>(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      3, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      3, Cast<EphemeronHashTable>(weakmap->table())->NumberOfDeletedElements());
 }
 
 TEST_F(WeakMapsTest, Shrinking) {
@@ -137,7 +137,7 @@ TEST_F(WeakMapsTest, Shrinking) {
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, Cast<EphemeronHashTable>(weakmap->table())->Capacity());
 
   // Fill up weak map to trigger capacity change.
   {
@@ -153,20 +153,20 @@ TEST_F(WeakMapsTest, Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, EphemeronHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(128, Cast<EphemeronHashTable>(weakmap->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(32, Cast<EphemeronHashTable>(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      0, Cast<EphemeronHashTable>(weakmap->table())->NumberOfDeletedElements());
   InvokeAtomicMajorGC();
-  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(0, Cast<EphemeronHashTable>(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       32,
-      EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      Cast<EphemeronHashTable>(weakmap->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, Cast<EphemeronHashTable>(weakmap->table())->Capacity());
 }
 
 namespace {
@@ -197,19 +197,19 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
 
   CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+      Cast<EphemeronHashTable>(weakmap->table()), *object));
   InvokeMajorGC();
 
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+      Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   InvokeMajorGC();
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+      Cast<EphemeronHashTable>(weakmap->table()), *object));
 }
 
 TEST_F(WeakMapsTest, WeakMapScavenge) {
@@ -231,21 +231,21 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
 
   CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+      Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   if (!v8_flags.minor_ms) {
     InvokeAtomicMinorGC();
     CHECK(ObjectInYoungGeneration(*object));
     CHECK(!ObjectInYoungGeneration(weakmap->table()));
     CHECK(EphemeronHashTableContainsKey(
-        EphemeronHashTable::cast(weakmap->table()), *object));
+        Cast<EphemeronHashTable>(weakmap->table()), *object));
   }
 
   InvokeAtomicMajorGC();
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+      Cast<EphemeronHashTable>(weakmap->table()), *object));
 }
 
 // Test that weak map values on an evacuation candidate which are not reachable

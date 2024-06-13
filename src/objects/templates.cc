@@ -34,14 +34,14 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     MaybeDirectHandle<Name> maybe_name) {
   Tagged<Object> current_info = info->shared_function_info();
   if (IsSharedFunctionInfo(current_info)) {
-    return handle(SharedFunctionInfo::cast(current_info), isolate);
+    return handle(Cast<SharedFunctionInfo>(current_info), isolate);
   }
   DirectHandle<Name> name;
   DirectHandle<String> name_string;
   if (maybe_name.ToHandle(&name) && IsString(*name)) {
     name_string = Cast<String>(name);
   } else if (IsString(info->class_name())) {
-    name_string = direct_handle(String::cast(info->class_name()), isolate);
+    name_string = direct_handle(Cast<String>(info->class_name()), isolate);
   } else {
     name_string = isolate->factory()->empty_string();
   }
@@ -90,11 +90,11 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   Tagged<Object> cons_obj = map->GetConstructor();
   Tagged<Object> type;
   if (IsJSFunction(cons_obj)) {
-    Tagged<JSFunction> fun = JSFunction::cast(cons_obj);
+    Tagged<JSFunction> fun = Cast<JSFunction>(cons_obj);
     if (!fun->shared()->IsApiFunction()) return false;
     type = fun->shared()->api_func_data();
   } else if (IsFunctionTemplateInfo(cons_obj)) {
-    type = FunctionTemplateInfo::cast(cons_obj);
+    type = Cast<FunctionTemplateInfo>(cons_obj);
   } else {
     return false;
   }
@@ -103,7 +103,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // see if the required one occurs.
   while (IsFunctionTemplateInfo(type)) {
     if (type == *this) return true;
-    type = FunctionTemplateInfo::cast(type)->GetParentTemplate();
+    type = Cast<FunctionTemplateInfo>(type)->GetParentTemplate();
   }
   // Didn't find the required type in the inheritance chain.
   return false;
@@ -118,10 +118,10 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
   }
 
   bool result = false;
-  Tagged<Map> map = HeapObject::cast(object)->map();
+  Tagged<Map> map = Cast<HeapObject>(object)->map();
   Tagged<Object> constructor_obj = map->GetConstructor();
   if (IsJSFunction(constructor_obj)) {
-    Tagged<JSFunction> fun = JSFunction::cast(constructor_obj);
+    Tagged<JSFunction> fun = Cast<JSFunction>(constructor_obj);
     result = (*this == fun->shared()->api_func_data());
   } else if (IsFunctionTemplateInfo(constructor_obj)) {
     result = (*this == constructor_obj);
@@ -147,33 +147,33 @@ base::Optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
   DisallowGarbageCollection no_gc;
   if (!IsFunctionTemplateInfo(getter)) {
     if (!IsJSFunction(getter)) return {};
-    Tagged<SharedFunctionInfo> info = JSFunction::cast(getter)->shared();
+    Tagged<SharedFunctionInfo> info = Cast<JSFunction>(getter)->shared();
     if (!info->IsApiFunction()) return {};
     getter = info->api_func_data();
   }
   // Check if the accessor uses a cached property.
   Tagged<Object> maybe_name =
-      FunctionTemplateInfo::cast(getter)->cached_property_name();
+      Cast<FunctionTemplateInfo>(getter)->cached_property_name();
   if (IsTheHole(maybe_name, isolate)) return {};
-  return Name::cast(maybe_name);
+  return Cast<Name>(maybe_name);
 }
 
 int FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return FixedArray::cast(GetCFunctionOverloads())->length() /
+  return Cast<FixedArray>(GetCFunctionOverloads())->length() /
          kFunctionOverloadEntrySize;
 }
 
 Address FunctionTemplateInfo::GetCFunction(int index) const {
   i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<Address>(FixedArray::cast(GetCFunctionOverloads())
+  return v8::ToCData<Address>(Cast<FixedArray>(GetCFunctionOverloads())
                                   ->get(index * kFunctionOverloadEntrySize));
 }
 
 const CFunctionInfo* FunctionTemplateInfo::GetCSignature(int index) const {
   i::DisallowHeapAllocation no_gc;
   return v8::ToCData<CFunctionInfo*>(
-      FixedArray::cast(GetCFunctionOverloads())
+      Cast<FixedArray>(GetCFunctionOverloads())
           ->get(index * kFunctionOverloadEntrySize + 1));
 }
 

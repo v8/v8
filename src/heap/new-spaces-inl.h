@@ -29,7 +29,7 @@ bool SemiSpace::Contains(Tagged<HeapObject> o) const {
 }
 
 bool SemiSpace::Contains(Tagged<Object> o) const {
-  return IsHeapObject(o) && Contains(HeapObject::cast(o));
+  return IsHeapObject(o) && Contains(Cast<HeapObject>(o));
 }
 
 template <typename T>
@@ -49,7 +49,7 @@ bool SemiSpace::ContainsSlow(Address a) const {
 // NewSpace
 
 bool NewSpace::Contains(Tagged<Object> o) const {
-  return IsHeapObject(o) && Contains(HeapObject::cast(o));
+  return IsHeapObject(o) && Contains(Cast<HeapObject>(o));
 }
 
 bool NewSpace::Contains(Tagged<HeapObject> o) const {

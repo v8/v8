@@ -104,10 +104,10 @@ void SourceCodeCache::Iterate(RootVisitor* v) {
 bool SourceCodeCache::Lookup(Isolate* isolate, base::Vector<const char> name,
                              Handle<SharedFunctionInfo>* handle) {
   for (int i = 0; i < cache_->length(); i += 2) {
-    Tagged<SeqOneByteString> str = SeqOneByteString::cast(cache_->get(i));
+    Tagged<SeqOneByteString> str = Cast<SeqOneByteString>(cache_->get(i));
     if (str->IsOneByteEqualTo(name)) {
       *handle = Handle<SharedFunctionInfo>(
-          SharedFunctionInfo::cast(cache_->get(i + 1)), isolate);
+          Cast<SharedFunctionInfo>(cache_->get(i + 1)), isolate);
       return true;
     }
   }
@@ -132,7 +132,7 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
   DCHECK(!str.is_null());
   cache_->set(length, *str);
   cache_->set(length + 1, *shared);
-  Script::cast(shared->script())->set_type(type_);
+  Cast<Script>(shared->script())->set_type(type_);
 }
 
 Bootstrapper::Bootstrapper(Isolate* isolate)
@@ -1314,7 +1314,7 @@ static void AddToWeakNativeContextList(Isolate* isolate,
     // Check that context is not in the list yet.
     for (Tagged<Object> current = heap->native_contexts_list();
          !IsUndefined(current, isolate);
-         current = Context::cast(current)->next_context_link()) {
+         current = Cast<Context>(current)->next_context_link()) {
       DCHECK(current != context);
     }
   }
@@ -1377,7 +1377,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     DirectHandle<ObjectTemplateInfo> data =
         v8::Utils::OpenDirectHandle(*global_proxy_template);
     DirectHandle<FunctionTemplateInfo> global_constructor(
-        FunctionTemplateInfo::cast(data->constructor()), isolate());
+        Cast<FunctionTemplateInfo>(data->constructor()), isolate());
     Handle<Object> proto_template(global_constructor->GetPrototypeTemplate(),
                                   isolate());
     if (!IsUndefined(*proto_template, isolate())) {
@@ -1401,7 +1401,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
 #endif
   } else {
     DirectHandle<FunctionTemplateInfo> js_global_object_constructor(
-        FunctionTemplateInfo::cast(js_global_object_template->constructor()),
+        Cast<FunctionTemplateInfo>(js_global_object_template->constructor()),
         isolate());
     js_global_object_function = ApiNatives::CreateApiFunction(
         isolate(), isolate()->native_context(), js_global_object_constructor,
@@ -1427,7 +1427,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     DirectHandle<ObjectTemplateInfo> data =
         v8::Utils::OpenDirectHandle(*global_proxy_template);
     DirectHandle<FunctionTemplateInfo> global_constructor(
-        FunctionTemplateInfo::cast(data->constructor()), isolate());
+        Cast<FunctionTemplateInfo>(data->constructor()), isolate());
     global_proxy_function = ApiNatives::CreateApiFunction(
         isolate(), isolate()->native_context(), global_constructor,
         factory()->the_hole_value(), JS_GLOBAL_PROXY_TYPE);
@@ -1463,7 +1463,7 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy) {
       native_context()->global_proxy_function(), isolate());
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
   Handle<JSObject> global_object(
-      JSObject::cast(native_context()->global_object()), isolate());
+      Cast<JSObject>(native_context()->global_object()), isolate());
   JSObject::ForceSetPrototype(isolate(), global_proxy, global_object);
   global_proxy->map()->set_map(native_context()->meta_map());
   DCHECK(native_context()->global_proxy() == *global_proxy);
@@ -1471,7 +1471,7 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy) {
 
 void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   DirectHandle<JSGlobalObject> global_object_from_snapshot(
-      JSGlobalObject::cast(native_context()->extension()), isolate());
+      Cast<JSGlobalObject>(native_context()->extension()), isolate());
   native_context()->set_extension(*global_object);
   native_context()->set_security_token(*global_object);
 
@@ -1525,7 +1525,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
 
   {
     // Setup %XXXErrorPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(error_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(error_fun->instance_prototype()),
                                isolate);
 
     JSObject::AddProperty(isolate, prototype, factory->name_string(), name,
@@ -1639,7 +1639,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   obj_func->shared()->DontAdaptArguments();                                    \
   InstallWithIntrinsicDefaultProto(isolate, obj_func,                          \
                                    Context::JS_TEMPORAL_##U##_FUNCTION_INDEX); \
-  Handle<JSObject> prototype(JSObject::cast(obj_func->instance_prototype()),   \
+  Handle<JSObject> prototype(Cast<JSObject>(obj_func->instance_prototype()),   \
                              isolate);                                         \
   InstallToStringTag(isolate, prototype, "Temporal." #N);
 
@@ -3041,7 +3041,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                     factory->async_dispose_symbol());
 
     // Setup %SymbolPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(symbol_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(symbol_fun->instance_prototype()),
                                isolate());
 
     InstallToStringTag(isolate_, prototype, "Symbol");
@@ -3082,7 +3082,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
 
     // Setup %DatePrototype%.
-    Handle<JSObject> prototype(JSObject::cast(date_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(date_fun->instance_prototype()),
                                isolate());
 
     // Install the Date.prototype methods.
@@ -3239,7 +3239,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
-        JSObject::cast(promise_fun->instance_prototype()), isolate());
+        Cast<JSObject>(promise_fun->instance_prototype()), isolate());
     native_context()->set_promise_prototype(*prototype);
 
     InstallToStringTag(isolate_, prototype, factory->Promise_string());
@@ -3281,7 +3281,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       // Setup %RegExpPrototype%.
       Handle<JSObject> prototype(
-          JSObject::cast(regexp_fun->instance_prototype()), isolate());
+          Cast<JSObject>(regexp_fun->instance_prototype()), isolate());
       native_context()->set_regexp_prototype(*prototype);
 
       {
@@ -3687,7 +3687,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           Builtin::kDateTimeFormatSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
-          JSObject::cast(date_time_format_constructor->prototype()), isolate_);
+          Cast<JSObject>(date_time_format_constructor->prototype()), isolate_);
 
       InstallToStringTag(isolate_, prototype, "Intl.DateTimeFormat");
 
@@ -3726,7 +3726,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtin::kNumberFormatSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
-          JSObject::cast(number_format_constructor->prototype()), isolate_);
+          Cast<JSObject>(number_format_constructor->prototype()), isolate_);
 
       InstallToStringTag(isolate_, prototype, "Intl.NumberFormat");
 
@@ -3761,7 +3761,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtin::kCollatorSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
-          JSObject::cast(collator_constructor->prototype()), isolate_);
+          Cast<JSObject>(collator_constructor->prototype()), isolate_);
 
       InstallToStringTag(isolate_, prototype, "Intl.Collator");
 
@@ -3785,7 +3785,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           Builtin::kV8BreakIteratorSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
-          JSObject::cast(v8_break_iterator_constructor->prototype()), isolate_);
+          Cast<JSObject>(v8_break_iterator_constructor->prototype()), isolate_);
 
       InstallToStringTag(isolate_, prototype, factory->Object_string());
 
@@ -3824,7 +3824,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtin::kPluralRulesSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
-          JSObject::cast(plural_rules_constructor->prototype()), isolate_);
+          Cast<JSObject>(plural_rules_constructor->prototype()), isolate_);
 
       InstallToStringTag(isolate_, prototype, "Intl.PluralRules");
 
@@ -3857,7 +3857,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       // Setup %RelativeTimeFormatPrototype%.
       Handle<JSObject> prototype(
-          JSObject::cast(relative_time_format_fun->instance_prototype()),
+          Cast<JSObject>(relative_time_format_fun->instance_prototype()),
           isolate());
 
       InstallToStringTag(isolate(), prototype, "Intl.RelativeTimeFormat");
@@ -3888,7 +3888,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       // Setup %ListFormatPrototype%.
       Handle<JSObject> prototype(
-          JSObject::cast(list_format_fun->instance_prototype()), isolate());
+          Cast<JSObject>(list_format_fun->instance_prototype()), isolate());
 
       InstallToStringTag(isolate(), prototype, "Intl.ListFormat");
 
@@ -3913,7 +3913,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       // Setup %LocalePrototype%.
       Handle<JSObject> prototype(
-          JSObject::cast(locale_fun->instance_prototype()), isolate());
+          Cast<JSObject>(locale_fun->instance_prototype()), isolate());
 
       InstallToStringTag(isolate(), prototype, "Intl.Locale");
 
@@ -3984,7 +3984,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         // Setup %DisplayNamesPrototype%.
         Handle<JSObject> prototype(
-            JSObject::cast(display_names_fun->instance_prototype()), isolate());
+            Cast<JSObject>(display_names_fun->instance_prototype()), isolate());
 
         InstallToStringTag(isolate(), prototype, "Intl.DisplayNames");
 
@@ -4011,7 +4011,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         // Setup %SegmenterPrototype%.
         Handle<JSObject> prototype(
-            JSObject::cast(segmenter_fun->instance_prototype()), isolate());
+            Cast<JSObject>(segmenter_fun->instance_prototype()), isolate());
         // #sec-intl.segmenter.prototype-@@tostringtag
         //
         // Intl.Segmenter.prototype [ @@toStringTag ]
@@ -4154,7 +4154,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_array_buffer_noinit_fun(*array_buffer_noinit_fun);
 
     Handle<JSObject> array_buffer_prototype(
-        JSObject::cast(array_buffer_fun->instance_prototype()), isolate_);
+        Cast<JSObject>(array_buffer_fun->instance_prototype()), isolate_);
     SimpleInstallGetter(isolate_, array_buffer_prototype,
                         factory->max_byte_length_string(),
                         Builtin::kArrayBufferPrototypeGetMaxByteLength, false);
@@ -4182,7 +4182,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(isolate_, shared_array_buffer_fun);
 
     Handle<JSObject> shared_array_buffer_prototype(
-        JSObject::cast(shared_array_buffer_fun->instance_prototype()),
+        Cast<JSObject>(shared_array_buffer_fun->instance_prototype()),
         isolate_);
     SimpleInstallGetter(isolate_, shared_array_buffer_prototype,
                         factory->max_byte_length_string(),
@@ -4247,7 +4247,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Setup %TypedArrayPrototype%.
     Handle<JSObject> prototype(
-        JSObject::cast(typed_array_fun->instance_prototype()), isolate());
+        Cast<JSObject>(typed_array_fun->instance_prototype()), isolate());
     native_context()->set_typed_array_prototype(*prototype);
 
     // Install the "buffer", "byteOffset", "byteLength", "length"
@@ -4361,7 +4361,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Setup %DataViewPrototype%.
     Handle<JSObject> prototype(
-        JSObject::cast(data_view_fun->instance_prototype()), isolate());
+        Cast<JSObject>(data_view_fun->instance_prototype()), isolate());
 
     InstallToStringTag(isolate_, prototype, "DataView");
 
@@ -4440,7 +4440,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           2, true);
 
     // Setup %MapPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(js_map_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(js_map_fun->instance_prototype()),
                                isolate());
 
     InstallToStringTag(isolate_, prototype, factory->Map_string());
@@ -4508,7 +4508,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kBigIntAsIntN, 2, false);
 
     // Set up the %BigIntPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(bigint_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(bigint_fun->instance_prototype()),
                                isolate_);
     JSFunction::SetPrototype(bigint_fun, prototype);
 
@@ -4539,7 +4539,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->set_length(0);
 
     // Setup %SetPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(js_set_fun->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(js_set_fun->instance_prototype()),
                                isolate());
 
     InstallToStringTag(isolate_, prototype, factory->Set_string());
@@ -4627,7 +4627,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->set_length(0);
 
     // Setup %WeakMapPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(cons->instance_prototype()),
                                isolate());
 
     DirectHandle<JSFunction> weakmap_delete =
@@ -4666,7 +4666,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->set_length(0);
 
     // Setup %WeakSetPrototype%.
-    Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()),
+    Handle<JSObject> prototype(Cast<JSObject>(cons->instance_prototype()),
                                isolate());
 
     SimpleInstallFunction(isolate_, prototype, "delete",
@@ -4807,7 +4807,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     finalization_registry_fun->shared()->set_length(1);
 
     Handle<JSObject> finalization_registry_prototype(
-        JSObject::cast(finalization_registry_fun->instance_prototype()),
+        Cast<JSObject>(finalization_registry_fun->instance_prototype()),
         isolate());
 
     InstallToStringTag(isolate_, finalization_registry_prototype,
@@ -4841,7 +4841,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     weak_ref_fun->shared()->set_length(1);
 
     Handle<JSObject> weak_ref_prototype(
-        JSObject::cast(weak_ref_fun->instance_prototype()), isolate());
+        Cast<JSObject>(weak_ref_fun->instance_prototype()), isolate());
 
     InstallToStringTag(isolate_, weak_ref_prototype, factory->WeakRef_string());
 
@@ -5003,7 +5003,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
 
   // Setup prototype object.
   DCHECK(IsJSObject(result->prototype()));
-  Handle<JSObject> prototype(JSObject::cast(result->prototype()), isolate());
+  Handle<JSObject> prototype(Cast<JSObject>(result->prototype()), isolate());
 
   CHECK(JSObject::SetPrototype(isolate(), prototype, typed_array_prototype,
                                false, kDontThrow)
@@ -5312,7 +5312,7 @@ void Genesis::InitializeCallSiteBuiltins() {
   isolate()->native_context()->set_callsite_function(*callsite_fun);
 
   // Setup CallSite.prototype.
-  Handle<JSObject> prototype(JSObject::cast(callsite_fun->instance_prototype()),
+  Handle<JSObject> prototype(Cast<JSObject>(callsite_fun->instance_prototype()),
                              isolate());
 
   struct FunctionInfo {
@@ -5608,7 +5608,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
 
   // Setup %ShadowRealmPrototype%.
   Handle<JSObject> prototype(
-      JSObject::cast(shadow_realm_fun->instance_prototype()), isolate());
+      Cast<JSObject>(shadow_realm_fun->instance_prototype()), isolate());
 
   InstallToStringTag(isolate_, prototype, factory->ShadowRealm_string());
 
@@ -5781,7 +5781,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
   DirectHandle<JSFunction> finalization_registry_fun =
       isolate()->js_finalization_registry_fun();
   Handle<JSObject> finalization_registry_prototype(
-      JSObject::cast(finalization_registry_fun->instance_prototype()),
+      Cast<JSObject>(finalization_registry_fun->instance_prototype()),
       isolate());
 
   JSObject::AddProperty(isolate(), finalization_registry_prototype,
@@ -5861,7 +5861,7 @@ void Genesis::InitializeGlobal_js_float16array() {
                         true);
 
   Handle<JSObject> dataview_prototype(
-      JSObject::cast(native_context()->data_view_fun()->instance_prototype()),
+      Cast<JSObject>(native_context()->data_view_fun()->instance_prototype()),
       isolate());
 
   SimpleInstallFunction(isolate_, dataview_prototype, "getFloat16",
@@ -5883,7 +5883,7 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
   DirectHandle<JSFunction> regexp_fun(native_context()->regexp_function(),
                                       isolate());
   Handle<JSObject> regexp_prototype(
-      JSObject::cast(regexp_fun->instance_prototype()), isolate());
+      Cast<JSObject>(regexp_fun->instance_prototype()), isolate());
   SimpleInstallGetter(isolate(), regexp_prototype,
                       isolate()->factory()->linear_string(),
                       Builtin::kRegExpPrototypeLinearGetter, true);
@@ -5910,7 +5910,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     DirectHandle<JSFunction> date_func(native_context()->date_function(),
                                        isolate());
     Handle<JSObject> date_prototype(
-        JSObject::cast(date_func->instance_prototype()), isolate());
+        Cast<JSObject>(date_func->instance_prototype()), isolate());
     Handle<String> name = factory()->InternalizeUtf8String("toTemporalInstant");
     Handle<AccessorInfo> accessor = Accessors::MakeAccessor(
         isolate(), name, LazyInitializeDateToTemporalInstant, nullptr);
@@ -5923,7 +5923,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {
   if (!v8_flags.harmony_intl_locale_info_func) return;
   Handle<JSObject> prototype(
-      JSObject::cast(native_context()->intl_locale_function()->prototype()),
+      Cast<JSObject>(native_context()->intl_locale_function()->prototype()),
       isolate_);
   SimpleInstallFunction(isolate(), prototype, "getCalendars",
                         Builtin::kLocalePrototypeGetCalendars, 0, false);
@@ -5964,7 +5964,7 @@ void Genesis::InitializeGlobal_harmony_intl_duration_format() {
                         Builtin::kDurationFormatSupportedLocalesOf, 1, false);
 
   Handle<JSObject> prototype(
-      JSObject::cast(duration_format_fun->instance_prototype()), isolate());
+      Cast<JSObject>(duration_format_fun->instance_prototype()), isolate());
 
   InstallToStringTag(isolate(), prototype, "Intl.DurationFormat");
 
@@ -6051,12 +6051,12 @@ bool Genesis::InstallABunchOfRandomThings() {
   {
     DirectHandle<JSFunction> object_function(
         native_context()->object_function(), isolate());
-    DCHECK(JSObject::cast(object_function->initial_map()->prototype())
+    DCHECK(Cast<JSObject>(object_function->initial_map()->prototype())
                ->HasFastProperties());
     native_context()->set_object_function_prototype(
-        JSObject::cast(object_function->initial_map()->prototype()));
+        Cast<JSObject>(object_function->initial_map()->prototype()));
     native_context()->set_object_function_prototype_map(
-        HeapObject::cast(object_function->initial_map()->prototype())->map());
+        Cast<HeapObject>(object_function->initial_map()->prototype())->map());
   }
 
   // Store the map for the %StringPrototype% after the natives has been compiled
@@ -6064,7 +6064,7 @@ bool Genesis::InstallABunchOfRandomThings() {
   DirectHandle<JSFunction> string_function(native_context()->string_function(),
                                            isolate());
   Tagged<JSObject> string_function_prototype =
-      JSObject::cast(string_function->initial_map()->prototype());
+      Cast<JSObject>(string_function->initial_map()->prototype());
   DCHECK(string_function_prototype->HasFastProperties());
   native_context()->set_string_function_prototype_map(
       string_function_prototype->map());
@@ -6115,7 +6115,7 @@ bool Genesis::InstallABunchOfRandomThings() {
   {
     DirectHandle<JSFunction> array_constructor(
         native_context()->array_function(), isolate());
-    DirectHandle<JSArray> proto(JSArray::cast(array_constructor->prototype()),
+    DirectHandle<JSArray> proto(Cast<JSArray>(array_constructor->prototype()),
                                 isolate());
 
     // Verification of important array prototype properties.
@@ -6680,11 +6680,11 @@ bool Genesis::ConfigureGlobalObject(
 
     // Configure the global object.
     DirectHandle<FunctionTemplateInfo> proxy_constructor(
-        FunctionTemplateInfo::cast(global_proxy_data->constructor()),
+        Cast<FunctionTemplateInfo>(global_proxy_data->constructor()),
         isolate());
     if (!IsUndefined(proxy_constructor->GetPrototypeTemplate(), isolate())) {
       Handle<ObjectTemplateInfo> global_object_data(
-          ObjectTemplateInfo::cast(proxy_constructor->GetPrototypeTemplate()),
+          Cast<ObjectTemplateInfo>(proxy_constructor->GetPrototypeTemplate()),
           isolate());
       if (!ConfigureApiObject(global_object, global_object_data)) {
         base::OS::PrintError(
@@ -6705,7 +6705,7 @@ bool Genesis::ConfigureGlobalObject(
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
                                  Handle<ObjectTemplateInfo> object_template) {
   DCHECK(!object_template.is_null());
-  DCHECK(FunctionTemplateInfo::cast(object_template->constructor())
+  DCHECK(Cast<FunctionTemplateInfo>(object_template->constructor())
              ->IsTemplateFor(object->map()));
 
   MaybeHandle<JSObject> maybe_obj =
@@ -6781,7 +6781,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
   } else if (IsJSGlobalObject(*from)) {
     // Copy all keys and values in enumeration order.
     Handle<GlobalDictionary> properties(
-        JSGlobalObject::cast(*from)->global_dictionary(kAcquireLoad),
+        Cast<JSGlobalObject>(*from)->global_dictionary(kAcquireLoad),
         isolate());
     DirectHandle<FixedArray> indices =
         GlobalDictionary::IterationIndices(isolate(), properties);
@@ -6816,7 +6816,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
       if (!properties->ToKey(roots, entry, &raw_key)) continue;
 
       DCHECK(IsName(raw_key));
-      Handle<Name> key(Name::cast(raw_key), isolate());
+      Handle<Name> key(Cast<Name>(raw_key), isolate());
       // If the property is already there we skip it.
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
@@ -6840,7 +6840,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
       Tagged<Object> raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));
       DCHECK(IsName(raw_key));
-      Handle<Name> key(Name::cast(raw_key), isolate());
+      Handle<Name> key(Cast<Name>(raw_key), isolate());
       // If the property is already there we skip it.
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
@@ -6859,7 +6859,7 @@ void Genesis::TransferIndexedProperties(DirectHandle<JSObject> from,
                                         DirectHandle<JSObject> to) {
   // Cloning the elements array is sufficient.
   Handle<FixedArray> from_elements =
-      Handle<FixedArray>(FixedArray::cast(from->elements()), isolate());
+      Handle<FixedArray>(Cast<FixedArray>(from->elements()), isolate());
   DirectHandle<FixedArray> to_elements =
       factory()->CopyFixedArray(from_elements);
   to->set_elements(*to_elements);
@@ -7046,7 +7046,7 @@ Genesis::Genesis(Isolate* isolate,
     DirectHandle<JSFunction> string_function(
         native_context()->string_function(), isolate);
     Tagged<JSObject> string_function_prototype =
-        JSObject::cast(string_function->initial_map()->prototype());
+        Cast<JSObject>(string_function->initial_map()->prototype());
     DCHECK(string_function_prototype->HasFastProperties());
     native_context()->set_string_function_prototype_map(
         string_function_prototype->map());
@@ -7091,10 +7091,10 @@ Genesis::Genesis(Isolate* isolate,
   DirectHandle<ObjectTemplateInfo> global_proxy_data =
       Utils::OpenDirectHandle(*global_proxy_template);
   DirectHandle<FunctionTemplateInfo> global_constructor(
-      FunctionTemplateInfo::cast(global_proxy_data->constructor()), isolate);
+      Cast<FunctionTemplateInfo>(global_proxy_data->constructor()), isolate);
 
   DirectHandle<ObjectTemplateInfo> global_object_template(
-      ObjectTemplateInfo::cast(global_constructor->GetPrototypeTemplate()),
+      Cast<ObjectTemplateInfo>(global_constructor->GetPrototypeTemplate()),
       isolate);
   Handle<JSObject> global_object =
       ApiNatives::InstantiateRemoteObject(global_object_template)

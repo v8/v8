@@ -280,7 +280,7 @@ TEST_F(IntlTest, StringLocaleCompareFastPath) {
   }
 
   Handle<JSFunction> collator_constructor = Handle<JSFunction>(
-      JSFunction::cast(
+      Cast<JSFunction>(
           i_isolate()->context()->native_context()->intl_collator_function()),
       i_isolate());
   DirectHandle<Map> constructor_map =

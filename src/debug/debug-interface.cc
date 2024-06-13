@@ -272,7 +272,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
           i::DirectHandle<i::Object>) { private_entries_count++; };
   for (int i = 0; i < keys->length(); ++i) {
     // Exclude the private brand symbols.
-    i::Handle<i::Symbol> key(i::Symbol::cast(keys->get(i)), isolate);
+    i::Handle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
     if (key->is_private_brand()) {
       if (include_methods_or_accessors) {
         i::Handle<i::Object> value;
@@ -280,7 +280,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
             isolate, value, i::Object::GetProperty(isolate, receiver, key),
             false);
 
-        i::DirectHandle<i::Context> value_context(i::Context::cast(*value),
+        i::DirectHandle<i::Context> value_context(i::Cast<i::Context>(*value),
                                                   isolate);
         ForEachContextLocal(isolate, value_context, var_mode_filter,
                             instance_filter, count_private_entry);
@@ -294,7 +294,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   bool has_static_private_methods_or_accessors = false;
   if (include_methods_or_accessors) {
     if (IsJSFunction(*receiver)) {
-      i::DirectHandle<i::JSFunction> func(i::JSFunction::cast(*receiver),
+      i::DirectHandle<i::JSFunction> func(i::Cast<i::JSFunction>(*receiver),
                                           isolate);
       i::DirectHandle<i::SharedFunctionInfo> shared(func->shared(), isolate);
       if (shared->is_class_constructor() &&
@@ -323,14 +323,14 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   };
   if (has_static_private_methods_or_accessors) {
     i::DirectHandle<i::Context> receiver_context(
-        i::JSFunction::cast(*receiver)->context(), isolate);
+        i::Cast<i::JSFunction>(*receiver)->context(), isolate);
     ForEachContextLocal(isolate, receiver_context, var_mode_filter,
                         static_filter, add_private_entry);
   }
 
   for (int i = 0; i < keys->length(); ++i) {
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
-    i::Handle<i::Symbol> key(i::Symbol::cast(*obj_key), isolate);
+    i::Handle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
     CHECK(key->is_private_name());
     i::Handle<i::Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -338,14 +338,14 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     if (key->is_private_brand()) {
       if (include_methods_or_accessors) {
         DCHECK(IsContext(*value));
-        i::DirectHandle<i::Context> value_context(i::Context::cast(*value),
+        i::DirectHandle<i::Context> value_context(i::Cast<i::Context>(*value),
                                                   isolate);
         ForEachContextLocal(isolate, value_context, var_mode_filter,
                             instance_filter, add_private_entry);
       }
     } else if (include_fields) {  // Private fields
       i::DirectHandle<i::String> name(
-          i::String::cast(i::Symbol::cast(*key)->description()), isolate);
+          i::Cast<i::String>(i::Cast<i::Symbol>(*key)->description()), isolate);
       names_out->push_back(Utils::ToLocal(name, isolate));
       values_out->push_back(Utils::ToLocal(value, isolate));
     }
@@ -463,7 +463,7 @@ Maybe<MemorySpan<const uint8_t>> ScriptSource::WasmBytecode() const {
   auto source = Utils::OpenDirectHandle(this);
   if (!IsForeign(*source)) return Nothing<MemorySpan<const uint8_t>>();
   base::Vector<const uint8_t> wire_bytes =
-      i::Managed<i::wasm::NativeModule>::cast(*source)->raw()->wire_bytes();
+      i::Cast<i::Managed<i::wasm::NativeModule>>(*source)->raw()->wire_bytes();
   return Just(MemorySpan<const uint8_t>{wire_bytes.begin(), wire_bytes.size()});
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -510,7 +510,7 @@ int Script::EndLine() const {
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(
-      script, i::String::cast(script->source())->length(), &info);
+      script, i::Cast<i::String>(script->source())->length(), &info);
   return info.line;
 }
 
@@ -528,7 +528,7 @@ int Script::EndColumn() const {
   i::HandleScope scope(isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(
-      script, i::String::cast(script->source())->length(), &info);
+      script, i::Cast<i::String>(script->source())->length(), &info);
   return info.column;
 }
 
@@ -1131,7 +1131,7 @@ MaybeLocal<Script> GeneratorObject::Script() {
   i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return {};
   i::Isolate* isolate = obj->GetIsolate();
-  i::DirectHandle<i::Script> script(i::Script::cast(maybe_script), isolate);
+  i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   return ToApiHandle<v8::debug::Script>(script, isolate);
 }
 
@@ -1146,7 +1146,7 @@ Location GeneratorObject::SuspendedLocation() {
   i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return Location();
   i::Isolate* isolate = obj->GetIsolate();
-  i::Handle<i::Script> script(i::Script::cast(maybe_script), isolate);
+  i::Handle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   i::Script::PositionInfo info;
   i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
       isolate, i::handle(obj->function()->shared(), isolate));

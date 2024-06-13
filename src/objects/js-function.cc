@@ -339,12 +339,12 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
   while (IsJSBoundFunction(function->bound_target_function())) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
                                factory->NewConsString(prefix, target_name));
-    function = handle(JSBoundFunction::cast(function->bound_target_function()),
+    function = handle(Cast<JSBoundFunction>(function->bound_target_function()),
                       isolate);
   }
   if (IsJSWrappedFunction(function->bound_target_function())) {
     DirectHandle<JSWrappedFunction> target(
-        JSWrappedFunction::cast(function->bound_target_function()), isolate);
+        Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     Handle<String> name;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, name,
                                JSWrappedFunction::GetName(isolate, target));
@@ -352,7 +352,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
   }
   if (IsJSFunction(function->bound_target_function())) {
     DirectHandle<JSFunction> target(
-        JSFunction::cast(function->bound_target_function()), isolate);
+        Cast<JSFunction>(function->bound_target_function()), isolate);
     Handle<String> name = JSFunction::GetName(isolate, target);
     return factory->NewConsString(target_name, name);
   }
@@ -365,7 +365,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
                                       Handle<JSBoundFunction> function) {
   int nof_bound_arguments = function->bound_arguments()->length();
   while (IsJSBoundFunction(function->bound_target_function())) {
-    function = handle(JSBoundFunction::cast(function->bound_target_function()),
+    function = handle(Cast<JSBoundFunction>(function->bound_target_function()),
                       isolate);
     // Make sure we never overflow {nof_bound_arguments}, the number of
     // arguments of a function is strictly limited by the max length of an
@@ -379,7 +379,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   }
   if (IsJSWrappedFunction(function->bound_target_function())) {
     DirectHandle<JSWrappedFunction> target(
-        JSWrappedFunction::cast(function->bound_target_function()), isolate);
+        Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     int target_length = 0;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, target_length, JSWrappedFunction::GetLength(isolate, target),
@@ -390,7 +390,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
   DirectHandle<JSFunction> target(
-      JSFunction::cast(function->bound_target_function()), isolate);
+      Cast<JSFunction>(function->bound_target_function()), isolate);
   int target_length = target->length();
 
   int length = std::max(0, target_length - nof_bound_arguments);
@@ -414,12 +414,12 @@ MaybeHandle<String> JSWrappedFunction::GetName(
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetName(
         isolate,
-        handle(JSBoundFunction::cast(function->wrapped_target_function()),
+        handle(Cast<JSBoundFunction>(function->wrapped_target_function()),
                isolate));
   } else if (IsJSFunction(*target)) {
     return JSFunction::GetName(
         isolate,
-        handle(JSFunction::cast(function->wrapped_target_function()), isolate));
+        handle(Cast<JSFunction>(function->wrapped_target_function()), isolate));
   }
   // This will omit the proper target name for bound JSProxies.
   return target_name;
@@ -434,7 +434,7 @@ Maybe<int> JSWrappedFunction::GetLength(
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetLength(
         isolate,
-        handle(JSBoundFunction::cast(function->wrapped_target_function()),
+        handle(Cast<JSBoundFunction>(function->wrapped_target_function()),
                isolate));
   }
   // All non JSFunction targets get a direct property and don't use this
@@ -1108,7 +1108,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
                                     : Context::OBJECT_FUNCTION_INDEX;
     DirectHandle<JSFunction> realm_constructor(
-        JSFunction::cast(native_context->get(index)), isolate);
+        Cast<JSFunction>(native_context->get(index)), isolate);
     prototype = handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
@@ -1162,7 +1162,7 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
     if (*new_target == context->get(ctor_index)) {
       ctor_index =
           TypedArrayElementsKindToRabGsabCtorIndex(map->elements_kind());
-      return handle(Map::cast(context->get(ctor_index)), isolate);
+      return handle(Cast<Map>(context->get(ctor_index)), isolate);
     }
   }
 
@@ -1185,7 +1185,7 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabDataViewMap(
     return MaybeHandle<Map>();
   }
   if (*map == constructor->initial_map()) {
-    return handle(Map::cast(context->js_rab_gsab_data_view_map()), isolate);
+    return handle(Cast<Map>(context->js_rab_gsab_data_view_map()), isolate);
   }
 
   // This only happens when subclassing DataViews. Create a new map with the
@@ -1314,11 +1314,11 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
         isolate->factory()->class_positions_symbol());
     if (IsClassPositions(*maybe_class_positions)) {
       Tagged<ClassPositions> class_positions =
-          ClassPositions::cast(*maybe_class_positions);
+          Cast<ClassPositions>(*maybe_class_positions);
       int start_position = class_positions->start();
       int end_position = class_positions->end();
       Handle<String> script_source(
-          String::cast(Script::cast(shared_info->script())->source()), isolate);
+          Cast<String>(Cast<Script>(shared_info->script())->source()), isolate);
       return isolate->factory()->NewSubString(script_source, start_position,
                                               end_position);
     }
@@ -1341,7 +1341,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
           module->asm_js_offset_information->GetFunctionOffsets(
               declared_function_index(module, function_data->function_index()));
       Handle<String> source(
-          String::cast(Script::cast(shared_info->script())->source()), isolate);
+          Cast<String>(Cast<Script>(shared_info->script())->source()), isolate);
       return isolate->factory()->NewSubString(source, offsets.first,
                                               offsets.second);
     }

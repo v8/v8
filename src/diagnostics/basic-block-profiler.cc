@@ -87,7 +87,7 @@ void BasicBlockProfilerData::CopyFromJSHeap(
   schedule_ = js_heap_data->schedule()->ToCString().get();
   code_ = js_heap_data->code()->ToCString().get();
   Tagged<FixedUInt32Array> counts =
-      FixedUInt32Array::cast(js_heap_data->counts());
+      Cast<FixedUInt32Array>(js_heap_data->counts());
   for (int i = 0; i < counts->length() / kBlockCountSlotSize; ++i) {
     counts_.push_back(counts->get(i));
   }
@@ -151,7 +151,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
                                isolate);
   for (int i = 0; i < list->length(); ++i) {
     DirectHandle<FixedUInt32Array> counts(
-        OnHeapBasicBlockProfilerData::cast(list->get(i))->counts(), isolate);
+        Cast<OnHeapBasicBlockProfilerData>(list->get(i))->counts(), isolate);
     for (int j = 0; j < counts->length() / kBlockCountSlotSize; ++j) {
       counts->set(j, 0);
     }
@@ -174,7 +174,7 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(
-        handle(OnHeapBasicBlockProfilerData::cast(list->get(i)), isolate),
+        handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)), isolate),
         isolate);
     os << data;
     // Ensure that all builtin names are unique; otherwise profile-guided
@@ -191,7 +191,7 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
   std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->length(); ++i) {
     BasicBlockProfilerData data(
-        handle(OnHeapBasicBlockProfilerData::cast(list->get(i)), isolate),
+        handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)), isolate),
         isolate);
     data.Log(isolate, os);
     // Ensure that all builtin names are unique; otherwise profile-guided
@@ -207,7 +207,7 @@ std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   int list_length = list->length();
   for (int i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
-        OnHeapBasicBlockProfilerData::cast(list->get(i)));
+        Cast<OnHeapBasicBlockProfilerData>(list->get(i)));
     for (size_t j = 0; j < data.n_blocks(); ++j) {
       out.push_back(data.counts_[j] > 0);
     }

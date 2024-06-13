@@ -385,11 +385,11 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
 
   DirectHandle<Object> v8_object = Utils::OpenDirectHandle(*v8_value);
   if (!IsJSObject(*v8_object) ||
-      !JSObject::cast(*v8_object)->MayHaveEmbedderFields()) {
+      !Cast<JSObject>(*v8_object)->MayHaveEmbedderFields()) {
     return nullptr;
   }
 
-  Tagged<JSObject> js_object = JSObject::cast(*v8_object);
+  Tagged<JSObject> js_object = Cast<JSObject>(*v8_object);
   // Not every object that can have embedder fields is actually a JSApiWrapper.
   if (!IsJSApiWrapperObject(*js_object)) {
     return nullptr;

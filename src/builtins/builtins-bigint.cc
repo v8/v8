@@ -83,8 +83,8 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
   if (IsJSPrimitiveWrapper(*value)) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Tagged<Object> data = JSPrimitiveWrapper::cast(*value)->value();
-    if (IsBigInt(data)) return handle(BigInt::cast(data), isolate);
+    Tagged<Object> data = Cast<JSPrimitiveWrapper>(*value)->value();
+    if (IsBigInt(data)) return handle(Cast<BigInt>(data), isolate);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(

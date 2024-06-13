@@ -959,10 +959,11 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   if (options.compile_only) return true;
   if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
     i::DirectHandle<i::Script> i_script(
-        i::Script::cast(Utils::OpenDirectHandle(*script)->shared()->script()),
+        i::Cast<i::Script>(
+            Utils::OpenDirectHandle(*script)->shared()->script()),
         i_isolate);
     // TODO(cbruni, chromium:1244145): remove once context-allocated.
-    i_script->set_host_defined_options(i::FixedArray::cast(
+    i_script->set_host_defined_options(i::Cast<i::FixedArray>(
         *Utils::OpenDirectHandle(*(origin.GetHostDefinedOptions()))));
   }
 
@@ -2342,7 +2343,7 @@ void Shell::TestVerifySourcePositions(
       return;
     }
     callable = handle(
-        i::JSFunctionOrBoundFunctionOrWrappedFunction::cast(bound_target),
+        i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(bound_target),
         i_isolate);
   }
 
@@ -2359,7 +2360,7 @@ void Shell::TestVerifySourcePositions(
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
     bytecode_offsets = handle(
-        i::TrustedByteArray::cast(
+        i::Cast<i::TrustedByteArray>(
             function->shared()->GetCode(i_isolate)->bytecode_offset_table()),
         i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(

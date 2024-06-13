@@ -182,11 +182,11 @@ uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate& isolate,
   proto->set_script_id(script->id());
   proto->set_type(GetJsScriptType(script));
   if (IsString(script->name())) {
-    PerfettoV8String(String::cast(script->name()))
+    PerfettoV8String(Cast<String>(script->name()))
         .WriteToProto(*proto->set_name());
   }
   if (log_script_sources() && IsString(script->source())) {
-    PerfettoV8String(String::cast(script->source()))
+    PerfettoV8String(Cast<String>(script->source()))
         .WriteToProto(*proto->set_source());
   }
 

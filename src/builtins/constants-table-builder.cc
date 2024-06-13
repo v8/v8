@@ -30,7 +30,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // accessibly from the root list.
   RootIndex root_list_index;
   DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
-  DCHECK_IMPLIES(IsMap(*object), !InReadOnlySpace(HeapObject::cast(*object)));
+  DCHECK_IMPLIES(IsMap(*object), !InReadOnlySpace(Cast<HeapObject>(*object)));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
@@ -115,12 +115,12 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
     Tagged<Object> value = it.key();
-    if (IsCode(value) && Code::cast(value)->kind() == CodeKind::BUILTIN) {
+    if (IsCode(value) && Cast<Code>(value)->kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->code(Code::cast(value)->builtin_id());
+      value = builtins->code(Cast<Code>(value)->builtin_id());
     }
     DCHECK(IsHeapObject(value));
     table->set(index, value);

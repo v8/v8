@@ -342,9 +342,9 @@ Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(IsJSReceiver(*receiver_, isolate_));
   if (IsJSGlobalProxy(*receiver_, isolate_)) {
     Tagged<HeapObject> prototype =
-        JSGlobalProxy::cast(*receiver_)->map(isolate_)->prototype(isolate_);
+        Cast<JSGlobalProxy>(*receiver_)->map(isolate_)->prototype(isolate_);
     if (IsJSGlobalObject(prototype, isolate_)) {
-      return handle(JSGlobalObject::cast(prototype), isolate_);
+      return handle(Cast<JSGlobalObject>(prototype), isolate_);
     }
   }
   return Cast<T>(receiver_);
@@ -362,7 +362,7 @@ Tagged<InterceptorInfo> LookupIterator::GetInterceptor(
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  Tagged<JSObject> holder = JSObject::cast(*holder_);
+  Tagged<JSObject> holder = Cast<JSObject>(*holder_);
   Tagged<InterceptorInfo> result = IsElement(holder)
                                        ? GetInterceptor<true>(holder)
                                        : GetInterceptor<false>(holder);

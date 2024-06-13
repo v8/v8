@@ -79,7 +79,7 @@ class BaselineCompilerTask {
     if (IsScript(shared_function_info_->script())) {
       Compiler::LogFunctionCompilation(
           isolate, LogEventListener::CodeTag::kFunction,
-          handle(Script::cast(shared_function_info_->script()), isolate),
+          handle(Cast<Script>(shared_function_info_->script()), isolate),
           shared_function_info_, Handle<FeedbackVector>(),
           Cast<AbstractCode>(code), CodeKind::BASELINE,
           time_taken_.InMillisecondsF());
@@ -108,7 +108,7 @@ class BaselineBatchCompilerJob {
       // Skip functions where weak reference is no longer valid.
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
       // Skip functions where the bytecode has been flushed.
-      Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(obj);
+      Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(obj);
       if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       // Skip functions that are already being compiled.
       if (shared->is_sparkplug_compiling()) continue;
@@ -376,7 +376,7 @@ bool BaselineBatchCompiler::MaybeCompileFunction(
   // Skip functions where the weak reference is no longer valid.
   if (!maybe_sfi.GetHeapObjectIfWeak(&heapobj)) return false;
   Handle<SharedFunctionInfo> shared =
-      handle(SharedFunctionInfo::cast(heapobj), isolate_);
+      handle(Cast<SharedFunctionInfo>(heapobj), isolate_);
   // Skip functions where the bytecode has been flushed.
   if (!shared->is_compiled()) return false;
 

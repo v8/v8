@@ -58,7 +58,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   DCHECK_NOT_NULL(location_);
   Tagged<Object> object(*location_);
   if (IsSmi(object)) return true;
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   RootIndex root_index;
@@ -107,7 +107,7 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   DCHECK_NE(obj_, kTaggedNullAddress);
   Tagged<Object> object(obj_);
   if (IsSmi(object)) return true;
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   if (!AllowHandleDereference::IsAllowed()) return false;

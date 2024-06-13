@@ -98,7 +98,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           return Code();
       }
     }
-    Tagged<InstructionStream> istream = InstructionStream::cast(object);
+    Tagged<InstructionStream> istream = Cast<InstructionStream>(object);
     Tagged<Code> code;
     if (!istream->TryGetCode(&code, kAcquireLoad)) continue;
     if (!CodeKindCanDeoptimize(code->kind())) continue;
@@ -244,7 +244,7 @@ class FrameWriter {
              output_address(output_offset), output_offset);
       if (IsSmi(obj)) {
         PrintF(trace_scope_->file(), V8PRIxPTR_FMT " <Smi %d>", obj.ptr(),
-               Smi::cast(obj).value());
+               Cast<Smi>(obj).value());
       } else {
         ShortPrint(obj, trace_scope_->file());
       }
@@ -265,7 +265,7 @@ Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               Isolate* isolate) {
   // This is zero for wasm.
   Tagged<JSFunction> function =
-      raw_function != 0 ? JSFunction::cast(Tagged<Object>(raw_function))
+      raw_function != 0 ? Cast<JSFunction>(Tagged<Object>(raw_function))
                         : Tagged<JSFunction>();
   Deoptimizer* deoptimizer =
       new Deoptimizer(isolate, function, kind, from, fp_to_sp_delta);
@@ -625,7 +625,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   DCHECK_GT(kEagerDeoptExitSize, 0);
   DCHECK_GT(kLazyDeoptExitSize, 0);
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(compiled_code_->deoptimization_data());
+      Cast<DeoptimizationData>(compiled_code_->deoptimization_data());
   Address deopt_start = compiled_code_->instruction_start() +
                         deopt_data->DeoptExitStart().value();
   int eager_deopt_count = deopt_data->EagerDeoptCount().value();
@@ -768,7 +768,7 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
 
   DisallowGarbageCollection no_gc;
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      Cast<DeoptimizationData>(code->deoptimization_data());
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");
@@ -786,7 +786,7 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
         isolate,
         CodeDependencyChangeEvent(
             handle(code, isolate),
-            handle(SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()),
+            handle(Cast<SharedFunctionInfo>(deopt_data->SharedFunctionInfo()),
                    isolate),
             reason));
   }
@@ -1226,7 +1226,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
   Tagged<DeoptimizationData> input_data =
-      DeoptimizationData::cast(compiled_code_->deoptimization_data());
+      Cast<DeoptimizationData>(compiled_code_->deoptimization_data());
 
   {
     // Read caller's PC, caller's FP and caller's constant pool values
@@ -2640,7 +2640,7 @@ Address GetDeoptCallPCFromReturnPC(Address return_pc, Tagged<Code> code) {
   DCHECK_GT(Deoptimizer::kEagerDeoptExitSize, 0);
   DCHECK_GT(Deoptimizer::kLazyDeoptExitSize, 0);
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      Cast<DeoptimizationData>(code->deoptimization_data());
   Address deopt_start =
       code->instruction_start() + deopt_data->DeoptExitStart().value();
   int eager_deopt_count = deopt_data->EagerDeoptCount().value();

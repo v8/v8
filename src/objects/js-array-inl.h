@@ -86,8 +86,6 @@ void JSArrayIterator::set_kind(IterationKind kind) {
   set_raw_kind(static_cast<int>(kind));
 }
 
-CAST_ACCESSOR(TemplateLiteralObject)
-
 }  // namespace internal
 }  // namespace v8
 

@@ -127,7 +127,7 @@ Tagged<Name> DescriptorArray::GetKey(PtrComprCageBase cage_base,
                                      InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Name::cast(
+  return Cast<Name>(
       EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
 }
 

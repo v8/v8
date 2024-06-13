@@ -73,7 +73,7 @@ void Script::set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
 
 Tagged<SharedFunctionInfo> Script::eval_from_shared() const {
   DCHECK(has_eval_from_shared());
-  return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
+  return Cast<SharedFunctionInfo>(eval_from_shared_or_wrapped_arguments());
 }
 
 void Script::set_wrapped_arguments(Tagged<FixedArray> value,
@@ -84,7 +84,7 @@ void Script::set_wrapped_arguments(Tagged<FixedArray> value,
 
 Tagged<FixedArray> Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
-  return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
+  return Cast<FixedArray>(eval_from_shared_or_wrapped_arguments());
 }
 
 DEF_GETTER(Script, shared_function_infos, Tagged<WeakFixedArray>) {
@@ -115,7 +115,7 @@ bool Script::has_wasm_breakpoint_infos() const {
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {
-  return Managed<wasm::NativeModule>::cast(wasm_managed_native_module())->raw();
+  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->raw();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
@@ -172,9 +172,9 @@ bool Script::HasValidSource() {
   Tagged<String> src_str = Cast<String>(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != nullptr;
+    return Cast<ExternalOneByteString>(src)->resource() != nullptr;
   } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != nullptr;
+    return Cast<ExternalTwoByteString>(src)->resource() != nullptr;
   }
   return true;
 }
@@ -201,14 +201,14 @@ void Script::InitLineEnds(LocalIsolate* isolate, DirectHandle<Script> script) {
 }
 
 bool Script::HasSourceURLComment() const {
-  return IsString(source_url()) && String::cast(source_url())->length() != 0;
+  return IsString(source_url()) && Cast<String>(source_url())->length() != 0;
 }
 
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
   // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
   // value.
   return IsUndefined(source(), isolate) ||
-         String::cast(source())->length() == 0;
+         Cast<String>(source())->length() == 0;
 }
 
 }  // namespace internal

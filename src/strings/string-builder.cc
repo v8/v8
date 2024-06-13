@@ -38,7 +38,7 @@ void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
       String::WriteToFlat(special, sink + position, pos, len);
       position += len;
     } else {
-      Tagged<String> string = String::cast(element);
+      Tagged<String> string = Cast<String>(element);
       int element_length = string->length();
       String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
@@ -88,7 +88,7 @@ int StringBuilderConcatLength(int special_length,
       if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
     } else if (IsString(elt)) {
-      Tagged<String> element = String::cast(elt);
+      Tagged<String> element = Cast<String>(elt);
       int element_length = element->length();
       increment = element_length;
       if (*one_byte && !element->IsOneByteRepresentation()) {

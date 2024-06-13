@@ -220,7 +220,7 @@ class TaggedImpl {
   Tagged<T> cast() const {
     CHECK(kIsFull);
     DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
-    return T::cast(Tagged<Object>(ptr_));
+    return Cast<T>(Tagged<Object>(ptr_));
   }
 
  protected:

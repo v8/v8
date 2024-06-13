@@ -35,7 +35,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
 
   while (list != undefined) {
     // Check whether to keep the candidate in the list.
-    Tagged<T> candidate = T::cast(list);
+    Tagged<T> candidate = Cast<T>(list);
 
     Tagged<Object> retained = retainer->RetainAs(list);
 
@@ -49,19 +49,19 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
       } else {
         // Subsequent elements in the list.
         DCHECK(!tail.is_null());
-        WeakListVisitor<T>::SetWeakNext(tail, HeapObject::cast(retained));
+        WeakListVisitor<T>::SetWeakNext(tail, Cast<HeapObject>(retained));
         if (record_slots) {
           Tagged<HeapObject> slot_holder =
               WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
           ObjectSlot slot = slot_holder->RawField(slot_offset);
           MarkCompactCollector::RecordSlot(slot_holder, slot,
-                                           HeapObject::cast(retained));
+                                           Cast<HeapObject>(retained));
         }
       }
       // Retained object is new tail.
       DCHECK(!IsUndefined(retained, heap->isolate()));
-      candidate = T::cast(retained);
+      candidate = Cast<T>(retained);
       tail = candidate;
 
       // tail is a live object, visit it.
@@ -81,7 +81,7 @@ template <class T>
 static void ClearWeakList(Heap* heap, Tagged<Object> list) {
   Tagged<Object> undefined = ReadOnlyRoots(heap).undefined_value();
   while (list != undefined) {
-    Tagged<T> candidate = T::cast(list);
+    Tagged<T> candidate = Cast<T>(list);
     list = WeakListVisitor<T>::WeakNext(candidate);
     WeakListVisitor<T>::SetWeakNext(candidate, undefined);
   }
@@ -113,7 +113,7 @@ struct WeakListVisitor<Context> {
            idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
         ObjectSlot slot = context->RawField(Context::OffsetOfElementAt(idx));
         MarkCompactCollector::RecordSlot(context, slot,
-                                         HeapObject::cast(*slot));
+                                         Cast<HeapObject>(*slot));
       }
     }
   }
@@ -132,7 +132,7 @@ struct WeakListVisitor<Context> {
       // Record the updated slot if necessary.
       ObjectSlot head_slot = context->RawField(FixedArray::SizeFor(index));
       heap->mark_compact_collector()->RecordSlot(context, head_slot,
-                                                 HeapObject::cast(list_head));
+                                                 Cast<HeapObject>(list_head));
     }
   }
 

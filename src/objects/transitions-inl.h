@@ -24,7 +24,7 @@ Tagged<TransitionArray> TransitionsAccessor::GetTransitionArray(
     Isolate* isolate, Tagged<MaybeObject> raw_transitions) {
   DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, raw_transitions));
   USE(isolate);
-  return TransitionArray::cast(raw_transitions.GetHeapObjectAssumeStrong());
+  return Cast<TransitionArray>(raw_transitions.GetHeapObjectAssumeStrong());
 }
 
 // static
@@ -41,8 +41,6 @@ Tagged<TransitionArray> TransitionsAccessor::transitions() {
 
 OBJECT_CONSTRUCTORS_IMPL(TransitionArray, WeakFixedArray)
 
-CAST_ACCESSOR(TransitionArray)
-
 bool TransitionArray::HasPrototypeTransitions() {
   return get(kPrototypeTransitionsIndex) != Smi::zero();
 }
@@ -51,7 +49,7 @@ Tagged<WeakFixedArray> TransitionArray::GetPrototypeTransitions() {
   DCHECK(HasPrototypeTransitions());  // Callers must check first.
   Tagged<Object> prototype_transitions =
       get(kPrototypeTransitionsIndex).GetHeapObjectAssumeStrong();
-  return WeakFixedArray::cast(prototype_transitions);
+  return Cast<WeakFixedArray>(prototype_transitions);
 }
 
 HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
@@ -75,7 +73,7 @@ int TransitionArray::NumberOfPrototypeTransitions(
 
 Tagged<Name> TransitionArray::GetKey(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
-  return Name::cast(
+  return Cast<Name>(
       get(ToKeyIndex(transition_number)).GetHeapObjectAssumeStrong());
 }
 
@@ -91,7 +89,7 @@ Tagged<Name> TransitionsAccessor::GetKey(int transition_number) {
       UNREACHABLE();
       return Tagged<Name>();
     case kWeakRef: {
-      Tagged<Map> map = Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+      Tagged<Map> map = Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       return GetSimpleTransitionKey(map);
     }
     case kFullTransitionArray:
@@ -136,7 +134,7 @@ Tagged<Name> TransitionsAccessor::GetSimpleTransitionKey(
 
 // static
 Tagged<Map> TransitionsAccessor::GetTargetFromRaw(Tagged<MaybeObject> raw) {
-  return Map::cast(raw.GetHeapObjectAssumeWeak());
+  return Cast<Map>(raw.GetHeapObjectAssumeWeak());
 }
 
 Tagged<MaybeObject> TransitionArray::GetRawTarget(int transition_number) {
@@ -157,7 +155,7 @@ Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
       UNREACHABLE();
       return Map();
     case kWeakRef:
-      return Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+      return Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
       return transitions()->GetTarget(transition_number);
   }
@@ -369,7 +367,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
       return Handle<String>::null();
     case kWeakRef: {
       Tagged<Map> target =
-          Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+          Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       PropertyDetails details = GetSimpleTargetDetails(target);
       if (details.location() != PropertyLocation::kField)
         return Handle<String>::null();
@@ -377,7 +375,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
       if (details.attributes() != NONE) return Handle<String>::null();
       Tagged<Name> name = GetSimpleTransitionKey(target);
       if (!IsString(name)) return Handle<String>::null();
-      return handle(String::cast(name), isolate_);
+      return handle(Cast<String>(name), isolate_);
     }
   }
   UNREACHABLE();
@@ -399,7 +397,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
       return;
     case kWeakRef: {
       Tagged<Map> target =
-          Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+          Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       if constexpr (with_key) {
         callback(GetSimpleTransitionKey(target), target);
       } else {
@@ -453,7 +451,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;
             if (target.GetHeapObjectIfWeak(&heap_object)) {
-              proto_transition_callback(Map::cast(heap_object));
+              proto_transition_callback(Cast<Map>(heap_object));
             }
           }
         }

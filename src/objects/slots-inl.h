@@ -64,9 +64,9 @@ void FullObjectSlot::store_map(Tagged<Map> map) const {
 
 Tagged<Map> FullObjectSlot::load_map() const {
 #ifdef V8_MAP_PACKING
-  return Map::unchecked_cast(Tagged<Object>(MapWord::Unpack(*location())));
+  return UncheckedCast<Map>(Tagged<Object>(MapWord::Unpack(*location())));
 #else
-  return Map::unchecked_cast(Tagged<Object>(*location()));
+  return UncheckedCast<Map>(Tagged<Object>(*location()));
 #endif
 }
 
@@ -184,7 +184,7 @@ void FullHeapObjectSlot::store(Tagged<HeapObjectReference> value) const {
 Tagged<HeapObject> FullHeapObjectSlot::ToHeapObject() const {
   TData value = *location();
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
-  return HeapObject::cast(Tagged<Object>(value));
+  return Cast<HeapObject>(Tagged<Object>(value));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {

@@ -17,7 +17,6 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
 
 SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
@@ -119,7 +118,7 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<TrustedByteArray>) {
   // changes to how it accesses the heap can easily lead to bugs.
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
   if (IsTrustedByteArray(maybe_table))
-    return TrustedByteArray::cast(maybe_table);
+    return Cast<TrustedByteArray>(maybe_table);
   DCHECK_EQ(maybe_table, Smi::zero());
   return GetIsolateFromWritableObject(*this)
       ->heap()
@@ -160,24 +159,23 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
   if (IsTrustedFixedArray(maybe_constant_pool)) {
-    size += TrustedFixedArray::cast(maybe_constant_pool)->Size(cage_base);
+    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size(cage_base);
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
   Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
   if (IsTrustedByteArray(maybe_handler_table)) {
-    size += TrustedByteArray::cast(maybe_handler_table)->AllocatedSize();
+    size += Cast<TrustedByteArray>(maybe_handler_table)->AllocatedSize();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
   if (IsByteArray(maybe_table)) {
-    size += ByteArray::cast(maybe_table)->AllocatedSize();
+    size += Cast<ByteArray>(maybe_table)->AllocatedSize();
   }
   return size;
 }
 
-CAST_ACCESSOR(BytecodeWrapper)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
 
 TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,

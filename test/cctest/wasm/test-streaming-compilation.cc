@@ -361,7 +361,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
                           nullptr)
               .ToHandleChecked();
       CHECK(IsSmi(*return_value));
-      CHECK_EQ(0, Smi::cast(*return_value).value());
+      CHECK_EQ(0, Cast<Smi>(*return_value).value());
     }
     tester.RunCompilerTasks();
   }

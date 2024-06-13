@@ -33,9 +33,9 @@ Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
   // A Proxy cannot have been created from the signature template.
   if (!IsJSObject(receiver)) return JSReceiver();
 
-  Tagged<JSObject> js_obj_receiver = JSObject::cast(receiver);
+  Tagged<JSObject> js_obj_receiver = Cast<JSObject>(receiver);
   Tagged<FunctionTemplateInfo> signature =
-      FunctionTemplateInfo::cast(recv_type);
+      Cast<FunctionTemplateInfo>(recv_type);
 
   // Check the receiver.
   if (signature->IsTemplateFor(js_obj_receiver)) return receiver;
@@ -44,7 +44,7 @@ Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
   if (V8_UNLIKELY(IsJSGlobalProxy(js_obj_receiver))) {
     Tagged<HeapObject> prototype = js_obj_receiver->map()->prototype();
     if (!IsNull(prototype, isolate)) {
-      Tagged<JSObject> js_obj_prototype = JSObject::cast(prototype);
+      Tagged<JSObject> js_obj_prototype = Cast<JSObject>(prototype);
       if (signature->IsTemplateFor(js_obj_prototype)) return js_obj_prototype;
     }
   }
@@ -71,7 +71,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
                                                 Utils::OpenHandle(*templ));
     }
     Handle<ObjectTemplateInfo> instance_template(
-        ObjectTemplateInfo::cast(fun_data->GetInstanceTemplate()), isolate);
+        Cast<ObjectTemplateInfo>(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
@@ -207,7 +207,7 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   DirectHandle<Object> receiver = args.receiver();
 
   // Get the object called.
-  Tagged<JSObject> obj = JSObject::cast(*receiver);
+  Tagged<JSObject> obj = Cast<JSObject>(*receiver);
 
   // Set the new target.
   Tagged<HeapObject> new_target;
@@ -225,12 +225,12 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   // used to create the called object.
   DCHECK(obj->map()->is_callable());
   Tagged<JSFunction> constructor =
-      JSFunction::cast(obj->map()->GetConstructor());
+      Cast<JSFunction>(obj->map()->GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
   Tagged<Object> handler =
       constructor->shared()->api_func_data()->GetInstanceCallHandler();
   DCHECK(!IsUndefined(handler, isolate));
-  Tagged<FunctionTemplateInfo> templ = FunctionTemplateInfo::cast(handler);
+  Tagged<FunctionTemplateInfo> templ = Cast<FunctionTemplateInfo>(handler);
   DCHECK(templ->is_object_template_call_handler());
   DCHECK(templ->has_callback(isolate));
 

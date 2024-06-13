@@ -80,7 +80,7 @@ static double GetDoubleFieldValue(Tagged<JSObject> obj,
                                   FieldIndex field_index) {
   Tagged<Object> value = obj->RawFastPropertyAt(field_index);
   if (IsHeapNumber(value)) {
-    return HeapNumber::cast(value)->value();
+    return Cast<HeapNumber>(value)->value();
   } else {
     return Object::NumberValue(value);
   }

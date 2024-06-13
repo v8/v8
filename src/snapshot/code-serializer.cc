@@ -57,7 +57,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
   base::ElapsedTimer timer;
   if (v8_flags.profile_deserialization) timer.Start();
-  DirectHandle<Script> script(Script::cast(info->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(info->script()), isolate);
   if (v8_flags.trace_serializer) {
     PrintF("[Serializing from");
     ShortPrint(script->name());
@@ -70,7 +70,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Serialize code object.
-  DirectHandle<String> source(String::cast(script->source()), isolate);
+  DirectHandle<String> source(Cast<String>(script->source()), isolate);
   HandleScope scope(isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
@@ -128,7 +128,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
-      Tagged<Script> script_obj = Script::cast(*obj);
+      Tagged<Script> script_obj = Cast<Script>(*obj);
       DCHECK_NE(script_obj->compilation_type(), Script::CompilationType::kEval);
       // We want to differentiate between undefined and uninitialized_symbol for
       // context_data for now. It is hack to allow debugging for scripts that
@@ -149,7 +149,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     SerializeGeneric(obj, slot_type);
     {
       DisallowGarbageCollection no_gc;
-      Tagged<Script> script_obj = Script::cast(*obj);
+      Tagged<Script> script_obj = Cast<Script>(*obj);
       script_obj->set_host_defined_options(*host_options);
       script_obj->set_context_data(*context_data);
     }
@@ -160,7 +160,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     bool restore_bytecode = false;
     {
       DisallowGarbageCollection no_gc;
-      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
+      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
       DCHECK(!sfi->IsApiFunction());
 #if V8_ENABLE_WEBASSEMBLY
       // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
@@ -184,7 +184,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     }
     SerializeGeneric(obj, slot_type);
     DisallowGarbageCollection no_gc;
-    Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
+    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
     if (restore_bytecode) {
       sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
                                   isolate());
@@ -220,7 +220,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
   if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack) &&
       IsInterpreterData(*obj)) {
-    obj = handle(InterpreterData::cast(*obj)->bytecode_array(), isolate());
+    obj = handle(Cast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
 
   // Past this point we should not see any (context-specific) maps anymore.
@@ -256,11 +256,11 @@ void CreateInterpreterDataForDeserializedCode(
     bool log_code_creation) {
   DCHECK_IMPLIES(log_code_creation, isolate->NeedsSourcePositions());
 
-  Handle<Script> script(Script::cast(result_sfi->script()), isolate);
+  Handle<Script> script(Cast<Script>(result_sfi->script()), isolate);
   if (log_code_creation) Script::InitLineEnds(isolate, script);
 
   Tagged<String> name = ReadOnlyRoots(isolate).empty_string();
-  if (IsString(script->name())) name = String::cast(script->name());
+  if (IsString(script->name())) name = Cast<String>(script->name());
   Handle<String> name_handle(name, isolate);
 
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
@@ -345,7 +345,7 @@ void FinalizeDeserialization(Isolate* isolate,
                                              log_code_creation);
   }
 
-  Handle<Script> script(Script::cast(result->script()), isolate);
+  Handle<Script> script(Cast<Script>(result->script()), isolate);
   // Reset the script details, including host-defined options.
   {
     DisallowGarbageCollection no_gc;
@@ -491,13 +491,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     BackgroundMergeTask merge;
     merge.SetUpOnMainThread(isolate, cached_script);
     CHECK(merge.HasPendingBackgroundWork());
-    Handle<Script> new_script = handle(Script::cast(result->script()), isolate);
+    Handle<Script> new_script = handle(Cast<Script>(result->script()), isolate);
     merge.BeginMergeInBackground(isolate->AsLocalIsolate(), new_script);
     CHECK(merge.HasPendingForegroundWork());
     result = merge.CompleteMergeInForeground(isolate, new_script);
   }
 
-  Tagged<Script> script = Script::cast(result->script());
+  Tagged<Script> script = Cast<Script>(result->script());
   script->set_deserialized(true);
   BaselineBatchCompileIfSparkplugCompiled(isolate, script);
   if (v8_flags.profile_deserialization) {
@@ -616,14 +616,14 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
 
   if (background_merge_task &&
       background_merge_task->HasPendingForegroundWork()) {
-    Handle<Script> script = handle(Script::cast(result->script()), isolate);
+    Handle<Script> script = handle(Cast<Script>(result->script()), isolate);
     result = background_merge_task->CompleteMergeInForeground(isolate, script);
-    DCHECK(Object::StrictEquals(Script::cast(result->script())->source(),
+    DCHECK(Object::StrictEquals(Cast<Script>(result->script())->source(),
                                 *source));
     DCHECK(isolate->factory()->script_list()->Contains(
         MakeWeak(result->script())));
   } else {
-    Handle<Script> script(Script::cast(result->script()), isolate);
+    Handle<Script> script(Cast<Script>(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized
     // script, and the off-thread deserializer should have set its source to
     // the empty string.

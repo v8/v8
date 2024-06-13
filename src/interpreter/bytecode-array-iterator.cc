@@ -254,7 +254,7 @@ bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
 }
 
 Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
-  return Smi::cast(bytecode_array()->constant_pool()->get(index));
+  return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
 }
 
 template <typename IsolateT>

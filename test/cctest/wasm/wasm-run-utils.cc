@@ -544,7 +544,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   Tagged<Script> script =
       builder_->instance_object()->module_object()->script();
   std::unique_ptr<char[]> source_url =
-      String::cast(script->name())->ToCString();
+      Cast<String>(script->name())->ToCString();
   if (WasmCode::ShouldBeLogged(isolate())) {
     code->LogCode(isolate(), source_url.get(), script->id());
   }

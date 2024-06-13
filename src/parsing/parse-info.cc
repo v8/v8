@@ -45,7 +45,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
     Isolate* isolate, Tagged<SharedFunctionInfo> shared) {
-  Tagged<Script> script = Script::cast(shared->script());
+  Tagged<Script> script = Cast<Script>(shared->script());
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 

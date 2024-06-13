@@ -23,7 +23,7 @@ Handle<T> GlobalHandles::Create(Tagged<T> value) {
 
 template <typename T>
 Tagged<T> GlobalHandleVector<T>::Pop() {
-  Tagged<T> obj = T::cast(Tagged<Object>(locations_.back()));
+  Tagged<T> obj = Cast<T>(Tagged<Object>(locations_.back()));
   locations_.pop_back();
   return obj;
 }

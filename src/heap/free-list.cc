@@ -82,7 +82,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
 void FreeListCategory::Free(const WritableFreeSpace& writable_free_space,
                             FreeMode mode, FreeList* owner) {
   Tagged<FreeSpace> free_space =
-      FreeSpace::cast(HeapObject::FromAddress(writable_free_space.Address()));
+      Cast<FreeSpace>(HeapObject::FromAddress(writable_free_space.Address()));
   DCHECK_EQ(free_space->Size(), writable_free_space.Size());
   free_space->SetNext(writable_free_space, top());
   set_top(free_space);

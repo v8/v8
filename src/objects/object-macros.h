@@ -219,18 +219,6 @@
   DECL_ACQUIRE_GETTER(name, Tagged<MaybeObject>)  \
   DECL_RELEASE_SETTER(name, Tagged<MaybeObject>)
 
-#define DECL_CAST(Type)                                      \
-  V8_INLINE static Tagged<Type> cast(Tagged<Object> object); \
-  V8_INLINE static constexpr Tagged<Type> unchecked_cast(    \
-      Tagged<Object> object) {                               \
-    return Tagged<Type>::unchecked_cast(object);             \
-  }
-
-#define CAST_ACCESSOR(Type)                        \
-  Tagged<Type> Type::cast(Tagged<Object> object) { \
-    return Tagged<Type>(Type(object.ptr()));       \
-  }
-
 #define DEF_PRIMITIVE_ACCESSORS(holder, name, offset, type)     \
   type holder::name() const { return ReadField<type>(offset); } \
   void holder::set_##name(type value) { WriteField<type>(offset, value); }
@@ -578,7 +566,7 @@
   }                                                                            \
   Tagged<type> holder::name(IsolateForSandbox isolate, AcquireLoadTag) const { \
     DCHECK(has_##name());                                                      \
-    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));          \
+    return Cast<type>(ReadTrustedPointerField<tag>(offset, isolate));          \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {         \
     set_##name(value, kReleaseStore, mode);                                    \
@@ -613,7 +601,7 @@
   static_assert(std::is_base_of<TrustedObject, holder>::value);              \
   Tagged<type> holder::name() const {                                        \
     DCHECK(has_##name());                                                    \
-    return type::cast(ReadProtectedPointerField(offset));                    \
+    return Cast<type>(ReadProtectedPointerField(offset));                    \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {       \
     WriteProtectedPointerField(offset, value);                               \
@@ -636,7 +624,7 @@
   static_assert(std::is_base_of<TrustedObject, holder>::value);              \
   Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
     DCHECK(has_##name(tag));                                                 \
-    return type::cast(ReadProtectedPointerField(offset, tag));               \
+    return Cast<type>(ReadProtectedPointerField(offset, tag));               \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, ReleaseStoreTag tag,           \
                           WriteBarrierMode mode) {                           \
@@ -738,7 +726,7 @@
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)           \
   do {                                                               \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
-    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),  \
+    CombinedEphemeronWriteBarrier(Cast<EphemeronHashTable>(object),  \
                                   (object)->RawField(offset), value, \
                                   UPDATE_WRITE_BARRIER);             \
   } while (false)
@@ -789,7 +777,7 @@
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),          \
+    CombinedEphemeronWriteBarrier(Cast<EphemeronHashTable>(object),          \
                                   (object)->RawField(offset), value, mode);  \
   } while (false)
 #endif
@@ -964,18 +952,20 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #define EXPORT_DECL_STATIC_VERIFIER(Name)
 #endif
 
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type) \
-  type DeoptimizationData::name() const {          \
-    return type::cast(get(k##name##Index));        \
-  }                                                \
-  void DeoptimizationData::Set##name(type value) { set(k##name##Index, value); }
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)         \
+  Tagged<type> DeoptimizationData::name() const {          \
+    return Cast<type>(get(k##name##Index));                \
+  }                                                        \
+  void DeoptimizationData::Set##name(Tagged<type> value) { \
+    set(k##name##Index, value);                            \
+  }
 
-#define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type DeoptimizationData::name(int i) const {                  \
-    return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
-  }                                                             \
-  void DeoptimizationData::Set##name(int i, type value) {       \
-    set(IndexForEntry(i) + k##name##Offset, value);             \
+#define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                  \
+  Tagged<type> DeoptimizationData::name(int i) const {            \
+    return Cast<type>(get(IndexForEntry(i) + k##name##Offset));   \
+  }                                                               \
+  void DeoptimizationData::Set##name(int i, Tagged<type> value) { \
+    set(IndexForEntry(i) + k##name##Offset, value);               \
   }
 
 #define TQ_OBJECT_CONSTRUCTORS(Type)                             \

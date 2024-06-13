@@ -80,7 +80,7 @@ void AddToDescriptorArrayTemplate(
           descriptor_array_template->GetStrongValue(entry);
       Tagged<AccessorPair> pair;
       if (IsAccessorPair(raw_accessor)) {
-        pair = AccessorPair::cast(raw_accessor);
+        pair = Cast<AccessorPair>(raw_accessor);
       } else {
         Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
@@ -209,7 +209,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
       if (IsAccessorPair(existing_value)) {
-        Tagged<AccessorPair> current_pair = AccessorPair::cast(existing_value);
+        Tagged<AccessorPair> current_pair = Cast<AccessorPair>(existing_value);
 
         int existing_getter_index =
             GetExistingValueIndex(current_pair->getter());
@@ -276,9 +276,9 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
 
         DCHECK_IMPLIES(!IsSmi(existing_value), IsAccessorInfo(existing_value));
         DCHECK_IMPLIES(!IsSmi(existing_value),
-                       AccessorInfo::cast(existing_value)->name() ==
+                       Cast<AccessorInfo>(existing_value)->name() ==
                                *isolate->factory()->length_string() ||
-                           AccessorInfo::cast(existing_value)->name() ==
+                           Cast<AccessorInfo>(existing_value)->name() ==
                                *isolate->factory()->name_string());
         if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
@@ -310,7 +310,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
       AccessorComponent component = ToAccessorComponent(value_kind);
       if (IsAccessorPair(existing_value)) {
         // Update respective component of existing AccessorPair.
-        Tagged<AccessorPair> current_pair = AccessorPair::cast(existing_value);
+        Tagged<AccessorPair> current_pair = Cast<AccessorPair>(existing_value);
 
         int existing_component_index =
             GetExistingValueIndex(current_pair->get(component));

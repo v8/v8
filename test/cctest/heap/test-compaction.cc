@@ -272,7 +272,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       Handle<FixedArray> current = root_array;
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
         current =
-            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
+            Handle<FixedArray>(Cast<FixedArray>(current->get(0)), isolate);
         CHECK(IsFixedArray(*current));
         if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;
@@ -383,7 +383,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       Handle<FixedArray> current = root_array;
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
         current =
-            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
+            Handle<FixedArray>(Cast<FixedArray>(current->get(0)), isolate);
         CHECK(!Heap::InYoungGeneration(*current));
         CHECK(IsFixedArray(*current));
         if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {

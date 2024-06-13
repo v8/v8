@@ -176,7 +176,6 @@ void WasmGlobalObject::SetRef(DirectHandle<Object> value) {
 }
 
 // WasmTrustedInstanceData
-CAST_ACCESSOR(WasmTrustedInstanceData)
 OBJECT_CONSTRUCTORS_IMPL(WasmTrustedInstanceData, ExposedTrustedObject)
 
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
@@ -264,7 +263,7 @@ void WasmTrustedInstanceData::clear_padding() {
 
 Tagged<WasmMemoryObject> WasmTrustedInstanceData::memory_object(
     int memory_index) const {
-  return WasmMemoryObject::cast(memory_objects()->get(memory_index));
+  return Cast<WasmMemoryObject>(memory_objects()->get(memory_index));
 }
 
 uint8_t* WasmTrustedInstanceData::memory_base(int memory_index) const {
@@ -283,7 +282,7 @@ Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
     uint32_t table_index) {
   Tagged<Object> table = dispatch_tables()->get(table_index);
   DCHECK(IsWasmDispatchTable(table));
-  return WasmDispatchTable::cast(table);
+  return Cast<WasmDispatchTable>(table);
 }
 
 bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
@@ -326,7 +325,6 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 }
 
 // WasmDispatchTable
-CAST_ACCESSOR(WasmDispatchTable)
 OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, TrustedObject)
 
 void WasmDispatchTable::clear_entry_padding(int index) {
@@ -351,7 +349,7 @@ inline Tagged<Object> WasmDispatchTable::ref(int index) const {
   Tagged<Object> ref = ReadProtectedPointerField(OffsetOf(index) + kRefBias);
   DCHECK(IsWasmTrustedInstanceData(ref) || IsWasmApiFunctionRef(ref) ||
          ref == Smi::zero());
-  return HeapObject::cast(ref);
+  return ref;
 }
 
 inline Address WasmDispatchTable::target(int index) const {
@@ -366,13 +364,11 @@ inline int WasmDispatchTable::sig(int index) const {
 
 // WasmExceptionPackage
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)
-CAST_ACCESSOR(WasmExceptionPackage)
 
 // WasmExportedFunction
 WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExportedFunction(*this));
 }
-CAST_ACCESSOR(WasmExportedFunction)
 
 template <>
 struct CastTraits<WasmExportedFunction> {
@@ -420,7 +416,6 @@ PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::FunctionSig*,
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmJSFunction(*this));
 }
-CAST_ACCESSOR(WasmJSFunction)
 
 template <>
 struct CastTraits<WasmJSFunction> {
@@ -436,7 +431,6 @@ struct CastTraits<WasmJSFunction> {
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));
 }
-CAST_ACCESSOR(WasmCapiFunction)
 
 template <>
 struct CastTraits<WasmCapiFunction> {
@@ -452,7 +446,6 @@ struct CastTraits<WasmCapiFunction> {
 WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExternalFunction(*this));
 }
-CAST_ACCESSOR(WasmExternalFunction)
 
 template <>
 struct CastTraits<WasmExternalFunction> {
@@ -560,7 +553,7 @@ ElementType WasmObject::FromNumber(Tagged<Object> value) {
     return static_cast<ElementType>(Smi::ToInt(value));
 
   } else if (IsHeapNumber(value)) {
-    double double_value = HeapNumber::cast(value)->value();
+    double double_value = Cast<HeapNumber>(value)->value();
     if (std::is_same<ElementType, double>::value ||
         std::is_same<ElementType, float>::value) {
       return static_cast<ElementType>(double_value);
@@ -579,11 +572,11 @@ wasm::StructType* WasmStruct::type(Tagged<Map> map) {
 
 wasm::StructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
-  Tagged<HeapObject> raw = HeapObject::cast(map->constructor_or_back_pointer());
+  Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
   // pointer being intact in the old location.
-  Tagged<WasmTypeInfo> type_info = WasmTypeInfo::unchecked_cast(raw);
+  Tagged<WasmTypeInfo> type_info = UncheckedCast<WasmTypeInfo>(raw);
   return reinterpret_cast<wasm::StructType*>(type_info->native_type());
 }
 
@@ -630,11 +623,11 @@ wasm::ArrayType* WasmArray::type(Tagged<Map> map) {
 
 wasm::ArrayType* WasmArray::GcSafeType(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
-  Tagged<HeapObject> raw = HeapObject::cast(map->constructor_or_back_pointer());
+  Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
   // pointer being intact in the old location.
-  Tagged<WasmTypeInfo> type_info = WasmTypeInfo::unchecked_cast(raw);
+  Tagged<WasmTypeInfo> type_info = UncheckedCast<WasmTypeInfo>(raw);
   return reinterpret_cast<wasm::ArrayType*>(type_info->native_type());
 }
 

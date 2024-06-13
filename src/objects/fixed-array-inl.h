@@ -266,7 +266,7 @@ void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate, int new_capacity) {
   CHECK_GT(new_capacity, 0);  // Due to possible canonicalization.
   CHECK_LE(new_capacity, old_capacity);
   if (new_capacity == old_capacity) return;
-  isolate->heap()->RightTrimArray(D::cast(*this), new_capacity, old_capacity);
+  isolate->heap()->RightTrimArray(Cast<D>(*this), new_capacity, old_capacity);
 }
 
 // Due to right-trimming (which creates a filler object before publishing the
@@ -365,12 +365,12 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
   DCHECK_LE(capacity, kMaxCapacity);
   DCHECK(!no_gc_out->has_value());
 
-  Tagged<D> xs = D::unchecked_cast(
+  Tagged<D> xs = UncheckedCast<D>(
       isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
-  Tagged<Map> map = Map::cast(roots.object_at(S::kMapRootIndex));
+  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
   xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
@@ -412,10 +412,8 @@ void FixedArrayBase::set_length(int value, ReleaseStoreTag tag) {
       *this, Smi::FromInt(value));
 }
 
-CAST_ACCESSOR(WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, WeakFixedArray::Super)
 
-CAST_ACCESSOR(TrustedWeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(TrustedWeakFixedArray, TrustedWeakFixedArray::Super)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
@@ -425,31 +423,22 @@ TaggedArrayBase<D, S, P>::TaggedArrayBase(Address ptr) : P(ptr) {}
 template <class D, class S, class P>
 PrimitiveArrayBase<D, S, P>::PrimitiveArrayBase(Address ptr) : P(ptr) {}
 
-CAST_ACCESSOR(FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
 
-CAST_ACCESSOR(FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
-CAST_ACCESSOR(TrustedFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(TrustedFixedArray, TrustedFixedArray::Super)
 
-CAST_ACCESSOR(ProtectedFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ProtectedFixedArray, ProtectedFixedArray::Super)
 
-CAST_ACCESSOR(FixedDoubleArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
 
-CAST_ACCESSOR(ByteArray)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
 
-CAST_ACCESSOR(TrustedByteArray)
 OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
 
-CAST_ACCESSOR(ExternalPointerArray)
 OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
 
-CAST_ACCESSOR(ArrayList)
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, ArrayList::Super)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
@@ -703,7 +692,7 @@ template <class D, class S, class P>
 inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
     Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return D::cast(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
+  return Cast<D>(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
 }
 
 // static
@@ -734,12 +723,12 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
   DCHECK_LE(length, kMaxLength);
   DCHECK(!no_gc_out->has_value());
 
-  Tagged<D> xs = D::unchecked_cast(
+  Tagged<D> xs = UncheckedCast<D>(
       isolate->factory()->AllocateRawArray(SizeFor(length), allocation));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
-  Tagged<Map> map = Map::cast(roots.object_at(S::kMapRootIndex));
+  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
   xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
@@ -999,20 +988,9 @@ template <typename Base>
 FixedAddressArrayBase<Base>::FixedAddressArrayBase(Address ptr)
     : Underlying(ptr) {}
 
-template <typename Base>
-CAST_ACCESSOR(FixedAddressArrayBase<Base>)
-
 template <typename T, typename Base>
 FixedIntegerArrayBase<T, Base>::FixedIntegerArrayBase(Address ptr) : Base(ptr) {
   DCHECK_EQ(Base::length() % sizeof(T), 0);
-}
-
-template <typename T, typename Base>
-Tagged<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::cast(
-    Tagged<Object> object) {
-  Tagged<Base> base = Cast<Base>(object);
-  DCHECK_EQ(0, base->length() % sizeof(T));
-  return FixedIntegerArrayBase<T, Base>{base.ptr()};
 }
 
 template <typename T, typename Base>
@@ -1097,9 +1075,6 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 template <class T>
 PodArray<T>::PodArray(Address ptr) : PodArrayBase<T, ByteArray>(ptr) {}
 
-template <class T>
-CAST_ACCESSOR(PodArray<T>)
-
 // static
 template <class T>
 Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
@@ -1123,9 +1098,6 @@ Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
 template <class T>
 TrustedPodArray<T>::TrustedPodArray(Address ptr)
     : PodArrayBase<T, TrustedByteArray>(ptr) {}
-
-template <class T>
-CAST_ACCESSOR(TrustedPodArray<T>)
 
 }  // namespace internal
 }  // namespace v8

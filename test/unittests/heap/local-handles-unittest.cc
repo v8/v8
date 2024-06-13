@@ -48,7 +48,7 @@ class LocalHandlesThread final : public v8::base::Thread {
 
     for (int i = 0; i < kNumHandles; i++) {
       Handle<HeapNumber> number = handle(
-          HeapNumber::cast(HeapObject::FromAddress(object_)), &local_heap);
+          Cast<HeapNumber>(HeapObject::FromAddress(object_)), &local_heap);
       handles.push_back(number);
     }
 

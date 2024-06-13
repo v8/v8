@@ -1473,7 +1473,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       tester.GetResultObject(cast).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast));
   DirectHandle<WasmInternalFunction> result_cast_internal{
-      WasmFuncRef::cast(*result_cast)->internal(i_isolate), i_isolate};
+      Cast<WasmFuncRef>(*result_cast)->internal(i_isolate), i_isolate};
   DirectHandle<JSFunction> cast_function =
       WasmInternalFunction::GetOrCreateExternal(result_cast_internal);
 
@@ -1481,7 +1481,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       tester.GetResultObject(cast_reference).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast_reference));
   DirectHandle<WasmInternalFunction> result_cast_reference_internal{
-      WasmFuncRef::cast(*result_cast_reference)->internal(i_isolate),
+      Cast<WasmFuncRef>(*result_cast_reference)->internal(i_isolate),
       i_isolate};
   DirectHandle<JSFunction> cast_function_reference =
       WasmInternalFunction::GetOrCreateExternal(result_cast_reference_internal);
@@ -2040,7 +2040,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
     }
     Handle<Object> result = maybe_result.ToHandleChecked();
     CHECK(IsSmi(*result));
-    CHECK_EQ(42, Smi::cast(*result).value());
+    CHECK_EQ(42, Cast<Smi>(*result).value());
     // Calling {consumer} with any other object (e.g. the Smi we just got as
     // {result}) should trap.
     {

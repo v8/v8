@@ -1048,7 +1048,6 @@ class NormalizedMapCache : public WeakFixedArray {
                                              PropertyNormalizationMode mode);
   void Set(DirectHandle<Map> fast_map, DirectHandle<Map> normalized_map);
 
-  DECL_CAST(NormalizedMapCache)
   DECL_VERIFIER(NormalizedMapCache)
 
  private:

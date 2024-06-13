@@ -1282,7 +1282,7 @@ static void DebugPrintImpl(Tagged<MaybeObject> maybe_object, std::ostream& os) {
     if (weak) os << "[weak] ";
     Print(object, os);
     if (IsHeapObject(object)) {
-      Print(HeapObject::cast(object)->map(), os);
+      Print(Cast<HeapObject>(object)->map(), os);
     }
 #else
     if (weak) os << "[weak] ";
@@ -1307,7 +1307,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   if (args.length() >= 2) {
     // Args: object, stream.
     if (IsSmi(args[1])) {
-      int output_int = Smi::cast(args[1]).value();
+      int output_int = Cast<Smi>(args[1]).value();
       if (output_int == fileno(stderr)) {
         output_stream.reset(new StderrStream());
       }
@@ -1352,13 +1352,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
     CHECK(IsSmi(args[i]));
-    uint32_t chunk = Smi::cast(args[i]).value();
+    uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
     CHECK_EQ(chunk & 0xFFFF0000, 0);
     value |= chunk;
   }
 
-  if (!IsSmi(args[4]) || (Smi::cast(args[4]).value() == fileno(stderr))) {
+  if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     os << "0x" << std::hex << value << std::dec << std::endl;
   } else {
@@ -1381,13 +1381,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
     CHECK(IsSmi(args[i]));
-    uint32_t chunk = Smi::cast(args[i]).value();
+    uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
     CHECK_EQ(chunk & 0xFFFF0000, 0);
     value |= chunk;
   }
 
-  if (!IsSmi(args[4]) || (Smi::cast(args[4]).value() == fileno(stderr))) {
+  if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     std::streamsize precision = os.precision();
     os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
@@ -1407,7 +1407,7 @@ RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  auto name = String::cast(args[0]);
+  auto name = Cast<String>(args[0]);
 
   PrintF(" * ");
   StringCharacterStream stream(name);
@@ -1441,7 +1441,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
   if (args.length() >= 2) {
     // Args: object, stream.
     if (IsSmi(args[1])) {
-      int output_int = Smi::cast(args[1]).value();
+      int output_int = Cast<Smi>(args[1]).value();
       if (output_int == fileno(stderr)) {
         output_stream = stderr;
       }
@@ -1452,7 +1452,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     return args[0];
   }
 
-  auto string = String::cast(args[0]);
+  auto string = Cast<String>(args[0]);
   StringCharacterStream stream(string);
   while (stream.HasMore()) {
     uint16_t character = stream.GetNext();
@@ -1616,8 +1616,8 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   if (IsSmi(args[0]) || IsSmi(args[1])) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto obj1 = HeapObject::cast(args[0]);
-  auto obj2 = HeapObject::cast(args[1]);
+  auto obj1 = Cast<HeapObject>(args[0]);
+  auto obj2 = Cast<HeapObject>(args[1]);
   return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
 }
 
@@ -1626,7 +1626,7 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto obj = HeapObject::cast(args[0]);
+  auto obj = Cast<HeapObject>(args[0]);
   return isolate->heap()->ToBoolean(
       isolate->heap()->new_lo_space()->Contains(obj) ||
       isolate->heap()->code_lo_space()->Contains(obj) ||
@@ -1638,7 +1638,7 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto array = JSArray::cast(args[0]);
+  auto array = Cast<JSArray>(args[0]);
   Tagged<FixedArrayBase> elements = array->elements();
   return isolate->heap()->ToBoolean(
       isolate->heap()->new_lo_space()->Contains(elements) ||
@@ -1650,7 +1650,7 @@ RUNTIME_FUNCTION(Runtime_HasCowElements) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto array = JSArray::cast(args[0]);
+  auto array = Cast<JSArray>(args[0]);
   Tagged<FixedArrayBase> elements = array->elements();
   return isolate->heap()->ToBoolean(elements->IsCowArray());
 }
@@ -1671,7 +1671,7 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   if (args.length() != 1) return CrashUnlessFuzzing(isolate);
   Tagged<Object> arg = args[0];
   if (!IsJSObject(arg)) return CrashUnlessFuzzing(isolate);
-  Tagged<JSObject> object = JSObject::cast(arg);
+  Tagged<JSObject> object = Cast<JSObject>(arg);
 
   Heap* heap = object->GetHeap();
   if (!heap->InYoungGeneration(object)) {
@@ -1706,7 +1706,7 @@ RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  bool flag = Boolean::cast(args[0])->ToBool(isolate);
+  bool flag = Cast<Boolean>(args[0])->ToBool(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetModifyCodeGenerationFromStringsCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
@@ -1718,8 +1718,8 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Boolean::cast(args[1])->ToBool(isolate);
+  auto regexp = Cast<JSRegExp>(args[0]);
+  bool is_latin1 = Cast<Boolean>(args[1])->ToBool(isolate);
   bool result;
   if (regexp->type_tag() == JSRegExp::IRREGEXP) {
     result = IsByteArray(regexp->bytecode(is_latin1));
@@ -1734,8 +1734,8 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Boolean::cast(args[1])->ToBool(isolate);
+  auto regexp = Cast<JSRegExp>(args[0]);
+  bool is_latin1 = Cast<Boolean>(args[1])->ToBool(isolate);
   bool result;
   if (regexp->type_tag() == JSRegExp::IRREGEXP) {
     result = IsCode(regexp->code(isolate, is_latin1));
@@ -1750,7 +1750,7 @@ RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  auto regexp = JSRegExp::cast(args[0]);
+  auto regexp = Cast<JSRegExp>(args[0]);
   const char* type_str;
   switch (regexp->type_tag()) {
     case JSRegExp::NOT_COMPILED:
@@ -1781,7 +1781,7 @@ RUNTIME_FUNCTION(Runtime_RegexpIsUnmodified) {
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)  \
   RUNTIME_FUNCTION(Runtime_##Name) {                \
-    auto obj = JSObject::cast(args[0]);             \
+    auto obj = Cast<JSObject>(args[0]);             \
     return isolate->heap()->ToBoolean(obj->Name()); \
   }
 
@@ -1801,7 +1801,7 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasFastProperties)
 
 #define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype) \
   RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                     \
-    auto obj = JSObject::cast(args[0]);                                    \
+    auto obj = Cast<JSObject>(args[0]);                                    \
     return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());    \
   }
 
@@ -1936,7 +1936,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
 #else
   CHECK(IsObject(*object));
   if (IsHeapObject(*object)) {
-    CHECK(IsMap(HeapObject::cast(*object)->map()));
+    CHECK(IsMap(Cast<HeapObject>(*object)->map()));
   } else {
     CHECK(IsSmi(*object));
   }
@@ -2105,7 +2105,7 @@ RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {
   }
   DirectHandle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(
-      IsString(*obj) && String::IsInPlaceInternalizable(String::cast(*obj)));
+      IsString(*obj) && String::IsInPlaceInternalizable(Cast<String>(*obj)));
 }
 
 RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
@@ -2151,7 +2151,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
   DirectHandle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
 
   return Smi::FromInt(
-      EphemeronHashTable::cast(collection->table())->NumberOfElements());
+      Cast<EphemeronHashTable>(collection->table())->NumberOfElements());
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyIsolateForeground) {

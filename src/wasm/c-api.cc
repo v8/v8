@@ -479,9 +479,9 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
 void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate());
   i::Tagged<i::Object> raw =
-      i::EphemeronHashTable::cast(host_info_map_->table())->Lookup(key);
+      i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw, i_isolate())) return nullptr;
-  return i::Managed<ManagedData>::cast(raw)->raw()->info;
+  return i::Cast<i::Managed<ManagedData>>(raw)->raw()->info;
 }
 
 template <>
@@ -1079,7 +1079,7 @@ own<Frame> CreateFrameFromInternal(i::DirectHandle<i::FixedArray> frames,
                                    StoreImpl* store) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::CallSiteInfo> frame(
-      i::CallSiteInfo::cast(frames->get(index)), isolate);
+      i::Cast<i::CallSiteInfo>(frames->get(index)), isolate);
   i::Handle<i::WasmInstanceObject> instance(frame->GetWasmInstance(), isolate);
   uint32_t func_index = frame->GetWasmFunctionIndex();
   size_t module_offset = i::CallSiteInfo::GetSourcePosition(frame);
@@ -1475,7 +1475,7 @@ class SignatureHelper : public i::AllStatic {
 
   static i::Tagged<i::PodArray<i::wasm::ValueType>> GetSig(
       i::DirectHandle<i::JSFunction> function) {
-    return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
+    return i::Cast<i::WasmCapiFunction>(*function)->GetSerializedSignature();
   }
 
 #if V8_ENABLE_SANDBOX
@@ -1515,7 +1515,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()),
       signature_hash);
-  i::WasmApiFunctionRef::cast(
+  i::Cast<i::WasmApiFunctionRef>(
       function->shared()->wasm_capi_function_data()->internal()->ref())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
@@ -1696,7 +1696,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
 own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
                                const Val args[], Val results[]) {
   FuncData* func_data =
-      i::Managed<FuncData>::cast(data->embedder_data())->raw();
+      i::Cast<i::Managed<FuncData>>(data->embedder_data())->raw();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1742,12 +1742,12 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   // WasmCapiFunctions can be called directly.
   if (IsWasmCapiFunctionData(raw_function_data)) {
     return CallWasmCapiFunction(
-        i::WasmCapiFunctionData::cast(raw_function_data), args, results);
+        i::Cast<i::WasmCapiFunctionData>(raw_function_data), args, results);
   }
 
   DCHECK(IsWasmExportedFunctionData(raw_function_data));
   i::DirectHandle<i::WasmExportedFunctionData> function_data{
-      i::WasmExportedFunctionData::cast(raw_function_data), isolate};
+      i::Cast<i::WasmExportedFunctionData>(raw_function_data), isolate};
   i::DirectHandle<i::WasmTrustedInstanceData> instance_data{
       function_data->instance_data(), isolate};
   int function_index = function_data->function_index();
@@ -1768,12 +1768,12 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
         instance_data->dispatch_table_for_imports()->ref(function_index),
         isolate);
     if (IsWasmApiFunctionRef(*object_ref)) {
-      i::Tagged<i::JSFunction> jsfunc = i::JSFunction::cast(
-          i::WasmApiFunctionRef::cast(*object_ref)->callable());
+      i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
+          i::Cast<i::WasmApiFunctionRef>(*object_ref)->callable());
       i::Tagged<i::Object> data = jsfunc->shared()->GetData(isolate);
       if (IsWasmCapiFunctionData(data)) {
-        return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
-                                    results);
+        return CallWasmCapiFunction(i::Cast<i::WasmCapiFunctionData>(data),
+                                    args, results);
       }
       // TODO(jkummerow): Imported and then re-exported JavaScript functions
       // are not supported yet. If we support C-API + JavaScript, we'll need
@@ -1804,7 +1804,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
   FuncData* self =
-      i::Managed<FuncData>::cast(i::Tagged<i::Object>(host_data_foreign))
+      i::Cast<i::Managed<FuncData>>(i::Tagged<i::Object>(host_data_foreign))
           ->raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
@@ -1961,7 +1961,7 @@ auto Global::get() const -> Val {
       i::Handle<i::Object> result = v8_global->GetRef();
       if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
-            i::WasmFuncRef::cast(*result)->internal(store->i_isolate()),
+            i::Cast<i::WasmFuncRef>(*result)->internal(store->i_isolate()),
             store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
@@ -2104,8 +2104,8 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (IsWasmFuncRef(*result)) {
-    result = i::WasmInternalFunction::GetOrCreateExternal(
-        i::handle(i::WasmFuncRef::cast(*result)->internal(isolate), isolate));
+    result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
+        i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
   }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();

@@ -220,7 +220,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       DisallowGarbageCollection no_gc;
       // Unconditionally reset the JSFunction to its SFI's code, since we can't
       // serialize optimized code anyway.
-      Tagged<JSFunction> closure = JSFunction::cast(*obj);
+      Tagged<JSFunction> closure = Cast<JSFunction>(*obj);
       if (closure->shared()->HasBytecodeArray()) {
         closure->SetInterruptBudget(isolate());
       }
@@ -335,7 +335,7 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
         embedder_data_slot.load_raw(isolate(), no_gc));
     Tagged<Object> object = embedder_data_slot.load_tagged();
     if (IsHeapObject(object)) {
-      DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
+      DCHECK(IsValidHeapObject(isolate()->heap(), Cast<HeapObject>(object)));
       serialized_data.push_back({nullptr, 0});
     } else {
       serialized_data.push_back(

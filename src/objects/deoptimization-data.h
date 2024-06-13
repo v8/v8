@@ -34,8 +34,6 @@ class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
   // on InstructionStream::IsWeakObjectInOptimizedCode.
   inline void set(int index, Tagged<Object> value);
 
-  DECL_CAST(DeoptimizationLiteralArray)
-
   OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, TrustedWeakFixedArray);
 };
 
@@ -170,8 +168,6 @@ class DeoptimizationLiteral {
 enum class TranslationOpcode;
 class DeoptimizationFrameTranslation : public TrustedByteArray {
  public:
-  DECL_CAST(DeoptimizationFrameTranslation)
-
   struct FrameCount {
     int total_frame_count;
     int js_frame_count;
@@ -350,8 +346,6 @@ class DeoptimizationData : public ProtectedFixedArray {
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(
       LocalIsolate* isolate);
-
-  DECL_CAST(DeoptimizationData)
 
 #ifdef DEBUG
   void Verify(Handle<BytecodeArray> bytecode) const;

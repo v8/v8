@@ -42,8 +42,6 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   V8_WARN_UNUSED_RESULT static inline Handle<Number> ToNumber(
       Isolate* isolate, DirectHandle<Oddball> input);
 
-  DECL_CAST(Oddball)
-
   // Dispatched behavior.
   DECL_VERIFIER(Oddball)
 
@@ -89,19 +87,16 @@ struct ObjectTraits<Oddball> {
 V8_OBJECT class Null : public Oddball {
  public:
   inline Null();
-  DECL_CAST(Null)
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
  public:
   inline Undefined();
-  DECL_CAST(Undefined)
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
  public:
   inline Boolean();
-  DECL_CAST(Boolean)
 
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
@@ -109,13 +104,11 @@ V8_OBJECT class Boolean : public Oddball {
 V8_OBJECT class True : public Boolean {
  public:
   inline True();
-  DECL_CAST(True)
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
  public:
   inline False();
-  DECL_CAST(False)
 } V8_OBJECT_END;
 
 }  // namespace internal

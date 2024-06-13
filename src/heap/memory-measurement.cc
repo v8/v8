@@ -384,10 +384,10 @@ void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
   InstanceType instance_type = map->instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object)->GetByteLength();
+    external_size = Cast<JSArrayBuffer>(object)->GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
-    external_size = ExternalString::cast(object)->ExternalPayloadSize();
+    external_size = Cast<ExternalString>(object)->ExternalPayloadSize();
   }
   size_by_context_[context] += external_size;
 }

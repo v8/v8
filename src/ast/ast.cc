@@ -662,15 +662,15 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       if (literal && literal->type() == Literal::kTheHole) {
         DCHECK(IsHoleyElementsKind(kind));
         DCHECK(IsTheHole(*GetBoilerplateValue(element, isolate), isolate));
-        FixedDoubleArray::cast(*elements)->set_the_hole(array_index);
+        Cast<FixedDoubleArray>(*elements)->set_the_hole(array_index);
         continue;
       } else if (literal && literal->IsNumber()) {
-        FixedDoubleArray::cast(*elements)->set(array_index,
+        Cast<FixedDoubleArray>(*elements)->set(array_index,
                                                literal->AsNumber());
       } else {
         DCHECK(
             IsUninitialized(*GetBoilerplateValue(element, isolate), isolate));
-        FixedDoubleArray::cast(*elements)->set(array_index, 0);
+        Cast<FixedDoubleArray>(*elements)->set(array_index, 0);
       }
 
     } else {
@@ -700,7 +700,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
                                     boilerplate_value,
                                     GetPtrComprCageBase(*elements))));
 
-      FixedArray::cast(*elements)->set(array_index, boilerplate_value);
+      Cast<FixedArray>(*elements)->set(array_index, boilerplate_value);
     }
   }  // namespace internal
 

@@ -316,7 +316,7 @@ Tagged<String> Intl::ConvertOneByteToLower(Tagged<String> src,
 
   const int length = src->length();
   String::FlatContent src_flat = src->GetFlatContent(no_gc);
-  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
+  uint8_t* dst_data = Cast<SeqOneByteString>(dst)->GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().begin();
@@ -1010,7 +1010,7 @@ base::Optional<int> Intl::StringLocaleCompare(
   }
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(
+      Cast<JSFunction>(
           isolate->context()->native_context()->intl_collator_function()),
       isolate);
 
@@ -1504,7 +1504,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   }
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(
+      Cast<JSFunction>(
           isolate->context()->native_context()->intl_number_format_function()),
       isolate);
   Handle<JSNumberFormat> number_format;

@@ -48,7 +48,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Tagged<Map> receiver_map,
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(IsJSReceiver(object_));
-    Tagged<Map> map = JSReceiver::cast(object_)->map();
+    Tagged<Map> map = Cast<JSReceiver>(object_)->map();
     is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
@@ -64,7 +64,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate,
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(IsJSReceiver(*handle_));
-    Tagged<Map> map = JSReceiver::cast(*handle_)->map();
+    Tagged<Map> map = Cast<JSReceiver>(*handle_)->map();
     is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
@@ -95,7 +95,7 @@ void PrototypeIterator::Advance() {
 
 void PrototypeIterator::AdvanceIgnoringProxies() {
   Tagged<Object> object = handle_.is_null() ? object_ : *handle_;
-  Tagged<Map> map = HeapObject::cast(object)->map();
+  Tagged<Map> map = Cast<HeapObject>(object)->map();
 
   Tagged<HeapObject> prototype = map->prototype();
   is_at_end_ = IsNull(prototype, isolate_) ||

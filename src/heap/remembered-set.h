@@ -348,7 +348,7 @@ class UpdateTypedSlotHelper {
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
       rinfo->set_target_address(
-          InstructionStream::cast(new_target)->instruction_start());
+          Cast<InstructionStream>(new_target)->instruction_start());
     }
     return result;
   }
@@ -365,7 +365,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_object(HeapObject::cast(new_target));
+      rinfo->set_target_object(Cast<HeapObject>(new_target));
     }
     return result;
   }

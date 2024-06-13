@@ -79,8 +79,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     int base_offset = i * 2;
     int name_offset = base_offset;
     int index_offset = base_offset + 1;
-    Handle<String> name(String::cast(names->get(name_offset)), isolate);
-    Tagged<Smi> smi_index = Smi::cast(names->get(index_offset));
+    Handle<String> name(Cast<String>(names->get(name_offset)), isolate);
+    Tagged<Smi> smi_index = Cast<Smi>(names->get(index_offset));
     Handle<Object> capture_indices(indices_array->get(smi_index.value()),
                                    isolate);
     if (!IsUndefined(*capture_indices, isolate)) {
@@ -173,7 +173,7 @@ Tagged<Object> JSRegExp::code(IsolateForSandbox isolate, bool is_latin1) const {
   // should consider adding a trusted pointer field that references either the
   // bytecode or the native code in a sandbox-compatible way.
   if (IsCodeWrapper(value)) {
-    value = CodeWrapper::cast(value)->code(isolate);
+    value = Cast<CodeWrapper>(value)->code(isolate);
   }
   DCHECK(IsSmi(value) || IsCode(value));
   return value;
@@ -226,7 +226,7 @@ void JSRegExp::ResetLastTierUpTick() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                 Smi::FromInt(tier_up_ticks));
 }
 
@@ -237,14 +237,14 @@ void JSRegExp::TierUpTick() {
   if (tier_up_ticks == 0) {
     return;
   }
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                 Smi::FromInt(tier_up_ticks - 1));
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                 Smi::zero());
 }
 
@@ -435,7 +435,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   Tagged<Map> map = regexp->map();
   Tagged<Object> constructor = map->GetConstructor();
   if (IsJSFunction(constructor) &&
-      JSFunction::cast(constructor)->initial_map() == map) {
+      Cast<JSFunction>(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(kInitialLastIndexValue),

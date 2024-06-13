@@ -41,7 +41,7 @@ static bool IsPropertyNameFeedback(Tagged<MaybeObject> feedback) {
     return true;
   }
   if (!IsSymbol(heap_object)) return false;
-  Tagged<Symbol> symbol = Symbol::cast(heap_object);
+  Tagged<Symbol> symbol = Cast<Symbol>(heap_object);
   ReadOnlyRoots roots = symbol->GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
          symbol != roots.mega_dom_symbol() &&
@@ -453,7 +453,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Tagged<Code> code = CodeWrapper::cast(slot.GetHeapObject())->code(isolate);
+  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
   if (code->marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
     ClearOptimizedCode();
@@ -777,7 +777,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
                  IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind()));
           Tagged<Object> extra_object = extra.GetHeapObjectAssumeStrong();
           Tagged<WeakFixedArray> extra_array =
-              WeakFixedArray::cast(extra_object);
+              Cast<WeakFixedArray>(extra_object);
           return extra_array->length() > 2 ? InlineCacheState::POLYMORPHIC
                                            : InlineCacheState::MONOMORPHIC;
         }
@@ -972,7 +972,7 @@ void FeedbackNexus::ConfigureCloneObject(
       break;
     case InlineCacheState::MONOMORPHIC:
       if (feedback.is_null() || feedback.is_identical_to(source_map) ||
-          Map::cast(*feedback)->is_deprecated()) {
+          Cast<Map>(*feedback)->is_deprecated()) {
         SetFeedback(MakeWeak(*source_map), UPDATE_WRITE_BARRIER, GetHandler());
       } else {
         // Transition to POLYMORPHIC.
@@ -995,7 +995,7 @@ void FeedbackNexus::ConfigureCloneObject(
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
-        Handle<Map> cached_map(Map::cast(feedback_map.GetHeapObject()),
+        Handle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
                                isolate);
         if (cached_map.is_identical_to(source_map) ||
             cached_map->is_deprecated())
@@ -1208,13 +1208,13 @@ Tagged<Name> FeedbackNexus::GetName() const {
       IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind())) {
     Tagged<MaybeObject> feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
-      return Name::cast(feedback.GetHeapObjectAssumeStrong());
+      return Cast<Name>(feedback.GetHeapObjectAssumeStrong());
     }
   }
   if (IsDefineKeyedOwnPropertyInLiteralKind(kind())) {
     Tagged<MaybeObject> extra = GetFeedbackExtra();
     if (IsPropertyNameFeedback(extra)) {
-      return Name::cast(extra.GetHeapObjectAssumeStrong());
+      return Cast<Name>(extra.GetHeapObjectAssumeStrong());
     }
   }
   return {};
@@ -1311,7 +1311,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (!StoreModeIsInBounds(mode)) return mode;
         continue;
       } else {
-        Tagged<Code> code = Code::cast(data_handler->smi_handler());
+        Tagged<Code> code = Cast<Code>(data_handler->smi_handler());
         builtin_handler = code->builtin_id();
       }
 
@@ -1330,7 +1330,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      Tagged<Code> code = Code::cast(*maybe_code_handler.object());
+      Tagged<Code> code = Cast<Code>(*maybe_code_handler.object());
       builtin_handler = code->builtin_id();
     }
 
@@ -1392,7 +1392,7 @@ MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
   Tagged<MaybeObject> feedback = GetFeedback();
   Tagged<HeapObject> heap_object;
   if (feedback.GetHeapObjectIfWeak(&heap_object)) {
-    return config()->NewHandle(JSObject::cast(heap_object));
+    return config()->NewHandle(Cast<JSObject>(heap_object));
   }
   return MaybeHandle<JSObject>();
 }
@@ -1421,16 +1421,16 @@ FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
     heap_object = feedback.GetHeapObjectAssumeStrong();
     if (is_named_feedback) {
       polymorphic_feedback_ = nexus->config()->NewHandle(
-          WeakFixedArray::cast(pair.second.GetHeapObjectAssumeStrong()));
+          Cast<WeakFixedArray>(pair.second.GetHeapObjectAssumeStrong()));
     } else {
       polymorphic_feedback_ =
-          nexus->config()->NewHandle(WeakFixedArray::cast(heap_object));
+          nexus->config()->NewHandle(Cast<WeakFixedArray>(heap_object));
     }
     AdvancePolymorphic();
   } else if (feedback.GetHeapObjectIfWeak(&heap_object)) {
     state_ = kMonomorphic;
     Tagged<MaybeObject> handler = pair.second;
-    map_ = Map::cast(heap_object);
+    map_ = Cast<Map>(heap_object);
     handler_ = handler;
   } else {
     done_ = true;
@@ -1459,7 +1459,7 @@ void FeedbackIterator::AdvancePolymorphic() {
     if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
       Tagged<MaybeObject> handler =
           polymorphic_feedback_->get(index_ + kHandlerOffset);
-      map_ = Map::cast(heap_object);
+      map_ = Cast<Map>(heap_object);
       handler_ = handler;
       index_ += kEntrySize;
       return;

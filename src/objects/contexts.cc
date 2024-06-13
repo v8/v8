@@ -159,13 +159,13 @@ Tagged<JSObject> Context::extension_object() const {
   if (IsUndefined(object)) return JSObject();
   DCHECK(IsJSContextExtensionObject(object) ||
          (IsNativeContext(*this) && IsJSGlobalObject(object)));
-  return JSObject::cast(object);
+  return Cast<JSObject>(object);
 }
 
 Tagged<JSReceiver> Context::extension_receiver() const {
   DCHECK(IsNativeContext(*this) || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
-  return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
+  return IsWithContext() ? Cast<JSReceiver>(extension()) : extension_object();
 }
 
 Tagged<SourceTextModule> Context::module() const {
@@ -173,11 +173,11 @@ Tagged<SourceTextModule> Context::module() const {
   while (!current->IsModuleContext()) {
     current = current->previous();
   }
-  return SourceTextModule::cast(current->extension());
+  return Cast<SourceTextModule>(current->extension());
 }
 
 Tagged<JSGlobalObject> Context::global_object() const {
-  return JSGlobalObject::cast(native_context()->extension());
+  return Cast<JSGlobalObject>(native_context()->extension());
 }
 
 Tagged<Context> Context::script_context() const {
@@ -418,7 +418,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Check materialized locals.
       Tagged<Object> ext = context->get(EXTENSION_INDEX);
       if (IsJSReceiver(ext)) {
-        Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
+        Handle<JSReceiver> extension(Cast<JSReceiver>(ext), isolate);
         LookupIterator it(isolate, extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
         if (found.FromMaybe(false)) {
@@ -430,7 +430,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Check the original context, but do not follow its context chain.
       Tagged<Object> obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (IsContext(obj)) {
-        Handle<Context> wrapped_context(Context::cast(obj), isolate);
+        Handle<Context> wrapped_context(Cast<Context>(obj), isolate);
         Handle<Object> result =
             Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
                             attributes, init_flag, variable_mode);
@@ -453,7 +453,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Tagged<Object> maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
       if (IsStringSet(maybe_outer_block_list) &&
-          StringSet::cast(maybe_outer_block_list)->Has(isolate, name)) {
+          Cast<StringSet>(maybe_outer_block_list)->Has(isolate, name)) {
         if (v8_flags.trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
         }
@@ -477,7 +477,7 @@ Tagged<ConstTrackingLetCell> Context::GetOrCreateConstTrackingLetCell(
   int side_data_index =
       static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
   DirectHandle<FixedArray> side_data(
-      FixedArray::cast(script_context->get(CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+      Cast<FixedArray>(script_context->get(CONST_TRACKING_LET_SIDE_DATA_INDEX)),
       isolate);
   Tagged<Object> object = side_data->get(side_data_index);
   if (!IsConstTrackingLetCell(object)) {
@@ -487,7 +487,7 @@ Tagged<ConstTrackingLetCell> Context::GetOrCreateConstTrackingLetCell(
     object = *isolate->factory()->NewConstTrackingLetCell();
     side_data->set(side_data_index, object);
   }
-  return ConstTrackingLetCell::cast(object);
+  return Cast<ConstTrackingLetCell>(object);
 }
 
 bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
@@ -496,7 +496,7 @@ bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
   int side_data_index =
       static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
   Tagged<FixedArray> side_data =
-      FixedArray::cast(get(CONST_TRACKING_LET_SIDE_DATA_INDEX));
+      Cast<FixedArray>(get(CONST_TRACKING_LET_SIDE_DATA_INDEX));
   Tagged<Object> object = side_data->get(side_data_index);
   return !ConstTrackingLetCell::IsNotConst(object);
 }
@@ -509,7 +509,7 @@ void Context::UpdateConstTrackingLetSideData(
   DirectHandle<Object> old_value(script_context->get(index), isolate);
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
   DirectHandle<FixedArray> side_data(
-      FixedArray::cast(
+      Cast<FixedArray>(
           script_context->get(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX)),
       isolate);
   if (IsTheHole(*old_value)) {
@@ -526,7 +526,7 @@ void Context::UpdateConstTrackingLetSideData(
   Tagged<Object> data = side_data->get(side_data_index);
   if (IsConstTrackingLetCell(data)) {
     DependentCode::DeoptimizeDependencyGroups(
-        isolate, ConstTrackingLetCell::cast(data),
+        isolate, Cast<ConstTrackingLetCell>(data),
         DependentCode::kConstTrackingLetChangedGroup);
   } else {
     // The value is not constant, but it also was not used as a constant
@@ -567,7 +567,7 @@ namespace {
 // extensions.
 bool IsContexExtensionTestObject(Tagged<HeapObject> extension) {
   return IsInternalizedString(extension) &&
-         String::cast(extension)->length() == 1;
+         Cast<String>(extension)->length() == 1;
 }
 }  // namespace
 
@@ -609,7 +609,7 @@ bool Context::IsBootstrappingOrValidParentContext(Tagged<Object> object,
   // contexts. This is necessary to fix circular dependencies.
   if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
   if (!IsContext(object)) return false;
-  Tagged<Context> context = Context::cast(object);
+  Tagged<Context> context = Cast<Context>(object);
   return IsNativeContext(context) || context->IsScriptContext() ||
          context->IsModuleContext() || !child->IsModuleContext();
 }

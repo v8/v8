@@ -1368,7 +1368,7 @@ class FeedbackMaker {
 
   void AddCallRefCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
-        WasmFuncRef::cast(funcref)->internal(isolate_);
+        Cast<WasmFuncRef>(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
     if (internal_function->ref() != instance_data_) return;
     // Discard imports for now.
@@ -1469,7 +1469,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   Tagged<Object> maybe_feedback =
       instance_data_->feedback_vectors()->get(which_vector);
   if (!IsFixedArray(maybe_feedback)) return;
-  Tagged<FixedArray> feedback = FixedArray::cast(maybe_feedback);
+  Tagged<FixedArray> feedback = Cast<FixedArray>(maybe_feedback);
   base::Vector<uint32_t> call_targets =
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
@@ -1523,26 +1523,26 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // Monomorphic call_ref.
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallRef);
       int count = Smi::ToInt(second_slot);
-      fm.AddCallRefCandidate(WasmFuncRef::cast(first_slot), count);
+      fm.AddCallRefCandidate(Cast<WasmFuncRef>(first_slot), count);
     } else if (IsSmi(first_slot)) {
       // Monomorphic call_indirect.
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
       int count = Smi::ToInt(second_slot);
-      fm.AddCallIndirectCandidate(Smi::cast(first_slot), count);
+      fm.AddCallIndirectCandidate(Cast<Smi>(first_slot), count);
     } else if (IsFixedArray(first_slot)) {
       // Polymorphic call_ref or call_indirect.
-      Tagged<FixedArray> polymorphic = FixedArray::cast(first_slot);
+      Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
       DCHECK(IsUndefined(second_slot));
       if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
         for (int j = 0; j < polymorphic->length(); j += 2) {
-          Tagged<WasmFuncRef> target = WasmFuncRef::cast(polymorphic->get(j));
+          Tagged<WasmFuncRef> target = Cast<WasmFuncRef>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallRefCandidate(target, count);
         }
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
         for (int j = 0; j < polymorphic->length(); j += 2) {
-          Tagged<Smi> target = Smi::cast(polymorphic->get(j));
+          Tagged<Smi> target = Cast<Smi>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallIndirectCandidate(target, count);
         }

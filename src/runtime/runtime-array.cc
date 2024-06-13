@@ -71,7 +71,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   if (argv.length() == 1) {
     DirectHandle<Object> argument_one = argv.at<Object>(0);
     if (IsSmi(*argument_one)) {
-      int value = Smi::cast(*argument_one).value();
+      int value = Cast<Smi>(*argument_one).value();
       if (value < 0 ||
           JSArray::SetLengthWouldNormalize(isolate->heap(), value)) {
         // the array is a dictionary in this case.
@@ -172,7 +172,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     index = static_cast<uint32_t>(value);
   } else {
     CHECK(IsHeapNumber(*key));
-    double value = HeapNumber::cast(*key)->value();
+    double value = Cast<HeapNumber>(*key)->value();
     if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
       return Smi::zero();
     }
@@ -238,7 +238,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     if (object->map()->instance_type() == JS_ARRAY_TYPE) {
       uint32_t len32 = 0;
       bool success =
-          Object::ToArrayLength(JSArray::cast(*object)->length(), &len32);
+          Object::ToArrayLength(Cast<JSArray>(*object)->length(), &len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -292,7 +292,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   // element index, perform fast operation tailored to specific ElementsKinds.
   if (!IsSpecialReceiverMap(object->map()) &&
       len <= JSObject::kMaxElementCount &&
-      JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
+      JSObject::PrototypeHasNoElements(isolate, Cast<JSObject>(*object))) {
     Handle<JSObject> obj = Cast<JSObject>(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
     Maybe<bool> result =
@@ -340,7 +340,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     if (IsJSArray(*object)) {
       uint32_t len32 = 0;
       bool success =
-          Object::ToArrayLength(JSArray::cast(*object)->length(), &len32);
+          Object::ToArrayLength(Cast<JSArray>(*object)->length(), &len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -390,7 +390,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   // If the receiver is not a special receiver type, and the length fits
   // uint32_t, perform fast operation tailored to specific ElementsKinds.
   if (!IsSpecialReceiverMap(object->map()) && len <= kMaxUInt32 &&
-      JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
+      JSObject::PrototypeHasNoElements(isolate, Cast<JSObject>(*object))) {
     Handle<JSObject> obj = Cast<JSObject>(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
     Maybe<int64_t> result = elements->IndexOfValue(isolate, obj, search_element,

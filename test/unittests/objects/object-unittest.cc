@@ -667,7 +667,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
     Tagged<Object> value = context->get(i);
     if (!IsJSFunction(value)) continue;
     InstanceType instance_type =
-        JSFunction::cast(value)->map()->instance_type();
+        Cast<JSFunction>(value)->map()->instance_type();
 
     switch (i) {
       case Context::ARRAY_FUNCTION_INDEX:

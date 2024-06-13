@@ -83,12 +83,12 @@ enum IndirectPointerTag : uint64_t {
   //
   //     auto obj = LoadTrustedPointerField<kUnknownIndirectPointerTag>(...);
   //     if (IsFoo(obj)) {
-  //         Foo::cast(obj)->foo();
+  //         Cast<Foo>(obj)->foo();
   //     } else if (IsBar(obj)) {
-  //         Bar::cast(obj)->bar();
+  //         Cast<Bar>(obj)->bar();
   //     } else {
   //         // Potential type confusion here!
-  //         Baz::cast(obj)->baz();
+  //         Cast<Baz>(obj)->baz();
   //     }
   //
   // This is because an attacker can swap trusted pointers and thereby cause an
@@ -99,7 +99,7 @@ enum IndirectPointerTag : uint64_t {
   //     } else {
   //         // Must be a Baz object
   //         CHECK(IsBaz(obj));
-  //         Baz::cast(obj)->baz();
+  //         Cast<Baz>(obj)->baz();
   //    }
   //
   kUnknownIndirectPointerTag = kIndirectPointerTagMaskWithoutFreeEntryBit,

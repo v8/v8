@@ -36,8 +36,6 @@ class WasmTableObject;
 
 class WasmValueObject : public JSObject {
  public:
-  DECL_CAST(WasmValueObject)
-
   DECL_ACCESSORS(type, Tagged<String>)
   DECL_ACCESSORS(value, Tagged<Object>)
 

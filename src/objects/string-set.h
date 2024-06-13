@@ -35,7 +35,6 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
                                                  DirectHandle<String> name);
   V8_EXPORT_PRIVATE bool Has(Isolate* isolate, DirectHandle<String> name);
 
-  DECL_CAST(StringSet)
   OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);
 };
 

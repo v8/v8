@@ -216,7 +216,7 @@ class ObjectPostProcessor final {
     DCHECK_EQ(o->map(isolate_)->instance_type(), instance_type);
 #define V(TYPE)                                       \
   if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(TYPE::cast(o));          \
+    return PostProcess##TYPE(Cast<TYPE>(o));          \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V
@@ -317,7 +317,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
     const InstanceType instance_type = o->map(cage_base)->instance_type();
     if (should_rehash()) {
       if (InstanceTypeChecker::IsString(instance_type)) {
-        Tagged<String> str = String::cast(o);
+        Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
         PushObjectToRehash(handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {

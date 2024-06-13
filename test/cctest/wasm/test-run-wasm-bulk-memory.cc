@@ -411,7 +411,7 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
   r.builder().InitializeWrapperCache();
 
   auto table =
-      handle(WasmTableObject::cast(
+      handle(Cast<WasmTableObject>(
                  r.builder().trusted_instance_data()->tables()->get(table_dst)),
              isolate);
   r.CheckCallViaJS(0, 0, 0, kTableSize);
@@ -491,7 +491,7 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
            kExprI32Const, 0});
 
   auto table =
-      handle(WasmTableObject::cast(
+      handle(Cast<WasmTableObject>(
                  r.builder().trusted_instance_data()->tables()->get(table_dst)),
              isolate);
 
@@ -558,7 +558,7 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
   r.builder().InitializeWrapperCache();
 
   auto table =
-      handle(WasmTableObject::cast(
+      handle(Cast<WasmTableObject>(
                  r.builder().trusted_instance_data()->tables()->get(table_dst)),
              isolate);
   // Fill the dst table with values from the src table, to make checks easier.

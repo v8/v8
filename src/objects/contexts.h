@@ -703,7 +703,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
 class NativeContext : public Context {
  public:
-  DECL_CAST(NativeContext)
   // TODO(neis): Move some stuff from Context here.
 
   // NativeContext fields are read concurrently from background threads; any
@@ -834,7 +833,6 @@ class ScriptContextTable
       Isolate* isolate, Handle<ScriptContextTable> table,
       DirectHandle<Context> script_context, bool ignore_duplicates);
 
-  DECL_CAST(ScriptContextTable)
   DECL_PRINTER(ScriptContextTable)
   DECL_VERIFIER(ScriptContextTable)
 

@@ -18,19 +18,19 @@ namespace internal {
 
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
-  Tagged<JSFunction> fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = Cast<JSFunction>(function());
   return fun == fun->native_context()->promise_all();
 }
 
 bool CallSiteInfo::IsPromiseAllSettled() const {
   if (!IsAsync()) return false;
-  Tagged<JSFunction> fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = Cast<JSFunction>(function());
   return fun == fun->native_context()->promise_all_settled();
 }
 
 bool CallSiteInfo::IsPromiseAny() const {
   if (!IsAsync()) return false;
-  Tagged<JSFunction> fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = Cast<JSFunction>(function());
   return fun == fun->native_context()->promise_any();
 }
 
@@ -235,7 +235,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
       builder.AppendCStringLiteral("<anonymous>");
     }
     if (IsScript(eval_shared->script())) {
-      DirectHandle<Script> eval_script(Script::cast(eval_shared->script()),
+      DirectHandle<Script> eval_script(Cast<Script>(eval_shared->script()),
                                        isolate);
       builder.AppendCStringLiteral(" (");
       if (eval_script->compilation_type() == Script::CompilationType::kEval) {
@@ -302,12 +302,12 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
     return isolate->factory()->null_value();
   }
   if (info->IsBuiltin()) {
-    Builtin builtin = Builtins::FromInt(Smi::cast(info->function()).value());
+    Builtin builtin = Builtins::FromInt(Cast<Smi>(info->function()).value());
     return isolate->factory()->NewStringFromAsciiChecked(
         Builtins::NameForStackTrace(isolate, builtin));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+  Handle<JSFunction> function(Cast<JSFunction>(info->function()), isolate);
   if (function->shared()->HasBuiltinId()) {
     Builtin builtin = function->shared()->builtin_id();
     const char* maybe_known_name =
@@ -340,7 +340,7 @@ Handle<String> CallSiteInfo::GetFunctionDebugName(
     return Cast<String>(GetFunctionName(info));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+  Handle<JSFunction> function(Cast<JSFunction>(info->function()), isolate);
   Handle<String> name = JSFunction::GetDebugName(function);
   if (name->length() == 0 && info->IsEval()) {
     name = isolate->factory()->eval_string();
@@ -372,7 +372,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     }
     if (value != fun) {
       if (!IsAccessorPair(value)) continue;
-      auto pair = AccessorPair::cast(value);
+      auto pair = Cast<AccessorPair>(value);
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
@@ -398,7 +398,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromDictionary(
     auto value = dictionary->ValueAt(i);
     if (value != fun) {
       if (!IsAccessorPair(value)) continue;
-      auto pair = AccessorPair::cast(value);
+      auto pair = Cast<AccessorPair>(value);
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
@@ -420,14 +420,14 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
        it.Advance()) {
     auto current = it.GetCurrent();
     if (!IsJSObject(current)) break;
-    auto object = JSObject::cast(current);
+    auto object = Cast<JSObject>(current);
     if (IsAccessCheckNeeded(object)) break;
     if (object->HasFastProperties()) {
       name = InferMethodNameFromFastObject(isolate, object, fun, name);
     } else if (IsJSGlobalObject(object)) {
       name = InferMethodNameFromDictionary(
           isolate,
-          JSGlobalObject::cast(object)->global_dictionary(kAcquireLoad), fun,
+          Cast<JSGlobalObject>(object)->global_dictionary(kAcquireLoad), fun,
           name);
     } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       name = InferMethodNameFromDictionary(
@@ -455,7 +455,7 @@ Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
   }
 
   Handle<JSFunction> function =
-      handle(JSFunction::cast(info->function()), isolate);
+      handle(Cast<JSFunction>(info->function()), isolate);
   // Class members initializer function is not a method.
   if (IsClassMembersInitializerFunction(function->shared()->kind())) {
     return isolate->factory()->null_value();
@@ -526,12 +526,12 @@ Handle<Object> CallSiteInfo::GetTypeName(DirectHandle<CallSiteInfo> info) {
 #if V8_ENABLE_WEBASSEMBLY
 uint32_t CallSiteInfo::GetWasmFunctionIndex() const {
   DCHECK(IsWasm());
-  return Smi::ToInt(Smi::cast(function()));
+  return Smi::ToInt(Cast<Smi>(function()));
 }
 
 Tagged<WasmInstanceObject> CallSiteInfo::GetWasmInstance() const {
   DCHECK(IsWasm());
-  return WasmInstanceObject::cast(receiver_or_instance());
+  return Cast<WasmInstanceObject>(receiver_or_instance());
 }
 
 // static
@@ -585,7 +585,7 @@ bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
 
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   if (!shared->IsSubjectToDebugging()) return false;
-  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   if (IsUndefined(script->source())) return false;
   if (info->flags() & kIsSourcePositionComputed ||
       (shared->HasBytecodeArray() &&
@@ -618,7 +618,7 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   Tagged<HeapObject> code = info->code_object(isolate);
   DCHECK(IsCode(code) || IsBytecodeArray(code));
-  return AbstractCode::cast(code)->SourcePosition(isolate, offset);
+  return Cast<AbstractCode>(code)->SourcePosition(isolate, offset);
 }
 
 base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
@@ -634,7 +634,7 @@ base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> script = GetSharedFunctionInfo()->script();
-  if (IsScript(script)) return Script::cast(script);
+  if (IsScript(script)) return Cast<Script>(script);
   return base::nullopt;
 }
 
@@ -643,7 +643,7 @@ Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {
   DCHECK(!IsWasm());
   DCHECK(!IsBuiltin());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return JSFunction::cast(function())->shared();
+  return Cast<JSFunction>(function())->shared();
 }
 
 // static
@@ -658,7 +658,7 @@ MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
 namespace {
 
 bool IsNonEmptyString(DirectHandle<Object> object) {
-  return (IsString(*object) && String::cast(*object)->length() > 0);
+  return (IsString(*object) && Cast<String>(*object)->length() > 0);
 }
 
 void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,

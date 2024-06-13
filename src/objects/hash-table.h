@@ -393,7 +393,6 @@ EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 class V8_EXPORT_PRIVATE ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
  public:
-  DECL_CAST(ObjectHashTable)
   DECL_PRINTER(ObjectHashTable)
 
   OBJECT_CONSTRUCTORS(
@@ -412,7 +411,6 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(EphemeronHashTable)
   DECL_PRINTER(EphemeronHashTable)
   class BodyDescriptor;
 
@@ -476,8 +474,6 @@ class ObjectMultiHashTableBase
 class ObjectTwoHashTable
     : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {
  public:
-  DECL_CAST(ObjectTwoHashTable)
-
   OBJECT_CONSTRUCTORS(ObjectTwoHashTable,
                       ObjectMultiHashTableBase<ObjectTwoHashTable, 2>);
 };
@@ -498,8 +494,6 @@ class V8_EXPORT_PRIVATE ObjectHashSet
 
   inline bool Has(Isolate* isolate, Handle<Object> key, int32_t hash);
   inline bool Has(Isolate* isolate, Handle<Object> key);
-
-  DECL_CAST(ObjectHashSet)
 
   OBJECT_CONSTRUCTORS(ObjectHashSet,
                       HashTable<ObjectHashSet, ObjectHashSetShape>);
@@ -540,7 +534,6 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   // strings.
   using HashTable<NameToIndexHashTable, NameToIndexShape>::FindInsertionEntry;
 
-  DECL_CAST(NameToIndexHashTable)
   DECL_PRINTER(NameToIndexHashTable)
 
   OBJECT_CONSTRUCTORS(NameToIndexHashTable,
@@ -579,7 +572,6 @@ class RegisteredSymbolTable
                                            IndirectHandle<String> key,
                                            DirectHandle<Symbol>);
 
-  DECL_CAST(RegisteredSymbolTable)
   DECL_PRINTER(RegisteredSymbolTable)
   OBJECT_CONSTRUCTORS(
       RegisteredSymbolTable,

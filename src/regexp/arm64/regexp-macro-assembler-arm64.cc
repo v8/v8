@@ -1428,7 +1428,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
     int start_index, const uint8_t** input_start, const uint8_t** input_end,
     uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      InstructionStream::cast(Tagged<Object>(raw_code));
+      Cast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset), start_index,
       static_cast<RegExp::CallOrigin>(

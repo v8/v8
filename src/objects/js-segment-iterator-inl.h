@@ -23,9 +23,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObjectWithIsWordLike)
 
-CAST_ACCESSOR(JSSegmentDataObject)
-CAST_ACCESSOR(JSSegmentDataObjectWithIsWordLike)
-
 // Base segment iterator accessors.
 ACCESSORS(JSSegmentIterator, icu_break_iterator,
           Tagged<Managed<icu::BreakIterator>>, kIcuBreakIteratorOffset)

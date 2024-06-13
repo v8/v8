@@ -102,7 +102,7 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
   for (FullObjectSlot p = start; p < end; ++p) {
     Tagged<Object> o = *p;
     if (!IsHeapObject(o)) continue;
-    Tagged<HeapObject> heap_object = HeapObject::cast(o);
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(o);
     // MinorMS doesn't update the young strings set and so it may contain
     // strings that are already in old space.
     if (!marking_state->IsUnmarked(heap_object)) continue;
@@ -110,7 +110,7 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
         !Heap::InYoungGeneration(heap_object))
       continue;
     if (IsExternalString(o)) {
-      heap_->FinalizeExternalString(String::cast(o));
+      heap_->FinalizeExternalString(Cast<String>(o));
     } else {
       // The original external string may have been internalized.
       DCHECK(IsThinString(o));

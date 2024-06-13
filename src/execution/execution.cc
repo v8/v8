@@ -190,10 +190,10 @@ MaybeHandle<Context> NewScriptContext(
   }
   SaveAndSwitchContext save(isolate, function->context());
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  Handle<Script> script(Script::cast(sfi->script()), isolate);
+  Handle<Script> script(Cast<Script>(sfi->script()), isolate);
   Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
   DirectHandle<NativeContext> native_context(
-      NativeContext::cast(function->context()), isolate);
+      Cast<NativeContext>(function->context()), isolate);
   Handle<JSGlobalObject> global_object(native_context->global_object(),
                                        isolate);
   Handle<ScriptContextTable> script_context(
@@ -501,7 +501,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                     Handle<Object> argv[]) {
   // Use Execution::CallScript instead for scripts:
   DCHECK_IMPLIES(IsJSFunction(*callable),
-                 !JSFunction::cast(*callable)->shared()->is_script());
+                 !Cast<JSFunction>(*callable)->shared()->is_script());
   return Invoke(isolate, InvokeParams::SetUpForCall(isolate, callable, receiver,
                                                     argc, argv));
 }
@@ -564,7 +564,7 @@ MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
                                        MaybeHandle<Object>* exception_out) {
   // Use Execution::TryCallScript instead for scripts:
   DCHECK_IMPLIES(IsJSFunction(*callable),
-                 !JSFunction::cast(*callable)->shared()->is_script());
+                 !Cast<JSFunction>(*callable)->shared()->is_script());
   return InvokeWithTryCatch(
       isolate,
       InvokeParams::SetUpForTryCall(isolate, callable, receiver, argc, argv,

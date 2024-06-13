@@ -615,10 +615,11 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
   EXPECT_TRUE(!fun.IsEmpty());
   auto fun_i = i::Cast<i::JSFunction>(Utils::OpenHandle(*fun));
   EXPECT_TRUE(IsSharedFunctionInfo(fun_i->shared()));
-  EXPECT_TRUE(Utils::ToLocal(
-                  i::handle(i::Script::cast(fun_i->shared()->script())->name(),
-                            i_isolate()))
-                  ->StrictEquals(NewString("test")));
+  EXPECT_TRUE(
+      Utils::ToLocal(
+          i::handle(i::Cast<i::Script>(fun_i->shared()->script())->name(),
+                    i_isolate()))
+          ->StrictEquals(NewString("test")));
   v8::TryCatch try_catch(isolate());
   isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
   EXPECT_TRUE(fun->Call(context(), context()->Global(), 0, nullptr).IsEmpty());
@@ -920,8 +921,9 @@ TEST_F(CompilerTest, ProfilerEnabledDuringBackgroundCompile) {
           .ToLocalChecked();
 
   i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(*script);
-  EXPECT_TRUE(i::JSFunction::cast(*obj)->shared()->AreSourcePositionsAvailable(
-      i_isolate()));
+  EXPECT_TRUE(
+      i::Cast<i::JSFunction>(*obj)->shared()->AreSourcePositionsAvailable(
+          i_isolate()));
 
   cpu_profiler->StopProfiling(profile);
 }

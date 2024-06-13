@@ -66,9 +66,9 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 Tagged<Script> StackFrameInfo::script() const {
   Tagged<HeapObject> object = shared_or_script();
   if (IsSharedFunctionInfo(object)) {
-    object = SharedFunctionInfo::cast(object)->script();
+    object = Cast<SharedFunctionInfo>(object)->script();
   }
-  return Script::cast(object);
+  return Cast<Script>(object);
 }
 
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,

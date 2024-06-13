@@ -37,7 +37,7 @@ void CreateFixedArray(Heap* heap, Address start, int size) {
   Tagged<HeapObject> object = HeapObject::FromAddress(start);
   object->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = FixedArray::cast(object);
+  Tagged<FixedArray> array = Cast<FixedArray>(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(),

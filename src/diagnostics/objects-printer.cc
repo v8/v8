@@ -57,7 +57,7 @@ void Print(Tagged<Object> obj, std::ostream& os) {
     os << "Smi: " << std::hex << "0x" << Smi::ToInt(obj);
     os << std::dec << " (" << Smi::ToInt(obj) << ")\n";
   } else {
-    HeapObject::cast(obj)->HeapObjectPrint(os);
+    Cast<HeapObject>(obj)->HeapObjectPrint(os);
   }
 }
 
@@ -99,7 +99,7 @@ void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
     if (!dict->ToKey(roots, i, &k)) continue;
     os << "\n   ";
     if (IsString(k)) {
-      String::cast(k)->PrintUC16(os);
+      Cast<String>(k)->PrintUC16(os);
     } else {
       os << Brief(k);
     }
@@ -127,7 +127,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
   InstanceType instance_type = map(cage_base)->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
-    String::cast(*this)->StringPrint(os);
+    Cast<String>(*this)->StringPrint(os);
     os << "\n";
     return;
   }
@@ -142,46 +142,46 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case MODULE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-      Context::cast(*this)->ContextPrint(os);
+      Cast<Context>(*this)->ContextPrint(os);
       break;
     case NATIVE_CONTEXT_TYPE:
-      NativeContext::cast(*this)->NativeContextPrint(os);
+      Cast<NativeContext>(*this)->NativeContextPrint(os);
       break;
     case HASH_TABLE_TYPE:
-      ObjectHashTable::cast(*this)->ObjectHashTablePrint(os);
+      Cast<ObjectHashTable>(*this)->ObjectHashTablePrint(os);
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
-      NameToIndexHashTable::cast(*this)->NameToIndexHashTablePrint(os);
+      Cast<NameToIndexHashTable>(*this)->NameToIndexHashTablePrint(os);
       break;
     case REGISTERED_SYMBOL_TABLE_TYPE:
-      RegisteredSymbolTable::cast(*this)->RegisteredSymbolTablePrint(os);
+      Cast<RegisteredSymbolTable>(*this)->RegisteredSymbolTablePrint(os);
       break;
     case ORDERED_HASH_MAP_TYPE:
-      OrderedHashMap::cast(*this)->OrderedHashMapPrint(os);
+      Cast<OrderedHashMap>(*this)->OrderedHashMapPrint(os);
       break;
     case ORDERED_HASH_SET_TYPE:
-      OrderedHashSet::cast(*this)->OrderedHashSetPrint(os);
+      Cast<OrderedHashSet>(*this)->OrderedHashSetPrint(os);
       break;
     case ORDERED_NAME_DICTIONARY_TYPE:
-      OrderedNameDictionary::cast(*this)->OrderedNameDictionaryPrint(os);
+      Cast<OrderedNameDictionary>(*this)->OrderedNameDictionaryPrint(os);
       break;
     case NAME_DICTIONARY_TYPE:
-      NameDictionary::cast(*this)->NameDictionaryPrint(os);
+      Cast<NameDictionary>(*this)->NameDictionaryPrint(os);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      GlobalDictionary::cast(*this)->GlobalDictionaryPrint(os);
+      Cast<GlobalDictionary>(*this)->GlobalDictionaryPrint(os);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      FixedArray::cast(*this)->FixedArrayPrint(os);
+      Cast<FixedArray>(*this)->FixedArrayPrint(os);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      NumberDictionary::cast(*this)->NumberDictionaryPrint(os);
+      Cast<NumberDictionary>(*this)->NumberDictionaryPrint(os);
       break;
     case EPHEMERON_HASH_TABLE_TYPE:
-      EphemeronHashTable::cast(*this)->EphemeronHashTablePrint(os);
+      Cast<EphemeronHashTable>(*this)->EphemeronHashTablePrint(os);
       break;
     case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(*this)->TransitionArrayPrint(os);
+      Cast<TransitionArray>(*this)->TransitionArrayPrint(os);
       break;
     case FILLER_TYPE:
       os << "filler";
@@ -200,43 +200,43 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
-      JSObject::cast(*this)->JSObjectPrint(os);
+      Cast<JSObject>(*this)->JSObjectPrint(os);
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataPrint(os);
+      Cast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataPrint(os);
       break;
     case WASM_DISPATCH_TABLE_TYPE:
-      WasmDispatchTable::cast(*this)->WasmDispatchTablePrint(os);
+      Cast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
-      WasmValueObject::cast(*this)->WasmValueObjectPrint(os);
+      Cast<WasmValueObject>(*this)->WasmValueObjectPrint(os);
       break;
     case WASM_EXCEPTION_PACKAGE_TYPE:
-      WasmExceptionPackage::cast(*this)->WasmExceptionPackagePrint(os);
+      Cast<WasmExceptionPackage>(*this)->WasmExceptionPackagePrint(os);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case INSTRUCTION_STREAM_TYPE:
-      InstructionStream::cast(*this)->InstructionStreamPrint(os);
+      Cast<InstructionStream>(*this)->InstructionStreamPrint(os);
       break;
     case CODE_TYPE:
-      Code::cast(*this)->CodePrint(os);
+      Cast<Code>(*this)->CodePrint(os);
       break;
     case CODE_WRAPPER_TYPE:
-      CodeWrapper::cast(*this)->CodeWrapperPrint(os);
+      Cast<CodeWrapper>(*this)->CodeWrapperPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
-      JSSetIterator::cast(*this)->JSSetIteratorPrint(os);
+      Cast<JSSetIterator>(*this)->JSSetIteratorPrint(os);
       break;
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-      JSMapIterator::cast(*this)->JSMapIteratorPrint(os);
+      Cast<JSMapIterator>(*this)->JSMapIteratorPrint(os);
       break;
 #define MAKE_TORQUE_CASE(Name, TYPE)    \
   case TYPE:                            \
-    Name::cast(*this)->Name##Print(os); \
+    Cast<Name>(*this)->Name##Print(os); \
     break;
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
@@ -245,19 +245,19 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
 #undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
-      AllocationSite::cast(*this)->AllocationSitePrint(os);
+      Cast<AllocationSite>(*this)->AllocationSitePrint(os);
       break;
     case LOAD_HANDLER_TYPE:
-      LoadHandler::cast(*this)->LoadHandlerPrint(os);
+      Cast<LoadHandler>(*this)->LoadHandlerPrint(os);
       break;
     case STORE_HANDLER_TYPE:
-      StoreHandler::cast(*this)->StoreHandlerPrint(os);
+      Cast<StoreHandler>(*this)->StoreHandlerPrint(os);
       break;
     case FEEDBACK_METADATA_TYPE:
-      FeedbackMetadata::cast(*this)->FeedbackMetadataPrint(os);
+      Cast<FeedbackMetadata>(*this)->FeedbackMetadataPrint(os);
       break;
     case BIG_INT_BASE_TYPE:
-      BigIntBase::cast(*this)->BigIntBasePrint(os);
+      Cast<BigIntBase>(*this)->BigIntBasePrint(os);
       break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -267,7 +267,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-      JSFunction::cast(*this)->JSFunctionPrint(os);
+      Cast<JSFunction>(*this)->JSFunctionPrint(os);
       break;
     case INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
@@ -364,7 +364,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
     return map()->NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject(*this)) {
     PrintDictionaryContents(
-        os, JSGlobalObject::cast(*this)->global_dictionary(kAcquireLoad));
+        os, Cast<JSGlobalObject>(*this)->global_dictionary(kAcquireLoad));
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
@@ -396,7 +396,7 @@ double GetScalarElement(Tagged<T> array, int index) {
 template <class T>
 void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
   const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
-  Tagged<T> array = T::cast(object);
+  Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
   int previous_index = 0;
   double previous_value = GetScalarElement(array, 0);
@@ -486,13 +486,13 @@ template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
   PrintFixedArrayElements<T>(
       os, array, array->length(),
-      [](Tagged<T> xs, int i) { return Object::cast(xs->get(i)); });
+      [](Tagged<T> xs, int i) { return Cast<Object>(xs->get(i)); });
 }
 
 void PrintDictionaryElements(std::ostream& os,
                              Tagged<FixedArrayBase> elements) {
   // Print some internal fields
-  Tagged<NumberDictionary> dict = NumberDictionary::cast(elements);
+  Tagged<NumberDictionary> dict = Cast<NumberDictionary>(elements);
   if (dict->requires_slow_elements()) {
     os << "\n   - requires_slow_elements";
   } else {
@@ -558,7 +558,7 @@ void JSObject::PrintElements(std::ostream& os) {
     case PACKED_NONEXTENSIBLE_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS: {
-      PrintFixedArrayElements(os, FixedArray::cast(elements()));
+      PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
       break;
     }
     case HOLEY_DOUBLE_ELEMENTS:
@@ -569,10 +569,10 @@ void JSObject::PrintElements(std::ostream& os) {
 
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                          \
   case TYPE##_ELEMENTS: {                                                      \
-    size_t length = JSTypedArray::cast(*this)->GetLength();                    \
-    bool is_on_heap = JSTypedArray::cast(*this)->is_on_heap();                 \
+    size_t length = Cast<JSTypedArray>(*this)->GetLength();                    \
+    bool is_on_heap = Cast<JSTypedArray>(*this)->is_on_heap();                 \
     const elementType* data_ptr =                                              \
-        static_cast<const elementType*>(JSTypedArray::cast(*this)->DataPtr()); \
+        static_cast<const elementType*>(Cast<JSTypedArray>(*this)->DataPtr()); \
     PrintTypedArrayElements<elementType>(os, data_ptr, length, is_on_heap);    \
     break;                                                                     \
   }
@@ -587,7 +587,7 @@ void JSObject::PrintElements(std::ostream& os) {
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       PrintSloppyArgumentElements(os, map()->elements_kind(),
-                                  SloppyArgumentsElements::cast(elements()));
+                                  Cast<SloppyArgumentsElements>(elements()));
       break;
     case WASM_ARRAY_ELEMENTS:
       // WasmArrayPrint() should be called intead.
@@ -648,7 +648,7 @@ void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
   os << "}\n";
 
   if (print_elements) {
-    size_t length = IsJSTypedArray(obj) ? JSTypedArray::cast(obj)->GetLength()
+    size_t length = IsJSTypedArray(obj) ? Cast<JSTypedArray>(obj)->GetLength()
                                         : obj->elements()->length();
     if (length > 0) obj->PrintElements(os);
   }
@@ -709,7 +709,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
     DisallowGarbageCollection no_gc;
     Tagged<SharedFunctionInfo> fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
-      Tagged<Script> script = Script::cast(fun_info->script());
+      Tagged<Script> script = Cast<Script>(fun_info->script());
       Tagged<String> script_name = IsString(script->name())
                                        ? Cast<String>(script->name())
                                        : GetReadOnlyRoots().empty_string();
@@ -919,7 +919,7 @@ void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
   PrintFixedArrayElements<ScriptContextTable>(
       os, *this, length(kAcquireLoad),
       [](Tagged<ScriptContextTable> xs, int i) {
-        return Object::cast(xs->get(i));
+        return Cast<Object>(xs->get(i));
       });
   os << "\n";
 }
@@ -933,7 +933,7 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   os << "\n - captures:";
   PrintFixedArrayElements<RegExpMatchInfo>(
       os, Tagged{*this}, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
-        return Object::cast(xs->get(i));
+        return Cast<Object>(xs->get(i));
       });
   os << "\n";
 }
@@ -1084,7 +1084,7 @@ void PrintTableContentsGeneric(std::ostream& os, T dict,
     if (!dict.ToKey(roots, i, &k)) continue;
     os << "\n   " << std::setw(12) << i.as_int() << ": ";
     if (IsString(k)) {
-      String::cast(k)->PrintUC16(os);
+      Cast<String>(k)->PrintUC16(os);
     } else {
       os << Brief(k);
     }
@@ -1287,7 +1287,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
     PropertyDetails details = this->DetailsAt(bucket);
     os << "\n   " << std::setw(12) << std::dec << bucket << ": ";
     if (IsString(k)) {
-      String::cast(k)->PrintUC16(os);
+      Cast<String>(k)->PrintUC16(os);
     } else {
       os << Brief(k);
     }
@@ -1501,7 +1501,7 @@ void FeedbackNexus::Print(std::ostream& os) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
         if (IsWeakFixedArray(handler)) {
-          handler = WeakFixedArray::cast(handler)->get(0).GetHeapObjectOrSmi();
+          handler = Cast<WeakFixedArray>(handler)->get(0).GetHeapObjectOrSmi();
         }
         LoadHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
@@ -1509,9 +1509,9 @@ void FeedbackNexus::Print(std::ostream& os) {
         Tagged<WeakFixedArray> array;
         if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
-          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+          array = Cast<WeakFixedArray>(GetFeedbackExtra().GetHeapObject());
         } else {
-          array = WeakFixedArray::cast(feedback);
+          array = Cast<WeakFixedArray>(feedback);
         }
         for (int i = 0; i < array->length(); i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
@@ -1532,7 +1532,7 @@ void FeedbackNexus::Print(std::ostream& os) {
         if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
           Tagged<WeakFixedArray> array =
-              WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+              Cast<WeakFixedArray>(GetFeedbackExtra().GetHeapObject());
           os << "\n   " << Brief(array->get(0)) << ": ";
           Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
           StoreHandler::PrintHandler(handler, os);
@@ -1546,9 +1546,9 @@ void FeedbackNexus::Print(std::ostream& os) {
         Tagged<WeakFixedArray> array;
         if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
-          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+          array = Cast<WeakFixedArray>(GetFeedbackExtra().GetHeapObject());
         } else {
-          array = WeakFixedArray::cast(feedback);
+          array = Cast<WeakFixedArray>(feedback);
         }
         for (int i = 0; i < array->length(); i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
@@ -1665,7 +1665,7 @@ void String::StringPrint(std::ostream& os) {
 
 void Name::NamePrint(std::ostream& os) {
   if (IsString(this)) {
-    String::cast(this)->StringPrint(os);
+    Cast<String>(this)->StringPrint(os);
   } else {
     os << Brief(this);
   }
@@ -1749,13 +1749,13 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   Tagged<Object> active_cell = active_cells();
   while (IsWeakCell(active_cell)) {
     os << "\n   - " << Brief(active_cell);
-    active_cell = WeakCell::cast(active_cell)->next();
+    active_cell = Cast<WeakCell>(active_cell)->next();
   }
   os << "\n - cleared_cells: " << Brief(cleared_cells());
   Tagged<Object> cleared_cell = cleared_cells();
   while (IsWeakCell(cleared_cell)) {
     os << "\n   - " << Brief(cleared_cell);
-    cleared_cell = WeakCell::cast(cleared_cell)->next();
+    cleared_cell = Cast<WeakCell>(cleared_cell)->next();
   }
   os << "\n - key_map: " << Brief(key_map());
   JSObjectPrintBody(os, *this);
@@ -1990,12 +1990,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
-    Tagged<WasmExportedFunction> function = WasmExportedFunction::cast(*this);
+    Tagged<WasmExportedFunction> function = Cast<WasmExportedFunction>(*this);
     os << "\n - Wasm instance data: " << Brief(function->instance_data());
     os << "\n - Wasm function index: " << function->function_index();
   }
   if (WasmJSFunction::IsWasmJSFunction(*this)) {
-    Tagged<WasmJSFunction> function = WasmJSFunction::cast(*this);
+    Tagged<WasmJSFunction> function = Cast<WasmJSFunction>(*this);
     os << "\n - Wasm wrapper around: " << Brief(function->GetCallable());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2017,7 +2017,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
     os << "\n - source code: ";
-    Tagged<String> source = String::cast(Script::cast(script())->source());
+    Tagged<String> source = Cast<String>(Cast<Script>(script())->source());
     int start = StartPosition();
     int length = EndPosition() - start;
     std::unique_ptr<char[]> source_string = source->ToCString(
@@ -2213,9 +2213,9 @@ static void PrintModuleFields(Tagged<Module> module, std::ostream& os) {
 
 void Module::ModulePrint(std::ostream& os) {
   if (IsSourceTextModule(*this)) {
-    SourceTextModule::cast(*this)->SourceTextModulePrint(os);
+    Cast<SourceTextModule>(*this)->SourceTextModulePrint(os);
   } else if (IsSyntheticModule(*this)) {
-    SyntheticModule::cast(*this)->SyntheticModulePrint(os);
+    Cast<SyntheticModule>(*this)->SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
   }
@@ -3023,20 +3023,20 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   if (IsString(*this, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    String::cast(*this)->StringShortPrint(&accumulator);
+    Cast<String>(*this)->StringShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
   if (IsJSObject(*this, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    JSObject::cast(*this)->JSObjectShortPrint(&accumulator);
+    Cast<JSObject>(*this)->JSObjectShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
   switch (map(cage_base)->instance_type()) {
     case MAP_TYPE: {
-      Tagged<Map> map = Map::cast(*this);
+      Tagged<Map> map = Cast<Map>(*this);
       if (map->instance_type() == MAP_TYPE) {
         // This is one of the meta maps, print only relevant fields.
         os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
@@ -3058,103 +3058,103 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<AwaitContext generator= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Context::cast(*this)->extension(), &accumulator);
+      ShortPrint(Cast<Context>(*this)->extension(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case BLOCK_CONTEXT_TYPE:
-      os << "<BlockContext[" << Context::cast(*this)->length() << "]>";
+      os << "<BlockContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case CATCH_CONTEXT_TYPE:
-      os << "<CatchContext[" << Context::cast(*this)->length() << "]>";
+      os << "<CatchContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case DEBUG_EVALUATE_CONTEXT_TYPE:
-      os << "<DebugEvaluateContext[" << Context::cast(*this)->length() << "]>";
+      os << "<DebugEvaluateContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case EVAL_CONTEXT_TYPE:
-      os << "<EvalContext[" << Context::cast(*this)->length() << "]>";
+      os << "<EvalContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case FUNCTION_CONTEXT_TYPE:
-      os << "<FunctionContext[" << Context::cast(*this)->length() << "]>";
+      os << "<FunctionContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case MODULE_CONTEXT_TYPE:
-      os << "<ModuleContext[" << Context::cast(*this)->length() << "]>";
+      os << "<ModuleContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case NATIVE_CONTEXT_TYPE:
-      os << "<NativeContext[" << Context::cast(*this)->length() << "]>";
+      os << "<NativeContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TYPE:
-      os << "<ScriptContext[" << Context::cast(*this)->length() << "]>";
+      os << "<ScriptContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case WITH_CONTEXT_TYPE:
-      os << "<WithContext[" << Context::cast(*this)->length() << "]>";
+      os << "<WithContext[" << Cast<Context>(*this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
       os << "<ScriptContextTable["
-         << ScriptContextTable::cast(*this)->capacity() << "]>";
+         << Cast<ScriptContextTable>(*this)->capacity() << "]>";
       break;
     case HASH_TABLE_TYPE:
-      os << "<HashTable[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<HashTable[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case ORDERED_HASH_MAP_TYPE:
-      os << "<OrderedHashMap[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<OrderedHashMap[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case ORDERED_HASH_SET_TYPE:
-      os << "<OrderedHashSet[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<OrderedHashSet[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case ORDERED_NAME_DICTIONARY_TYPE:
-      os << "<OrderedNameDictionary[" << FixedArray::cast(*this)->length()
+      os << "<OrderedNameDictionary[" << Cast<FixedArray>(*this)->length()
          << "]>";
       break;
     case NAME_DICTIONARY_TYPE:
-      os << "<NameDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<NameDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
       os << "<SwissNameDictionary["
-         << SwissNameDictionary::cast(*this)->Capacity() << "]>";
+         << Cast<SwissNameDictionary>(*this)->Capacity() << "]>";
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      os << "<GlobalDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<GlobalDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case NUMBER_DICTIONARY_TYPE:
-      os << "<NumberDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<NumberDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      os << "<SimpleNumberDictionary[" << FixedArray::cast(*this)->length()
+      os << "<SimpleNumberDictionary[" << Cast<FixedArray>(*this)->length()
          << "]>";
       break;
     case FIXED_ARRAY_TYPE:
-      os << "<FixedArray[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<FixedArray[" << Cast<FixedArray>(*this)->length() << "]>";
       break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       os << "<ObjectBoilerplateDescription["
-         << ObjectBoilerplateDescription::cast(*this)->capacity() << "]>";
+         << Cast<ObjectBoilerplateDescription>(*this)->capacity() << "]>";
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
-      os << "<FixedDoubleArray[" << FixedDoubleArray::cast(*this)->length()
+      os << "<FixedDoubleArray[" << Cast<FixedDoubleArray>(*this)->length()
          << "]>";
       break;
     case BYTE_ARRAY_TYPE:
-      os << "<ByteArray[" << ByteArray::cast(*this)->length() << "]>";
+      os << "<ByteArray[" << Cast<ByteArray>(*this)->length() << "]>";
       break;
     case BYTECODE_ARRAY_TYPE:
-      os << "<BytecodeArray[" << BytecodeArray::cast(*this)->length() << "]>";
+      os << "<BytecodeArray[" << Cast<BytecodeArray>(*this)->length() << "]>";
       break;
     case EXTERNAL_POINTER_ARRAY_TYPE:
       os << "<ExternalPointerArray["
-         << ExternalPointerArray::cast(*this)->length() << "]>";
+         << Cast<ExternalPointerArray>(*this)->length() << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
-         << DescriptorArray::cast(*this)->number_of_descriptors() << "]>";
+         << Cast<DescriptorArray>(*this)->number_of_descriptors() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
-      os << "<TransitionArray[" << TransitionArray::cast(*this)->length()
+      os << "<TransitionArray[" << Cast<TransitionArray>(*this)->length()
          << "]>";
       break;
     case PROPERTY_ARRAY_TYPE:
-      os << "<PropertyArray[" << PropertyArray::cast(*this)->length() << "]>";
+      os << "<PropertyArray[" << Cast<PropertyArray>(*this)->length() << "]>";
       break;
     case FEEDBACK_CELL_TYPE: {
       {
@@ -3175,17 +3175,17 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
       os << "<ClosureFeedbackCellArray["
-         << ClosureFeedbackCellArray::cast(*this)->length() << "]>";
+         << Cast<ClosureFeedbackCellArray>(*this)->length() << "]>";
       break;
     case FEEDBACK_VECTOR_TYPE:
-      os << "<FeedbackVector[" << FeedbackVector::cast(*this)->length() << "]>";
+      os << "<FeedbackVector[" << Cast<FeedbackVector>(*this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
-      os << "<FreeSpace[" << FreeSpace::cast(*this)->size(kRelaxedLoad) << "]>";
+      os << "<FreeSpace[" << Cast<FreeSpace>(*this)->size(kRelaxedLoad) << "]>";
       break;
 
     case PREPARSE_DATA_TYPE: {
-      Tagged<PreparseData> data = PreparseData::cast(*this);
+      Tagged<PreparseData> data = Cast<PreparseData>(*this);
       os << "<PreparseData[data=" << data->data_length()
          << " children=" << data->children_length() << "]>";
       break;
@@ -3193,7 +3193,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithoutPreparseData> data =
-          UncompiledDataWithoutPreparseData::cast(*this);
+          Cast<UncompiledDataWithoutPreparseData>(*this);
       os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
          << ", " << data->end_position() << ")]>";
       break;
@@ -3201,7 +3201,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithPreparseData> data =
-          UncompiledDataWithPreparseData::cast(*this);
+          Cast<UncompiledDataWithPreparseData>(*this);
       os << "<UncompiledDataWithPreparseData (" << data->start_position()
          << ", " << data->end_position()
          << ") preparsed=" << Brief(data->preparse_data()) << ">";
@@ -3209,7 +3209,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
 
     case SHARED_FUNCTION_INFO_TYPE: {
-      Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(*this);
+      Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(*this);
       std::unique_ptr<char[]> debug_name = shared->DebugNameCStr();
       if (debug_name[0] != '\0') {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
@@ -3224,26 +3224,26 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 #define MAKE_STRUCT_CASE(TYPE, Name, name)    \
   case TYPE:                                  \
     os << "<" #Name;                          \
-    Name::cast(*this)->BriefPrintDetails(os); \
+    Cast<Name>(*this)->BriefPrintDetails(os); \
     os << ">";                                \
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
     case ALLOCATION_SITE_TYPE: {
       os << "<AllocationSite";
-      AllocationSite::cast(*this)->BriefPrintDetails(os);
+      Cast<AllocationSite>(*this)->BriefPrintDetails(os);
       os << ">";
       break;
     }
     case SCOPE_INFO_TYPE: {
-      Tagged<ScopeInfo> scope = ScopeInfo::cast(*this);
+      Tagged<ScopeInfo> scope = Cast<ScopeInfo>(*this);
       os << "<ScopeInfo";
       if (!scope->IsEmpty()) os << " " << scope->scope_type();
       os << ">";
       break;
     }
     case CODE_TYPE: {
-      Tagged<Code> code = Code::cast(*this);
+      Tagged<Code> code = Cast<Code>(*this);
       os << "<Code " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
         os << " " << Builtins::name(code->builtin_id());
@@ -3262,7 +3262,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
-      Tagged<InstructionStream> istream = InstructionStream::cast(*this);
+      Tagged<InstructionStream> istream = Cast<InstructionStream>(*this);
       Tagged<Code> code = istream->code(kAcquireLoad);
       os << "<InstructionStream " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
@@ -3282,25 +3282,25 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
-        os << Oddball::cast(*this)->to_string()->ToCString().get();
+        os << Cast<Oddball>(*this)->to_string()->ToCString().get();
         os << ">";
       }
       break;
     }
     case SYMBOL_TYPE: {
-      Tagged<Symbol> symbol = Symbol::cast(*this);
+      Tagged<Symbol> symbol = Cast<Symbol>(*this);
       symbol->SymbolShortPrint(os);
       break;
     }
     case HEAP_NUMBER_TYPE: {
       os << "<HeapNumber ";
-      HeapNumber::cast(*this)->HeapNumberShortPrint(os);
+      Cast<HeapNumber>(*this)->HeapNumberShortPrint(os);
       os << ">";
       break;
     }
     case BIGINT_TYPE: {
       os << "<BigInt ";
-      BigInt::cast(*this)->BigIntShortPrint(os);
+      Cast<BigInt>(*this)->BigIntShortPrint(os);
       os << ">";
       break;
     }
@@ -3314,13 +3314,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Cell::cast(*this)->value(), &accumulator);
+      ShortPrint(Cast<Cell>(*this)->value(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      Tagged<PropertyCell> cell = PropertyCell::cast(*this);
+      Tagged<PropertyCell> cell = Cast<PropertyCell>(*this);
       os << "<PropertyCell name=";
       ShortPrint(cell->name(), os);
       os << " value=";
@@ -3336,7 +3336,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case ACCESSOR_INFO_TYPE: {
-      Tagged<AccessorInfo> info = AccessorInfo::cast(*this);
+      Tagged<AccessorInfo> info = Cast<AccessorInfo>(*this);
       os << "<AccessorInfo ";
       os << "name= " << Brief(info->name());
       os << ", data= " << Brief(info->data());
@@ -3344,7 +3344,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case FUNCTION_TEMPLATE_INFO_TYPE: {
-      Tagged<FunctionTemplateInfo> info = FunctionTemplateInfo::cast(*this);
+      Tagged<FunctionTemplateInfo> info = Cast<FunctionTemplateInfo>(*this);
       os << "<FunctionTemplateInfo ";
       Isolate* isolate;
       if (GetIsolateFromHeapObject(*this, &isolate)) {
@@ -3363,7 +3363,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_DISPATCH_TABLE_TYPE:
-      os << "<WasmDispatchTable[" << WasmDispatchTable::cast(*this)->length()
+      os << "<WasmDispatchTable[" << Cast<WasmDispatchTable>(*this)->length()
          << "]>";
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3399,14 +3399,14 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
   if (IsString(this)) {
-    PrintF("%s", String::cast(this)->ToCString().get());
+    PrintF("%s", Cast<String>(this)->ToCString().get());
   } else {
     DCHECK(IsSymbol(this));
-    Tagged<Symbol> s = Symbol::cast(this);
+    Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
       PrintF("#<%s>", s->PrivateSymbolToName());
     } else {
-      PrintF("<%s>", String::cast(s->description())->ToCString().get());
+      PrintF("<%s>", Cast<String>(s->description())->ToCString().get());
     }
   }
 }
@@ -3414,15 +3414,15 @@ void Name::NameShortPrint() {
 // TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(base::Vector<char> str) {
   if (IsString(this)) {
-    return SNPrintF(str, "%s", String::cast(this)->ToCString().get());
+    return SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
   } else {
     DCHECK(IsSymbol(this));
-    Tagged<Symbol> s = Symbol::cast(this);
+    Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
       return SNPrintF(str, "<%s>",
-                      String::cast(s->description())->ToCString().get());
+                      Cast<String>(s->description())->ToCString().get());
     }
   }
 }
@@ -3431,7 +3431,7 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
   os << "<Symbol:";
   if (!IsUndefined(description())) {
     os << " ";
-    Tagged<String> description_as_string = String::cast(description());
+    Tagged<String> description_as_string = Cast<String>(description());
     description_as_string->PrintUC16(os, 0, description_as_string->length());
   } else {
     os << " (" << PrivateSymbolToName() << ")";
@@ -3571,7 +3571,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
       Tagged<Object> value = GetStrongValue(descriptor);
       os << Brief(value);
       if (IsAccessorPair(value)) {
-        Tagged<AccessorPair> pair = AccessorPair::cast(value);
+        Tagged<AccessorPair> pair = Cast<AccessorPair>(value);
         os << "(get: " << Brief(pair->getter())
            << ", set: " << Brief(pair->setter()) << ")";
       }
@@ -3651,9 +3651,9 @@ void TransitionArray::PrintInternal(std::ostream& os) {
           TransitionArray::kProtoTransitionHeaderSize + i);
       Tagged<HeapObject> target;
       if (maybe.GetHeapObjectIfWeak(&target)) {
-        auto map = Map::cast(target);
+        auto map = Cast<Map>(target);
         os << "\n     " << Brief(map->prototype()) << " -> "
-           << Brief(Map::cast(target));
+           << Brief(Cast<Map>(target));
       }
     }
   }
@@ -3667,7 +3667,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {
       return;
     case kWeakRef: {
       Tagged<Map> target =
-          Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+          Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       Tagged<Name> key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;
@@ -3953,7 +3953,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-    i::Tagged<i::Map> map = i::Map::unchecked_cast(o);
+    i::Tagged<i::Map> map = i::UncheckedCast<i::Map>(o);
     i::TransitionsAccessor transitions(
         i::Isolate::Current(),
         start_at_root ? map->FindRootMap(GetPtrComprCageBase(map)) : map);

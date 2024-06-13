@@ -65,7 +65,7 @@ Tagged<Map> CompressedObjectSlot::load_map() const {
   // Simply forward to Relaxed_Load because map packing is not supported with
   // pointer compression.
   DCHECK(!V8_MAP_PACKING_BOOL);
-  return Map::unchecked_cast(Relaxed_Load());
+  return UncheckedCast<Map>(Relaxed_Load());
 }
 
 Tagged<Object> CompressedObjectSlot::Acquire_Load() const {
@@ -194,7 +194,7 @@ void CompressedHeapObjectSlot::store(Tagged<HeapObjectReference> value) const {
 Tagged<HeapObject> CompressedHeapObjectSlot::ToHeapObject() const {
   Tagged_t value = *location();
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
-  return HeapObject::cast(
+  return Cast<HeapObject>(
       Tagged<Object>(TCompressionScheme::DecompressTagged(address(), value)));
 }
 

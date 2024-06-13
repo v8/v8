@@ -64,13 +64,6 @@ ObjectTwoHashTable::ObjectTwoHashTable(Address ptr)
   SLOW_DCHECK(IsObjectTwoHashTable(*this));
 }
 
-CAST_ACCESSOR(ObjectHashTable)
-CAST_ACCESSOR(RegisteredSymbolTable)
-CAST_ACCESSOR(EphemeronHashTable)
-CAST_ACCESSOR(ObjectHashSet)
-CAST_ACCESSOR(NameToIndexHashTable)
-CAST_ACCESSOR(ObjectTwoHashTable)
-
 void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsEphemeronHashTable(*this));
@@ -93,15 +86,15 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value,
 }
 
 int HashTableBase::NumberOfElements() const {
-  return Smi::cast(get(kNumberOfElementsIndex)).value();
+  return Cast<Smi>(get(kNumberOfElementsIndex)).value();
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  return Smi::cast(get(kNumberOfDeletedElementsIndex)).value();
+  return Cast<Smi>(get(kNumberOfDeletedElementsIndex)).value();
 }
 
 int HashTableBase::Capacity() const {
-  return Smi::cast(get(kCapacityIndex)).value();
+  return Cast<Smi>(get(kCapacityIndex)).value();
 }
 
 InternalIndex::Range HashTableBase::IterateEntries() const {
@@ -305,7 +298,7 @@ bool ObjectHashTableShape::IsMatch(DirectHandle<Object> key,
 bool RegisteredSymbolTableShape::IsMatch(DirectHandle<String> key,
                                          Tagged<Object> value) {
   DCHECK(IsString(value));
-  return key->Equals(String::cast(value));
+  return key->Equals(Cast<String>(value));
 }
 
 uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
@@ -315,7 +308,7 @@ uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
 
 uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
                                                    Tagged<Object> object) {
-  return String::cast(object)->EnsureHash();
+  return Cast<String>(object)->EnsureHash();
 }
 
 bool NameToIndexShape::IsMatch(DirectHandle<Name> key, Tagged<Object> other) {
@@ -324,7 +317,7 @@ bool NameToIndexShape::IsMatch(DirectHandle<Name> key, Tagged<Object> other) {
 
 uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots,
                                          Tagged<Object> other) {
-  return Name::cast(other)->hash();
+  return Cast<Name>(other)->hash();
 }
 
 uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, DirectHandle<Name> key) {

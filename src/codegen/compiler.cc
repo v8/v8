@@ -318,7 +318,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK_NE(*abstract_code,
-            AbstractCode::cast(*BUILTIN_CODE(isolate, CompileLazy)));
+            Cast<AbstractCode>(*BUILTIN_CODE(isolate, CompileLazy)));
 
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -386,7 +386,7 @@ ScriptOriginOptions OriginOptionsForEval(
       parsing_while_debugging == ParsingWhileDebugging::kYes;
   bool is_opaque = false;
   if (IsScript(script)) {
-    auto script_origin_options = Script::cast(script)->origin_options();
+    auto script_origin_options = Cast<Script>(script)->origin_options();
     if (script_origin_options.IsSharedCrossOrigin()) {
       is_shared_cross_origin = true;
     }
@@ -441,7 +441,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   Handle<AbstractCode> abstract_code;
   if (shared->HasBytecodeArray()) {
     abstract_code =
-        handle(AbstractCode::cast(shared->GetBytecodeArray(isolate)), isolate);
+        handle(Cast<AbstractCode>(shared->GetBytecodeArray(isolate)), isolate);
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
@@ -454,7 +454,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   double time_taken_ms = time_taken_to_execute.InMillisecondsF() +
                          time_taken_to_finalize.InMillisecondsF();
 
-  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   Compiler::LogFunctionCompilation(
       isolate, code_type, script, shared, Handle<FeedbackVector>(),
       abstract_code, CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
@@ -509,7 +509,7 @@ GlobalHandleVector<Map> OptimizedCompilationJob::CollectRetainedMaps(
     Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
     if (code->IsWeakObjectInOptimizedCode(target_object)) {
       if (IsMap(target_object, cage_base)) {
-        maps.Push(Map::cast(target_object));
+        maps.Push(Cast<Map>(target_object));
       }
     }
   }
@@ -631,7 +631,7 @@ void TurbofanCompilationJob::RecordFunctionCompilation(
                          time_taken_to_finalize_.InMillisecondsF();
 
   Handle<Script> script(
-      Script::cast(compilation_info()->shared_info()->script()), isolate);
+      Cast<Script>(compilation_info()->shared_info()->script()), isolate);
   Handle<FeedbackVector> feedback_vector(
       compilation_info()->closure()->feedback_vector(), isolate);
   Compiler::LogFunctionCompilation(
@@ -697,7 +697,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
     shared_info->set_interpreter_data(*interpreter_data);
   }
 
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
   Script::PositionInfo info;
   Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
@@ -1242,7 +1242,7 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<AbstractCode> code) {
   PtrComprCageBase cage_base(isolate);
   Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
-  Handle<Script> script(Script::cast(shared->script(cage_base)), isolate);
+  Handle<Script> script(Cast<Script>(shared->script(cage_base)), isolate);
   Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
                                          isolate);
 
@@ -1740,14 +1740,14 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
   Handle<Object> source_map_url;
   if (script_details.source_map_url.ToHandle(&source_map_url) &&
       IsString(*source_map_url) &&
-      String::cast(*source_map_url)->length() > 0) {
+      Cast<String>(*source_map_url)->length() > 0) {
     script->set_source_mapping_url(*source_map_url);
   }
   Handle<Object> host_defined_options;
   if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
     // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
     if (IsFixedArray(*host_defined_options)) {
-      script->set_host_defined_options(FixedArray::cast(*host_defined_options));
+      script->set_host_defined_options(Cast<FixedArray>(*host_defined_options));
     }
   }
 }
@@ -1778,11 +1778,11 @@ class MergeAssumptionChecker final : public ObjectVisitor {
       // those objects here rather than during VisitPointers.
       if (IsScript(current)) {
         Tagged<HeapObject> sfis =
-            Script::cast(current)->shared_function_infos();
+            Cast<Script>(current)->shared_function_infos();
         QueueVisit(sfis, kScriptSfiList);
       } else if (IsBytecodeArray(current)) {
         Tagged<HeapObject> constants =
-            BytecodeArray::cast(current)->constant_pool();
+            Cast<BytecodeArray>(current)->constant_pool();
         QueueVisit(constants, kConstantPool);
       }
       current_object_kind_ = pair.second;
@@ -1930,7 +1930,7 @@ void BackgroundCompileTask::Run(
     DirectHandle<SharedFunctionInfo> shared_info =
         input_shared_info_.ToHandleChecked();
     script_ = isolate->heap()->NewPersistentHandle(
-        Script::cast(shared_info->script()));
+        Cast<Script>(shared_info->script()));
     info.CheckFlagsForFunctionFromScript(*script_);
 
     {
@@ -2047,15 +2047,15 @@ class ConstantPoolPointerForwarder {
   void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
     Tagged<Object> obj = constant_pool->get(i);
     if (IsSmi(obj)) return;
-    Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
+    Tagged<HeapObject> heap_obj = Cast<HeapObject>(obj);
     if (IsFixedArray(heap_obj, cage_base_)) {
       // Constant pools can have nested fixed arrays, but such relationships
       // are acyclic and never more than a few layers deep, so recursion is
       // fine here.
-      IterateConstantPoolNestedArray(FixedArray::cast(heap_obj));
+      IterateConstantPoolNestedArray(Cast<FixedArray>(heap_obj));
     } else if (IsSharedFunctionInfo(heap_obj, cage_base_)) {
       auto it = forwarding_table_.find(
-          SharedFunctionInfo::cast(heap_obj)->function_literal_id());
+          Cast<SharedFunctionInfo>(heap_obj)->function_literal_id());
       if (it != forwarding_table_.end()) {
         constant_pool->set(i, *it->second);
       }
@@ -2139,7 +2139,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
     Tagged<MaybeObject> maybe_old_toplevel_sfi =
         old_script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
     if (maybe_old_toplevel_sfi.IsWeak()) {
-      Tagged<SharedFunctionInfo> old_toplevel_sfi = SharedFunctionInfo::cast(
+      Tagged<SharedFunctionInfo> old_toplevel_sfi = Cast<SharedFunctionInfo>(
           maybe_old_toplevel_sfi.GetHeapObjectAssumeWeak());
       toplevel_sfi_from_cached_script_ =
           local_heap->NewPersistentHandle(old_toplevel_sfi);
@@ -2156,14 +2156,14 @@ void BackgroundMergeTask::BeginMergeInBackground(
         new_script->shared_function_infos()->get(i);
     if (maybe_new_sfi.IsWeak()) {
       Tagged<SharedFunctionInfo> new_sfi =
-          SharedFunctionInfo::cast(maybe_new_sfi.GetHeapObjectAssumeWeak());
+          Cast<SharedFunctionInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak());
       Tagged<MaybeObject> maybe_old_sfi =
           old_script->shared_function_infos()->get(i);
       if (maybe_old_sfi.IsWeak()) {
         // The old script and the new script both have SharedFunctionInfos for
         // this function literal.
         Tagged<SharedFunctionInfo> old_sfi =
-            SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
+            Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
         forwarder.Forward(new_sfi, old_sfi);
         if (new_sfi->HasBytecodeArray()) {
           if (old_sfi->HasBytecodeArray()) {
@@ -2239,7 +2239,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       // does now. This means a re-merge is necessary so that any pointers to
       // the new script's SFI are updated to point to the old script's SFI.
       Tagged<SharedFunctionInfo> old_sfi =
-          SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
+          Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
       forwarder.Forward(*new_sfi, old_sfi);
     } else {
       old_script->shared_function_infos()->set(new_sfi->function_literal_id(),
@@ -2269,7 +2269,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       old_script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
   CHECK(maybe_toplevel_sfi.IsWeak());
   Handle<SharedFunctionInfo> result = handle(
-      SharedFunctionInfo::cast(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),
+      Cast<SharedFunctionInfo>(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),
       isolate);
 
   state_ = kDone;
@@ -2313,7 +2313,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     Handle<SharedFunctionInfo> result =
         merge.CompleteMergeInForeground(isolate, script);
     maybe_result = result;
-    script = handle(Script::cast(result->script()), isolate);
+    script = handle(Cast<Script>(result->script()), isolate);
     DCHECK(Object::StrictEquals(script->source(), *source));
     DCHECK(isolate->factory()->script_list()->Contains(MakeWeak(*script)));
   } else {
@@ -2503,7 +2503,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 
   // Unfinalized scripts don't yet have the proper source string attached and
   // thus can't be reparsed.
-  if (Script::cast(shared_info->script())->IsMaybeUnfinalized(isolate)) {
+  if (Cast<Script>(shared_info->script())->IsMaybeUnfinalized(isolate)) {
     bytecode->SetSourcePositionsFailedToCollect();
     return false;
   }
@@ -2601,7 +2601,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
 
   // Set up parse info.
   UnoptimizedCompileFlags flags =
@@ -2664,7 +2664,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
       constexpr int kInitialLazyFunctionPositionListSize = 100;
       list = ArrayList::New(isolate, kInitialLazyFunctionPositionListSize);
     } else {
-      list = handle(ArrayList::cast(script->compiled_lazy_function_positions()),
+      list = handle(Cast<ArrayList>(script->compiled_lazy_function_positions()),
                     isolate);
     }
     list = ArrayList::Add(isolate, list,
@@ -2796,7 +2796,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
 
   if (IsScript(shared->script())) {
     LogFunctionCompilation(isolate, LogEventListener::CodeTag::kFunction,
-                           handle(Script::cast(shared->script()), isolate),
+                           handle(Cast<Script>(shared->script()), isolate),
                            shared, Handle<FeedbackVector>(),
                            Cast<AbstractCode>(code), CodeKind::BASELINE,
                            time_taken_ms);
@@ -2925,7 +2925,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   bool allow_eval_cache;
   if (eval_result.has_shared()) {
     shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
-    script = Handle<Script>(Script::cast(shared_info->script()), isolate);
+    script = Handle<Script>(Cast<Script>(shared_info->script()), isolate);
     is_compiled_scope = shared_info->is_compiled_scope(isolate);
     allow_eval_cache = true;
   } else {
@@ -3712,7 +3712,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   Handle<SharedFunctionInfo> result;
   if (compile_options == ScriptCompiler::CompileOptions::kProduceCompileHints &&
       maybe_result.ToHandle(&result)) {
-    Script::cast(result->script())->set_produce_compile_hints(true);
+    Cast<Script>(result->script())->set_produce_compile_hints(true);
   }
 
   return maybe_result;
@@ -3883,7 +3883,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     DCHECK(!result.is_null());
 
     is_compiled_scope = result->is_compiled_scope(isolate);
-    script = Handle<Script>(Script::cast(result->script()), isolate);
+    script = Handle<Script>(Cast<Script>(result->script()), isolate);
     // Add the result to the isolate cache if there's no context extension.
     if (maybe_outer_scope_info.is_null()) {
       compilation_cache->PutScript(source, language_mode, result);
@@ -3951,7 +3951,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     Handle<SharedFunctionInfo> result;
     if (maybe_result.ToHandle(&result)) {
       if (task->flags().produce_compile_hints()) {
-        Script::cast(result->script())->set_produce_compile_hints(true);
+        Cast<Script>(result->script())->set_produce_compile_hints(true);
       }
 
       // Add compiled code to the isolate cache.
@@ -4220,7 +4220,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
 
   if (shared->is_toplevel() || shared->is_wrapped()) {
     // If it's a top-level script, report compilation to the debugger.
-    Handle<Script> script(Script::cast(shared->script()), isolate);
+    Handle<Script> script(Cast<Script>(shared->script()), isolate);
     isolate->debug()->OnAfterCompile(script);
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
                  "ScriptCompiled", "data",
@@ -4233,14 +4233,14 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
 
 std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   i::Tagged<i::Object> context_value =
       isolate->native_context()->debug_context_id();
   int contextId = (IsSmi(context_value)) ? i::Smi::ToInt(context_value) : 0;
   Script::InitLineEnds(isolate, script);
   Script::PositionInfo endInfo;
-  Script::GetPositionInfo(script, i::String::cast(script->source())->length(),
-                          &endInfo);
+  Script::GetPositionInfo(
+      script, i::Cast<i::String>(script->source())->length(), &endInfo);
   Script::PositionInfo startInfo;
   Script::GetPositionInfo(script, shared->StartPosition(), &startInfo);
   auto value = v8::tracing::TracedValue::Create();
@@ -4257,9 +4257,10 @@ std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
   if (script->HasValidSource() && IsString(script->GetNameOrSourceURL())) {
     value->SetString(
         "sourceMapUrl",
-        i::String::cast(script->GetNameOrSourceURL())->ToCString().get());
+        i::Cast<i::String>(script->GetNameOrSourceURL())->ToCString().get());
   }
-  value->SetString("url", i::String::cast(script->name())->ToCString().get());
+  value->SetString("url",
+                   i::Cast<i::String>(script->name())->ToCString().get());
   value->SetString("hash",
                    i::Script::GetScriptHash(isolate, script,
                                             /* forceForInspector: */ false)
@@ -4270,13 +4271,13 @@ std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
 
 std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptSourceTextTrace(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  DirectHandle<Script> script(Script::cast(shared->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
   auto value = v8::tracing::TracedValue::Create();
   value->SetString("isolate",
                    std::to_string(reinterpret_cast<size_t>(isolate)));
   value->SetInteger("scriptId", script->id());
   if (IsString(script->source())) {
-    Tagged<String> source = i::String::cast(script->source());
+    Tagged<String> source = i::Cast<i::String>(script->source());
     value->SetInteger("length", source->length());
     value->SetString("sourceText", source->ToCString().get());
   }

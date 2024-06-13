@@ -498,7 +498,7 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 2. Assert: Type(nf) is Object and nf has an
   //    [[InitializedNumberFormat]] internal slot.
   DirectHandle<JSNumberFormat> number_format(
-      JSNumberFormat::cast(context->get(
+      Cast<JSNumberFormat>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
@@ -603,7 +603,7 @@ BUILTIN(DateTimeFormatInternalFormat) {
   // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
   // internal slot.
   Handle<JSDateTimeFormat> date_format_holder = Handle<JSDateTimeFormat>(
-      JSDateTimeFormat::cast(context->get(
+      Cast<JSDateTimeFormat>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
@@ -970,7 +970,7 @@ bool IsFastLocale(Tagged<Object> maybe_locale) {
   if (!IsSeqOneByteString(maybe_locale)) {
     return false;
   }
-  auto locale = SeqOneByteString::cast(maybe_locale);
+  auto locale = Cast<SeqOneByteString>(maybe_locale);
   uint8_t* chars = locale->GetChars(no_gc);
   if (locale->length() < 2 || !std::isalpha(chars[0]) ||
       !std::isalpha(chars[1])) {
@@ -1157,7 +1157,7 @@ BUILTIN(CollatorInternalCompare) {
   // 2. Assert: Type(collator) is Object and collator has an
   // [[InitializedCollator]] internal slot.
   DirectHandle<JSCollator> collator(
-      JSCollator::cast(context->get(
+      Cast<JSCollator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
@@ -1303,7 +1303,7 @@ BUILTIN(V8BreakIteratorInternalAdoptText) {
   DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<JSV8BreakIterator> break_iterator(
-      JSV8BreakIterator::cast(context->get(
+      Cast<JSV8BreakIterator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
@@ -1339,7 +1339,7 @@ BUILTIN(V8BreakIteratorInternalFirst) {
   DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<JSV8BreakIterator> break_iterator(
-      JSV8BreakIterator::cast(context->get(
+      Cast<JSV8BreakIterator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
@@ -1369,7 +1369,7 @@ BUILTIN(V8BreakIteratorInternalNext) {
   DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<JSV8BreakIterator> break_iterator(
-      JSV8BreakIterator::cast(context->get(
+      Cast<JSV8BreakIterator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
   return *JSV8BreakIterator::Next(isolate, break_iterator);
@@ -1398,7 +1398,7 @@ BUILTIN(V8BreakIteratorInternalCurrent) {
   DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<JSV8BreakIterator> break_iterator(
-      JSV8BreakIterator::cast(context->get(
+      Cast<JSV8BreakIterator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
   return *JSV8BreakIterator::Current(isolate, break_iterator);
@@ -1429,7 +1429,7 @@ BUILTIN(V8BreakIteratorInternalBreakType) {
   DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<JSV8BreakIterator> break_iterator(
-      JSV8BreakIterator::cast(context->get(
+      Cast<JSV8BreakIterator>(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
   return JSV8BreakIterator::BreakType(isolate, break_iterator);

@@ -16,17 +16,13 @@ class FieldType;
 
 class FieldType : public AllStatic {
  public:
-  static Tagged<FieldType> None();
-  static Tagged<FieldType> Any();
+  V8_EXPORT_PRIVATE static Tagged<FieldType> None();
+  V8_EXPORT_PRIVATE static Tagged<FieldType> Any();
   V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FieldType> Any(Isolate* isolate);
   V8_EXPORT_PRIVATE static Tagged<FieldType> Class(Tagged<Map> map);
   V8_EXPORT_PRIVATE static Handle<FieldType> Class(DirectHandle<Map> map,
                                                    Isolate* isolate);
-  V8_EXPORT_PRIVATE static Tagged<FieldType> cast(Tagged<Object> object);
-  static constexpr Tagged<FieldType> unchecked_cast(Tagged<Object> object) {
-    return Tagged<FieldType>(object.ptr());
-  }
 
   static bool NowContains(Tagged<FieldType> type, Tagged<Object> value);
 

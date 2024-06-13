@@ -114,7 +114,6 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
   using LengthBits = SignBits::Next<int, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
 
-  DECL_CAST(BigIntBase)
   DECL_VERIFIER(BigIntBase)
   DECL_PRINTER(BigIntBase)
 
@@ -170,12 +169,6 @@ V8_OBJECT class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static Tagged<FreshlyAllocatedBigInt> cast(Tagged<Object> object);
-  inline static Tagged<FreshlyAllocatedBigInt> unchecked_cast(
-      Tagged<Object> o) {
-    return Tagged<FreshlyAllocatedBigInt>::unchecked_cast(o);
-  }
-
   // Clear uninitialized padding space.
   inline void clear_padding() {
 #ifdef BIGINT_NEEDS_PADDING
@@ -252,7 +245,6 @@ V8_OBJECT class BigInt : public BigIntBase {
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
-  DECL_CAST(BigInt)
   void BigIntShortPrint(std::ostream& os);
 
   inline static int SizeFor(int length) {

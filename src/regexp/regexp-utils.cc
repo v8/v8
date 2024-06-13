@@ -68,7 +68,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
   Handle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
-    JSRegExp::cast(*recv)->set_last_index(*value_as_object,
+    Cast<JSRegExp>(*recv)->set_last_index(*value_as_object,
                                           UPDATE_WRITE_BARRIER);
     return recv;
   } else {
@@ -81,7 +81,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
 MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
                                               Handle<JSReceiver> recv) {
   if (HasInitialRegExpMap(isolate, *recv)) {
-    return handle(JSRegExp::cast(*recv)->last_index(), isolate);
+    return handle(Cast<JSRegExp>(*recv)->last_index(), isolate);
   } else {
     return Object::GetProperty(isolate, recv,
                                isolate->factory()->lastIndex_string());
@@ -146,7 +146,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
 
   if (!IsJSReceiver(*obj)) return false;
 
-  Tagged<JSReceiver> recv = JSReceiver::cast(*obj);
+  Tagged<JSReceiver> recv = Cast<JSReceiver>(*obj);
 
   if (!HasInitialRegExpMap(isolate, recv)) return false;
 
@@ -155,7 +155,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
   if (!IsJSReceiver(proto)) return false;
 
   DirectHandle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  Tagged<Map> proto_map = JSReceiver::cast(proto)->map();
+  Tagged<Map> proto_map = Cast<JSReceiver>(proto)->map();
   if (proto_map != *initial_proto_initial_map) {
     return false;
   }
@@ -182,7 +182,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
-  Tagged<Object> last_index = JSRegExp::cast(recv)->last_index();
+  Tagged<Object> last_index = Cast<JSRegExp>(recv)->last_index();
   return IsSmi(last_index) && Smi::ToInt(last_index) >= 0;
 }
 

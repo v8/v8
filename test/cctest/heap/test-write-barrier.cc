@@ -38,9 +38,9 @@ HEAP_TEST(WriteBarrier_Marking) {
     objects->set(2, *value2);
   }
   heap::SimulateIncrementalMarking(CcTest::heap(), false);
-  Tagged<FixedArray> host = FixedArray::cast(objects->get(0));
-  Tagged<HeapObject> value1 = HeapObject::cast(objects->get(1));
-  Tagged<HeapObject> value2 = HeapObject::cast(objects->get(2));
+  Tagged<FixedArray> host = Cast<FixedArray>(objects->get(0));
+  Tagged<HeapObject> value1 = Cast<HeapObject>(objects->get(1));
+  Tagged<HeapObject> value2 = Cast<HeapObject>(objects->get(2));
   CHECK(heap->marking_state()->IsUnmarked(host));
   CHECK(heap->marking_state()->IsUnmarked(value1));
   // Trigger the barrier for the unmarked host and expect the bail out.
@@ -74,7 +74,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
     objects->set(0, *host);
   }
   heap::SimulateIncrementalMarking(CcTest::heap(), false);
-  Tagged<JSArrayBuffer> host = JSArrayBuffer::cast(objects->get(0));
+  Tagged<JSArrayBuffer> host = Cast<JSArrayBuffer>(objects->get(0));
   CHECK(heap->marking_state()->IsUnmarked(host));
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);

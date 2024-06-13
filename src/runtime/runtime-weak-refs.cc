@@ -17,7 +17,7 @@ RUNTIME_FUNCTION(Runtime_ShrinkFinalizationRegistryUnregisterTokenMap) {
 
   if (!IsUndefined(finalization_registry->key_map(), isolate)) {
     Handle<SimpleNumberDictionary> key_map =
-        handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
+        handle(Cast<SimpleNumberDictionary>(finalization_registry->key_map()),
                isolate);
     key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
     finalization_registry->set_key_map(*key_map);

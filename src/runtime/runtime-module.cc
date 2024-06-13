@@ -16,7 +16,7 @@ Handle<Script> GetEvalOrigin(Isolate* isolate, Tagged<Script> origin_script) {
     Tagged<HeapObject> maybe_script =
         origin_script->eval_from_shared()->script();
     CHECK(IsScript(maybe_script));
-    origin_script = Script::cast(maybe_script);
+    origin_script = Cast<Script>(maybe_script);
   }
   return handle(origin_script, isolate);
 }
@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   }
 
   Handle<Script> referrer_script =
-      GetEvalOrigin(isolate, Script::cast(function->shared()->script()));
+      GetEvalOrigin(isolate, Cast<Script>(function->shared()->script()));
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->RunHostImportModuleDynamicallyCallback(
                                referrer_script, specifier, import_options));

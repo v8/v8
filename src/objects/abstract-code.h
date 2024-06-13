@@ -50,8 +50,6 @@ class AbstractCode : public HeapObject {
 
   inline bool has_instruction_stream(PtrComprCageBase cage_base);
 
-  DECL_CAST(AbstractCode)
-
   inline Tagged<Code> GetCode();
   inline Tagged<BytecodeArray> GetBytecodeArray();
 

@@ -122,13 +122,13 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
   Tagged<DeoptimizationData> const data =
-      DeoptimizationData::cast(deoptimization_data());
+      Cast<DeoptimizationData>(deoptimization_data());
   if (data->length() == 0) return false;
   if (data->SharedFunctionInfo() == sfi) return true;
   Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
-    if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
+    if (Cast<SharedFunctionInfo>(literals->get(i)) == sfi) return true;
   }
   return false;
 }
@@ -234,7 +234,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> data =
-        DeoptimizationData::cast(code->deoptimization_data());
+        Cast<DeoptimizationData>(code->deoptimization_data());
     data->PrintDeoptimizationData(os);
   }
   os << "\n";

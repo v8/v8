@@ -31,7 +31,6 @@ enum class DisposeMethodCallType { kValueIsReceiver = 0, kValueIsArgument = 1 };
 class JSDisposableStack
     : public TorqueGeneratedJSDisposableStack<JSDisposableStack, JSObject> {
  public:
-  DECL_CAST(JSDisposableStack)
   DECL_PRINTER(JSDisposableStack)
   DECL_VERIFIER(JSDisposableStack)
 

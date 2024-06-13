@@ -1570,7 +1570,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   }
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(isolate->context()
+      Cast<JSFunction>(isolate->context()
                            ->native_context()
                            ->intl_date_time_format_function()),
       isolate);
@@ -1621,7 +1621,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
   DirectHandle<Context> native_context(isolate->context()->native_context(),
                                        isolate);
   Handle<JSFunction> constructor(
-      JSFunction::cast(native_context->intl_date_time_format_function()),
+      Cast<JSFunction>(native_context->intl_date_time_format_function()),
       isolate);
   Handle<Object> dtf;
   ASSIGN_RETURN_ON_EXCEPTION(

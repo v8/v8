@@ -155,7 +155,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+  DirectHandle<Map> rtt{Cast<Map>(data->managed_object_maps()->get(imm.index)),
                         isolate_};
   WasmValue* field_values =
       decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
@@ -223,7 +223,7 @@ void ConstantExpressionInterface::StructNewDefault(
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+  DirectHandle<Map> rtt{Cast<Map>(data->managed_object_maps()->get(imm.index)),
                         isolate_};
   WasmValue* field_values =
       decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
@@ -243,7 +243,7 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  DirectHandle<Map> rtt{Map::cast(data->managed_object_maps()->get(imm.index)),
+  DirectHandle<Map> rtt{Cast<Map>(data->managed_object_maps()->get(imm.index)),
                         isolate_};
   if (length.runtime_value.to_u32() >
       static_cast<uint32_t>(WasmArray::MaxLength(imm.array_type))) {
@@ -274,7 +274,7 @@ void ConstantExpressionInterface::ArrayNewFixed(
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(array_imm.index);
   DirectHandle<Map> rtt{
-      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_};
+      Cast<Map>(data->managed_object_maps()->get(array_imm.index)), isolate_};
   base::Vector<WasmValue> element_values =
       decoder->zone_->AllocateVector<WasmValue>(length_imm.index);
   for (size_t i = 0; i < length_imm.index; i++) {
@@ -299,7 +299,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
       GetTrustedInstanceDataForTypeIndex(array_imm.index);
 
   DirectHandle<Map> rtt{
-      Map::cast(data->managed_object_maps()->get(array_imm.index)), isolate_};
+      Cast<Map>(data->managed_object_maps()->get(array_imm.index)), isolate_};
 
   uint32_t length = length_value.runtime_value.to_u32();
   uint32_t offset = offset_value.runtime_value.to_u32();
@@ -347,7 +347,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
             segment_imm.index, offset, length, rtt);
     if (IsSmi(*array_object)) {
       // A smi result stands for an error code.
-      error_ = static_cast<MessageTemplate>(Smi::cast(*array_object).value());
+      error_ = static_cast<MessageTemplate>(Cast<Smi>(*array_object).value());
     } else {
       result->runtime_value = WasmValue(array_object, result_type);
     }

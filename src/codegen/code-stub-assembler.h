@@ -20,6 +20,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
 #include "src/objects/js-function.h"

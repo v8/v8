@@ -152,7 +152,7 @@ void ConsoleCall(
   DirectHandle<Object> context_id_obj = JSObject::GetDataProperty(
       isolate, args.target(), isolate->factory()->console_context_id_symbol());
   int context_id =
-      IsSmi(*context_id_obj) ? Smi::cast(*context_id_obj).value() : 0;
+      IsSmi(*context_id_obj) ? Cast<Smi>(*context_id_obj).value() : 0;
   Handle<Object> context_name_obj = JSObject::GetDataProperty(
       isolate, args.target(),
       isolate->factory()->console_context_name_symbol());

@@ -315,7 +315,7 @@ void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
   bool left_is_cons = IsConsString(cons_string->first());
   if (left_is_cons) {
     stats->left_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string->first()), stats);
+    AccumulateStats(Cast<ConsString>(cons_string->first()), stats);
   } else {
     CHECK_NE(left_length, 0);
     stats->leaves_++;
@@ -324,7 +324,7 @@ void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
   // Check right side.
   if (IsConsString(cons_string->second())) {
     stats->right_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string->second()), stats);
+    AccumulateStats(Cast<ConsString>(cons_string->second()), stats);
   } else {
     if (right_length == 0) {
       stats->empty_leaves_++;
@@ -338,7 +338,7 @@ void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
 void AccumulateStats(DirectHandle<String> cons_string, ConsStringStats* stats) {
   DisallowGarbageCollection no_gc;
   if (IsConsString(*cons_string)) {
-    return AccumulateStats(ConsString::cast(*cons_string), stats);
+    return AccumulateStats(Cast<ConsString>(*cons_string), stats);
   }
   // This string got flattened by gc.
   stats->chars_ += cons_string->length();
@@ -364,11 +364,11 @@ void VerifyConsString(DirectHandle<String> root,
   CHECK_EQ(root->length(), data->stats_.chars_);
   // Recursive verify.
   ConsStringStats stats;
-  AccumulateStats(ConsString::cast(*root), &stats);
+  AccumulateStats(Cast<ConsString>(*root), &stats);
   stats.VerifyEqual(data->stats_);
   // Iteratively verify.
   stats.Reset();
-  AccumulateStatsWithOperator(ConsString::cast(*root), &stats);
+  AccumulateStatsWithOperator(Cast<ConsString>(*root), &stats);
   // Don't see these. Must copy over.
   stats.empty_leaves_ = data->stats_.empty_leaves_;
   stats.left_traversals_ = data->stats_.left_traversals_;
@@ -1317,11 +1317,11 @@ TEST(SliceFromCons) {
   CHECK(IsSlicedString(*slice));
   // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
   static_assert(kTaggedCanConvertToRawObjects);
-  CHECK_EQ(SlicedString::cast(*slice)->parent(),
+  CHECK_EQ(Cast<SlicedString>(*slice)->parent(),
            // Parent could have been short-circuited.
-           IsConsString(*parent) ? Tagged(ConsString::cast(*parent)->first())
+           IsConsString(*parent) ? Tagged(Cast<ConsString>(*parent)->first())
                                  : *parent);
-  CHECK(IsSeqString(SlicedString::cast(*slice)->parent()));
+  CHECK(IsSeqString(Cast<SlicedString>(*slice)->parent()));
   CHECK(slice->IsFlat());
 }
 
@@ -1423,8 +1423,8 @@ TEST(SliceFromExternal) {
   DirectHandle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(IsSlicedString(*slice));
   CHECK(IsExternalString(*string));
-  CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
-  CHECK(IsExternalString(SlicedString::cast(*slice)->parent()));
+  CHECK_EQ(Cast<SlicedString>(*slice)->parent(), *string);
+  CHECK(IsExternalString(Cast<SlicedString>(*slice)->parent()));
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
   i::Cast<i::ExternalOneByteString>(string)->SetResource(CcTest::i_isolate(),
@@ -1515,14 +1515,14 @@ TEST(SliceFromSlice) {
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
-  CHECK(IsSeqString(SlicedString::cast(*string)->parent()));
+  CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(IsSlicedString(*string));
-  CHECK(IsSeqString(SlicedString::cast(*string)->parent()));
+  CHECK(IsSeqString(Cast<SlicedString>(*string)->parent()));
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
 }
 

@@ -349,8 +349,6 @@ class WasmGlobalObject
 // This object lives in trusted space and is never modified from user space.
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
  public:
-  DECL_CAST(WasmTrustedInstanceData)
-
   DECL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
   DECL_ACCESSORS(native_context, Tagged<Context>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
@@ -707,7 +705,6 @@ class WasmDispatchTable : public TrustedObject {
   static V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> Grow(
       Isolate*, Handle<WasmDispatchTable>, int new_length);
 
-  DECL_CAST(WasmDispatchTable)
   DECL_PRINTER(WasmDispatchTable)
   DECL_VERIFIER(WasmDispatchTable)
   OBJECT_CONSTRUCTORS(WasmDispatchTable, TrustedObject);
@@ -740,7 +737,6 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
   static constexpr int kSize =
       kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
-  DECL_CAST(WasmExceptionPackage)
   DECL_PRINTER(WasmExceptionPackage)
   DECL_VERIFIER(WasmExceptionPackage)
   OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
@@ -791,7 +787,6 @@ class WasmExportedFunction : public JSFunction {
   // 'js-to-wasm:<sig>'.
   static std::unique_ptr<char[]> GetDebugName(const wasm::FunctionSig* sig);
 
-  DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
 };
 
@@ -813,7 +808,6 @@ class WasmJSFunction : public JSFunction {
   const wasm::FunctionSig* GetSignature(Zone* zone) const;
   bool MatchesSignature(uint32_t other_canonical_sig_index) const;
 
-  DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
 };
 
@@ -834,7 +828,6 @@ class WasmCapiFunction : public JSFunction {
   bool MatchesSignature(uint32_t other_canonical_sig_index) const;
   const wasm::FunctionSig* GetSignature(Zone* zone) const;
 
-  DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
 };
 
@@ -849,7 +842,6 @@ class WasmExternalFunction : public JSFunction {
 
   inline Tagged<WasmFuncRef> func_ref() const;
 
-  DECL_CAST(WasmExternalFunction)
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
 };
 

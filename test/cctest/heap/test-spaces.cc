@@ -320,7 +320,7 @@ TEST(SemiSpaceNewSpace) {
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
-    Tagged<HeapObject> ho = HeapObject::cast(obj);
+    Tagged<HeapObject> ho = Cast<HeapObject>(obj);
     CHECK(new_space->Contains(ho));
   }
   CHECK_LT(0, successful_allocations);
@@ -354,7 +354,7 @@ TEST(PagedNewSpace) {
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
-    Tagged<HeapObject> ho = HeapObject::cast(obj);
+    Tagged<HeapObject> ho = Cast<HeapObject>(obj);
     CHECK(new_space->Contains(ho));
   }
   CHECK_LT(0, successful_allocations);
@@ -390,7 +390,7 @@ TEST(OldSpace) {
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
-    Tagged<HeapObject> ho = HeapObject::cast(obj);
+    Tagged<HeapObject> ho = Cast<HeapObject>(obj);
     CHECK(old_space->Contains(ho));
   }
   CHECK_LT(0, successful_allocations);
@@ -422,7 +422,7 @@ TEST(OldLargeObjectSpace) {
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
     CHECK(IsHeapObject(obj));
-    Tagged<HeapObject> ho = HeapObject::cast(obj);
+    Tagged<HeapObject> ho = Cast<HeapObject>(obj);
     CHECK(lo->Contains(ho));
     CHECK_EQ(0, Heap::GetFillToAlign(ho.address(), kTaggedAligned));
     // All large objects have the same alignment because they start at the

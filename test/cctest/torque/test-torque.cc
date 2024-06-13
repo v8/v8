@@ -164,10 +164,10 @@ TEST(TestTernaryOperator) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   DirectHandle<Object> result1 =
       ft.Call(Handle<Smi>(Smi::FromInt(-5), isolate)).ToHandleChecked();
-  CHECK_EQ(-15, Smi::cast(*result1).value());
+  CHECK_EQ(-15, Cast<Smi>(*result1).value());
   DirectHandle<Object> result2 =
       ft.Call(Handle<Smi>(Smi::FromInt(3), isolate)).ToHandleChecked();
-  CHECK_EQ(103, Smi::cast(*result2).value());
+  CHECK_EQ(103, Cast<Smi>(*result2).value());
 }
 
 TEST(TestFunctionPointerToGeneric) {
@@ -938,7 +938,7 @@ TEST(TestRunLazyTwice) {
   CHECK_EQ(lazyNumber, 5);
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   DirectHandle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(7, Smi::cast(*result).value());
+  CHECK_EQ(7, Cast<Smi>(*result).value());
 }
 
 TEST(TestCreateLazyNodeFromTorque) {
@@ -971,7 +971,7 @@ TEST(TestReturnNever_NotCalled) {
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   DirectHandle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(42, Smi::cast(*result).value());
+  CHECK_EQ(42, Cast<Smi>(*result).value());
 }
 
 // Test calling a builtin that calls a runtime fct with return type {never}.

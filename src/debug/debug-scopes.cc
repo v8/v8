@@ -65,7 +65,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
     context_ = Handle<Context>();
     return;
   }
-  script_ = handle(Script::cast(function->shared()->script()), isolate);
+  script_ = handle(Cast<Script>(function->shared()->script()), isolate);
   UnwrapEvaluationContext();
 }
 
@@ -75,7 +75,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       generator_(generator),
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
-      script_(Script::cast(function_->shared()->script()), isolate),
+      script_(Cast<Script>(function_->shared()->script()), isolate),
       locals_(StringSet::New(isolate)) {
   CHECK(function_->shared()->IsSubjectToDebugging());
   TryParseAndRetrieveScopes(ReparseStrategy::kFunctionLiteral);
@@ -255,7 +255,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Reparse the code and analyze the scopes.
   // Depending on the choosen strategy, the whole script or just
   // the closure is re-parsed for function scopes.
-  Handle<Script> script(Script::cast(shared_info->script()), isolate_);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate_);
 
   // Pick between flags for a single function compilation, or an eager
   // compilation of the whole script.
@@ -364,7 +364,7 @@ void ScopeIterator::UnwrapEvaluationContext() {
   do {
     Tagged<Object> wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
     if (IsContext(wrapped)) {
-      current = Context::cast(wrapped);
+      current = Cast<Context>(wrapped);
     } else {
       DCHECK(!current->previous().is_null());
       current = current->previous();
@@ -989,7 +989,7 @@ Handle<JSObject> ScopeIterator::WithContextExtension() {
            IsWasmObject(context_->extension_receiver()));
     return isolate_->factory()->NewSlowJSObjectWithNullProto();
   }
-  return handle(JSObject::cast(context_->extension_receiver()), isolate_);
+  return handle(Cast<JSObject>(context_->extension_receiver()), isolate_);
 }
 
 // Create a plain JSObject which materializes the block scope for the specified
@@ -1047,7 +1047,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
     for (int i = 0; i < keys->length(); i++) {
       // Names of variables introduced by eval are strings.
       DCHECK(IsString(keys->get(i)));
-      Handle<String> key(String::cast(keys->get(i)), isolate_);
+      Handle<String> key(Cast<String>(keys->get(i)), isolate_);
       Handle<Object> value =
           JSReceiver::GetDataProperty(isolate_, extension, key);
       if (visitor(key, value, scope_type)) return;

@@ -4083,8 +4083,6 @@ class CppClassGenerator {
   void EmitStoreFieldStatement(std::ostream& stream, const Field& class_field,
                                std::vector<const Field*>& struct_fields);
 
-  void GenerateClassCasts();
-
   std::string GetFieldOffsetForAccessor(const Field& f);
 
   // Gets the C++ type name that should be used in accessors for referring to
@@ -4167,8 +4165,6 @@ void CppClassGenerator::GenerateClass() {
     hdr_ << " public:\n";
   }
 
-  GenerateClassCasts();
-
   std::vector<cpp::TemplateParameter> templateArgs = {
       cpp::TemplateParameter("D"), cpp::TemplateParameter("P")};
   cpp::Class c(std::move(templateArgs), gen_name_);
@@ -4190,8 +4186,9 @@ void CppClassGenerator::GenerateClass() {
     impl_ << "\ntemplate <>\n";
     impl_ << "void " << gen_name_I_ << "::" << name_
           << "Verify(Isolate* isolate) {\n";
-    impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(" << name_
-          << "::cast(*this), "
+    impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(Cast<"
+          << name_
+          << ">(*this), "
              "isolate);\n";
     impl_ << "}\n\n";
     impl_ << "\n";
@@ -4368,26 +4365,6 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
   }
 
   impl_ << "};\n\n";
-}
-
-void CppClassGenerator::GenerateClassCasts() {
-  cpp::Class owner({cpp::TemplateParameter("D"), cpp::TemplateParameter("P")},
-                   gen_name_);
-  cpp::Function f(&owner, "cast");
-  f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
-  f.SetReturnType("Tagged<D>");
-  f.AddParameter("Tagged<Object>", "object");
-
-  // V8_INLINE static D cast(Tagged<Object>)
-  f.PrintDeclaration(hdr_);
-  f.PrintDefinition(inl_, [](std::ostream& stream) {
-    stream << "    return Tagged<D>(D(object.ptr()));\n";
-  });
-  // V8_INLINE static D unchecked_cast(Tagged<Object>)
-  f.SetName("unchecked_cast");
-  f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "    return Tagged<D>::unchecked_cast(object);\n";
-  });
 }
 
 SourcePosition CppClassGenerator::Position() { return type_->GetPosition(); }
@@ -4894,8 +4871,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
         factory_impl << "  " << type->TagglifiedCppTypeName()
-                     << " result = " << type->GetConstexprGeneratedTypeName()
-                     << "::cast(raw_object);\n";
+                     << " result = Cast<"
+                     << type->GetConstexprGeneratedTypeName()
+                     << ">(raw_object);\n";
         factory_impl << "  DisallowGarbageCollection no_gc;\n";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
                      << "     allocation_type == AllocationType::kYoung\n"
@@ -5185,10 +5163,10 @@ void ImplementationVisitor::GenerateBodyDescriptors(
       if (type->size().SingleValue()) {
         h_contents << "    return " << *type->size().SingleValue() << ";\n";
       } else {
-        // We use an unchecked_cast here because this is used for concurrent
+        // We use an UncheckedCast here because this is used for concurrent
         // marking, where we shouldn't re-read the map.
-        h_contents << "    return " << name
-                   << "::unchecked_cast(raw_object)->AllocatedSize();\n";
+        h_contents << "    return UncheckedCast<" << name
+                   << ">(raw_object)->AllocatedSize();\n";
       }
       h_contents << "  }\n\n";
 

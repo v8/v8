@@ -25,8 +25,8 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
-  Tagged<HeapObject> obj_a = HeapObject::unchecked_cast(Tagged<Object>(a));
-  Tagged<HeapObject> obj_b = HeapObject::unchecked_cast(Tagged<Object>(b));
+  Tagged<HeapObject> obj_a = UncheckedCast<HeapObject>(Tagged<Object>(a));
+  Tagged<HeapObject> obj_b = UncheckedCast<HeapObject>(Tagged<Object>(b));
   // This check might fail when we try to compare objects in different pointer
   // compression cages (e.g. the one used by code space or trusted space) with
   // each other. The main legitimate case when such "mixed" comparison could

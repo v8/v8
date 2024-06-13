@@ -480,7 +480,7 @@ class YoungStringForwardingTableCleaner final
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
-    Tagged<String> original_string = String::cast(original);
+    Tagged<String> original_string = Cast<String>(original);
     if (!Heap::InYoungGeneration(original_string)) return;
     if (!marking_state_->IsMarked(original_string)) {
       DisposeExternalResource(record);
@@ -495,7 +495,7 @@ bool IsUnmarkedObjectInYoungGeneration(Heap* heap, FullObjectSlot p) {
   }
   DCHECK_IMPLIES(Heap::InYoungGeneration(*p), Heap::InToPage(*p));
   return Heap::InYoungGeneration(*p) &&
-         !heap->non_atomic_marking_state()->IsMarked(HeapObject::cast(*p));
+         !heap->non_atomic_marking_state()->IsMarked(Cast<HeapObject>(*p));
 }
 
 }  // namespace
@@ -765,7 +765,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       DCHECK(!marking_state_->IsUnmarked(heap_object));
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
-      Tagged<Map> map = Map::cast(*heap_object->map_slot());
+      Tagged<Map> map = Cast<Map>(*heap_object->map_slot());
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(

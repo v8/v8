@@ -43,8 +43,6 @@ enum class WasmValueType {
 // TODO(ishell): move to load-handler.h
 class LoadHandler final : public DataHandler {
  public:
-  DECL_CAST(LoadHandler)
-
   DECL_PRINTER(LoadHandler)
   DECL_VERIFIER(LoadHandler)
 
@@ -244,8 +242,6 @@ class LoadHandler final : public DataHandler {
 // TODO(ishell): move to store-handler.h
 class StoreHandler final : public DataHandler {
  public:
-  DECL_CAST(StoreHandler)
-
   DECL_PRINTER(StoreHandler)
   DECL_VERIFIER(StoreHandler)
 

@@ -278,7 +278,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   DCHECK(IsFixedArray(re->data()));
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
-  Handle<FixedArray> data(FixedArray::cast(re->data()), isolate);
+  Handle<FixedArray> data(Cast<FixedArray>(re->data()), isolate);
   if (is_compilation_cache_enabled) {
     compilation_cache->PutRegExp(pattern, JSRegExp::AsJSRegExpFlags(flags),
                                  data);
@@ -587,9 +587,9 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, DirectHandle<JSRegExp> re,
     return false;
   }
 
-  DirectHandle<FixedArray> data(FixedArray::cast(re->data()), isolate);
+  DirectHandle<FixedArray> data(Cast<FixedArray>(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
-    Tagged<Code> code = Code::cast(*compile_data.code);
+    Tagged<Code> code = Cast<Code>(*compile_data.code);
     data->set(JSRegExp::code_index(is_one_byte), code->wrapper());
 
     // Reset bytecode to uninitialized. In case we use tier-up we know that
@@ -641,13 +641,13 @@ int RegExpImpl::IrregexpNumberOfCaptures(Tagged<FixedArray> re) {
 
 Tagged<ByteArray> RegExpImpl::IrregexpByteCode(Tagged<FixedArray> re,
                                                bool is_one_byte) {
-  return ByteArray::cast(re->get(JSRegExp::bytecode_index(is_one_byte)));
+  return Cast<ByteArray>(re->get(JSRegExp::bytecode_index(is_one_byte)));
 }
 
 Tagged<Code> RegExpImpl::IrregexpNativeCode(IsolateForSandbox isolate,
                                             Tagged<FixedArray> re,
                                             bool is_one_byte) {
-  return CodeWrapper::cast(re->get(JSRegExp::code_index(is_one_byte)))
+  return Cast<CodeWrapper>(re->get(JSRegExp::code_index(is_one_byte)))
       ->code(isolate);
 }
 
@@ -1269,7 +1269,7 @@ Tagged<Object> RegExpResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
     }
   }
 
-  *last_match_cache = FixedArray::cast(cache->get(index + kLastMatchOffset));
+  *last_match_cache = Cast<FixedArray>(cache->get(index + kLastMatchOffset));
   return cache->get(index + kArrayOffset);
 }
 
@@ -1323,7 +1323,7 @@ void RegExpResultsCache::Enter(Isolate* isolate,
   // list of internalized strings.
   if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
     for (int i = 0; i < value_array->length(); i++) {
-      Handle<String> str(String::cast(value_array->get(i)), isolate);
+      Handle<String> str(Cast<String>(value_array->get(i)), isolate);
       DirectHandle<String> internalized_str = factory->InternalizeString(str);
       value_array->set(i, *internalized_str);
     }

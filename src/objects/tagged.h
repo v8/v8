@@ -344,24 +344,6 @@ struct BaseForTagged<FieldType> {
 template <>
 class Tagged<Object> : public StrongTaggedBase {
  public:
-  // Allow all strong casts -- all classes are subclasses of Object, nothing to
-  // check here.
-  static V8_INLINE constexpr Tagged<Object> cast(StrongTaggedBase other) {
-    return Tagged<Object>(other);
-  }
-  static V8_INLINE constexpr Tagged<Object> cast(WeakTaggedBase other) {
-    DCHECK(other.IsObject());
-    return Tagged<Object>(other.ptr());
-  }
-  static V8_INLINE constexpr Tagged<Object> unchecked_cast(
-      StrongTaggedBase other) {
-    return Tagged<Object>(other);
-  }
-  static V8_INLINE constexpr Tagged<Object> unchecked_cast(
-      WeakTaggedBase other) {
-    return Tagged<Object>(other.ptr());
-  }
-
   // Allow Tagged<Object> to be created from any address.
   V8_INLINE constexpr explicit Tagged(Address o) : StrongTaggedBase(o) {}
 
@@ -392,19 +374,6 @@ class Tagged<Object> : public StrongTaggedBase {
 template <>
 class Tagged<Smi> : public StrongTaggedBase {
  public:
-  // Explicit cast for sub- and superclasses (in practice, only Object will pass
-  // this static assert).
-  template <typename U>
-  static constexpr Tagged<Smi> cast(Tagged<U> other) {
-    static_assert(is_castable_v<U, Smi>);
-    DCHECK(other.IsSmi());
-    return Tagged<Smi>(other.ptr());
-  }
-  V8_INLINE static constexpr Tagged<Smi> unchecked_cast(
-      StrongTaggedBase other) {
-    return Tagged<Smi>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
   V8_INLINE constexpr explicit Tagged(Address ptr) : StrongTaggedBase(ptr) {}
 
@@ -424,19 +393,6 @@ class Tagged<Smi> : public StrongTaggedBase {
 template <>
 class Tagged<TaggedIndex> : public StrongTaggedBase {
  public:
-  // Explicit cast for sub- and superclasses (in practice, only Object will pass
-  // this static assert).
-  template <typename U>
-  static constexpr Tagged<TaggedIndex> cast(Tagged<U> other) {
-    static_assert(is_castable_v<U, TaggedIndex>);
-    DCHECK(IsTaggedIndex(other));
-    return Tagged<TaggedIndex>(other.ptr());
-  }
-  static V8_INLINE constexpr Tagged<TaggedIndex> unchecked_cast(
-      StrongTaggedBase other) {
-    return Tagged<TaggedIndex>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
   V8_INLINE constexpr explicit Tagged(Address ptr) : StrongTaggedBase(ptr) {}
 
@@ -473,20 +429,6 @@ class Tagged<HeapObject> : public StrongTaggedBase {
   using Base = StrongTaggedBase;
 
  public:
-  // Explicit cast for sub- and superclasses.
-  template <typename U>
-  static constexpr Tagged<HeapObject> cast(Tagged<U> other) {
-    static_assert(is_castable_v<U, HeapObject>);
-    DCHECK(other.IsHeapObject());
-    return Tagged<HeapObject>(other.ptr());
-  }
-  static V8_INLINE constexpr Tagged<HeapObject> unchecked_cast(
-      StrongTaggedBase other) {
-    // Don't check incoming type for unchecked casts, in case the object
-    // definitions are not available.
-    return Tagged<HeapObject>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
   // Allow implicit conversion from const HeapObjectLayout* to
   // Tagged<HeapObject>.
@@ -565,26 +507,6 @@ static_assert(Tagged<HeapObject>().is_null());
 template <>
 class Tagged<MaybeWeak<Object>> : public WeakTaggedBase {
  public:
-  // Allow all casts -- all classes are subclasses of Object, nothing to check
-  // here.
-  static V8_INLINE constexpr Tagged<MaybeWeak<Object>> cast(
-      WeakTaggedBase other) {
-    return Tagged<MaybeWeak<Object>>(other);
-  }
-  static V8_INLINE constexpr Tagged<MaybeWeak<Object>> unchecked_cast(
-      WeakTaggedBase other) {
-    return Tagged<MaybeWeak<Object>>(other);
-  }
-  // Also allow strong cases
-  static V8_INLINE constexpr Tagged<MaybeWeak<Object>> cast(
-      StrongTaggedBase other) {
-    return Tagged<MaybeWeak<Object>>(other);
-  }
-  static V8_INLINE constexpr Tagged<MaybeWeak<Object>> unchecked_cast(
-      StrongTaggedBase other) {
-    return Tagged<MaybeWeak<Object>>(other);
-  }
-
   // Allow Tagged<MaybeWeak<Object>> to be created from any address.
   V8_INLINE constexpr explicit Tagged(Address o) : WeakTaggedBase(o) {}
 
@@ -624,34 +546,6 @@ class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
   using Base = WeakTaggedBase;
 
  public:
-  // Explicit cast for sub- and superclasses.
-  template <typename U>
-  static constexpr Tagged<MaybeWeak<HeapObject>> cast(Tagged<U> other) {
-    static_assert(is_castable_v<U, HeapObject>);
-    DCHECK(other.IsHeapObject());
-    return Tagged<MaybeWeak<HeapObject>>(other.ptr());
-  }
-  template <typename U>
-  static constexpr Tagged<MaybeWeak<HeapObject>> cast(
-      Tagged<MaybeWeak<U>> other) {
-    static_assert(is_castable_v<U, HeapObject>);
-    // Allow strong, weak and cleared values, i.e. anything that's not a Smi.
-    DCHECK(!other.IsSmi());
-    return Tagged<MaybeWeak<HeapObject>>(other.ptr());
-  }
-  static V8_INLINE constexpr Tagged<MaybeWeak<HeapObject>> unchecked_cast(
-      WeakTaggedBase other) {
-    // Don't check incoming type for unchecked casts, in case the object
-    // definitions are not available.
-    return Tagged<MaybeWeak<HeapObject>>(other.ptr());
-  }
-  static V8_INLINE constexpr Tagged<MaybeWeak<HeapObject>> unchecked_cast(
-      StrongTaggedBase other) {
-    // Don't check incoming type for unchecked casts, in case the object
-    // definitions are not available.
-    return Tagged<MaybeWeak<HeapObject>>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
   // Allow implicit conversion from const HeapObjectLayout* to
   // Tagged<HeapObject>.
@@ -713,18 +607,6 @@ class Tagged<Union<Ts...>> : public detail::BaseForTagged<Union<Ts...>>::type {
   using Base = typename detail::BaseForTagged<This>::type;
 
  public:
-  // Explicit cast for sub- and superclasses.
-  template <typename U>
-  static constexpr Tagged<This> cast(Tagged<U> other) {
-    static_assert(is_castable_v<This, U>);
-    DCHECK(Is<This>(other));
-    return unchecked_cast(other);
-  }
-  static V8_INLINE constexpr Tagged<This> unchecked_cast(
-      StrongTaggedBase other) {
-    return Tagged<This>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
 
   // Implicit conversion for subclasses.
@@ -771,24 +653,6 @@ class Tagged : public detail::BaseForTagged<T>::type {
   using Base = typename detail::BaseForTagged<T>::type;
 
  public:
-  // Explicit cast for sub- and superclasses.
-  template <typename U>
-  static constexpr Tagged<T> cast(Tagged<U> other) {
-    static_assert(is_castable_v<T, U>);
-    return T::cast(other);
-  }
-  template <typename U>
-  static constexpr Tagged<T> cast(Tagged<MaybeWeak<U>> other) {
-    static_assert(is_castable_v<T, U>);
-    DCHECK(other.IsStrong() || other.IsSmi());
-    return T::cast(Tagged<U>(other.ptr()));
-  }
-  static V8_INLINE constexpr Tagged<T> unchecked_cast(StrongTaggedBase other) {
-    // Don't check incoming type for unchecked casts, in case the object
-    // definitions are not available.
-    return Tagged<T>(other.ptr());
-  }
-
   V8_INLINE constexpr Tagged() = default;
   template <typename U = T>
   // Allow implicit conversion from const T* to Tagged<T>.

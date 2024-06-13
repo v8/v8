@@ -186,9 +186,9 @@ void StartupSerializer::SerializeStrongReferences(
 SerializedHandleChecker::SerializedHandleChecker(
     Isolate* isolate, std::vector<Tagged<Context>>* contexts)
     : isolate_(isolate) {
-  AddToSet(FixedArray::cast(isolate->heap()->serialized_objects()));
+  AddToSet(Cast<FixedArray>(isolate->heap()->serialized_objects()));
   for (auto const& context : *contexts) {
-    AddToSet(FixedArray::cast(context->serialized_objects()));
+    AddToSet(Cast<FixedArray>(context->serialized_objects()));
   }
 }
 

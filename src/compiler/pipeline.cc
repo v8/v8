@@ -335,7 +335,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id,
                          DirectHandle<SharedFunctionInfo> shared) {
   if (!IsUndefined(shared->script(), isolate)) {
-    DirectHandle<Script> script(Script::cast(shared->script()), isolate);
+    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
 
     if (!IsUndefined(script->source(), isolate)) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
@@ -343,7 +343,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
       if (IsString(source_name)) {
-        os << String::cast(source_name)->ToCString().get() << ":";
+        os << Cast<String>(source_name)->ToCString().get() << ":";
       }
       os << shared->DebugNameCStr().get() << ") id{";
       os << info->optimization_id() << "," << source_id << "} start{";
@@ -352,7 +352,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
         DisallowGarbageCollection no_gc;
         int start = shared->StartPosition();
         int len = shared->EndPosition() - start;
-        SubStringRange source(String::cast(script->source()), no_gc, start,
+        SubStringRange source(Cast<String>(script->source()), no_gc, start,
                               len);
         for (auto c : source) {
           os << AsReversiblyEscapedUC16(c);
@@ -579,7 +579,7 @@ PipelineCompilationJob::PipelineCompilationJob(
       compilation_info_(&zone_, isolate, shared_info, function, code_kind,
                         osr_offset),
       pipeline_statistics_(CreatePipelineStatistics(
-          handle(Script::cast(shared_info->script()), isolate),
+          handle(Cast<Script>(shared_info->script()), isolate),
           compilation_info(), isolate, &zone_stats_)),
       data_(&zone_stats_, isolate, compilation_info(),
             pipeline_statistics_.get()),
@@ -641,10 +641,10 @@ void PrintCode(Isolate* isolate, DirectHandle<Code> code,
     if (print_source) {
       DirectHandle<SharedFunctionInfo> shared = info->shared_info();
       if (IsScript(shared->script()) &&
-          !IsUndefined(Script::cast(shared->script())->source(), isolate)) {
+          !IsUndefined(Cast<Script>(shared->script())->source(), isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
-            String::cast(Script::cast(shared->script())->source()),
+            Cast<String>(Cast<Script>(shared->script())->source()),
             shared->StartPosition());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
@@ -691,7 +691,7 @@ bool CheckNoDeprecatedMaps(DirectHandle<Code> code, Isolate* isolate) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     Tagged<HeapObject> obj = it.rinfo()->target_object(isolate);
-    if (IsMap(obj) && Map::cast(obj)->is_deprecated()) {
+    if (IsMap(obj) && Cast<Map>(obj)->is_deprecated()) {
       return false;
     }
   }

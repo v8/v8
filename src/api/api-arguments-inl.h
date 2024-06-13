@@ -61,7 +61,7 @@ Handle<V> CustomArguments<T>::GetReturnValueNoHoleCheck(
 }
 
 inline Tagged<JSObject> PropertyCallbackArguments::holder() const {
-  return JSObject::cast(*slot_at(T::kHolderIndex));
+  return Cast<JSObject>(*slot_at(T::kHolderIndex));
 }
 
 inline Tagged<Object> PropertyCallbackArguments::receiver() const {
@@ -69,7 +69,7 @@ inline Tagged<Object> PropertyCallbackArguments::receiver() const {
 }
 
 inline Tagged<JSReceiver> FunctionCallbackArguments::holder() const {
-  return JSReceiver::cast(*slot_at(T::kHolderIndex));
+  return Cast<JSReceiver>(*slot_at(T::kHolderIndex));
 }
 
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \

@@ -230,7 +230,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     Tagged<Object> script_name = script->GetNameOrSourceURL();
     if (IsString(script_name)) {
       std::cerr << " ";
-      String::cast(script_name)->PrintUC16(std::cerr);
+      Cast<String>(script_name)->PrintUC16(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif
@@ -267,7 +267,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
-        isolate, handle(Script::cast(shared_info->script()), isolate));
+        isolate, handle(Cast<Script>(shared_info->script()), isolate));
     if (generator()->HasStackOverflow()) {
       return FAILED;
     }
@@ -294,7 +294,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 
 #ifdef DEBUG
   CheckAndPrintBytecodeMismatch(
-      isolate, handle(Script::cast(shared_info->script()), isolate), bytecodes);
+      isolate, handle(Cast<Script>(shared_info->script()), isolate), bytecodes);
 #endif
 
   return SUCCEEDED;

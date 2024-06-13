@@ -911,7 +911,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Tagged<HeapObject> obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 
-    DirectHandle<WasmMemoryObject> memory_object(WasmMemoryObject::cast(obj),
+    DirectHandle<WasmMemoryObject> memory_object(Cast<WasmMemoryObject>(obj),
                                                  isolate);
     DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
                                            isolate);

@@ -125,8 +125,6 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
-CAST_ACCESSOR(JSAtomicsMutex)
-
 JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
                                              Handle<JSAtomicsMutex> mutex,
                                              bool locked)
@@ -243,8 +241,6 @@ std::atomic<int32_t>* JSAtomicsMutex::AtomicOwnerThreadIdPtr() {
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsCondition)
-
-CAST_ACCESSOR(JSAtomicsCondition)
 
 }  // namespace internal
 }  // namespace v8

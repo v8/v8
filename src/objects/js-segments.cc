@@ -142,7 +142,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
 
   // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).
   DisallowGarbageCollection no_gc;
-  Tagged<JSSegmentDataObject> raw = JSSegmentDataObject::cast(*result);
+  Tagged<JSSegmentDataObject> raw = Cast<JSSegmentDataObject>(*result);
   raw->set_segment(*segment);
   // 8. Perform ! CreateDataPropertyOrThrow(result, "index", startIndex).
   raw->set_index(*index);
@@ -157,7 +157,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
     DirectHandle<Boolean> is_word_like =
         factory->ToBoolean(CurrentSegmentIsWordLike(break_iterator));
     // b. Perform ! CreateDataPropertyOrThrow(result, "isWordLike", isWordLike).
-    JSSegmentDataObjectWithIsWordLike::cast(raw)->set_is_word_like(
+    Cast<JSSegmentDataObjectWithIsWordLike>(raw)->set_is_word_like(
         *is_word_like);
   }
   return result;

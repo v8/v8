@@ -77,8 +77,6 @@ class Smi : public AllStatic {
                                                         Tagged<Smi> x,
                                                         Tagged<Smi> y);
 
-  DECL_CAST(Smi)
-
   // Dispatched behavior.
   V8_EXPORT_PRIVATE static void SmiPrint(Tagged<Smi> smi, std::ostream& os);
   DECL_STATIC_VERIFIER(Smi)
@@ -104,11 +102,6 @@ class Smi : public AllStatic {
     return Tagged<Smi>(kNullAddress);
   }
 };
-
-Tagged<Smi> Smi::cast(Tagged<Object> object) {
-  DCHECK(object.IsSmi());
-  return Tagged<Smi>(object.ptr());
-}
 
 }  // namespace internal
 }  // namespace v8

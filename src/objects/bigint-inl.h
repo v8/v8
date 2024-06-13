@@ -12,22 +12,6 @@
 namespace v8 {
 namespace internal {
 
-Tagged<BigIntBase> BigIntBase::cast(Tagged<Object> object) {
-  SLOW_DCHECK(IsBigIntBase(object));
-  return BigIntBase::unchecked_cast(object);
-}
-
-Tagged<BigInt> BigInt::cast(Tagged<Object> object) {
-  SLOW_DCHECK(IsBigInt(object));
-  return BigInt::unchecked_cast(object);
-}
-
-Tagged<FreshlyAllocatedBigInt> FreshlyAllocatedBigInt::cast(
-    Tagged<Object> object) {
-  SLOW_DCHECK(IsBigInt(object));
-  return FreshlyAllocatedBigInt::unchecked_cast(object);
-}
-
 }  // namespace internal
 }  // namespace v8
 

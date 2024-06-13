@@ -103,7 +103,7 @@ void RootMarkingVisitor::MarkObjectByPointer(Root root, FullObjectSlot p) {
   if (object.ptr() == kTaggedNullAddress) return;
 #endif
   if (!IsHeapObject(object)) return;
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   const auto target_worklist =
       MarkingHelper::ShouldMarkObject(collector_->heap(), heap_object);
   if (!target_worklist) {

@@ -72,7 +72,7 @@ MicrotaskQueue::~MicrotaskQueue() {
 Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
                                              intptr_t microtask_queue_pointer,
                                              Address raw_microtask) {
-  Tagged<Microtask> microtask = Microtask::cast(Tagged<Object>(raw_microtask));
+  Tagged<Microtask> microtask = Cast<Microtask>(Tagged<Object>(raw_microtask));
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
   return Smi::zero().ptr();
@@ -271,7 +271,7 @@ void MicrotaskQueue::OnCompleted(Isolate* isolate) const {
 Tagged<Microtask> MicrotaskQueue::get(intptr_t index) const {
   DCHECK_LT(index, size_);
   Tagged<Object> microtask(ring_buffer_[(index + start_) % capacity_]);
-  return Microtask::cast(microtask);
+  return Cast<Microtask>(microtask);
 }
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {

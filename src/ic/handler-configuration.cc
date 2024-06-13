@@ -519,12 +519,12 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << ")";
   } else if (IsCode(handler)) {
     os << "LoadHandler(Code)("
-       << Builtins::name(Code::cast(handler)->builtin_id()) << ")";
+       << Builtins::name(Cast<Code>(handler)->builtin_id()) << ")";
   } else if (IsSymbol(handler)) {
-    os << "LoadHandler(Symbol)(" << Brief(Symbol::cast(handler)) << ")";
+    os << "LoadHandler(Symbol)(" << Brief(Cast<Symbol>(handler)) << ")";
   } else if (IsLoadHandler(handler)) {
-    Tagged<LoadHandler> load_handler = LoadHandler::cast(handler);
-    int raw_handler = Smi::cast(load_handler->smi_handler()).value();
+    Tagged<LoadHandler> load_handler = Cast<LoadHandler>(handler);
+    int raw_handler = Cast<Smi>(load_handler->smi_handler()).value();
     os << "LoadHandler(do access check on lookup start object = "
        << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
        << ", lookup on lookup start object = "
@@ -559,13 +559,13 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << ")" << std::endl;
   } else if (IsStoreHandler(handler)) {
     os << "StoreHandler(";
-    Tagged<StoreHandler> store_handler = StoreHandler::cast(handler);
+    Tagged<StoreHandler> store_handler = Cast<StoreHandler>(handler);
     if (IsCode(store_handler->smi_handler())) {
-      Tagged<Code> code = Code::cast(store_handler->smi_handler());
+      Tagged<Code> code = Cast<Code>(store_handler->smi_handler());
       os << "builtin = ";
       ShortPrint(code, os);
     } else {
-      int raw_handler = Smi::cast(store_handler->smi_handler()).value();
+      int raw_handler = Cast<Smi>(store_handler->smi_handler()).value();
       os << "do access check on lookup start object = "
          << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
          << ", lookup on lookup start object = "
@@ -591,7 +591,7 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
   } else if (IsCode(handler)) {
-    Tagged<Code> code = Code::cast(handler);
+    Tagged<Code> code = Cast<Code>(handler);
     os << "StoreHandler(builtin = ";
     ShortPrint(code, os);
     os << ")" << std::endl;

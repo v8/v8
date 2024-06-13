@@ -33,7 +33,7 @@ Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
   if (IsUndefined(table_, isolate())) {
     return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
-  return handle(CompilationCacheTable::cast(table_), isolate());
+  return handle(Cast<CompilationCacheTable>(table_), isolate());
 }
 
 Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
@@ -44,7 +44,7 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
     tables_[generation] = *result;
   } else {
     Tagged<CompilationCacheTable> table =
-        CompilationCacheTable::cast(tables_[generation]);
+        Cast<CompilationCacheTable>(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }
   return result;
@@ -65,7 +65,7 @@ void CompilationCacheRegExp::Age() {
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
@@ -74,7 +74,7 @@ void CompilationCacheScript::Age() {
 
     Tagged<Object> value = table->PrimaryValueAt(entry);
     if (!IsUndefined(value, isolate())) {
-      Tagged<SharedFunctionInfo> info = SharedFunctionInfo::cast(value);
+      Tagged<SharedFunctionInfo> info = Cast<SharedFunctionInfo>(value);
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
         table->SetPrimaryValueAt(entry,
@@ -88,7 +88,7 @@ void CompilationCacheScript::Age() {
 void CompilationCacheEval::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
@@ -115,7 +115,7 @@ void CompilationCacheEval::Age() {
       DCHECK(IsFixedArray(key));
       // The ageing mechanism for eval caches.
       Tagged<SharedFunctionInfo> info =
-          SharedFunctionInfo::cast(table->PrimaryValueAt(entry));
+          Cast<SharedFunctionInfo>(table->PrimaryValueAt(entry));
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
         table->RemoveEntry(entry);
@@ -147,7 +147,7 @@ void CompilationCacheRegExp::Clear() {
 void CompilationCacheEvalOrScript::Remove(
     DirectHandle<SharedFunctionInfo> function_info) {
   if (IsUndefined(table_, isolate())) return;
-  CompilationCacheTable::cast(table_)->Remove(*function_info);
+  Cast<CompilationCacheTable>(table_)->Remove(*function_info);
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(

@@ -123,15 +123,15 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
 
   Tagged<Object> maybe_context = isolate()->heap()->native_contexts_list();
   while (!IsUndefined(maybe_context, isolate())) {
-    Tagged<Context> context = Context::cast(maybe_context);
+    Tagged<Context> context = Cast<Context>(maybe_context);
     Tagged<Object> array_prot =
         context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Tagged<Object> object_prot =
         context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(
-        CanonicalPersistentHandle(JSObject::cast(array_prot)));
+        CanonicalPersistentHandle(Cast<JSObject>(array_prot)));
     array_and_object_prototypes_.emplace(
-        CanonicalPersistentHandle(JSObject::cast(object_prot)));
+        CanonicalPersistentHandle(Cast<JSObject>(object_prot)));
     maybe_context = context->next_context_link();
   }
 
@@ -199,7 +199,7 @@ bool JSHeapBroker::ObjectMayBeUninitialized(DirectHandle<Object> object) const {
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<Object> object) const {
   if (!IsHeapObject(object)) return false;
-  return ObjectMayBeUninitialized(HeapObject::cast(object));
+  return ObjectMayBeUninitialized(Cast<HeapObject>(object));
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<HeapObject> object) const {
@@ -525,7 +525,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
           Cast<MegaDomHandler>(maybe_handler.object());
       if (!handler->accessor(kAcquireLoad).IsCleared()) {
         FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
-            this, FunctionTemplateInfo::cast(
+            this, Cast<FunctionTemplateInfo>(
                       handler->accessor(kAcquireLoad).GetHeapObject()));
         return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
       }
@@ -662,7 +662,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
   }
 
   AllocationSiteRef site =
-      MakeRefAssumeMemoryFence(this, AllocationSite::cast(object));
+      MakeRefAssumeMemoryFence(this, Cast<AllocationSite>(object));
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
@@ -677,7 +677,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
   }
 
   RegExpBoilerplateDescriptionRef boilerplate = MakeRefAssumeMemoryFence(
-      this, RegExpBoilerplateDescription::cast(object));
+      this, Cast<RegExpBoilerplateDescription>(object));
   return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
 
@@ -691,7 +691,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSArrayRef array = MakeRefAssumeMemoryFence(this, JSArray::cast(object));
+  JSArrayRef array = MakeRefAssumeMemoryFence(this, Cast<JSArray>(object));
   return *zone()->New<TemplateObjectFeedback>(array, nexus.kind());
 }
 

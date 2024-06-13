@@ -142,12 +142,12 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(
+    return Cast<HeapObject>(
         Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
             cage_base,
             Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
-    return HeapObject::cast(
+    return Cast<HeapObject>(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }

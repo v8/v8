@@ -419,7 +419,7 @@ class WasmRunnerBase : public InitializedHandleScope {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
         CHECK(IsHeapNumber(*result));
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+        CHECK_DOUBLE_EQ(expected, Cast<HeapNumber>(*result)->value());
       }
     }
   }
@@ -540,7 +540,7 @@ class WasmRunner : public WasmRunnerBase {
     if constexpr (std::is_integral_v<ReturnType> &&
                   sizeof(ReturnType) == sizeof(int64_t)) {
       CHECK(IsBigInt(*result));
-      return BigInt::cast(*result)->AsInt64();
+      return Cast<BigInt>(*result)->AsInt64();
     }
 
     // Otherwise it must be a number (Smi or HeapNumber).

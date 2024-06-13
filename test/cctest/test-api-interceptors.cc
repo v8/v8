@@ -1433,7 +1433,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(context->Global());
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());
   CHECK(global->map()->has_named_interceptor());
 
@@ -1497,7 +1497,7 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(context->Global());
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());
   CHECK(global->map()->has_named_interceptor());
 
@@ -3625,7 +3625,8 @@ void SloppyArgsIndexedPropertyEnumerator(
   // Have to populate the handle manually, as it's not Cast-able.
   i::DirectHandle<i::JSReceiver> o =
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::Handle<i::JSArray> array(i::JSArray::unchecked_cast(*o), o->GetIsolate());
+  i::Handle<i::JSArray> array(i::UncheckedCast<i::JSArray>(*o),
+                              o->GetIsolate());
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }
 

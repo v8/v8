@@ -809,7 +809,7 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
     if (IsSmi(*root)) {
-      return SmiConstant(Smi::cast(*root));
+      return SmiConstant(i::Cast<Smi>(*root));
     } else {
       return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
     }

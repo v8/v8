@@ -99,11 +99,11 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
     // The easy cases -- we already have a job slot, so can write into it and
     // return.
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE:
-      UncompiledDataWithPreparseDataAndJob::cast(uncompiled_data)
+      Cast<UncompiledDataWithPreparseDataAndJob>(uncompiled_data)
           ->set_job(job_address);
       break;
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE:
-      UncompiledDataWithoutPreparseDataWithJob::cast(uncompiled_data)
+      Cast<UncompiledDataWithoutPreparseDataWithJob>(uncompiled_data)
           ->set_job(job_address);
       break;
 
@@ -113,7 +113,7 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
       Handle<String> inferred_name(uncompiled_data->inferred_name(), isolate);
       Handle<PreparseData> preparse_data(
-          UncompiledDataWithPreparseData::cast(uncompiled_data)
+          Cast<UncompiledDataWithPreparseData>(uncompiled_data)
               ->preparse_data(),
           isolate);
       DirectHandle<UncompiledDataWithPreparseDataAndJob> new_uncompiled_data =
@@ -188,10 +188,10 @@ bool LazyCompileDispatcher::IsEnqueued(
   Tagged<UncompiledData> data = shared->uncompiled_data();
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(data)->job());
+        Cast<UncompiledDataWithPreparseDataAndJob>(data)->job());
   } else if (IsUncompiledDataWithoutPreparseDataWithJob(data)) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(data)->job());
+        Cast<UncompiledDataWithoutPreparseDataWithJob>(data)->job());
   }
   return job != nullptr;
 }
@@ -382,10 +382,10 @@ LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
   Tagged<UncompiledData> data = shared->uncompiled_data();
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(data)->job());
+        Cast<UncompiledDataWithPreparseDataAndJob>(data)->job());
   } else if (IsUncompiledDataWithoutPreparseDataWithJob(data)) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(data)->job());
+        Cast<UncompiledDataWithoutPreparseDataWithJob>(data)->job());
   }
   return nullptr;
 }

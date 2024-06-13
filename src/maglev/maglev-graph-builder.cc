@@ -1570,7 +1570,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (!IsOddball(root_object, local_isolate_)) break;
       int32_t truncated_value =
-          DoubleToInt32(Oddball::cast(root_object)->to_number_raw());
+          DoubleToInt32(Cast<Oddball>(root_object)->to_number_raw());
       // All oddball ToNumber truncations are valid Smis.
       DCHECK(Smi::IsValid(truncated_value));
       return GetInt32Constant(truncated_value);
@@ -1732,10 +1732,10 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
       Tagged<Object> root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (hint != ToNumberHint::kDisallowToNumber && IsOddball(root_object)) {
-        return GetFloat64Constant(Oddball::cast(root_object)->to_number_raw());
+        return GetFloat64Constant(Cast<Oddball>(root_object)->to_number_raw());
       }
       if (IsHeapNumber(root_object)) {
-        return GetFloat64Constant(HeapNumber::cast(root_object)->value());
+        return GetFloat64Constant(Cast<HeapNumber>(root_object)->value());
       }
       break;
     }
@@ -5610,7 +5610,7 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
 
   if (IsThinString(*constant.object())) {
     constant = MakeRefAssumeMemoryFence(
-        broker(), ThinString::cast(*constant.object())->actual());
+        broker(), Cast<ThinString>(*constant.object())->actual());
   }
 
   auto root_index = broker()->FindRootIndex(constant);

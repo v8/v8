@@ -214,7 +214,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
       isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
   CHECK_NE(0, stack_trace_object->length());
   Handle<CallSiteInfo> stack_frame(
-      CallSiteInfo::cast(stack_trace_object->get(0)), isolate);
+      Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =
       SerializeCallSiteInfo(isolate, stack_frame);

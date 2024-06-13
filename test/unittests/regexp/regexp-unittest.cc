@@ -2321,11 +2321,11 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
   Tagged<Object> maybe_bytecode = re->bytecode(kIsNotLatin1);
   if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.
-    CHECK_LT(ByteArray::cast(maybe_bytecode)->AllocatedSize(), kMaxSize);
+    CHECK_LT(Cast<ByteArray>(maybe_bytecode)->AllocatedSize(), kMaxSize);
   } else if (IsCode(maybe_code)) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code)->Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code)->kind(), CodeKind::REGEXP);
+    CHECK_LT(Cast<Code>(maybe_code)->Size(), kMaxSize);
+    CHECK_EQ(Cast<Code>(maybe_code)->kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }

@@ -133,7 +133,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     // that was allocated.
     raw->set_segment(
         code <= unibrow::Latin1::kMaxChar
-            ? String::cast(factory->single_character_string_table()->get(code))
+            ? Cast<String>(factory->single_character_string_table()->get(code))
             : *segment,
         SKIP_WRITE_BARRIER);
     raw->set_index(

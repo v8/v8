@@ -67,7 +67,7 @@ int LookupNamedCapture(const std::function<bool(Tagged<String>)>& name_matches,
     const int name_ix = j * 2;
     const int index_ix = j * 2 + 1;
 
-    Tagged<String> capture_name = String::cast(capture_name_map->get(name_ix));
+    Tagged<String> capture_name = Cast<String>(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
     maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
@@ -349,7 +349,7 @@ bool CompiledReplacement::Compile(Isolate* isolate,
       DCHECK(JSRegExp::TypeSupportsCaptures(regexp->type_tag()));
       Tagged<Object> maybe_capture_name_map = regexp->capture_name_map();
       if (IsFixedArray(maybe_capture_name_map)) {
-        capture_name_map = FixedArray::cast(maybe_capture_name_map);
+        capture_name_map = Cast<FixedArray>(maybe_capture_name_map);
       }
     }
 
@@ -868,7 +868,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   DCHECK(result->HasObjectElements());
 
-  DirectHandle<FixedArray> elements(FixedArray::cast(result->elements()),
+  DirectHandle<FixedArray> elements(Cast<FixedArray>(result->elements()),
                                     isolate);
 
   if (part_count == 1 && indices->at(0) == subject_length) {
@@ -1009,7 +1009,7 @@ class MatchInfoBackedMatch : public String::Match {
       Tagged<Object> o = regexp->capture_name_map();
       has_named_captures_ = IsFixedArray(o);
       if (has_named_captures_) {
-        capture_name_map_ = handle(FixedArray::cast(o), isolate);
+        capture_name_map_ = handle(Cast<FixedArray>(o), isolate);
       }
     } else {
       has_named_captures_ = false;
@@ -1173,7 +1173,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
-    Handle<String> capture_name(String::cast(capture_map->get(name_ix)),
+    Handle<String> capture_name(Cast<String>(capture_map->get(name_ix)),
                                 isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
     DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
@@ -1241,7 +1241,7 @@ static Tagged<Object> SearchRegExpMultiple(
         raw_last_match[i] = Smi::ToInt(last_match_cache->get(i));
       }
       DirectHandle<FixedArray> cached_fixed_array(
-          FixedArray::cast(cached_answer), isolate);
+          Cast<FixedArray>(cached_answer), isolate);
       // The cache FixedArray is a COW-array and we need to return a copy.
       DirectHandle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1465,19 +1465,19 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
         Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
                 isolate, string, regexp, last_match_info);
-        return handle(String::cast(result), isolate);
+        return handle(Cast<String>(result), isolate);
       } else {
         Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
                 isolate, string, regexp, last_match_info);
-        return handle(String::cast(result), isolate);
+        return handle(Cast<String>(result), isolate);
       }
     }
 
     Tagged<Object> result = StringReplaceGlobalRegExpWithString(
         isolate, string, regexp, replace, last_match_info);
     if (IsString(result)) {
-      return handle(String::cast(result), isolate);
+      return handle(Cast<String>(result), isolate);
     } else {
       return MaybeHandle<String>();
     }
@@ -1584,7 +1584,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     Tagged<Object> maybe_capture_map = regexp->capture_name_map();
     if (IsFixedArray(maybe_capture_map)) {
       has_named_captures = true;
-      capture_map = handle(FixedArray::cast(maybe_capture_map), isolate);
+      capture_map = handle(Cast<FixedArray>(maybe_capture_map), isolate);
     }
   }
 
@@ -2034,7 +2034,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  auto regexp = JSRegExp::cast(args[0]);
+  auto regexp = Cast<JSRegExp>(args[0]);
   DirectHandle<String> flags =
       JSRegExp::StringFromFlags(isolate, regexp->flags());
   return *flags;

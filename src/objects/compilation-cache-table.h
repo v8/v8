@@ -167,8 +167,6 @@ class CompilationCacheTable
   // The initial placeholder insertion of the eval cache survives this many GCs.
   static constexpr int kHashGenerations = 10;
 
-  DECL_CAST(CompilationCacheTable)
-
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
       Isolate* isolate, Handle<CompilationCacheTable> cache);

@@ -4083,10 +4083,12 @@ THREADED_TEST(External) {
 
   {
     i::DirectHandle<i::Object> obj = v8::Utils::OpenDirectHandle(*ext);
-    CHECK_EQ(i::HeapObject::cast(*obj)->map(), CcTest::heap()->external_map());
+    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(),
+             CcTest::heap()->external_map());
     CHECK(ext->IsExternal());
     CHECK(!CompileRun("new Set().add(this.ext)").IsEmpty());
-    CHECK_EQ(i::HeapObject::cast(*obj)->map(), CcTest::heap()->external_map());
+    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(),
+             CcTest::heap()->external_map());
     CHECK(ext->IsExternal());
   }
 
@@ -7975,9 +7977,10 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     }
     v8::Local<Value> big_array = v8::Array::New(CcTest::isolate(), 5000);
     // Verify that we created an array where the space was reserved up front.
-    big_array_size = i::JSArray::cast(*v8::Utils::OpenDirectHandle(*big_array))
-                         ->elements()
-                         ->Size();
+    big_array_size =
+        i::Cast<i::JSArray>(*v8::Utils::OpenDirectHandle(*big_array))
+            ->elements()
+            ->Size();
     CHECK_LE(20000, big_array_size);
     a->Set(context, v8_str("y"), big_array).FromJust();
     big_heap_size = CcTest::heap()->SizeOfObjects();
@@ -12834,11 +12837,11 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
             .IsEmpty());
 
   // Side-effect-free version is not supported.
-  i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
+  i::Tagged<i::FunctionTemplateInfo> cons = i::Cast<i::FunctionTemplateInfo>(
       v8::Utils::OpenDirectHandle(*templ)->constructor());
 
   i::Tagged<i::FunctionTemplateInfo> handler =
-      i::FunctionTemplateInfo::cast(cons->GetInstanceCallHandler());
+      i::Cast<i::FunctionTemplateInfo>(cons->GetInstanceCallHandler());
   CHECK(handler->is_object_template_call_handler());
   CHECK(handler->has_side_effects());
 
@@ -13554,7 +13557,7 @@ static int GetGlobalObjectsCount() {
   for (i::Tagged<i::HeapObject> object = it.Next(); !object.is_null();
        object = it.Next()) {
     if (IsJSGlobalObject(object)) {
-      i::Tagged<i::JSGlobalObject> g = i::JSGlobalObject::cast(object);
+      i::Tagged<i::JSGlobalObject> g = i::Cast<i::JSGlobalObject>(object);
       // Skip dummy global object.
       if (g->global_dictionary(v8::kAcquireLoad)->NumberOfElements() != 0) {
         count++;
@@ -15054,7 +15057,7 @@ static void MorphAString(i::Tagged<i::String> string,
     // Morph external string to be TwoByte string.
     string->set_map(roots.external_two_byte_string_map());
     i::Tagged<i::ExternalTwoByteString> morphed =
-        i::ExternalTwoByteString::cast(string);
+        i::Cast<i::ExternalTwoByteString>(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, uc16_resource);
   } else {
@@ -15063,7 +15066,7 @@ static void MorphAString(i::Tagged<i::String> string,
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
     i::Tagged<i::ExternalOneByteString> morphed =
-        i::ExternalOneByteString::cast(string);
+        i::Cast<i::ExternalOneByteString>(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, one_byte_resource);
   }
@@ -15154,13 +15157,13 @@ THREADED_TEST(MorphCompositeStringTest) {
 
     // This avoids the GC from trying to free a stack allocated resource.
     if (IsExternalOneByteString(*ilhs))
-      i::ExternalOneByteString::cast(*ilhs)->SetResource(i_isolate, nullptr);
+      i::Cast<i::ExternalOneByteString>(*ilhs)->SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(*ilhs)->SetResource(i_isolate, nullptr);
+      i::Cast<i::ExternalTwoByteString>(*ilhs)->SetResource(i_isolate, nullptr);
     if (IsExternalOneByteString(*irhs))
-      i::ExternalOneByteString::cast(*irhs)->SetResource(i_isolate, nullptr);
+      i::Cast<i::ExternalOneByteString>(*irhs)->SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(*irhs)->SetResource(i_isolate, nullptr);
+      i::Cast<i::ExternalTwoByteString>(*irhs)->SetResource(i_isolate, nullptr);
   }
   i::DeleteArray(two_byte_string);
 }
@@ -15865,7 +15868,7 @@ TEST(ErrorLevelWarning) {
   i::DirectHandle<i::SharedFunctionInfo> obj = i::Cast<i::SharedFunctionInfo>(
       v8::Utils::OpenDirectHandle(*lscript->GetUnboundScript()));
   CHECK(IsScript(obj->script()));
-  i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
+  i::Handle<i::Script> script(i::Cast<i::Script>(obj->script()), i_isolate);
 
   int levels[] = {
       v8::Isolate::kMessageLog, v8::Isolate::kMessageInfo,
@@ -19721,7 +19724,7 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 
 static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
   i::Tagged<i::WeakFixedArray> map_cache =
-      i::WeakFixedArray::cast(context->map_cache());
+      i::Cast<i::WeakFixedArray>(context->map_cache());
   int length = map_cache->length();
   int count = 0;
   for (int i = 0; i < length; i++) {
@@ -22932,7 +22935,8 @@ TEST(ScriptPositionInfo) {
       v8::Utils::OpenDirectHandle(*script->GetUnboundScript()));
   CHECK(IsScript(obj->script()));
 
-  i::DirectHandle<i::Script> script1(i::Script::cast(obj->script()), i_isolate);
+  i::DirectHandle<i::Script> script1(i::Cast<i::Script>(obj->script()),
+                                     i_isolate);
 
   i::Script::PositionInfo info;
 
@@ -23024,7 +23028,8 @@ TEST(ScriptPositionInfoWithLineEnds) {
       v8::Utils::OpenDirectHandle(*script->GetUnboundScript()));
   CHECK(IsScript(obj->script()));
 
-  i::DirectHandle<i::Script> script1(i::Script::cast(obj->script()), i_isolate);
+  i::DirectHandle<i::Script> script1(i::Cast<i::Script>(obj->script()),
+                                     i_isolate);
 
   i::String::LineEndsVector line_ends =
       i::Script::GetLineEnds(i_isolate, script1);
@@ -24199,8 +24204,8 @@ TEST(CreateSyntheticModule) {
           i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
           ->value()));
   CHECK_EQ(i_module->export_names()->length(), 1);
-  CHECK(
-      i::String::cast(i_module->export_names()->get(0))->Equals(*default_name));
+  CHECK(i::Cast<i::String>(i_module->export_names()->get(0))
+            ->Equals(*default_name));
   CHECK_EQ(i_module->status(), i::Module::kLinked);
   CHECK(module->IsSyntheticModule());
   CHECK(!module->IsSourceTextModule());
@@ -26196,7 +26201,7 @@ TEST(DynamicImport) {
           referrer, specifier, i::MaybeHandle<i::Object>());
   i::DirectHandle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
-  CHECK(result->Equals(i::String::cast(promise->result())));
+  CHECK(result->Equals(i::Cast<i::String>(promise->result())));
 }
 
 v8::MaybeLocal<v8::Promise>
@@ -26285,7 +26290,7 @@ TEST(DynamicImportWithAssertions) {
                                                         i_import_options);
   i::DirectHandle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
-  CHECK(result->Equals(i::String::cast(promise->result())));
+  CHECK(result->Equals(i::Cast<i::String>(promise->result())));
 }
 
 void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,

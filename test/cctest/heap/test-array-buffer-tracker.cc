@@ -244,13 +244,13 @@ TEST(ArrayBuffer_NonLivePromotion) {
       root->set(0, *buf);  // Buffer that should not be promoted as live.
     }
     heap::SimulateIncrementalMarking(heap, false);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     heap::InvokeAtomicMinorGC(heap);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     heap::InvokeAtomicMinorGC(heap);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     ArrayBufferExtension* extension =
-        JSArrayBuffer::cast(root->get(0))->extension();
+        Cast<JSArrayBuffer>(root->get(0))->extension();
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
     heap::InvokeAtomicMajorGC(heap);
@@ -285,12 +285,12 @@ TEST(ArrayBuffer_LivePromotion) {
     v8::Global<Value> global_root(CcTest::isolate(),
                                   Utils::ToLocal(Cast<Object>(root)));
     heap::SimulateIncrementalMarking(heap, true);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     heap::InvokeMinorGC(heap);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     heap::InvokeMinorGC(heap);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
-    raw_ab = JSArrayBuffer::cast(root->get(0));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
+    raw_ab = Cast<JSArrayBuffer>(root->get(0));
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     // Prohibit page from being released.
     MemoryChunk::FromHeapObject(raw_ab)->MarkNeverEvacuate();
@@ -329,11 +329,11 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     // processed in the sweeper (relying on marking information) instead of
     // processing during newspace evacuation.
     heap::FillCurrentPage(heap->new_space(), &handles);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
     heap::InvokeAtomicMinorGC(heap);
     heap::SimulateIncrementalMarking(heap, true);
     heap::InvokeAtomicMajorGC(heap);
-    CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
+    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
   }
 }
 

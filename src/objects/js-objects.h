@@ -1133,8 +1133,6 @@ class JSIteratorResult : public JSObject {
   static const int kValueIndex = 0;
   static const int kDoneIndex = 1;
 
-  DECL_CAST(JSIteratorResult)
-
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
@@ -1412,8 +1410,6 @@ class JSPromiseWithResolversResult : public JSObject {
   static const int kPromiseIndex = 0;
   static const int kResolveIndex = 1;
   static const int kRejectIndex = 2;
-
-  DECL_CAST(JSPromiseWithResolversResult)
 
   OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
 };

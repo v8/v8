@@ -120,7 +120,7 @@ Tagged<StructType> FactoryBase<Impl>::NewStructInternal(
   ReadOnlyRoots roots = read_only_roots();
   Tagged<Map> map = Map::GetMapFor(roots, type);
   int size = StructType::kSize;
-  return StructType::cast(NewStructInternal(roots, map, size, allocation));
+  return Cast<StructType>(NewStructInternal(roots, map, size, allocation));
 }
 
 template <typename Impl>

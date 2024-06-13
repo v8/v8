@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
 RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  bool set = Boolean::cast(args[0])->ToBool(isolate);
+  bool set = Cast<Boolean>(args[0])->ToBool(isolate);
 
   isolate->set_allow_atomics_wait(set);
   return ReadOnlyRoots(isolate).undefined_value();

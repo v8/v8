@@ -26,7 +26,7 @@ Handle<AllocationSite> AllocationSiteUsageContext::EnterNewScope() {
     // Advance current site
     Tagged<Object> nested_site = current()->nested_site();
     // Something is wrong if we advance to the end of the list here.
-    update_current_site(AllocationSite::cast(nested_site));
+    update_current_site(Cast<AllocationSite>(nested_site));
   }
   return Handle<AllocationSite>(*current(), isolate());
 }

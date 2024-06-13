@@ -446,7 +446,7 @@ static void FrameIterationCheck(
                 "v8::internal::Tagged<v8::internal::JSFunction>",
                 "currently_executing_jsfunction", js_function.ptr());
       auto shared_function_info = js_function->shared();
-      auto script = i::Script::cast(shared_function_info->script());
+      auto script = i::Cast<i::Script>(shared_function_info->script());
       CheckProp(*props->properties[1],
                 "v8::internal::TaggedMember<v8::internal::Object>",
                 "script_name", static_cast<i::Tagged_t>(script->name().ptr()));

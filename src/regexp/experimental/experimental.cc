@@ -177,7 +177,7 @@ int32_t ExperimentalRegExp::ExecRaw(
   }
 
   static constexpr bool kIsLatin1 = true;
-  Tagged<ByteArray> bytecode = ByteArray::cast(regexp->bytecode(kIsLatin1));
+  Tagged<ByteArray> bytecode = Cast<ByteArray>(regexp->bytecode(kIsLatin1));
 
   return ExecRawImpl(isolate, call_origin, bytecode, subject,
                      regexp->capture_count(), output_registers,
@@ -198,9 +198,9 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  Tagged<String> subject_string = String::cast(Tagged<Object>(subject));
+  Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
 
-  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Tagged<Object>(regexp));
+  Tagged<JSRegExp> regexp_obj = Cast<JSRegExp>(Tagged<Object>(regexp));
 
   return ExecRaw(isolate, RegExp::kFromJs, regexp_obj, subject_string,
                  output_registers, output_register_count, start_position);

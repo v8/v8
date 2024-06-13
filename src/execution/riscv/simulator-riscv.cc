@@ -1952,7 +1952,7 @@ void RiscvDebugger::Debug() {
           // Tagged<Object> obj(*cur);
           // Heap* current_heap = sim_->isolate_->heap();
           // if (IsSmi(obj) ||
-          //     IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+          //     IsValidHeapObject(current_heap, Cast<HeapObject>(obj))) {
           //   PrintF(" (");
           //   if (IsSmi(obj)) {
           //     PrintF("smi %d", Smi::ToInt(obj));
@@ -8163,7 +8163,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     // Object obj(*watch_address_);
     // Heap* current_heap = isolate_->heap();
     // if (obj.IsSmi() || IsValidHeapObject(current_heap,
-    // HeapObject::cast(obj))) {
+    // Cast<HeapObject>(obj))) {
     //   PrintF(" (");
     //   if (obj.IsSmi()) {
     //     PrintF("smi %d", Smi::ToInt(obj));

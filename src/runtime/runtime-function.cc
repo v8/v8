@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  auto fun = JSFunction::cast(args[0]);
+  auto fun = Cast<JSFunction>(args[0]);
   int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
 }
@@ -65,7 +65,7 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  auto f = JSFunction::cast(args[0]);
+  auto f = Cast<JSFunction>(args[0]);
   return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
 }
 

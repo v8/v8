@@ -304,7 +304,7 @@ class ConcurrentStringThreadBase : public ParkingThread {
     {
       HandleScope scope(i_isolate);
       for (int i = 0; i < shared_strings_->length(); i++) {
-        Handle<String> input_string(String::cast(shared_strings_->get(i)),
+        Handle<String> input_string(Cast<String>(shared_strings_->get(i)),
                                     i_isolate);
         RunForString(input_string, i);
       }
@@ -498,12 +498,12 @@ class ConcurrentStringTableLookupThread final
         Tagged<Object>(StringTable::TryStringToIndexOrLookupExisting(
             i_isolate, input_string->ptr()));
     if (IsString(result)) {
-      Tagged<String> internalized = String::cast(result);
+      Tagged<String> internalized = Cast<String>(result);
       CHECK(IsInternalizedString(internalized));
       CHECK_IMPLIES(IsInternalizedString(*input_string),
                     *input_string == internalized);
     } else {
-      CHECK_EQ(Smi::cast(result).value(), ResultSentinel::kNotFound);
+      CHECK_EQ(Cast<Smi>(result).value(), ResultSentinel::kNotFound);
     }
   }
 };
@@ -1161,7 +1161,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
-      Handle<String> input_string(String::cast(shared_strings->get(i)),
+      Handle<String> input_string(Cast<String>(shared_strings->get(i)),
                                   i_isolate);
       Handle<String> interned = factory->InternalizeString(input_string);
       CHECK(input_string->IsShared());
@@ -1178,7 +1178,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
 
     // Check all strings are transitioned to ThinStrings
     for (int i = 0; i < shared_strings->length(); i++) {
-      DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+      DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       CHECK(IsThinString(*input_string));
     }
@@ -1308,7 +1308,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
-      DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+      DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       const int length = input_string->length();
       char* buffer = new char[length + 1];
@@ -1330,7 +1330,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
 
     // Check all strings are transitioned to ExternalStrings
     for (int i = 0; i < shared_strings->length(); i++) {
-      DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+      DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       CHECK(IsExternalString(*input_string));
     }
@@ -1664,7 +1664,7 @@ void CreateExternalResources(Isolate* i_isolate,
   HandleScope scope(i_isolate);
   resources.reserve(strings->length());
   for (int i = 0; i < strings->length(); i++) {
-    DirectHandle<String> input_string(String::cast(strings->get(i)), i_isolate);
+    DirectHandle<String> input_string(Cast<String>(strings->get(i)), i_isolate);
     CHECK(Utils::ToLocal(input_string, i_isolate)
               ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
     const int length = input_string->length();
@@ -1780,7 +1780,7 @@ void TestConcurrentExternalization(bool share_resources) {
   TriggerGCWithTransitions(i_isolate->heap());
 
   for (int i = 0; i < shared_strings->length(); i++) {
-    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+    DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     Tagged<String> string = *input_string;
     CheckStringAndResource(string, i, true, {}, true, share_resources, threads);
@@ -1860,7 +1860,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   DirectHandle<String> empty_string(
       ReadOnlyRoots(i_isolate->heap()).empty_string(), i_isolate);
   for (int i = 0; i < shared_strings->length(); i++) {
-    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+    DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     // Patch every third string to empty. The next GC will dispose the external
     // resources.
@@ -1875,7 +1875,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                           GarbageCollectionReason::kTesting);
 
   for (int i = 0; i < shared_strings->length(); i++) {
-    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+    DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     const bool should_be_alive = i % 3 != 0;
     Tagged<String> string = *input_string;
@@ -1893,7 +1893,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                             GarbageCollectionReason::kTesting);
 
     for (int i = 0; i < shared_strings->length(); i++) {
-      DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+      DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       const bool should_be_alive = i % 3 != 0;
       Tagged<String> string = *input_string;
@@ -1984,12 +1984,12 @@ void TestConcurrentExternalizationAndInternalization(
   TriggerGCWithTransitions(i_isolate->heap());
 
   for (int i = 0; i < shared_strings->length(); i++) {
-    DirectHandle<String> input_string(String::cast(shared_strings->get(i)),
+    DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     Tagged<String> string = *input_string;
     if (hit_or_miss == kTestHit) {
       CHECK(IsThinString(string));
-      string = ThinString::cast(string)->actual();
+      string = Cast<ThinString>(string)->actual();
     }
     int alive_resources = 0;
     for (int t = kInternalizationThreads; t < kTotalThreads; t++) {

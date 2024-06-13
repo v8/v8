@@ -35,28 +35,28 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
     if (IsSmi(entry)) {
       if (entry != other_entry) return false;
     } else {
-      if (HeapObject::cast(entry)->map()->instance_type() !=
-          HeapObject::cast(other_entry)->map()->instance_type()) {
+      if (Cast<HeapObject>(entry)->map()->instance_type() !=
+          Cast<HeapObject>(other_entry)->map()->instance_type()) {
         return false;
       }
       if (IsString(entry)) {
-        if (!String::cast(entry)->Equals(String::cast(other_entry))) {
+        if (!Cast<String>(entry)->Equals(Cast<String>(other_entry))) {
           return false;
         }
       } else if (IsScopeInfo(entry)) {
-        if (!is_live_edit_compare && !ScopeInfo::cast(entry)->Equals(
-                                         ScopeInfo::cast(other_entry), false)) {
+        if (!is_live_edit_compare && !Cast<ScopeInfo>(entry)->Equals(
+                                         Cast<ScopeInfo>(other_entry), false)) {
           return false;
         }
       } else if (IsSourceTextModuleInfo(entry)) {
         if (!is_live_edit_compare &&
-            !SourceTextModuleInfo::cast(entry)->Equals(
-                SourceTextModuleInfo::cast(other_entry))) {
+            !Cast<SourceTextModuleInfo>(entry)->Equals(
+                Cast<SourceTextModuleInfo>(other_entry))) {
           return false;
         }
       } else if (IsOddball(entry)) {
-        if (Oddball::cast(entry)->kind() !=
-            Oddball::cast(other_entry)->kind()) {
+        if (Cast<Oddball>(entry)->kind() !=
+            Cast<Oddball>(other_entry)->kind()) {
           return false;
         }
       } else {
@@ -813,7 +813,7 @@ bool ScopeInfo::HasLocalsBlockList() const {
 
 Tagged<StringSet> ScopeInfo::LocalsBlockList() const {
   DCHECK(HasLocalsBlockList());
-  return StringSet::cast(locals_block_list());
+  return Cast<StringSet>(locals_block_list());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -831,12 +831,12 @@ Tagged<Object> ScopeInfo::InferredFunctionName() const {
 Tagged<String> ScopeInfo::FunctionDebugName() const {
   if (!HasFunctionName()) return GetReadOnlyRoots().empty_string();
   Tagged<Object> name = FunctionName();
-  if (IsString(name) && String::cast(name)->length() > 0) {
-    return String::cast(name);
+  if (IsString(name) && Cast<String>(name)->length() > 0) {
+    return Cast<String>(name);
   }
   if (HasInferredFunctionName()) {
     name = InferredFunctionName();
-    if (IsString(name)) return String::cast(name);
+    if (IsString(name)) return Cast<String>(name);
   }
   return GetReadOnlyRoots().empty_string();
 }
@@ -860,12 +860,12 @@ void ScopeInfo::SetPositionInfo(int start, int end) {
 
 Tagged<ScopeInfo> ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
-  return ScopeInfo::cast(outer_scope_info());
+  return Cast<ScopeInfo>(outer_scope_info());
 }
 
 Tagged<SourceTextModuleInfo> ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return SourceTextModuleInfo::cast(module_info());
+  return Cast<SourceTextModuleInfo>(module_info());
 }
 
 Tagged<String> ScopeInfo::ContextInlinedLocalName(int var) const {
@@ -1007,7 +1007,7 @@ std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
     Tagged<NameToIndexHashTable> table = context_local_names_hashtable();
     Tagged<Object> name = table->KeyAt(entry);
     DCHECK(IsString(name));
-    return std::make_pair(String::cast(name), table->IndexAt(entry));
+    return std::make_pair(Cast<String>(name), table->IndexAt(entry));
   }
 }
 
@@ -1260,7 +1260,7 @@ int SourceTextModuleInfo::RegularExportCount() const {
 }
 
 Tagged<String> SourceTextModuleInfo::RegularExportLocalName(int i) const {
-  return String::cast(regular_exports()->get(i * kRegularExportLength +
+  return Cast<String>(regular_exports()->get(i * kRegularExportLength +
                                              kRegularExportLocalNameOffset));
 }
 
@@ -1270,7 +1270,7 @@ int SourceTextModuleInfo::RegularExportCellIndex(int i) const {
 }
 
 Tagged<FixedArray> SourceTextModuleInfo::RegularExportExportNames(int i) const {
-  return FixedArray::cast(regular_exports()->get(
+  return Cast<FixedArray>(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }
 

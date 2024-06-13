@@ -265,7 +265,6 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 #endif
   DECL_VERIFIER(SwissNameDictionary)
   DECL_PRINTER(SwissNameDictionary)
-  DECL_CAST(SwissNameDictionary)
   OBJECT_CONSTRUCTORS(SwissNameDictionary, HeapObject);
 
  private:

@@ -92,23 +92,23 @@ Tagged<SharedFunctionInfo> SourceTextModule::GetSharedFunctionInfo() const {
   switch (status()) {
     case kUnlinked:
     case kPreLinking:
-      return SharedFunctionInfo::cast(code());
+      return Cast<SharedFunctionInfo>(code());
     case kLinking:
-      return JSFunction::cast(code())->shared();
+      return Cast<JSFunction>(code())->shared();
     case kLinked:
     case kEvaluating:
     case kEvaluatingAsync:
     case kEvaluated:
-      return JSGeneratorObject::cast(code())->function()->shared();
+      return Cast<JSGeneratorObject>(code())->function()->shared();
     case kErrored:
-      return SharedFunctionInfo::cast(code());
+      return Cast<SharedFunctionInfo>(code());
   }
   UNREACHABLE();
 }
 
 Tagged<Script> SourceTextModule::GetScript() const {
   DisallowGarbageCollection no_gc;
-  return Script::cast(GetSharedFunctionInfo()->script());
+  return Cast<Script>(GetSharedFunctionInfo()->script());
 }
 
 int SourceTextModule::ExportIndex(int cell_index) {
@@ -142,7 +142,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   for (int i = 0, n = names->length(); i < n; ++i) {
-    Handle<String> name(String::cast(names->get(i)), isolate);
+    Handle<String> name(Cast<String>(names->get(i)), isolate);
     DCHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(exports, name, cell);
   }
@@ -162,7 +162,7 @@ Tagged<Cell> SourceTextModule::GetCell(int cell_index) {
     case SourceTextModuleDescriptor::kInvalid:
       UNREACHABLE();
   }
-  return Cell::cast(cell);
+  return Cast<Cell>(cell);
 }
 
 Handle<Object> SourceTextModule::LoadVariable(
@@ -215,7 +215,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
   if (IsSourceTextModuleInfoEntry(*object)) {
     // Not yet resolved indirect export.
     auto entry = Cast<SourceTextModuleInfoEntry>(object);
-    Handle<String> import_name(String::cast(entry->import_name()), isolate);
+    Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
     Handle<Script> script(module->GetScript(), isolate);
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
@@ -248,13 +248,13 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
     Handle<String> name, int module_request_index, MessageLocation loc,
     bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Module> requested_module(
-      Module::cast(module->requested_modules()->get(module_request_index)),
+      Cast<Module>(module->requested_modules()->get(module_request_index)),
       isolate);
   DirectHandle<ModuleRequest> module_request(
-      ModuleRequest::cast(
+      Cast<ModuleRequest>(
           module->info()->module_requests()->get(module_request_index)),
       isolate);
-  Handle<String> module_specifier(String::cast(module_request->specifier()),
+  Handle<String> module_specifier(Cast<String>(module_request->specifier()),
                                   isolate);
   MaybeHandle<Cell> result =
       Module::ResolveExport(isolate, requested_module, module_specifier, name,
@@ -275,7 +275,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
                                              isolate);
     for (int i = 0, n = special_exports->length(); i < n; ++i) {
       i::DirectHandle<i::SourceTextModuleInfoEntry> entry(
-          i::SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
+          i::Cast<i::SourceTextModuleInfoEntry>(special_exports->get(i)),
+          isolate);
       if (!IsUndefined(entry->export_name(), isolate)) {
         continue;  // Indirect export.
       }
@@ -334,7 +335,7 @@ bool SourceTextModule::PrepareInstantiate(
                                              isolate);
   for (int i = 0, length = module_requests->length(); i < length; ++i) {
     DirectHandle<ModuleRequest> module_request(
-        ModuleRequest::cast(module_requests->get(i)), isolate);
+        Cast<ModuleRequest>(module_requests->get(i)), isolate);
     Handle<String> specifier(module_request->specifier(), isolate);
     v8::Local<v8::Module> api_requested_module;
     Handle<FixedArray> import_attributes(module_request->import_attributes(),
@@ -352,7 +353,7 @@ bool SourceTextModule::PrepareInstantiate(
 
   // Recurse.
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-    Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
+    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
                                     callback)) {
@@ -378,7 +379,7 @@ bool SourceTextModule::PrepareInstantiate(
                                            isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     Handle<SourceTextModuleInfoEntry> entry(
-        SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
+        Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     Handle<Object> export_name(entry->export_name(), isolate);
     if (IsUndefined(*export_name, isolate)) continue;  // Star export.
     CreateIndirectExport(isolate, module, Cast<String>(export_name), entry);
@@ -391,7 +392,7 @@ bool SourceTextModule::PrepareInstantiate(
 bool SourceTextModule::RunInitializationCode(
     Isolate* isolate, DirectHandle<SourceTextModule> module) {
   DCHECK_EQ(module->status(), kLinking);
-  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  Handle<JSFunction> function(Cast<JSFunction>(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
 
@@ -408,7 +409,7 @@ bool SourceTextModule::RunInitializationCode(
     return false;
   }
   DCHECK_EQ(*function, Cast<JSGeneratorObject>(generator)->function());
-  module->set_code(JSGeneratorObject::cast(*generator));
+  module->set_code(Cast<JSGeneratorObject>(*generator));
   return true;
 }
 
@@ -450,7 +451,7 @@ bool SourceTextModule::FinishInstantiate(
     Zone* zone) {
   // Instantiate SharedFunctionInfo and mark module as instantiating for
   // the recursion.
-  Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
+  Handle<SharedFunctionInfo> shared(Cast<SharedFunctionInfo>(module->code()),
                                     isolate);
   DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
@@ -466,7 +467,7 @@ bool SourceTextModule::FinishInstantiate(
   DirectHandle<FixedArray> requested_modules(module->requested_modules(),
                                              isolate);
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-    Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
+    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
     if (!Module::FinishInstantiate(isolate, requested_module, stack, dfs_index,
                                    zone)) {
@@ -487,7 +488,7 @@ bool SourceTextModule::FinishInstantiate(
       // SourceTextModule
       module->set_dfs_ancestor_index(std::min(
           module->dfs_ancestor_index(),
-          SourceTextModule::cast(*requested_module)->dfs_ancestor_index()));
+          Cast<SourceTextModule>(*requested_module)->dfs_ancestor_index()));
     }
   }
 
@@ -499,8 +500,8 @@ bool SourceTextModule::FinishInstantiate(
                                            isolate);
   for (int i = 0, n = regular_imports->length(); i < n; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
-        SourceTextModuleInfoEntry::cast(regular_imports->get(i)), isolate);
-    Handle<String> name(String::cast(entry->import_name()), isolate);
+        Cast<SourceTextModuleInfoEntry>(regular_imports->get(i)), isolate);
+    Handle<String> name(Cast<String>(entry->import_name()), isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     Handle<Cell> cell;
@@ -517,7 +518,7 @@ bool SourceTextModule::FinishInstantiate(
                                            isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
-        SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
+        Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     Handle<Object> name(entry->export_name(), isolate);
     if (IsUndefined(*name, isolate)) continue;  // Star export.
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
@@ -553,13 +554,13 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
                                            isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
-        SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
+        Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     if (!IsUndefined(entry->export_name(), roots)) {
       continue;  // Indirect export.
     }
 
     Handle<Module> requested_module(
-        Module::cast(module->requested_modules()->get(entry->module_request())),
+        Cast<Module>(module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.
@@ -576,12 +577,12 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     for (InternalIndex index : requested_exports->IterateEntries()) {
       Tagged<Object> key;
       if (!requested_exports->ToKey(roots, index, &key)) continue;
-      Handle<String> name(String::cast(key), isolate);
+      Handle<String> name(Cast<String>(key), isolate);
 
       if (name->Equals(roots.default_string())) continue;
       if (!IsTheHole(exports->Lookup(name), roots)) continue;
 
-      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(index)), isolate);
+      Handle<Cell> cell(Cast<Cell>(requested_exports->ValueAt(index)), isolate);
       auto insert_result = more_exports.insert(std::make_pair(name, cell));
       if (!insert_result.second) {
         auto it = insert_result.first;
@@ -664,7 +665,7 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     int module_request) {
   Handle<Module> requested_module(
-      Module::cast(module->requested_modules()->get(module_request)), isolate);
+      Cast<Module>(module->requested_modules()->get(module_request)), isolate);
   return Module::GetModuleNamespace(isolate, requested_module);
 }
 
@@ -783,7 +784,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
     //   i. Perform ! Call(module.[[TopLevelCapability]].[[Resolve]], undefined,
     //                     «undefined»).
     Handle<JSPromise> capability(
-        JSPromise::cast(module->top_level_capability()), isolate);
+        Cast<JSPromise>(module->top_level_capability()), isolate);
     JSPromise::Resolve(capability, isolate->factory()->undefined_value())
         .ToHandleChecked();
   }
@@ -848,7 +849,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
           //  ii. Perform ! Call(m.[[TopLevelCapability]].[[Resolve]],
           //                     undefined, «undefined»).
           Handle<JSPromise> capability(
-              JSPromise::cast(m->top_level_capability()), isolate);
+              Cast<JSPromise>(m->top_level_capability()), isolate);
           JSPromise::Resolve(capability, isolate->factory()->undefined_value())
               .ToHandleChecked();
         }
@@ -912,7 +913,7 @@ void SourceTextModule::AsyncModuleExecutionRejected(
     //  b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]],
     //                    undefined, «error»).
     Handle<JSPromise> capability(
-        JSPromise::cast(module->top_level_capability()), isolate);
+        Cast<JSPromise>(module->top_level_capability()), isolate);
     JSPromise::Reject(capability, exception);
   }
 }
@@ -995,7 +996,7 @@ MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
   // JSAsyncFunctionObject, which we then evaluate with the passed in promise
   // capability.
   Handle<JSAsyncFunctionObject> async_function_object(
-      JSAsyncFunctionObject::cast(module->code()), isolate);
+      Cast<JSAsyncFunctionObject>(module->code()), isolate);
   async_function_object->set_promise(*capability);
   Handle<JSFunction> resume(
       isolate->native_context()->async_module_evaluate_internal(), isolate);
@@ -1007,7 +1008,7 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     MaybeHandle<Object>* exception_out) {
   // Synchronous modules have an associated JSGeneratorObject.
-  Handle<JSGeneratorObject> generator(JSGeneratorObject::cast(module->code()),
+  Handle<JSGeneratorObject> generator(Cast<JSGeneratorObject>(module->code()),
                                       isolate);
   Handle<JSFunction> resume(
       isolate->native_context()->generator_next_internal(), isolate);
@@ -1020,8 +1021,8 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
     return {};
   }
   DCHECK(
-      Object::BooleanValue(JSIteratorResult::cast(*result)->done(), isolate));
-  return handle(JSIteratorResult::cast(*result)->value(), isolate);
+      Object::BooleanValue(Cast<JSIteratorResult>(*result)->done(), isolate));
+  return handle(Cast<JSIteratorResult>(*result)->value(), isolate);
 }
 
 MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
@@ -1082,12 +1083,12 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   // 12. For each String required that is an element of
   //     module.[[RequestedModules]], do
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-    Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
+    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
     //   d. If requiredModule is a Cyclic Module Record, then
     if (IsSourceTextModule(*requested_module)) {
       Handle<SourceTextModule> required_module(
-          SourceTextModule::cast(*requested_module), isolate);
+          Cast<SourceTextModule>(*requested_module), isolate);
       RETURN_ON_EXCEPTION(
           isolate,
           InnerModuleEvaluation(isolate, required_module, stack, dfs_index));
@@ -1213,7 +1214,7 @@ void SourceTextModule::Reset(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModule> raw_module = *module;
   if (raw_module->status() == kLinking) {
-    raw_module->set_code(JSFunction::cast(raw_module->code())->shared());
+    raw_module->set_code(Cast<JSFunction>(raw_module->code())->shared());
   }
   raw_module->set_regular_exports(*regular_exports);
   raw_module->set_regular_imports(*regular_imports);
@@ -1237,7 +1238,7 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
   for (size_t i = 0; i < stalled_modules_size; ++i) {
     Handle<SourceTextModule> found = stalled_modules[i];
     CHECK(IsJSGeneratorObject(found->code()));
-    DirectHandle<JSGeneratorObject> code(JSGeneratorObject::cast(found->code()),
+    DirectHandle<JSGeneratorObject> code(Cast<JSGeneratorObject>(found->code()),
                                          isolate);
     Handle<SharedFunctionInfo> shared(found->GetSharedFunctionInfo(), isolate);
     Handle<Object> script(shared->script(), isolate);
@@ -1265,11 +1266,11 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
   Tagged<FixedArray> requested = requested_modules();
   int length = requested->length();
   for (int i = 0; i < length; ++i) {
-    Tagged<Module> requested_module = Module::cast(requested->get(i));
+    Tagged<Module> requested_module = Cast<Module>(requested->get(i));
     if (IsSourceTextModule(requested_module) &&
         visited->insert(handle(requested_module, isolate)).second) {
       Tagged<SourceTextModule> source_text_module =
-          SourceTextModule::cast(requested_module);
+          Cast<SourceTextModule>(requested_module);
       source_text_module->InnerGetStalledTopLevelAwaitModule(isolate, visited,
                                                              result);
     }

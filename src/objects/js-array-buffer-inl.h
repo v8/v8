@@ -205,7 +205,7 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 }
 
 bool JSArrayBufferView::WasDetached() const {
-  return JSArrayBuffer::cast(buffer())->was_detached();
+  return Cast<JSArrayBuffer>(buffer())->was_detached();
 }
 
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,

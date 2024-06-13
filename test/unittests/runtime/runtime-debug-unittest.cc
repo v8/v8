@@ -71,7 +71,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
   DirectHandle<Object> entries =
       Object::GetElement(i_isolate(), result.ToHandleChecked(), 3)
           .ToHandleChecked();
-  EXPECT_EQ(1, JSArray::cast(*entries)->elements()->length());
+  EXPECT_EQ(1, Cast<JSArray>(*entries)->elements()->length());
 }
 #endif
 

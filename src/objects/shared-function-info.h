@@ -850,7 +850,6 @@ class SharedFunctionInfoWrapper : public TrustedObject {
  public:
   DECL_ACCESSORS(shared_info, Tagged<SharedFunctionInfo>)
 
-  DECL_CAST(SharedFunctionInfoWrapper)
   DECL_PRINTER(SharedFunctionInfoWrapper)
   DECL_VERIFIER(SharedFunctionInfoWrapper)
 

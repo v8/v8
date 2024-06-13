@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/objects/casting.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/slots.h"
 #include "src/objects/tagged-field.h"
@@ -195,8 +196,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Converts an address to a HeapObject pointer.
   static inline Tagged<HeapObject> FromAddress(Address address) {
     DCHECK_TAG_ALIGNED(address);
-    return Tagged<HeapObject>::unchecked_cast(
-        Tagged<Object>(address + kHeapObjectTag));
+    return Tagged<HeapObject>(address + kHeapObjectTag);
   }
 
   // Returns the address of this HeapObject.
@@ -400,8 +400,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline IndirectPointerSlot RawIndirectPointerField(
       int byte_offset, IndirectPointerTag tag) const;
 
-  DECL_CAST(HeapObject)
-
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowGarbageCollection
   // object as a sign that they are not going to use this function
@@ -500,7 +498,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 inline HeapObject::HeapObject(Address ptr) : TaggedImpl(ptr) {
   IsHeapObject(*this);
 }
-CAST_ACCESSOR(HeapObject)
 
 template <typename T>
 // static

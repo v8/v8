@@ -8,6 +8,7 @@
 
 #include "src/deoptimizer/translated-state.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/objects/casting.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -69,9 +70,9 @@ Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
-    return SharedFunctionInfo::cast(SharedFunctionInfo());
+    return Cast<i::SharedFunctionInfo>(SharedFunctionInfo());
   } else {
-    return SharedFunctionInfo::cast(LiteralArray()->get(index));
+    return Cast<i::SharedFunctionInfo>(LiteralArray()->get(index));
   }
 }
 
@@ -147,7 +148,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
     Tagged<Object> info = LiteralArray()->get(id);
-    os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
+    os << " " << Brief(Cast<i::SharedFunctionInfo>(info)) << "\n";
   }
   os << "\n";
   int deopt_count = DeoptCount();

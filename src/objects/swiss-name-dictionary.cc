@@ -64,7 +64,7 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
       Tagged<Object> value = table->ValueAtRaw(entry);
       PropertyDetails details = table->DetailsAt(entry);
 
-      int new_entry = new_table->AddInternal(Name::cast(key), value, details);
+      int new_entry = new_table->AddInternal(Cast<Name>(key), value, details);
 
       // TODO(v8::11388) Investigate ways of hoisting the branching needed to
       // select the correct meta table entry size (based on the capacity of the
@@ -231,7 +231,7 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
     if (!ToKey(roots, entry, &key)) continue;
 
     data[data_index++] =
-        Entry{Name::cast(key), ValueAtRaw(entry), DetailsAt(entry)};
+        Entry{Cast<Name>(key), ValueAtRaw(entry), DetailsAt(entry)};
   }
 
   Initialize(isolate, meta_table(), Capacity());

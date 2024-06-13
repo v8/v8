@@ -16,13 +16,13 @@ namespace internal {
 Tagged<DependentCode> DependentCode::GetDependentCode(
     Tagged<HeapObject> object) {
   if (IsMap(object)) {
-    return Map::cast(object)->dependent_code();
+    return Cast<Map>(object)->dependent_code();
   } else if (IsPropertyCell(object)) {
-    return PropertyCell::cast(object)->dependent_code();
+    return Cast<PropertyCell>(object)->dependent_code();
   } else if (IsAllocationSite(object)) {
-    return AllocationSite::cast(object)->dependent_code();
+    return Cast<AllocationSite>(object)->dependent_code();
   } else if (IsConstTrackingLetCell(object)) {
-    return ConstTrackingLetCell::cast(object)->dependent_code();
+    return Cast<ConstTrackingLetCell>(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -115,7 +115,7 @@ void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
       continue;
     }
 
-    if (fn(CodeWrapper::cast(obj.GetHeapObjectAssumeWeak())->code(isolate),
+    if (fn(Cast<CodeWrapper>(obj.GetHeapObjectAssumeWeak())->code(isolate),
            static_cast<DependencyGroups>(
                Get(i + kGroupsSlotOffset).ToSmi().value()))) {
       len = FillEntryFromBack(i, len);
@@ -180,7 +180,7 @@ void DependentCode::DeoptimizeDependencyGroups(
 // static
 Tagged<DependentCode> DependentCode::empty_dependent_code(
     const ReadOnlyRoots& roots) {
-  return DependentCode::cast(roots.empty_weak_array_list());
+  return Cast<DependentCode>(roots.empty_weak_array_list());
 }
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {

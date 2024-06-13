@@ -40,7 +40,7 @@ uint32_t Arguments<T>::positive_smi_value_at(int index) const {
 
 template <ArgumentsType T>
 int Arguments<T>::tagged_index_value_at(int index) const {
-  return static_cast<int>(TaggedIndex::cast((*this)[index]).value());
+  return static_cast<int>(Cast<TaggedIndex>((*this)[index]).value());
 }
 
 template <ArgumentsType T>

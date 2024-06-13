@@ -8236,7 +8236,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* receiver_node;
     if (IsJSBoundFunction(*callable)) {
       target =
-          handle(JSFunction::cast(
+          handle(Cast<JSFunction>(
                      Cast<JSBoundFunction>(callable)->bound_target_function()),
                  callable->GetIsolate());
       target_node =

@@ -598,7 +598,7 @@ bool ISOYearMonthWithinLimits(int32_t year, int32_t month) {
 
 #define CONSTRUCTOR(name)                                                      \
   Handle<JSFunction>(                                                          \
-      JSFunction::cast(                                                        \
+      Cast<JSFunction>(                                                        \
           isolate->context()->native_context()->temporal_##name##_function()), \
       isolate)
 
@@ -2139,7 +2139,7 @@ MaybeHandle<T> FromFields(Isolate* isolate, Handle<JSReceiver> calendar,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, Execution::Call(isolate, function, calendar, 2, argv));
   if ((!IsHeapObject(*result)) ||
-      HeapObject::cast(*result)->map()->instance_type() != type) {
+      Cast<HeapObject>(*result)->map()->instance_type() != type) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
   }
   return Cast<T>(result);
@@ -2269,7 +2269,7 @@ MaybeHandle<JSTemporalInstant> ToTemporalInstant(Isolate* isolate,
   if (IsJSTemporalZonedDateTime(*item)) {
     // i. Return ! CreateTemporalInstant(item.[[Nanoseconds]]).
     Handle<BigInt> nanoseconds =
-        handle(JSTemporalZonedDateTime::cast(*item)->nanoseconds(), isolate);
+        handle(Cast<JSTemporalZonedDateTime>(*item)->nanoseconds(), isolate);
     return temporal::CreateTemporalInstant(isolate, nanoseconds)
         .ToHandleChecked();
   }
@@ -16078,7 +16078,7 @@ MaybeHandle<BigInt> InterpretISODateTimeOffset(
   for (int i = 0; i < possible_instants->length(); i++) {
     DCHECK(IsJSTemporalInstant(possible_instants->get(i)));
     Handle<JSTemporalInstant> candidate(
-        JSTemporalInstant::cast(possible_instants->get(i)), isolate);
+        Cast<JSTemporalInstant>(possible_instants->get(i)), isolate);
     // a. Let candidateNanoseconds be ? GetOffsetNanosecondsFor(timeZone,
     // candidate).
     int64_t candidate_nanoseconds;
@@ -17785,7 +17785,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
     // a. Return ? CreateTemporalInstant(item.[[Nanoseconds]]).
     return temporal::CreateTemporalInstant(
         isolate,
-        handle(JSTemporalInstant::cast(*item)->nanoseconds(), isolate));
+        handle(Cast<JSTemporalInstant>(*item)->nanoseconds(), isolate));
   }
   // 2. Return ? ToTemporalInstant(item).
   return ToTemporalInstant(isolate, item, "Temporal.Instant.from");
@@ -18361,7 +18361,7 @@ MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
     Tagged<Object> item = fields_name->get(i);
     DCHECK(IsString(item));
     if (String::Equals(isolate, next_value,
-                       handle(String::cast(item), isolate))) {
+                       handle(Cast<String>(item), isolate))) {
       return isolate->factory()->true_value();
     }
   }

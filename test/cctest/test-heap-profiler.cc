@@ -4174,12 +4174,12 @@ TEST(WeakReference) {
 
   i::DirectHandle<i::Object> obj = v8::Utils::OpenDirectHandle(*script);
   i::DirectHandle<i::SharedFunctionInfo> shared_function(
-      i::JSFunction::cast(*obj)->shared(), i_isolate);
+      i::Cast<i::JSFunction>(*obj)->shared(), i_isolate);
   i::DirectHandle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
   i::DirectHandle<i::FeedbackVector> fv = factory->NewFeedbackVector(
       shared_function, feedback_cell_array,
-      handle(i::JSFunction::cast(*obj)->raw_feedback_cell(), i_isolate));
+      handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(), i_isolate));
 
   // Create a Code object.
   i::Assembler assm(i::AssemblerOptions{});

@@ -90,6 +90,10 @@ template <typename To, typename From>
 inline Tagged<To> UncheckedCast(Tagged<From> value) {
   return Tagged<To>(value.ptr());
 }
+template <typename To, typename From>
+inline Tagged<To> UncheckedCast(const From& value) {
+  return UncheckedCast<To>(Tagged(value));
+}
 
 // `Is<T>(maybe_weak_value)` specialization for possible weak values and strong
 // target `T`, that additionally first checks whether `maybe_weak_value` is

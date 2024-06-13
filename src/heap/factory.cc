@@ -305,9 +305,8 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
   result->set_map_after_allocation(*map, write_barrier_mode);
   if (!allocation_site.is_null()) {
     int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(map->instance_size());
-    Tagged<AllocationMemento> alloc_memento =
-        Tagged<AllocationMemento>::unchecked_cast(
-            Tagged<Object>(result.ptr() + aligned_size));
+    Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
+        Tagged<Object>(result.ptr() + aligned_size));
     InitializeAllocationMemento(alloc_memento, *allocation_site);
   }
   return result;
@@ -392,7 +391,7 @@ Handle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 }
 
 Handle<Hole> Factory::NewHole() {
-  Handle<Hole> hole(Hole::cast(New(hole_map(), AllocationType::kReadOnly)),
+  Handle<Hole> hole(Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)),
                     isolate());
   Hole::Initialize(isolate(), hole, hole_nan_value());
   return hole;
@@ -509,7 +508,7 @@ Handle<T> Factory::AllocateSmallOrderedHashTable(DirectHandle<Map> map,
   int size = T::SizeFor(capacity);
   Tagged<HeapObject> result =
       AllocateRawWithImmortalMap(size, allocation, *map);
-  Handle<T> table(T::cast(result), isolate());
+  Handle<T> table(Cast<T>(result), isolate());
   table->Initialize(isolate(), capacity);
   return table;
 }
@@ -1731,7 +1730,7 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
   DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
   DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
   raw->set_map_after_allocation(*rtt);
-  Tagged<WasmFuncRef> func_ref = WasmFuncRef::cast(raw);
+  Tagged<WasmFuncRef> func_ref = Cast<WasmFuncRef>(raw);
   func_ref->set_internal(*internal_function);
   return handle(func_ref, isolate());
 }
@@ -1937,7 +1936,7 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
   }
 
   DirectHandle<FixedArray> elements =
-      handle(FixedArray::cast(
+      handle(Cast<FixedArray>(
                  trusted_instance_data->element_segments()->get(segment_index)),
              isolate());
 
@@ -1957,7 +1956,7 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   Tagged<HeapObject> raw =
       AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw->set_map_after_allocation(*map);
-  Tagged<WasmStruct> result = WasmStruct::cast(raw);
+  Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     int offset = type->field_offset(i);
@@ -2127,7 +2126,7 @@ Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
                               ? allocation_site_map()
                               : allocation_site_without_weaknext_map();
   Handle<AllocationSite> site(
-      AllocationSite::cast(New(map, AllocationType::kOld)), isolate());
+      Cast<AllocationSite>(New(map, AllocationType::kOld)), isolate());
   site->Initialize();
 
   if (with_weak_next) {
@@ -2166,7 +2165,7 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
                     InstanceTypeChecker::kNonJsReceiverMapLimit);
 #endif
   isolate()->counters()->maps_created()->Increment();
-  return handle(InitializeMap(Map::cast(result), type, instance_size,
+  return handle(InitializeMap(Cast<Map>(result), type, instance_size,
                               elements_kind, inobject_properties, roots),
                 isolate());
 }
@@ -2361,7 +2360,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), raw_clone);
 
   Heap::CopyBlock(raw_clone.address(), source->address(), object_size);
-  Handle<JSObject> clone(JSObject::cast(raw_clone), isolate());
+  Handle<JSObject> clone(Cast<JSObject>(raw_clone), isolate());
 
   if (v8_flags.enable_unconditional_write_barriers) {
     // By default, we shouldn't need to update the write barrier here, as the
@@ -2371,9 +2370,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     isolate()->heap()->WriteBarrierForRange(raw_clone, start, end);
   }
   if (!site.is_null()) {
-    Tagged<AllocationMemento> alloc_memento =
-        Tagged<AllocationMemento>::unchecked_cast(
-            Tagged<Object>(raw_clone.ptr() + aligned_object_size));
+    Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
+        Tagged<Object>(raw_clone.ptr() + aligned_object_size));
     InitializeAllocationMemento(alloc_memento, *site);
   }
 
@@ -2386,7 +2384,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       elem = elements;
     } else if (source->HasDoubleElements()) {
       elem = *CopyFixedDoubleArray(
-          handle(FixedDoubleArray::cast(elements), isolate()));
+          handle(Cast<FixedDoubleArray>(elements), isolate()));
     } else {
       elem = *CopyFixedArray(handle(Cast<FixedArray>(elements), isolate()));
     }
@@ -2768,7 +2766,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
     DirectHandle<BytecodeArray> source) {
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
-  Tagged<BytecodeArray> copy = BytecodeArray::cast(AllocateRawWithImmortalMap(
+  Tagged<BytecodeArray> copy = Cast<BytecodeArray>(AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
@@ -2865,7 +2863,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Allocate the global object and initialize it with the backing store.
   Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(New(map, AllocationType::kOld)), isolate());
+      Cast<JSGlobalObject>(New(map, AllocationType::kOld)), isolate());
   InitializeJSObjectFromMap(*global, *dictionary, *map,
                             NewJSObjectType::kAPIWrapper);
 
@@ -3147,7 +3145,7 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
   DirectHandle<Map> map(native_context->js_weak_map_fun()->initial_map(),
                         isolate());
-  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
+  Handle<JSWeakMap> weakmap(Cast<JSWeakMap>(*NewJSObjectFromMap(map)),
                             isolate());
   {
     // Do not leak handles for the hash table, it would make entries strong.
@@ -3174,7 +3172,7 @@ Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
     DirectHandle<NativeContext> creation_context, DirectHandle<Object> target) {
   DCHECK(IsCallable(*target));
   DirectHandle<Map> map(
-      Map::cast(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
+      Cast<Map>(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
       isolate());
   // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
   // 3. Set wrapped.[[Prototype]] to
@@ -3862,7 +3860,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
   // TODO(chromium:1503456): remove once fixed.
   CHECK_LE(0, number_of_properties);
 
-  DirectHandle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
+  DirectHandle<WeakFixedArray> cache(Cast<WeakFixedArray>(context->map_cache()),
                                      isolate());
 
   // Check to see whether there is a matching element in the cache.
@@ -3908,7 +3906,7 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
     default:
       UNREACHABLE();
   }
-  return handle(LoadHandler::cast(New(map, allocation)), isolate());
+  return handle(Cast<LoadHandler>(New(map, allocation)), isolate());
 }
 
 Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
@@ -3929,7 +3927,7 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
     default:
       UNREACHABLE();
   }
-  return handle(StoreHandler::cast(New(map, AllocationType::kOld)), isolate());
+  return handle(Cast<StoreHandler>(New(map, AllocationType::kOld)), isolate());
 }
 
 void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
@@ -4364,7 +4362,7 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     int length, bool do_not_cache) {
   const int size = FunctionTemplateInfo::SizeFor();
   Tagged<FunctionTemplateInfo> obj =
-      FunctionTemplateInfo::cast(AllocateRawWithImmortalMap(
+      Cast<FunctionTemplateInfo>(AllocateRawWithImmortalMap(
           size, AllocationType::kOld,
           read_only_roots().function_template_info_map()));
   {
@@ -4397,7 +4395,7 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
 Handle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
     DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache) {
   const int size = ObjectTemplateInfo::SizeFor();
-  Tagged<ObjectTemplateInfo> obj = ObjectTemplateInfo::cast(
+  Tagged<ObjectTemplateInfo> obj = Cast<ObjectTemplateInfo>(
       AllocateRawWithImmortalMap(size, AllocationType::kOld,
                                  read_only_roots().object_template_info_map()));
   {
@@ -4421,7 +4419,7 @@ Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   const int size = DictionaryTemplateInfo::SizeFor();
   DirectHandle<Map> map =
       read_only_roots().dictionary_template_info_map_handle();
-  Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
+  Tagged<DictionaryTemplateInfo> obj = Cast<DictionaryTemplateInfo>(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
   obj->set_property_names(*property_names);
   obj->set_serial_number(TemplateInfo::kUncached);
@@ -4496,7 +4494,7 @@ void Factory::JSFunctionBuilder::PrepareMap() {
   if (maybe_map_.is_null()) {
     // No specific map requested, use the default.
     maybe_map_ = handle(
-        Map::cast(context_->native_context()->get(sfi_->function_map_index())),
+        Cast<Map>(context_->native_context()->get(sfi_->function_map_index())),
         isolate_);
   }
 }

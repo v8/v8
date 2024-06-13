@@ -1802,7 +1802,7 @@ GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
     Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
     if (code->IsWeakObjectInOptimizedCode(target_object)) {
       if (IsMap(target_object, cage_base)) {
-        maps.Push(Map::cast(target_object));
+        maps.Push(Cast<Map>(target_object));
       }
     }
   }

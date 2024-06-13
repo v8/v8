@@ -48,7 +48,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
     // objects are just passed around as Smis.
     return;
   }
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   const auto worklist_target =
       MarkingHelper::ShouldMarkObject(heap_, heap_object);
   if (worklist_target) {

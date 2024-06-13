@@ -45,7 +45,7 @@ Maybe<bool> JSDisposableStack::DisposeResources(
     //  a. Let result be Completion(Dispose(resource.[[ResourceValue]],
     //  resource.[[Hint]], resource.[[DisposeMethod]])).
     auto call_type_case =
-        static_cast<DisposeMethodCallType>(Smi::cast(call_type).value());
+        static_cast<DisposeMethodCallType>(Cast<Smi>(call_type).value());
     switch (call_type_case) {
       case DisposeMethodCallType::kValueIsReceiver:
         result = Execution::Call(isolate, method, value, 0, nullptr);

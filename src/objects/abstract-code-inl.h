@@ -17,7 +17,6 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
-CAST_ACCESSOR(AbstractCode)
 
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Tagged<Map> map_object = map(cage_base);
@@ -123,10 +122,10 @@ bool AbstractCode::has_instruction_stream(PtrComprCageBase cage_base) {
   return GetCode()->has_instruction_stream();
 }
 
-Tagged<Code> AbstractCode::GetCode() { return Code::cast(*this); }
+Tagged<Code> AbstractCode::GetCode() { return Cast<Code>(*this); }
 
 Tagged<BytecodeArray> AbstractCode::GetBytecodeArray() {
-  return BytecodeArray::cast(*this);
+  return Cast<BytecodeArray>(*this);
 }
 
 }  // namespace internal

@@ -335,7 +335,7 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   for (int i = 0; i < keys->length(); ++i) {
-    Handle<Name> key(Name::cast(keys->get(i)), isolate);
+    Handle<Name> key(Cast<Name>(keys->get(i)), isolate);
     PropertyDescriptor descriptor;
     Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(
         isolate, receiver, key, &descriptor);

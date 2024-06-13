@@ -402,7 +402,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       end_of_previous_object = object.address() + size;
 
       if (IsExternalString(object, cage_base)) {
-        Tagged<ExternalString> external_string = ExternalString::cast(object);
+        Tagged<ExternalString> external_string = Cast<ExternalString>(object);
         size_t payload_size = external_string->ExternalPayloadSize();
         external_page_bytes[static_cast<int>(
             ExternalBackingStoreType::kExternalString)] += payload_size;

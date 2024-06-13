@@ -31,11 +31,11 @@ ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 
 PropertyDetails PropertyCell::property_details() const {
-  return PropertyDetails(Smi::cast(property_details_raw()));
+  return PropertyDetails(Cast<Smi>(property_details_raw()));
 }
 
 PropertyDetails PropertyCell::property_details(AcquireLoadTag tag) const {
-  return PropertyDetails(Smi::cast(property_details_raw(tag)));
+  return PropertyDetails(Cast<Smi>(property_details_raw(tag)));
 }
 
 void PropertyCell::UpdatePropertyDetailsExceptCellType(

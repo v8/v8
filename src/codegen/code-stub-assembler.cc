@@ -14808,16 +14808,16 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   // Pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) {
-  //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;
+  //   if (lhs->IsHeapNumber()) return Cast<HeapNumber>(lhs)->value() != NaN;
   //   return true;
   // }
   // if (!IsSmi(lhs)) {
   //   if (lhs->IsHeapNumber()) {
   //     if (IsSmi(rhs)) {
-  //       return Smi::ToInt(rhs) == HeapNumber::cast(lhs)->value();
+  //       return Smi::ToInt(rhs) == Cast<HeapNumber>(lhs)->value();
   //     } else if (rhs->IsHeapNumber()) {
-  //       return HeapNumber::cast(rhs)->value() ==
-  //       HeapNumber::cast(lhs)->value();
+  //       return Cast<HeapNumber>(rhs)->value() ==
+  //       Cast<HeapNumber>(lhs)->value();
   //     } else {
   //       return false;
   //     }
@@ -14847,7 +14847,7 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   //     return false;
   //   } else {
   //     if (rhs->IsHeapNumber()) {
-  //       return Smi::ToInt(lhs) == HeapNumber::cast(rhs)->value();
+  //       return Smi::ToInt(lhs) == Cast<HeapNumber>(rhs)->value();
   //     } else {
   //       return false;
   //     }

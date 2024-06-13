@@ -154,7 +154,7 @@ void Accessors::ArrayLengthGetter(
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   Tagged<JSArray> holder =
-      JSArray::cast(*Utils::OpenDirectHandle(*info.Holder()));
+      Cast<JSArray>(*Utils::OpenDirectHandle(*info.Holder()));
   Tagged<Object> result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
@@ -236,7 +236,7 @@ void Accessors::ModuleNamespaceEntryGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Tagged<JSModuleNamespace> holder =
-      JSModuleNamespace::cast(*Utils::OpenDirectHandle(*info.Holder()));
+      Cast<JSModuleNamespace>(*Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result;
   if (holder->GetExport(isolate, Cast<String>(Utils::OpenHandle(*name)))
           .ToHandle(&result)) {
@@ -289,10 +289,10 @@ void Accessors::StringLengthGetter(
   if (!IsString(value)) {
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
-    value = JSPrimitiveWrapper::cast(*Utils::OpenDirectHandle(*info.Holder()))
+    value = Cast<JSPrimitiveWrapper>(*Utils::OpenDirectHandle(*info.Holder()))
                 ->value();
   }
-  Tagged<Object> result = Smi::FromInt(String::cast(value)->length());
+  Tagged<Object> result = Smi::FromInt(Cast<String>(value)->length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -493,7 +493,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     DirectHandle<JSObject> arguments_from_deopt_info =
         ArgumentsFromDeoptInfo(frame, function_index);
     DirectHandle<FixedArray> elements_from_deopt_info(
-        FixedArray::cast(arguments_from_deopt_info->elements()), isolate);
+        Cast<FixedArray>(arguments_from_deopt_info->elements()), isolate);
     int common_length = std::min(length, elements_from_deopt_info->length());
     for (int i = 0; i < common_length; i++) {
       array->set(i, elements_from_deopt_info->get(i));

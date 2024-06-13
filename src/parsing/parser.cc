@@ -588,7 +588,7 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
     if (!flags().is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script->source())->length();
+      end = Cast<String>(script->source())->length();
     }
     LOG(isolate,
         FunctionEvent(event_name, flags().script_id(), ms, start, end, "", 0));
@@ -759,7 +759,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (int i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
-        String::cast(arguments->get(i)),
+        Cast<String>(arguments->get(i)),
         SharedStringAccessGuardIfNeeded(isolate));
     arguments_for_wrapped_function->Add(argument_string, zone);
   }
@@ -904,7 +904,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
   DCHECK_EQ(factory()->zone(), info->zone());
 
-  DirectHandle<Script> script(Script::cast(shared_info->script()), isolate);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
   if (shared_info->is_wrapped()) {
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }

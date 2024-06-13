@@ -131,7 +131,7 @@ class Expectations {
       os << "Descriptor @ ";
 
       if (kinds_[i] == PropertyKind::kData) {
-        FieldType::PrintTo(FieldType::cast(*values_[i]), os);
+        FieldType::PrintTo(Cast<FieldType>(*values_[i]), os);
       } else {
         // kAccessor
         os << "(get: " << Brief(*values_[i])
@@ -263,7 +263,7 @@ class Expectations {
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
         Tagged<FieldType> type = descriptors->GetFieldType(descriptor);
-        return FieldType::cast(expected_value) == type;
+        return Cast<FieldType>(expected_value) == type;
       } else {
         // kAccessor
         UNREACHABLE();
@@ -273,7 +273,7 @@ class Expectations {
       Tagged<Object> value = descriptors->GetStrongValue(descriptor);
       if (value == expected_value) return true;
       if (!IsAccessorPair(value)) return false;
-      Tagged<AccessorPair> pair = AccessorPair::cast(value);
+      Tagged<AccessorPair> pair = Cast<AccessorPair>(value);
       return pair->Equals(expected_value, *setter_values_[descriptor.as_int()]);
     }
     UNREACHABLE();
@@ -768,7 +768,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     while (true) {
       Tagged<Object> back = tmp->GetBackPointer();
       if (IsUndefined(back, isolate)) break;
-      tmp = Map::cast(back);
+      tmp = Cast<Map>(back);
       CHECK(!tmp->is_stable());
     }
   }
@@ -3312,11 +3312,11 @@ TEST(HoleyHeapNumber) {
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
   CHECK(IsHeapNumber(*obj));
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, Cast<HeapNumber>(*obj)->value_as_bits());
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
   CHECK(IsHeapNumber(*obj));
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, Cast<HeapNumber>(*obj)->value_as_bits());
 }
 
 namespace {

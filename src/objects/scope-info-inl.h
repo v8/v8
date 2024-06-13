@@ -72,7 +72,7 @@ class ScopeInfo::LocalNamesRange {
         return scope_info()->ContextInlinedLocalName(cage_base,
                                                      index_.as_int());
       }
-      return String::cast(table()->KeyAt(cage_base, index_));
+      return Cast<String>(table()->KeyAt(cage_base, index_));
     }
 
     Tagged<String> name() const {

@@ -80,7 +80,7 @@ class SlotAccessorForHeapObject {
     // we must have one of these objects here. See the comments in
     // trusted-object.h for more details.
     DCHECK(IsExposedTrustedObject(value));
-    Tagged<ExposedTrustedObject> object = ExposedTrustedObject::cast(value);
+    Tagged<ExposedTrustedObject> object = Cast<ExposedTrustedObject>(value);
 
     InstanceType instance_type = value->map()->instance_type();
     IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
@@ -93,7 +93,7 @@ class SlotAccessorForHeapObject {
 
   int WriteProtectedPointerTo(Tagged<TrustedObject> value) {
     DCHECK(IsTrustedObject(*object_));
-    Tagged<TrustedObject> host = TrustedObject::cast(*object_);
+    Tagged<TrustedObject> host = Cast<TrustedObject>(*object_);
     ProtectedPointerSlot dest = host->RawProtectedPointerField(offset_);
     dest.store(value);
     ProtectedPointerWriteBarrier(host, dest, value, UPDATE_WRITE_BARRIER);
@@ -202,7 +202,7 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
   } else if (descr.is_protected_pointer) {
     DCHECK(IsTrustedObject(*heap_object));
     return slot_accessor.WriteProtectedPointerTo(
-        TrustedObject::cast(*heap_object));
+        Cast<TrustedObject>(*heap_object));
   } else {
     return slot_accessor.Write(heap_object, descr.type);
   }
@@ -446,8 +446,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
 
   if (InstanceTypeChecker::IsJSDataView(instance_type) ||
       InstanceTypeChecker::IsJSRabGsabDataView(instance_type)) {
-    auto data_view = JSDataViewOrRabGsabDataView::cast(*obj);
-    auto buffer = JSArrayBuffer::cast(data_view->buffer());
+    auto data_view = Cast<JSDataViewOrRabGsabDataView>(*obj);
+    auto buffer = Cast<JSArrayBuffer>(data_view->buffer());
     if (buffer->was_detached()) {
       // Directly set the data pointer to point to the EmptyBackingStoreBuffer.
       // Otherwise, we might end up setting it to EmptyBackingStoreBuffer() +
@@ -461,7 +461,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
           reinterpret_cast<uint8_t*>(backing_store) + data_view->byte_offset());
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
-    auto typed_array = JSTypedArray::cast(*obj);
+    auto typed_array = Cast<JSTypedArray>(*obj);
     // Note: ByteArray objects must not be deferred s.t. they are
     // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
@@ -479,7 +479,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
                                      typed_array->byte_offset());
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
-    auto buffer = JSArrayBuffer::cast(*obj);
+    auto buffer = Cast<JSArrayBuffer>(*obj);
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
@@ -519,7 +519,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
   if (should_rehash()) {
     if (InstanceTypeChecker::IsString(instance_type)) {
       // Uninitialize hash field as we need to recompute the hash.
-      Tagged<String> string = String::cast(raw_obj);
+      Tagged<String> string = Cast<String>(raw_obj);
       string->set_raw_hash_field(String::kEmptyHashField);
       // Rehash strings before read-only space is sealed. Strings outside
       // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
@@ -547,7 +547,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
             *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
-          String::cast(raw_obj)->MakeThin(isolate(), result);
+          Cast<String>(raw_obj)->MakeThin(isolate(), result);
           // Mutate the given object handle so that the backreference entry is
           // also updated.
           obj.PatchValue(result);
@@ -578,7 +578,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
       new_code_objects_.push_back(Cast<InstructionStream>(obj));
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
-    Tagged<Code> code = Code::cast(raw_obj);
+    Tagged<Code> code = Cast<Code>(raw_obj);
     if (!code->has_instruction_stream()) {
       code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
@@ -588,7 +588,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
                                    code->instruction_stream());
     }
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(raw_obj);
+    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(raw_obj);
     // Reset the id to avoid collisions - it must be unique in this isolate.
     sfi->set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
@@ -606,7 +606,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     function_template_infos_.push_back(Cast<FunctionTemplateInfo>(obj));
 #endif
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
-    PostProcessExternalString(ExternalString::cast(raw_obj),
+    PostProcessExternalString(Cast<ExternalString>(raw_obj),
                               main_thread_isolate());
   } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     // PostProcessNewJSReceiver may trigger GC.
@@ -618,10 +618,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     auto descriptors = Cast<DescriptorArray>(obj);
     new_descriptor_arrays_.Push(*descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
-    NativeContext::cast(raw_obj)->init_microtask_queue(main_thread_isolate(),
+    Cast<NativeContext>(raw_obj)->init_microtask_queue(main_thread_isolate(),
                                                        nullptr);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
-    LogScriptEvents(Script::cast(*obj));
+    LogScriptEvents(Cast<Script>(*obj));
   }
 }
 
@@ -734,12 +734,12 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
   if (IsSharedFunctionInfo(raw_obj, isolate())) {
-    SharedFunctionInfo::cast(raw_obj)->set_age(0);
+    Cast<SharedFunctionInfo>(raw_obj)->set_age(0);
   } else if (IsEphemeronHashTable(raw_obj)) {
     // Make sure EphemeronHashTables have valid HeapObject keys, so that the
     // marker does not break when marking EphemeronHashTable, see
     // MarkingVisitorBase::VisitEphemeronHashTable.
-    Tagged<EphemeronHashTable> table = EphemeronHashTable::cast(raw_obj);
+    Tagged<EphemeronHashTable> table = Cast<EphemeronHashTable>(raw_obj);
     MemsetTagged(table->RawField(table->kElementsStartOffset),
                  ReadOnlyRoots(isolate()).undefined_value(),
                  (size_in_bytes - table->kElementsStartOffset) / kTaggedSize);
@@ -749,8 +749,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
   if (IsJSObject(raw_obj, cage_base) &&
-      JSObject::cast(raw_obj)->MayHaveEmbedderFields()) {
-    Tagged<JSObject> js_obj = JSObject::cast(raw_obj);
+      Cast<JSObject>(raw_obj)->MayHaveEmbedderFields()) {
+    Tagged<JSObject> js_obj = Cast<JSObject>(raw_obj);
     for (int i = 0; i < js_obj->GetEmbedderFieldCount(); ++i) {
       void* pointer;
       CHECK(EmbedderDataSlot(js_obj, i).ToAlignedPointer(main_thread_isolate(),
@@ -758,7 +758,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
       CHECK_NULL(pointer);
     }
   } else if (IsEmbedderDataArray(raw_obj, cage_base)) {
-    Tagged<EmbedderDataArray> array = EmbedderDataArray::cast(raw_obj);
+    Tagged<EmbedderDataArray> array = Cast<EmbedderDataArray>(raw_obj);
     EmbedderDataSlot start(array, 0);
     EmbedderDataSlot end(array, array->length());
     for (EmbedderDataSlot slot = start; slot < end; ++slot) {
@@ -799,7 +799,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
-  raw_obj->set_map_after_allocation(Map::unchecked_cast(raw_obj));
+  raw_obj->set_map_after_allocation(UncheckedCast<Map>(raw_obj));
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
   DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
@@ -808,7 +808,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   back_refs_.push_back(obj);
 
   // Set the instance-type manually, to allow backrefs to read it.
-  Map::unchecked_cast(*obj)->set_instance_type(MAP_TYPE);
+  UncheckedCast<Map>(*obj)->set_instance_type(MAP_TYPE);
 
   ReadData(obj, 1, size_in_tagged);
   PostProcessNewObject(Cast<Map>(obj), obj, space);
@@ -1036,7 +1036,7 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
   int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the startup_object_cache
   // entry as a Handle backing?
-  Tagged<HeapObject> heap_object = HeapObject::cast(
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(
       main_thread_isolate()->startup_object_cache()->at(cache_index));
   return WriteHeapPointer(slot_accessor, heap_object,
                           GetAndResetNextReferenceDescriptor());
@@ -1051,7 +1051,7 @@ int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
   int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
-  Tagged<HeapObject> heap_object = HeapObject::cast(
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(
       main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
   DCHECK(SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(heap_object));
   return WriteHeapPointer(slot_accessor, heap_object,
@@ -1273,7 +1273,7 @@ int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
             ExposedTrustedObject::kSelfIndirectPointerOffset);
 
   Tagged<ExposedTrustedObject> host =
-      ExposedTrustedObject::cast(*slot_accessor.object());
+      Cast<ExposedTrustedObject>(*slot_accessor.object());
   host->init_self_indirect_pointer(isolate());
 
   return 1;

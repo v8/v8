@@ -193,10 +193,10 @@ bool IsNullOrUndefined(Tagged<HeapObject> obj) {
 bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
 
 bool IsPublicSymbol(Tagged<Object> obj) {
-  return IsSymbol(obj) && !Symbol::cast(obj)->is_private();
+  return IsSymbol(obj) && !Cast<Symbol>(obj)->is_private();
 }
 bool IsPrivateSymbol(Tagged<Object> obj) {
-  return IsSymbol(obj) && Symbol::cast(obj)->is_private();
+  return IsSymbol(obj) && Cast<Symbol>(obj)->is_private();
 }
 
 bool IsNoSharedNameSentinel(Tagged<Object> obj) {
@@ -413,7 +413,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableApiObject) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNonNullForeign) {
   return IsForeign(obj, cage_base) &&
-         Foreign::cast(obj)->foreign_address_unchecked() != kNullAddress;
+         Cast<Foreign>(obj)->foreign_address_unchecked() != kNullAddress;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {
@@ -431,37 +431,37 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsThinString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsThin();
+  return StringShape(Cast<String>(obj)->map()).IsThin();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSlicedString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsSliced();
+  return StringShape(Cast<String>(obj)->map()).IsSliced();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsSequential();
+  return StringShape(Cast<String>(obj)->map()).IsSequential();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqOneByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsSequentialOneByte();
+  return StringShape(Cast<String>(obj)->map()).IsSequentialOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqTwoByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsSequentialTwoByte();
+  return StringShape(Cast<String>(obj)->map()).IsSequentialTwoByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsExternalOneByte();
+  return StringShape(Cast<String>(obj)->map()).IsExternalOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map()).IsExternalTwoByte();
+  return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
 }
 
 bool IsNumber(Tagged<Object> obj) {
@@ -508,7 +508,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = ProtectedFixedArray::cast(obj)->length();
+  int length = Cast<ProtectedFixedArray>(obj)->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -529,32 +529,32 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsOSROptimizedCodeCache) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsString(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsString(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBooleanWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsBoolean(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsBoolean(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsScriptWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsScript(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsScript(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNumberWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsNumber(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsNumber(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBigIntWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsBigInt(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsBigInt(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSymbolWrapper) {
   return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsSymbol(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
+         IsSymbol(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringSet) {
@@ -588,14 +588,14 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
 // static
 bool IsPrimitive(Tagged<Object> obj) {
   if (obj.IsSmi()) return true;
-  Tagged<HeapObject> this_heap_object = HeapObject::cast(obj);
+  Tagged<HeapObject> this_heap_object = Cast<HeapObject>(obj);
   PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
   return IsPrimitiveMap(this_heap_object->map(cage_base));
 }
 
 // static
 bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsPrimitiveMap(HeapObject::cast(obj)->map(cage_base));
+  return obj.IsSmi() || IsPrimitiveMap(Cast<HeapObject>(obj)->map(cage_base));
 }
 
 // static
@@ -613,7 +613,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
   if (IsJSGlobalProxy(obj, cage_base)) {
-    const Tagged<JSGlobalProxy> proxy = JSGlobalProxy::cast(obj);
+    const Tagged<JSGlobalProxy> proxy = Cast<JSGlobalProxy>(obj);
     Tagged<JSGlobalObject> global =
         proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
@@ -643,9 +643,8 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 // static
 double Object::NumberValue(Tagged<Number> obj) {
   DCHECK(IsNumber(obj));
-  return IsSmi(obj)
-             ? static_cast<double>(Tagged<Smi>::unchecked_cast(obj).value())
-             : HeapNumber::unchecked_cast(obj)->value();
+  return IsSmi(obj) ? static_cast<double>(UncheckedCast<Smi>(obj).value())
+                    : UncheckedCast<HeapNumber>(obj)->value();
 }
 // TODO(leszeks): Remove in favour of Tagged<Number>
 // static
@@ -671,12 +670,12 @@ bool Object::SameNumberValue(double value1, double value2) {
 
 // static
 bool IsNaN(Tagged<Object> obj) {
-  return IsHeapNumber(obj) && std::isnan(HeapNumber::cast(obj)->value());
+  return IsHeapNumber(obj) && std::isnan(Cast<HeapNumber>(obj)->value());
 }
 
 // static
 bool IsMinusZero(Tagged<Object> obj) {
-  return IsHeapNumber(obj) && i::IsMinusZero(HeapNumber::cast(obj)->value());
+  return IsHeapNumber(obj) && i::IsMinusZero(Cast<HeapNumber>(obj)->value());
 }
 
 // static
@@ -691,11 +690,11 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
   DCHECK(!IsPropertyCell(obj));
   if (filter == PRIVATE_NAMES_ONLY) {
     if (!IsSymbol(obj)) return true;
-    return !Symbol::cast(obj)->is_private_name();
+    return !Cast<Symbol>(obj)->is_private_name();
   } else if (IsSymbol(obj)) {
     if (filter & SKIP_SYMBOLS) return true;
 
-    if (Symbol::cast(obj)->is_private()) return true;
+    if (Cast<Symbol>(obj)->is_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;
   }
@@ -708,7 +707,7 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
   if (IsSmi(obj)) {
     return Representation::Smi();
   }
-  Tagged<HeapObject> heap_object = HeapObject::cast(obj);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
   } else if (IsUninitialized(heap_object,
@@ -751,7 +750,7 @@ bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
     return true;
   }
   if (IsHeapNumber(obj)) {
-    double num = HeapNumber::cast(obj)->value();
+    double num = Cast<HeapNumber>(obj)->value();
     return DoubleToUint32IfEqualToSelf(num, value);
   }
   return false;
@@ -774,7 +773,7 @@ MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
                                           Handle<Object> value) {
-  if (IsSmi(*value) || IsName(HeapObject::cast(*value))) return value;
+  if (IsSmi(*value) || IsName(Cast<HeapObject>(*value))) return value;
   return ConvertToPropertyKey(isolate, value);
 }
 
@@ -812,7 +811,7 @@ MaybeHandle<Number> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Number> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
   if (IsSmi(*input)) {
-    return handle(Smi::ToUint32Smi(Smi::cast(*input)), isolate);
+    return handle(Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
   }
   return ConvertToUint32(isolate, input);
 }
@@ -988,7 +987,7 @@ Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
 #ifdef V8_ENABLE_SANDBOX
   Tagged<Object> object = ReadIndirectPointerField<tag>(offset, isolate);
   DCHECK(IsExposedTrustedObject(object));
-  return ExposedTrustedObject::cast(object);
+  return Cast<ExposedTrustedObject>(object);
 #else
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return TaggedField<ExposedTrustedObject>::Acquire_Load(
@@ -1028,7 +1027,7 @@ void HeapObject::ClearTrustedPointerField(size_t offset) {
 
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
-  return Code::cast(
+  return Cast<Code>(
       ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate));
 }
 
@@ -1093,9 +1092,9 @@ MapWord MapWord::FromMap(const Tagged<Map> map) {
 
 Tagged<Map> MapWord::ToMap() const {
 #ifdef V8_MAP_PACKING
-  return Map::unchecked_cast(Tagged<Object>(Unpack(value_)));
+  return UncheckedCast<Map>(Tagged<Object>(Unpack(value_)));
 #else
-  return Map::unchecked_cast(Tagged<Object>(value_));
+  return UncheckedCast<Map>(Tagged<Object>(value_));
 #endif
 }
 
@@ -1473,7 +1472,7 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
     return true;
   }
   if (IsHeapNumber(obj)) {
-    double num = HeapNumber::cast(obj)->value();
+    double num = Cast<HeapNumber>(obj)->value();
     if (!(num >= 0)) return false;  // Negation to catch NaNs.
     constexpr double max =
         std::min(kMaxSafeInteger,
@@ -1632,9 +1631,9 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  auto instance_type = HeapObject::cast(object)->map()->instance_type();
+  auto instance_type = Cast<HeapObject>(object)->map()->instance_type();
   if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
-    double num = HeapNumber::cast(object)->value();
+    double num = Cast<HeapNumber>(object)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     // Use ComputeUnseededHash for all values in Signed32 range, including -0,
     // which is considered equal to 0 because collections use SameValueZero.
@@ -1647,22 +1646,22 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
   } else if (InstanceTypeChecker::IsName(instance_type)) {
-    uint32_t hash = Name::cast(object)->EnsureHash();
+    uint32_t hash = Cast<Name>(object)->EnsureHash();
     return Smi::FromInt(hash);
   } else if (InstanceTypeChecker::IsOddball(instance_type)) {
-    uint32_t hash = Oddball::cast(object)->to_string()->EnsureHash();
+    uint32_t hash = Cast<Oddball>(object)->to_string()->EnsureHash();
     return Smi::FromInt(hash);
   } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
-    uint32_t hash = BigInt::cast(object)->Hash();
+    uint32_t hash = Cast<BigInt>(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    uint32_t hash = SharedFunctionInfo::cast(object)->Hash();
+    uint32_t hash = Cast<SharedFunctionInfo>(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
-    uint32_t hash = ScopeInfo::cast(object)->Hash();
+    uint32_t hash = Cast<ScopeInfo>(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
-    int id = Script::cast(object)->id();
+    int id = Cast<Script>(object)->id();
     return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
 
@@ -1679,7 +1678,7 @@ Tagged<Object> Object::GetHash(Tagged<Object> obj) {
 
   // Make sure that we never cast internal objects to JSReceivers.
   CHECK(IsJSReceiver(obj));
-  Tagged<JSReceiver> receiver = JSReceiver::cast(obj);
+  Tagged<JSReceiver> receiver = Cast<JSReceiver>(obj);
   return receiver->GetIdentityHash();
 }
 
@@ -1751,7 +1750,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     }
     return true;
   }
-  return IsSymbol(obj) && !Symbol::cast(obj)->is_in_public_symbol_table();
+  return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {

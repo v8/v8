@@ -87,7 +87,7 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
   obj->set_map_after_allocation(*isolate->meta_map());
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
-      Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      Cast<Map>(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
       TERMINAL_FAST_ELEMENTS_KIND, 0, roots));
 }
 
@@ -104,7 +104,7 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
   }
   obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
                                 SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = FixedArray::cast(obj);
+  Tagged<FixedArray> array = Cast<FixedArray>(obj);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(),
                ReadOnlyRoots(heap).undefined_value(), length);

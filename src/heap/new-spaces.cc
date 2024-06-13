@@ -645,7 +645,7 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
       visitor->VerifyObject(object);
 
       if (IsExternalString(object, cage_base)) {
-        Tagged<ExternalString> external_string = ExternalString::cast(object);
+        Tagged<ExternalString> external_string = Cast<ExternalString>(object);
         size_t string_size = external_string->ExternalPayloadSize();
         external_space_bytes[static_cast<int>(
             ExternalBackingStoreType::kExternalString)] += string_size;

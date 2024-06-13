@@ -27,7 +27,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
 
-CAST_ACCESSOR(SwissNameDictionary)
 OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
 
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
@@ -151,7 +150,7 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
                                              Tagged<Object> key) {
-  Tagged<Name> name = Name::cast(key);
+  Tagged<Name> name = Cast<Name>(key);
   DCHECK(IsUniqueName(name));
   uint32_t hash = name->hash();
 
@@ -296,7 +295,7 @@ Tagged<Object> SwissNameDictionary::KeyAt(InternalIndex entry) {
 }
 
 Tagged<Name> SwissNameDictionary::NameAt(InternalIndex entry) {
-  return Name::cast(KeyAt(entry));
+  return Cast<Name>(KeyAt(entry));
 }
 
 // This version can be called on empty buckets.

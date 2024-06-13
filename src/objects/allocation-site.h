@@ -136,7 +136,6 @@ class AllocationSite : public Struct {
   DECL_PRINTER(AllocationSite)
   DECL_VERIFIER(AllocationSite)
 
-  DECL_CAST(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);

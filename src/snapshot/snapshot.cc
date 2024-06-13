@@ -231,9 +231,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
            o = it.Next()) {
         if (clear_recompilable_data && IsSharedFunctionInfo(o, cage_base)) {
           i::Tagged<i::SharedFunctionInfo> shared =
-              i::SharedFunctionInfo::cast(o);
+              i::Cast<i::SharedFunctionInfo>(o);
           if (IsScript(shared->script(cage_base), cage_base) &&
-              Script::cast(shared->script(cage_base))->type() ==
+              Cast<Script>(shared->script(cage_base))->type() ==
                   Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
@@ -241,7 +241,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
             sfis_to_clear.emplace_back(shared, isolate);
           }
         } else if (IsJSRegExp(o, cage_base)) {
-          i::Tagged<i::JSRegExp> regexp = i::JSRegExp::cast(o);
+          i::Tagged<i::JSRegExp> regexp = i::Cast<i::JSRegExp>(o);
           if (regexp->HasCompiledCode()) {
             regexp->DiscardCompiledCodeForSerialization();
           }
@@ -272,12 +272,12 @@ void Snapshot::ClearReconstructableDataForSerialization(
     for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
       if (!IsJSFunction(o, cage_base)) continue;
 
-      i::Tagged<i::JSFunction> fun = i::JSFunction::cast(o);
+      i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(o);
       fun->CompleteInobjectSlackTrackingIfActive();
 
       i::Tagged<i::SharedFunctionInfo> shared = fun->shared();
       if (IsScript(shared->script(cage_base), cage_base) &&
-          Script::cast(shared->script(cage_base))->type() ==
+          Cast<Script>(shared->script(cage_base))->type() ==
               Script::Type::kExtension) {
         continue;  // Don't clear extensions, they cannot be recompiled.
       }
@@ -324,7 +324,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
                              HeapObjectIterator::kFilterUnreachable);
     for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
       if (IsJSFunction(o)) {
-        i::Tagged<i::JSFunction> fun = i::JSFunction::cast(o);
+        i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(o);
         if (fun->shared()->HasAsmWasmData()) {
           FATAL("asm.js functions are not supported in snapshots");
         }
@@ -980,7 +980,7 @@ size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
-    list = Handle<ArrayList>(ArrayList::cast(context->serialized_objects()),
+    list = Handle<ArrayList>(Cast<ArrayList>(context->serialized_objects()),
                              isolate_);
   }
   size_t index = static_cast<size_t>(list->length());
@@ -999,7 +999,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
     list = ArrayList::New(isolate_, 1);
   } else {
     list = Handle<ArrayList>(
-        ArrayList::cast(isolate_->heap()->serialized_objects()), isolate_);
+        Cast<ArrayList>(isolate_->heap()->serialized_objects()), isolate_);
   }
   size_t index = static_cast<size_t>(list->length());
   list = ArrayList::Add(isolate_, list, obj);
@@ -1019,7 +1019,7 @@ void ConvertSerializedObjectsToFixedArray(Isolate* isolate) {
         ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     DirectHandle<ArrayList> list(
-        ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
+        Cast<ArrayList>(isolate->heap()->serialized_objects()), isolate);
     DirectHandle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
     isolate->heap()->SetSerializedObjects(*elements);
   }
@@ -1030,7 +1030,7 @@ void ConvertSerializedObjectsToFixedArray(Isolate* isolate,
   if (!IsArrayList(context->serialized_objects())) {
     context->set_serialized_objects(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
-    DirectHandle<ArrayList> list(ArrayList::cast(context->serialized_objects()),
+    DirectHandle<ArrayList> list(Cast<ArrayList>(context->serialized_objects()),
                                  isolate);
     DirectHandle<FixedArray> elements = ArrayList::ToFixedArray(isolate, list);
     context->set_serialized_objects(*elements);

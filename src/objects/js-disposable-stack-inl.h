@@ -22,8 +22,6 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisposableStack)
 
-CAST_ACCESSOR(JSDisposableStack)
-
 BIT_FIELD_ACCESSORS(JSDisposableStack, status, state,
                     JSDisposableStack::StateBit)
 BIT_FIELD_ACCESSORS(JSDisposableStack, status, length,

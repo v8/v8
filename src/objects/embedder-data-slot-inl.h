@@ -34,7 +34,7 @@ void EmbedderDataSlot::Initialize(Tagged<Object> initial_value) {
   // TODO(v8) initialize the slot with Smi::zero() instead. This'll also
   // guarantee that we don't need a write barrier.
   DCHECK(IsSmi(initial_value) ||
-         ReadOnlyHeap::Contains(HeapObject::cast(initial_value)));
+         ReadOnlyHeap::Contains(Cast<HeapObject>(initial_value)));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
 #ifdef V8_COMPRESS_POINTERS
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());

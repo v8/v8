@@ -1042,7 +1042,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   DirectHandle<Context> native_context(isolate->context()->native_context(),
                                        isolate);
   Handle<JSFunction> constructor(
-      JSFunction::cast(native_context->intl_number_format_function()), isolate);
+      Cast<JSFunction>(native_context->intl_number_format_function()), isolate);
   Handle<Object> object;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,

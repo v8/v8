@@ -32,7 +32,7 @@ Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
   }
 
   // Spec step 2: Set the mutable binding of export_name to export_value
-  Cell::cast(*export_object)->set_value(*export_value);
+  Cast<Cell>(*export_object)->set_value(*export_value);
 
   return Just(true);
 }
@@ -79,7 +79,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
     // Spec step 7.1: Create a new mutable binding for export_name.
     // Spec step 7.2: Initialize the new mutable binding to undefined.
     Handle<Cell> cell = isolate->factory()->NewCell();
-    Handle<String> name(String::cast(export_names->get(i)), isolate);
+    Handle<String> name(Cast<String>(export_names->get(i)), isolate);
     CHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(exports, name, cell);
   }

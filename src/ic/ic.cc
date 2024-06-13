@@ -167,7 +167,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
     // TODO(pthier): AbstractCode should fully support Baseline code.
     BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
     code_offset = baseline_frame->GetBytecodeOffset();
-    code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
+    code = Cast<AbstractCode>(baseline_frame->GetBytecodeArray());
   } else {
     code_offset =
         static_cast<int>(frame->pc() - function->instruction_start(isolate()));
@@ -618,7 +618,7 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler,
 
   Handle<FunctionTemplateInfo> fti;
   if (IsJSFunction(*accessor_obj)) {
-    fti = handle(JSFunction::cast(*accessor_obj)->shared()->api_func_data(),
+    fti = handle(Cast<JSFunction>(*accessor_obj)->shared()->api_func_data(),
                  isolate());
   } else {
     fti = Cast<FunctionTemplateInfo>(accessor_obj);
@@ -881,7 +881,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
     // Use specialized code for getting prototype of functions.
     if (IsJSFunction(*lookup_start_object) &&
         *lookup->name() == roots.prototype_string() &&
-        !JSFunction::cast(*lookup_start_object)
+        !Cast<JSFunction>(*lookup_start_object)
              ->PrototypeRequiresRuntimeLookup()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
       return MaybeObjectHandle(
@@ -967,9 +967,9 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         set_accessor(getter);
 
         if ((IsFunctionTemplateInfo(*getter) &&
-             FunctionTemplateInfo::cast(*getter)->BreakAtEntry(isolate())) ||
+             Cast<FunctionTemplateInfo>(*getter)->BreakAtEntry(isolate())) ||
             (IsJSFunction(*getter) &&
-             JSFunction::cast(*getter)->shared()->BreakAtEntry(isolate()))) {
+             Cast<JSFunction>(*getter)->shared()->BreakAtEntry(isolate()))) {
           // Do not install an IC if the api function has a breakpoint.
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
@@ -1101,7 +1101,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         Handle<Object> value = lookup->GetDataValue();
 
         if (IsThinString(*value)) {
-          value = handle(ThinString::cast(*value)->actual(), isolate());
+          value = handle(Cast<ThinString>(*value)->actual(), isolate());
         }
 
         // Non internalized strings could turn into thin/cons strings
@@ -1287,13 +1287,13 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
 bool IsOutOfBoundsAccess(DirectHandle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
-    length = Object::NumberValue(JSArray::cast(*receiver)->length());
+    length = Object::NumberValue(Cast<JSArray>(*receiver)->length());
   } else if (IsJSTypedArray(*receiver)) {
-    length = JSTypedArray::cast(*receiver)->GetLength();
+    length = Cast<JSTypedArray>(*receiver)->GetLength();
   } else if (IsJSObject(*receiver)) {
-    length = JSObject::cast(*receiver)->elements()->length();
+    length = Cast<JSObject>(*receiver)->elements()->length();
   } else if (IsString(*receiver)) {
-    length = String::cast(*receiver)->length();
+    length = Cast<String>(*receiver)->length();
   } else {
     return false;
   }
@@ -1471,7 +1471,7 @@ KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
     return kIntPtr;
   }
   if (IsHeapNumber(*key)) {
-    double num = HeapNumber::cast(*key)->value();
+    double num = Cast<HeapNumber>(*key)->value();
     if (!(num >= -kMaxSafeInteger)) return kBailout;
     if (num > kMaxSafeInteger) return kBailout;
     *index_out = static_cast<intptr_t>(num);
@@ -1481,7 +1481,7 @@ KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
   if (IsString(*key)) {
     key = isolate->factory()->InternalizeString(Cast<String>(key));
     uint32_t maybe_array_index;
-    if (String::cast(*key)->AsArrayIndex(&maybe_array_index)) {
+    if (Cast<String>(*key)->AsArrayIndex(&maybe_array_index)) {
       if (maybe_array_index <= INT_MAX) {
         *index_out = static_cast<intptr_t>(maybe_array_index);
         return kIntPtr;
@@ -2099,9 +2099,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         if ((IsFunctionTemplateInfo(*setter) &&
-             FunctionTemplateInfo::cast(*setter)->BreakAtEntry(isolate())) ||
+             Cast<FunctionTemplateInfo>(*setter)->BreakAtEntry(isolate())) ||
             (IsJSFunction(*setter) &&
-             JSFunction::cast(*setter)->shared()->BreakAtEntry(isolate()))) {
+             Cast<JSFunction>(*setter)->shared()->BreakAtEntry(isolate()))) {
           // Do not install an IC if the api function has a breakpoint.
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
@@ -2493,7 +2493,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           (*old_handler).GetHeapObject(&old_handler_obj) &&
           IsDataHandler(old_handler_obj)) {
         validity_cell = handle(
-            DataHandler::cast(old_handler_obj)->validity_cell(), isolate());
+            Cast<DataHandler>(old_handler_obj)->validity_cell(), isolate());
       }
       // TODO(mythria): Do not recompute the handler if we know there is no
       // change in the handler.
@@ -2970,7 +2970,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   // Unlike DefineKeyedOwnIC, DefineNamedOwnIC doesn't handle private
   // fields and is used for defining data properties in object literals
   // and defining named public class fields.
-  DCHECK(!IsSymbol(*key) || !Symbol::cast(*key)->is_private_name());
+  DCHECK(!IsSymbol(*key) || !Cast<Symbol>(*key)->is_private_name());
 
   PropertyKey lookup_key(isolate, key);
   MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate, object, lookup_key,
@@ -3447,8 +3447,8 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
   if (flags & ObjectLiteral::kHasNullPrototype) {
     new_object = isolate->factory()->NewJSObjectWithNullProto();
   } else if (IsJSObject(*source) &&
-             JSObject::cast(*source)->map()->OnlyHasSimpleProperties()) {
-    Tagged<Map> source_map = JSObject::cast(*source)->map();
+             Cast<JSObject>(*source)->map()->OnlyHasSimpleProperties()) {
+    Tagged<Map> source_map = Cast<JSObject>(*source)->map();
     // TODO(olivf, chrome:1204540) It might be interesting to pick a map with
     // more properties, depending how many properties are added by the
     // surrounding literal.
@@ -3763,7 +3763,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
       (!receiver->HasNamedInterceptor() ||
        receiver->GetNamedInterceptor()->non_masking())) {
     interceptor_holder =
-        handle(JSObject::cast(receiver->map()->prototype()), isolate);
+        handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
   }
   DCHECK(interceptor_holder->HasNamedInterceptor());
   {

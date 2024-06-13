@@ -107,13 +107,6 @@ class Managed : public Foreign {
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
-  static Tagged<Managed> cast(Tagged<Object> obj) {
-    return Tagged<Managed>(Managed(obj.ptr()).ptr());
-  }
-  static constexpr Tagged<Managed> unchecked_cast(Tagged<Object> obj) {
-    return Tagged<Managed>(obj.ptr());
-  }
-
   // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.
   template <typename... Args>
   static Handle<Managed<CppType>> Allocate(Isolate* isolate,

@@ -436,7 +436,7 @@ void AllocateInSharedHeap(int iterations = 100) {
     }
 
     for (int i = 0; i < kKeptAliveInHeap; i++) {
-      Tagged<FixedArray> array = FixedArray::cast(arrays_in_heap->get(i));
+      Tagged<FixedArray> array = Cast<FixedArray>(arrays_in_heap->get(i));
       CHECK_EQ(array->length(), 100);
     }
   });

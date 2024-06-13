@@ -38,13 +38,13 @@ void ExpectSharedFunctionInfoState(Isolate* isolate,
     case SfiState::Compiled:
       CHECK(IsBytecodeArray(function_data) ||
             (IsCode(function_data) &&
-             Code::cast(function_data)->kind() == CodeKind::BASELINE));
+             Cast<Code>(function_data)->kind() == CodeKind::BASELINE));
       CHECK(IsScript(script));
       break;
     case SfiState::DebugInfo: {
       CHECK(IsBytecodeArray(function_data) ||
             (IsCode(function_data) &&
-             Code::cast(function_data)->kind() == CodeKind::BASELINE));
+             Cast<Code>(function_data)->kind() == CodeKind::BASELINE));
       CHECK(IsScript(script));
       Tagged<DebugInfo> debug_info = sfi->GetDebugInfo(isolate);
       CHECK(!debug_info->HasInstrumentedBytecodeArray());

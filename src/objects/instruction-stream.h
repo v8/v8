@@ -122,7 +122,6 @@ class InstructionStream : public TrustedObject {
                           Heap* heap);
   V8_INLINE bool IsFullyInitialized();
 
-  DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
   DECL_VERIFIER(InstructionStream)
 

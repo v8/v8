@@ -304,7 +304,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   }
 
   static i::Tagged<i::MaybeObject> WeakOrSmi(i::Tagged<i::Object> obj) {
-    return IsSmi(obj) ? i::Smi::cast(obj) : i::MakeWeak(obj);
+    return IsSmi(obj) ? i::Cast<i::Smi>(obj) : i::MakeWeak(obj);
   }
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
@@ -314,7 +314,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
     if (i::IsBytecodeArray(data)) {
-      data = i::BytecodeArray::cast(data)->wrapper();
+      data = i::Cast<i::BytecodeArray>(data)->wrapper();
     }
     return data;
   }
@@ -331,21 +331,21 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                                           toplevel_sfi, i_isolate)));
     array->set(kToplevelFeedbackMetadata,
                WeakOrSmi(toplevel_sfi->feedback_metadata()));
-    i::Tagged<i::Script> script = i::Script::cast(toplevel_sfi->script());
+    i::Tagged<i::Script> script = i::Cast<i::Script>(toplevel_sfi->script());
     array->set(kScript, WeakOrSmi(script));
     i::Tagged<i::WeakFixedArray> sfis = script->shared_function_infos();
     CHECK_EQ(sfis->length(), 4);
     CHECK_EQ(sfis->get(0), WeakOrSmi(toplevel_sfi));
     i::Tagged<i::SharedFunctionInfo> eager =
-        i::SharedFunctionInfo::cast(sfis->get(1).GetHeapObjectAssumeWeak());
+        i::Cast<i::SharedFunctionInfo>(sfis->get(1).GetHeapObjectAssumeWeak());
     CHECK_EQ(eager->is_compiled(), eager_should_be_compiled);
     array->set(kEagerSfi, WeakOrSmi(eager));
     if (eager_should_be_compiled) {
       array->set(kEagerFunctionData,
                  WeakOrSmi(ExtractSharedFunctionInfoData(eager, i_isolate)));
       array->set(kEagerFeedbackMetadata, WeakOrSmi(eager->feedback_metadata()));
-      i::Tagged<i::SharedFunctionInfo> iife =
-          i::SharedFunctionInfo::cast(sfis->get(2).GetHeapObjectAssumeWeak());
+      i::Tagged<i::SharedFunctionInfo> iife = i::Cast<i::SharedFunctionInfo>(
+          sfis->get(2).GetHeapObjectAssumeWeak());
       CHECK(iife->is_compiled());
       array->set(kIifeSfi, WeakOrSmi(iife));
       array->set(kIifeFunctionData,
@@ -353,7 +353,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       array->set(kIifeFeedbackMetadata, WeakOrSmi(iife->feedback_metadata()));
     }
     i::Tagged<i::SharedFunctionInfo> lazy =
-        i::SharedFunctionInfo::cast(sfis->get(3).GetHeapObjectAssumeWeak());
+        i::Cast<i::SharedFunctionInfo>(sfis->get(3).GetHeapObjectAssumeWeak());
     CHECK_EQ(lazy->is_compiled(), lazy_should_be_compiled);
     array->set(kLazySfi, WeakOrSmi(lazy));
   }
@@ -363,7 +363,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                         i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((sfis_to_age & (1 << index)) == (1 << index)) {
-        i::Tagged<i::SharedFunctionInfo> sfi = i::SharedFunctionInfo::cast(
+        i::Tagged<i::SharedFunctionInfo> sfi = i::Cast<i::SharedFunctionInfo>(
             original_objects->get(index).GetHeapObjectAssumeWeak());
         i::SharedFunctionInfo::EnsureOldForTesting(sfi);
       }

@@ -326,7 +326,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
 
   if (shortcut_strings_ &&
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
-    Tagged<HeapObject> first = HeapObject::cast(object->unchecked_first());
+    Tagged<HeapObject> first = Cast<HeapObject>(object->unchecked_first());
 
     UpdateHeapObjectReferenceSlot(slot, first);
 
@@ -386,26 +386,26 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
       DCHECK(!(*slot).IsWeak());
-      return EvacuateThinString(map, slot, ThinString::unchecked_cast(source),
+      return EvacuateThinString(map, slot, UncheckedCast<ThinString>(source),
                                 size);
     case kVisitShortcutCandidate:
       DCHECK(!(*slot).IsWeak());
       // At the moment we don't allow weak pointers to cons strings.
-      return EvacuateShortcutCandidate(
-          map, slot, ConsString::unchecked_cast(source), size);
+      return EvacuateShortcutCandidate(map, slot,
+                                       UncheckedCast<ConsString>(source), size);
     case kVisitSeqOneByteString:
     case kVisitSeqTwoByteString:
       DCHECK(String::IsInPlaceInternalizable(map->instance_type()));
       static_assert(Map::ObjectFieldsFrom(kVisitSeqOneByteString) ==
                     Map::ObjectFieldsFrom(kVisitSeqTwoByteString));
       return EvacuateInPlaceInternalizableString(
-          map, slot, String::unchecked_cast(source), size,
+          map, slot, UncheckedCast<String>(source), size,
           Map::ObjectFieldsFrom(kVisitSeqOneByteString));
     case kVisitDataObject:  // External strings have kVisitDataObject.
       if (String::IsInPlaceInternalizableExcludingExternal(
               map->instance_type())) {
         return EvacuateInPlaceInternalizableString(
-            map, slot, String::unchecked_cast(source), size,
+            map, slot, UncheckedCast<String>(source), size,
             ObjectFields::kDataOnly);
       }
       [[fallthrough]];

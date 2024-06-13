@@ -62,11 +62,11 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   DCHECK_EQ(encoding_ == String::ONE_BYTE_ENCODING, sizeof(DestChar) == 1);
   if (sizeof(DestChar) == 1) {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
-    SeqOneByteString::cast(*current_part_)
+    Cast<SeqOneByteString>(*current_part_)
         ->SeqOneByteStringSet(current_index_++, c);
   } else {
     DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
-    SeqTwoByteString::cast(*current_part_)
+    Cast<SeqTwoByteString>(*current_part_)
         ->SeqTwoByteStringSet(current_index_++, c);
   }
   if (current_index_ == part_length_) Extend();
@@ -90,7 +90,7 @@ V8_INLINE void IncrementalStringBuilder::AppendCStringLiteral(
   if (length == 1) return AppendCharacter(literal[0]);
   if (encoding_ == String::ONE_BYTE_ENCODING && CurrentPartCanFit(N)) {
     const uint8_t* chars = reinterpret_cast<const uint8_t*>(literal);
-    SeqOneByteString::cast(*current_part_)
+    Cast<SeqOneByteString>(*current_part_)
         ->SeqOneByteStringSetChars(current_index_, chars, length);
     current_index_ += length;
     if (current_index_ == part_length_) Extend();
@@ -143,10 +143,10 @@ inline IncrementalStringBuilder::NoExtend<DestChar>::NoExtend(
   DCHECK(IsSeqOneByteString(string) || IsSeqTwoByteString(string));
   if (sizeof(DestChar) == 1) {
     start_ = reinterpret_cast<DestChar*>(
-        SeqOneByteString::cast(string)->GetChars(no_gc) + offset);
+        Cast<SeqOneByteString>(string)->GetChars(no_gc) + offset);
   } else {
     start_ = reinterpret_cast<DestChar*>(
-        SeqTwoByteString::cast(string)->GetChars(no_gc) + offset);
+        Cast<SeqTwoByteString>(string)->GetChars(no_gc) + offset);
   }
   cursor_ = start_;
 #ifdef DEBUG
@@ -159,11 +159,11 @@ template <typename DestChar>
 inline IncrementalStringBuilder::NoExtend<DestChar>::~NoExtend() {
   DestChar* end;
   if (sizeof(DestChar) == 1) {
-    auto one_byte_string = SeqOneByteString::cast(string_);
+    auto one_byte_string = Cast<SeqOneByteString>(string_);
     end = reinterpret_cast<DestChar*>(one_byte_string->GetChars(no_gc_) +
                                       one_byte_string->length());
   } else {
-    auto two_byte_string = SeqTwoByteString::cast(string_);
+    auto two_byte_string = Cast<SeqTwoByteString>(string_);
     end = reinterpret_cast<DestChar*>(two_byte_string->GetChars(no_gc_) +
                                       two_byte_string->length());
   }

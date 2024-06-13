@@ -28,7 +28,7 @@ uint32_t SharedFunctionInfo::Hash() {
   // don't use the function's literal id since getting that is slow for compiled
   // functions.
   int start_pos = StartPosition();
-  int script_id = IsScript(script()) ? Script::cast(script())->id() : 0;
+  int script_id = IsScript(script()) ? Cast<Script>(script())->id() : 0;
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
 }
 
@@ -91,7 +91,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   if (IsCode(data)) {
     // Having baseline Code means we are a compiled, baseline function.
     DCHECK(HasBaselineCode());
-    return Code::cast(data);
+    return Cast<Code>(data);
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (IsAsmWasmData(data)) {
@@ -153,7 +153,7 @@ Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
     if (!raw.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
       continue;
     }
-    return SharedFunctionInfo::cast(heap_object);
+    return Cast<SharedFunctionInfo>(heap_object);
   }
   return SharedFunctionInfo();
 }
@@ -182,7 +182,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   // duplicates.
   if (IsScript(script_object)) {
     DCHECK(!IsScript(script()));
-    Tagged<Script> script = Script::cast(script_object);
+    Tagged<Script> script = Cast<Script>(script_object);
     Tagged<WeakFixedArray> list = script->shared_function_infos();
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
@@ -197,7 +197,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     DCHECK(IsScript(script()));
 
     // Remove shared function info from old script's list.
-    Tagged<Script> old_script = Script::cast(script());
+    Tagged<Script> old_script = Cast<Script>(script());
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
@@ -291,7 +291,7 @@ bool SharedFunctionInfo::HasCoverageInfo(Isolate* isolate) const {
 Tagged<CoverageInfo> SharedFunctionInfo::GetCoverageInfo(
     Isolate* isolate) const {
   DCHECK(HasCoverageInfo(isolate));
-  return CoverageInfo::cast(GetDebugInfo(isolate)->coverage_info());
+  return Cast<CoverageInfo>(GetDebugInfo(isolate)->coverage_info());
 }
 
 std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
@@ -342,8 +342,8 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 bool SharedFunctionInfo::HasSourceCode() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   return !IsUndefined(script(), roots) &&
-         !IsUndefined(Script::cast(script())->source(), roots) &&
-         String::cast(Script::cast(script())->source())->length() > 0;
+         !IsUndefined(Cast<Script>(script())->source(), roots) &&
+         Cast<String>(Cast<Script>(script())->source())->length() > 0;
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(
@@ -421,7 +421,7 @@ void SharedFunctionInfo::DiscardCompiled(
 Handle<Object> SharedFunctionInfo::GetSourceCode(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
-  Handle<String> source(String::cast(Script::cast(shared->script())->source()),
+  Handle<String> source(Cast<String>(Cast<Script>(shared->script())->source()),
                         isolate);
   return isolate->factory()->NewSubString(source, shared->StartPosition(),
                                           shared->EndPosition());
@@ -432,7 +432,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> script_source(
-      String::cast(Script::cast(shared->script())->source()), isolate);
+      Cast<String>(Cast<Script>(shared->script())->source()), isolate);
   int start_pos = shared->function_token_position();
   DCHECK_NE(start_pos, kNoSourcePosition);
   Handle<String> source = isolate->factory()->NewSubString(
@@ -445,11 +445,11 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendString(Handle<String>(shared->Name(), isolate));
   builder.AppendCharacter('(');
   DirectHandle<FixedArray> args(
-      Script::cast(shared->script())->wrapped_arguments(), isolate);
+      Cast<Script>(shared->script())->wrapped_arguments(), isolate);
   int argc = args->length();
   for (int i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
-    builder.AppendString(Handle<String>(String::cast(args->get(i)), isolate));
+    builder.AppendString(Handle<String>(Cast<String>(args->get(i)), isolate));
   }
   builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);
@@ -466,10 +466,10 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   if (!s->HasSourceCode()) return os << "<No Source>";
 
   // Get the source for the script which this function came from.
-  // Don't use String::cast because we don't want more assertion errors while
+  // Don't use Cast<String> because we don't want more assertion errors while
   // we are already creating a stack dump.
   Tagged<String> script_source =
-      String::unchecked_cast(Script::cast(s->script())->source());
+      UncheckedCast<String>(Cast<Script>(s->script())->source());
 
   if (!script_source->LooksValid()) return os << "<Invalid Source>";
 
@@ -691,7 +691,7 @@ void SharedFunctionInfo::SetFunctionTokenPosition(int function_token_position,
 int SharedFunctionInfo::StartPosition() const {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
-    Tagged<ScopeInfo> info = ScopeInfo::cast(maybe_scope_info);
+    Tagged<ScopeInfo> info = Cast<ScopeInfo>(maybe_scope_info);
     if (info->HasPositionInfo()) {
       return info->StartPosition();
     }
@@ -719,7 +719,7 @@ int SharedFunctionInfo::StartPosition() const {
 int SharedFunctionInfo::EndPosition() const {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
-    Tagged<ScopeInfo> info = ScopeInfo::cast(maybe_scope_info);
+    Tagged<ScopeInfo> info = Cast<ScopeInfo>(maybe_scope_info);
     if (info->HasPositionInfo()) {
       return info->EndPosition();
     }
@@ -751,7 +751,7 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
     // Updating the ScopeInfo is safe since they are identical modulo
     // source positions.
     Tagged<ScopeInfo> new_scope_info = *lit->scope()->scope_info();
-    DCHECK(new_scope_info->Equals(ScopeInfo::cast(maybe_scope_info), true));
+    DCHECK(new_scope_info->Equals(Cast<ScopeInfo>(maybe_scope_info), true));
     SetScopeInfo(new_scope_info);
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());
@@ -864,7 +864,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   CombinedHeapObjectIterator it(isolate->heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (!IsSharedFunctionInfo(o)) continue;
-    auto result = ids.emplace(SharedFunctionInfo::cast(o)->unique_id());
+    auto result = ids.emplace(Cast<SharedFunctionInfo>(o)->unique_id());
     // If previously inserted...
     if (!result.second) return false;
   }

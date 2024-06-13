@@ -339,7 +339,7 @@ void HeapVerification::Verify() {
         isolate()->raw_native_context()->normalized_map_cache();
 
     if (IsNormalizedMapCache(normalized_map_cache)) {
-      NormalizedMapCache::cast(normalized_map_cache)
+      Cast<NormalizedMapCache>(normalized_map_cache)
           ->NormalizedMapCacheVerify(isolate());
     }
   }
@@ -593,7 +593,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
     CHECK(!InUntypedSet(key));
     Tagged<Object> k = *key;
     if (!ObjectInYoungGeneration(host) && ObjectInYoungGeneration(k)) {
-      Tagged<EphemeronHashTable> table = EphemeronHashTable::cast(host);
+      Tagged<EphemeronHashTable> table = Cast<EphemeronHashTable>(host);
       auto it = ephemeron_remembered_set_->find(table);
       CHECK(it != ephemeron_remembered_set_->end());
       int slot_index =

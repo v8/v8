@@ -218,7 +218,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
         auto val_nodes_and_snapshots = Cast<ObjectTwoHashTable>(val_node);
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
-          Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           auto property_val_node_and_snapshot =
               val_nodes_and_snapshots->Lookup(isolate_, key_name);
           Handle<Object> property_val_node(property_val_node_and_snapshot[0],
@@ -241,7 +241,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       } else {
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
-          Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           if (!RecurseAndApply<kWithoutSource>(
                   object, key_name, Handle<Object>(), Handle<Object>())) {
             return MaybeHandle<Object>();
@@ -305,11 +305,11 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
   if (IsSlicedString(*source, cage_base)) {
-    Tagged<SlicedString> string = SlicedString::cast(*source);
+    Tagged<SlicedString> string = Cast<SlicedString>(*source);
     start = string->offset();
     Tagged<String> parent = string->parent();
     if (IsThinString(parent, cage_base))
-      parent = ThinString::cast(parent)->actual();
+      parent = Cast<ThinString>(parent)->actual();
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
@@ -317,13 +317,13 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
 
   if (StringShape(*source_, cage_base).IsExternal()) {
     chars_ =
-        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
+        static_cast<const Char*>(Cast<SeqExternalString>(*source_)->GetChars());
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
     isolate->main_thread_local_heap()->AddGCEpilogueCallback(
         UpdatePointersCallback, this);
-    chars_ = SeqString::cast(*source_)->GetChars(no_gc);
+    chars_ = Cast<SeqString>(*source_)->GetChars(no_gc);
     chars_may_relocate_ = true;
   }
   cursor_ = chars_ + start;
@@ -335,7 +335,7 @@ bool JsonParser<Char>::IsSpecialString() {
   // The special cases are undefined, NaN, Infinity, and {} being passed to the
   // parse method
   int offset = IsSlicedString(*original_source_)
-                   ? SlicedString::cast(*original_source_)->offset()
+                   ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   size_t length = original_source_->length();
 #define CASES(V)       \
@@ -431,7 +431,7 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
   int line_number = 1;
   const Char* start =
       chars_ + (IsSlicedString(*original_source_)
-                    ? SlicedString::cast(*original_source_)->offset()
+                    ? Cast<SlicedString>(*original_source_)->offset()
                     : 0);
   const Char* last_line_break = start;
   const Char* cursor = start;
@@ -462,7 +462,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
   int offset = IsSlicedString(*original_source_)
-                   ? SlicedString::cast(*original_source_)->offset()
+                   ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
   Handle<Object> arg(Smi::FromInt(pos), isolate());
@@ -482,7 +482,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
     script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
     if (IsScript(*summary.script())) {
       script->set_origin_options(
-          Script::cast(*summary.script())->origin_options());
+          Cast<Script>(*summary.script())->origin_options());
     }
   }
 
@@ -513,11 +513,11 @@ JsonParser<Char>::~JsonParser() {
   if (StringShape(*source_).IsExternal()) {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
-    SeqExternalString::cast(*source_);
+    Cast<SeqExternalString>(*source_);
   } else {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
-    SeqString::cast(*source_);
+    Cast<SeqString>(*source_);
     isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
         UpdatePointersCallback, this);
   }
@@ -681,12 +681,12 @@ class FoldedMutableHeapNumberAllocator {
               reinterpret_cast<Address>(raw_bytes_->begin()));
     Tagged<HeapObject> hn = HeapObject::FromAddress(mutable_double_address_);
     hn->set_map_after_allocation(roots.heap_number_map());
-    HeapNumber::cast(hn)->set_value_as_bits(value.get_bits());
+    Cast<HeapNumber>(hn)->set_value_as_bits(value.get_bits());
     mutable_double_address_ +=
         ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(HeapNumber));
     DCHECK_LE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->end()));
-    return HeapNumber::cast(hn);
+    return Cast<HeapNumber>(hn);
   }
 
  private:
@@ -948,7 +948,7 @@ class JSDataObjectBuilder {
         PropertyDetails details = descriptors->GetDetails(descriptor_index);
         if (details.representation().IsDouble()) {
           value = hn_allocator.AllocateNext(
-              roots, Float64(static_cast<double>(Smi::cast(value).value())));
+              roots, Float64(static_cast<double>(Cast<Smi>(value).value())));
         }
       }
 
@@ -990,7 +990,7 @@ class JSDataObjectBuilder {
     InternalIndex descriptor_index(current_property_index_);
     if (IsOnExpectedFinalMapFastPath()) {
       expected_key = handle(
-          String::cast(
+          Cast<String>(
               expected_final_map_->instance_descriptors(isolate_)->GetKey(
                   descriptor_index)),
           isolate_);
@@ -1335,7 +1335,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
   for (size_t i = start; i < element_stack_.size(); i++) {
     Tagged<Object> value = *element_stack_[i];
     if (IsHeapObject(value)) {
-      if (IsHeapNumber(HeapObject::cast(value))) {
+      if (IsHeapNumber(Cast<HeapObject>(value))) {
         kind = PACKED_DOUBLE_ELEMENTS;
       } else {
         kind = PACKED_ELEMENTS;
@@ -1348,13 +1348,13 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
   if (kind == PACKED_DOUBLE_ELEMENTS) {
     DisallowGarbageCollection no_gc;
     Tagged<FixedDoubleArray> elements =
-        FixedDoubleArray::cast(array->elements());
+        Cast<FixedDoubleArray>(array->elements());
     for (int i = 0; i < length; i++) {
       elements->set(i, Object::NumberValue(*element_stack_[start + i]));
     }
   } else {
     DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> elements = FixedArray::cast(array->elements());
+    Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
     WriteBarrierMode mode = kind == PACKED_SMI_ELEMENTS
                                 ? SKIP_WRITE_BARRIER
                                 : elements->GetWriteBarrierMode(no_gc);
@@ -1509,7 +1509,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   while (Check(JsonToken::COMMA)) {
     Handle<Map> feedback;
     if (IsJSObject(*value)) {
-      Tagged<Map> maybe_feedback = JSObject::cast(*value)->map();
+      Tagged<Map> maybe_feedback = Cast<JSObject>(*value)->map();
       // Don't consume feedback from objects with a map that's detached
       // from the transition tree.
       if (!maybe_feedback->IsDetached(isolate_)) {
@@ -1758,7 +1758,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               cont_stack.back().index < element_stack_.size() &&
               IsJSObject(*element_stack_.back())) {
             Tagged<Map> maybe_feedback =
-                JSObject::cast(*element_stack_.back())->map();
+                Cast<JSObject>(*element_stack_.back())->map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.
             if (!maybe_feedback->IsDetached(isolate_)) {

@@ -409,7 +409,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     HandleScope scope(isolate);
     i::Tagged<i::Context> raw_context =
-        i::Context::cast(*v8::Utils::OpenPersistent(env));
+        i::Cast<i::Context>(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -597,7 +597,7 @@ static void SerializeCustomContext(
     {
       HandleScope scope(i_isolate);
       i::Tagged<i::Context> raw_context =
-          i::Context::cast(*v8::Utils::OpenPersistent(env));
+          i::Cast<i::Context>(*v8::Utils::OpenPersistent(env));
 
       // On purpose we do not reset the global context here --- env.Reset() ---
       // so that it is found below, during heap verification at the GC before
@@ -1256,7 +1256,8 @@ i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
   i::DirectHandle<i::JSArrayBufferView> view =
       i::Cast<i::JSArrayBufferView>(v8::Utils::OpenDirectHandle(*typed_array));
 
-  return i::handle(i::JSArrayBuffer::cast(view->buffer()), view->GetIsolate());
+  return i::handle(i::Cast<i::JSArrayBuffer>(view->buffer()),
+                   view->GetIsolate());
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
@@ -1711,7 +1712,7 @@ int CountBuiltins() {
   int counter = 0;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsCode(obj) && Code::cast(obj)->kind() == CodeKind::BUILTIN) counter++;
+    if (IsCode(obj) && Cast<Code>(obj)->kind() == CodeKind::BUILTIN) counter++;
   }
   return counter;
 }
@@ -1836,7 +1837,7 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   }
 
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script())->source() == *copy_source);
+  CHECK(Cast<Script>(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -1846,7 +1847,7 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
-  CHECK_EQ(2, Smi::cast(*copy_result).value());
+  CHECK_EQ(2, Cast<Smi>(*copy_result).value());
 
   if (verify_builtins_count) CHECK_EQ(builtins_count, CountBuiltins());
 
@@ -2339,7 +2340,7 @@ TEST(CodeSerializerInternalizedString) {
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script())->source() == *copy_source);
+  CHECK(Cast<Script>(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -2550,10 +2551,10 @@ TEST(CodeSerializerLargeStrings) {
   CHECK_EQ(6 * 1999999, Cast<String>(copy_result)->length());
   Handle<Object> property = JSReceiver::GetDataProperty(
       isolate, isolate->global_object(), f->NewStringFromAsciiChecked("s"));
-  CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(Cast<HeapObject>(*property), LO_SPACE));
   property = JSReceiver::GetDataProperty(isolate, isolate->global_object(),
                                          f->NewStringFromAsciiChecked("t"));
-  CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(Cast<HeapObject>(*property), LO_SPACE));
   // Make sure we do not serialize too much, e.g. include the source string.
   CHECK_LT(cache->length(), 13000000);
 
@@ -3316,7 +3317,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
         ScriptCompiler::InMemoryCacheResult::kMiss);
     SharedFunctionInfo::EnsureOldForTesting(*shared);
     Handle<Script> local_script =
-        handle(Script::cast(shared->script()), isolate);
+        handle(Cast<Script>(shared->script()), isolate);
     script = first_compilation_scope.CloseAndEscape(local_script);
   }
 
@@ -5771,7 +5772,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
 
     // Verify that the pointers in shared_function_infos are weak.
     Tagged<WeakFixedArray> sfis =
-        Script::cast(function->shared()->script())->shared_function_infos();
+        Cast<Script>(function->shared()->script())->shared_function_infos();
     CheckSFIsAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
   }
   isolate->Dispose();
@@ -5804,7 +5805,7 @@ TEST(WeakArraySerializationInCodeCache) {
 
   // Verify that the pointers in shared_function_infos are weak.
   Tagged<WeakFixedArray> sfis =
-      Script::cast(copy->script())->shared_function_infos();
+      Cast<Script>(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;
@@ -6211,7 +6212,7 @@ void CheckObjectsAreInSharedHeap(Isolate* isolate) {
        obj = iterator.Next()) {
     const bool expected_in_shared_old =
         heap->MustBeInSharedOldSpace(obj) ||
-        (IsString(obj) && String::IsInPlaceInternalizable(String::cast(obj)));
+        (IsString(obj) && String::IsInPlaceInternalizable(Cast<String>(obj)));
     if (expected_in_shared_old) {
       CHECK(InAnySharedSpace(obj));
     }

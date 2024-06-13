@@ -155,7 +155,7 @@ Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
   // might call this builtin).
   Isolate* isolate;
   if (!IsSmi(result) &&
-      GetIsolateFromHeapObject(HeapObject::cast(result), &isolate)) {
+      GetIsolateFromHeapObject(Cast<HeapObject>(result), &isolate)) {
     DCHECK(isolate == this || isolate == shared_space_isolate());
   }
 #endif
@@ -176,10 +176,10 @@ ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
   // the shared isolate), because that's the assumption in generated code (which
   // might call this builtin).
   Isolate* isolate;
-  if (!IsSmi(x) && GetIsolateFromHeapObject(HeapObject::cast(x), &isolate)) {
+  if (!IsSmi(x) && GetIsolateFromHeapObject(Cast<HeapObject>(x), &isolate)) {
     DCHECK(isolate == this || isolate == shared_space_isolate());
   }
-  if (!IsSmi(y) && GetIsolateFromHeapObject(HeapObject::cast(y), &isolate)) {
+  if (!IsSmi(y) && GetIsolateFromHeapObject(Cast<HeapObject>(y), &isolate)) {
     DCHECK(isolate == this || isolate == shared_space_isolate());
   }
 #endif
@@ -200,7 +200,7 @@ bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;
   return !LookupIterator::HasInternalMarkerProperty(
-      this, JSReceiver::cast(exception), factory()->wasm_uncatchable_symbol());
+      this, Cast<JSReceiver>(exception), factory()->wasm_uncatchable_symbol());
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

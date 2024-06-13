@@ -230,7 +230,6 @@ class V8_EXPORT_PRIVATE NameDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(NameDictionary)
   DECL_PRINTER(NameDictionary)
 
   static const int kFlagsIndex = kObjectHashIndex + 1;
@@ -292,7 +291,6 @@ class V8_EXPORT_PRIVATE GlobalDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(GlobalDictionary)
   DECL_PRINTER(GlobalDictionary)
 
   inline Tagged<Object> ValueAt(InternalIndex entry);
@@ -366,7 +364,6 @@ class SimpleNumberDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
   Set(Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
@@ -388,7 +385,6 @@ class NumberDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).

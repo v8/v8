@@ -114,12 +114,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             details.representation());
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
         if (IsJSObject(raw, isolate)) {
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
-          uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
+          uint64_t double_value = Cast<HeapNumber>(raw)->value_as_bits();
           auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
@@ -132,7 +132,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           Tagged<Object> raw = dict->ValueAt(i);
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
           if (copying) dict->ValueAtPut(i, *value);
@@ -144,7 +144,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           Tagged<Object> raw = dict->ValueAt(isolate, i);
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
           if (copying) dict->ValueAtPut(i, *value);
@@ -168,7 +168,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS: {
       DirectHandle<FixedArray> elements(
-          FixedArray::cast(copy->elements(isolate)), isolate);
+          Cast<FixedArray>(copy->elements(isolate)), isolate);
       if (elements->map(isolate) ==
           ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
@@ -180,7 +180,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         for (int i = 0; i < elements->length(); i++) {
           Tagged<Object> raw = elements->get(i);
           if (!IsJSObject(raw, isolate)) continue;
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
           if (copying) elements->set(i, *value);
@@ -194,7 +194,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       for (InternalIndex i : element_dictionary->IterateEntries()) {
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
         if (!IsJSObject(raw, isolate)) continue;
-        Handle<JSObject> value(JSObject::cast(raw), isolate);
+        Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                    VisitElementOrProperty(copy, value));
         if (copying) element_dictionary->ValueAtPut(i, *value);
@@ -404,11 +404,11 @@ Handle<JSObject> CreateObjectLiteral(
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
     if (IsHeapObject(*value)) {
-      if (IsArrayBoilerplateDescription(HeapObject::cast(*value), isolate)) {
+      if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
         auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
 
-      } else if (IsObjectBoilerplateDescription(HeapObject::cast(*value),
+      } else if (IsObjectBoilerplateDescription(Cast<HeapObject>(*value),
                                                 isolate)) {
         auto object_boilerplate = Cast<ObjectBoilerplateDescription>(value);
         value = CreateObjectLiteral(isolate, object_boilerplate,
@@ -482,7 +482,7 @@ Handle<JSObject> CreateArrayLiteral(
           if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
             HandleScope sub_scope(isolate);
             DirectHandle<ArrayBoilerplateDescription> boilerplate(
-                ArrayBoilerplateDescription::cast(value_heap_object), isolate);
+                Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
             DirectHandle<JSObject> result =
                 CreateArrayLiteral(isolate, boilerplate, allocation);
             fixed_array_values_copy->set(i, *result);
@@ -491,7 +491,7 @@ Handle<JSObject> CreateArrayLiteral(
                                                     isolate)) {
             HandleScope sub_scope(isolate);
             DirectHandle<ObjectBoilerplateDescription> boilerplate(
-                ObjectBoilerplateDescription::cast(value_heap_object), isolate);
+                Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);
             DirectHandle<JSObject> result = CreateObjectLiteral(
                 isolate, boilerplate, boilerplate->flags(), allocation);
             fixed_array_values_copy->set(i, *result);
@@ -635,9 +635,9 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     return *regexp_instance;
   }
 
-  DirectHandle<FixedArray> data(FixedArray::cast(regexp_instance->data()),
+  DirectHandle<FixedArray> data(Cast<FixedArray>(regexp_instance->data()),
                                 isolate);
-  DirectHandle<String> source(String::cast(regexp_instance->source()), isolate);
+  DirectHandle<String> source(Cast<String>(regexp_instance->source()), isolate);
   DirectHandle<RegExpBoilerplateDescription> boilerplate =
       isolate->factory()->NewRegExpBoilerplateDescription(
           data, source,

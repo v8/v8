@@ -521,8 +521,8 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
   DCHECK_GT(length, 0);
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
-  Tagged<WasmArray> dst_array = WasmArray::cast(Tagged<Object>(raw_dst_array));
-  Tagged<WasmArray> src_array = WasmArray::cast(Tagged<Object>(raw_src_array));
+  Tagged<WasmArray> dst_array = Cast<WasmArray>(Tagged<Object>(raw_dst_array));
+  Tagged<WasmArray> src_array = Cast<WasmArray>(Tagged<Object>(raw_src_array));
 
   bool overlapping_ranges =
       dst_array.ptr() == src_array.ptr() &&
@@ -637,7 +637,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
 
   if (emit_write_barrier) {
     DCHECK(type.is_reference());
-    Tagged<WasmArray> array = WasmArray::cast(Tagged<Object>(raw_array));
+    Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
     Isolate* isolate = array->GetIsolate();
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
     ObjectSlot end(
@@ -647,7 +647,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
 }
 
 double flat_string_to_f64(Address string_address) {
-  Tagged<String> s = String::cast(Tagged<Object>(string_address));
+  Tagged<String> s = Cast<String>(Tagged<Object>(string_address));
   return FlatStringToDouble(s, ALLOW_TRAILING_JUNK,
                             std::numeric_limits<double>::quiet_NaN());
 }
@@ -693,14 +693,14 @@ void switch_from_the_central_stack(Isolate* isolate) {
 
 intptr_t switch_to_the_central_stack_for_js(Address raw_receiver,
                                             uintptr_t* stack_limit_slot) {
-  Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
+  Tagged<JSReceiver> receiver = Cast<JSReceiver>(Tagged<Object>(raw_receiver));
   Isolate* isolate = receiver->GetIsolate();
   // Set the suspender's {has_js_frames} field. The suspender contains JS
   // frames iff it is currently on the central stack.
   // The wasm-to-js wrapper checks this field when calling a suspending import
   // and traps if the stack contains JS frames.
   auto active_suspender =
-      WasmSuspenderObject::cast(isolate->root(RootIndex::kActiveSuspender));
+      Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
   active_suspender->set_has_js_frames(1);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
@@ -713,11 +713,11 @@ intptr_t switch_to_the_central_stack_for_js(Address raw_receiver,
 
 void switch_from_the_central_stack_for_js(Address raw_receiver,
                                           uintptr_t stack_limit) {
-  Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
+  Tagged<JSReceiver> receiver = Cast<JSReceiver>(Tagged<Object>(raw_receiver));
   Isolate* isolate = receiver->GetIsolate();
   // The stack only contains wasm frames after this JS call.
   auto active_suspender =
-      WasmSuspenderObject::cast(isolate->root(RootIndex::kActiveSuspender));
+      Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
   active_suspender->set_has_js_frames(0);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;

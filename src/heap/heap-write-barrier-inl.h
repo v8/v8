@@ -103,7 +103,7 @@ inline void WriteBarrierForCode(Tagged<InstructionStream> host,
                                 WriteBarrierMode mode) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
-  WriteBarrierForCode(host, rinfo, HeapObject::cast(value), mode);
+  WriteBarrierForCode(host, rinfo, Cast<HeapObject>(value), mode);
 }
 
 inline void WriteBarrierForCode(Tagged<InstructionStream> host,
@@ -136,7 +136,7 @@ inline void CombinedWriteBarrier(Tagged<HeapObject> host, ObjectSlot slot,
 
   if (!value.IsHeapObject()) return;
   heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
-                                               HeapObject::cast(value), mode);
+                                               Cast<HeapObject>(value), mode);
 }
 
 inline void CombinedWriteBarrier(Tagged<HeapObject> host, MaybeObjectSlot slot,
@@ -163,7 +163,7 @@ inline void CombinedWriteBarrier(HeapObjectLayout* host,
 
   if (!value.IsHeapObject()) return;
   heap_internals::CombinedWriteBarrierInternal(
-      Tagged(host), HeapObjectSlot(ObjectSlot(member)), HeapObject::cast(value),
+      Tagged(host), HeapObjectSlot(ObjectSlot(member)), Cast<HeapObject>(value),
       mode);
 }
 
@@ -180,7 +180,7 @@ inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
 
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
 
-  Tagged<HeapObject> heap_object_value = HeapObject::cast(value);
+  Tagged<HeapObject> heap_object_value = Cast<HeapObject>(value);
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(heap_object_value);
 
   const bool pointers_from_here_are_interesting =
@@ -263,7 +263,7 @@ inline bool ObjectInYoungGeneration(Tagged<Object> object) {
   // v8_use_third_party_heap.
   if (v8_flags.single_generation) return false;
   if (object.IsSmi()) return false;
-  return HeapObjectInYoungGeneration(HeapObject::cast(object));
+  return HeapObjectInYoungGeneration(Cast<HeapObject>(object));
 }
 
 inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
@@ -292,7 +292,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ObjectSlot slot,
                            Tagged<Object> value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
-  Tagged<HeapObject> value_heap_object = HeapObject::cast(value);
+  Tagged<HeapObject> value_heap_object = Cast<HeapObject>(value);
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 
@@ -358,7 +358,7 @@ void WriteBarrier::Marking(Tagged<TrustedObject> host,
 void WriteBarrier::MarkingFromGlobalHandle(Tagged<Object> value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   if (!value.IsHeapObject()) return;
-  MarkingSlowFromGlobalHandle(HeapObject::cast(value));
+  MarkingSlowFromGlobalHandle(Cast<HeapObject>(value));
 }
 
 // static

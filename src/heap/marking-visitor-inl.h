@@ -158,7 +158,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
   }
 
   if (!concrete_visitor()->marking_state()->IsMarked(object)) {
-    Tagged<Code> code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
+    Tagged<Code> code = UncheckedCast<Code>(host->raw_code(kAcquireLoad));
     if (code->IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
           std::make_pair(object, code));
@@ -252,7 +252,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     // table entry when it is relocated.
     Tagged<Object> value = slot.Relaxed_Load(heap_->isolate());
     if (IsHeapObject(value)) {
-      Tagged<HeapObject> obj = HeapObject::cast(value);
+      Tagged<HeapObject> obj = Cast<HeapObject>(value);
       SynchronizePageAccess(obj);
       const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, obj);
       if (!target_worklist) {
@@ -371,7 +371,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   // called by the concurrent marker.
   Tagged<Object> data = sfi->GetData(heap_->isolate());
   if (IsCode(data)) {
-    Tagged<Code> baseline_code = Code::cast(data);
+    Tagged<Code> baseline_code = Cast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
@@ -460,10 +460,10 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
 #endif
   if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Code::cast(maybe_code);
+  Tagged<Code> code = Cast<Code>(maybe_code);
   if (code->kind() != CodeKind::BASELINE) return false;
 
-  Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
+  Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
   return HasBytecodeArrayForFlushing(shared) && ShouldFlushCode(shared);
 }
 
@@ -578,7 +578,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
   for (InternalIndex i : table->IterateEntries()) {
     ObjectSlot key_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    Tagged<HeapObject> key = HeapObject::cast(table->KeyAt(i));
+    Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i));
 
     SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);
@@ -598,7 +598,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
       Tagged<Object> value_obj = table->ValueAt(i);
 
       if (IsHeapObject(value_obj)) {
-        Tagged<HeapObject> value = HeapObject::cast(value_obj);
+        Tagged<HeapObject> value = Cast<HeapObject>(value_obj);
         SynchronizePageAccess(value);
         concrete_visitor()->RecordSlot(table, value_slot, value);
         concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table,
@@ -628,7 +628,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
   int size = concrete_visitor()->VisitJSObjectSubclass(map, weak_ref);
   if (size == 0) return 0;
   if (IsHeapObject(weak_ref->target())) {
-    Tagged<HeapObject> target = HeapObject::cast(weak_ref->target());
+    Tagged<HeapObject> target = Cast<HeapObject>(weak_ref->target());
     SynchronizePageAccess(target);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(weak_ref,
                                                                target);
@@ -757,7 +757,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   }
 
   Tagged<DescriptorArray> descriptors =
-      DescriptorArray::cast(maybe_descriptors);
+      Cast<DescriptorArray>(maybe_descriptors);
   // Synchronize reading of page flags for tsan.
   SynchronizePageAccess(descriptors);
   // Normal processing of descriptor arrays through the pointers iteration that

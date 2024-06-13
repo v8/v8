@@ -632,7 +632,7 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
                           initial_holder, NONE);
     return holder;
   } else {
-    return Handle<JSReceiver>(JSReceiver::cast(*stack_.back().second),
+    return Handle<JSReceiver>(Cast<JSReceiver>(*stack_.back().second),
                               isolate_);
   }
 }
@@ -725,7 +725,7 @@ class CircularStructureMessageBuilder {
   void AppendKey(DirectHandle<Object> key) {
     if (IsSmi(*key)) {
       builder_.AppendCStringLiteral("index ");
-      AppendSmi(Smi::cast(*key));
+      AppendSmi(Cast<Smi>(*key));
       return;
     }
 
@@ -817,9 +817,9 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   PtrComprCageBase cage_base(isolate_);
   if (!IsSmi(*object)) {
     InstanceType instance_type =
-        HeapObject::cast(*object)->map(cage_base)->instance_type();
+        Cast<HeapObject>(*object)->map(cage_base)->instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
-         MayHaveInterestingProperties(isolate_, JSReceiver::cast(*object))) ||
+         MayHaveInterestingProperties(isolate_, Cast<JSReceiver>(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
       if (!need_stack_ && stack_nesting_level_ > 0) {
         need_stack_ = true;
@@ -839,11 +839,11 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
   if (IsSmi(*object)) {
     if (deferred_string_key) SerializeDeferredKey(comma, key);
-    return SerializeSmi(Smi::cast(*object));
+    return SerializeSmi(Cast<Smi>(*object));
   }
 
   InstanceType instance_type =
-      HeapObject::cast(*object)->map(cage_base)->instance_type();
+      Cast<HeapObject>(*object)->map(cage_base)->instance_type();
   switch (instance_type) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -853,7 +853,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
       return EXCEPTION;
     case ODDBALL_TYPE:
-      switch (Oddball::cast(*object)->kind()) {
+      switch (Cast<Oddball>(*object)->kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
           AppendCStringLiteral("false");
@@ -923,7 +923,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         // If we ever leak an internal object that is not a JSReceiver it could
         // end up here and lead to a type confusion.
         CHECK(IsJSReceiver(*object));
-        if (IsCallable(HeapObject::cast(*object), cage_base)) return UNCHANGED;
+        if (IsCallable(Cast<HeapObject>(*object), cage_base)) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
@@ -950,7 +950,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
-    if (IsSmi(*value)) return SerializeSmi(Smi::cast(*value));
+    if (IsSmi(*value)) return SerializeSmi(Cast<Smi>(*value));
     SerializeHeapNumber(Cast<HeapNumber>(value));
   } else if (IsBigInt(raw)) {
     isolate_->Throw(
@@ -1084,7 +1084,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
   while (true) {
     for (; i < limit; i++) {
       Result result = SerializeFixedArrayElement<kind>(
-          ArrayT::cast(array->elements()), i, *array, bailout_on_hole);
+          Cast<ArrayT>(array->elements()), i, *array, bailout_on_hole);
       if constexpr (is_holey) {
         if (result != SUCCESS) {
           *slow_path_index = i;
@@ -1166,7 +1166,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayElement(
   DCHECK(!elements->is_the_hole(isolate_, i));
   Separator(i == 0);
   if constexpr (IsSmiElementsKind(kind)) {
-    SerializeSmi(Smi::cast(elements->get(i)));
+    SerializeSmi(Cast<Smi>(elements->get(i)));
   } else if constexpr (IsDoubleElementsKind(kind)) {
     SerializeDouble(elements->get_scalar(i));
   } else {
@@ -1268,7 +1268,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       Tagged<Name> name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
       if (!IsString(name, cage_base)) continue;
-      key_name = handle(String::cast(name), isolate_);
+      key_name = handle(Cast<String>(name), isolate_);
       details = descriptors->GetDetails(i);
     }
     if (details.IsDontEnum()) continue;
@@ -1322,7 +1322,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   Indent();
   bool comma = false;
   for (int i = 0; i < contents->length(); i++) {
-    Handle<String> key(String::cast(contents->get(i)), isolate_);
+    Handle<String> key(Cast<String>(contents->get(i)), isolate_);
     Handle<Object> property;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, property, Object::GetPropertyOrElement(isolate_, object, key),
@@ -1543,7 +1543,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
       reinterpret_cast<DestChar*>(part_ptr_) + current_index_, &current_index_);
   no_extend.Append('"');
   base::Vector<const uint8_t> chars(
-      SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
+      Cast<SeqOneByteString>(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
             key.address() + key->Size());
 #if DEBUG

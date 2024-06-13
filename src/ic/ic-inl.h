@@ -21,7 +21,7 @@ void IC::update_lookup_start_object_map(DirectHandle<Object> object) {
     lookup_start_object_map_ = isolate_->factory()->heap_number_map();
   } else {
     lookup_start_object_map_ =
-        handle(HeapObject::cast(*object)->map(), isolate_);
+        handle(Cast<HeapObject>(*object)->map(), isolate_);
   }
 }
 

@@ -80,7 +80,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (IsJSFunction(frame->function()) &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function())->native_context()))) {
+           Cast<JSFunction>(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
@@ -89,7 +89,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   }
   if (frame->IsStrict() ||
       (IsJSFunction(frame->function()) &&
-       JSFunction::cast(frame->function())->shared()->is_toplevel())) {
+       Cast<JSFunction>(frame->function())->shared()->is_toplevel())) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
@@ -152,7 +152,7 @@ BUILTIN(CallSitePrototypeGetThis) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (IsJSFunction(frame->function()) &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function())->native_context()))) {
+           Cast<JSFunction>(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(

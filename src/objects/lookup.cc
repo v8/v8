@@ -141,7 +141,7 @@ MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
   if (IsString(*lookup_start_object, isolate)) {
     if (own_property_lookup ||
         index <
-            static_cast<size_t>(String::cast(*lookup_start_object)->length())) {
+            static_cast<size_t>(Cast<String>(*lookup_start_object)->length())) {
       // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the
       // native context, ensuring that we don't leak it into JS?
       Handle<JSFunction> constructor = isolate->string_function();
@@ -391,7 +391,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
 
   if (IsJSGlobalObject(*holder, isolate_)) {
     DirectHandle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder)->global_dictionary(isolate_,
+        Cast<JSGlobalObject>(*holder)->global_dictionary(isolate_,
                                                          kAcquireLoad),
         isolate());
     DirectHandle<PropertyCell> cell(
@@ -542,7 +542,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       PropertyDetails details(PropertyKind::kData, attributes,
                               PropertyCellType::kMutable);
       DirectHandle<GlobalDictionary> dictionary(
-          JSGlobalObject::cast(*holder_obj)
+          Cast<JSGlobalObject>(*holder_obj)
               ->global_dictionary(isolate_, kAcquireLoad),
           isolate());
 
@@ -852,7 +852,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
     if (receiver->HasSlowArgumentsElements(isolate_)) {
       Tagged<SloppyArgumentsElements> parameter_map =
-          SloppyArgumentsElements::cast(receiver->elements(isolate_));
+          Cast<SloppyArgumentsElements>(receiver->elements(isolate_));
       uint32_t length = parameter_map->length();
       if (number_.is_found() && number_.as_uint32() < length) {
         parameter_map->set_mapped_entries(
@@ -959,7 +959,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
     Tagged<Object> current_value =
         holder->RawFastPropertyAt(isolate_, field_index);
     DCHECK(IsHeapNumber(current_value, isolate_));
-    bits = HeapNumber::cast(current_value)->value_as_bits();
+    bits = Cast<HeapNumber>(current_value)->value_as_bits();
     // Use bit representation of double to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
     // base::bit_cast or value(), will change its value on ia32 (the x87
@@ -1090,7 +1090,7 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                 PropertyConstness::kConst,
                      CanStayConst(*value));
-      JSObject::cast(*holder)->WriteToField(descriptor_number(),
+      Cast<JSObject>(*holder)->WriteToField(descriptor_number(),
                                             property_details_, *value);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
@@ -1101,13 +1101,13 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
     // cell.
 #ifdef DEBUG
     Tagged<GlobalDictionary> dictionary =
-        JSGlobalObject::cast(*holder)->global_dictionary(isolate_,
+        Cast<JSGlobalObject>(*holder)->global_dictionary(isolate_,
                                                          kAcquireLoad);
     Tagged<PropertyCell> cell =
         dictionary->CellAt(isolate_, dictionary_entry());
     DCHECK(cell->value() == *value ||
            (IsString(cell->value()) && IsString(*value) &&
-            String::cast(cell->value())->Equals(String::cast(*value))));
+            Cast<String>(cell->value())->Equals(Cast<String>(*value))));
 #endif  // DEBUG
   } else {
     DCHECK_IMPLIES(IsJSProxy(*holder, isolate_), name()->IsPrivate());
@@ -1224,7 +1224,7 @@ Tagged<JSReceiver> LookupIterator::NextHolder(Tagged<Map> map) {
   if (!check_prototype_chain() && !IsJSGlobalProxyMap(map)) {
     return JSReceiver();
   }
-  return JSReceiver::cast(map->prototype(isolate_));
+  return Cast<JSReceiver>(map->prototype(isolate_));
 }
 
 LookupIterator::State LookupIterator::NotFound(
@@ -1232,7 +1232,7 @@ LookupIterator::State LookupIterator::NotFound(
   if (!IsJSTypedArray(holder, isolate_)) return NOT_FOUND;
   if (IsElement()) return TYPED_ARRAY_INDEX_NOT_FOUND;
   if (!IsString(*name_, isolate_)) return NOT_FOUND;
-  return IsSpecialIndex(String::cast(*name_)) ? TYPED_ARRAY_INDEX_NOT_FOUND
+  return IsSpecialIndex(Cast<String>(*name_)) ? TYPED_ARRAY_INDEX_NOT_FOUND
                                               : NOT_FOUND;
 }
 
@@ -1274,14 +1274,14 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       [[fallthrough]];
     case ACCESS_CHECK:
       if (check_interceptor() && HasInterceptor<is_element>(map, index_) &&
-          !SkipInterceptor<is_element>(JSObject::cast(holder))) {
+          !SkipInterceptor<is_element>(Cast<JSObject>(holder))) {
         if (is_element || !name_->IsPrivate()) return INTERCEPTOR;
       }
       [[fallthrough]];
     case INTERCEPTOR:
       if (IsJSGlobalObjectMap(map) && !is_js_array_element(is_element)) {
         Tagged<GlobalDictionary> dict =
-            JSGlobalObject::cast(holder)->global_dictionary(isolate_,
+            Cast<JSGlobalObject>(holder)->global_dictionary(isolate_,
                                                             kAcquireLoad);
         number_ = dict->FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
@@ -1320,7 +1320,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   }
   DCHECK(!IsWasmObject(holder, isolate_));
   if (is_element && IsElement(holder)) {
-    Tagged<JSObject> js_object = JSObject::cast(holder);
+    Tagged<JSObject> js_object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = js_object->GetElementsAccessor(isolate_);
     Tagged<FixedArrayBase> backing_store = js_object->elements(isolate_);
     number_ =
@@ -1412,7 +1412,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
                                      ? access_check_info->indexed_interceptor()
                                      : access_check_info->named_interceptor();
     if (interceptor != Tagged<Object>()) {
-      return handle(InterceptorInfo::cast(interceptor), isolate_);
+      return handle(Cast<InterceptorInfo>(interceptor), isolate_);
     }
   }
   return Handle<InterceptorInfo>();
@@ -1536,7 +1536,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
 
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
-    Tagged<FixedArray> elements_fixed_array = FixedArray::cast(elements);
+    Tagged<FixedArray> elements_fixed_array = Cast<FixedArray>(elements);
     if (index >= static_cast<uint32_t>(elements_fixed_array->length())) {
       return kGaveUp;
     }
@@ -1559,8 +1559,8 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
     // In this case we don't care about the actual `elements`. All in-bounds
     // reads are redirected to the wrapped String.
 
-    Tagged<JSPrimitiveWrapper> js_value = JSPrimitiveWrapper::cast(holder);
-    Tagged<String> wrapped_string = String::cast(js_value->value());
+    Tagged<JSPrimitiveWrapper> js_value = Cast<JSPrimitiveWrapper>(holder);
+    Tagged<String> wrapped_string = Cast<String>(js_value->value());
     return ConcurrentLookupIterator::TryGetOwnChar(
         reinterpret_cast<Tagged<String>*>(result_out), isolate, local_isolate,
         wrapped_string, index);
@@ -1606,7 +1606,7 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   DCHECK_NE(value, ReadOnlyRoots(isolate).undefined_value());
 
-  *result_out = String::cast(value);
+  *result_out = Cast<String>(value);
   return kPresent;
 }
 
@@ -1634,7 +1634,7 @@ ConcurrentLookupIterator::TryGetPropertyCell(
 
     base::Optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
-            isolate, AccessorPair::cast(maybe_accessor_pair)
+            isolate, Cast<AccessorPair>(maybe_accessor_pair)
                          ->getter(isolate, kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 

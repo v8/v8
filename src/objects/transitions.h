@@ -290,8 +290,6 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // [3 + number of transitions * kTransitionSize]: start of slack
 class TransitionArray : public WeakFixedArray {
  public:
-  DECL_CAST(TransitionArray)
-
   inline Tagged<WeakFixedArray> GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();
 

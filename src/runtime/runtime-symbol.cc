@@ -19,7 +19,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
     DirectHandle<Object> description = args.at(0);
     CHECK(IsString(*description) || IsUndefined(*description, isolate));
     if (IsString(*description))
-      symbol->set_description(String::cast(*description));
+      symbol->set_description(Cast<String>(*description));
   }
   return *symbol;
 }
@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("Symbol(");
   if (IsString(symbol->description())) {
-    builder.AppendString(handle(String::cast(symbol->description()), isolate));
+    builder.AppendString(handle(Cast<String>(symbol->description()), isolate));
   }
   builder.AppendCharacter(')');
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
@@ -58,7 +58,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  auto symbol = Symbol::cast(args[0]);
+  auto symbol = Cast<Symbol>(args[0]);
   return isolate->heap()->ToBoolean(symbol->is_private());
 }
 }  // namespace internal

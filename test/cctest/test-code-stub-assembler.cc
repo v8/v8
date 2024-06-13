@@ -83,7 +83,7 @@ TEST(CallCFunction) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   DirectHandle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(45, Smi::cast(*result).value());
+  CHECK_EQ(45, Cast<Smi>(*result).value());
 }
 
 TEST(CallCFunctionWithCallerSavedRegisters) {
@@ -111,7 +111,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   DirectHandle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(3, Smi::cast(*result).value());
+  CHECK_EQ(3, Cast<Smi>(*result).value());
 }
 
 TEST(NumberToString) {
@@ -424,7 +424,7 @@ TEST(FixedArrayAccessSmiIndex) {
                                    m.SmiTag(m.IntPtrConstant(4)), 0));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(733, Smi::cast(*result.ToHandleChecked()).value());
+  CHECK_EQ(733, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadHeapNumberValue) {
@@ -436,7 +436,7 @@ TEST(LoadHeapNumberValue) {
       m.LoadHeapNumberValue(m.HeapConstantNoHole(number))))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(1234, Smi::cast(*result.ToHandleChecked()).value());
+  CHECK_EQ(1234, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadInstanceType) {
@@ -448,7 +448,7 @@ TEST(LoadInstanceType) {
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
-           Smi::cast(*result.ToHandleChecked()).value());
+           Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(DecodeWordFromWord32) {
@@ -464,7 +464,7 @@ TEST(DecodeWordFromWord32) {
   // value  = 00101111
   // mask   = 00111000
   // result = 101
-  CHECK_EQ(5, Smi::cast(*result.ToHandleChecked()).value());
+  CHECK_EQ(5, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(JSFunction) {
@@ -479,7 +479,7 @@ TEST(JSFunction) {
 
   MaybeHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
                                        handle(Smi::FromInt(34), isolate));
-  CHECK_EQ(57, Smi::cast(*result.ToHandleChecked()).value());
+  CHECK_EQ(57, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
 TEST(ComputeIntegerHash) {
@@ -503,7 +503,7 @@ TEST(ComputeIntegerHash) {
 
     uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
     Tagged<Smi> expected = Smi::FromInt(hash);
-    CHECK_EQ(expected, Smi::cast(*result));
+    CHECK_EQ(expected, Cast<Smi>(*result));
   }
 }
 
@@ -554,10 +554,10 @@ TEST(ToString) {
   test_cases->set(4, *tostring_test);
 
   for (int i = 0; i < 5; ++i) {
-    DirectHandle<FixedArray> test(FixedArray::cast(test_cases->get(i)),
+    DirectHandle<FixedArray> test(Cast<FixedArray>(test_cases->get(i)),
                                   isolate);
     Handle<Object> obj(test->get(0), isolate);
-    Handle<String> expected(String::cast(test->get(1)), isolate);
+    Handle<String> expected(Cast<String>(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(IsString(*result));
     CHECK(String::Equals(isolate, Cast<String>(result), expected));
@@ -1111,7 +1111,7 @@ TEST(TransitionLookup) {
   CHECK(IsTransitionArray(
       root_map->raw_transitions().GetHeapObjectAssumeStrong()));
   Handle<TransitionArray> transitions(
-      TransitionArray::cast(
+      Cast<TransitionArray>(
           root_map->raw_transitions().GetHeapObjectAssumeStrong()),
       isolate);
   DCHECK(transitions->IsSortedNoDuplicates());
@@ -1952,7 +1952,7 @@ TEST(AllocationFoldingCSA) {
     }
     Tagged<ByteArray> prev_array;
     for (int i = 1; i <= kNumArrays; ++i) {
-      Tagged<ByteArray> current_array = ByteArray::cast(result->get(i - 1));
+      Tagged<ByteArray> current_array = Cast<ByteArray>(result->get(i - 1));
       if (V8_COMPRESS_POINTERS_8GB_BOOL) {
         CHECK(IsAligned(current_array.address(), kObjectAlignment8GbHeap));
       } else {
@@ -2637,7 +2637,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     DirectHandle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
 
     CHECK_EQ(kind_, array->GetElementsKind());
-    CHECK_EQ(result_size, Smi::cast(*result).value());
+    CHECK_EQ(result_size, i::Cast<Smi>(*result).value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Handle<Object> obj =
         JSObject::GetElement(isolate, array, 2).ToHandleChecked();
@@ -3085,17 +3085,17 @@ TEST(NewPromiseCapability) {
     CHECK(IsJSFunction(result->reject()));
     CHECK_EQ(
         *isolate->factory()->promise_capability_default_reject_shared_fun(),
-        JSFunction::cast(result->reject())->shared());
+        Cast<JSFunction>(result->reject())->shared());
     CHECK_EQ(
         *isolate->factory()->promise_capability_default_resolve_shared_fun(),
-        JSFunction::cast(result->resolve())->shared());
+        Cast<JSFunction>(result->resolve())->shared());
 
     Handle<JSFunction> callbacks[] = {
-        handle(JSFunction::cast(result->resolve()), isolate),
-        handle(JSFunction::cast(result->reject()), isolate)};
+        handle(Cast<JSFunction>(result->resolve()), isolate),
+        handle(Cast<JSFunction>(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
-      DirectHandle<Context> callback_context(Context::cast(callback->context()),
+      DirectHandle<Context> callback_context(Cast<Context>(callback->context()),
                                              isolate);
       CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo),
                callback_context->scope_info());
@@ -3137,7 +3137,7 @@ TEST(NewPromiseCapability) {
         Cast<PromiseCapability>(result_obj);
 
     CHECK(IsJSObject(result->promise()));
-    Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
+    Handle<JSObject> promise(Cast<JSObject>(result->promise()), isolate);
     CHECK_EQ(constructor_fn->prototype_or_initial_map(kAcquireLoad),
              promise->map());
     CHECK(IsJSFunction(result->resolve()));
@@ -3579,7 +3579,7 @@ TEST(CloneEmptyFixedArray) {
 
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(0, result->length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
@@ -3597,10 +3597,10 @@ TEST(CloneFixedArray) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(5, result->length());
   CHECK(IsTheHole(result->get(0), isolate));
-  CHECK_EQ(Smi::cast(result->get(1)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
   CHECK(IsTheHole(result->get(2), isolate));
   CHECK(IsTheHole(result->get(3), isolate));
   CHECK(IsTheHole(result->get(4), isolate));
@@ -3620,7 +3620,7 @@ TEST(CloneFixedArrayCOW) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(*source, result);
 }
 
@@ -3644,11 +3644,11 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);
   CHECK_EQ(5, result->length());
   CHECK(IsTheHole(result->get(0), isolate));
-  CHECK_EQ(Smi::cast(result->get(1)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
   CHECK(IsTheHole(result->get(2), isolate));
   CHECK(IsTheHole(result->get(3), isolate));
   CHECK(IsTheHole(result->get(4), isolate));
@@ -3677,9 +3677,9 @@ TEST(ExtractFixedArraySimple) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
 
@@ -3703,9 +3703,9 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
 
@@ -3729,9 +3729,9 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
 
@@ -3753,9 +3753,9 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
 
@@ -3778,9 +3778,9 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
+  CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 
   Handle<FixedDoubleArray> source_double =
@@ -3795,7 +3795,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   Tagged<FixedDoubleArray> double_result =
-      FixedDoubleArray::cast(*double_result_raw);
+      Cast<FixedDoubleArray>(*double_result_raw);
   CHECK_EQ(2, double_result->length());
   CHECK_EQ(double_result->get_scalar(0), 11);
   CHECK_EQ(double_result->get_scalar(1), 12);
@@ -3846,7 +3846,7 @@ TEST(SmallOrderedHashMapAllocate) {
     DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
     DirectHandle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
-        SmallOrderedHashMap::cast(*result_raw), isolate);
+        Cast<SmallOrderedHashMap>(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
     CHECK_EQ(0, actual->NumberOfDeletedElements());
@@ -3884,7 +3884,7 @@ TEST(SmallOrderedHashSetAllocate) {
     DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
     DirectHandle<SmallOrderedHashSet> actual(
-        SmallOrderedHashSet::cast(*result_raw), isolate);
+        Cast<SmallOrderedHashSet>(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
     CHECK_EQ(0, actual->NumberOfDeletedElements());
@@ -4096,7 +4096,7 @@ int32_t NumberToInt32(DirectHandle<Object> number) {
     return Smi::ToInt(*number);
   }
   if (IsHeapNumber(*number)) {
-    double num = HeapNumber::cast(*number)->value();
+    double num = Cast<HeapNumber>(*number)->value();
     return DoubleToInt32(num);
   }
   UNREACHABLE();
@@ -4224,7 +4224,7 @@ double NumberToFloat64(DirectHandle<Object> number) {
     return Smi::ToInt(*number);
   }
   if (IsHeapNumber(*number)) {
-    return HeapNumber::cast(*number)->value();
+    return Cast<HeapNumber>(*number)->value();
   }
   UNREACHABLE();
 }

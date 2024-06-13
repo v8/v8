@@ -38,7 +38,7 @@ class StringTable::OffHeapStringHashSet
       : OffHeapHashTableBase<OffHeapStringHashSet>(capacity) {}
 
   static uint32_t Hash(PtrComprCageBase, Tagged<Object> key) {
-    return String::cast(key)->hash();
+    return Cast<String>(key)->hash();
   }
 
   template <typename IsolateT, typename StringTableKey>
@@ -436,7 +436,7 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
   InternalIndex entry = current_table.FindEntry(isolate, key, key->hash());
   if (entry.is_found()) {
     DirectHandle<String> result(
-        String::cast(current_table.GetKey(isolate, entry)), isolate);
+        Cast<String>(current_table.GetKey(isolate, entry)), isolate);
     DCHECK_IMPLIES(v8_flags.shared_string_table, InAnySharedSpace(*result));
     return result;
   }
@@ -470,7 +470,7 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
       return new_string;
     } else {
       // Return the existing string as a handle.
-      return direct_handle(String::cast(element), isolate);
+      return direct_handle(Cast<String>(element), isolate);
     }
   }
 }
@@ -615,7 +615,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   }
 
   Tagged<String> internalized =
-      String::cast(string_table_data->table().GetKey(isolate, entry));
+      Cast<String>(string_table_data->table().GetKey(isolate, entry));
   // string can be internalized here, if another thread internalized it.
   // If we found and entry in the string table and string is not internalized,
   // there is no way that it can transition to internalized later on. So a last
@@ -631,7 +631,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
 // static
 Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                       Address raw_string) {
-  Tagged<String> string = String::cast(Tagged<Object>(raw_string));
+  Tagged<String> string = Cast<String>(Tagged<Object>(raw_string));
   if (IsInternalizedString(string)) {
     // string could be internalized, if the string table is shared and another
     // thread internalized it.
@@ -649,14 +649,14 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
   size_t start = 0;
   Tagged<String> source = string;
   if (IsSlicedString(source)) {
-    Tagged<SlicedString> sliced = SlicedString::cast(source);
+    Tagged<SlicedString> sliced = Cast<SlicedString>(source);
     start = sliced->offset();
     source = sliced->parent();
   } else if (IsConsString(source) && source->IsFlat()) {
-    source = ConsString::cast(source)->first();
+    source = Cast<ConsString>(source)->first();
   }
   if (IsThinString(source)) {
-    source = ThinString::cast(source)->actual();
+    source = Cast<ThinString>(source)->actual();
     if (string->length() == source->length()) {
       return source.ptr();
     }

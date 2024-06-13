@@ -66,7 +66,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   }
   // TODO(cbruni, 1244145): Use host-defined options from script context.
   Handle<FixedArray> host_defined_options(
-      Script::cast(function->shared()->script())->host_defined_options(),
+      Cast<Script>(function->shared()->script())->host_defined_options(),
       isolate);
   MaybeHandle<Object> result = Execution::CallScript(
       isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
@@ -131,7 +131,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 
   // Get context and receiver.
   DirectHandle<Context> native_context(
-      Context::cast(it.frame()->context())->native_context(), isolate);
+      Cast<Context>(it.frame()->context())->native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
   Handle<JSObject> materialized = factory->NewSlowJSObjectWithNullProto();
@@ -288,7 +288,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
 
       for (int i = 0; i < keys->length(); i++) {
         DCHECK(IsString(keys->get(i)));
-        Handle<String> key(String::cast(keys->get(i)), isolate_);
+        Handle<String> key(Cast<String>(keys->get(i)), isolate_);
         Handle<Object> value = JSReceiver::GetDataProperty(
             isolate_, element.materialized_object, key);
         scope_iterator_.SetVariableValue(key, value);

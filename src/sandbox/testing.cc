@@ -115,7 +115,7 @@ static bool GetArgumentObjectPassedAsReference(
     return false;
   }
 
-  *out = HeapObject::cast(*arg);
+  *out = Cast<HeapObject>(*arg);
   return true;
 }
 
@@ -338,7 +338,7 @@ void SandboxGetFieldOffsetImpl(
   if (!getArgumentObject(info, &obj)) {
     return;
   }
-  InstanceType instance_type = HeapObject::cast(*obj)->map()->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*obj)->map()->instance_type();
 
   v8::String::Utf8Value field_name(isolate, info[1]);
   if (!*field_name) {

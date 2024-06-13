@@ -85,8 +85,8 @@ void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
     if (SeenAlready(lhs, rhs)) return;
     CHECK(IsWasmArray(lhs));
     CHECK(IsWasmArray(rhs));
-    Tagged<WasmArray> lhs_array = WasmArray::cast(lhs);
-    Tagged<WasmArray> rhs_array = WasmArray::cast(rhs);
+    Tagged<WasmArray> lhs_array = Cast<WasmArray>(lhs);
+    Tagged<WasmArray> rhs_array = Cast<WasmArray>(rhs);
     CHECK_EQ(lhs_array->map(), rhs_array->map());
     CHECK_EQ(lhs_array->length(), rhs_array->length());
     cmp.reserve(cmp.size() + lhs_array->length());
@@ -100,8 +100,8 @@ void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
     if (SeenAlready(lhs, rhs)) return;
     CHECK(IsWasmStruct(lhs));
     CHECK(IsWasmStruct(rhs));
-    Tagged<WasmStruct> lhs_struct = WasmStruct::cast(lhs);
-    Tagged<WasmStruct> rhs_struct = WasmStruct::cast(rhs);
+    Tagged<WasmStruct> lhs_struct = Cast<WasmStruct>(lhs);
+    Tagged<WasmStruct> rhs_struct = Cast<WasmStruct>(rhs);
     CHECK_EQ(lhs_struct->map(), rhs_struct->map());
     uint32_t field_count = lhs_struct->type()->field_count();
     for (uint32_t i = 0; i < field_count; ++i) {
@@ -278,7 +278,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
           func_val = Smi::ToInt(*function_result);
         } else {
           CHECK(IsHeapNumber(*function_result));
-          func_val = HeapNumber::cast(*function_result)->value();
+          func_val = Cast<HeapNumber>(*function_result)->value();
         }
         CHECK_FLOAT_EQ(func_val, global_val);
         break;
@@ -290,7 +290,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
           func_val = Smi::ToInt(*function_result);
         } else {
           CHECK(IsHeapNumber(*function_result));
-          func_val = HeapNumber::cast(*function_result)->value();
+          func_val = Cast<HeapNumber>(*function_result)->value();
         }
         CHECK_FLOAT_EQ(func_val, global_val);
         break;
@@ -302,7 +302,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
           func_val = Smi::ToInt(*function_result);
         } else {
           CHECK(IsHeapNumber(*function_result));
-          func_val = HeapNumber::cast(*function_result)->value();
+          func_val = Cast<HeapNumber>(*function_result)->value();
         }
         CHECK_EQ(func_val, global_val);
         break;
@@ -315,7 +315,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         } else {
           CHECK(IsBigInt(*function_result));
           bool lossless;
-          func_val = BigInt::cast(*function_result)->AsInt64(&lossless);
+          func_val = Cast<BigInt>(*function_result)->AsInt64(&lossless);
           CHECK(lossless);
         }
         CHECK_EQ(func_val, global_val);
@@ -340,7 +340,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             CHECK(
                 WasmExportedFunction::IsWasmExportedFunction(*function_result));
             CHECK(*WasmInternalFunction::GetOrCreateExternal(handle(
-                      WasmFuncRef::cast(*global_val)->internal(i_isolate),
+                      Cast<WasmFuncRef>(*global_val)->internal(i_isolate),
                       i_isolate)) == *function_result);
           } else {
             // On arrays and structs, perform a deep comparison.

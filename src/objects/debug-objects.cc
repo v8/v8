@@ -86,7 +86,7 @@ bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
   // If there is no break point info object or no break points in the break
   // point info object there is no break point at this code offset.
   if (IsUndefined(break_point_info, isolate)) return false;
-  return BreakPointInfo::cast(break_point_info)->GetBreakPointCount(isolate) >
+  return Cast<BreakPointInfo>(break_point_info)->GetBreakPointCount(isolate) >
          0;
 }
 
@@ -97,7 +97,7 @@ Tagged<Object> DebugInfo::GetBreakPointInfo(Isolate* isolate,
   for (int i = 0; i < break_points()->length(); i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
-          BreakPointInfo::cast(break_points()->get(i));
+          Cast<BreakPointInfo>(break_points()->get(i));
       if (break_point_info->source_position() == source_position) {
         return break_point_info;
       }
@@ -113,7 +113,7 @@ bool DebugInfo::ClearBreakPoint(Isolate* isolate,
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (IsUndefined(debug_info->break_points()->get(i), isolate)) continue;
     DirectHandle<BreakPointInfo> break_point_info(
-        BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
+        Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
     if (BreakPointInfo::HasBreakPoint(isolate, break_point_info, break_point)) {
       BreakPointInfo::ClearBreakPoint(isolate, break_point_info, break_point);
       return true;
@@ -177,7 +177,7 @@ Handle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
   if (IsUndefined(break_point_info, isolate)) {
     return isolate->factory()->undefined_value();
   }
-  return Handle<Object>(BreakPointInfo::cast(break_point_info)->break_points(),
+  return Handle<Object>(Cast<BreakPointInfo>(break_point_info)->break_points(),
                         isolate);
 }
 
@@ -188,7 +188,7 @@ int DebugInfo::GetBreakPointCount(Isolate* isolate) {
   for (int i = 0; i < break_points()->length(); i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
-          BreakPointInfo::cast(break_points()->get(i));
+          Cast<BreakPointInfo>(break_points()->get(i));
       count += break_point_info->GetBreakPointCount(isolate);
     }
   }
@@ -202,7 +202,7 @@ Handle<Object> DebugInfo::FindBreakPointInfo(
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
       Handle<BreakPointInfo> break_point_info(
-          BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
+          Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
       if (BreakPointInfo::HasBreakPoint(isolate, break_point_info,
                                         break_point)) {
         return break_point_info;
@@ -249,7 +249,7 @@ void BreakPointInfo::ClearBreakPoint(
   if (IsUndefined(break_point_info->break_points(), isolate)) return;
   // If there is a single break point clear it if it is the same.
   if (!IsFixedArray(break_point_info->break_points())) {
-    if (IsEqual(BreakPoint::cast(break_point_info->break_points()),
+    if (IsEqual(Cast<BreakPoint>(break_point_info->break_points()),
                 *break_point)) {
       break_point_info->set_break_points(
           ReadOnlyRoots(isolate).undefined_value());
@@ -259,12 +259,12 @@ void BreakPointInfo::ClearBreakPoint(
   // If there are multiple break points shrink the array
   DCHECK(IsFixedArray(break_point_info->break_points()));
   DirectHandle<FixedArray> old_array(
-      FixedArray::cast(break_point_info->break_points()), isolate);
+      Cast<FixedArray>(break_point_info->break_points()), isolate);
   DirectHandle<FixedArray> new_array =
       isolate->factory()->NewFixedArray(old_array->length() - 1);
   int found_count = 0;
   for (int i = 0; i < old_array->length(); i++) {
-    if (IsEqual(BreakPoint::cast(old_array->get(i)), *break_point)) {
+    if (IsEqual(Cast<BreakPoint>(old_array->get(i)), *break_point)) {
       DCHECK_EQ(found_count, 0);
       found_count++;
     } else {
@@ -286,9 +286,9 @@ void BreakPointInfo::SetBreakPoint(
   }
   // If there was one break point object before replace with array.
   if (!IsFixedArray(break_point_info->break_points())) {
-    if (IsEqual(BreakPoint::cast(break_point_info->break_points()),
-        *break_point)) {
-          return;
+    if (IsEqual(Cast<BreakPoint>(break_point_info->break_points()),
+                *break_point)) {
+      return;
     }
 
     DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(2);
@@ -299,12 +299,12 @@ void BreakPointInfo::SetBreakPoint(
   }
   // If there was more than one break point before extend array.
   DirectHandle<FixedArray> old_array(
-      FixedArray::cast(break_point_info->break_points()), isolate);
+      Cast<FixedArray>(break_point_info->break_points()), isolate);
   DirectHandle<FixedArray> new_array =
       isolate->factory()->NewFixedArray(old_array->length() + 1);
   for (int i = 0; i < old_array->length(); i++) {
     // If the break point was there before just ignore.
-    if (IsEqual(BreakPoint::cast(old_array->get(i)), *break_point)) return;
+    if (IsEqual(Cast<BreakPoint>(old_array->get(i)), *break_point)) return;
     new_array->set(i, old_array->get(i));
   }
   // Add the new break point.
@@ -321,14 +321,14 @@ bool BreakPointInfo::HasBreakPoint(
   }
   // Single break point.
   if (!IsFixedArray(break_point_info->break_points())) {
-    return IsEqual(BreakPoint::cast(break_point_info->break_points()),
+    return IsEqual(Cast<BreakPoint>(break_point_info->break_points()),
                    *break_point);
   }
   // Multiple break points.
-  Tagged<FixedArray> array = FixedArray::cast(break_point_info->break_points());
+  Tagged<FixedArray> array = Cast<FixedArray>(break_point_info->break_points());
   for (int i = 0; i < array->length(); i++) {
-    if (IsEqual(BreakPoint::cast(array->get(i)), *break_point)) {
-          return true;
+    if (IsEqual(Cast<BreakPoint>(array->get(i)), *break_point)) {
+      return true;
     }
   }
   return false;
@@ -344,16 +344,16 @@ MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
   // Single break point.
   if (!IsFixedArray(break_point_info->break_points())) {
     Tagged<BreakPoint> breakpoint =
-        BreakPoint::cast(break_point_info->break_points());
+        Cast<BreakPoint>(break_point_info->break_points());
     if (breakpoint->id() == breakpoint_id) {
           return handle(breakpoint, isolate);
     }
   } else {
     // Multiple break points.
     Tagged<FixedArray> array =
-        FixedArray::cast(break_point_info->break_points());
+        Cast<FixedArray>(break_point_info->break_points());
     for (int i = 0; i < array->length(); i++) {
-      Tagged<BreakPoint> breakpoint = BreakPoint::cast(array->get(i));
+      Tagged<BreakPoint> breakpoint = Cast<BreakPoint>(array->get(i));
       if (breakpoint->id() == breakpoint_id) {
         return handle(breakpoint, isolate);
       }
@@ -369,7 +369,7 @@ int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   // Single break point.
   if (!IsFixedArray(break_points())) return 1;
   // Multiple break points.
-  return FixedArray::cast(break_points())->length();
+  return Cast<FixedArray>(break_points())->length();
 }
 
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
@@ -410,11 +410,11 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
   }
   Isolate* isolate = info->GetIsolate();
   Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(info->shared_or_script()), isolate);
+      Cast<SharedFunctionInfo>(info->shared_or_script()), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   int source_position = shared->abstract_code(isolate)->SourcePosition(
       isolate, info->bytecode_offset_or_source_position());
-  info->set_shared_or_script(Script::cast(shared->script()));
+  info->set_shared_or_script(Cast<Script>(shared->script()));
   info->set_bytecode_offset_or_source_position(source_position);
   return source_position;
 }
@@ -425,14 +425,14 @@ void ErrorStackData::EnsureStackFrameInfos(
   if (!IsSmi(error_stack->limit_or_stack_frame_infos())) {
     return;
   }
-  int limit = Smi::cast(error_stack->limit_or_stack_frame_infos()).value();
+  int limit = Cast<Smi>(error_stack->limit_or_stack_frame_infos()).value();
   Handle<FixedArray> call_site_infos(error_stack->call_site_infos(), isolate);
   Handle<FixedArray> stack_frame_infos =
       isolate->factory()->NewFixedArray(call_site_infos->length());
   int index = 0;
   for (int i = 0; i < call_site_infos->length(); ++i) {
     DirectHandle<CallSiteInfo> call_site_info(
-        CallSiteInfo::cast(call_site_infos->get(i)), isolate);
+        Cast<CallSiteInfo>(call_site_infos->get(i)), isolate);
     if (call_site_info->IsAsync()) {
           break;
     }

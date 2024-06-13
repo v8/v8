@@ -172,8 +172,8 @@ void MessageHandler::ReportMessageNoExceptions(
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (IsUndefined(global_listeners->get(i), isolate)) continue;
-      Tagged<FixedArray> listener = FixedArray::cast(global_listeners->get(i));
-      Tagged<Foreign> callback_obj = Foreign::cast(listener->get(0));
+      Tagged<FixedArray> listener = Cast<FixedArray>(global_listeners->get(i));
+      Tagged<Foreign> callback_obj = Cast<Foreign>(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));
       if (!(message_levels & error_level)) {
@@ -220,7 +220,7 @@ MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
   DirectHandle<FixedArray> sites =
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
-    Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), isolate);
+    Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), isolate);
     Handle<JSObject> site;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
                                JSObject::New(constructor, constructor,
@@ -345,7 +345,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         if (V8_UNLIKELY(IsJSGlobalObject(*error))) {
           // Pass global proxy instead of global object.
           argv[0] =
-              handle(JSGlobalObject::cast(*error)->global_proxy(), isolate);
+              handle(Cast<JSGlobalObject>(*error)->global_proxy(), isolate);
         } else {
           argv[0] = error;
         }
@@ -371,7 +371,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
   for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCStringLiteral("\n    at ");
 
-    Handle<CallSiteInfo> frame(CallSiteInfo::cast(elems->get(i)), isolate);
+    Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(elems->get(i)), isolate);
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     SerializeCallSiteInfo(isolate, frame, &builder);

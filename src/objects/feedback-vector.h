@@ -212,7 +212,6 @@ class ClosureFeedbackCellArray
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
-  DECL_CAST(ClosureFeedbackCellArray)
 
   class BodyDescriptor;
 };
@@ -597,8 +596,6 @@ class SharedFeedbackSlot {
 // the number of slots is static once an instance is created.
 class FeedbackMetadata : public HeapObject {
  public:
-  DECL_CAST(FeedbackMetadata)
-
   // The number of slots that this metadata contains. Stored as an int32.
   DECL_INT32_ACCESSORS(slot_count)
 

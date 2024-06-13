@@ -150,7 +150,7 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
             ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol(),
         entry.as_int() == 0);
     result =
-        handle(T::cast(instance_map->instance_descriptors()->GetStrongValue(
+        handle(Cast<T>(instance_map->instance_descriptors()->GetStrongValue(
                    isolate, entry)),
                isolate);
   }
@@ -316,8 +316,8 @@ class SharedStructTypeRegistry::Data : public OffHeapHashTableBase<Data> {
   static uint32_t Hash(PtrComprCageBase cage_base, Tagged<Object> key) {
     // Registry keys, if present, store them at the first descriptor. All maps
     // in the registry have registry keys.
-    return String::cast(
-               Map::cast(key)->instance_descriptors(cage_base)->GetStrongValue(
+    return Cast<String>(
+               Cast<Map>(key)->instance_descriptors(cage_base)->GetStrongValue(
                    InternalIndex(0)))
         ->hash();
   }
@@ -406,7 +406,7 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
     if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, existing_map,
                                                      i)) {
       DirectHandle<NumberDictionary> elements_template(
-          NumberDictionary::cast(
+          Cast<NumberDictionary>(
               existing_map->instance_descriptors()->GetStrongValue(isolate, i)),
           isolate);
       if (static_cast<int>(element_names.size()) !=

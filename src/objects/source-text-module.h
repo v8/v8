@@ -237,8 +237,6 @@ class SourceTextModule
 // Scope.
 class SourceTextModuleInfo : public FixedArray {
  public:
-  DECL_CAST(SourceTextModuleInfo)
-
   template <typename IsolateT>
   static Handle<SourceTextModuleInfo> New(IsolateT* isolate, Zone* zone,
                                           SourceTextModuleDescriptor* descr);

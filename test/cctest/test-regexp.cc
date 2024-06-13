@@ -111,7 +111,7 @@ class InterruptTest {
     // two-byte to be present.
     i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
     CHECK(IsSmi(one_byte_code));
-    CHECK_EQ(i::Smi::cast(one_byte_code).value(),
+    CHECK_EQ(i::Cast<i::Smi>(one_byte_code).value(),
              i::JSRegExp::kUninitializedValue);
     i::Tagged<i::Object> two_byte_code =
         regexp->bytecode(/* is_latin1 */ false);

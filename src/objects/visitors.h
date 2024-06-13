@@ -6,9 +6,9 @@
 #define V8_OBJECTS_VISITORS_H_
 
 #include "src/common/globals.h"
+#include "src/objects/casting.h"
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/foreign.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/slots.h"
 
@@ -282,7 +282,7 @@ class ClientRootVisitor final : public RootVisitor {
  private:
   V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
     return IsHeapObject(object) &&
-           InWritableSharedSpace(HeapObject::cast(object));
+           InWritableSharedSpace(Cast<HeapObject>(object));
   }
 
   Visitor* const actual_visitor_;
@@ -344,7 +344,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
  private:
   V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
     return IsHeapObject(object) &&
-           InWritableSharedSpace(HeapObject::cast(object));
+           InWritableSharedSpace(Cast<HeapObject>(object));
   }
 
   Visitor* const actual_visitor_;

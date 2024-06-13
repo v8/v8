@@ -120,7 +120,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       cached_inline_entries;
   bool is_shared_cross_origin = false;
   if (IsScript(shared->script(cage_base), cage_base)) {
-    DirectHandle<Script> script(Script::cast(shared->script(cage_base)),
+    DirectHandle<Script> script(Cast<Script>(shared->script(cage_base)),
                                 isolate_);
     line_table.reset(new SourcePositionTable());
 
@@ -183,7 +183,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 
           const char* resource_name =
               (IsName(pos_info.script->name()))
-                  ? GetName(Name::cast(pos_info.script->name()))
+                  ? GetName(Cast<Name>(pos_info.script->name()))
                   : CodeEntry::kEmptyResourceName;
 
           bool inline_is_shared_cross_origin =
@@ -374,10 +374,10 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
 
 Tagged<Name> ProfilerListener::InferScriptName(
     Tagged<Name> name, Tagged<SharedFunctionInfo> info) {
-  if (IsString(name) && String::cast(name)->length()) return name;
+  if (IsString(name) && Cast<String>(name)->length()) return name;
   if (!IsScript(info->script())) return name;
-  Tagged<Object> source_url = Script::cast(info->script())->source_url();
-  return IsName(source_url) ? Name::cast(source_url) : name;
+  Tagged<Object> source_url = Cast<Script>(info->script())->source_url();
+  return IsName(source_url) ? Cast<Name>(source_url) : name;
 }
 
 const char* ProfilerListener::GetFunctionName(

@@ -218,7 +218,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   } else if (IsString(*object)) {
     return isolate->heap()->ToBoolean(
         key.is_element()
-            ? key.index() < static_cast<size_t>(String::cast(*object)->length())
+            ? key.index() < static_cast<size_t>(Cast<String>(*object)->length())
             : key.name()->Equals(ReadOnlyRoots(isolate).length_string()));
   } else if (IsNullOrUndefined(*object, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -319,7 +319,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_GE(depth, 0);
   for (; depth > 0; depth--) {
     context =
-        handle(Context::cast(context->get(Context::PREVIOUS_INDEX)), isolate);
+        handle(Cast<Context>(context->get(Context::PREVIOUS_INDEX)), isolate);
   }
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
@@ -388,7 +388,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
   LookupIterator it(isolate, object, lookup_key);
-  if (IsSymbol(*key) && Symbol::cast(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, false);
     MAYBE_RETURN_NULL(can_store);
     if (!can_store.FromJust()) {
@@ -418,7 +418,7 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
 
-  if (IsSymbol(*key) && Symbol::cast(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
     LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, true);
     MAYBE_RETURN_NULL(can_store);
@@ -616,7 +616,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   // Convert string-index keys to their number variant to avoid internalization
   // below; and speed up subsequent conversion to index.
   uint32_t index;
-  if (IsString(*key_obj) && String::cast(*key_obj)->AsArrayIndex(&index)) {
+  if (IsString(*key_obj) && Cast<String>(*key_obj)->AsArrayIndex(&index)) {
     key_obj = isolate->factory()->NewNumberFromUint(index);
   }
   if (IsJSObject(*lookup_start_obj)) {
@@ -630,7 +630,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       if (IsJSGlobalObject(*lookup_start_object)) {
         // Attempt dictionary lookup.
         Tagged<GlobalDictionary> dictionary =
-            JSGlobalObject::cast(*lookup_start_object)
+            Cast<JSGlobalObject>(*lookup_start_object)
                 ->global_dictionary(kAcquireLoad);
         InternalIndex entry = dictionary->FindEntry(isolate, key);
         if (entry.is_found()) {
@@ -683,7 +683,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   } else if (IsString(*lookup_start_obj) && IsSmi(*key_obj)) {
     // Fast case for string indexing using [] with a smi index.
     Handle<String> str = Cast<String>(lookup_start_obj);
-    int smi_index = Smi::cast(*key_obj).value();
+    int smi_index = Cast<Smi>(*key_obj).value();
     if (smi_index >= 0 && smi_index < str->length()) {
       Factory* factory = isolate->factory();
       return *factory->LookupSingleCharacterStringFromCode(
@@ -1002,7 +1002,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
 RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  auto obj = HeapObject::cast(args[0]);
+  auto obj = Cast<HeapObject>(args[0]);
   return isolate->heap()->ToBoolean(
       IsFastPackedElementsKind(obj->map()->elements_kind()));
 }
@@ -1029,7 +1029,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   Handle<JSFunction> getter = args.at<JSFunction>(2);
   auto attrs = PropertyAttributesFromInt(args.smi_value_at(3));
 
-  if (String::cast(getter->shared()->Name())->length() == 0) {
+  if (Cast<String>(getter->shared()->Name())->length() == 0) {
     DirectHandle<Map> getter_map(getter->map(), isolate);
     if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
       return ReadOnlyRoots(isolate).exception();
@@ -1149,7 +1149,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
     // instead because of our call to %ToName() in the desugaring for
     // computed properties.
     if (IsString(*property) &&
-        String::cast(*property)->AsArrayIndex(&property_num)) {
+        Cast<String>(*property)->AsArrayIndex(&property_num)) {
       property = isolate->factory()->NewNumberFromUint(property_num);
     }
 
@@ -1174,7 +1174,7 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   Handle<JSFunction> setter = args.at<JSFunction>(2);
   auto attrs = PropertyAttributesFromInt(args.smi_value_at(3));
 
-  if (String::cast(setter->shared()->Name())->length() == 0) {
+  if (Cast<String>(setter->shared()->Name())->length() == 0) {
     DirectHandle<Map> setter_map(setter->map(), isolate);
     if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
       return ReadOnlyRoots(isolate).exception();
@@ -1353,12 +1353,12 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
       Nothing<bool>());
 
   if (IsJSFunction(*receiver)) {
-    Handle<JSFunction> func(JSFunction::cast(*receiver), isolate);
+    Handle<JSFunction> func(Cast<JSFunction>(*receiver), isolate);
     DirectHandle<SharedFunctionInfo> shared(func->shared(), isolate);
     if (shared->is_class_constructor() &&
         shared->has_static_private_methods_or_accessors()) {
       DirectHandle<Context> receiver_context(
-          JSFunction::cast(*receiver)->context(), isolate);
+          Cast<JSFunction>(*receiver)->context(), isolate);
       CollectPrivateMethodsAndAccessorsFromContext(
           isolate, receiver_context, desc, func, IsStaticFlag::kStatic,
           results);
@@ -1367,7 +1367,7 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
 
   for (int i = 0; i < keys->length(); ++i) {
     DirectHandle<Object> obj_key(keys->get(i), isolate);
-    Handle<Symbol> symbol(Symbol::cast(*obj_key), isolate);
+    Handle<Symbol> symbol(Cast<Symbol>(*obj_key), isolate);
     CHECK(symbol->is_private_name());
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1375,12 +1375,12 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
         Nothing<bool>());
 
     if (symbol->is_private_brand()) {
-      DirectHandle<Context> value_context(Context::cast(*value), isolate);
+      DirectHandle<Context> value_context(Cast<Context>(*value), isolate);
       CollectPrivateMethodsAndAccessorsFromContext(
           isolate, value_context, desc, symbol, IsStaticFlag::kNotStatic,
           results);
     } else {
-      DirectHandle<String> symbol_desc(String::cast(symbol->description()),
+      DirectHandle<String> symbol_desc(Cast<String>(symbol->description()),
                                        isolate);
       if (symbol_desc->Equals(*desc)) {
         results->push_back({
@@ -1442,7 +1442,7 @@ MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
             NewError(MessageTemplate::kInvalidPrivateGetterAccess, desc));
       }
       DCHECK(IsJSFunction(pair->getter()));
-      Handle<JSFunction> getter(JSFunction::cast(pair->getter()), isolate);
+      Handle<JSFunction> getter(Cast<JSFunction>(pair->getter()), isolate);
       return Execution::Call(isolate, getter, receiver, 0, nullptr);
     }
   }
@@ -1478,7 +1478,7 @@ MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
       }
       DCHECK(IsJSFunction(pair->setter()));
       Handle<Object> argv[] = {value};
-      Handle<JSFunction> setter(JSFunction::cast(pair->setter()), isolate);
+      Handle<JSFunction> setter(Cast<JSFunction>(pair->setter()), isolate);
       return Execution::Call(isolate, setter, receiver, arraysize(argv), argv);
     }
   }
@@ -1562,7 +1562,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
   Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
   DirectHandle<Name> key = args.at<Name>(1);
   DirectHandle<Object> value = args.at(2);
-  PropertyDetails details(Smi::cast(args[3]));
+  PropertyDetails details(Cast<Smi>(args[3]));
 
   DCHECK(IsUniqueName(*key));
 
@@ -1574,8 +1574,8 @@ RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
 RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
-  Tagged<Name> key = Name::cast(args[1]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
+  Tagged<Name> key = Cast<Name>(args[1]);
   InternalIndex index = table->FindEntry(isolate, key);
   return Smi::FromInt(index.is_found()
                           ? index.as_int()
@@ -1587,12 +1587,12 @@ RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
 RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
   InternalIndex index(args.smi_value_at(1));
   Tagged<Object> value = args[2];
   table->ValueAtPut(index, value);
 
-  PropertyDetails details(Smi::cast(args[3]));
+  PropertyDetails details(Cast<Smi>(args[3]));
   table->DetailsAtPut(index, details);
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1613,8 +1613,8 @@ RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
 RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
-  auto other = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
+  auto other = Cast<SwissNameDictionary>(args[0]);
   return Smi::FromInt(table->EqualsForTesting(other));
 }
 
@@ -1623,7 +1623,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
 RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
   return Smi::FromInt(table->NumberOfElements());
 }
 
@@ -1632,7 +1632,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
 RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
   InternalIndex index(args.smi_value_at(1));
   return table->KeyAt(index);
 }
@@ -1642,7 +1642,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
 RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
   InternalIndex index(args.smi_value_at(1));
   return table->ValueAt(index);
 }
@@ -1652,7 +1652,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
 RUNTIME_FUNCTION(Runtime_SwissTableDetailsAt) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
-  auto table = SwissNameDictionary::cast(args[0]);
+  auto table = Cast<SwissNameDictionary>(args[0]);
   InternalIndex index(args.smi_value_at(1));
   PropertyDetails d = table->DetailsAt(index);
   return d.AsSmi();

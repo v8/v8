@@ -28,7 +28,7 @@ BUILTIN(SymbolConstructor) {
   if (!IsUndefined(*description, isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
-    result->set_description(String::cast(*description));
+    result->set_description(Cast<String>(*description));
   }
   return *result;
 }

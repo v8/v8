@@ -245,7 +245,7 @@ class WeakScriptHandle {
       : script_id_(script->id()), isolate_(isolate) {
     DCHECK(IsString(script->name()) || IsUndefined(script->name()));
     if (IsString(script->name())) {
-      source_url_ = String::cast(script->name())->ToCString();
+      source_url_ = Cast<String>(script->name())->ToCString();
     }
     auto global_handle =
         script->GetIsolate()->global_handles()->Create(*script);

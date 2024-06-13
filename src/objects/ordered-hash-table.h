@@ -132,7 +132,7 @@ class OrderedHashTable : public FixedArray {
   bool IsObsolete() { return !IsSmi(get(NextTableIndex())); }
 
   // The next newer table. This is only valid if the table is obsolete.
-  Tagged<Derived> NextTable() { return Derived::cast(get(NextTableIndex())); }
+  Tagged<Derived> NextTable() { return Cast<Derived>(get(NextTableIndex())); }
 
   // When the table is obsolete we store the indexes of the removed holes.
   int RemovedIndexAt(int index) {
@@ -273,7 +273,6 @@ class V8_EXPORT_PRIVATE OrderedHashSet
   using Base = OrderedHashTable<OrderedHashSet, 1>;
 
  public:
-  DECL_CAST(OrderedHashSet)
   DECL_PRINTER(OrderedHashSet)
 
   static MaybeHandle<OrderedHashSet> Add(Isolate* isolate,
@@ -308,7 +307,6 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   using Base = OrderedHashTable<OrderedHashMap, 2>;
 
  public:
-  DECL_CAST(OrderedHashMap)
   DECL_PRINTER(OrderedHashMap)
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
@@ -479,7 +477,6 @@ class SmallOrderedHashTable : public HeapObject {
     return InternalIndex::Range(UsedCapacity());
   }
 
-  DECL_CAST(SmallOrderedHashTable)
   DECL_VERIFIER(SmallOrderedHashTable)
 
   static const int kMinCapacity = 4;
@@ -649,8 +646,6 @@ class SmallOrderedHashTable : public HeapObject {
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
  public:
-  DECL_CAST(SmallOrderedHashSet)
-
   DECL_PRINTER(SmallOrderedHashSet)
   EXPORT_DECL_VERIFIER(SmallOrderedHashSet)
 
@@ -682,8 +677,6 @@ static_assert(kSmallOrderedHashSetMinCapacity ==
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
  public:
-  DECL_CAST(SmallOrderedHashMap)
-
   DECL_PRINTER(SmallOrderedHashMap)
   EXPORT_DECL_VERIFIER(SmallOrderedHashMap)
 
@@ -766,7 +759,6 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
   using Base = OrderedHashTable<OrderedNameDictionary, 3>;
 
  public:
-  DECL_CAST(OrderedNameDictionary)
   DECL_PRINTER(OrderedNameDictionary)
 
   static MaybeHandle<OrderedNameDictionary> Add(
@@ -891,8 +883,6 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
 class SmallOrderedNameDictionary
     : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
  public:
-  DECL_CAST(SmallOrderedNameDictionary)
-
   DECL_PRINTER(SmallOrderedNameDictionary)
   DECL_VERIFIER(SmallOrderedNameDictionary)
 

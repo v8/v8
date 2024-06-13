@@ -23,7 +23,6 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription,
                          ObjectBoilerplateDescription::Super)
-CAST_ACCESSOR(ObjectBoilerplateDescription)
 
 // static
 template <class IsolateT>
@@ -84,7 +83,6 @@ int ObjectBoilerplateDescription::boilerplate_properties_count() const {
 //
 
 OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, Struct)
-CAST_ACCESSOR(ClassBoilerplate)
 
 SMI_ACCESSORS(ClassBoilerplate, arguments_count, kArgumentsCountOffset)
 ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,

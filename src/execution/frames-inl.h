@@ -184,7 +184,7 @@ Tagged<Object> ApiCallbackExitFrame::receiver() const {
 Tagged<HeapObject> ApiCallbackExitFrame::target() const {
   Tagged<Object> function = *target_slot();
   DCHECK(IsJSFunction(function) || IsFunctionTemplateInfo(function));
-  return HeapObject::cast(function);
+  return Cast<HeapObject>(function);
 }
 
 void ApiCallbackExitFrame::set_target(Tagged<HeapObject> function) const {

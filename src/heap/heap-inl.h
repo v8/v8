@@ -279,7 +279,7 @@ Address Heap::NewSpaceLimit() {
 
 bool Heap::InYoungGeneration(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return IsHeapObject(object) && InYoungGeneration(HeapObject::cast(object));
+  return IsHeapObject(object) && InYoungGeneration(Cast<HeapObject>(object));
 }
 
 // static
@@ -314,7 +314,7 @@ bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
 // static
 bool Heap::InFromPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return IsHeapObject(object) && InFromPage(HeapObject::cast(object));
+  return IsHeapObject(object) && InFromPage(Cast<HeapObject>(object));
 }
 
 // static
@@ -331,7 +331,7 @@ bool Heap::InFromPage(Tagged<HeapObject> heap_object) {
 // static
 bool Heap::InToPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return IsHeapObject(object) && InToPage(HeapObject::cast(object));
+  return IsHeapObject(object) && InToPage(Cast<HeapObject>(object));
 }
 
 // static
@@ -440,7 +440,7 @@ bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {
 }
 
 bool Heap::IsPendingAllocation(Tagged<Object> object) {
-  return IsHeapObject(object) && IsPendingAllocation(HeapObject::cast(object));
+  return IsHeapObject(object) && IsPendingAllocation(Cast<HeapObject>(object));
 }
 
 void Heap::ExternalStringTable::AddString(Tagged<String> string) {
@@ -470,7 +470,7 @@ Tagged<Boolean> Heap::ToBoolean(bool condition) {
 
 int Heap::NextScriptId() {
   FullObjectSlot last_script_id_slot(&roots_table()[RootIndex::kLastScriptId]);
-  Tagged<Smi> last_id = Smi::cast(last_script_id_slot.Relaxed_Load());
+  Tagged<Smi> last_id = Cast<Smi>(last_script_id_slot.Relaxed_Load());
   Tagged<Smi> new_id, last_id_before_cas;
   do {
     if (last_id.value() == Smi::kMaxValue) {
@@ -486,7 +486,7 @@ int Heap::NextScriptId() {
     // doesn't.
     last_id_before_cas = last_id;
     last_id =
-        Smi::cast(last_script_id_slot.Relaxed_CompareAndSwap(last_id, new_id));
+        Cast<Smi>(last_script_id_slot.Relaxed_CompareAndSwap(last_id, new_id));
   } while (last_id != last_id_before_cas);
 
   return new_id.value();

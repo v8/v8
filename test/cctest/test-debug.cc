@@ -1389,7 +1389,8 @@ TEST(Regress1163547) {
   // dictionary mode.
   auto constructor_fun =
       Cast<i::JSFunction>(v8::Utils::OpenHandle(*constructor));
-  CHECK(!i::JSObject::cast(constructor_fun->prototype())->HasFastProperties());
+  CHECK(
+      !i::Cast<i::JSObject>(constructor_fun->prototype())->HasFastProperties());
 
   // Run with breakpoint.
   bp = SetBreakPoint(function, 0);
@@ -3058,7 +3059,8 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenDirectHandle(*script)->shared()->script()),
+      i::Cast<i::Script>(
+          v8::Utils::OpenDirectHandle(*script)->shared()->script()),
       isolate);
   i::DirectHandle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
@@ -3444,11 +3446,12 @@ TEST(DebugScriptLineEndsAreAscending) {
   CHECK_GT(instances->length(), 0);
   for (int i = 0; i < instances->length(); i++) {
     DirectHandle<v8::internal::Script> new_script(
-        v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
+        v8::internal::Cast<v8::internal::Script>(instances->get(i)),
+        CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(CcTest::i_isolate(), new_script);
     v8::internal::Tagged<v8::internal::FixedArray> ends =
-        v8::internal::FixedArray::cast(new_script->line_ends());
+        v8::internal::Cast<v8::internal::FixedArray>(new_script->line_ends());
     CHECK_GT(ends->length(), 0);
 
     int prev_end = -1;
@@ -4767,7 +4770,7 @@ TEST(DebugEvaluateNoSideEffect) {
     for (i::Tagged<i::HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (!IsJSFunction(obj)) continue;
-      i::Tagged<i::JSFunction> fun = i::JSFunction::cast(obj);
+      i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }
@@ -4835,7 +4838,7 @@ i::MaybeHandle<i::Script> FindScript(
       isolate->factory()->NewStringFromAsciiChecked(name);
   for (const auto& script : scripts) {
     if (!IsString(script->name())) continue;
-    if (i_name->Equals(i::String::cast(script->name()))) return script;
+    if (i_name->Equals(i::Cast<i::String>(script->name()))) return script;
   }
   return i::MaybeHandle<i::Script>();
 }
@@ -4924,7 +4927,7 @@ TEST(SourceInfo) {
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
   i::Handle<i::Script> i_script(
-      i::Script::cast(
+      i::Cast<i::Script>(
           v8::Utils::OpenDirectHandle(*v8_script)->shared()->script()),
       CcTest::i_isolate());
   v8::Local<v8::debug::Script> script =

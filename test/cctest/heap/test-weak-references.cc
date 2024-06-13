@@ -408,21 +408,21 @@ TEST(WeakArraysBasic) {
   heap::InvokeMinorGC(heap);
   Tagged<HeapObject> heap_object;
   CHECK(array->get(0).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2016);
   CHECK(array->get(1).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK(array->get(2).GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK(array->get(3).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2019);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2019);
 
   heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*array));
   CHECK(array->get(0).IsCleared());
   CHECK(array->get(1).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK(array->get(2).GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK(array->get(3).IsCleared());
 }
 
@@ -505,19 +505,19 @@ TEST(WeakArrayListBasic) {
   Tagged<HeapObject> heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->get(0).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2016);
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
 
   CHECK(array->get(2).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK_EQ(array->get(3).ToSmi().value(), 3);
 
   CHECK(array->get(4).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK_EQ(array->get(5).ToSmi().value(), 5);
 
   CHECK(array->get(6).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2019);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2019);
   CHECK_EQ(array->get(7).ToSmi().value(), 7);
 
   heap::InvokeMajorGC(heap);
@@ -527,7 +527,7 @@ TEST(WeakArrayListBasic) {
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
 
   CHECK(array->get(2).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK_EQ(array->get(3).ToSmi().value(), 3);
 
   CHECK(array->get(4).IsCleared());

@@ -29,10 +29,10 @@ namespace {
 #ifdef DEBUG
 void PrintModuleName(Tagged<Module> module, std::ostream& os) {
   if (IsSourceTextModule(module)) {
-    Print(SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL(),
+    Print(Cast<SourceTextModule>(module)->GetScript()->GetNameOrSourceURL(),
           os);
   } else {
-    Print(SyntheticModule::cast(module)->name(), os);
+    Print(Cast<SyntheticModule>(module)->name(), os);
   }
 #ifndef OBJECT_PRINT
   os << "\n";
@@ -84,7 +84,7 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   if (IsSourceTextModule(*this)) {
     // Revert to minmal SFI in case we have already been instantiating or
     // evaluating.
-    auto self = SourceTextModule::cast(*this);
+    auto self = Cast<SourceTextModule>(*this);
     self->set_code(self->GetSharedFunctionInfo());
   }
   SetStatusInternal(*this, Module::kErrored);
@@ -105,7 +105,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   DirectHandle<FixedArray> requested_modules =
       IsSourceTextModule(*module)
           ? Handle<FixedArray>(
-                SourceTextModule::cast(*module)->requested_modules(), isolate)
+                Cast<SourceTextModule>(*module)->requested_modules(), isolate)
           : Handle<FixedArray>();
   Reset(isolate, module);
 
@@ -132,8 +132,8 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   DCHECK(!IsJSModuleNamespace(module->module_namespace()));
   const int export_count =
       IsSourceTextModule(*module)
-          ? SourceTextModule::cast(*module)->regular_exports()->length()
-          : SyntheticModule::cast(*module)->export_names()->length();
+          ? Cast<SourceTextModule>(*module)->regular_exports()->length()
+          : Cast<SyntheticModule>(*module)->export_names()->length();
   DirectHandle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate, export_count);
 
@@ -245,7 +245,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
     // reject it with the module's exception.
     if (IsJSPromise(module->top_level_capability())) {
       Handle<JSPromise> top_level_capability(
-          JSPromise::cast(module->top_level_capability()), isolate);
+          Cast<JSPromise>(module->top_level_capability()), isolate);
       DCHECK(top_level_capability->status() == Promise::kRejected &&
              top_level_capability->result() == module->exception());
       return top_level_capability;
@@ -269,7 +269,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   // 4. If module.[[TopLevelCapability]] is not undefined, then
   //    a. Return module.[[TopLevelCapability]].[[Promise]].
   if (IsJSPromise(module->top_level_capability())) {
-    return handle(JSPromise::cast(module->top_level_capability()), isolate);
+    return handle(Cast<JSPromise>(module->top_level_capability()), isolate);
   }
   DCHECK(IsUndefined(module->top_level_capability()));
 
@@ -304,7 +304,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   for (InternalIndex i : exports->IterateEntries()) {
     Tagged<Object> key;
     if (!exports->ToKey(roots, i, &key)) continue;
-    names.push_back(handle(String::cast(key), isolate));
+    names.push_back(handle(Cast<String>(key), isolate));
   }
   DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 
@@ -367,7 +367,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
     return isolate->factory()->undefined_value();
   }
 
-  Handle<Object> value(Cell::cast(*object)->value(), isolate);
+  Handle<Object> value(Cast<Cell>(*object)->value(), isolate);
   if (IsTheHole(*value, isolate)) {
     // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
     // step 10 and
@@ -449,7 +449,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
 
   // Only SourceTextModules may be async.
   if (!IsSourceTextModule(*this)) return false;
-  Tagged<SourceTextModule> root = SourceTextModule::cast(*this);
+  Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const size_t bucket_count = 2;
@@ -466,10 +466,10 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
     if (current->async()) return true;
     Tagged<FixedArray> requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-      Tagged<Module> descendant = Module::cast(requested_modules->get(i));
+      Tagged<Module> descendant = Cast<Module>(requested_modules->get(i));
       if (IsSourceTextModule(descendant)) {
         const bool cycle = !visited.insert(descendant).second;
-        if (!cycle) worklist.push_back(SourceTextModule::cast(descendant));
+        if (!cycle) worklist.push_back(Cast<SourceTextModule>(descendant));
       }
     }
   } while (!worklist.empty());

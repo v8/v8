@@ -107,7 +107,6 @@ class BytecodeArray : public ExposedTrustedObject {
   // bytecode, constant pool, source position table, and handler table.
   DECL_GETTER(SizeIncludingMetadata, int)
 
-  DECL_CAST(BytecodeArray)
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
 
@@ -158,7 +157,6 @@ class BytecodeWrapper : public Struct {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 
-  DECL_CAST(BytecodeWrapper)
   DECL_PRINTER(BytecodeWrapper)
   DECL_VERIFIER(BytecodeWrapper)
 

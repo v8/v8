@@ -51,7 +51,7 @@ class PrototypeIterator {
   template <typename T = HeapObject>
   Tagged<T> GetCurrent() const {
     DCHECK(handle_.is_null());
-    return T::cast(object_);
+    return Cast<T>(object_);
   }
 
   template <typename T = HeapObject>

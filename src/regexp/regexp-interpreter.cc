@@ -1071,7 +1071,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
   if (v8_flags.regexp_tier_up) regexp->TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  Tagged<ByteArray> code_array = ByteArray::cast(regexp->bytecode(is_one_byte));
+  Tagged<ByteArray> code_array = Cast<ByteArray>(regexp->bytecode(is_one_byte));
   int total_register_count = regexp->max_register_count();
 
   return MatchInternal(isolate, code_array, subject_string, output_registers,
@@ -1140,8 +1140,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  Tagged<String> subject_string = String::cast(Tagged<Object>(subject));
-  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Tagged<Object>(regexp));
+  Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
+  Tagged<JSRegExp> regexp_obj = Cast<JSRegExp>(Tagged<Object>(regexp));
 
   if (regexp_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

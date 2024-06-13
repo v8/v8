@@ -83,7 +83,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       DirectHandle<Object> result = ft.Call(name, map).ToHandleChecked();
 
       Tagged<Smi> expected = Smi::FromInt(expected_result & Smi::kMaxValue);
-      CHECK_EQ(expected, Smi::cast(*result));
+      CHECK_EQ(expected, Cast<Smi>(*result));
     }
   }
 }

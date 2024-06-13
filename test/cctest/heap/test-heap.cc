@@ -115,12 +115,12 @@ static void VerifyStoredPrototypeMap(Isolate* isolate,
                                      int stored_ctor_context_index) {
   DirectHandle<Context> context = isolate->native_context();
 
-  DirectHandle<Map> this_map(Map::cast(context->get(stored_map_context_index)),
+  DirectHandle<Map> this_map(Cast<Map>(context->get(stored_map_context_index)),
                              isolate);
 
   DirectHandle<JSFunction> fun(
-      JSFunction::cast(context->get(stored_ctor_context_index)), isolate);
-  DirectHandle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()),
+      Cast<JSFunction>(context->get(stored_ctor_context_index)), isolate);
+  DirectHandle<JSObject> proto(Cast<JSObject>(fun->initial_map()->prototype()),
                                isolate);
   DirectHandle<Map> that_map(proto->map(), isolate);
 
@@ -172,14 +172,14 @@ static void CheckOddball(Isolate* isolate, Tagged<Object> obj,
   Handle<Object> handle(obj, isolate);
   Tagged<Object> print_string =
       *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(Cast<String>(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Tagged<Object> print_string =
       *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(Cast<String>(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
@@ -188,7 +188,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   DirectHandle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
   CHECK(
-      String::cast(*print_string)->IsOneByteEqualTo(base::CStrVector(string)));
+      Cast<String>(*print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 void CheckEmbeddedObjectsAreEqual(Isolate* isolate, DirectHandle<Code> lhs,
@@ -226,7 +226,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
       isolate);
   CHECK(IsInstructionStream(*code, cage_base));
 
-  Tagged<HeapObject> obj = HeapObject::cast(*code);
+  Tagged<HeapObject> obj = Cast<HeapObject>(*code);
   Address obj_addr = obj.address();
 
   for (int i = 0; i < obj->Size(cage_base); i += kTaggedSize) {
@@ -240,7 +240,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
           .Build()
           ->instruction_stream(),
       isolate);
-  Tagged<HeapObject> obj_copy = HeapObject::cast(*copy);
+  Tagged<HeapObject> obj_copy = Cast<HeapObject>(*copy);
   Tagged<Code> not_right = isolate->heap()->FindCodeForInnerPointer(
       obj_copy.address() + obj_copy->Size(cage_base) / 2);
   CHECK_NE(not_right->instruction_stream(), *code);
@@ -281,12 +281,12 @@ TEST(HeapObjects) {
   value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(Smi::kMinValue, Smi::cast(*value).value());
+  CHECK_EQ(Smi::kMinValue, Cast<Smi>(*value).value());
 
   value = factory->NewNumberFromInt(Smi::kMaxValue);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(Smi::kMaxValue, Smi::cast(*value).value());
+  CHECK_EQ(Smi::kMaxValue, Cast<Smi>(*value).value());
 
 #if !defined(V8_TARGET_ARCH_64_BIT)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
@@ -767,7 +767,7 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> object_string(
-      String::cast(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
+      Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
@@ -918,7 +918,7 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> object_string(
-      String::cast(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
+      Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
@@ -1070,7 +1070,7 @@ TEST(Iteration) {
 
   // Add a Map object to look for.
   objs[next_objs_index++] =
-      Handle<Map>(HeapObject::cast(*objs[0])->map(), isolate);
+      Handle<Map>(Cast<HeapObject>(*objs[0])->map(), isolate);
 
   CHECK_EQ(objs_count, next_objs_index);
   CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
@@ -1779,7 +1779,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
 
     // Check whether the root SharedFunctionInfo is still reachable from the
     // Script.
-    DirectHandle<Script> script(Script::cast(lazy_sfi->script()), isolate);
+    DirectHandle<Script> script(Cast<Script>(lazy_sfi->script()), isolate);
     bool root_sfi_still_exists = false;
     Tagged<MaybeObject> maybe_root_sfi =
         script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
@@ -1889,7 +1889,7 @@ int CountNativeContexts() {
   Tagged<Object> object = CcTest::heap()->native_contexts_list();
   while (!IsUndefined(object, CcTest::i_isolate())) {
     count++;
-    object = Context::cast(object)->next_context_link();
+    object = Cast<Context>(object)->next_context_link();
   }
   return count;
 }
@@ -2327,7 +2327,7 @@ TEST(HeapNumberAlignment) {
       DirectHandle<Object> number_new = factory->NewNumber(1.000123);
       CHECK(IsHeapNumber(*number_new));
       CHECK(Heap::InYoungGeneration(*number_new));
-      CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
+      CHECK_EQ(0, Heap::GetFillToAlign(Cast<HeapObject>(*number_new).address(),
                                        required_alignment));
     }
 
@@ -2336,7 +2336,7 @@ TEST(HeapNumberAlignment) {
         factory->NewNumber<AllocationType::kOld>(1.000321);
     CHECK(IsHeapNumber(*number_old));
     CHECK(heap->InOldSpace(*number_old));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
+    CHECK_EQ(0, Heap::GetFillToAlign(Cast<HeapObject>(*number_old).address(),
                                      required_alignment));
   }
 }
@@ -2937,7 +2937,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
   CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
 
-  Tagged<JSObject> inner_object = JSObject::cast(o->RawFastPropertyAt(idx1));
+  Tagged<JSObject> inner_object = Cast<JSObject>(o->RawFastPropertyAt(idx1));
   CHECK(CcTest::heap()->InOldSpace(inner_object));
   CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
   CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
@@ -3267,10 +3267,11 @@ TEST(Regress1465) {
 }
 
 static i::Handle<JSObject> GetByName(const char* name) {
-  return i::Cast<JSObject>(v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-      CcTest::global()
-          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
-          .ToLocalChecked())));
+  return i::Cast<i::JSObject>(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()
+              ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
+              .ToLocalChecked())));
 }
 
 #ifdef DEBUG
@@ -3330,7 +3331,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
+      CountMapTransitions(i_isolate, Cast<Map>(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 
@@ -3364,7 +3365,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
+      CountMapTransitions(i_isolate, Cast<Map>(root->map()->GetBackPointer()));
   CHECK_EQ(2, transitions_after);
 }
 
@@ -3392,7 +3393,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
+      CountMapTransitions(i_isolate, Cast<Map>(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 #endif  // DEBUG
@@ -3856,7 +3857,7 @@ void DetailedErrorStackTraceTest(const char* src,
 
 Tagged<FixedArray> ParametersOf(DirectHandle<FixedArray> stack_trace,
                                 int frame_index) {
-  return CallSiteInfo::cast(stack_trace->get(frame_index))->parameters();
+  return Cast<CallSiteInfo>(stack_trace->get(frame_index))->parameters();
 }
 
 // * Test interpreted function error
@@ -4220,7 +4221,7 @@ static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Tagged<Object> site = heap->allocation_sites_list();
        IsAllocationSite(site);) {
-    Tagged<AllocationSite> cur = AllocationSite::cast(site);
+    Tagged<AllocationSite> cur = Cast<AllocationSite>(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();
     count++;
@@ -4232,10 +4233,10 @@ static int SlimAllocationSiteCount(Heap* heap) {
   int count = 0;
   for (Tagged<Object> weak_list = heap->allocation_sites_list();
        IsAllocationSite(weak_list);) {
-    Tagged<AllocationSite> weak_cur = AllocationSite::cast(weak_list);
+    Tagged<AllocationSite> weak_cur = Cast<AllocationSite>(weak_list);
     for (Tagged<Object> site = weak_cur->nested_site();
          IsAllocationSite(site);) {
-      Tagged<AllocationSite> cur = AllocationSite::cast(site);
+      Tagged<AllocationSite> cur = Cast<AllocationSite>(site);
       CHECK(!cur->HasWeakNext());
       site = cur->nested_site();
       count++;
@@ -4275,7 +4276,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     int new_count = AllocationSitesCount(heap);
     CHECK_EQ(new_count, (count + 1));
     site = Cast<AllocationSite>(global_handles->Create(
-        AllocationSite::cast(heap->allocation_sites_list())));
+        Cast<AllocationSite>(heap->allocation_sites_list())));
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
@@ -4294,7 +4295,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
         dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code.IsWeak());
     CHECK_EQ(bar_handle->code(isolate),
-             CodeWrapper::cast(code.GetHeapObjectAssumeWeak())->code(isolate));
+             Cast<CodeWrapper>(code.GetHeapObjectAssumeWeak())->code(isolate));
     Tagged<Smi> groups =
         dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
@@ -5248,7 +5249,7 @@ TEST(Regress3631) {
   // Incrementally mark the backing store.
   DirectHandle<JSReceiver> obj =
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(result));
-  DirectHandle<JSWeakCollection> weak_map(JSWeakCollection::cast(*obj),
+  DirectHandle<JSWeakCollection> weak_map(Cast<JSWeakCollection>(*obj),
                                           isolate);
   SimulateIncrementalMarking(heap);
   // Stash the backing store in a handle.
@@ -5665,7 +5666,7 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
 
   result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
                                    SKIP_WRITE_BARRIER);
-  ByteArray::cast(result)->set_length(length);
+  Cast<ByteArray>(result)->set_length(length);
   return AllocationResult::FromObject(result);
 }
 
@@ -5855,7 +5856,7 @@ TEST(Regress598319) {
       global_root.Reset(CcTest::isolate(), Utils::ToLocal(Cast<Object>(root)));
     }
 
-    Tagged<FixedArray> get() { return FixedArray::cast(root->get(0)); }
+    Tagged<FixedArray> get() { return Cast<FixedArray>(root->get(0)); }
 
     Handle<FixedArray> root;
 
@@ -5881,7 +5882,7 @@ TEST(Regress598319) {
   MarkingState* marking_state = heap->marking_state();
   CHECK(marking_state->IsUnmarked(arr.get()));
   for (int i = 0; i < arr.get()->length(); i++) {
-    Tagged<HeapObject> arr_value = HeapObject::cast(arr.get()->get(i));
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
 
@@ -5895,7 +5896,7 @@ TEST(Regress598319) {
 
   // Check that we have not marked the interesting array during root scanning.
   for (int i = 0; i < arr.get()->length(); i++) {
-    Tagged<HeapObject> arr_value = HeapObject::cast(arr.get()->get(i));
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
 
@@ -5935,7 +5936,7 @@ TEST(Regress598319) {
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
-    Tagged<HeapObject> arr_value = HeapObject::cast(arr.get()->get(i));
+    Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(InReadOnlySpace(arr_value) || marking_state->IsMarked(arr_value));
   }
 }
@@ -6584,7 +6585,7 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Handle<JSObject> object;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    object = handle(JSObject::cast(isolate->factory()->NewForTest(
+    object = handle(Cast<JSObject>(isolate->factory()->NewForTest(
                         map, AllocationType::kOld)),
                     isolate);
   }

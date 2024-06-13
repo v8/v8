@@ -4091,7 +4091,7 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
         Tagged<Object> obj(*cur);
         Heap* current_heap = isolate_->heap();
         if (IsSmi(obj) ||
-            IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+            IsValidHeapObject(current_heap, Cast<HeapObject>(obj))) {
           PrintF(" (");
           if (IsSmi(obj)) {
             PrintF("smi %" PRId32, Smi::ToInt(obj));

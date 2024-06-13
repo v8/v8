@@ -77,7 +77,7 @@ void PreparseData::copy_in(int index, const uint8_t* buffer, int length) {
 }
 
 Tagged<PreparseData> PreparseData::get_child(int index) const {
-  return PreparseData::cast(get_child_raw(index));
+  return Cast<PreparseData>(get_child_raw(index));
 }
 
 Tagged<Object> PreparseData::get_child_raw(int index) const {
@@ -123,7 +123,7 @@ void SharedFunctionInfo::SetData(Tagged<Object> value, ReleaseStoreTag tag,
   if (type == DataType::kTrusted) {
     DCHECK(IsExposedTrustedObject(value));
     // Only one of trusted_function_data and function_data can be in use.
-    set_trusted_function_data(ExposedTrustedObject::cast(value), tag, mode);
+    set_trusted_function_data(Cast<ExposedTrustedObject>(value), tag, mode);
     clear_function_data(kReleaseStore);
   } else {
     DCHECK_EQ(type, DataType::kRegular);
@@ -161,7 +161,7 @@ Tagged<ExposedTrustedObject> SharedFunctionInfo::trusted_function_data(
   Tagged<Object> trusted_data =
       ReadIndirectPointerField<kUnknownIndirectPointerTag>(
           kTrustedFunctionDataOffset, isolate);
-  return ExposedTrustedObject::cast(trusted_data);
+  return Cast<ExposedTrustedObject>(trusted_data);
 }
 
 void SharedFunctionInfo::set_trusted_function_data(
@@ -263,7 +263,7 @@ UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 bool SharedFunctionInfo::HasSharedName() const {
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(value)) {
-    return ScopeInfo::cast(value)->HasSharedFunctionName();
+    return Cast<ScopeInfo>(value)->HasSharedFunctionName();
   }
   return value != kNoSharedNameSentinel;
 }
@@ -272,18 +272,18 @@ Tagged<String> SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(value)) {
-    if (ScopeInfo::cast(value)->HasFunctionName()) {
-      return String::cast(ScopeInfo::cast(value)->FunctionName());
+    if (Cast<ScopeInfo>(value)->HasFunctionName()) {
+      return Cast<String>(Cast<ScopeInfo>(value)->FunctionName());
     }
     return GetReadOnlyRoots().empty_string();
   }
-  return String::cast(value);
+  return Cast<String>(value);
 }
 
 void SharedFunctionInfo::SetName(Tagged<String> name) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
-    ScopeInfo::cast(maybe_scope_info)->SetFunctionName(name);
+    Cast<ScopeInfo>(maybe_scope_info)->SetFunctionName(name);
   } else {
     DCHECK(IsString(maybe_scope_info) ||
            maybe_scope_info == kNoSharedNameSentinel);
@@ -294,7 +294,7 @@ void SharedFunctionInfo::SetName(Tagged<String> name) {
 
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad)->is_script_scope() &&
-         Script::cast(script())->compilation_type() ==
+         Cast<Script>(script())->compilation_type() ==
              Script::CompilationType::kHost;
 }
 
@@ -306,9 +306,9 @@ Tagged<AbstractCode> SharedFunctionInfo::abstract_code(Isolate* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
   if (HasBytecodeArray(isolate)) {
-    return AbstractCode::cast(GetBytecodeArray(isolate));
+    return Cast<AbstractCode>(GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(GetCode(isolate));
+    return Cast<AbstractCode>(GetCode(isolate));
   }
 }
 
@@ -556,7 +556,7 @@ bool SharedFunctionInfo::IsDontAdaptArguments() const {
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info, cage_base)) {
-    return ScopeInfo::cast(maybe_scope_info);
+    return Cast<ScopeInfo>(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
@@ -570,7 +570,7 @@ Tagged<ScopeInfo> SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, tag);
   if (IsScopeInfo(maybe_scope_info, cage_base)) {
-    return ScopeInfo::cast(maybe_scope_info);
+    return Cast<ScopeInfo>(maybe_scope_info);
   }
   return EarlyGetReadOnlyRoots().empty_scope_info();
 }
@@ -582,7 +582,7 @@ void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,
       this->name_or_scope_info(kAcquireLoad);
   Tagged<UnionOf<Smi, String>> name;
   if (IsScopeInfo(name_or_scope_info)) {
-    name = ScopeInfo::cast(name_or_scope_info)->FunctionName();
+    name = Cast<ScopeInfo>(name_or_scope_info)->FunctionName();
   } else {
     name = Cast<UnionOf<Smi, String>>(name_or_scope_info);
   }
@@ -611,7 +611,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   Tagged<ScopeInfo> outer_info;
   if (!is_compiled()) {
     if (!IsScopeInfo(outer_scope_info())) return false;
-    outer_info = ScopeInfo::cast(outer_scope_info());
+    outer_info = Cast<ScopeInfo>(outer_scope_info());
   } else {
     Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
     if (!info->HasOuterScopeInfo()) return false;
@@ -622,7 +622,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
 
 Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
-  if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
+  if (!is_compiled()) return Cast<ScopeInfo>(outer_scope_info());
   return scope_info(kAcquireLoad)->OuterScopeInfo();
 }
 
@@ -644,7 +644,7 @@ bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
 
 DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {
   DCHECK(HasFeedbackMetadata());
-  return FeedbackMetadata::cast(
+  return Cast<FeedbackMetadata>(
       raw_outer_scope_info_or_feedback_metadata(cage_base));
 }
 
@@ -711,7 +711,7 @@ bool SharedFunctionInfo::IsApiFunction() const {
 
 DEF_GETTER(SharedFunctionInfo, api_func_data, Tagged<FunctionTemplateInfo>) {
   DCHECK(IsApiFunction());
-  return FunctionTemplateInfo::cast(function_data(kAcquireLoad));
+  return Cast<FunctionTemplateInfo>(function_data(kAcquireLoad));
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
@@ -722,12 +722,12 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
   Tagged<Object> data = GetData(GetIsolateForSandbox(*this));
   if (IsSmi(data)) return false;
   InstanceType instance_type =
-      HeapObject::cast(data)->map(cage_base)->instance_type();
+      Cast<HeapObject>(data)->map(cage_base)->instance_type();
 #else
   Tagged<Object> data = function_data(kAcquireLoad);
   if (!IsHeapObject(data)) return false;
   InstanceType instance_type =
-      HeapObject::cast(data)->map(cage_base)->instance_type();
+      Cast<HeapObject>(data)->map(cage_base)->instance_type();
 #endif
   return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
          InstanceTypeChecker::IsInterpreterData(instance_type) ||
@@ -773,14 +773,14 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
   Tagged<Object> data = function_data(kAcquireLoad);
 #endif  // V8_ENABLE_SANDBOX
   if (IsCode(data)) {
-    Tagged<Code> baseline_code = Code::cast(data);
+    Tagged<Code> baseline_code = Cast<Code>(data);
     data = baseline_code->bytecode_or_interpreter_data();
   }
   if (IsBytecodeArray(data)) {
-    return BytecodeArray::cast(data);
+    return Cast<BytecodeArray>(data);
   } else {
     DCHECK(IsInterpreterData(data));
-    return InterpreterData::cast(data)->bytecode_array();
+    return Cast<InterpreterData>(data)->bytecode_array();
   }
 }
 
@@ -819,7 +819,7 @@ Tagged<Code> SharedFunctionInfo::InterpreterTrampoline(
 bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {
   Tagged<Object> data = GetData(isolate);
   if (IsCode(data)) {
-    Tagged<Code> baseline_code = Code::cast(data);
+    Tagged<Code> baseline_code = Cast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     data = baseline_code->bytecode_or_interpreter_data();
   }
@@ -835,11 +835,11 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
   Tagged<Object> data = function_data(kAcquireLoad);
 #endif
   if (IsCode(data)) {
-    Tagged<Code> baseline_code = Code::cast(data);
+    Tagged<Code> baseline_code = Cast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     data = baseline_code->bytecode_or_interpreter_data();
   }
-  return InterpreterData::cast(data);
+  return Cast<InterpreterData>(data);
 }
 
 void SharedFunctionInfo::set_interpreter_data(
@@ -856,7 +856,7 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
   // pointer handle.
   IndirectPointerHandle handle = trusted_function_data_handle(kAcquireLoad);
   if (handle & kCodePointerHandleMarker) {
-    DCHECK_EQ(Code::cast(GetData(GetIsolateForSandbox(*this)))->kind(),
+    DCHECK_EQ(Cast<Code>(GetData(GetIsolateForSandbox(*this)))->kind(),
               CodeKind::BASELINE);
     return true;
   }
@@ -864,7 +864,7 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 #else
   Tagged<Object> data = function_data(cage_base, kAcquireLoad);
   if (IsCode(data, cage_base)) {
-    DCHECK_EQ(Code::cast(data)->kind(), CodeKind::BASELINE);
+    DCHECK_EQ(Cast<Code>(data)->kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
@@ -874,10 +874,10 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
   DCHECK(HasBaselineCode(cage_base));
 #ifdef V8_ENABLE_SANDBOX
-  return Code::cast(
+  return Cast<Code>(
       trusted_function_data(GetIsolateForSandbox(*this), kAcquireLoad));
 #else
-  return Code::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<Code>(function_data(cage_base, kAcquireLoad));
 #endif
 }
 
@@ -929,7 +929,7 @@ bool SharedFunctionInfo::HasWasmResumeData() const {
 
 DEF_GETTER(SharedFunctionInfo, asm_wasm_data, Tagged<AsmWasmData>) {
   DCHECK(HasAsmWasmData());
-  return AsmWasmData::cast(function_data(kAcquireLoad));
+  return Cast<AsmWasmData>(function_data(kAcquireLoad));
 }
 
 void SharedFunctionInfo::set_asm_wasm_data(Tagged<AsmWasmData> data,
@@ -968,10 +968,10 @@ DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
   DCHECK(HasWasmFunctionData());
 #ifdef V8_ENABLE_SANDBOX
   // TODO(saelo): It would be nicer if the caller provided an IsolateForSandbox.
-  return WasmFunctionData::cast(
+  return Cast<WasmFunctionData>(
       trusted_function_data(GetIsolateForSandbox(*this), kAcquireLoad));
 #else
-  return WasmFunctionData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<WasmFunctionData>(function_data(cage_base, kAcquireLoad));
 #endif
 }
 
@@ -979,10 +979,10 @@ DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
            Tagged<WasmExportedFunctionData>) {
   DCHECK(HasWasmExportedFunctionData());
 #ifdef V8_ENABLE_SANDBOX
-  return WasmExportedFunctionData::cast(
+  return Cast<WasmExportedFunctionData>(
       trusted_function_data(GetIsolateForSandbox(*this), kAcquireLoad));
 #else
-  return WasmExportedFunctionData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<WasmExportedFunctionData>(function_data(cage_base, kAcquireLoad));
 #endif
 }
 
@@ -990,10 +990,10 @@ DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
            Tagged<WasmJSFunctionData>) {
   DCHECK(HasWasmJSFunctionData());
 #ifdef V8_ENABLE_SANDBOX
-  return WasmJSFunctionData::cast(
+  return Cast<WasmJSFunctionData>(
       trusted_function_data(GetIsolateForSandbox(*this), kAcquireLoad));
 #else
-  return WasmJSFunctionData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<WasmJSFunctionData>(function_data(cage_base, kAcquireLoad));
 #endif
 }
 
@@ -1001,16 +1001,16 @@ DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
            Tagged<WasmCapiFunctionData>) {
   DCHECK(HasWasmCapiFunctionData());
 #if V8_ENABLE_SANDBOX
-  return WasmCapiFunctionData::cast(
+  return Cast<WasmCapiFunctionData>(
       trusted_function_data(GetIsolateForSandbox(*this), kAcquireLoad));
 #else
-  return WasmCapiFunctionData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<WasmCapiFunctionData>(function_data(cage_base, kAcquireLoad));
 #endif
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {
   DCHECK(HasWasmResumeData());
-  return WasmResumeData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<WasmResumeData>(function_data(cage_base, kAcquireLoad));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1054,7 +1054,7 @@ bool SharedFunctionInfo::HasUncompiledData() const {
 
 DEF_GETTER(SharedFunctionInfo, uncompiled_data, Tagged<UncompiledData>) {
   DCHECK(HasUncompiledData());
-  return UncompiledData::cast(function_data(cage_base, kAcquireLoad));
+  return Cast<UncompiledData>(function_data(cage_base, kAcquireLoad));
 }
 
 void SharedFunctionInfo::set_uncompiled_data(
@@ -1072,7 +1072,7 @@ bool SharedFunctionInfo::HasUncompiledDataWithPreparseData() const {
 Tagged<UncompiledDataWithPreparseData>
 SharedFunctionInfo::uncompiled_data_with_preparse_data() const {
   DCHECK(HasUncompiledDataWithPreparseData());
-  return UncompiledDataWithPreparseData::cast(function_data(kAcquireLoad));
+  return Cast<UncompiledDataWithPreparseData>(function_data(kAcquireLoad));
 }
 
 void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
@@ -1090,10 +1090,10 @@ bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
 void SharedFunctionInfo::ClearUncompiledDataJobPointer() {
   Tagged<UncompiledData> uncompiled_data = this->uncompiled_data();
   if (IsUncompiledDataWithPreparseDataAndJob(uncompiled_data)) {
-    UncompiledDataWithPreparseDataAndJob::cast(uncompiled_data)
+    Cast<UncompiledDataWithPreparseDataAndJob>(uncompiled_data)
         ->set_job(kNullAddress);
   } else if (IsUncompiledDataWithoutPreparseDataWithJob(uncompiled_data)) {
-    UncompiledDataWithoutPreparseDataWithJob::cast(uncompiled_data)
+    Cast<UncompiledDataWithoutPreparseDataWithJob>(uncompiled_data)
         ->set_job(kNullAddress);
   }
 }
@@ -1143,13 +1143,13 @@ void UncompiledData::InitAfterBytecodeFlush(
 }
 
 bool SharedFunctionInfo::is_repl_mode() const {
-  return IsScript(script()) && Script::cast(script())->is_repl_mode();
+  return IsScript(script()) && Cast<Script>(script())->is_repl_mode();
 }
 
 bool SharedFunctionInfo::HasInferredName() {
   Tagged<Object> scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(scope_info)) {
-    return ScopeInfo::cast(scope_info)->HasInferredFunctionName();
+    return Cast<ScopeInfo>(scope_info)->HasInferredFunctionName();
   }
   return HasUncompiledData();
 }
@@ -1157,10 +1157,10 @@ bool SharedFunctionInfo::HasInferredName() {
 DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
-    Tagged<ScopeInfo> scope_info = ScopeInfo::cast(maybe_scope_info);
+    Tagged<ScopeInfo> scope_info = Cast<ScopeInfo>(maybe_scope_info);
     if (scope_info->HasInferredFunctionName()) {
       Tagged<Object> name = scope_info->InferredFunctionName();
-      if (IsString(name)) return String::cast(name);
+      if (IsString(name)) return Cast<String>(name);
     }
   } else if (HasUncompiledData()) {
     return uncompiled_data(cage_base)->inferred_name(cage_base);
@@ -1171,7 +1171,7 @@ DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
 bool SharedFunctionInfo::IsUserJavaScript() const {
   Tagged<Object> script_obj = script();
   if (IsUndefined(script_obj)) return false;
-  Tagged<Script> script = Script::cast(script_obj);
+  Tagged<Script> script = Cast<Script>(script_obj);
   return script->IsUserJavaScript();
 }
 
@@ -1206,7 +1206,6 @@ bool SharedFunctionInfo::are_properties_final() const {
   return bit && is_class_constructor();
 }
 
-CAST_ACCESSOR(SharedFunctionInfoWrapper)
 OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWrapper, TrustedObject)
 
 ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,

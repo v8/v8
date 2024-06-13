@@ -100,7 +100,7 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
     v8::Local<v8::Module> module) const {
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
   return i::handle(
-      SharedFunctionInfo::cast(Cast<i::SourceTextModule>(i_module)->code())
+      Cast<SharedFunctionInfo>(Cast<i::SourceTextModule>(i_module)->code())
           ->GetBytecodeArray(i_isolate()),
       i_isolate());
 }
@@ -293,17 +293,17 @@ void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream* stream, i::DirectHandle<i::Object> constant) const {
   if (IsSmi(*constant)) {
     *stream << "Smi [";
-    i::Smi::SmiPrint(i::Smi::cast(*constant), *stream);
+    i::Smi::SmiPrint(i::Cast<i::Smi>(*constant), *stream);
     *stream << "]";
   } else {
-    *stream << i::HeapObject::cast(*constant)->map()->instance_type();
+    *stream << i::Cast<i::HeapObject>(*constant)->map()->instance_type();
     if (IsHeapNumber(*constant)) {
       *stream << " [";
-      i::HeapNumber::cast(*constant)->HeapNumberShortPrint(*stream);
+      i::Cast<i::HeapNumber>(*constant)->HeapNumberShortPrint(*stream);
       *stream << "]";
     } else if (IsString(*constant)) {
       *stream << " [";
-      PrintV8String(stream, i::String::cast(*constant));
+      PrintV8String(stream, i::Cast<i::String>(*constant));
       *stream << "]";
     }
   }

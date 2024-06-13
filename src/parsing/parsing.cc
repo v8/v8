@@ -45,7 +45,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(script->source()), isolate);
+  Handle<String> source(Cast<String>(script->source()), isolate);
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
   info->set_character_stream(std::move(stream));
@@ -73,8 +73,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  Handle<String> source(String::cast(script->source()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
+  Handle<String> source(Cast<String>(script->source()), isolate);
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source, shared_info->StartPosition(),
                          shared_info->EndPosition()));
@@ -99,7 +99,7 @@ bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
           handle(shared_info->GetOuterScopeInfo(), isolate);
     }
     return ParseProgram(info,
-                        handle(Script::cast(shared_info->script()), isolate),
+                        handle(Cast<Script>(shared_info->script()), isolate),
                         maybe_outer_scope_info, isolate, mode);
   }
   return ParseFunction(info, shared_info, isolate, mode);

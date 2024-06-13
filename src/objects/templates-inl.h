@@ -124,7 +124,7 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   if (IsUndefined(extra, isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
-    return FunctionTemplateRareData::cast(extra);
+    return Cast<FunctionTemplateRareData>(extra);
   }
 }
 
@@ -134,7 +134,7 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Tagged<Undefined> undefined =                                              \
         GetReadOnlyRoots(cage_base).undefined_value();                         \
     return extra == undefined ? Default                                        \
-                              : FunctionTemplateRareData::cast(extra)->Name(); \
+                              : Cast<FunctionTemplateRareData>(extra)->Name(); \
   }                                                                            \
   inline void FunctionTemplateInfo::Set##CamelName(                            \
       Isolate* isolate,                                                        \
@@ -225,7 +225,7 @@ bool FunctionTemplateInfo::instantiated() {
 inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
   Tagged<Object> maybe_shared = shared_function_info();
   if (IsSharedFunctionInfo(maybe_shared)) {
-    Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
+    Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
     return shared->BreakAtEntry(isolate);
   }
   return false;
@@ -234,20 +234,20 @@ inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
 Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> parent = GetParentTemplate();
   return IsUndefined(parent, isolate) ? Tagged<FunctionTemplateInfo>{}
-                                      : FunctionTemplateInfo::cast(parent);
+                                      : Cast<FunctionTemplateInfo>(parent);
 }
 
 Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> maybe_ctor = constructor();
   if (IsUndefined(maybe_ctor, isolate)) return ObjectTemplateInfo();
   Tagged<FunctionTemplateInfo> constructor =
-      FunctionTemplateInfo::cast(maybe_ctor);
+      Cast<FunctionTemplateInfo>(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
     Tagged<Object> maybe_obj = constructor->GetInstanceTemplate();
     if (!IsUndefined(maybe_obj, isolate)) {
-      return ObjectTemplateInfo::cast(maybe_obj);
+      return Cast<ObjectTemplateInfo>(maybe_obj);
     }
   }
   return Tagged<ObjectTemplateInfo>();
@@ -323,7 +323,7 @@ MaybeHandle<ReturnType> TemplateInfo::ProbeInstantiationsCache(
         native_context->slow_template_instantiations_cache();
     InternalIndex entry = slow_cache->FindEntry(isolate, serial_number);
     if (entry.is_found()) {
-      return handle(ReturnType::cast(slow_cache->ValueAt(entry)), isolate);
+      return handle(Cast<ReturnType>(slow_cache->ValueAt(entry)), isolate);
     }
   }
   return {};

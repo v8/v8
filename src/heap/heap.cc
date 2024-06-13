@@ -2782,7 +2782,7 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
   DCHECK(!v8_flags.minor_ms);
 
   PtrComprCageBase cage_base(heap->isolate());
-  Tagged<HeapObject> obj = HeapObject::cast(*p);
+  Tagged<HeapObject> obj = Cast<HeapObject>(*p);
   MapWord first_word = obj->map_word(cage_base, kRelaxedLoad);
 
   Tagged<String> new_string;
@@ -2813,7 +2813,7 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
         ExternalBackingStoreType::kExternalString,
         PageMetadata::FromAddress((*p).ptr()),
         PageMetadata::FromHeapObject(new_string),
-        ExternalString::cast(new_string)->ExternalPayloadSize());
+        Cast<ExternalString>(new_string)->ExternalPayloadSize());
     return new_string;
   }
 
@@ -3062,7 +3062,7 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
       for (FullObjectSlot p = start; p < end; ++p) {
         DCHECK(IsExternalString(*p));
         visitor_->VisitExternalString(
-            Utils::ToLocal(Handle<String>(String::cast(*p), isolate_)));
+            Utils::ToLocal(Handle<String>(Cast<String>(*p), isolate_)));
       }
     }
 
@@ -3438,7 +3438,7 @@ void Heap::OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
     PROFILE(isolate_,
             NativeContextMoveEvent(source.address(), target.address()));
   } else if (IsMap(target, isolate_)) {
-    LOG(isolate_, MapMoveEvent(Map::cast(source), Map::cast(target)));
+    LOG(isolate_, MapMoveEvent(Cast<Map>(source), Cast<Map>(target)));
   }
 }
 
@@ -4660,7 +4660,7 @@ class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
 
   inline bool IsLeftTrimmed(FullObjectSlot p) {
     if (!IsHeapObject(*p)) return false;
-    Tagged<HeapObject> current = HeapObject::cast(*p);
+    Tagged<HeapObject> current = Cast<HeapObject>(*p);
     if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
         IsFreeSpaceOrFiller(current, cage_base())) {
 #ifdef DEBUG
@@ -4678,7 +4678,7 @@ class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
         } else {
           next += current->Size();
         }
-        current = HeapObject::cast(Tagged<Object>(next));
+        current = Cast<HeapObject>(Tagged<Object>(next));
       }
       DCHECK(
           current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
@@ -6295,7 +6295,7 @@ void Heap::CompactWeakArrayLists() {
   }
   for (auto& prototype_info : prototype_infos) {
     DirectHandle<WeakArrayList> array(
-        WeakArrayList::cast(prototype_info->prototype_users()), isolate());
+        Cast<WeakArrayList>(prototype_info->prototype_users()), isolate());
     DCHECK(InOldSpace(*array) ||
            *array == ReadOnlyRoots(this).empty_weak_array_list());
     Tagged<WeakArrayList> new_array = PrototypeUsers::Compact(
@@ -6313,7 +6313,7 @@ void Heap::CompactWeakArrayLists() {
 
 void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
                            GlobalHandleVector<Map> maps) {
-  Handle<WeakArrayList> array(WeakArrayList::cast(context->retained_maps()),
+  Handle<WeakArrayList> array(Cast<WeakArrayList>(context->retained_maps()),
                               isolate());
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
@@ -6544,7 +6544,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         : ObjectVisitorWithCageBases(filter->heap_), filter_(filter) {}
 
     void VisitMapPointer(Tagged<HeapObject> object) override {
-      MarkHeapObject(Map::unchecked_cast(object->map(cage_base())));
+      MarkHeapObject(UncheckedCast<Map>(object->map(cage_base())));
     }
     void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                        ObjectSlot end) override {
@@ -6752,14 +6752,14 @@ void Heap::ExternalStringTable::TearDown() {
     Tagged<Object> o = young_strings_[i];
     // Dont finalize thin strings.
     if (IsThinString(o)) continue;
-    heap_->FinalizeExternalString(ExternalString::cast(o));
+    heap_->FinalizeExternalString(Cast<ExternalString>(o));
   }
   young_strings_.clear();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
     // Dont finalize thin strings.
     if (IsThinString(o)) continue;
-    heap_->FinalizeExternalString(ExternalString::cast(o));
+    heap_->FinalizeExternalString(Cast<ExternalString>(o));
   }
   old_strings_.clear();
 }
@@ -6887,7 +6887,7 @@ MaybeHandle<JSFinalizationRegistry> Heap::DequeueDirtyJSFinalizationRegistry() {
   // Take a FinalizationRegistry from the head of the dirty list for fairness.
   if (HasDirtyJSFinalizationRegistries()) {
     Handle<JSFinalizationRegistry> head(
-        JSFinalizationRegistry::cast(dirty_js_finalization_registries_list()),
+        Cast<JSFinalizationRegistry>(dirty_js_finalization_registries_list()),
         isolate());
     set_dirty_js_finalization_registries_list(head->next_dirty());
     head->set_next_dirty(ReadOnlyRoots(this).undefined_value());
@@ -6938,7 +6938,7 @@ void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
     table = isolate()->factory()->NewOrderedHashSet();
   } else {
     table =
-        handle(OrderedHashSet::cast(weak_refs_keep_during_job()), isolate());
+        handle(Cast<OrderedHashSet>(weak_refs_keep_during_job()), isolate());
   }
   table = OrderedHashSet::Add(isolate(), table, target).ToHandleChecked();
   set_weak_refs_keep_during_job(*table);
@@ -7015,7 +7015,7 @@ std::vector<Tagged<WeakArrayList>> Heap::FindAllRetainedMaps() {
   Tagged<Object> context = native_contexts_list();
   while (!IsUndefined(context, isolate())) {
     Tagged<NativeContext> native_context = Cast<NativeContext>(context);
-    result.push_back(WeakArrayList::cast(native_context->retained_maps()));
+    result.push_back(Cast<WeakArrayList>(native_context->retained_maps()));
     context = native_context->next_context_link();
   }
   return result;
@@ -7095,10 +7095,10 @@ Tagged<Map> Heap::GcSafeMapOfHeapObject(Tagged<HeapObject> object) {
 Tagged<GcSafeCode> Heap::GcSafeGetCodeFromInstructionStream(
     Tagged<HeapObject> instruction_stream, Address inner_pointer) {
   Tagged<InstructionStream> istream =
-      InstructionStream::unchecked_cast(instruction_stream);
+      UncheckedCast<InstructionStream>(instruction_stream);
   DCHECK(!istream.is_null());
   DCHECK(GcSafeInstructionStreamContains(istream, inner_pointer));
-  return GcSafeCode::unchecked_cast(istream->raw_code(kAcquireLoad));
+  return UncheckedCast<GcSafeCode>(istream->raw_code(kAcquireLoad));
 }
 
 bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
@@ -7123,13 +7123,13 @@ base::Optional<Tagged<InstructionStream>>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
-    return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
+    return UncheckedCast<InstructionStream>(HeapObject::FromAddress(start));
   }
 
   base::Optional<Address> start =
       ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
   if (start.has_value()) {
-    return InstructionStream::unchecked_cast(HeapObject::FromAddress(*start));
+    return UncheckedCast<InstructionStream>(HeapObject::FromAddress(*start));
   }
 
   return {};
@@ -7140,7 +7140,7 @@ base::Optional<Tagged<GcSafeCode>> Heap::GcSafeTryFindCodeForInnerPointer(
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
+    return Cast<GcSafeCode>(isolate()->builtins()->code(maybe_builtin));
   }
 
   base::Optional<Tagged<InstructionStream>> maybe_istream =
@@ -7159,7 +7159,7 @@ Tagged<GcSafeCode> Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
       GcSafeTryFindCodeForInnerPointer(inner_pointer);
   // Callers expect that the code object is found.
   CHECK(maybe_code.has_value());
-  return GcSafeCode::unchecked_cast(maybe_code.value());
+  return UncheckedCast<GcSafeCode>(maybe_code.value());
 }
 
 base::Optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(

@@ -286,9 +286,9 @@ unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
     info->name = names_->GetCopy(shared->DebugNameCStr().get());
     info->function_id = id;
     if (IsScript(shared->script())) {
-      Tagged<Script> script = Script::cast(shared->script());
+      Tagged<Script> script = Cast<Script>(shared->script());
       if (IsName(script->name())) {
-        Tagged<Name> name = Name::cast(script->name());
+        Tagged<Name> name = Cast<Name>(script->name());
         info->script_name = names_->GetName(name);
       }
       info->script_id = script->id();

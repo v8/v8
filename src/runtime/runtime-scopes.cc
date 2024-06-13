@@ -151,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
   Handle<Context> context(isolate->context(), isolate);
   DCHECK(context->IsModuleContext());
   DirectHandle<FixedArray> exports(
-      SourceTextModule::cast(context->extension())->regular_exports(), isolate);
+      Cast<SourceTextModule>(context->extension())->regular_exports(), isolate);
 
   int length = declarations->length();
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
@@ -163,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       value = ReadOnlyRoots(isolate).the_hole_value();
     } else {
       Handle<SharedFunctionInfo> sfi(
-          SharedFunctionInfo::cast(declarations->get(i)), isolate);
+          Cast<SharedFunctionInfo>(declarations->get(i)), isolate);
       int feedback_index = Smi::ToInt(declarations->get(++i));
       index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell(
@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
                    .Build();
     }
 
-    Cell::cast(exports->get(index - 1))->set_value(value);
+    Cast<Cell>(exports->get(index - 1))->set_value(value);
   });
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -223,7 +223,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
-    Tagged<Script> script = Script::cast(closure->shared()->script());
+    Tagged<Script> script = Cast<Script>(closure->shared()->script());
     PropertyAttributes attr =
         script->compilation_type() == Script::CompilationType::kEval
             ? NONE
@@ -343,14 +343,14 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          NONE, is_var, RedeclarationType::kTypeError);
   }
   if (context->has_extension() && IsJSGlobalObject(context->extension())) {
-    Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
+    Handle<JSGlobalObject> global(Cast<JSGlobalObject>(context->extension()),
                                   isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
     DCHECK(IsJSGlobalObject(context->global_object()));
     Handle<JSGlobalObject> global(
-        JSGlobalObject::cast(context->global_object()), isolate);
+        Cast<JSGlobalObject>(context->global_object()), isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          RedeclarationType::kTypeError);
   }
@@ -625,7 +625,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   if (num_elements == 0) return *result;
   {
     DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> elements = FixedArray::cast(result->elements());
+    Tagged<FixedArray> elements = Cast<FixedArray>(result->elements());
     WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
       elements->set(i, *arguments[i + start_index], mode);
@@ -763,7 +763,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
+    Handle<Object> value = handle(Cast<Context>(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,

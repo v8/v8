@@ -934,7 +934,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   Tagged<Object> url_obj = script->name();
   DCHECK(IsString(url_obj) || IsUndefined(url_obj));
   std::unique_ptr<char[]> source_url =
-      IsString(url_obj) ? String::cast(url_obj)->ToCString()
+      IsString(url_obj) ? Cast<String>(url_obj)->ToCString()
                         : std::unique_ptr<char[]>(new char[1]{'\0'});
 
   // Log all owned code, not just the current entries in the code table. This

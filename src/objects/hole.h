@@ -21,8 +21,6 @@ class Hole : public HeapObject {
  public:
   inline void set_raw_numeric_value(uint64_t bits);
 
-  DECL_CAST(Hole)
-
   DECL_VERIFIER(Hole)
 
   static inline void Initialize(Isolate* isolate, DirectHandle<Hole> hole,

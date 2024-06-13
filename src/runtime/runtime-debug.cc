@@ -519,7 +519,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < instances->length(); i++) {
-    DirectHandle<Script> script(Script::cast(instances->get(i)), isolate);
+    DirectHandle<Script> script(Cast<Script>(instances->get(i)), isolate);
     instances->set(i, Smi::FromInt(script->id()));
   }
 
@@ -533,7 +533,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
 
   Tagged<Object> f = args[0];
   if (IsJSFunction(f)) {
-    return JSFunction::cast(f)->shared()->inferred_name();
+    return Cast<JSFunction>(f)->shared()->inferred_name();
   }
   return ReadOnlyRoots(isolate).empty_string();
 }
@@ -562,7 +562,7 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
 
   Script::InitLineEnds(script->GetIsolate(), script);
 
-  Tagged<FixedArray> line_ends_array = FixedArray::cast(script->line_ends());
+  Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
   const int line_count = line_ends_array->length();
   DCHECK_LT(0, line_count);
 
@@ -604,7 +604,7 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   Handle<String> sourceText =
       is_wasm_script ? isolate->factory()->empty_string()
                      : isolate->factory()->NewSubString(
-                           handle(String::cast(script->source()), isolate),
+                           handle(Cast<String>(script->source()), isolate),
                            info.line_start, info.line_end);
 
   Handle<JSObject> jsinfo =
@@ -786,7 +786,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Boolean::cast(args[0])->ToBool(isolate);
+  bool enable = Cast<Boolean>(args[0])->ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kPreciseCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -794,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Boolean::cast(args[0])->ToBool(isolate);
+  bool enable = Cast<Boolean>(args[0])->ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kBlockCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -868,7 +868,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   DirectHandle<JSFunction> script_function = args.at<JSFunction>(0);
   Handle<String> new_source = args.at<String>(1);
 
-  Handle<Script> script(Script::cast(script_function->shared()->script()),
+  Handle<Script> script(Cast<Script>(script_function->shared()->script()),
                         isolate);
   v8::debug::LiveEditResult result;
   LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,

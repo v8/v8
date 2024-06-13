@@ -48,8 +48,6 @@ class JSSetIterator
   DECL_PRINTER(JSSetIterator)
   DECL_VERIFIER(JSSetIterator)
 
-  DECL_CAST(JSSetIterator)
-
   OBJECT_CONSTRUCTORS(JSSetIterator,
                       OrderedHashTableIterator<JSSetIterator, OrderedHashSet>);
 };
@@ -74,8 +72,6 @@ class JSMapIterator
   // Dispatched behavior.
   DECL_PRINTER(JSMapIterator)
   DECL_VERIFIER(JSMapIterator)
-
-  DECL_CAST(JSMapIterator)
 
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.

@@ -280,7 +280,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
                     ->map(ObjectVisitorWithCageBases::cage_base())
                     ->visitor_id(),
                 VisitorId::kVisitThinString);
-      *heap_object = ThinString::cast(*heap_object)->actual();
+      *heap_object = Cast<ThinString>(*heap_object)->actual();
       // ThinStrings always refer to internalized strings, which are always
       // in old space.
       DCHECK(!Heap::InYoungGeneration(*heap_object));
@@ -294,7 +294,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
               ->map(ObjectVisitorWithCageBases::cage_base())
               ->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
-        Tagged<ConsString> string = ConsString::cast(*heap_object);
+        Tagged<ConsString> string = Cast<ConsString>(*heap_object);
         if (static_cast<Tagged_t>(string->second().ptr()) ==
             StaticReadOnlyRoot::kempty_string) {
           *heap_object = string->first();

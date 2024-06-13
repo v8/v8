@@ -189,7 +189,7 @@ uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
   static constexpr uint32_t kFalse = 0;
 
   Tagged<FixedUInt16Array> ranges =
-      FixedUInt16Array::cast(Tagged<Object>(raw_byte_array));
+      Cast<FixedUInt16Array>(Tagged<Object>(raw_byte_array));
   DCHECK_GE(ranges->length(), 1);
 
   // Shortcut for fully out of range chars.
@@ -318,7 +318,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // Prepare for possible GC.
   HandleScope handles(isolate);
   DirectHandle<InstructionStream> code_handle(re_code, isolate);
-  DirectHandle<String> subject_handle(String::cast(Tagged<Object>(*subject)),
+  DirectHandle<String> subject_handle(Cast<String>(Tagged<Object>(*subject)),
                                       isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
@@ -389,15 +389,15 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<JSRegExp> regexp,
   // The string has been flattened, so if it is a cons string it contains the
   // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
-    DCHECK_EQ(0, ConsString::cast(subject_ptr)->second()->length());
-    subject_ptr = ConsString::cast(subject_ptr)->first();
+    DCHECK_EQ(0, Cast<ConsString>(subject_ptr)->second()->length());
+    subject_ptr = Cast<ConsString>(subject_ptr)->first();
   } else if (StringShape(subject_ptr).IsSliced()) {
-    Tagged<SlicedString> slice = SlicedString::cast(subject_ptr);
+    Tagged<SlicedString> slice = Cast<SlicedString>(subject_ptr);
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
   }
   if (StringShape(subject_ptr).IsThin()) {
-    subject_ptr = ThinString::cast(subject_ptr)->actual();
+    subject_ptr = Cast<ThinString>(subject_ptr)->actual();
   }
   // Ensure that an underlying string has the same representation.
   bool is_one_byte = subject_ptr->IsOneByteRepresentation();
@@ -435,7 +435,7 @@ int NativeRegExpMacroAssembler::Execute(
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Tagged<Code> code = Code::cast(regexp->code(isolate, is_one_byte));
+  Tagged<Code> code = Cast<Code>(regexp->code(isolate, is_one_byte));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =

@@ -55,7 +55,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     // During bootstrapping, the object_function_prototype_map hasn't been
     // set up yet.
     if (isolate->bootstrapper()->IsActive()) return false;
-    if (JSObject::cast(raw_map->prototype())->map() !=
+    if (Cast<JSObject>(raw_map->prototype())->map() !=
         isolate->raw_native_context()->object_function_prototype_map()) {
       return false;
     }

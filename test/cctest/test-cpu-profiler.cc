@@ -4288,7 +4288,7 @@ int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
   if (function->ActiveTierIsIgnition(isolate)) return -1;
   i::DirectHandle<i::Code> code(function->code(isolate), isolate);
   i::SourcePositionTableIterator iterator(
-      TrustedByteArray::cast(code->source_position_table()));
+      Cast<TrustedByteArray>(code->source_position_table()));
 
   while (!iterator.done()) {
     if (mode == EntryCountMode::kAll ||

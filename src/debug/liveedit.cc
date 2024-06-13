@@ -574,7 +574,7 @@ class FunctionDataMap : public ThreadVisitor {
     if (!IsScript(sfi->script()) || start_position == -1) {
       return false;
     }
-    Tagged<Script> script = Script::cast(sfi->script());
+    Tagged<Script> script = Cast<Script>(sfi->script());
     return Lookup(GetFuncId(script->id(), sfi), data);
   }
 
@@ -590,18 +590,18 @@ class FunctionDataMap : public ThreadVisitor {
       for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
            obj = iterator.Next()) {
         if (IsSharedFunctionInfo(obj)) {
-          Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(obj);
+          Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->shared = handle(sfi, isolate);
         } else if (IsJSFunction(obj)) {
-          Tagged<JSFunction> js_function = JSFunction::cast(obj);
+          Tagged<JSFunction> js_function = Cast<JSFunction>(obj);
           Tagged<SharedFunctionInfo> sfi = js_function->shared();
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->js_functions.emplace_back(js_function, isolate);
         } else if (IsJSGeneratorObject(obj)) {
-          Tagged<JSGeneratorObject> gen = JSGeneratorObject::cast(obj);
+          Tagged<JSGeneratorObject> gen = Cast<JSGeneratorObject>(obj);
           if (gen->is_closed()) continue;
           Tagged<SharedFunctionInfo> sfi = gen->function()->shared();
           FunctionData* data = nullptr;
@@ -636,7 +636,7 @@ class FunctionDataMap : public ThreadVisitor {
   }
 
   FuncId GetFuncId(int script_id, Tagged<SharedFunctionInfo> sfi) {
-    DCHECK_EQ(script_id, Script::cast(sfi->script())->id());
+    DCHECK_EQ(script_id, Cast<Script>(sfi->script())->id());
     int start_position = sfi->StartPosition();
     DCHECK_NE(start_position, -1);
     if (sfi->is_toplevel()) {
@@ -835,7 +835,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                            debug::LiveEditResult* result) {
   std::vector<SourceChangeRange> diffs;
   LiveEdit::CompareStrings(isolate,
-                           handle(String::cast(script->source()), isolate),
+                           handle(Cast<String>(script->source()), isolate),
                            new_source, &diffs);
   if (diffs.empty()) {
     result->status = debug::LiveEditResult::OK;
@@ -954,7 +954,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       data = nullptr;
-      if (!function_data_map.Lookup(SharedFunctionInfo::cast(constants->get(i)),
+      if (!function_data_map.Lookup(Cast<SharedFunctionInfo>(constants->get(i)),
                                     &data)) {
         continue;
       }
@@ -1006,7 +1006,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       Tagged<SharedFunctionInfo> inner_sfi =
-          SharedFunctionInfo::cast(constants->get(i));
+          Cast<SharedFunctionInfo>(constants->get(i));
       // See if there is a mapping from this function's start position to a
       // unchanged function's id.
       auto unchanged_it =
@@ -1016,7 +1016,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // Grab that function id from the new script's SFI list, which should have
       // already been updated in in the unchanged pass.
       Tagged<SharedFunctionInfo> old_unchanged_inner_sfi =
-          SharedFunctionInfo::cast(new_script->shared_function_infos()
+          Cast<SharedFunctionInfo>(new_script->shared_function_infos()
                                        ->get(unchanged_it->second)
                                        .GetHeapObject());
       if (old_unchanged_inner_sfi == inner_sfi) continue;
@@ -1057,7 +1057,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       for (int i = 0; i < constants->length(); ++i) {
         if (!IsSharedFunctionInfo(constants->get(i))) continue;
         Tagged<SharedFunctionInfo> inner_sfi =
-            SharedFunctionInfo::cast(constants->get(i));
+            Cast<SharedFunctionInfo>(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
                                  ->get(inner_sfi->function_literal_id())

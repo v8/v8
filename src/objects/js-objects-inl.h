@@ -56,8 +56,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
-CAST_ACCESSOR(JSIteratorResult)
-
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
@@ -136,7 +134,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 bool JSObject::PrototypeHasNoElements(Isolate* isolate,
                                       Tagged<JSObject> object) {
   DisallowGarbageCollection no_gc;
-  Tagged<HeapObject> prototype = HeapObject::cast(object->map()->prototype());
+  Tagged<HeapObject> prototype = Cast<HeapObject>(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
   Tagged<HeapObject> null = roots.null_value();
   Tagged<FixedArrayBase> empty_fixed_array = roots.empty_fixed_array();
@@ -145,12 +143,12 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate,
   while (prototype != null) {
     Tagged<Map> map = prototype->map();
     if (IsCustomElementsReceiverMap(map)) return false;
-    Tagged<FixedArrayBase> elements = JSObject::cast(prototype)->elements();
+    Tagged<FixedArrayBase> elements = Cast<JSObject>(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
       return false;
     }
-    prototype = HeapObject::cast(map->prototype());
+    prototype = Cast<HeapObject>(map->prototype());
   }
   return true;
 }
@@ -488,9 +486,9 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
       bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));
-      bits = HeapNumber::cast(value)->value_as_bits();
+      bits = Cast<HeapNumber>(value)->value_as_bits();
     }
-    auto box = HeapNumber::cast(RawFastPropertyAt(index));
+    auto box = Cast<HeapNumber>(RawFastPropertyAt(index));
     box->set_value_as_bits(bits);
   } else {
     FastPropertyAtPut(index, value);
@@ -704,7 +702,7 @@ SMI_ACCESSORS(JSMessageObject, raw_type, kMessageTypeOffset)
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   ElementsKind kind = map(cage_base)->elements_kind();
 #if VERIFY_HEAP && DEBUG
-  Tagged<FixedArrayBase> fixed_array = FixedArrayBase::unchecked_cast(
+  Tagged<FixedArrayBase> fixed_array = UncheckedCast<FixedArrayBase>(
       TaggedField<HeapObject, kElementsOffset>::load(cage_base, *this));
 
   // If a GC was caused while constructing this object, the elements
@@ -841,7 +839,7 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
   DCHECK(HasDictionaryElements(cage_base) ||
          HasSlowStringWrapperElements(cage_base));
-  return NumberDictionary::cast(elements(cage_base));
+  return Cast<NumberDictionary>(elements(cage_base));
 }
 
 void JSReceiver::initialize_properties(Isolate* isolate) {
@@ -882,7 +880,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_property_dictionary();
   }
-  return NameDictionary::cast(prop);
+  return Cast<NameDictionary>(prop);
 }
 
 DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
@@ -894,7 +892,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_swiss_property_dictionary();
   }
-  return SwissNameDictionary::cast(prop);
+  return Cast<SwissNameDictionary>(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
@@ -905,7 +903,7 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   if (IsSmi(prop) || prop == GetReadOnlyRoots(cage_base).empty_fixed_array()) {
     return GetReadOnlyRoots(cage_base).empty_property_array();
   }
-  return PropertyArray::cast(prop);
+  return Cast<PropertyArray>(prop);
 }
 
 base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
@@ -915,7 +913,7 @@ base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
   if (IsNull(maybe_native_context)) return {};
   DCHECK(IsNativeContext(maybe_native_context));
-  return NativeContext::cast(maybe_native_context);
+  return Cast<NativeContext>(maybe_native_context);
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext(Isolate* isolate) {

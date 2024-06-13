@@ -67,7 +67,6 @@ class JSSharedStruct
                                            Tagged<Map> instance_map,
                                            InternalIndex i);
 
-  DECL_CAST(JSSharedStruct)
   DECL_PRINTER(JSSharedStruct)
   EXPORT_DECL_VERIFIER(JSSharedStruct)
 

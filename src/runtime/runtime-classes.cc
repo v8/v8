@@ -39,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DirectHandle<Context> context(constructor->native_context(), isolate);
   DCHECK(IsNativeContext(*context));
   Handle<JSFunction> realm_type_error_function(
-      JSFunction::cast(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
+      Cast<JSFunction>(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
       isolate);
   if (name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -195,7 +195,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
   for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> value = dictionary->ValueAt(i);
     if (IsAccessorPair(value)) {
-      Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
+      Handle<AccessorPair> pair(Cast<AccessorPair>(value), isolate);
       pair = AccessorPair::Copy(isolate, pair);
       dictionary->ValueAtPut(i, *pair);
     }
@@ -220,7 +220,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
+            GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(tmp),
                                             isolate->factory()->get_string(),
                                             key),
             false);
@@ -231,7 +231,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
+            GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(tmp),
                                             isolate->factory()->set_string(),
                                             key),
             false);
@@ -241,7 +241,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, result,
-          GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(*value),
+          GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(*value),
                                           isolate->factory()->empty_string(),
                                           key),
           false);
@@ -258,7 +258,7 @@ void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
   for (InternalIndex i : properties_dictionary->IterateEntries()) {
     Tagged<Object> maybe_key = properties_dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
-    DirectHandle<Name> name(Name::cast(maybe_key), isolate);
+    DirectHandle<Name> name(Cast<Name>(maybe_key), isolate);
     LookupIterator::UpdateProtector(isolate, receiver, name);
   }
 }
@@ -309,7 +309,7 @@ bool AddDescriptorsByTemplate(
     Tagged<Object> value = descriptors_template->GetStrongValue(i);
     if (IsAccessorPair(value)) {
       DirectHandle<AccessorPair> pair = AccessorPair::Copy(
-          isolate, handle(AccessorPair::cast(value), isolate));
+          isolate, handle(Cast<AccessorPair>(value), isolate));
       value = *pair;
     }
     DisallowGarbageCollection no_gc;
@@ -331,7 +331,7 @@ bool AddDescriptorsByTemplate(
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         if (IsAccessorPair(value)) {
-          Tagged<AccessorPair> pair = AccessorPair::cast(value);
+          Tagged<AccessorPair> pair = Cast<AccessorPair>(value);
           Tagged<Object> tmp = pair->getter();
           if (IsSmi(tmp)) {
             pair->set_getter(GetMethodWithSharedName(isolate, args, tmp));
@@ -498,7 +498,7 @@ bool InitClassPrototype(Isolate* isolate,
   DirectHandle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
   Handle<NumberDictionary> elements_dictionary_template(
-      NumberDictionary::cast(class_boilerplate->instance_elements_template()),
+      Cast<NumberDictionary>(class_boilerplate->instance_elements_template()),
       isolate);
 
   Handle<Object> properties_template(
@@ -545,7 +545,7 @@ bool InitClassConstructor(Isolate* isolate,
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
-      NumberDictionary::cast(class_boilerplate->static_elements_template()),
+      Cast<NumberDictionary>(class_boilerplate->static_elements_template()),
       isolate);
   DirectHandle<FixedArray> computed_properties(
       class_boilerplate->static_computed_properties(), isolate);
@@ -613,7 +613,7 @@ MaybeHandle<Object> DefineClass(
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
       // args[ClassBoilerplate::kPrototypeArgumentIndex] below.
-      constructor_parent = handle(HeapObject::cast(*super_class), isolate);
+      constructor_parent = handle(Cast<HeapObject>(*super_class), isolate);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,

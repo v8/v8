@@ -180,8 +180,8 @@ Handle<Object> Factory::NumberToStringCacheGet(Tagged<Object> number,
   Tagged<Object> key = cache->get(hash * 2);
   if (key == number ||
       (IsHeapNumber(key) && IsHeapNumber(number) &&
-       HeapNumber::cast(key)->value() == HeapNumber::cast(number)->value())) {
-    return Handle<String>(String::cast(cache->get(hash * 2 + 1)), isolate());
+       Cast<HeapNumber>(key)->value() == Cast<HeapNumber>(number)->value())) {
+    return Handle<String>(Cast<String>(cache->get(hash * 2 + 1)), isolate());
   }
   return undefined_value();
 }

@@ -279,7 +279,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Tagged<Object> object = rinfo->target_object(cage_base);
         if (!IsCode(object, cage_base)) continue;
-        Tagged<Code> target = Code::cast(object);
+        Tagged<Code> target = Cast<Code>(object);
         if (!target->is_builtin()) continue;
         Tagged<Code> new_target = builtins->code(target->builtin_id());
         rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,

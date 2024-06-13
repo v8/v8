@@ -470,13 +470,6 @@ class Object : public AllStatic {
   static void VerifyAnyTagged(Isolate* isolate, Tagged<Object> p);
 #endif
 
-  inline static constexpr Tagged<Object> cast(Tagged<Object> object) {
-    return object;
-  }
-  inline static constexpr Tagged<Object> unchecked_cast(Tagged<Object> object) {
-    return object;
-  }
-
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
 

@@ -56,7 +56,7 @@ void PrintGeneralization(
   os << "[generalizing]";
   Tagged<Name> name = map->instance_descriptors(isolate)->GetKey(modify_index);
   if (IsString(name)) {
-    String::cast(name)->PrintOn(file);
+    Cast<String>(name)->PrintOn(file);
   } else {
     os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
   }
@@ -318,7 +318,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   DCHECK(!map->is_extensible());
-  Tagged<Map> previous = Map::cast(map->GetBackPointer(isolate));
+  Tagged<Map> previous = Cast<Map>(map->GetBackPointer(isolate));
   TransitionsAccessor last_transitions(isolate, previous, IsConcurrent(cmode));
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           map, &info.integrity_level_symbol, &info.integrity_level)) {
@@ -336,7 +336,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // transitions. If we encounter any non-integrity level transition interleaved
   // with integrity level transitions, just bail out.
   while (!source_map->is_extensible()) {
-    previous = Map::cast(source_map->GetBackPointer(isolate));
+    previous = Cast<Map>(source_map->GetBackPointer(isolate));
     TransitionsAccessor transitions(isolate, previous, IsConcurrent(cmode));
     if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
       return info;
@@ -364,7 +364,7 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   Tagged<Map> root_map = old_map->FindRootMap(isolate);
   if (root_map->is_deprecated()) {
     Tagged<JSFunction> constructor =
-        JSFunction::cast(root_map->GetConstructor());
+        Cast<JSFunction>(root_map->GetConstructor());
     DCHECK(constructor->has_initial_map());
     DCHECK(constructor->initial_map()->is_dictionary_map());
     if (constructor->initial_map()->elements_kind() !=
@@ -547,7 +547,7 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   Handle<Map> previous =
-      handle(Map::cast(old_map_->GetBackPointer()), isolate_);
+      handle(Cast<Map>(old_map_->GetBackPointer()), isolate_);
   Tagged<Symbol> integrity_level_symbol;
   TransitionsAccessor last_transitions(isolate_, *previous);
   if (!last_transitions.HasIntegrityLevelTransitionTo(
@@ -568,7 +568,7 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
   // with integrity level transitions, just bail out.
   while (!integrity_source_map_->is_extensible()) {
     previous =
-        handle(Map::cast(integrity_source_map_->GetBackPointer()), isolate_);
+        handle(Cast<Map>(integrity_source_map_->GetBackPointer()), isolate_);
     TransitionsAccessor transitions(isolate_, *previous);
     if (!transitions.HasIntegrityLevelTransitionTo(*integrity_source_map_)) {
       return false;
@@ -601,7 +601,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   if (root_map_->is_deprecated()) {
     state_ = kEnd;
     result_map_ = handle(
-        JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
+        Cast<JSFunction>(root_map_->GetConstructor())->initial_map(), isolate_);
     result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
     DCHECK(result_map_->is_dictionary_map());
     return state_;
@@ -1167,7 +1167,7 @@ void PrintReconfiguration(Isolate* isolate, DirectHandle<Map> map, FILE* file,
   os << "[reconfiguring]";
   Tagged<Name> name = map->instance_descriptors(isolate)->GetKey(modify_index);
   if (IsString(name)) {
-    String::cast(name)->PrintOn(file);
+    Cast<String>(name)->PrintOn(file);
   } else {
     os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
   }

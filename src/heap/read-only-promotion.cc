@@ -129,7 +129,7 @@ class Committee final {
     const InstanceType itype = o->map(isolate)->instance_type();
 #define V(TYPE)                                            \
   if (InstanceTypeChecker::Is##TYPE(itype)) {              \
-    return IsPromoCandidate##TYPE(isolate, TYPE::cast(o)); \
+    return IsPromoCandidate##TYPE(isolate, Cast<TYPE>(o)); \
     /* NOLINTNEXTLINE(readability/braces) */               \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
@@ -435,7 +435,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       for (OffHeapObjectSlot slot = start; slot < end; slot++) {
         Tagged<Object> o = slot.load(isolate_);
         if (!IsHeapObject(o)) continue;
-        CHECK(!Contains(*moves_, HeapObject::cast(o)));
+        CHECK(!Contains(*moves_, Cast<HeapObject>(o)));
       }
     }
 
@@ -446,7 +446,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       if (old_slot_value_obj.ptr() == kTaggedNullAddress) return;
 #endif
       if (!IsHeapObject(old_slot_value_obj)) return;
-      Tagged<HeapObject> old_slot_value = HeapObject::cast(old_slot_value_obj);
+      Tagged<HeapObject> old_slot_value = Cast<HeapObject>(old_slot_value_obj);
       auto it = moves_->find(old_slot_value);
       if (it == moves_->end()) return;
       Tagged<HeapObject> new_slot_value = it->second;

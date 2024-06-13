@@ -95,7 +95,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     os << ", \"sourceName\": \"";
     if (IsString(source_name)) {
       std::ostringstream escaped_name;
-      escaped_name << String::cast(source_name)->ToCString().get();
+      escaped_name << Cast<String>(source_name)->ToCString().get();
       os << JSONEscaped(escaped_name);
     }
     os << "\"";
@@ -106,7 +106,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       if (!IsUndefined(script->source())) {
         DisallowGarbageCollection no_gc;
         int len = shared->EndPosition() - start;
-        SubStringRange source(String::cast(script->source()), no_gc, start,
+        SubStringRange source(Cast<String>(script->source()), no_gc, start,
                               len);
         for (auto c : source) {
           os << AsEscapedUC16ForJSON(c);
@@ -200,7 +200,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
       (info->shared_info().is_null() ||
        info->shared_info()->script() == Tagged<Object>())
           ? Handle<Script>()
-          : handle(Script::cast(info->shared_info()->script()), isolate);
+          : handle(Cast<Script>(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
@@ -213,7 +213,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
     JsonPrintFunctionSource(os, source_id, shared->DebugNameCStr(),
-                            handle(Script::cast(shared->script()), isolate),
+                            handle(Cast<Script>(shared->script()), isolate),
                             isolate, shared, true);
   }
   os << "}, ";
@@ -311,9 +311,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   if (v8_flags.trace_file_names && info->has_shared_info() &&
       IsScript(info->shared_info()->script())) {
     Tagged<Object> source_name =
-        Script::cast(info->shared_info()->script())->name();
+        Cast<Script>(info->shared_info()->script())->name();
     if (IsString(source_name)) {
-      Tagged<String> str = String::cast(source_name);
+      Tagged<String> str = Cast<String>(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),

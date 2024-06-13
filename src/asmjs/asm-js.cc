@@ -270,7 +270,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
 
   // The result is a compiled module and serialized standard library uses.
   wasm::ErrorThrower thrower(isolate, "AsmJs::Compile");
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<AsmWasmData> result =
       wasm::GetWasmEngine()
           ->SyncCompileTranslatedAsmJs(
@@ -331,7 +331,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
   DirectHandle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);
-  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   auto* wasm_engine = wasm::GetWasmEngine();
 
   // Allocate the WasmModuleObject.

@@ -73,7 +73,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     if (ObjectInYoungGeneration(*key)) {
       // We cannot check the map here, as it might be a large object.
       scavenger_->RememberPromotedEphemeron(
-          EphemeronHashTable::unchecked_cast(obj), entry);
+          UncheckedCast<EphemeronHashTable>(obj), entry);
     } else {
       VisitPointer(obj, key);
     }
@@ -199,7 +199,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 namespace {
 
 V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Tagged<Object> object) {
-  return Heap::InFromPage(object) && !HeapObject::cast(object)
+  return Heap::InFromPage(object) && !Cast<HeapObject>(object)
                                           ->map_word(kRelaxedLoad)
                                           .IsForwardingAddress();
 }
@@ -334,7 +334,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     // Smis.
     if (!Heap::InYoungGeneration(object)) return;
 
-    Tagged<HeapObject> heap_object = HeapObject::cast(object);
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     // TODO(chromium:1336158): Turn the following CHECKs into DCHECKs after
     // flushing out potential issues.
     CHECK(Heap::InFromPage(heap_object));
@@ -728,7 +728,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
 
   if (IsJSArrayBufferMap(map)) {
     DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
-    JSArrayBuffer::cast(target)->YoungMarkExtensionPromoted();
+    Cast<JSArrayBuffer>(target)->YoungMarkExtensionPromoted();
   }
 }
 
@@ -994,7 +994,7 @@ void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   DCHECK(!HasWeakHeapObjectTag(object));
   DCHECK(!MapWord::IsPacked(object.ptr()));
   if (Heap::InYoungGeneration(object)) {
-    scavenger_->ScavengeObject(FullHeapObjectSlot(p), HeapObject::cast(object));
+    scavenger_->ScavengeObject(FullHeapObjectSlot(p), Cast<HeapObject>(object));
   }
 }
 

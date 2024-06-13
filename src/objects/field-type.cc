@@ -35,7 +35,7 @@ Handle<FieldType> FieldType::Any(Isolate* isolate) {
 
 // static
 Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
-  return FieldType::cast(Tagged<Object>(map));
+  return Cast<FieldType>(Tagged<Object>(map));
 }
 
 // static
@@ -44,18 +44,12 @@ Handle<FieldType> FieldType::Class(DirectHandle<Map> map, Isolate* isolate) {
 }
 
 // static
-Tagged<FieldType> FieldType::cast(Tagged<Object> object) {
-  DCHECK(object == None() || object == Any() || IsMap(object));
-  return Tagged<FieldType>(object.ptr());
-}
-
-// static
 bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }
 
 // static
 Tagged<Map> FieldType::AsClass(Tagged<FieldType> type) {
   DCHECK(IsClass(type));
-  return Map::cast(type);
+  return Cast<Map>(type);
 }
 
 // static
@@ -112,7 +106,7 @@ bool FieldType::NowContains(Tagged<FieldType> type, Tagged<Object> value) {
   if (type == Any()) return true;
   if (type == None()) return false;
   if (!IsHeapObject(value)) return false;
-  return HeapObject::cast(value)->map() == Map::cast(type);
+  return Cast<HeapObject>(value)->map() == Cast<Map>(type);
 }
 
 }  // namespace internal

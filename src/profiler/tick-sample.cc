@@ -357,7 +357,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
           static_cast<i::InterpretedFrame*>(it.frame());
       // Since the sampler can interrupt execution at any point the
       // bytecode_array might be garbage, so don't actually dereference it. We
-      // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
+      // avoid the frame->GetXXX functions since they call Cast<BytecodeArray>,
       // which has a heap access in its DCHECK.
       i::Address bytecode_array = base::Memory<i::Address>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);

@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   // std::sort might crash in case the underlying data is concurrently
   // modified while sorting.
   CHECK(IsJSArrayBuffer(array->buffer()));
-  DirectHandle<JSArrayBuffer> buffer(JSArrayBuffer::cast(array->buffer()),
+  DirectHandle<JSArrayBuffer> buffer(Cast<JSArrayBuffer>(array->buffer()),
                                      isolate);
   const bool copy_data = buffer->is_shared();
 

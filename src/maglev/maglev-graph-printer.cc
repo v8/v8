@@ -663,7 +663,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
   if (provenance.position.IsKnown() &&
       (provenance.position != existing_provenance.position ||
        provenance.unit != existing_provenance.unit)) {
-    script = Script::cast(
+    script = Cast<Script>(
         provenance.unit->shared_function_info().object()->script());
     has_position_info = script->GetPositionInfo(
         provenance.position.ScriptOffset(), &position_info,
@@ -674,7 +674,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
   // Do the actual function + position print.
   if (needs_function_print) {
     if (script.is_null()) {
-      script = Script::cast(
+      script = Cast<Script>(
           provenance.unit->shared_function_info().object()->script());
     }
     PrintVerticalArrows(os, targets);

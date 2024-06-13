@@ -115,7 +115,7 @@ template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
 Tagged<T> HeapVisitor<ResultType, ConcreteVisitor>::Cast(
     Tagged<HeapObject> object) {
-  return T::cast(object);
+  return i::Cast<T>(object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -172,7 +172,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     case kVisitStruct:
       return visitor->VisitStruct(map, object);
     case kVisitFreeSpace:
-      return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
+      return visitor->VisitFreeSpace(map, Cast<FreeSpace>(object));
     case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
@@ -324,7 +324,7 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::ConcurrentHeapVisitor(
 template <typename T>
 struct ConcurrentVisitorCastHelper {
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object) {
-    return T::cast(object);
+    return i::Cast<T>(object);
   }
 };
 
@@ -332,7 +332,7 @@ struct ConcurrentVisitorCastHelper {
   template <>                                                             \
   V8_INLINE Tagged<TypeName> ConcurrentVisitorCastHelper<TypeName>::Cast( \
       Tagged<HeapObject> object) {                                        \
-    return TypeName::unchecked_cast(object);                              \
+    return UncheckedCast<TypeName>(object);                               \
   }
 SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
 // Casts are also needed for unsafe ones for the initial dispatch in
@@ -347,7 +347,7 @@ Tagged<T> ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(
   if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {
     return ConcurrentVisitorCastHelper<T>::Cast(object);
   }
-  return T::cast(object);
+  return i::Cast<T>(object);
 }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                           \
@@ -385,7 +385,7 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::VisitStringLocked(
             object);                                                          \
     size = ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object);       \
     ObjectTraits<TypeName>::BodyDescriptor::IterateBody(                      \
-        map, TypeName::unchecked_cast(object), size, visitor);                \
+        map, UncheckedCast<TypeName>(object), size, visitor);                 \
     break;
 
     UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)

@@ -29,15 +29,15 @@ void MathRandom::InitializeContext(Isolate* isolate,
 void MathRandom::ResetContext(Tagged<Context> native_context) {
   native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
-  PodArray<State>::cast(native_context->math_random_state())->set(0, state);
+  Cast<PodArray<State>>(native_context->math_random_state())->set(0, state);
 }
 
 Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
   Tagged<Context> native_context =
-      Context::cast(Tagged<Object>(raw_native_context));
+      Cast<Context>(Tagged<Object>(raw_native_context));
   DisallowGarbageCollection no_gc;
   Tagged<PodArray<State>> pod =
-      PodArray<State>::cast(native_context->math_random_state());
+      Cast<PodArray<State>>(native_context->math_random_state());
   State state = pod->get(0);
   // Initialize state if not yet initialized. If a fixed random seed was
   // requested, use it to reset our state the first time a script asks for
@@ -56,7 +56,7 @@ Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
   }
 
   Tagged<FixedDoubleArray> cache =
-      FixedDoubleArray::cast(native_context->math_random_cache());
+      Cast<FixedDoubleArray>(native_context->math_random_cache());
   // Create random numbers.
   for (int i = 0; i < kCacheSize; i++) {
     // Generate random numbers using xorshift128+.

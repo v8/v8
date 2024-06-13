@@ -20,7 +20,7 @@ using RootsTest = TestWithIsolate;
 namespace {
 AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
   DCHECK(IsHeapObject(object));
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(HeapObject::cast(object));
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(Cast<HeapObject>(object));
   if (chunk->InReadOnlySpace()) return RO_SPACE;
   return chunk->Metadata()->owner()->identity();
 }
@@ -95,7 +95,7 @@ bool IsUninitialized(DirectHandle<Object> object) {
   CHECK_EQ(*name, heap->name());                                     \
   if (IsHeapObject(*name) && !CanBeInReadOnlySpace(factory, name) && \
       !IsUninitialized(name)) {                                      \
-    CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name))); \
+    CHECK_NE(RO_SPACE, GetSpaceFromObject(Cast<HeapObject>(*name))); \
   }
 
 // The following tests check that all the roots accessible via public Heap

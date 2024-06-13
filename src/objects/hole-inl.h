@@ -21,8 +21,6 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Hole, HeapObject)
 
-CAST_ACCESSOR(Hole)
-
 void Hole::set_raw_numeric_value(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kRawNumericValueOffset),
                                       bits);

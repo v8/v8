@@ -36,7 +36,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
     event_name += CodeKindToString(kind);
   }
   LOG(isolate, FunctionEvent(
-                   event_name.c_str(), Script::cast(raw_sfi->script())->id(), 0,
+                   event_name.c_str(), Cast<Script>(raw_sfi->script())->id(), 0,
                    raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
   function->feedback_vector()->set_log_next_execution(false);
 }
@@ -369,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // Ensure the context register is updated for materialized objects.
   JavaScriptStackFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
-  isolate->set_context(Context::cast(top_frame->context()));
+  isolate->set_context(Cast<Context>(top_frame->context()));
 
   // Lazy deopts don't invalidate the underlying optimized code since the code
   // object itself is still valid (as far as we know); the called function
@@ -495,7 +495,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 
 #ifdef DEBUG
   Tagged<DeoptimizationData> data =
-      DeoptimizationData::cast(result->deoptimization_data());
+      Cast<DeoptimizationData>(result->deoptimization_data());
   DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
   DCHECK_GE(data->OsrPcOffset().value(), 0);
 #endif  // DEBUG

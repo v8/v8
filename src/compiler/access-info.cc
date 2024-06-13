@@ -518,12 +518,12 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   if (holder_map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(holder_map.object()->is_prototype_map());
     DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        PrototypeInfo::cast(holder_map.object()->prototype_info()));
+        Cast<PrototypeInfo>(holder_map.object()->prototype_info()));
     DirectHandle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
-            JSModuleNamespace::cast(proto_info->module_namespace()));
+            Cast<JSModuleNamespace>(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
-        Cell::cast(module_namespace->module()->exports()->Lookup(
+        Cast<Cell>(module_namespace->module()->exports()->Lookup(
             isolate, name.object(),
             Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {

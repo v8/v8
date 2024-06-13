@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSSet> holder = args.at<JSSet>(0);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
+  Handle<OrderedHashSet> table(Cast<OrderedHashSet>(holder->table()), isolate);
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSSet> holder = args.at<JSSet>(0);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
+  Handle<OrderedHashSet> table(Cast<OrderedHashSet>(holder->table()), isolate);
   table = OrderedHashSet::Shrink(isolate, table);
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -70,7 +70,7 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSMap> holder = args.at<JSMap>(0);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
+  Handle<OrderedHashMap> table(Cast<OrderedHashMap>(holder->table()), isolate);
   table = OrderedHashMap::Shrink(isolate, table);
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -80,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSMap> holder = args.at<JSMap>(0);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
+  Handle<OrderedHashMap> table(Cast<OrderedHashMap>(holder->table()), isolate);
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
@@ -118,7 +118,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   DCHECK(Object::CanBeHeldWeakly(*key));
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   DirectHandle<EphemeronHashTable> table(
-      EphemeronHashTable::cast(weak_collection->table()), isolate);
+      Cast<EphemeronHashTable>(weak_collection->table()), isolate);
   // Should only be called when shrinking the table is necessary. See
   // HashTable::Shrink().
   DCHECK(table->NumberOfElements() - 1 <= (table->Capacity() >> 2) &&
@@ -141,7 +141,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   DCHECK(Object::CanBeHeldWeakly(*key));
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   DirectHandle<EphemeronHashTable> table(
-      EphemeronHashTable::cast(weak_collection->table()), isolate);
+      Cast<EphemeronHashTable>(weak_collection->table()), isolate);
   // Should only be called when rehashing or resizing the table is necessary.
   // See EphemeronHashTable::Put() and HashTable::HasSufficientCapacityToAdd().
   DCHECK((table->NumberOfDeletedElements() << 1) > table->NumberOfElements() ||

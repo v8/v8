@@ -383,7 +383,7 @@ class ConstantInDictionaryPrototypeChainDependency final
         }
         // Only supporting loading at the moment, so we only ever want the
         // getter.
-        value = AccessorPair::cast(dictionary_value)
+        value = Cast<AccessorPair>(dictionary_value)
                     ->get(AccessorComponent::ACCESSOR_GETTER);
       } else {
         value = dictionary_value;
@@ -396,7 +396,7 @@ class ConstantInDictionaryPrototypeChainDependency final
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that
       // AccessInfoFactory::ComputePropertyAccessInfo allows.
-      Tagged<JSObject> object = JSObject::cast(prototype);
+      Tagged<JSObject> object = Cast<JSObject>(prototype);
 
       // We only support dictionary mode prototypes on the chain for this kind
       // of dependency.
@@ -518,7 +518,7 @@ class OwnConstantDoublePropertyDependency final : public CompilationDependency {
 
     // Compare doubles by bit pattern.
     if (!IsHeapNumber(current_value) ||
-        HeapNumber::cast(current_value)->value_as_bits() !=
+        Cast<HeapNumber>(current_value)->value_as_bits() !=
             used_value.get_bits()) {
       TRACE_BROKER_MISSING(broker_, "Constant Double property value changed in "
                                         << holder_.object() << " at FieldIndex "
