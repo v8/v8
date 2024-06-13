@@ -1851,7 +1851,7 @@ class BodyGen {
     if (break_types.empty()) {
       return false;
     }
-    ValueType break_type = break_types[break_types.size() - 1];
+    ValueType break_type = break_types.last();
     if (!break_type.is_reference()) {
       return false;
     }
@@ -1870,8 +1870,15 @@ class BodyGen {
       builder_->EmitU32V(block_index);
       builder_->EmitI32V(source_type.code());             // source type
       builder_->EmitI32V(break_type.heap_type().code());  // target type
-      // Fallthrough: Generate the actually desired ref type.
-      ConsumeAndGenerate(break_types, {}, data);
+      // Fallthrough: The type has been up-cast to the source type of the
+      // br_on_cast instruction! (If the type on the stack was more specific,
+      // this loses type information.)
+      base::SmallVector<ValueType, 32> fallthrough_types(
+          base::VectorOf(break_types));
+      fallthrough_types.back() = ValueType::RefMaybeNull(
+          source_type, source_is_nullable ? kNullable : kNonNullable);
+      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
+      // Generate the actually desired ref type.
       GenerateRef(type, data, nullable);
     } else {
       // br_on_cast_fail
@@ -1889,8 +1896,13 @@ class BodyGen {
       builder_->EmitU32V(block_index);
       builder_->EmitI32V(source_type.code());
       builder_->EmitI32V(target_type.code());
-      // Fallthrough: Generate the actually desired ref type.
-      ConsumeAndGenerate(break_types, {}, data);
+      // Fallthrough: The type has been cast to the target type.
+      base::SmallVector<ValueType, 32> fallthrough_types(
+          base::VectorOf(break_types));
+      fallthrough_types.back() = ValueType::RefMaybeNull(
+          target_type, target_is_nullable ? kNullable : kNonNullable);
+      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
+      // Generate the actually desired ref type.
       GenerateRef(type, data, nullable);
     }
     return true;
@@ -3309,6 +3321,29 @@ class BodyGen {
     Generate(upper_half, data);
   }
 
+  void Consume(ValueType type) {
+    // Try to store the value in a local if there is a local with the same
+    // type. TODO(14034): For reference types a local with a super type
+    // would also be fine.
+    size_t num_params = builder_->signature()->parameter_count();
+    for (uint32_t local_offset = 0; local_offset < locals_.size();
+         ++local_offset) {
+      if (locals_[local_offset] == type) {
+        uint32_t local_index = static_cast<uint32_t>(local_offset + num_params);
+        builder_->EmitWithU32V(kExprLocalSet, local_index);
+        return;
+      }
+    }
+    for (uint32_t param_index = 0; param_index < num_params; ++param_index) {
+      if (builder_->signature()->GetParam(param_index) == type) {
+        builder_->EmitWithU32V(kExprLocalSet, param_index);
+        return;
+      }
+    }
+    // No opportunity found to use the value, so just drop it.
+    builder_->Emit(kExprDrop);
+  }
+
   // Emit code to match an arbitrary signature.
   // TODO(11954): Add the missing reference type conversion/upcasting.
   void ConsumeAndGenerate(base::Vector<const ValueType> param_types,
@@ -3332,8 +3367,9 @@ class BodyGen {
 
     if (return_types.size() == 0 || param_types.size() == 0 ||
         !primitive(return_types[0])) {
-      for (unsigned i = 0; i < param_types.size(); i++) {
-        builder_->Emit(kExprDrop);
+      for (auto iter = param_types.rbegin(); iter != param_types.rend();
+           ++iter) {
+        Consume(*iter);
       }
       Generate(return_types, data);
       return;
@@ -3349,7 +3385,7 @@ class BodyGen {
         bottom_primitives > 0 ? (data->get<uint8_t>() % bottom_primitives) : -1;
     for (int i = static_cast<int>(param_types.size() - 1); i > return_index;
          --i) {
-      builder_->Emit(kExprDrop);
+      Consume(param_types[i]);
     }
     for (int i = return_index; i > 0; --i) {
       Convert(param_types[i], param_types[i - 1]);
