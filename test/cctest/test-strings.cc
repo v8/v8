@@ -2142,9 +2142,13 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
     WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)
         : Thread(v8::base::Thread::Options("WorkerThread")), m_(m), cv_(cv) {}
     void Run() override {
-      v8::Isolate::CreateParams create_params;
-      create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-      isolate = v8::Isolate::New(create_params);
+      {
+        v8::base::MutexGuard guard(&m_);
+        v8::Isolate::CreateParams create_params;
+        create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+        isolate = v8::Isolate::New(create_params);
+        cv_.NotifyOne();
+      }
       {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
@@ -2178,6 +2182,8 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
       cv_.NotifyOne();
     }
 
+    bool IsInitialized() const { return isolate != nullptr; }
+
    private:
     static WorkerThread* Unwrap(Local<Value> value) {
       CHECK(value->IsExternal());
@@ -2196,6 +2202,11 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
   v8::base::ConditionVariable cv;
   WorkerThread worker_thread(m, cv);
   CHECK(worker_thread.Start());
+  {
+    v8::base::MutexGuard guard(&m);
+    cv.Wait(&m);
+    DCHECK(worker_thread.IsInitialized());
+  }
   {
     v8::base::MutexGuard guard(&m);
     cv.Wait(&m);
