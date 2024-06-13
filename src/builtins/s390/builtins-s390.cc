@@ -3204,7 +3204,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize),
       r0);
-  __ ShiftLeftU64(r0, result_size, Operand(kPointerSizeLog2));
+  __ ShiftLeftU64(r0, result_size, Operand(kSystemPointerSizeLog2));
   __ SubS64(sp, sp, r0);
 
   __ StoreU64(
