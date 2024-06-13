@@ -727,8 +727,8 @@ void GenerateRightOperands(InstructionSelectorT<TurboshaftAdapter>* selector,
     if (right_op.Is<LoadOp>() && selector->CanCover(node, right) &&
         canCombineWithLoad(
             SelectLoadOpcode(selector->load_view(right).loaded_rep()))) {
-      AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-          right, inputs, input_count, OpcodeImmMode(*opcode));
+      AddressingMode mode =
+          g.GetEffectiveAddressMemoryOperand(right, inputs, input_count);
       *opcode |= AddressingModeField::encode(mode);
       *operand_mode &= ~OperandMode::kAllowImmediate;
       if (*operand_mode & OperandMode::kAllowRM)
@@ -4463,8 +4463,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kInt32AbsWithOverflow |
-         MachineOperatorBuilder::kInt64AbsWithOverflow |
          MachineOperatorBuilder::kWord64Popcnt;
 }
 
