@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5d68df0804205f14bbfc2bea3205e24986c7a9db',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1de9abe9fb35118626bbd1f1b7a7b1626e1a1f74',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2bd8dea61c53448c67f70419004ded4032590fe7',
   'buildtools/linux64': {
@@ -228,15 +228,15 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'd246272069be506602bd2a7dcf49526d7de603f9',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'f367119ee51a64378e910c830cdd911a5920a609',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '2db0eb3f96a5756298dcd7f9319e56a98585bd10',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '9cac8a6b38c1cbd45c77aee108411d588da006fe',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7d78c6d786121140b2139eef1ea1efdeac8edc30',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ec6281fa0ab0962730e7c6c77f3b847a2c7214bc',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c0883c509ea30e18e5657552527999734c7bac05',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '43c6415bced9310c0aefabadaac2d405fbd5043d',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -358,7 +358,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'bfe59c2726fda7494a800f7d0ee461f0564653b3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'c704d99cc249b198d41390acae5b26ee2f3dc620',
     'condition': 'not build_with_chromium',
   }
 }
