@@ -2685,13 +2685,24 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 
-  void StackCheck(StackCheckOp::Kind kind) {
-    ReduceIfReachableStackCheck(kind);
+#if V8_ENABLE_WEBASSEMBLY
+  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    ReduceIfReachableWasmStackCheck(kind);
+  }
+#endif
+
+  void JSStackCheck(V<Context> context, V<turboshaft::FrameState> frame_state,
+                    JSStackCheckOp::Kind kind) {
+    ReduceIfReachableJSStackCheck(context, frame_state, kind);
   }
 
   void JSLoopStackCheck(V<Context> context,
                         V<turboshaft::FrameState> frame_state) {
-    ReduceIfReachableJSLoopStackCheck(context, frame_state);
+    JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kLoop);
+  }
+  void JSFunctionEntryStackCheck(V<Context> context,
+                                 V<turboshaft::FrameState> frame_state) {
+    JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kFunctionEntry);
   }
 
   void Retain(OpIndex value) { ReduceIfReachableRetain(value); }
@@ -3347,10 +3358,11 @@ class TurboshaftAssemblerOpInterface
         typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
         isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
   }
-  V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate, V<Context> context,
-                                          V<Smi> gap) {
+  V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate,
+                                          V<turboshaft::FrameState> frame_state,
+                                          V<Context> context, V<Smi> gap) {
     return CallRuntime<typename RuntimeCallDescriptor::StackGuardWithGap>(
-        isolate, context, {gap});
+        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {gap});
   }
   V<Object> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
                                          V<String> string, V<Number> index) {

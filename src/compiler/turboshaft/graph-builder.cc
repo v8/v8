@@ -177,7 +177,7 @@ struct GraphBuilder {
       if (stack->opcode() == IrOpcode::kHeapConstant &&
           *HeapConstantOf(stack->op()) ==
               ReadOnlyRoots(isolate->heap()).optimized_out()) {
-        // Nothing to do in this case.
+        builder->AddUnusedRegister();
       } else {
         const Operation& accumulator_op = __ output_graph().Get(Map(stack));
         const RegisterRepresentation accumulator_rep =
@@ -2355,7 +2355,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kJSStackCheck: {
       DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
                 StackCheckKind::kJSFunctionEntry);
-      __ StackCheck(StackCheckOp::Kind::kJSFunctionHeader);
+      V<Context> context = Map(node->InputAt(0));
+      V<FrameState> frame_state = Map(node->InputAt(1));
+      __ JSFunctionEntryStackCheck(context, frame_state);
       return OpIndex::Invalid();
     }
 

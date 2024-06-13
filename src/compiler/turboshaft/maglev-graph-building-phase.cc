@@ -399,7 +399,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::FunctionEntryStackCheck* node,
                                 const maglev::ProcessingState& state) {
-    __ StackCheck(StackCheckOp::Kind::kJSFunctionHeader);
+    __ JSFunctionEntryStackCheck(native_context(),
+                                 BuildFrameState(node->lazy_deopt_info()));
     return maglev::ProcessResult::kContinue;
   }
 

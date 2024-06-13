@@ -75,20 +75,27 @@ class LoopPeelingReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(StackCheck)(OpIndex ig_idx,
-                                         const StackCheckOp& stack_check) {
-    LABEL_BLOCK(no_change) {
-      return Next::ReduceInputGraphStackCheck(ig_idx, stack_check);
-    }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (IsPeeling()) {
-      // We remove the stack check of the peeled iteration.
-      return OpIndex::Invalid();
+  V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
+                                           const JSStackCheckOp& stack_check) {
+    if (ShouldSkipOptimizationStep() || !IsPeeling()) {
+      return Next::ReduceInputGraphJSStackCheck(ig_idx, stack_check);
     }
 
-    goto no_change;
+    // We remove the stack check of the peeled iteration.
+    return V<None>::Invalid();
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
+      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
+    if (ShouldSkipOptimizationStep() || !IsPeeling()) {
+      return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
+    }
+
+    // We remove the stack check of the peeled iteration.
+    return V<None>::Invalid();
+  }
+#endif
 
   OpIndex REDUCE_INPUT_GRAPH(Phi)(OpIndex ig_idx, const PhiOp& phi) {
     if (!IsEmittingUnpeeledBody() ||

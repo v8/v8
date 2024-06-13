@@ -101,7 +101,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<Smi>>;
     using result_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsFrameState = true;
     // TODO(nicohartmann@): Verify this.
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };

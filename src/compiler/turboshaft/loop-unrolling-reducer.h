@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_LOOP_UNROLLING_REDUCER_H_
 
 #include "src/base/logging.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
@@ -284,24 +285,27 @@ class LoopStackCheckElisionReducer : public Next {
     goto no_change;
   }
 
-  V<None> REDUCE_INPUT_GRAPH(JSLoopStackCheck)(
-      V<None> ig_idx, const JSLoopStackCheckOp& stack_check) {
-    if (skip_next_stack_check_) {
+  V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
+                                           const JSStackCheckOp& stack_check) {
+    if (skip_next_stack_check_ &&
+        stack_check.kind == JSStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
       return {};
     }
-    return Next::ReduceInputGraphJSLoopStackCheck(ig_idx, stack_check);
+    return Next::ReduceInputGraphJSStackCheck(ig_idx, stack_check);
   }
 
-  V<None> REDUCE_INPUT_GRAPH(StackCheck)(V<None> ig_idx,
-                                         const StackCheckOp& stack_check) {
+#if V8_ENABLE_WEBASSEMBLY
+  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
+      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
     if (skip_next_stack_check_ &&
-        stack_check.check_kind == StackCheckOp::Kind::kWasmLoop) {
+        stack_check.kind == WasmStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
       return {};
     }
-    return Next::ReduceInputGraphStackCheck(ig_idx, stack_check);
+    return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
   }
+#endif
 
  private:
   bool skip_next_stack_check_ = false;
@@ -418,27 +422,23 @@ class LoopUnrollingReducer : public Next {
     goto no_change;
   }
 
-  // TODO(dmercadier): also special case JSLoopStackCheck.
-  OpIndex REDUCE_INPUT_GRAPH(StackCheck)(OpIndex ig_idx,
-                                         const StackCheckOp& check) {
-    LABEL_BLOCK(no_change) {
-      return Next::ReduceInputGraphStackCheck(ig_idx, check);
+  V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
+                                           const JSStackCheckOp& check) {
+    if (ShouldSkipOptimizationStep() || !ShouldSkipStackCheck(check.kind)) {
+      return Next::ReduceInputGraphJSStackCheck(ig_idx, check);
     }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (unrolling_ == UnrollingStatus::kUnrolling) {
-      DCHECK(!IsRunningBuiltinPipeline());
-      if (check.check_kind == StackCheckOp::Kind::kWasmLoop) {
-        // When we unroll a loop, we get rid of its stack checks. (note that we
-        // don't do this for the 1st folded body of partially unrolled loops so
-        // that the loop keeps a stack check).
-        DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
-        return OpIndex::Invalid();
-      }
-    }
-
-    goto no_change;
+    return V<None>::Invalid();
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<None> ig_idx,
+                                             const WasmStackCheckOp& check) {
+    if (ShouldSkipOptimizationStep() || !ShouldSkipStackCheck(check.kind)) {
+      return Next::ReduceInputGraphWasmStackCheck(ig_idx, check);
+    }
+    return V<None>::Invalid();
+  }
+#endif
 
  private:
   enum class UnrollingStatus {
@@ -480,6 +480,25 @@ class LoopUnrollingReducer : public Next {
         __ FinalizeLoop(*output_graph_header);
       }
       return true;
+    }
+    return false;
+  }
+
+// ShouldSkipStackCheck can be call with both JSStackCheckOp and
+// WasmStackCheckOp as input, since these refer to the same enum.
+#if V8_ENABLE_WEBASSEMBLY
+  static_assert(std::is_same_v<JSStackCheckOp::Kind, WasmStackCheckOp::Kind>);
+#endif
+  bool ShouldSkipStackCheck(JSStackCheckOp::Kind kind) {
+    if (unrolling_ == UnrollingStatus::kUnrolling) {
+      DCHECK(!IsRunningBuiltinPipeline());
+      if (kind == JSStackCheckOp::Kind::kLoop) {
+        // When we unroll a loop, we get rid of its stack checks. (note that we
+        // don't do this for the 1st folded body of partially unrolled loops so
+        // that the loop keeps a stack check).
+        DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
+        return true;
+      }
     }
     return false;
   }

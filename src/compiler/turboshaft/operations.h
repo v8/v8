@@ -112,6 +112,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These operations should be lowered to Machine operations during
 // WasmLoweringPhase.
 #define TURBOSHAFT_WASM_OPERATION_LIST(V) \
+  V(WasmStackCheck)                       \
   V(GlobalGet)                            \
   V(GlobalSet)                            \
   V(Null)                                 \
@@ -316,8 +317,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
   V(Allocate)                              \
   V(DecodeExternalPointer)                 \
-  V(StackCheck)                            \
-  V(JSLoopStackCheck)
+  V(JSStackCheck)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3318,11 +3318,6 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   void PrintOptions(std::ostream& os) const;
 
   auto options() const { return std::tuple{type}; }
-
-  // template <typename H>
-  // friend H AbslHashValue(H h, const AllocateOp& op) {
-  //   return H::combine(std::move(h), op.size(), op.type);
-  // }
 };
 
 struct DecodeExternalPointerOp
@@ -3355,40 +3350,19 @@ struct DecodeExternalPointerOp
   auto options() const { return std::tuple{tag}; }
 };
 
-// Wasm stack check or JS function entry stack check. Note that JS loop
-// iteration stack checks should use instead the JSLoopStackCheckOp operation
-// (which is separate because it has different inputs, different effects, and
-// different lowering).
-struct StackCheckOp : FixedArityOperationT<0, StackCheckOp> {
-  enum class Kind : uint8_t {
-    kJSFunctionHeader,
-    kWasmFunctionHeader,
-    kWasmLoop
-  };
-  Kind check_kind;
+struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
+  enum class Kind : bool { kFunctionEntry, kLoop };
+  Kind kind;
 
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
-
-  explicit StackCheckOp(Kind kind) : Base(), check_kind(kind) {}
-
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return {};
+  OpEffects Effects() const {
+    switch (kind) {
+      case Kind::kFunctionEntry:
+        return OpEffects().CanCallAnything();
+      case Kind::kLoop:
+        // Loop body iteration stack checks can't write memory or allocate.
+        return OpEffects().CanDependOnChecks().CanDeopt().CanReadHeapMemory();
+    }
   }
-
-  void Validate(const Graph& graph) const {}
-
-  auto options() const { return std::tuple{check_kind}; }
-};
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           StackCheckOp::Kind kind);
-
-struct JSLoopStackCheckOp : FixedArityOperationT<2, JSLoopStackCheckOp> {
-  static constexpr OpEffects effects =
-      OpEffects().CanDependOnChecks().CanDeopt().CanReadHeapMemory();
 
   V<Context> native_context() const { return Base::input<Context>(0); }
   V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
@@ -3400,12 +3374,13 @@ struct JSLoopStackCheckOp : FixedArityOperationT<2, JSLoopStackCheckOp> {
     return {};
   }
 
-  explicit JSLoopStackCheckOp(V<Context> context, V<FrameState> frame_state)
-      : Base(context, frame_state) {}
+  explicit JSStackCheckOp(V<Context> context, V<FrameState> frame_state,
+                          Kind kind)
+      : Base(context, frame_state), kind(kind) {}
 
   void Validate(const Graph& graph) const {}
 
-  auto options() const { return std::tuple{}; }
+  auto options() const { return std::tuple{kind}; }
 };
 
 // Retain a HeapObject to prevent it from being garbage collected too early.
@@ -3626,6 +3601,29 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
+
+struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
+  using Kind = JSStackCheckOp::Kind;
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WasmStackCheckOp::Kind kind);
 struct TrapIfOp : OperationT<TrapIfOp> {
   bool negated;
   const TrapId trap_id;
@@ -8611,7 +8609,11 @@ inline OpEffects Operation::Effects() const {
       return Cast<AtomicRMWOp>().Effects();
     case Opcode::kAtomicWord32Pair:
       return Cast<AtomicWord32PairOp>().Effects();
+    case Opcode::kJSStackCheck:
+      return Cast<JSStackCheckOp>().Effects();
 #if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmStackCheck:
+      return Cast<WasmStackCheckOp>().Effects();
     case Opcode::kStructGet:
       return Cast<StructGetOp>().Effects();
     case Opcode::kStructSet:

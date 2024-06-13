@@ -1426,14 +1426,12 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
-std::ostream& operator<<(std::ostream& os, StackCheckOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, JSStackCheckOp::Kind kind) {
   switch (kind) {
-    case StackCheckOp::Kind::kJSFunctionHeader:
-      return os << "JS function-entry";
-    case StackCheckOp::Kind::kWasmFunctionHeader:
-      return os << "Wasm function-entry";
-    case StackCheckOp::Kind::kWasmLoop:
-      return os << "Wasm loop";
+    case JSStackCheckOp::Kind::kFunctionEntry:
+      return os << "function-entry";
+    case JSStackCheckOp::Kind::kLoop:
+      return os << "loop";
   }
 }
 
