@@ -22,9 +22,6 @@ namespace internal {
 // Forward declarations.
 enum class AbortReason : uint8_t;
 
-// Flags used for LeaveExitFrame function.
-enum LeaveExitFrameMode { EMIT_RETURN = true, NO_EMIT_RETURN = false };
-
 // Flags used for the li macro-assembler function.
 enum LiFlags {
   // If the constant value can be represented in just 12 bits, then
@@ -1011,13 +1008,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Msub_d(FPURegister fd, FPURegister fa, FPURegister fj, FPURegister fk);
 
   // Enter exit frame.
-  // argc - argument count to be dropped by LeaveExitFrame.
   // stack_space - extra stack space.
-  void EnterExitFrame(int stack_space, StackFrame::Type frame_type);
+  void EnterExitFrame(Register scratch, int stack_space,
+                      StackFrame::Type frame_type);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(Register arg_count, bool do_return = NO_EMIT_RETURN,
-                      bool argument_count_is_length = false);
+  void LeaveExitFrame(Register scratch);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned() NOOP_UNLESS_DEBUG_CODE;
@@ -1275,14 +1271,16 @@ inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
                               MemOperand return_value_operand);
 
 }  // namespace internal
