@@ -146,7 +146,7 @@ class BacktrackStack {
 
   // The 'sp' is the index of the first empty element in the stack.
   int sp() const { return static_cast<int>(data_.size()); }
-  void set_sp(int new_sp) {
+  void set_sp(uint32_t new_sp) {
     DCHECK_LE(new_sp, sp());
     data_.resize_no_init(new_sp);
   }
