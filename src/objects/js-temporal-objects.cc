@@ -379,8 +379,6 @@ V8_WARN_UNUSED_RESULT
 Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
                                     const DateTimeRecord& date_time);
 
-int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur);
-
 // #sec-temporal-isodaysinmonth
 int32_t ISODaysInMonth(Isolate* isolate, int32_t year, int32_t month);
 
@@ -1376,7 +1374,7 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
   // 1. Let sign be ! DurationSign(years, months, weeks, days, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds).
   DurationRecord dur = duration;
-  int32_t sign = DurationSign(isolate, dur);
+  int32_t sign = DurationRecord::Sign(dur);
   // Note: for the operation below, to avoid microseconds .. seconds lost
   // precision while the resulting value may exceed the precision limit, we use
   // extra double xx_add to hold the additional temp value.
@@ -5695,7 +5693,7 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Milliseconds]], timeDifference.[[Microseconds]],
   // timeDifference.[[Nanoseconds]]).
   time_difference.days = 0;
-  double time_sign = DurationSign(isolate, {0, 0, 0, time_difference});
+  double time_sign = DurationRecord::Sign({0, 0, 0, time_difference});
 
   // 5. Let dateSign be ! CompareISODate(y2, mon2, d2, y1, mon1, d1).
   double date_sign = CompareISODate(date_time2.date, date_time1.date);
@@ -5912,8 +5910,12 @@ Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
       .ToHandleChecked();
 }
 
+}  // namespace
+
+namespace temporal {
+
 // #sec-temporal-durationsign
-int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur) {
+int32_t DurationRecord::Sign(const DurationRecord& dur) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. For each value v of « years, months, weeks, days, hours, minutes,
@@ -5944,23 +5946,20 @@ int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur) {
   return 0;
 }
 
-}  // namespace
-
-namespace temporal {
-
 // #sec-temporal-isvalidduration
 bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let sign be ! DurationSign(years, months, weeks, days, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds).
-  int32_t sign = DurationSign(isolate, dur);
+  int32_t sign = DurationRecord::Sign(dur);
   // 2. For each value v of « years, months, weeks, days, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds », do a. If v is not
   // finite, return false. b. If v < 0 and sign > 0, return false. c. If v > 0
   // and sign < 0, return false.
   // 3. Return true.
   const TimeDurationRecord& time = dur.time_duration;
+
   if (!(std::isfinite(dur.years) && std::isfinite(dur.months) &&
         std::isfinite(dur.weeks) && std::isfinite(time.days) &&
         std::isfinite(time.hours) && std::isfinite(time.minutes) &&
@@ -5968,14 +5967,73 @@ bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
         std::isfinite(time.microseconds) && std::isfinite(time.nanoseconds))) {
     return false;
   }
-  return !((sign > 0 && (dur.years < 0 || dur.months < 0 || dur.weeks < 0 ||
-                         time.days < 0 || time.hours < 0 || time.minutes < 0 ||
-                         time.seconds < 0 || time.milliseconds < 0 ||
-                         time.microseconds < 0 || time.nanoseconds < 0)) ||
-           (sign < 0 && (dur.years > 0 || dur.months > 0 || dur.weeks > 0 ||
-                         time.days > 0 || time.hours > 0 || time.minutes > 0 ||
-                         time.seconds > 0 || time.milliseconds > 0 ||
-                         time.microseconds > 0 || time.nanoseconds > 0)));
+  if ((sign > 0 && (dur.years < 0 || dur.months < 0 || dur.weeks < 0 ||
+                    time.days < 0 || time.hours < 0 || time.minutes < 0 ||
+                    time.seconds < 0 || time.milliseconds < 0 ||
+                    time.microseconds < 0 || time.nanoseconds < 0)) ||
+      (sign < 0 && (dur.years > 0 || dur.months > 0 || dur.weeks > 0 ||
+                    time.days > 0 || time.hours > 0 || time.minutes > 0 ||
+                    time.seconds > 0 || time.milliseconds > 0 ||
+                    time.microseconds > 0 || time.nanoseconds > 0))) {
+    return false;
+  }
+  static const double kPower32Of2 = static_cast<double>(int64_t(1) << 32);
+  static const int64_t kPower53Of2 = int64_t(1) << 53;
+  // 3. If abs(years) ≥ 2**32, return false.
+  if (std::abs(dur.years) >= kPower32Of2) {
+    return false;
+  }
+  // 4. If abs(months) ≥ 2**32, return false.
+  if (std::abs(dur.months) >= kPower32Of2) {
+    return false;
+  }
+  // 5. If abs(weeks) ≥ 2**32, return false.
+  if (std::abs(dur.weeks) >= kPower32Of2) {
+    return false;
+  }
+  // 6. Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 +
+  // seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 +
+  // ℝ(𝔽(nanoseconds)) × 10**-9.
+  // 7. NOTE: The above step cannot be implemented directly using floating-point
+  // arithmetic. Multiplying by 10**-3, 10**-6, and 10**-9 respectively may be
+  // imprecise when milliseconds, microseconds, or nanoseconds is an unsafe
+  // integer. This multiplication can be implemented in C++ with an
+  // implementation of std::remquo() with sufficient bits in the quotient.
+  // String manipulation will also give an exact result, since the
+  // multiplication is by a power of 10.
+  // 8. If abs(normalizedSeconds) ≥ 2**53, return false.
+
+  int64_t allowed = kPower53Of2;
+  double in_seconds = std::abs(time.days * 86400.0 + time.hours * 3600.0 +
+                               time.minutes * 60.0 + time.seconds);
+
+  if (in_seconds >= allowed) {
+    return false;
+  }
+  allowed -= in_seconds;
+
+  // Check the part > 1 seconds.
+  in_seconds = std::floor(std::abs(time.milliseconds / 1e3)) +
+               std::floor(std::abs(time.microseconds / 1e6)) +
+               std::floor(std::abs(time.nanoseconds / 1e9));
+  if (in_seconds >= allowed) {
+    return false;
+  }
+  allowed -= in_seconds;
+
+  // Sum of the three remainings will surely < 3
+  if (allowed > 3) {
+    return true;
+  }
+
+  allowed *= 1000000000;  // convert to ns
+  int64_t remainders = std::abs(fmod(time.milliseconds, 1e3)) * 1000000 +
+                       std::abs(fmod(time.microseconds, 1e6)) * 1000 +
+                       std::abs(fmod(time.nanoseconds, 1e9));
+  if (remainders >= allowed) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace temporal
@@ -6181,12 +6239,12 @@ Maybe<TimeDurationRecord> DifferenceTime(Isolate* isolate,
   dur.nanoseconds = time2.nanosecond - time1.nanosecond;
   // 8. Let sign be ! DurationSign(0, 0, 0, 0, hours, minutes, seconds,
   // milliseconds, microseconds, nanoseconds).
-  double sign = DurationSign(
-      isolate, {0,
-                0,
-                0,
-                {0, dur.hours, dur.minutes, dur.seconds, dur.milliseconds,
-                 dur.microseconds, dur.nanoseconds}});
+  double sign = DurationRecord::Sign(
+      {0,
+       0,
+       0,
+       {0, dur.hours, dur.minutes, dur.seconds, dur.milliseconds,
+        dur.microseconds, dur.nanoseconds}});
 
   // 9. Let bt be ! BalanceTime(hours × sign, minutes × sign, seconds × sign,
   // milliseconds × sign, microseconds × sign, nanoseconds × sign).
@@ -6711,8 +6769,7 @@ Maybe<DateDurationRecord> UnbalanceDurationRelative(
   }
   // 2. Let sign be ! DurationSign(years, months, weeks, days, 0, 0, 0, 0, 0,
   // 0).
-  double sign = DurationSign(
-      isolate,
+  double sign = DurationRecord::Sign(
       {dur.years, dur.months, dur.weeks, {dur.days, 0, 0, 0, 0, 0, 0}});
   // 3. Assert: sign ≠ 0.
   DCHECK_NE(sign, 0);
@@ -6942,8 +6999,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
 
   // 3. Let sign be ! DurationSign(years, months, weeks, days, 0, 0, 0, 0, 0,
   // 0).
-  double sign = DurationSign(
-      isolate,
+  double sign = DurationRecord::Sign(
       {dur.years, dur.months, dur.weeks, {dur.days, 0, 0, 0, 0, 0, 0}});
   // 4. Assert: sign ≠ 0.
   DCHECK_NE(sign, 0);
@@ -7874,17 +7930,17 @@ MaybeHandle<Smi> JSTemporalDuration::Sign(
   // duration.[[Weeks]], duration.[[Days]], duration.[[Hours]],
   // duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]],
   // duration.[[Microseconds]], duration.[[Nanoseconds]]).
-  return handle(Smi::FromInt(DurationSign(
-                    isolate, {Object::NumberValue(duration->years()),
-                              Object::NumberValue(duration->months()),
-                              Object::NumberValue(duration->weeks()),
-                              {Object::NumberValue(duration->days()),
-                               Object::NumberValue(duration->hours()),
-                               Object::NumberValue(duration->minutes()),
-                               Object::NumberValue(duration->seconds()),
-                               Object::NumberValue(duration->milliseconds()),
-                               Object::NumberValue(duration->microseconds()),
-                               Object::NumberValue(duration->nanoseconds())}})),
+  return handle(Smi::FromInt(DurationRecord::Sign(
+                    {Object::NumberValue(duration->years()),
+                     Object::NumberValue(duration->months()),
+                     Object::NumberValue(duration->weeks()),
+                     {Object::NumberValue(duration->days()),
+                      Object::NumberValue(duration->hours()),
+                      Object::NumberValue(duration->minutes()),
+                      Object::NumberValue(duration->seconds()),
+                      Object::NumberValue(duration->milliseconds()),
+                      Object::NumberValue(duration->microseconds()),
+                      Object::NumberValue(duration->nanoseconds())}})),
                 isolate);
 }
 
@@ -7901,16 +7957,16 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
   // 4. If sign = 0, return true.
   // 5. Return false.
   int32_t sign =
-      DurationSign(isolate, {Object::NumberValue(duration->years()),
-                             Object::NumberValue(duration->months()),
-                             Object::NumberValue(duration->weeks()),
-                             {Object::NumberValue(duration->days()),
-                              Object::NumberValue(duration->hours()),
-                              Object::NumberValue(duration->minutes()),
-                              Object::NumberValue(duration->seconds()),
-                              Object::NumberValue(duration->milliseconds()),
-                              Object::NumberValue(duration->microseconds()),
-                              Object::NumberValue(duration->nanoseconds())}});
+      DurationRecord::Sign({Object::NumberValue(duration->years()),
+                            Object::NumberValue(duration->months()),
+                            Object::NumberValue(duration->weeks()),
+                            {Object::NumberValue(duration->days()),
+                             Object::NumberValue(duration->hours()),
+                             Object::NumberValue(duration->minutes()),
+                             Object::NumberValue(duration->seconds()),
+                             Object::NumberValue(duration->milliseconds()),
+                             Object::NumberValue(duration->microseconds()),
+                             Object::NumberValue(duration->nanoseconds())}});
   return isolate->factory()->ToBoolean(sign == 0);
 }
 
@@ -13973,10 +14029,10 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
   // 8. Set sign to ! DurationSign(duration.[[Years]], duration.[[Months]],
   // duration.[[Weeks]], balanceResult.[[Days]], 0, 0, 0, 0, 0, 0).
   int32_t sign =
-      DurationSign(isolate, {duration.years,
-                             duration.months,
-                             duration.weeks,
-                             {balance_result.days, 0, 0, 0, 0, 0, 0}});
+      DurationRecord::Sign({duration.years,
+                            duration.months,
+                            duration.weeks,
+                            {balance_result.days, 0, 0, 0, 0, 0, 0}});
 
   // 9. If sign < 0, then
   Handle<Object> day;

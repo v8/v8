@@ -65,10 +65,6 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4951
-  'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
-  'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
@@ -2034,18 +2030,20 @@
   'built-ins/Temporal/ZonedDateTime/from/duplicate-calendar-fields': [['not i18n', PASS], ['i18n', FAIL]],
   'built-ins/Temporal/ZonedDateTime/from/proto-in-calendar-fields': [['not i18n', PASS], ['i18n', FAIL]],
 
+  'built-ins/Temporal/Duration/compare/argument-duration-precision-exact-numerical-values': [FAIL],
+  'built-ins/Temporal/Duration/from/argument-duration-max': [FAIL],
+  'built-ins/Temporal/Duration/max': [FAIL],
+  'built-ins/Temporal/Duration/prototype/add/argument-duration-max': [FAIL],
+  'built-ins/Temporal/Duration/prototype/subtract/argument-duration-max': [FAIL],
+
+  # https://github.com/tc39/test262/pull/3988
+  'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-decorator-member-expr': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14304
-  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds': [FAIL],
-
-  # intl402/DurationFormat/prototype/format/precision-exact-mathematical-values
-  'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
@@ -2455,8 +2453,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainDate/order-of-operations': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
-  'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined-en': [FAIL],
-  'intl402/DurationFormat/constructor-options-style-conflict': [FAIL],
 }],
 # end import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
 ####
@@ -2712,9 +2708,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/DurationFormat/prototype/format/fractions-of-subsecond-units-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/mixed-short-and-numeric': [SKIP],
-  'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined-en': [SKIP],
   'language/expressions/assignment/target-super-computed-reference': [SKIP],
 }],
 # End roll-watcher patch
@@ -2723,28 +2716,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/DurationFormat/prototype/format/negative-duration-style-default-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-style-short-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-default-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-digital-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-long-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-narrow-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-short-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-durationstyle-digital-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-durationstyle-long-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/negative-durationstyle-narrow-en': [SKIP],
-  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds-with-auto-display': [SKIP],
-  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds-with-auto-display-and-zero-fractional': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-default-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-digital-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-long-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-narrow-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-short-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-default-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-digital-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-long-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-narrow-en': [SKIP],
-  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-short-en': [SKIP],
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [SKIP],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [SKIP],
 }],

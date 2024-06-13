@@ -85,10 +85,11 @@ class JSDurationFormat
     kNarrow,
     kNumeric,
     k2Digit,
+    kFractional,
     kUndefined,
 
     kStyle3Max = kNarrow,
-    kStyle4Max = kNumeric,
+    kStyle4Max = kFractional,
     kStyle5Max = k2Digit,
   };
 
