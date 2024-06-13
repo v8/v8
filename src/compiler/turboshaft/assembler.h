@@ -2705,7 +2705,7 @@ class TurboshaftAssemblerOpInterface
     JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kFunctionEntry);
   }
 
-  void Retain(OpIndex value) { ReduceIfReachableRetain(value); }
+  void Retain(V<Object> value) { ReduceIfReachableRetain(value); }
 
   V<Word32> StackPointerGreaterThan(V<WordPtr> limit, StackCheckKind kind) {
     return ReduceIfReachableStackPointerGreaterThan(limit, kind);
@@ -4564,7 +4564,9 @@ class Assembler : public AssemblerData,
   bool generating_unreachable_operations() const {
     return current_block() == nullptr;
   }
-  OpIndex current_operation_origin() const { return current_operation_origin_; }
+  V<AnyOrNone> current_operation_origin() const {
+    return current_operation_origin_;
+  }
 
   const Operation& Get(OpIndex op_idx) const {
     return this->output_graph().Get(op_idx);
@@ -4788,7 +4790,7 @@ class Assembler : public AssemblerData,
 
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
-  OpIndex current_operation_origin_ = OpIndex::Invalid();
+  V<AnyOrNone> current_operation_origin_ = V<AnyOrNone>::Invalid();
 
 #ifdef DEBUG
   int intermediate_tracing_depth_ = 0;

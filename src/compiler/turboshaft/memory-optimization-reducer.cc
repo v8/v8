@@ -133,7 +133,7 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
 }
 
 void MemoryAnalyzer::ProcessStore(const StoreOp& store) {
-  OpIndex store_op_index = input_graph.Index(store);
+  V<None> store_op_index = input_graph.Index(store);
   if (SkipWriteBarrier(store)) {
     skipped_write_barriers.insert(store_op_index);
   } else {

@@ -3310,9 +3310,9 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  OpIndex size() const { return input(0); }
+  V<WordPtr> size() const { return input<WordPtr>(0); }
 
-  AllocateOp(OpIndex size, AllocationType type) : Base(size), type(type) {}
+  AllocateOp(V<WordPtr> size, AllocationType type) : Base(size), type(type) {}
 
   void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
@@ -3385,7 +3385,7 @@ struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
 
 // Retain a HeapObject to prevent it from being garbage collected too early.
 struct RetainOp : FixedArityOperationT<1, RetainOp> {
-  OpIndex retained() const { return input(0); }
+  V<Object> retained() const { return input<Object>(0); }
 
   // Retain doesn't actually write, it just keeps a value alive. However, since
   // this must not be reordered with reading operations, we mark it as writing.
@@ -3397,7 +3397,7 @@ struct RetainOp : FixedArityOperationT<1, RetainOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  explicit RetainOp(OpIndex retained) : Base(retained) {}
+  explicit RetainOp(V<Object> retained) : Base(retained) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -3422,9 +3422,9 @@ struct StackPointerGreaterThanOp
     return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  OpIndex stack_limit() const { return input(0); }
+  V<WordPtr> stack_limit() const { return input<WordPtr>(0); }
 
-  StackPointerGreaterThanOp(OpIndex stack_limit, StackCheckKind kind)
+  StackPointerGreaterThanOp(V<WordPtr> stack_limit, StackCheckKind kind)
       : Base(stack_limit), kind(kind) {}
 
   void Validate(const Graph& graph) const {

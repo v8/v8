@@ -65,7 +65,7 @@ class WasmJSLoweringReducer : public Next {
     const FrameStateData* data = frame_state_op.data;
     const FrameStateInfo& info = data->frame_state_info;
 
-    OpIndex origin = Asm().current_operation_origin();
+    V<AnyOrNone> origin = Asm().current_operation_origin();
     DCHECK(origin.valid());
     int offset = __ input_graph().source_positions()[origin].ScriptOffset();
 

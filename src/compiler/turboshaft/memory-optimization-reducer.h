@@ -111,7 +111,7 @@ struct MemoryAnalyzer {
       input_graph.block_count(), phase_zone};
   ZoneAbslFlatHashMap<const AllocateOp*, const AllocateOp*> folded_into{
       phase_zone};
-  ZoneAbslFlatHashSet<OpIndex> skipped_write_barriers{phase_zone};
+  ZoneAbslFlatHashSet<V<None>> skipped_write_barriers{phase_zone};
   ZoneAbslFlatHashMap<const AllocateOp*, uint32_t> reserved_size{phase_zone};
   BlockIndex current_block = BlockIndex(0);
   BlockState state;
@@ -151,12 +151,12 @@ struct MemoryAnalyzer {
     return false;
   }
 
-  bool IsFoldedAllocation(OpIndex op) {
+  bool IsFoldedAllocation(V<AnyOrNone> op) {
     return folded_into.count(
         input_graph.Get(op).template TryCast<AllocateOp>());
   }
 
-  base::Optional<uint32_t> ReservedSize(OpIndex alloc) {
+  base::Optional<uint32_t> ReservedSize(V<AnyOrNone> alloc) {
     if (auto it = reserved_size.find(
             input_graph.Get(alloc).template TryCast<AllocateOp>());
         it != reserved_size.end()) {
@@ -198,7 +198,7 @@ class MemoryOptimizationReducer : public Next {
     Next::Analyze();
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Store)(OpIndex ig_index, const StoreOp& store) {
+  V<None> REDUCE_INPUT_GRAPH(Store)(V<None> ig_index, const StoreOp& store) {
     if (store.write_barrier != WriteBarrierKind::kAssertNoWriteBarrier) {
       // We cannot skip this optimization if we have to eliminate a
       // {kAssertNoWriteBarrier}.
@@ -213,20 +213,20 @@ class MemoryOptimizationReducer : public Next {
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
-      return OpIndex::Invalid();
+      return V<None>::Invalid();
     }
     DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
     return Next::ReduceInputGraphStore(ig_index, store);
   }
 
-  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type) {
+  V<HeapObject> REDUCE(Allocate)(V<WordPtr> size, AllocationType type) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
       type = AllocationType::kOld;
     }
 
-    OpIndex top_address;
+    V<WordPtr> top_address;
     if (isolate_ != nullptr) {
       top_address = __ ExternalConstant(
           type == AllocationType::kYoung
@@ -250,8 +250,8 @@ class MemoryOptimizationReducer : public Next {
     }
 
     if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
-      DCHECK_NE(__ GetVariable(top(type)), OpIndex::Invalid());
-      OpIndex obj_addr = __ GetVariable(top(type));
+      DCHECK_NE(__ GetVariable(top(type)), V<WordPtr>::Invalid());
+      V<WordPtr> obj_addr = __ GetVariable(top(type));
       __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                       MemoryRepresentation::UintPtr());
@@ -262,7 +262,7 @@ class MemoryOptimizationReducer : public Next {
     __ SetVariable(top(type), __ LoadOffHeap(top_address,
                                              MemoryRepresentation::UintPtr()));
 
-    OpIndex allocate_builtin;
+    V<CallTarget> allocate_builtin;
     if (!analyzer_->is_wasm) {
       if (type == AllocationType::kYoung) {
         allocate_builtin =
@@ -303,7 +303,7 @@ class MemoryOptimizationReducer : public Next {
     Block* call_runtime = __ NewBlock();
     Block* done = __ NewBlock();
 
-    OpIndex limit_address = GetLimitAddress(type);
+    V<WordPtr> limit_address = GetLimitAddress(type);
 
     // If the allocation size is not statically known or is known to be larger
     // than kMaxRegularHeapObjectSize, do not update {top(type)} in case of a
@@ -317,12 +317,12 @@ class MemoryOptimizationReducer : public Next {
           __ NewLoopInvariantVariable(RegisterRepresentation::Tagged());
       if (!constant_size) {
         // Check if we can do bump pointer allocation here.
-        OpIndex top_value = __ GetVariable(top(type));
+        V<WordPtr> top_value = __ GetVariable(top(type));
         __ SetVariable(result,
                        __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
-        OpIndex new_top = __ WordPtrAdd(top_value, size);
-        OpIndex limit =
+        V<WordPtr> new_top = __ WordPtrAdd(top_value, size);
+        V<WordPtr> limit =
             __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
@@ -333,8 +333,9 @@ class MemoryOptimizationReducer : public Next {
         __ Goto(done);
       }
       if (constant_size || __ Bind(call_runtime)) {
-        __ SetVariable(result, __ Call(allocate_builtin, {size},
-                                       AllocateBuiltinDescriptor()));
+        __ SetVariable(
+            result, __ template Call<HeapObject>(allocate_builtin, {size},
+                                                 AllocateBuiltinDescriptor()));
         __ Goto(done);
       }
 
@@ -342,7 +343,7 @@ class MemoryOptimizationReducer : public Next {
       return __ GetVariable(result);
     }
 
-    OpIndex reservation_size;
+    V<WordPtr> reservation_size;
     if (auto c = analyzer_->ReservedSize(__ current_operation_origin())) {
       reservation_size = __ UintPtrConstant(*c);
     } else {
@@ -355,7 +356,7 @@ class MemoryOptimizationReducer : public Next {
                      call_runtime, BranchHint::kTrue) !=
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
-      OpIndex limit =
+      V<WordPtr> limit =
           __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
       __ Branch(__ UintPtrLessThan(
                     __ WordPtrAdd(__ GetVariable(top(type)), reservation_size),
@@ -365,8 +366,8 @@ class MemoryOptimizationReducer : public Next {
 
     // Call the runtime if bump pointer area exhausted.
     if (__ Bind(call_runtime)) {
-      OpIndex allocated = __ Call(allocate_builtin, {reservation_size},
-                                  AllocateBuiltinDescriptor());
+      V<HeapObject> allocated = __ template Call<HeapObject>(
+          allocate_builtin, {reservation_size}, AllocateBuiltinDescriptor());
       __ SetVariable(top(type),
                      __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
                                    __ IntPtrConstant(kHeapObjectTag)));
@@ -375,7 +376,7 @@ class MemoryOptimizationReducer : public Next {
 
     __ BindReachable(done);
     // Compute the new top and write it back.
-    OpIndex obj_addr = __ GetVariable(top(type));
+    V<WordPtr> obj_addr = __ GetVariable(top(type));
     __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
@@ -433,10 +434,10 @@ class MemoryOptimizationReducer : public Next {
 #endif
     }
 
-    OpIndex index = __ ShiftRightLogical(handle, kExternalPointerIndexShift,
-                                         WordRepresentation::Word32());
-    OpIndex pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
-                                     MemoryRepresentation::UintPtr());
+    V<Word32> index =
+        __ Word32ShiftRightLogical(handle, kExternalPointerIndexShift);
+    V<Word64> pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
+                                       MemoryRepresentation::Uint64());
     pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
     return pointer;
 #else   // V8_ENABLE_SANDBOX
@@ -469,8 +470,8 @@ class MemoryOptimizationReducer : public Next {
     return allocate_builtin_descriptor_;
   }
 
-  OpIndex GetLimitAddress(AllocationType type) {
-    OpIndex limit_address;
+  V<WordPtr> GetLimitAddress(AllocationType type) {
+    V<WordPtr> limit_address;
     if (isolate_ != nullptr) {
       limit_address = __ ExternalConstant(
           type == AllocationType::kYoung
