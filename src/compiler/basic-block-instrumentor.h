@@ -18,10 +18,6 @@ namespace compiler {
 class Graph;
 class Schedule;
 
-namespace turboshaft {
-class Graph;
-}  // namespace turboshaft
-
 class BasicBlockInstrumentor : public AllStatic {
  public:
   static BasicBlockProfilerData* Instrument(OptimizedCompilationInfo* info,
@@ -39,8 +35,6 @@ class BasicBlockCallGraphProfiler : public AllStatic {
   // save a record line (like builtin A calls builtin B at block N).
   static void StoreCallGraph(OptimizedCompilationInfo* info,
                              Schedule* schedule);
-  static void StoreCallGraph(OptimizedCompilationInfo* info,
-                             const turboshaft::Graph& graph);
 };
 
 }  // namespace compiler
