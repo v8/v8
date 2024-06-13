@@ -73,7 +73,8 @@ static bool SpecializeToFunctionContext(
 MaglevCompilationInfo::MaglevCompilationInfo(
     Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
     base::Optional<compiler::JSHeapBroker*> js_broker,
-    base::Optional<bool> specialize_to_function_context)
+    base::Optional<bool> specialize_to_function_context,
+    bool for_turboshaft_frontend)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(js_broker.has_value()
                   ? js_broker.value()
@@ -82,7 +83,8 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
       osr_offset_(osr_offset),
-      owns_broker_(!js_broker.has_value())
+      owns_broker_(!js_broker.has_value()),
+      for_turboshaft_frontend_(for_turboshaft_frontend)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V

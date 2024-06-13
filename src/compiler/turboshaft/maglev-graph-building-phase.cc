@@ -4017,7 +4017,7 @@ void MaglevGraphBuildingPhase::Run(PipelineData* data, Zone* temp_zone) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
-  auto compilation_info = maglev::MaglevCompilationInfo::New(
+  auto compilation_info = maglev::MaglevCompilationInfo::NewForTurboshaft(
       data->isolate(), broker, data->info()->closure(),
       data->info()->osr_offset(),
       data->info()->function_context_specializing());

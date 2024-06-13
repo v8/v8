@@ -47,13 +47,14 @@ class MaglevCodeGenerator;
 
 class MaglevCompilationInfo final {
  public:
-  static std::unique_ptr<MaglevCompilationInfo> New(
+  static std::unique_ptr<MaglevCompilationInfo> NewForTurboshaft(
       Isolate* isolate, compiler::JSHeapBroker* broker,
       Handle<JSFunction> function, BytecodeOffset osr_offset,
       bool specialize_to_function_context) {
     // Doesn't use make_unique due to the private ctor.
     return std::unique_ptr<MaglevCompilationInfo>(new MaglevCompilationInfo(
-        isolate, function, osr_offset, broker, specialize_to_function_context));
+        isolate, function, osr_offset, broker, specialize_to_function_context,
+        /*for_turboshaft_frontend*/ true));
   }
   static std::unique_ptr<MaglevCompilationInfo> New(Isolate* isolate,
                                                     Handle<JSFunction> function,
@@ -77,6 +78,8 @@ class MaglevCompilationInfo final {
     code_ = code;
   }
   MaybeHandle<Code> get_code() { return code_; }
+
+  bool for_turboshaft_frontend() const { return for_turboshaft_frontend_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -128,7 +131,8 @@ class MaglevCompilationInfo final {
   MaglevCompilationInfo(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       base::Optional<compiler::JSHeapBroker*> broker = base::nullopt,
-      base::Optional<bool> specialize_to_function_context = base::nullopt);
+      base::Optional<bool> specialize_to_function_context = base::nullopt,
+      bool for_turboshaft_frontend = false);
 
   // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
   // Use DetachCanonicalHandles() to transfer ownership instead.
@@ -150,6 +154,10 @@ class MaglevCompilationInfo final {
   // particular, when used as Turboshaft front-end, this will use Turboshaft's
   // broker.
   bool owns_broker_ = true;
+
+  // When this MaglevCompilationInfo is created to be used in Turboshaft's
+  // frontend, {for_turboshaft_frontend_} is true.
+  bool for_turboshaft_frontend_ = false;
 
   // True if some inlinees were skipped due to total size constraints.
   bool could_not_inline_all_candidates_ = false;
