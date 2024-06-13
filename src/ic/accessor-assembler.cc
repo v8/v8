@@ -5214,6 +5214,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // Handlers for the CloneObjectIC stub are weak references to the Map of
     // a result object.
     result_map = CAST(GetHeapObjectAssumeWeak(var_handler.value(), &miss));
+    GotoIf(IsDeprecatedMap(result_map.value()), &miss);
     Goto(&if_result_map);
   }
 
