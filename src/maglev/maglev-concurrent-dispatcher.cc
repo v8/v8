@@ -135,6 +135,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
   BeginPhaseKind("V8.MaglevExecuteJob");
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
+    EndPhaseKind();
     return CompilationJob::FAILED;
   }
   EndPhaseKind();
@@ -146,6 +147,7 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   BeginPhaseKind("V8.MaglevFinalizeJob");
   Handle<Code> code;
   if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
+    EndPhaseKind();
     return CompilationJob::FAILED;
   }
   // Functions with many inline candidates are sensitive to correct call
