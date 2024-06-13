@@ -777,8 +777,8 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                                                    4, 0, 0));
               TqScopeInfo scope_info(scope_info_address);
               props.push_back(std::make_unique<ObjectProperty>(
-                  "function_character_offset", kTaggedValue,
-                  scope_info.GetPositionInfoAddress(), 1, i::kTaggedSize,
+                  "function_character_offset", "",
+                  scope_info.GetPositionInfoAddress(), 1, 2 * i::kTaggedSize,
                   std::move(position_info_struct_field_list),
                   d::PropertyKind::kSingle));
             }

@@ -282,8 +282,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 #define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
   V(Flags)                                   \
   V(ParameterCount)                          \
-  V(ContextLocalCount)                       \
-  V(PositionInfo)
+  V(ContextLocalCount)
 
 #define FIELD_ACCESSORS(name)       \
   inline int name() const;
@@ -294,7 +293,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 #define DECL_INDEX(name) k##name,
     FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
 #undef DECL_INDEX
-        kVariablePartIndex = kPositionInfo + 2
+        kPositionInfoStart,
+    kPositionInfoEnd,
+    kVariablePartIndex
   };
 
   static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);

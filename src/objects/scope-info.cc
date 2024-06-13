@@ -26,8 +26,8 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        bool is_live_edit_compare) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
-    if (is_live_edit_compare && index >= kPositionInfo &&
-        index <= kPositionInfo + 1) {
+    if (is_live_edit_compare && index >= kPositionInfoStart &&
+        index <= kPositionInfoEnd) {
       continue;
     }
     Tagged<Object> entry = get(index);
