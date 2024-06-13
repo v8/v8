@@ -12,7 +12,12 @@ function foo() {
 }
 
 %PrepareFunctionForOptimization(foo);
-foo();
-foo();
-%OptimizeFunctionOnNextCall(foo);
-foo();
+try {
+  foo();
+  foo();
+  %OptimizeFunctionOnNextCall(foo);
+  foo();
+} catch (e) {
+  assertTrue(e instanceof RangeError);
+  assertEquals('Array buffer allocation failed', e.message);
+}
