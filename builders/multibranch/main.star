@@ -241,7 +241,6 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         barrier = BARRIER.NONE,
-        execution_timeout = 10800,
         # TODO(crbug.com/v8/8811): Enable again when it is green.
         work_in_progress = True,
     ),
