@@ -9,6 +9,16 @@
 #ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
 #define V8_WASM_WASM_FEATURE_FLAGS_H_
 
+// Each entry in this file generates a V8 command-line flag with the prefix
+// "--experimental-wasm-".
+//
+// For example, to enable "my_feature", pass
+// --experimental-wasm-my-feature to d8, or
+// --js-flags=--experimental-wasm-my-feature to Chrome.
+//
+// To disable "my_feature", add the "--no-" prefix:
+// --no-experimental-wasm-my-feature.
+//
 // See https://github.com/WebAssembly/proposals for an overview of current
 // WebAssembly proposals.
 
