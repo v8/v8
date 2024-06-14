@@ -1579,7 +1579,11 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     if (rt.is_reg()) {
       rorw(rd, rs, rt.rm());
     } else {
-      roriw(rd, rs, rt.immediate() % 32);
+      int64_t ror_value = rt.immediate() % 32;
+      if (ror_value < 0) {
+        ror_value += 32;
+      }
+      roriw(rd, rs, ror_value);
     }
     return;
   }
@@ -1612,7 +1616,11 @@ void MacroAssembler::Dror(Register rd, Register rs, const Operand& rt) {
     if (rt.is_reg()) {
       ror(rd, rs, rt.rm());
     } else {
-      rori(rd, rs, rt.immediate() % 64);
+      int64_t dror_value = rt.immediate() % 64;
+      if (dror_value < 0) {
+        dror_value += 64;
+      }
+      rori(rd, rs, dror_value);
     }
     return;
   }
@@ -1682,7 +1690,11 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     if (rt.is_reg()) {
       ror(rd, rs, rt.rm());
     } else {
-      rori(rd, rs, rt.immediate());
+      int32_t ror_value = rt.immediate() % 32;
+      if (ror_value < 0) {
+        ror_value += 32;
+      }
+      rori(rd, rs, ror_value);
     }
     return;
   }
