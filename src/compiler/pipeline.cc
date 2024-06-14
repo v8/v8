@@ -508,7 +508,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
 // If {use_turboshaft_instruction_selection} is set, then instruction selection
 // will run on the Turboshaft input graph directly. Otherwise, the graph is
 // translated back to TurboFan sea-of-nodes and we run the backend on that.
-void GenerateCodeFromTurboshaftGraph(
+[[nodiscard]] bool GenerateCodeFromTurboshaftGraph(
     bool use_turboshaft_instruction_selection, Linkage* linkage,
     turboshaft::Pipeline& turboshaft_pipeline,
     PipelineImpl* turbofan_pipeline = nullptr,
@@ -520,12 +520,13 @@ void GenerateCodeFromTurboshaftGraph(
     turboshaft_data->InitializeCodegenComponent(osr_helper);
     // Run Turboshaft instruction selection.
     turboshaft_pipeline.PrepareForInstructionSelection();
-    CHECK(turboshaft_pipeline.SelectInstructions(linkage));
+    if (!turboshaft_pipeline.SelectInstructions(linkage)) return false;
     // We can release the graph now.
     turboshaft_data->ClearGraphComponent();
 
     turboshaft_pipeline.AllocateRegisters(linkage->GetIncomingDescriptor());
     turboshaft_pipeline.AssembleCode(linkage);
+    return true;
   } else {
     // Otherwise, reconstruct a Turbofan graph. Note that this will
     // automatically release {turboshaft_data}'s graph component.
@@ -533,8 +534,9 @@ void GenerateCodeFromTurboshaftGraph(
                                               linkage);
 
     // And run code generation on that.
-    turbofan_pipeline->SelectInstructions(linkage);
+    if (!turbofan_pipeline->SelectInstructions(linkage)) return false;
     turbofan_pipeline->AssembleCode(linkage);
+    return true;
   }
 }
 
@@ -837,11 +839,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   bool use_turboshaft_instruction_selection = false;
 #endif
 
-  GenerateCodeFromTurboshaftGraph(use_turboshaft_instruction_selection,
-                                  linkage_, turboshaft_pipeline, &pipeline_,
-                                  data_.osr_helper_ptr());
-
-  return SUCCEEDED;
+  const bool success = GenerateCodeFromTurboshaftGraph(
+      use_turboshaft_instruction_selection, linkage_, turboshaft_pipeline,
+      &pipeline_, data_.osr_helper_ptr());
+  return success ? SUCCEEDED : FAILED;
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
@@ -2437,10 +2438,10 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
       v8_flags.turboshaft_wasm_instruction_selection_experimental;
 #endif
 
-  GenerateCodeFromTurboshaftGraph(use_turboshaft_instruction_selection,
-                                  &linkage, turboshaft_pipeline, &pipeline_);
-
-  return CompilationJob::SUCCEEDED;
+  const bool success = GenerateCodeFromTurboshaftGraph(
+      use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
+      &pipeline_);
+  return success ? SUCCEEDED : FAILED;
 }
 
 CompilationJob::Status WasmTurboshaftWrapperCompilationJob::FinalizeJobImpl(
@@ -2867,7 +2868,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
       // Perform instruction selection and register allocation.
       turboshaft_data.InitializeCodegenComponent(data.osr_helper_ptr(),
                                                  jump_optimization_info);
-      turboshaft_pipeline.SelectInstructions(&linkage);
+      CHECK(turboshaft_pipeline.SelectInstructions(&linkage));
       turboshaft_pipeline.AllocateRegisters(linkage.GetIncomingDescriptor());
 
       // Generate the final machine code.
@@ -3118,9 +3119,10 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         v8_flags.turboshaft_wasm_instruction_selection_experimental;
 #endif
 
-    GenerateCodeFromTurboshaftGraph(use_turboshaft_instruction_selection,
-                                    &linkage, turboshaft_pipeline, &pipeline,
-                                    data.osr_helper_ptr());
+    const bool success = GenerateCodeFromTurboshaftGraph(
+        use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
+        &pipeline, data.osr_helper_ptr());
+    CHECK(success);
 
     if (use_turboshaft_instruction_selection) {
       auto result =
@@ -3544,9 +3546,10 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       v8_flags.turboshaft_wasm_instruction_selection_experimental;
 #endif
 
-  GenerateCodeFromTurboshaftGraph(use_turboshaft_instruction_selection,
-                                  &linkage, turboshaft_pipeline, &pipeline,
-                                  data.osr_helper_ptr());
+  const bool success = GenerateCodeFromTurboshaftGraph(
+      use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
+      &pipeline, data.osr_helper_ptr());
+  if (!success) return false;
 
   CodeGenerator* code_generator;
   if (use_turboshaft_instruction_selection) {
@@ -3672,9 +3675,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     bool use_turboshaft_instruction_selection = false;
 #endif
 
-    GenerateCodeFromTurboshaftGraph(use_turboshaft_instruction_selection,
-                                    &linkage, turboshaft_pipeline, &pipeline,
-                                    data.osr_helper_ptr());
+    const bool success = GenerateCodeFromTurboshaftGraph(
+        use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
+        &pipeline, data.osr_helper_ptr());
+    if (!success) return {};
 
     if (use_turboshaft_instruction_selection) {
       Handle<Code> code;

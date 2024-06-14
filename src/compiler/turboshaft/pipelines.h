@@ -267,7 +267,7 @@ class Pipeline final {
     Run<SpecialRPOSchedulingPhase>();
   }
 
-  bool SelectInstructions(Linkage* linkage) {
+  [[nodiscard]] bool SelectInstructions(Linkage* linkage) {
     auto call_descriptor = linkage->GetIncomingDescriptor();
 
     // Depending on which code path led us to this function, the frame may or
@@ -491,7 +491,9 @@ class Pipeline final {
   MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor) {
     Linkage linkage(call_descriptor);
     PrepareForInstructionSelection();
-    SelectInstructions(&linkage);
+    if (!SelectInstructions(&linkage)) {
+      return MaybeHandle<Code>();
+    }
     AllocateRegisters(linkage.GetIncomingDescriptor());
     AssembleCode(&linkage);
     return FinalizeCode();
