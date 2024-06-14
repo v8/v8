@@ -262,6 +262,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         barrier = BARRIER.TREE_CLOSER,
+        execution_timeout = 10800,
         disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
