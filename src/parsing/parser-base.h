@@ -2092,7 +2092,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         next_arrow_function_info_.scope =
             NewFunctionScope(FunctionKind::kArrowFunction);
         next_arrow_function_info_.function_literal_id =
-            GetNextFunctionLiteralId();
+            PeekNextFunctionLiteralId();
         return factory()->NewEmptyParentheses(beg_pos);
       }
       Scope::Snapshot scope_snapshot(scope());
