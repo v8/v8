@@ -4107,11 +4107,25 @@ void CompilationStateImpl::OnFinishedUnits(
       if (code->tier() > reached_tier) {
         compilation_progress_[slot_index] = ReachedTierField::update(
             compilation_progress_[slot_index], code->tier());
-      } else if (v8_flags.wasm_deopt && code->tier() != reached_tier) {
-        DCHECK_EQ(reached_tier, ExecutionTier::kTurbofan);
-        DCHECK_EQ(code->tier(), ExecutionTier::kLiftoff);
+      }
+      // Allow another top tier compilation if deopts are enabled and the
+      // currently installed code object is a liftoff object.
+      // Ideally, this would be done only if the code->tier() ==
+      // ExeuctionTier::Liftoff as the code object for which we run this
+      // function should be the same as the one installed on the native_module.
+      // This is unfortunately not the case as installing a code object on the
+      // native module and updating the compilation_progress_ and the
+      // CompilationUnitQueues::top_tier_compiled_ are not synchronized.
+      // Note: GetCode() acquires the NativeModule::allocation_mutex_, so this
+      // could cause deadlocks if any other place acquires
+      // NativeModule::allocation_mutex_ first and then
+      // CompilationStateImpl::callbacks_mutex_!
+      const bool is_liftoff = code->tier() == ExecutionTier::kLiftoff;
+      if (v8_flags.wasm_deopt &&
+          (is_liftoff ||
+           native_module_->GetCode(code->index())->is_liftoff())) {
         compilation_progress_[slot_index] = ReachedTierField::update(
-            compilation_progress_[slot_index], code->tier());
+            compilation_progress_[slot_index], ExecutionTier::kLiftoff);
         compilation_unit_queues_.AllowAnotherTopTierJob(code->index());
       }
       DCHECK_LE(0, outstanding_baseline_units_);
