@@ -786,6 +786,22 @@ MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
   return MaybeHandle<JSGeneratorObject>();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+MaybeHandle<WasmSuspenderObject> TryGetWasmSuspender(
+    Isolate* isolate, Tagged<HeapObject> handler) {
+  // Check if the {handler} is WasmResume.
+  if (IsBuiltinFunction(isolate, handler, Builtin::kWasmResume)) {
+    // Now peek into the handlers' AwaitContext to get to
+    // the JSGeneratorObject for the async function.
+    Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(handler)->shared();
+    if (shared->HasWasmResumeData()) {
+      return handle(shared->wasm_resume_data()->suspender(), isolate);
+    }
+  }
+  return MaybeHandle<WasmSuspenderObject>();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 int GetGeneratorBytecodeOffset(
     DirectHandle<JSGeneratorObject> generator_object) {
   // The stored bytecode offset is relative to a different base than what
@@ -1194,10 +1210,19 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
         }
       }
     } else {
+#if V8_ENABLE_WEBASSEMBLY
+      Handle<WasmSuspenderObject> suspender;
+      if (TryGetWasmSuspender(isolate, promise_reaction_job_task->handler())
+              .ToHandle(&suspender)) {
+        // The {promise_reaction_job_task} belongs to a suspended Wasm stack
+        return handle(suspender->promise(), isolate);
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
       // The {promise_reaction_job_task} doesn't belong to an await (or
-      // yield inside an async generator), but we might still be able to
-      // find an async frame if we follow along the chain of promises on
-      // the {promise_reaction_job_task}.
+      // yield inside an async generator) or a suspended Wasm stack,
+      // but we might still be able to find an async frame if we follow
+      // along the chain of promises on the {promise_reaction_job_task}.
       Handle<HeapObject> promise_or_capability(
           promise_reaction_job_task->promise_or_capability(), isolate);
       if (IsJSPromise(*promise_or_capability)) {
@@ -2923,6 +2948,20 @@ bool WalkPromiseTreeInternal(
         any_caught = any_caught || caught;
         any_uncaught = any_uncaught || !caught;
       }
+    } else {
+#if V8_ENABLE_WEBASSEMBLY
+      Handle<WasmSuspenderObject> suspender;
+      if (TryGetWasmSuspender(isolate, reaction->fulfill_handler())
+              .ToHandle(&suspender)) {
+        // If in the future we support Wasm exceptions or ignore listing in
+        // Wasm, we will need to iterate through these frames. For now, we
+        // only care about the resulting promise.
+        Handle<JSPromise> next_promise = handle(suspender->promise(), isolate);
+        bool caught = WalkPromiseTreeInternal(isolate, next_promise, callback);
+        any_caught = any_caught || caught;
+        any_uncaught = any_uncaught || !caught;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
     current = direct_handle(reaction->next(), isolate);
   }
