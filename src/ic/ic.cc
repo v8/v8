@@ -1239,8 +1239,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   KeyedAccessLoadMode load_mode =
       GeneralizeKeyedAccessLoadMode(old_load_mode, new_load_mode);
   LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
-  DCHECK_LE(1, target_receiver_maps.size());
-  if (target_receiver_maps.size() == 1) {
+  if (target_receiver_maps.empty()) {
+    Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
+    ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+  } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {
     ConfigureVectorState(Handle<Name>(),
