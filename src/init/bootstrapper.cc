@@ -5549,6 +5549,14 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 #undef ITERATOR_HELPERS
 }
 
+void Genesis::InitializeGlobal_js_promise_try() {
+  if (!v8_flags.js_promise_try) return;
+  Handle<JSFunction> promise_fun =
+      handle(native_context()->promise_function(), isolate());
+  InstallFunctionWithBuiltinId(isolate(), promise_fun, "try",
+                               Builtin::kPromiseTry, 1, false);
+}
+
 void Genesis::InitializeGlobal_js_promise_withresolvers() {
   if (!v8_flags.js_promise_withresolvers) return;
 

@@ -2725,16 +2725,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Promise/try/args': [SKIP],
-  'built-ins/Promise/try/ctx-ctor': [SKIP],
-  'built-ins/Promise/try/ctx-ctor-throws': [SKIP],
-  'built-ins/Promise/try/length': [SKIP],
-  'built-ins/Promise/try/name': [SKIP],
-  'built-ins/Promise/try/not-a-constructor': [SKIP],
-  'built-ins/Promise/try/promise': [SKIP],
-  'built-ins/Promise/try/prop-desc': [SKIP],
-  'built-ins/Promise/try/return-value': [SKIP],
-  'built-ins/Promise/try/throws': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/dateuntil-field': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/largestunit-smallestunit-combinations-relativeto': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/dst-balancing-result': [SKIP],

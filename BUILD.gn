@@ -1963,6 +1963,7 @@ torque_files = [
   "src/builtins/promise-reaction-job.tq",
   "src/builtins/promise-resolve.tq",
   "src/builtins/promise-then.tq",
+  "src/builtins/promise-try.tq",
   "src/builtins/promise-withresolvers.tq",
   "src/builtins/proxy-constructor.tq",
   "src/builtins/proxy-delete-property.tq",
