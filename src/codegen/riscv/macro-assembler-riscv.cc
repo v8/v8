@@ -6085,13 +6085,15 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
 }
 
-void MacroAssembler::EnterExitFrame(int stack_space,
+void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
          frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
+
+  using ER = ExternalReference;
 
   // Set up the frame structure on the stack.
   static_assert(2 * kSystemPointerSize ==
@@ -6103,7 +6105,7 @@ void MacroAssembler::EnterExitFrame(int stack_space,
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
   // [fp + 1 (==kCallerPCOffset)] - saved old ra
   // [fp + 0 (==kCallerFPOffset)] - saved old fp
-  // [fp - 1 StackFrame::EXIT Smi
+  // [fp - 1 frame_type Smi
   // [fp - 2 (==kSPOffset)] - sp of the called function
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
@@ -6113,12 +6115,9 @@ void MacroAssembler::EnterExitFrame(int stack_space,
        -2 * kSystemPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
   StoreWord(ra, MemOperand(sp, 3 * kSystemPointerSize));
   StoreWord(fp, MemOperand(sp, 2 * kSystemPointerSize));
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
-    StoreWord(scratch, MemOperand(sp, 1 * kSystemPointerSize));
-  }
+  li(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
+  StoreWord(scratch, MemOperand(sp, 1 * kSystemPointerSize));
+
   // Set up new frame pointer.
   addi(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
 
@@ -6126,26 +6125,19 @@ void MacroAssembler::EnterExitFrame(int stack_space,
     StoreWord(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
 
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    // Save the frame pointer and the context in top.
-    li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                          isolate()));
-    StoreWord(fp, MemOperand(scratch));
-    li(scratch,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-    StoreWord(cp, MemOperand(scratch));
-  }
+  // Save the frame pointer and the context in top.
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  StoreWord(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  StoreWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
 
-  // Reserve place for the return address, stack space and an optional slot
-  // (used by DirectCEntry to hold the return value if a struct is
-  // returned) and align the frame preparing for calling the runtime function.
+  // Reserve place for the return address, stack space and align the frame
+  // preparing for calling the runtime function.
   DCHECK_GE(stack_space, 0);
-  SubWord(sp, sp, Operand((stack_space + 2) * kSystemPointerSize));
+  SubWord(sp, sp, Operand((stack_space + 1) * kSystemPointerSize));
   if (frame_alignment > 0) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     And(sp, sp, Operand(-frame_alignment));  // Align stack.
@@ -6153,34 +6145,23 @@ void MacroAssembler::EnterExitFrame(int stack_space,
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   addi(scratch, sp, kSystemPointerSize);
   StoreWord(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
-void MacroAssembler::LeaveExitFrame(Register argument_count, bool do_return,
-                                    bool argument_count_is_length) {
+void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
-
-  // Clear top frame.
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()));
-  StoreWord(zero_reg, MemOperand(scratch));
-
+  using ER = ExternalReference;
   // Restore current context from top and clear it in debug mode.
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  LoadWord(cp, MemOperand(scratch));
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  LoadWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
     UseScratchRegisterScope temp(this);
     Register scratch2 = temp.Acquire();
     li(scratch2, Operand(Context::kInvalidContext));
-    StoreWord(scratch2, MemOperand(scratch));
+    StoreWord(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 
   // Pop the arguments, restore registers, and return.
@@ -6188,19 +6169,7 @@ void MacroAssembler::LeaveExitFrame(Register argument_count, bool do_return,
   LoadWord(fp, MemOperand(sp, ExitFrameConstants::kCallerFPOffset));
   LoadWord(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
 
-  if (argument_count.is_valid()) {
-    if (argument_count_is_length) {
-      add(sp, sp, argument_count);
-    } else {
-      CalcScaledAddress(sp, sp, argument_count, kSystemPointerSizeLog2);
-    }
-  }
-
   addi(sp, sp, 2 * kSystemPointerSize);
-
-  if (do_return) {
-    Ret();
-  }
 }
 
 int MacroAssembler::ActivationFrameAlignment() {
@@ -6996,14 +6965,16 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
                               MemOperand return_value_operand) {
   ASM_CODE_COMMENT(masm);
   using ER = ExternalReference;
@@ -7096,19 +7067,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ RecordComment("Leave the API exit frame.");
   __ bind(&leave_exit_frame);
 
-  Register stack_space_reg = prev_limit_reg;
-  if (stack_space_operand == nullptr) {
-    DCHECK_NE(stack_space, 0);
-    __ li(stack_space_reg, Operand(stack_space));
-  } else {
-    DCHECK_EQ(stack_space, 0);
-    static_assert(kCArgSlotCount == 0);
-    __ LoadWord(stack_space_reg, *stack_space_operand);
+  Register argc_reg = prev_limit_reg;
+  if (argc_operand != nullptr) {
+    // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
+    __ LoadWord(argc_reg, *argc_operand);
   }
-
-  static constexpr bool kRegisterContainsSlotCount = false;
-  __ LeaveExitFrame(stack_space_reg, NO_EMIT_RETURN,
-                    kRegisterContainsSlotCount);
+  __ LeaveExitFrame(scratch);
 
   {
     ASM_CODE_COMMENT_STRING(masm,
@@ -7128,6 +7092,17 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
+
+  if (argc_operand == nullptr) {
+    DCHECK_NE(slots_to_drop_on_return, 0);
+    __ AddWord(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
+  } else {
+    // {argc_operand} was loaded into {argc_reg} above.
+    if (slots_to_drop_on_return != 0) {
+      __ AddWord(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
+    }
+    __ CalcScaledAddress(sp, sp, argc_reg, kSystemPointerSizeLog2);
+  }
 
   __ Ret();
 
