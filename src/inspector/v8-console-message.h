@@ -139,10 +139,10 @@ class V8ConsoleMessageStorage {
     std::set<String16> m_reportedDeprecationMessages;
     // Corresponds to https://console.spec.whatwg.org/#count-map
     std::map<String16, int> m_count;
-    // Corresponds to https://console.spec.whatwg.org/#timer-table
-    std::map<String16, double> m_time;
   };
   std::map<int, PerContextData> m_data;
+  // Corresponds to https://console.spec.whatwg.org/#timer-table
+  std::map<int, std::map<String16, double>> m_time;
 };
 
 }  // namespace v8_inspector

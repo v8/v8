@@ -536,7 +536,10 @@ V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
                                                  int contextGroupId)
     : m_inspector(inspector), m_contextGroupId(contextGroupId) {}
 
-V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
+V8ConsoleMessageStorage::~V8ConsoleMessageStorage() {
+  clear();
+  m_time.clear();
+}
 
 namespace {
 
@@ -614,7 +617,7 @@ int V8ConsoleMessageStorage::count(int contextId, const String16& id) {
 }
 
 void V8ConsoleMessageStorage::time(int contextId, const String16& id) {
-  m_data[contextId].m_time[id] = m_inspector->client()->currentTimeMS();
+  m_time[contextId][id] = m_inspector->client()->currentTimeMS();
 }
 
 bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
@@ -626,14 +629,14 @@ bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
 }
 
 double V8ConsoleMessageStorage::timeLog(int contextId, const String16& id) {
-  std::map<String16, double>& time = m_data[contextId].m_time;
+  std::map<String16, double>& time = m_time[contextId];
   auto it = time.find(id);
   if (it == time.end()) return 0.0;
   return m_inspector->client()->currentTimeMS() - it->second;
 }
 
 double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
-  std::map<String16, double>& time = m_data[contextId].m_time;
+  std::map<String16, double>& time = m_time[contextId];
   auto it = time.find(id);
   if (it == time.end()) return 0.0;
   double elapsed = m_inspector->client()->currentTimeMS() - it->second;
@@ -642,7 +645,7 @@ double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
 }
 
 bool V8ConsoleMessageStorage::hasTimer(int contextId, const String16& id) {
-  const std::map<String16, double>& time = m_data[contextId].m_time;
+  const std::map<String16, double>& time = m_time[contextId];
   return time.find(id) != time.end();
 }
 
@@ -652,8 +655,14 @@ void V8ConsoleMessageStorage::contextDestroyed(int contextId) {
     m_messages[i]->contextDestroyed(contextId);
     m_estimatedSize += m_messages[i]->estimatedSize();
   }
-  auto it = m_data.find(contextId);
-  if (it != m_data.end()) m_data.erase(contextId);
+  {
+    auto it = m_data.find(contextId);
+    if (it != m_data.end()) m_data.erase(contextId);
+  }
+  {
+    auto it = m_time.find(contextId);
+    if (it != m_time.end()) m_time.erase(contextId);
+  }
 }
 
 }  // namespace v8_inspector
