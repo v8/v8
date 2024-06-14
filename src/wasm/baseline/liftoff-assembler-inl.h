@@ -206,6 +206,12 @@ void LiftoffAssembler::bailout(LiftoffBailoutReason reason,
 
 #ifdef V8_TARGET_ARCH_32_BIT
 
+void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
+                                               Register lhs, int32_t imm,
+                                               const FreezeCacheState& frozen) {
+  emit_i32_cond_jumpi(cond, label, lhs, imm, frozen);
+}
+
 namespace liftoff {
 template <void (LiftoffAssembler::*op)(Register, Register, Register)>
 void EmitI64IndependentHalfOperation(LiftoffAssembler* assm,

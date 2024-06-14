@@ -2049,6 +2049,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
   B(label, cond);
 }
 
+void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
+                                               Register lhs, int32_t imm,
+                                               const FreezeCacheState& frozen) {
+  Cmp(lhs.X(), Operand(imm));
+  B(label, cond);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   Cmp(src.W(), wzr);
   Cset(dst.W(), eq);

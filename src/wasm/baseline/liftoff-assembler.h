@@ -944,6 +944,11 @@ class LiftoffAssembler : public MacroAssembler {
                              Register rhs, const FreezeCacheState& frozen);
   inline void emit_i32_cond_jumpi(Condition, Label*, Register lhs, int imm,
                                   const FreezeCacheState& frozen);
+  // ptrsize compare+jump, but with 32-bit immediate. This will get
+  // sign-extended on 64-bit architectures before the comparison.
+  inline void emit_ptrsize_cond_jumpi(Condition, Label*, Register lhs,
+                                      int32_t imm,
+                                      const FreezeCacheState& frozen);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(Condition, Register dst, Register lhs,

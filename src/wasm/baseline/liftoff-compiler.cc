@@ -5854,7 +5854,7 @@ class LiftoffCompiler {
 
     LiftoffRegister reg = __ LoadToModifiableRegister(slot, *pinned);
     // For memory32 on 64-bit hosts, zero-extend.
-    if (kSystemPointerSize == kInt64Size) {
+    if constexpr (Is64()) {
       DCHECK(!is_mem64);  // Handled above.
       __ emit_u32_to_uintptr(reg.gp(), reg.gp());
       pinned->set(reg);
@@ -8208,13 +8208,29 @@ class LiftoffCompiler {
                                  table_size.gp_reg(), index_slot.i32_const(),
                                  trapping);
         } else {
-          __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label, kI32,
-                            table_size.gp_reg(), index_reg, trapping);
+          ValueKind comparison_type = kI32;
+          if (Is64() && table.is_table64) {
+            // {index_reg} is a uintptr, so do a ptrsize comparison.
+            __ emit_u32_to_uintptr(table_size.gp_reg(), table_size.gp_reg());
+            comparison_type = kIntPtrKind;
+          }
+          __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label,
+                            comparison_type, table_size.gp_reg(), index_reg,
+                            trapping);
         }
       } else {
         DCHECK_EQ(max_table_size, table.initial_size);
         if (is_static_index) {
           DCHECK_LT(index_slot.i32_const(), max_table_size);
+        } else if (Is64() && table.is_table64) {
+          // On 32-bit, this is the same as below, so include the `Is64()` test
+          // to statically tell the compiler to skip this branch.
+          // Note: {max_table_size} will be sign-extended, which is fine because
+          // the MSB is known to be 0 (asserted by the static_assert below).
+          static_assert(kV8MaxWasmTableSize <= kMaxInt);
+          __ emit_ptrsize_cond_jumpi(kUnsignedGreaterThanEqual,
+                                     out_of_bounds_label, index_reg,
+                                     max_table_size, trapping);
         } else {
           __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
                                  index_reg, max_table_size, trapping);

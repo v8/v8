@@ -50,12 +50,13 @@ function test(is_tail_call) {
   test(true);
 })();
 
-function testOOB(is_tail_call) {
+function testOOB(is_tail_call, is_table_growable) {
   const builder = new WasmModuleBuilder();
 
   let callee = builder.addImport('m', 'f', kSig_i_iii);
   let table_size = 10
-  let table = builder.addTable64(kWasmFuncRef, table_size, table_size);
+  let max_table_size = is_table_growable ? table_size + 1 : table_size;
+  let table = builder.addTable64(kWasmFuncRef, table_size, max_table_size);
   builder.addActiveElementSegment(table.index, wasmI64Const(1), [callee]);
 
   let left = -2;
@@ -93,19 +94,28 @@ function testOOB(is_tail_call) {
   assertTraps(
       kTrapTableOutOfBounds,
       () => instance.exports.table64_callindirect(1, table_index));
-  // TODO(clemensb): Enable after fixing Liftoff implementation.
-  // table_index = 1n << 32n;
-  // assertTraps(
-  //     kTrapTableOutOfBounds,
-  //     () => instance.exports.table64_callindirect(1, table_index));
+  table_index = 1n << 32n;
+  assertTraps(
+      kTrapTableOutOfBounds,
+      () => instance.exports.table64_callindirect(1, table_index));
 }
 
-(function TestTable64CallIndirectOOB() {
+(function TestTable64CallIndirectOOBNonGrowable() {
   print(arguments.callee.name);
-  testOOB(false);
+  testOOB(false, false);
 })();
 
-(function TestTable64ReturnCallIndirectOOB() {
+(function TestTable64CallIndirectOOBGrowable() {
   print(arguments.callee.name);
-  testOOB(true);
+  testOOB(false, true);
+})();
+
+(function TestTable64ReturnCallIndirectOOBNonGrowable() {
+  print(arguments.callee.name);
+  testOOB(true, false);
+})();
+
+(function TestTable64ReturnCallIndirectOOBGrowable() {
+  print(arguments.callee.name);
+  testOOB(true, true);
 })();

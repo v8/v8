@@ -2261,6 +2261,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
   j(cond, label);
 }
 
+void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
+                                               Register lhs, int32_t imm,
+                                               const FreezeCacheState& frozen) {
+  cmpq(lhs, Immediate(imm));
+  j(cond, label);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   testl(src, src);
   setcc(equal, dst);
