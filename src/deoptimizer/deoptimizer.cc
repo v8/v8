@@ -1197,6 +1197,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   wasm_trusted_instance->tiering_budget_array()[declared_func_index] =
       v8_flags.wasm_tiering_budget;
 
+  isolate()->counters()->wasm_deopts_executed()->AddSample(
+      wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
+
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }

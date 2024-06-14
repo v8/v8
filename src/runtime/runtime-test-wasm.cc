@@ -661,6 +661,11 @@ RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
   return Smi::FromInt(count);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedCount) {
+  int count = wasm::GetWasmEngine()->GetDeoptsExecutedCount();
+  return Smi::FromInt(count);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmSwitchToTheCentralStackCount) {
   int count = isolate->wasm_switch_to_the_central_stack_counter();
   return Smi::FromInt(count);

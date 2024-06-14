@@ -1097,6 +1097,8 @@
 
   # The tests assert that something is not optimized after deopting. As wasm
   # code objects are shared, multiple isolates interfere with these test cases.
+  # TODO(42204618): Figure out how to create multi-isolate wasm-deopt test
+  # coverage.
   'wasm/deopt/*': [SKIP],
 
   # The test explicitly deserializes a wasm module and expects the resulting

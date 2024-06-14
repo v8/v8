@@ -1939,6 +1939,15 @@ size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
   return result;
 }
 
+int WasmEngine::GetDeoptsExecutedCount() const {
+  return deopts_executed_.load(std::memory_order::relaxed);
+}
+
+int WasmEngine::IncrementDeoptsExecutedCount() {
+  int previous_value = deopts_executed_.fetch_add(1, std::memory_order_relaxed);
+  return previous_value + 1;
+}
+
 namespace {
 
 struct GlobalWasmState {

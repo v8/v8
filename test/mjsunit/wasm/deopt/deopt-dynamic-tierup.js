@@ -11,6 +11,9 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDeoptTieringBudget() {
+  // This can be non-zero in certain variants (e.g. `code_serializer`).
+  let initialDeoptCount = %WasmDeoptsExecutedCount();
+
   var builder = new WasmModuleBuilder();
   let funcRefT = builder.addType(kSig_i_ii);
 
@@ -32,17 +35,28 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]).exportFunc();
 
   let wasm = builder.instantiate().exports;
-  // Run function until tierup.
+  assertEquals(initialDeoptCount, %WasmDeoptsExecutedCount());
+  print("Running until tier up");
   while (!%IsTurboFanFunction(wasm.main)) {
     assertEquals(42, wasm.main(12, 30, wasm.add));
   }
+  assertEquals(initialDeoptCount, %WasmDeoptsExecutedCount());
+  print("Tierup reached");
   // Cause deopt.
   assertEquals(360, wasm.main(12, 30, wasm.mul));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  assertEquals(initialDeoptCount + 1, %WasmDeoptsExecutedCount());
+  print("Deopt reached");
   // Run again until tierup.
   while (!%IsTurboFanFunction(wasm.main)) {
     assertEquals(42, wasm.main(12, 30, wasm.add));
+    assertEquals(360, wasm.main(12, 30, wasm.mul));
   }
-  assertEquals(360, wasm.main(12, 30, wasm.mul));
+  print("Tiered up again");
+  // If we are very unlucky, there can still be compilations with old feedback
+  // queued in the background that re-trigger new deopts with the wasm.mul
+  // target. Therefore we can't assert that the deopt count is still 1.
+  assertTrue(initialDeoptCount + %WasmDeoptsExecutedCount() < 20);
   assertTrue(%IsTurboFanFunction(wasm.main));
+  assertEquals(42, wasm.main(12, 30, wasm.add));
+  assertEquals(360, wasm.main(12, 30, wasm.mul));
 })();

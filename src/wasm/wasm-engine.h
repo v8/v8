@@ -388,6 +388,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // excluding code space.
   size_t EstimateCurrentMemoryConsumption() const;
 
+  int GetDeoptsExecutedCount() const;
+  int IncrementDeoptsExecutedCount();
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -427,6 +430,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::atomic<int> next_compilation_id_{0};
+
+  // Counter for number of times a deopt was executed.
+  std::atomic<int> deopts_executed_{0};
 
   TypeCanonicalizer type_canonicalizer_;
 
