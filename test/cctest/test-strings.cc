@@ -2178,6 +2178,8 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
       cv_.NotifyOne();
     }
 
+    bool DidEnterLoop() const { return did_enter_loop_; }
+
    private:
     static WorkerThread* Unwrap(Local<Value> value) {
       CHECK(value->IsExternal());
@@ -2186,8 +2188,10 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
     static void NotifyCallback(
         const v8::FunctionCallbackInfo<v8::Value>& args) {
       auto self = Unwrap(args.Data());
+      self->did_enter_loop_ = true;
       self->NotifyCV();
     }
+    bool did_enter_loop_{false};
     v8::Isolate* isolate{nullptr};
     v8::base::Mutex& m_;
     v8::base::ConditionVariable& cv_;
@@ -2198,7 +2202,9 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
   CHECK(worker_thread.Start());
   {
     v8::base::MutexGuard guard(&m);
-    cv.Wait(&m);
+    if (!worker_thread.DidEnterLoop()) {
+      cv.Wait(&m);
+    }
   }
   worker_thread.TerminateExecution();
   worker_thread.Join();
