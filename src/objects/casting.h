@@ -73,7 +73,7 @@ template <typename To, typename From>
 inline MaybeHandle<To> Cast(
     MaybeHandle<From> value,
     const v8::SourceLocation& loc = INIT_SOURCE_LOCATION_IN_DEBUG);
-#if V8_ENABLE_DIRECT_HANDLE_BOOL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename To, typename From>
 inline DirectHandle<To> Cast(
     DirectHandle<From> value,
