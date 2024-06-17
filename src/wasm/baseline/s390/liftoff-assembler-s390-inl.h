@@ -2210,6 +2210,18 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
   b(to_condition(cond), label);
 }
 
+void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
+                                               Register lhs, int32_t imm,
+                                               const FreezeCacheState& frozen) {
+  bool use_signed = is_signed(cond);
+  if (use_signed) {
+    CmpS64(lhs, Operand(imm));
+  } else {
+    CmpU64(lhs, Operand(imm));
+  }
+  b(to_condition(cond), label);
+}
+
 #define EMIT_EQZ(test, src) \
   {                         \
     Label done;             \
