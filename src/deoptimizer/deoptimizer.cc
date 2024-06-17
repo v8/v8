@@ -908,7 +908,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
                 2 * kSystemPointerSize);
   uint32_t input_offset = input_->GetFrameSize();
   uint32_t output_offset = total_output_frame_size;
-  if (is_topmost) {
+  if (is_bottommost) {
     for (uint32_t i = 1; i <= parameter_stack_slots; ++i) {
       input_offset -= kSystemPointerSize;
       intptr_t value = input_->GetFrameSlot(input_offset);
