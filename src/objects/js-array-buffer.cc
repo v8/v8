@@ -161,7 +161,7 @@ void JSArrayBuffer::DetachInternal(bool force_for_wasm_memory,
 
   if (extension) {
     DisallowGarbageCollection disallow_gc;
-    isolate->heap()->DetachArrayBufferExtension(*this, extension);
+    isolate->heap()->DetachArrayBufferExtension(extension);
     std::shared_ptr<BackingStore> backing_store = RemoveExtension();
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
@@ -248,6 +248,7 @@ void JSArrayBuffer::MarkExtension() {
 void JSArrayBuffer::YoungMarkExtension() {
   ArrayBufferExtension* extension = this->extension();
   if (extension) {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, extension->age());
     extension->YoungMark();
   }
 }
@@ -255,6 +256,7 @@ void JSArrayBuffer::YoungMarkExtension() {
 void JSArrayBuffer::YoungMarkExtensionPromoted() {
   ArrayBufferExtension* extension = this->extension();
   if (extension) {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, extension->age());
     extension->YoungMarkPromoted();
   }
 }

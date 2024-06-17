@@ -22,6 +22,10 @@ class Heap;
 // Singly linked-list of ArrayBufferExtensions that stores head and tail of the
 // list to allow for concatenation of lists.
 struct ArrayBufferList final {
+  using Age = ArrayBufferExtension::Age;
+
+  explicit ArrayBufferList(Age age) : age_(age) {}
+
   bool IsEmpty() const;
   size_t ApproximateBytes() const { return bytes_; }
   size_t BytesSlow() const;
@@ -38,6 +42,7 @@ struct ArrayBufferList final {
   // `ArrayBufferExtension` is still in the list. The extension will only be
   // dropped on next sweep.
   size_t bytes_ = 0;
+  ArrayBufferExtension::Age age_;
 
   friend class ArrayBufferSweeper;
 };
@@ -59,8 +64,8 @@ class ArrayBufferSweeper final {
   // Track the given ArrayBufferExtension for the given JSArrayBuffer.
   void Append(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
 
-  // Detaches an ArrayBufferExtension from a JSArrayBuffer.
-  void Detach(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
+  // Detaches an ArrayBufferExtension.
+  void Detach(ArrayBufferExtension* extension);
 
   const ArrayBufferList& young() const { return young_; }
   const ArrayBufferList& old() const { return old_; }
@@ -97,8 +102,8 @@ class ArrayBufferSweeper final {
 
   Heap* const heap_;
   std::unique_ptr<SweepingState> state_;
-  ArrayBufferList young_;
-  ArrayBufferList old_;
+  ArrayBufferList young_{ArrayBufferList::Age::kYoung};
+  ArrayBufferList old_{ArrayBufferList::Age::kOld};
 };
 
 }  // namespace internal

@@ -190,6 +190,8 @@ class ArrayBufferExtension final
     : public Malloced {
 #endif  // V8_COMPRESS_POINTERS
  public:
+  enum class Age : uint8_t { kYoung, kOld };
+
   ArrayBufferExtension() : backing_store_(std::shared_ptr<BackingStore>()) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
       : backing_store_(backing_store) {}
@@ -233,9 +235,13 @@ class ArrayBufferExtension final
   ArrayBufferExtension* next() const { return next_; }
   void set_next(ArrayBufferExtension* extension) { next_ = extension; }
 
+  Age age() const { return age_; }
+  void set_age(Age age) { age_ = age; }
+
  private:
   enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
 
+  Age age_ = Age::kOld;
   std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
   std::shared_ptr<BackingStore> backing_store_;

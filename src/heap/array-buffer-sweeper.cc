@@ -34,9 +34,12 @@ void ArrayBufferList::Append(ArrayBufferExtension* extension) {
   DCHECK_GE(bytes_ + accounting_length, bytes_);
   bytes_ += accounting_length;
   extension->set_next(nullptr);
+  extension->set_age(age_);
 }
 
 void ArrayBufferList::Append(ArrayBufferList& list) {
+  DCHECK_EQ(age_, list.age_);
+
   if (head_ == nullptr) {
     DCHECK_NULL(tail_);
     head_ = list.head_;
@@ -50,7 +53,7 @@ void ArrayBufferList::Append(ArrayBufferList& list) {
   }
 
   bytes_ += list.ApproximateBytes();
-  list = ArrayBufferList();
+  list = ArrayBufferList(age_);
 }
 
 bool ArrayBufferList::ContainsSlow(ArrayBufferExtension* extension) const {
@@ -110,8 +113,8 @@ class ArrayBufferSweeper::SweepingState final {
   class SweepingJob;
 
   std::atomic<Status> status_{Status::kInProgress};
-  ArrayBufferList new_young_;
-  ArrayBufferList new_old_;
+  ArrayBufferList new_young_{ArrayBufferList::Age::kYoung};
+  ArrayBufferList new_old_{ArrayBufferList::Age::kOld};
   size_t freed_bytes_{0};
   std::unique_ptr<JobHandle> job_handle_;
 };
@@ -152,8 +155,8 @@ class ArrayBufferSweeper::SweepingState::SweepingJob final : public JobTask {
 
   Heap* const heap_;
   SweepingState& state_;
-  ArrayBufferList young_;
-  ArrayBufferList old_;
+  ArrayBufferList young_{ArrayBufferList::Age::kYoung};
+  ArrayBufferList old_{ArrayBufferList::Age::kOld};
   const SweepingType type_;
   const TreatAllYoungAsPromoted treat_all_young_as_promoted_;
   const uint64_t trace_id_;
@@ -277,16 +280,16 @@ void ArrayBufferSweeper::Prepare(
   switch (type) {
     case SweepingType::kYoung: {
       state_ = std::make_unique<SweepingState>(
-          heap_, std::move(young_), ArrayBufferList(), type,
-          treat_all_young_as_promoted, trace_id);
-      young_ = ArrayBufferList();
+          heap_, std::move(young_), ArrayBufferList(ArrayBufferList::Age::kOld),
+          type, treat_all_young_as_promoted, trace_id);
+      young_ = ArrayBufferList(ArrayBufferList::Age::kYoung);
     } break;
     case SweepingType::kFull: {
       state_ = std::make_unique<SweepingState>(
           heap_, std::move(young_), std::move(old_), type,
           treat_all_young_as_promoted, trace_id);
-      young_ = ArrayBufferList();
-      old_ = ArrayBufferList();
+      young_ = ArrayBufferList(ArrayBufferList::Age::kYoung);
+      old_ = ArrayBufferList(ArrayBufferList::Age::kOld);
     } break;
   }
   DCHECK(sweeping_in_progress());
@@ -307,7 +310,7 @@ void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
     FinalizeAndDelete(current);
     current = next;
   }
-  *list = ArrayBufferList();
+  *list = ArrayBufferList(list->age_);
 }
 
 void ArrayBufferSweeper::Append(Tagged<JSArrayBuffer> object,
@@ -316,6 +319,9 @@ void ArrayBufferSweeper::Append(Tagged<JSArrayBuffer> object,
 
   FinishIfDone();
 
+  // `Heap::InYoungGeneration` during full GC with sticky markbits is generally
+  // inaccurate. However, a full GC will sweep both lists and promote all to
+  // old, so it doesn't matter which list initially holds the extension.
   if (Heap::InYoungGeneration(object)) {
     young_.Append(extension);
   } else {
@@ -325,8 +331,7 @@ void ArrayBufferSweeper::Append(Tagged<JSArrayBuffer> object,
   IncrementExternalMemoryCounters(bytes);
 }
 
-void ArrayBufferSweeper::Detach(Tagged<JSArrayBuffer> object,
-                                ArrayBufferExtension* extension) {
+void ArrayBufferSweeper::Detach(ArrayBufferExtension* extension) {
   // Finish sweeping here first such that the code below is guaranteed to
   // observe the same sweeping state.
   FinishIfDone();
@@ -340,12 +345,14 @@ void ArrayBufferSweeper::Detach(Tagged<JSArrayBuffer> object,
     // If concurrent sweeping isn't running at the moment, we can also adjust
     // the respective bytes in the corresponding ArrayBufferLists as they are
     // only approximate.
-    if (Heap::InYoungGeneration(object)) {
-      DCHECK_GE(young_.bytes_, bytes);
-      young_.bytes_ -= bytes;
-    } else {
-      DCHECK_GE(old_.bytes_, bytes);
-      old_.bytes_ -= bytes;
+    switch (extension->age()) {
+      case ArrayBufferExtension::Age::kYoung:
+        DCHECK_GE(young_.bytes_, bytes);
+        young_.bytes_ -= bytes;
+        break;
+      case ArrayBufferExtension::Age::kOld:
+        DCHECK_GE(old_.bytes_, bytes);
+        old_.bytes_ -= bytes;
     }
   }
 
@@ -412,10 +419,10 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
 
   ArrayBufferList& new_old = state_.new_old_;
   size_t freed_bytes = 0;
-  size_t surviving_bytes = 0;
   size_t swept_extensions = 0;
 
   while (current) {
+    DCHECK_EQ(list.age_, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
     }
@@ -427,7 +434,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
       if (bytes) freed_bytes += bytes;
     } else {
       current->Unmark();
-      if (bytes) surviving_bytes += bytes;
       new_old.Append(current);
     }
 
@@ -435,16 +441,9 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
   }
 
   state_.freed_bytes_ += freed_bytes;
-  DCHECK_GE(list.bytes_, freed_bytes + surviving_bytes);
-
-  if (!current) {
-    list = ArrayBufferList();
-    return true;
-  }
 
   list.head_ = current;
-  list.bytes_ -= freed_bytes + surviving_bytes;
-  return false;
+  return !current;
 }
 
 bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
@@ -459,10 +458,10 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   ArrayBufferList& new_old = state_.new_old_;
   ArrayBufferList& new_young = state_.new_young_;
   size_t freed_bytes = 0;
-  size_t surviving_bytes = 0;
   size_t swept_extensions = 0;
 
   while (current) {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
     }
@@ -473,7 +472,6 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
       FinalizeAndDelete(current);
       if (bytes) freed_bytes += bytes;
     } else {
-      if (bytes) surviving_bytes += bytes;
       if ((treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::kYes) ||
           current->IsYoungPromoted()) {
         current->YoungUnmark();
@@ -488,16 +486,9 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   }
 
   state_.freed_bytes_ += freed_bytes;
-  DCHECK_GE(young_.bytes_, freed_bytes + surviving_bytes);
-
-  if (!current) {
-    young_ = ArrayBufferList();
-    return true;
-  }
 
   young_.head_ = current;
-  young_.bytes_ -= freed_bytes + surviving_bytes;
-  return false;
+  return !current;
 }
 
 uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent(

@@ -596,8 +596,7 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void AppendArrayBufferExtension(
       Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
-  void DetachArrayBufferExtension(Tagged<JSArrayBuffer> object,
-                                  ArrayBufferExtension* extension);
+  void DetachArrayBufferExtension(ArrayBufferExtension* extension);
 
   IsolateSafepoint* safepoint() { return safepoint_.get(); }
 
