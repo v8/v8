@@ -543,16 +543,19 @@ builtin WasmArrayInitSegment(
 builtin WasmArrayCopyWithChecks(
     dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
     srcObject: Object): JSAny {
+  // Check destination array.
   if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
-  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
   const dstArray = UnsafeCast<WasmArray>(dstObject);
-  const srcArray = UnsafeCast<WasmArray>(srcObject);
-  // Check that the end of the copying range is in-bounds and that the range
-  // does not overflow.
-  if (dstIndex + length > dstArray.length || dstIndex + length < dstIndex ||
-      srcIndex + length > srcArray.length || srcIndex + length < srcIndex) {
+  if (dstIndex + length > dstArray.length || dstIndex + length < dstIndex) {
     tail ThrowWasmTrapArrayOutOfBounds();
   }
+  // Check source array.
+  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  const srcArray = UnsafeCast<WasmArray>(srcObject);
+  if (srcIndex + length > srcArray.length || srcIndex + length < srcIndex) {
+    tail ThrowWasmTrapArrayOutOfBounds();
+  }
+
   if (length == 0) return Undefined;
   tail runtime::WasmArrayCopy(
       LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
