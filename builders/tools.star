@@ -60,7 +60,7 @@ v8_builder(
     executable = "recipe:v8/test262_export",
     schedule = "18 * * * *",
     in_list = "tools",
-    execution_timeout = 3600,
+    execution_timeout = 5400,
     notifies = ["test262 impex", "infra"],
 )
 
