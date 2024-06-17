@@ -895,6 +895,8 @@ class MergePointInterpreterFrameState {
     DCHECK(loop_info_.has_value());
     return loop_info_.value();
   }
+  void ClearLoopInfo() { loop_info_.reset(); }
+  bool HasLoopInfo() const { return loop_info_.has_value(); }
 
   interpreter::Register catch_block_context_register() const {
     DCHECK(is_exception_handler());

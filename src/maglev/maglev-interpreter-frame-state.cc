@@ -316,6 +316,22 @@ void MergePointInterpreterFrameState::MergeLoop(
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+
+  // We have to clear the LoopInfo (which is used to record more precise use
+  // hints for Phis) for 2 reasons:
+  //
+  //  - Phi::RecordUseReprHint checks if a use is inside the loop defining the
+  //    Phi by checking if the LoopInfo of the loop Phi "Contains" the current
+  //    bytecode offset, but this will be wrong if the Phi is in a function that
+  //    was inlined (because the LoopInfo contains the first and last bytecode
+  //    offset of the loop **in its own function**).
+  //
+  //  - LoopInfo is obtained from the {header_to_info_} member of
+  //    BytecodeAnalysis, but the BytecodeAnalysis is a member of the
+  //    MaglevGraphBuilder, and thus gets destructed when the MaglevGraphBuilder
+  //    created for inlining is destructed. LoopInfo would then become a stale
+  //    pointer.
+  ClearLoopInfo();
 }
 
 void MergePointInterpreterFrameState::MergeThrow(

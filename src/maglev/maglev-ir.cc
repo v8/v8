@@ -119,7 +119,8 @@ bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
 void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
                             int current_offset) {
-  if (is_loop_phi() && merge_state()->loop_info()->Contains(current_offset)) {
+  if (is_loop_phi() && merge_state()->HasLoopInfo() &&
+      merge_state()->loop_info()->Contains(current_offset)) {
     same_loop_uses_repr_hint_.Add(repr_mask);
   }
 
