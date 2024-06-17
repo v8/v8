@@ -93,7 +93,6 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANRelaxedLoad64SaveFP)                                          \
   V(WasmAllocateArray_Uninitialized)                                           \
   V(WasmArrayCopy)                                                             \
-  V(WasmArrayCopyWithChecks)                                                   \
   V(WasmArrayNewSegment)                                                       \
   V(WasmArrayInitSegment)                                                      \
   V(WasmAllocateStructWithRtt)                                                 \

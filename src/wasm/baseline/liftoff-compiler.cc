@@ -6525,9 +6525,7 @@ class LiftoffCompiler {
     // TODO(14034): Unify implementation with TF: Implement this with
     // GenerateCCallWithStackBuffer. Remove runtime function and builtin in
     // wasm.tq.
-    CallBuiltin(v8_flags.experimental_wasm_skip_bounds_checks
-                    ? Builtin::kWasmArrayCopy
-                    : Builtin::kWasmArrayCopyWithChecks,
+    CallBuiltin(Builtin::kWasmArrayCopy,
                 MakeSig::Params(kI32, kI32, kI32, kRefNull, kRefNull),
                 // Builtin parameter order:
                 // [dst_index, src_index, length, dst, src].

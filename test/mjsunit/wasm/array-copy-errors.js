@@ -38,7 +38,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprRefNull, array,  // target array (nullptr)
       kExprI32Const, 2,     // target index
       kExprI32Const, 4, kGCPrefix, kExprArrayNewDefault, array,  // source array
-      kExprI32Const, 42,     // source index (out of bounds)
+      kExprI32Const, 42,    // source index (out of bounds)
       kExprI32Const, 2,     // length
       kGCPrefix, kExprArrayCopy, array, array,
   ]).exportFunc();
@@ -48,7 +48,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprI32Const, 4, kGCPrefix, kExprArrayNewDefault, array,  // target array
       kExprI32Const, 42,    // target index (out of bounds)
       kExprI32Const, 4, kGCPrefix, kExprArrayNewDefault, array,  // source array
-      kExprI32Const, 42,     // source index
+      kExprI32Const, 42,    // source index (out of bounds)
       kExprI32Const, 2,     // length
       kGCPrefix, kExprArrayCopy, array, array,
   ]).exportFunc();

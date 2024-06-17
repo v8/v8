@@ -540,7 +540,7 @@ builtin WasmArrayInitSegment(
 
 // We put all uint32 parameters at the beginning so that they are assigned to
 // registers.
-builtin WasmArrayCopyWithChecks(
+builtin WasmArrayCopy(
     dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
     srcObject: Object): JSAny {
   // Check destination array.
@@ -559,18 +559,6 @@ builtin WasmArrayCopyWithChecks(
   if (length == 0) return Undefined;
   tail runtime::WasmArrayCopy(
       LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
-      SmiFromUint32(srcIndex), SmiFromUint32(length));
-}
-
-builtin WasmArrayCopy(
-    dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
-    srcObject: Object): JSAny {
-  if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
-  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
-  if (length == 0) return Undefined;
-  tail runtime::WasmArrayCopy(
-      LoadContextFromFrame(), UnsafeCast<WasmArray>(dstObject),
-      SmiFromUint32(dstIndex), UnsafeCast<WasmArray>(srcObject),
       SmiFromUint32(srcIndex), SmiFromUint32(length));
 }
 
