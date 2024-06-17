@@ -4613,7 +4613,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
       IsUndefined(heap_object, isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
-  return handle(Cast<SharedFunctionInfo>(heap_object), isolate);
+  Tagged<SharedFunctionInfo> result = Cast<SharedFunctionInfo>(heap_object);
+  return handle(result, isolate);
 }
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, Isolate* isolate,
