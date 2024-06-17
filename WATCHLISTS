@@ -73,6 +73,9 @@
     'maglev': {
       'filepath': 'src/maglev/',
     },
+    'compiler': {
+      'filepath': 'src/compiler',
+    },
     'parser': {
       'filepath': 'src/ast/' \
                   '|src/parsing/',
@@ -111,6 +114,9 @@
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
       'victorgomes+watch@chromium.org',
+    ],
+    'compiler': [
+      'dmercadier+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
