@@ -262,11 +262,9 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     } else {
       const retKind = retType & kValueTypeKindBitsMask;
       dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
-      dcheck(ref.instance == Undefined || Is<WasmInstanceObject>(ref.instance));
-      const trustedData = ref.instance == Undefined ?
+      const trustedData = TaggedIsSmi(ref.instance_data) ?
           Undefined :
-          LoadTrustedDataFromInstance(
-              UnsafeCast<WasmInstanceObject>(ref.instance));
+          UnsafeCast<WasmTrustedInstanceData>(ref.instance_data);
       const converted = JSToWasmObject(context, trustedData, retType, retVal);
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the

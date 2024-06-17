@@ -3248,7 +3248,7 @@ Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   const int offset = WasmFrameConstants::kWasmInstanceOffset;
   Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
   Tagged<WasmApiFunctionRef> func_ref = Cast<WasmApiFunctionRef>(func_ref_obj);
-  return Cast<WasmInstanceObject>(func_ref->instance());
+  return func_ref->instance_data()->instance_object();
 }
 
 Tagged<WasmTrustedInstanceData> WasmToJsFrame::trusted_instance_data() const {

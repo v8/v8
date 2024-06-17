@@ -1661,7 +1661,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 
 Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
-    DirectHandle<HeapObject> instance,
+    MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
   Tagged<Map> map = *wasm_api_function_ref_map();
   auto result = Cast<WasmApiFunctionRef>(AllocateRawWithImmortalMap(
@@ -1671,7 +1671,11 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   result->set_native_context(*isolate()->native_context());
   result->set_callable(Cast<UnionOf<Undefined, JSReceiver>>(*callable));
   result->set_suspend(suspend);
-  result->set_instance(Cast<UnionOf<Undefined, WasmInstanceObject>>(*instance));
+  if (instance_data.is_null()) {
+    result->clear_instance_data();
+  } else {
+    result->set_instance_data(*instance_data.ToHandleChecked());
+  }
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
   result->set_sig(*serialized_sig);
@@ -1683,7 +1687,7 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     DirectHandle<WasmApiFunctionRef> ref) {
   return NewWasmApiFunctionRef(handle(ref->callable(), isolate()),
                                static_cast<wasm::Suspend>(ref->suspend()),
-                               handle(ref->instance(), isolate()),
+                               handle(ref->instance_data(), isolate()),
                                handle(ref->sig(), isolate()));
 }
 
@@ -1741,7 +1745,8 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
   DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
-      callable, suspend, undefined_value(), serialized_sig);
+      callable, suspend, DirectHandle<WasmTrustedInstanceData>(),
+      serialized_sig);
 
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
@@ -1814,7 +1819,8 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     uintptr_t signature_hash) {
   DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
-      undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
+      undefined_value(), wasm::kNoSuspend,
+      DirectHandle<WasmTrustedInstanceData>(), serialized_sig);
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);

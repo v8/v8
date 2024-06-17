@@ -270,11 +270,9 @@ void WasmGraphBuilder::Start(unsigned params) {
         Assert(gasm_->HasInstanceType(param, WASM_API_FUNCTION_REF_TYPE),
                AbortReason::kUnexpectedInstanceType);
       }
-      Node* instance_object = gasm_->Load(
-          MachineType::TaggedPointer(), param,
-          wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kInstanceOffset));
-      instance_data_node_ =
-          gasm_->LoadTrustedDataFromInstanceObject(instance_object);
+      instance_data_node_ = gasm_->LoadProtectedPointerFromObject(
+          param, wasm::ObjectAccess::ToTagged(
+                     WasmApiFunctionRef::kProtectedInstanceDataOffset));
       break;
     }
     case kJSFunctionAbiMode: {

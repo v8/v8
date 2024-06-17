@@ -2556,7 +2556,12 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
-  os << "\n - instance: " << Brief(instance());
+  os << "\n - instance_data: ";
+  if (has_instance_data()) {
+    os << Brief(instance_data());
+  } else {
+    os << "<empty>";
+  }
   os << "\n - suspend: " << suspend();
   os << "\n - wrapper_budget: " << wrapper_budget();
   os << "\n - call_origin: " << Brief(call_origin());

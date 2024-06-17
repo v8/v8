@@ -384,6 +384,10 @@ struct CastTraits<WasmExportedFunction> {
 
 CODE_POINTER_ACCESSORS(WasmApiFunctionRef, code, kCodeOffset)
 
+PROTECTED_POINTER_ACCESSORS(WasmApiFunctionRef, instance_data,
+                            WasmTrustedInstanceData,
+                            kProtectedInstanceDataOffset)
+
 // WasmInternalFunction
 
 // {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.

@@ -497,7 +497,7 @@ void WasmTableObject::UpdateDispatchTables(
       auto orig_ref = Cast<WasmApiFunctionRef>(call_ref);
       DirectHandle<WasmApiFunctionRef> new_ref =
           isolate->factory()->NewWasmApiFunctionRef(orig_ref);
-      if (new_ref->instance() == *instance_object) {
+      if (new_ref->instance_data() == instance_object->trusted_data(isolate)) {
         WasmApiFunctionRef::SetIndexInTableAsCallOrigin(new_ref, entry_index);
       } else {
         WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
@@ -1041,7 +1041,7 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
             instance_data_->ptr(), index_, callable->ptr(), wrapper_entry);
   DirectHandle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(
-          callable, suspend, handle(instance_data_->instance_object(), isolate),
+          callable, suspend, instance_data_,
           wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
   WasmApiFunctionRef::SetImportIndexAsCallOrigin(ref, index_);
   DisallowGarbageCollection no_gc;
@@ -1062,7 +1062,7 @@ void ImportedFunctionEntry::SetWasmToJs(
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
   DirectHandle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(
-          callable, suspend, handle(instance_data_->instance_object(), isolate),
+          callable, suspend, instance_data_,
           wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
   // The wasm-to-js wrapper is already optimized, the call_origin should never
   // be accessed.
@@ -1456,7 +1456,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     ref = isolate->factory()->NewWasmApiFunctionRef(
         direct_handle(wafr->callable(), isolate),
         static_cast<wasm::Suspend>(wafr->suspend()),
-        direct_handle(wafr->instance(), isolate),
+        direct_handle(wafr->instance_data(), isolate),
         direct_handle(wafr->sig(), isolate));
   }
 
@@ -1530,9 +1530,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   DirectHandle<WasmTrustedInstanceData> instance_data =
       IsWasmTrustedInstanceData(*ref)
           ? Cast<WasmTrustedInstanceData>(ref)
-          : direct_handle(Cast<WasmInstanceObject>(
-                              Cast<WasmApiFunctionRef>(*ref)->instance())
-                              ->trusted_data(isolate),
+          : direct_handle(Cast<WasmApiFunctionRef>(*ref)->instance_data(),
                           isolate);
   const WasmModule* module = instance_data->module();
   const WasmFunction& function = module->functions[internal->function_index()];
@@ -1715,8 +1713,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       std::distance(module_canonical_ids.begin(), sig_in_module));
   DirectHandle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(
-          callable, suspend,
-          handle(trusted_instance_data->instance_object(), isolate),
+          callable, suspend, trusted_instance_data,
           wasm::SerializedSignatureHelper::SerializeSignature(
               isolate, module->signature(sig_id)));
 

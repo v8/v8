@@ -900,6 +900,8 @@ class WasmApiFunctionRef
 
   DECL_CODE_POINTER_ACCESSORS(code)
 
+  DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
+
   static constexpr int kInvalidCallOrigin = 0;
 
   static void SetImportIndexAsCallOrigin(DirectHandle<WasmApiFunctionRef> ref,
@@ -924,6 +926,7 @@ class WasmApiFunctionRef
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<
           WasmApiFunctionRef, kWasmApiFunctionRefIndirectPointerTag>,
+      WithProtectedPointer<kProtectedInstanceDataOffset>,
       WithStrongCodePointer<kCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)

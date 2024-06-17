@@ -1346,6 +1346,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Returns WasmTrustedInstanceData|Smi.
+  TNode<Object> LoadInstanceDataFromWasmApiFunctionRef(
+      TNode<WasmApiFunctionRef> ref) {
+    return LoadProtectedPointerField(
+        ref, WasmApiFunctionRef::kProtectedInstanceDataOffset);
+  }
+
   // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
   TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {

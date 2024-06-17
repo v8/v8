@@ -741,7 +741,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int wrapper_budget, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
-      DirectHandle<HeapObject> instance,
+      MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       DirectHandle<WasmApiFunctionRef> ref);
