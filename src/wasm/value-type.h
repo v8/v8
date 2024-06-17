@@ -507,6 +507,11 @@ constexpr const char* name(ValueKind kind) {
   return kKindName[kind];
 }
 
+// Output operator, useful for DCHECKS and others.
+inline std::ostream& operator<<(std::ostream& oss, ValueKind kind) {
+  return oss << name(kind);
+}
+
 constexpr MachineType machine_type(ValueKind kind) {
   DCHECK_NE(kBottom, kind);
 
