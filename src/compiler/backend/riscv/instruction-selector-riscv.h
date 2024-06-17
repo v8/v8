@@ -52,7 +52,9 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return UseRegister(node);
   }
 
-  bool IsIntegerConstant(Node* node);
+  bool IsIntegerConstant(typename Adapter::node_t node) const {
+    return selector()->is_integer_constant(node);
+  }
 
   int64_t GetIntegerConstantValue(Node* node);
 
@@ -154,17 +156,25 @@ void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 
 template <typename Adapter>
 static void VisitRRI(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
+                     typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  int32_t imm = OpParameter<int32_t>(node->op());
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseImmediate(imm));
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& op = selector->Get(node);
+    int imm = op.template Cast<Simd128ExtractLaneOp>().lane;
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                   g.UseImmediate(imm));
+  } else {
+    int32_t imm = OpParameter<int32_t>(node->op());
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(selector->input_at(node, 0)),
+                   g.UseImmediate(imm));
+  }
 }
 
 template <typename Adapter>
 static void VisitSimdShift(InstructionSelectorT<Adapter>* selector,
-                           ArchOpcode opcode, Node* node) {
+                           ArchOpcode opcode, typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   if (g.IsIntegerConstant(selector->input_at(node, 1))) {
     selector->Emit(opcode, g.DefineAsRegister(node),
@@ -179,13 +189,20 @@ static void VisitSimdShift(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 static void VisitRRIR(InstructionSelectorT<Adapter>* selector,
-                      ArchOpcode opcode, Node* node) {
+                      ArchOpcode opcode, typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  int32_t imm = OpParameter<int32_t>(node->op());
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseImmediate(imm),
-                 g.UseRegister(selector->input_at(node, 1)));
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ReplaceLaneOp& op =
+        selector->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                   g.UseImmediate(op.lane), g.UseUniqueRegister(op.input(1)));
+  } else {
+    int32_t imm = OpParameter<int32_t>(node->op());
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(selector->input_at(node, 0)),
+                   g.UseImmediate(imm),
+                   g.UseRegister(selector->input_at(node, 1)));
+  }
 }
 
 template <typename Adapter>
@@ -1422,11 +1439,7 @@ void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
   template <typename Adapter>                                         \
   void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign( \
       node_t node) {                                                  \
-    if constexpr (Adapter::IsTurboshaft) {                            \
-      UNIMPLEMENTED();                                                \
-    } else {                                                          \
       VisitRRI(this, kRiscv##Type##ExtractLane##Sign, node);          \
-    }                                                                 \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
@@ -1441,11 +1454,7 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #define SIMD_VISIT_REPLACE_LANE(Type)                                         \
   template <typename Adapter>                                                 \
   void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                                    \
-      UNIMPLEMENTED();                                                        \
-    } else {                                                                  \
       VisitRRIR(this, kRiscv##Type##ReplaceLane, node);                       \
-    }                                                                         \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 SIMD_VISIT_REPLACE_LANE(F64x2)
@@ -1454,11 +1463,7 @@ SIMD_VISIT_REPLACE_LANE(F64x2)
 #define SIMD_VISIT_UNOP(Name, instruction)                       \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                       \
-      UNIMPLEMENTED();                                           \
-    } else {                                                     \
       VisitRR(this, instruction, node);                          \
-    }                                                            \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
@@ -1466,11 +1471,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #define SIMD_VISIT_SHIFT_OP(Name)                                \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                       \
-      UNIMPLEMENTED();                                           \
-    } else {                                                     \
       VisitSimdShift(this, kRiscv##Name, node);                  \
-    }                                                            \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -1494,14 +1495,10 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP_RVV)
 #define SIMD_VISIT_UNOP2(Name, instruction, VSEW, LMUL)                        \
   template <typename Adapter>                                                  \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {               \
-    if constexpr (Adapter::IsTurboshaft) {                                     \
-      UNIMPLEMENTED();                                                         \
-    } else {                                                                   \
       RiscvOperandGeneratorT<Adapter> g(this);                                 \
       this->Emit(instruction, g.DefineAsRegister(node),                        \
                  g.UseRegister(this->input_at(node, 0)), g.UseImmediate(VSEW), \
                  g.UseImmediate(LMUL));                                        \
-    }                                                                          \
   }
 SIMD_UNOP_LIST2(SIMD_VISIT_UNOP2)
 #undef SIMD_VISIT_UNOP2

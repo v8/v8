@@ -15,12 +15,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-template <typename Adapter>
-bool RiscvOperandGeneratorT<Adapter>::IsIntegerConstant(Node* node) {
-  return (node->opcode() == IrOpcode::kInt32Constant);
-}
-
 template <typename Adapter>
 int64_t RiscvOperandGeneratorT<Adapter>::GetIntegerConstantValue(Node* node) {
   DCHECK_EQ(IrOpcode::kInt32Constant, node->opcode());

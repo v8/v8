@@ -16,17 +16,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-template <typename Adapter>
-bool RiscvOperandGeneratorT<Adapter>::IsIntegerConstant(Node* node) {
-  if (node->opcode() == IrOpcode::kNumberConstant) {
-    const double value = OpParameter<double>(node->op());
-    return base::bit_cast<int64_t>(value) == 0;
-  }
-  return (node->opcode() == IrOpcode::kInt32Constant) ||
-         (node->opcode() == IrOpcode::kInt64Constant);
-}
-
 template <typename Adapter>
 int64_t RiscvOperandGeneratorT<Adapter>::GetIntegerConstantValue(Node* node) {
   if (node->opcode() == IrOpcode::kInt32Constant) {
