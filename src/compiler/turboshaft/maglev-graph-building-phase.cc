@@ -1127,16 +1127,18 @@ class GraphBuilder {
     }
     DCHECK_EQ(node->num_args(), arguments.size());
 
-    V<Object> call;
+    Builtin builtin;
     switch (node->target_type()) {
       case maglev::Call::TargetType::kJSFunction:
-        call = __ CallBuiltin_CallFunctionForwardVarargs(
-            isolate_, graph_zone(), frame_state, context, function,
-            node->num_args(), node->start_index(), base::VectorOf(arguments));
+        builtin = Builtin::kCallFunctionForwardVarargs;
         break;
       case maglev::Call::TargetType::kAny:
-        UNIMPLEMENTED();
+        builtin = Builtin::kCallForwardVarargs;
+        break;
     }
+    V<Object> call = __ CallBuiltin_CallForwardVarargs(
+        isolate_, graph_zone(), builtin, frame_state, context, function,
+        node->num_args(), node->start_index(), base::VectorOf(arguments));
 
     SetMap(node, call);
     return maglev::ProcessResult::kContinue;

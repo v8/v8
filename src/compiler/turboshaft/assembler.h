@@ -3270,10 +3270,13 @@ class TurboshaftAssemblerOpInterface
         isolate, graph_zone, Builtin::kCallWithArrayLike, frame_state,
         kNumberOfStackArguments, base::VectorOf(arguments));
   }
-  V<Object> CallBuiltin_CallFunctionForwardVarargs(
-      Isolate* isolate, Zone* graph_zone, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<JSFunction> function, int num_args, int start_index,
+  V<Object> CallBuiltin_CallForwardVarargs(
+      Isolate* isolate, Zone* graph_zone, Builtin builtin,
+      V<turboshaft::FrameState> frame_state, V<Context> context,
+      V<JSFunction> function, int num_args, int start_index,
       base::Vector<V<Object>> args) {
+    DCHECK(builtin == Builtin::kCallFunctionForwardVarargs ||
+           builtin == Builtin::kCallForwardVarargs);
     base::SmallVector<OpIndex, 16> arguments;
     arguments.push_back(function);
     arguments.push_back(__ Word32Constant(num_args));
@@ -3281,9 +3284,9 @@ class TurboshaftAssemblerOpInterface
     arguments.insert(arguments.end(), args.begin(), args.end());
     arguments.push_back(context);
 
-    return CallBuiltinWithVarStackArgs(
-        isolate, graph_zone, Builtin::kCallFunctionForwardVarargs, frame_state,
-        num_args, base::VectorOf(arguments));
+    return CallBuiltinWithVarStackArgs(isolate, graph_zone, builtin,
+                                       frame_state, num_args,
+                                       base::VectorOf(arguments));
   }
 
   template <typename Descriptor>
