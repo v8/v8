@@ -1154,7 +1154,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void AddClassStaticBlock(PreParserBlock block,
                                      ClassInfo* class_info) {
-    DCHECK(class_info->has_static_elements);
+    DCHECK(class_info->has_static_elements());
   }
 
   V8_INLINE PreParserExpression
@@ -1176,12 +1176,6 @@ class PreParser : public ParserBase<PreParser> {
       function_scope->set_start_position(pos);
       function_scope->set_end_position(pos);
       FunctionState function_state(&function_state_, &scope_, function_scope);
-      GetNextFunctionLiteralId();
-    }
-    if (class_info->has_static_elements) {
-      GetNextFunctionLiteralId();
-    }
-    if (class_info->has_instance_members) {
       GetNextFunctionLiteralId();
     }
     return PreParserExpression::Default();

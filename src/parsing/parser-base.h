@@ -605,19 +605,46 @@ class ParserBase {
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
 
-    bool has_seen_constructor = false;
-    bool has_static_computed_names = false;
-    bool has_static_elements = false;
-    bool has_static_private_methods_or_accessors = false;
-    bool has_static_blocks = false;
-    bool has_instance_members = false;
-    bool requires_brand = false;
-    bool is_anonymous = false;
+    bool has_static_elements() const {
+      return static_elements_scope != nullptr;
+    }
+    bool has_instance_members() const {
+      return instance_members_scope != nullptr;
+    }
+
+    DeclarationScope* EnsureStaticElementsScope(ParserBase* parser) {
+      if (!has_static_elements()) {
+        static_elements_scope = parser->NewFunctionScope(
+            FunctionKind::kClassStaticInitializerFunction);
+        static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
+        static_elements_function_id = parser->GetNextFunctionLiteralId();
+      }
+      return static_elements_scope;
+    }
+
+    DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser) {
+      if (!has_instance_members()) {
+        instance_members_scope = parser->NewFunctionScope(
+            FunctionKind::kClassMembersInitializerFunction);
+        instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
+        instance_members_function_id = parser->GetNextFunctionLiteralId();
+      }
+      return instance_members_scope;
+    }
+
     DeclarationScope* static_elements_scope = nullptr;
     DeclarationScope* instance_members_scope = nullptr;
-    int computed_field_count = 0;
     Variable* home_object_variable = nullptr;
     Variable* static_home_object_variable = nullptr;
+    int static_elements_function_id = -1;
+    int instance_members_function_id = -1;
+    int computed_field_count = 0;
+    bool has_seen_constructor = false;
+    bool has_static_computed_names : 1 = false;
+    bool has_static_private_methods_or_accessors : 1 = false;
+    bool has_static_blocks : 1 = false;
+    bool requires_brand : 1 = false;
+    bool is_anonymous : 1 = false;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -2632,38 +2659,17 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     ClassInfo* class_info, int beg_pos, bool is_static) {
   FunctionParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
-      is_static ? class_info->static_elements_scope
-                : class_info->instance_members_scope;
-  FunctionKind function_kind =
-      is_static ? FunctionKind::kClassStaticInitializerFunction
-                : FunctionKind::kClassMembersInitializerFunction;
+      is_static ? class_info->EnsureStaticElementsScope(this)
+                : class_info->EnsureInstanceMembersScope(this);
 
-  if (initializer_scope == nullptr) {
-    initializer_scope = NewFunctionScope(function_kind);
-    initializer_scope->SetLanguageMode(LanguageMode::kStrict);
-  }
-
-  ExpressionT initializer;
   if (Check(Token::kAssign)) {
     FunctionState initializer_state(&function_state_, &scope_,
                                     initializer_scope);
 
     AcceptINScope scope(this, true);
-    initializer = ParseAssignmentExpression();
-  } else {
-    initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
+    return ParseAssignmentExpression();
   }
-
-  if (is_static) {
-    // TODO(joyee): Make scopes be non contiguous.
-    class_info->static_elements_scope = initializer_scope;
-    class_info->has_static_elements = true;
-  } else {
-    class_info->instance_members_scope = initializer_scope;
-    class_info->has_instance_members = true;
-  }
-
-  return initializer;
+  return factory()->NewUndefinedLiteral(kNoSourcePosition);
 }
 
 template <typename Impl>
@@ -2671,13 +2677,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
     ClassInfo* class_info) {
   Consume(Token::kStatic);
 
-  DeclarationScope* initializer_scope = class_info->static_elements_scope;
-  if (initializer_scope == nullptr) {
-    initializer_scope =
-        NewFunctionScope(FunctionKind::kClassStaticInitializerFunction);
-    initializer_scope->SetLanguageMode(LanguageMode::kStrict);
-    class_info->static_elements_scope = initializer_scope;
-  }
+  DeclarationScope* initializer_scope =
+      class_info->EnsureStaticElementsScope(this);
 
   FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
   FunctionParsingScope body_parsing_scope(impl());
@@ -2689,7 +2690,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   DeclarationScope* static_block_var_scope = NewVarblockScope();
   BlockT static_block = ParseBlock(nullptr, static_block_var_scope);
   CheckConflictingVarDeclarations(static_block_var_scope);
-  class_info->has_static_elements = true;
   return static_block;
 }
 
@@ -5099,13 +5099,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteralBody(
   Expect(Token::kRightBrace);
   int end_pos = end_position();
   class_scope->set_end_position(end_pos);
-  if (class_info.static_elements_scope != nullptr) {
+  if (class_info.has_static_elements()) {
     // Use the positions of the class body for the static initializer
     // function so that we can reparse it later.
     class_info.static_elements_scope->set_start_position(start_pos);
     class_info.static_elements_scope->set_end_position(end_pos);
   }
-  if (class_info.instance_members_scope != nullptr) {
+  if (class_info.has_instance_members()) {
     // Use the positions of the class body for the instance initializer
     // function so that we can reparse it later.
     class_info.instance_members_scope->set_start_position(start_pos);

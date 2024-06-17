@@ -3250,14 +3250,14 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
 }
 
 void Parser::AddClassStaticBlock(Block* block, ClassInfo* class_info) {
-  DCHECK(class_info->has_static_elements);
+  DCHECK(class_info->has_static_elements());
   class_info->static_elements->Add(
       factory()->NewClassLiteralStaticElement(block), zone());
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
     const AstRawString* class_name, DeclarationScope* scope,
-    Statement* initializer_stmt) {
+    int function_literal_id, Statement* initializer_stmt) {
   DCHECK(IsClassMembersInitializerFunction(scope->function_kind()));
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
@@ -3267,7 +3267,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
-      GetNextFunctionLiteralId());
+      function_literal_id);
 #ifdef DEBUG
   scope->SetScopeName(class_name);
 #endif
@@ -3304,17 +3304,19 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   }
 
   FunctionLiteral* static_initializer = nullptr;
-  if (class_info->has_static_elements) {
+  if (class_info->has_static_elements()) {
     static_initializer = CreateInitializerFunction(
         name, class_info->static_elements_scope,
+        class_info->static_elements_function_id,
         factory()->NewInitializeClassStaticElementsStatement(
             class_info->static_elements, kNoSourcePosition));
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
-  if (class_info->has_instance_members) {
+  if (class_info->has_instance_members()) {
     instance_members_initializer_function = CreateInitializerFunction(
         name, class_info->instance_members_scope,
+        class_info->instance_members_function_id,
         factory()->NewInitializeClassMembersStatement(
             class_info->instance_fields, kNoSourcePosition));
     class_info->constructor->set_requires_instance_members_initializer(true);
