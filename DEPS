@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.141.1.29a9d3c-gomaip',
+  'reclient_version': 're_client_version:0.143.0.518e369-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -80,15 +80,15 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:4524544994f4eac131378143f498ee4d0b7d1f36',
+  'siso_version': 'git_revision:5da337f40aeac8d9f65b89e335b519291356d3d5',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:69f852c6aea2797c75712d59145efd38d7032196',
+  'luci_go': 'git_revision:6fb4d5d26773ebddeac2c57506324493e4220007',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:20.20240430.3.1',
+  'fuchsia_version': 'version:21.20240613.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e4aa510a5a617ff9953325cdce5aa5666aa1209d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '587ff397defc2be4e504c8311b79fc56baa8f344',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8acbed51859808fe82c5c4c079efe05a012ea041',
   'buildtools/linux64': {
