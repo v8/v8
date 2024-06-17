@@ -408,11 +408,20 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
                                                      Handle<Object> value,
                                                      StoreOrigin store_origin) {
   if (IsNullOrUndefined(*object, isolate)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object));
+    MaybeDirectHandle<String> maybe_property =
+        Object::NoSideEffectsToMaybeString(isolate, key);
+    DirectHandle<String> property_name;
+    if (maybe_property.ToHandle(&property_name)) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kNonObjectPropertyStoreWithProperty,
+                       object, property_name));
+    } else {
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kNonObjectPropertyStore, object));
+    }
   }
-
   // Check if the given key is an array index.
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
