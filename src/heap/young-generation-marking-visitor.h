@@ -22,6 +22,8 @@ template <YoungGenerationMarkingVisitationMode marking_mode>
 class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor<marking_mode>> {
  public:
+  using Base = NewSpaceVisitor<YoungGenerationMarkingVisitor<marking_mode>>;
+
   enum class ObjectVisitationMode {
     kVisitDirectly,
     kPushToWorklist,
@@ -63,16 +65,9 @@ class YoungGenerationMarkingVisitor final
   }
 
   // Visitation specializations used for unified heap young gen marking.
-  V8_INLINE int VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
   V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
                                    Tagged<JSArrayBuffer> object);
-  V8_INLINE int VisitJSDataViewOrRabGsabDataView(
-      Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object);
-  V8_INLINE int VisitJSTypedArray(Tagged<Map> map, Tagged<JSTypedArray> object);
-
   // Visitation specializations used for collecting pretenuring feedback.
-  V8_INLINE int VisitJSObject(Tagged<Map> map, Tagged<JSObject> object);
-  V8_INLINE int VisitJSObjectFast(Tagged<Map> map, Tagged<JSObject> object);
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   V8_INLINE int VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
 
@@ -106,8 +101,6 @@ class YoungGenerationMarkingVisitor final
   }
 
  private:
-  using Parent = NewSpaceVisitor<YoungGenerationMarkingVisitor<marking_mode>>;
-
   bool TryMark(Tagged<HeapObject> obj) {
     return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
   }

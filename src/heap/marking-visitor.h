@@ -7,7 +7,6 @@
 
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
@@ -15,7 +14,6 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
-#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -47,6 +45,8 @@ struct EphemeronMarking {
 template <typename ConcreteVisitor>
 class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
  public:
+  using Base = ConcurrentHeapVisitor<int, ConcreteVisitor>;
+
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
@@ -78,8 +78,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   {
   }
 
-  V8_INLINE int VisitBytecodeArray(Tagged<Map> map,
-                                   Tagged<BytecodeArray> object);
   V8_INLINE int VisitDescriptorArrayStrongly(Tagged<Map> map,
                                              Tagged<DescriptorArray> object);
   V8_INLINE int VisitDescriptorArray(Tagged<Map> map,
@@ -87,13 +85,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
                                         Tagged<EphemeronHashTable> object);
   V8_INLINE int VisitFixedArray(Tagged<Map> map, Tagged<FixedArray> object);
-  V8_INLINE int VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
   V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
                                    Tagged<JSArrayBuffer> object);
-  V8_INLINE int VisitJSDataViewOrRabGsabDataView(
-      Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object);
   V8_INLINE int VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object);
-  V8_INLINE int VisitJSTypedArray(Tagged<Map> map, Tagged<JSTypedArray> object);
   V8_INLINE int VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object);
   V8_INLINE int VisitMap(Tagged<Map> map, Tagged<Map> object);
   V8_INLINE int VisitSharedFunctionInfo(Tagged<Map> map,
@@ -192,8 +186,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitFixedArrayWithProgressBar(Tagged<Map> map,
                                                Tagged<FixedArray> object,
                                                ProgressBar& progress_bar);
-  V8_INLINE int VisitFixedArrayRegularly(Tagged<Map> map,
-                                         Tagged<FixedArray> object);
 
   // Methods needed for supporting code flushing.
   bool ShouldFlushCode(Tagged<SharedFunctionInfo> sfi) const;

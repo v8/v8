@@ -277,18 +277,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitBytecodeArray(
-    Tagged<Map> map, Tagged<BytecodeArray> object) {
-  int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
-  this->VisitMapPointer(object);
-  BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     Tagged<Map> map, Tagged<JSFunction> js_function) {
-  int size = concrete_visitor()->VisitJSObjectSubclass(map, js_function);
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
@@ -309,16 +299,12 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
       local_weak_objects_->flushed_js_functions_local.Push(js_function);
     }
   }
-  return size;
+  return Base::VisitJSFunction(map, js_function);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     Tagged<Map> map, Tagged<SharedFunctionInfo> shared_info) {
-  int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
-  this->VisitMapPointer(shared_info);
-  SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
-
   const bool can_flush_bytecode = HasBytecodeArrayForFlushing(shared_info);
 
   // We found a BytecodeArray that can be flushed. Increment the age of the SFI.
@@ -353,7 +339,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     // bytecode.
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   }
-  return size;
+  return Base::VisitSharedFunctionInfo(map, shared_info);
 }
 
 template <typename ConcreteVisitor>
@@ -468,7 +454,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 }
 
 // ===========================================================================
-// Fixed arrays that need incremental processing and can be left-trimmed =====
+// Fixed arrays that need incremental processing =============================
 // ===========================================================================
 
 template <typename ConcreteVisitor>
@@ -506,64 +492,24 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
 }
 
 template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayRegularly(
-    Tagged<Map> map, Tagged<FixedArray> object) {
-  int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  concrete_visitor()
-      ->template VisitMapPointerIfNeeded<VisitorId::kVisitFixedArray>(object);
-  FixedArray::BodyDescriptor::IterateBody(map, object, size,
-                                          concrete_visitor());
-  return size;
-}
-
-template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object) {
   ProgressBar& progress_bar =
       MutablePageMetadata::FromHeapObject(object)->ProgressBar();
   return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
-             : VisitFixedArrayRegularly(map, object);
+             : Base::VisitFixedArray(map, object);
 }
 
 // ===========================================================================
-// Objects participating in embedder tracing =================================
+// Custom visitation =========================================================
 // ===========================================================================
-
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(
-    Tagged<Map> map, Tagged<JSObject> object) {
-  return concrete_visitor()
-      ->template VisitJSObjectSubclass<
-          JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
-}
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
     Tagged<Map> map, Tagged<JSArrayBuffer> object) {
   object->MarkExtension();
-  return concrete_visitor()
-      ->template VisitJSObjectSubclass<JSArrayBuffer,
-                                       JSArrayBuffer::BodyDescriptor>(map,
-                                                                      object);
-}
-
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSDataViewOrRabGsabDataView(
-    Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object) {
-  return concrete_visitor()
-      ->template VisitJSObjectSubclass<
-          JSDataViewOrRabGsabDataView,
-          JSDataViewOrRabGsabDataView::BodyDescriptor>(map, object);
-}
-
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSTypedArray(
-    Tagged<Map> map, Tagged<JSTypedArray> object) {
-  return concrete_visitor()
-      ->template VisitJSObjectSubclass<JSTypedArray,
-                                       JSTypedArray::BodyDescriptor>(map,
-                                                                     object);
+  return Base::VisitJSArrayBuffer(map, object);
 }
 
 // ===========================================================================
@@ -625,8 +571,6 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
     Tagged<Map> map, Tagged<JSWeakRef> weak_ref) {
-  int size = concrete_visitor()->VisitJSObjectSubclass(map, weak_ref);
-  if (size == 0) return 0;
   if (IsHeapObject(weak_ref->target())) {
     Tagged<HeapObject> target = Cast<HeapObject>(weak_ref->target());
     SynchronizePageAccess(target);
@@ -634,25 +578,22 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
                                                                target);
     if (InReadOnlySpace(target) ||
         concrete_visitor()->marking_state()->IsMarked(target)) {
-      // Record the slot inside the JSWeakRef, since the
-      // VisitJSObjectSubclass above didn't visit it.
+      // Record the slot inside the JSWeakRef, since the VisitJSWeakRef above
+      // didn't visit it.
       ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
       concrete_visitor()->RecordSlot(weak_ref, slot, target);
     } else {
-      // JSWeakRef points to a potentially dead object. We have to process
-      // them when we know the liveness of the whole transitive closure.
+      // JSWeakRef points to a potentially dead object. We have to process them
+      // when we know the liveness of the whole transitive closure.
       local_weak_objects_->js_weak_refs_local.Push(weak_ref);
     }
   }
-  return size;
+  return Base::VisitJSWeakRef(map, weak_ref);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
     Tagged<Map> map, Tagged<WeakCell> weak_cell) {
-  int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
-  this->VisitMapPointer(weak_cell);
-  WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
   Tagged<HeapObject> target = weak_cell->relaxed_target();
   Tagged<HeapObject> unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
@@ -661,8 +602,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
        concrete_visitor()->marking_state()->IsMarked(target)) &&
       (InReadOnlySpace(unregister_token) ||
        concrete_visitor()->marking_state()->IsMarked(unregister_token))) {
-    // Record the slots inside the WeakCell, since the IterateBody above
-    // didn't visit it.
+    // Record the slots inside the WeakCell, since its IterateBody doesn't visit
+    // it.
     ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
     concrete_visitor()->RecordSlot(weak_cell, slot, target);
     slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
@@ -677,7 +618,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(
         weak_cell, unregister_token);
   }
-  return size;
+  return Base::VisitWeakCell(map, weak_cell);
+  ;
 }
 
 // ===========================================================================
@@ -687,8 +629,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
     Tagged<Map> map, Tagged<DescriptorArray> array) {
-  this->VisitMapPointer(array);
-  int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+  this->template VisitMapPointerIfNeeded<VisitorId::kVisitDescriptorArray>(
+      array);
+  const int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array->GetFirstPointerSlot(),
                 array->GetDescriptorSlot(0));
   VisitPointers(array, MaybeObjectSlot(array->GetDescriptorSlot(0)),
@@ -796,25 +739,18 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitMap(Tagged<Map> meta_map,
                                                   Tagged<Map> map) {
-  this->VisitMapPointer(map);
-  int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   VisitDescriptorsForMap(map);
-
   // Mark the pointer fields of the Map. If there is a transitions array, it has
   // been marked already, so it is fine that one of these fields contains a
   // pointer to it.
-  Map::BodyDescriptor::IterateBody(meta_map, map, size, this);
-  return size;
+  return Base::VisitMap(meta_map, map);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
     Tagged<Map> map, Tagged<TransitionArray> array) {
-  this->VisitMapPointer(array);
-  int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
-  TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
   local_weak_objects_->transition_arrays_local.Push(array);
-  return size;
+  return Base::VisitTransitionArray(map, array);
 }
 
 template <typename ConcreteVisitor>

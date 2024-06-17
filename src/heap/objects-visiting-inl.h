@@ -140,6 +140,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object));
     TYPED_VISITOR_ID_LIST(CASE)
+    TYPED_VISITOR_WITH_SLACK_ID_LIST(CASE)
     TORQUE_VISITOR_ID_LIST(CASE)
 #undef CASE
 #define CASE(TypeName)                                                     \
@@ -189,8 +190,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     }
   }
   UNREACHABLE();
-  // Make the compiler happy.
-  return ResultType();
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -209,31 +208,32 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
   static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
-#define VISIT(TypeName)                                                      \
-  template <typename ResultType, typename ConcreteVisitor>                   \
-  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(      \
-      Tagged<Map> map, Tagged<TypeName> object) {                            \
-    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);          \
-    /* If you see the following DCHECK fail, then the size computation of    \
-     * BodyDescriptor doesn't match the size return via obj.Size(). This is  \
-     * problematic as the GC requires those sizes to match for accounting    \
-     * reasons. The fix likely involves adding a padding field in the object \
-     * defintions. */                                                        \
-    DCHECK_EQ(object->SizeFromMap(map),                                      \
-              ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object));  \
-    visitor->template VisitMapPointerIfNeeded<VisitorId::kVisit##TypeName>(  \
-        object);                                                             \
-    const int size =                                                         \
-        ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object);         \
-    ObjectTraits<TypeName>::BodyDescriptor::IterateBody(map, object, size,   \
-                                                        visitor);            \
-    return static_cast<ResultType>(size);                                    \
+#define VISIT(TypeName)                                                 \
+  template <typename ResultType, typename ConcreteVisitor>              \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName( \
+      Tagged<Map> map, Tagged<TypeName> object) {                       \
+    return static_cast<ConcreteVisitor*>(this)                          \
+        ->template VisitWithBodyDescriptor<                             \
+            VisitorId::kVisit##TypeName, TypeName,                      \
+            ObjectTraits<TypeName>::BodyDescriptor>(map, object);       \
   }
 
 TYPED_VISITOR_ID_LIST(VISIT)
 TORQUE_VISITOR_ID_LIST(VISIT)
 TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
+
+#define VISIT_WITH_SLACK(TypeName)                                            \
+  template <typename ResultType, typename ConcreteVisitor>                    \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(       \
+      Tagged<Map> map, Tagged<TypeName> object) {                             \
+    return static_cast<ConcreteVisitor*>(this)                                \
+        ->template VisitJSObjectSubclass<TypeName, TypeName::BodyDescriptor>( \
+            map, object);                                                     \
+  }
+
+TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT_WITH_SLACK)
+#undef VISIT_WITH_SLACK
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
@@ -245,25 +245,25 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
     Tagged<Map> map, Tagged<HeapObject> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
       object);
-  return static_cast<ResultType>(size);
+  return static_cast<ResultType>(map->instance_size());
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitJSObjectSubclass<JSObject, JSObject::FastBodyDescriptor>(map,
-                                                                       object);
+  return static_cast<ConcreteVisitor*>(this)
+      ->template VisitJSObjectSubclass<JSObject, JSObject::FastBodyDescriptor>(
+          map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitJSObjectSubclass<JSObject,
-                               JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
-      map, object);
+  return static_cast<ConcreteVisitor*>(this)
+      ->template VisitJSObjectSubclass<
+          JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -288,6 +288,12 @@ template <typename ResultType, typename ConcreteVisitor>
 template <typename T, typename TBodyDescriptor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
     Tagged<Map> map, Tagged<T> object) {
+  // If you see the following DCHECK fail, then the size computation of
+  // BodyDescriptor doesn't match the size return via obj.Size(). This is
+  // problematic as the GC requires those sizes to match for accounting reasons.
+  // The fix likely involves adding a padding field in the object defintions.
+  DCHECK_EQ(object->SizeFromMap(map), TBodyDescriptor::SizeOf(map, object));
+
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
   const int size = TBodyDescriptor::SizeOf(map, object);
@@ -295,10 +301,27 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
   DCHECK_LE(used_size, size);
   DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
   // It is important to visit only the used field and ignore the slack fields
-  // because the slack fields may be trimmed concurrently. For non-concurrent
-  // visitors this merely is an optimization in that we only visit the actually
-  // used fields.
+  // because the slack fields may be trimmed concurrently and we don't want to
+  // find fillers (slack) during pointer visitation.
   TBodyDescriptor::IterateBody(map, object, used_size, visitor);
+  return size;
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+template <VisitorId visitor_id, typename T, typename TBodyDescriptor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWithBodyDescriptor(
+    Tagged<Map> map, Tagged<T> object) {
+  // If you see the following DCHECK fail, then the size computation of
+  // BodyDescriptor doesn't match the size return via obj.Size(). This is
+  // problematic as the GC requires those sizes to match for accounting reasons.
+  // The fix likely involves adding a padding field in the object defintions.
+  DCHECK_EQ(object->SizeFromMap(map), TBodyDescriptor::SizeOf(map, object));
+  DCHECK(!map->IsInobjectSlackTrackingInProgress());
+
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  visitor->template VisitMapPointerIfNeeded<visitor_id>(object);
+  const int size = TBodyDescriptor::SizeOf(map, object);
+  TBodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }
 
