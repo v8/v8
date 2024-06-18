@@ -6378,9 +6378,9 @@ int JSGeneratorObject::source_position() const {
              ->shared()
              ->GetBytecodeArray(isolate)
              ->HasSourcePositionTable());
-  Tagged<AbstractCode> code =
-      Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate));
-  return code->SourcePosition(isolate, code_offset());
+  Tagged<BytecodeArray> bytecode =
+      function()->shared()->GetBytecodeArray(isolate);
+  return bytecode->SourcePosition(code_offset());
 }
 
 // static

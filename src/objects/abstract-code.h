@@ -54,8 +54,6 @@ class AbstractCode : public HeapObject {
   inline Tagged<BytecodeArray> GetBytecodeArray();
 
  private:
-  inline Tagged<TrustedByteArray> SourcePositionTableInternal(Isolate* isolate);
-
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };
 

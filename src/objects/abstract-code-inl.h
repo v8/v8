@@ -28,21 +28,6 @@ int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   }
 }
 
-Tagged<TrustedByteArray> AbstractCode::SourcePositionTableInternal(
-    Isolate* isolate) {
-  Tagged<Map> map_object = map();
-  if (InstanceTypeChecker::IsCode(map_object)) {
-    Tagged<Code> code = GetCode();
-    if (!code->has_instruction_stream()) {
-      return *isolate->factory()->empty_trusted_byte_array();
-    }
-    return code->source_position_table();
-  } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray()->SourcePositionTable();
-  }
-}
-
 Tagged<TrustedByteArray> AbstractCode::SourcePositionTable(
     Isolate* isolate, Tagged<SharedFunctionInfo> sfi) {
   Tagged<Map> map_object = map(isolate);

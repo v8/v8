@@ -9,6 +9,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/reloc-info-inl.h"
+#include "src/codegen/source-position-table.h"
+#include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-inl.h"
 
@@ -50,6 +52,41 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
 
 void Code::FlushICache() const {
   FlushInstructionCache(instruction_start(), instruction_size());
+}
+
+int Code::SourcePosition(int offset) const {
+  CHECK_NE(kind(), CodeKind::BASELINE);
+
+  // Subtract one because the current PC is one instruction after the call site.
+  offset--;
+
+  int position = 0;
+  if (!has_source_position_table()) return position;
+  for (SourcePositionTableIterator it(
+           source_position_table(),
+           SourcePositionTableIterator::kJavaScriptOnly,
+           SourcePositionTableIterator::kDontSkipFunctionEntry);
+       !it.done() && it.code_offset() <= offset; it.Advance()) {
+    position = it.source_position().ScriptOffset();
+  }
+  return position;
+}
+
+int Code::SourceStatementPosition(int offset) const {
+  CHECK_NE(kind(), CodeKind::BASELINE);
+
+  // Subtract one because the current PC is one instruction after the call site.
+  offset--;
+
+  int position = 0;
+  if (!has_source_position_table()) return position;
+  for (SourcePositionTableIterator it(source_position_table());
+       !it.done() && it.code_offset() <= offset; it.Advance()) {
+    if (it.is_statement()) {
+      position = it.source_position().ScriptOffset();
+    }
+  }
+  return position;
 }
 
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {

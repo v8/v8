@@ -83,6 +83,8 @@ class BytecodeArray : public ExposedTrustedObject {
       interpreter::Register incoming_new_target_or_generator_register);
 
   inline bool HasSourcePositionTable() const;
+  int SourcePosition(int offset) const;
+  int SourceStatementPosition(int offset) const;
 
   // If source positions have not been collected or an exception has been thrown
   // this will return the empty_trusted_byte_array.

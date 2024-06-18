@@ -217,6 +217,8 @@ class Code : public ExposedTrustedObject {
 
   inline Tagged<TrustedByteArray> SourcePositionTable(
       Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
+  int SourcePosition(int offset) const;
+  int SourceStatementPosition(int offset) const;
 
   inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;

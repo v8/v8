@@ -1330,7 +1330,7 @@ Tagged<Object> CommonFrame::context() const {
 int CommonFrame::position() const {
   Tagged<Code> code = LookupCode();
   int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
-  return Cast<AbstractCode>(code)->SourcePosition(isolate(), code_offset);
+  return code->SourcePosition(code_offset);
 }
 
 int CommonFrame::ComputeExpressionsCount() const {
@@ -2934,9 +2934,9 @@ int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
 }
 
 int UnoptimizedFrame::position() const {
-  Tagged<AbstractCode> code = Cast<AbstractCode>(GetBytecodeArray());
+  Tagged<BytecodeArray> code = GetBytecodeArray();
   int code_offset = GetBytecodeOffset();
-  return code->SourcePosition(isolate(), code_offset);
+  return code->SourcePosition(code_offset);
 }
 
 int UnoptimizedFrame::LookupExceptionHandlerInTable(
@@ -3428,8 +3428,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
       const InterpretedFrame* iframe = InterpretedFrame::cast(this);
       Tagged<BytecodeArray> bytecodes = iframe->GetBytecodeArray();
       int offset = iframe->GetBytecodeOffset();
-      int source_pos =
-          Cast<AbstractCode>(bytecodes)->SourcePosition(isolate(), offset);
+      int source_pos = bytecodes->SourcePosition(offset);
       int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d] [bytecode=%p offset=%d]", line,
                        reinterpret_cast<void*>(bytecodes.ptr()), offset);
