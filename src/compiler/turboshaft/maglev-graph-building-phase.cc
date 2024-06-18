@@ -2384,6 +2384,13 @@ class GraphBuilder {
                      __ TaggedEqual(Map(node->lhs()), Map(node->rhs()))));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::TaggedNotEqual* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(
+                     __ TaggedEqual(Map(node->lhs()), Map(node->rhs())),
+                     /*flip*/ true));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::TestUndetectable* node,
                                 const maglev::ProcessingState& state) {
     ObjectIsOp::InputAssumptions assumption;
