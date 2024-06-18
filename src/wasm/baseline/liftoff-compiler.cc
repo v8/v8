@@ -5766,17 +5766,17 @@ class LiftoffCompiler {
   // the ORed combination of all high words.
   VarState PopIndexToVarState(Register* high_word, LiftoffRegList* pinned) {
     VarState slot = __ PopVarState();
-    const bool is_mem64 = slot.kind() == kI64;
+    const bool is_64bit_value = slot.kind() == kI64;
     // For memory32 on a 32-bit system or memory64 on a 64-bit system, there is
     // nothing to do.
-    if (Is64() == is_mem64) {
+    if (Is64() == is_64bit_value) {
       if (slot.is_reg()) pinned->set(slot.reg());
       return slot;
     }
 
     // For memory32 on 64-bit hosts, zero-extend.
-    if (Is64()) {
-      DCHECK(!is_mem64);  // Handled above.
+    if constexpr (Is64()) {
+      DCHECK(!is_64bit_value);  // Handled above.
       LiftoffRegister reg = __ LoadToModifiableRegister(slot, *pinned);
       __ emit_u32_to_uintptr(reg.gp(), reg.gp());
       pinned->set(reg);
@@ -5786,8 +5786,7 @@ class LiftoffCompiler {
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
     // managable.
-    DCHECK(is_mem64);  // Other cases are handled above.
-    DCHECK(!Is64());
+    DCHECK(is_64bit_value && !Is64());  // Other cases are handled above.
     LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
@@ -5874,13 +5873,19 @@ class LiftoffCompiler {
     return {kIntPtrKind, reg.low(), 0};
   }
 
+  // The following functions are to be used inside a DCHECK. They always return
+  // true and will fail internally on a detected inconsistency.
 #ifdef DEBUG
   // Checks that the top-of-stack value matches the declared memory (64-bit or
-  // 32-bit). To be used inside a DCHECK. Always returns true though, will fail
-  // internally on a detected inconsistency.
+  // 32-bit).
   bool MatchingMemTypeOnTopOfStack(const WasmMemory* memory) {
+    return MatchingIndexTypeOnTopOfStack(memory->is_memory64);
+  }
+
+  // Checks that the top-of-stack value matches the expected bitness.
+  bool MatchingIndexTypeOnTopOfStack(bool expect_64bit_value) {
     DCHECK_LT(0, __ cache_state()->stack_height());
-    ValueKind expected_kind = memory->is_memory64 ? kI64 : kI32;
+    ValueKind expected_kind = expect_64bit_value ? kI64 : kI32;
     DCHECK_EQ(expected_kind, __ cache_state()->stack_state.back().kind());
     return true;
   }
@@ -5966,11 +5971,12 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
-    DCHECK_EQ(imm.memory_dst.memory->is_memory64,
-              imm.memory_src.memory->is_memory64);
-    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
+
+    // The type of {size} is the min of {src} and {dst} (where {kI32 < kI64}).
+    DCHECK(MatchingIndexTypeOnTopOfStack(imm.memory_dst.memory->is_memory64 &&
+                                         imm.memory_src.memory->is_memory64));
     VarState size = PopIndexToVarState(&mem_offsets_high_word, &pinned);
-    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_src.memory));
     VarState src = PopIndexToVarState(&mem_offsets_high_word, &pinned);
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
     VarState dst = PopIndexToVarState(&mem_offsets_high_word, &pinned);
@@ -5986,7 +5992,8 @@ class LiftoffCompiler {
     // the state before popping any values (for a better debugging experience).
     Label* trap_label =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
-    if (mem_offsets_high_word != no_reg) {
+    DCHECK_IMPLIES(Is64(), mem_offsets_high_word == no_reg);
+    if (!Is64() && mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
       FREEZE_STATE(trapping);
       __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,

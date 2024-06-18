@@ -477,10 +477,11 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
   Tagged<WasmTrustedInstanceData> trusted_data =
       Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
-  uint64_t dst_mem_size = trusted_data->memory_size(dst_mem_index);
-  uint64_t src_mem_size = trusted_data->memory_size(src_mem_index);
-  if (!base::IsInBounds<uint64_t>(dst, size, dst_mem_size)) return kOutOfBounds;
-  if (!base::IsInBounds<uint64_t>(src, size, src_mem_size)) return kOutOfBounds;
+  size_t dst_mem_size = trusted_data->memory_size(dst_mem_index);
+  size_t src_mem_size = trusted_data->memory_size(src_mem_index);
+  static_assert(std::is_same_v<size_t, uintptr_t>);
+  if (!base::IsInBounds<size_t>(dst, size, dst_mem_size)) return kOutOfBounds;
+  if (!base::IsInBounds<size_t>(src, size, src_mem_size)) return kOutOfBounds;
 
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(trusted_data, dst_mem_index, dst),

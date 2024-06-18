@@ -5376,6 +5376,9 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
   ExpectFailure(&sig_i_l, {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
 }
 
+// TODO(clemensb): Add support for multiple memories in TestModuleBuilder and
+// add a test for copying between memory32 and memory64.
+
 /*******************************************************************************
  * Multi-memory tests.
  ******************************************************************************/

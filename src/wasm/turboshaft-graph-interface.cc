@@ -3891,14 +3891,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    bool is_memory_64 = imm.memory_src.memory->is_memory64;
-    DCHECK_EQ(is_memory_64, imm.memory_dst.memory->is_memory64);
+    const bool dst_is_mem64 = imm.memory_dst.memory->is_memory64;
+    const bool src_is_mem64 = imm.memory_src.memory->is_memory64;
     V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+        MemoryIndexToUintPtrOrOOBTrap(dst_is_mem64, dst.op);
     V<WordPtr> src_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, src.op);
+        MemoryIndexToUintPtrOrOOBTrap(src_is_mem64, src.op);
     V<WordPtr> size_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
+        MemoryIndexToUintPtrOrOOBTrap(dst_is_mem64 && src_is_mem64, size.op);
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::UintPtr(),

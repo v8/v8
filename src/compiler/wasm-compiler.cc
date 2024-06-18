@@ -5344,9 +5344,15 @@ void WasmGraphBuilder::MemoryCopy(const wasm::WasmMemory* dst_memory,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
-  DCHECK_EQ(dst_memory->is_memory64, src_memory->is_memory64);
-  MemTypeToUintPtrOrOOBTrap(dst_memory->is_memory64, {&dst, &src, &size},
-                            position);
+  if (dst_memory->is_memory64 == src_memory->is_memory64) {
+    MemTypeToUintPtrOrOOBTrap(dst_memory->is_memory64, {&dst, &src, &size},
+                              position);
+  } else {
+    MemTypeToUintPtrOrOOBTrap(dst_memory->is_memory64, {&dst}, position);
+    MemTypeToUintPtrOrOOBTrap(src_memory->is_memory64, {&src}, position);
+    MemTypeToUintPtrOrOOBTrap(
+        dst_memory->is_memory64 && src_memory->is_memory64, {&size}, position);
+  }
 
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                  .Params(MachineType::Pointer(), MachineType::Uint32(),
