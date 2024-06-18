@@ -14,26 +14,23 @@
 #include "src/wasm/wasm-feature-flags.h"
 
 // Features that are always enabled and do not have a flag.
-#define FOREACH_WASM_NON_FLAG_FEATURE(V)             \
-  V(reftypes, "reference type opcodes")              \
-  V(simd, "SIMD opcodes")                            \
-  V(threads, "thread opcodes")                       \
-  V(return_call, "return call opcodes")              \
-  V(extended_const, "extended constant expressions") \
-  V(relaxed_simd, "relaxed simd")                    \
-  V(gc, "garbage collection")                        \
-  V(typed_funcref, "typed function references")      \
-  V(js_inlining, "inline small wasm functions into JS")
+#define FOREACH_WASM_NON_FLAG_FEATURE(V) \
+  V(reftypes)                            \
+  V(simd)                                \
+  V(threads)                             \
+  V(return_call)                         \
+  V(extended_const)                      \
+  V(relaxed_simd)                        \
+  V(gc)                                  \
+  V(typed_funcref)                       \
+  V(js_inlining)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
   FOREACH_WASM_FEATURE_FLAG(V)  \
   FOREACH_WASM_NON_FLAG_FEATURE(V)
 
-namespace v8 {
-namespace internal {
-
-namespace wasm {
+namespace v8::internal::wasm {
 
 enum WasmFeature {
 #define DECL_FEATURE_ENUM(feat, ...) kFeature_##feat,
@@ -100,8 +97,6 @@ inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {
 
 using CompileTimeImports = base::EnumSet<CompileTimeImport, int>;
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_FEATURES_H_
