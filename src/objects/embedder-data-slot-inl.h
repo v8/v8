@@ -191,6 +191,22 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
 #endif
 }
 
+bool EmbedderDataSlot::MustClearDuringSerialization(
+    const DisallowGarbageCollection& no_gc) {
+  // Serialization must avoid writing external pointer handles.  If we were to
+  // accidentally write an external pointer handle, that ends up deserializing
+  // as a dangling pointer.  For consistency it would be nice to avoid writing
+  // external pointers also in the wide-pointer case, but as we can't
+  // distinguish between Smi values and pointers we just leave them be.
+#ifdef V8_ENABLE_SANDBOX
+  auto* location = reinterpret_cast<ExternalPointerHandle*>(
+      address() + kExternalPointerOffset);
+  return base::AsAtomic32::Relaxed_Load(location) != kNullExternalPointerHandle;
+#else   // !V8_ENABLE_SANDBOX
+  return false;
+#endif  // !V8_ENABLE_SANDBOX
+}
+
 }  // namespace internal
 }  // namespace v8
 

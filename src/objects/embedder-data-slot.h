@@ -124,6 +124,8 @@ class EmbedderDataSlot
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
       Isolate* isolate, Tagged<HeapObject> host, void* ptr);
 
+  V8_INLINE bool MustClearDuringSerialization(
+      const DisallowGarbageCollection& no_gc);
   V8_INLINE RawData load_raw(Isolate* isolate,
                              const DisallowGarbageCollection& no_gc) const;
   V8_INLINE void store_raw(Isolate* isolate, RawData data,

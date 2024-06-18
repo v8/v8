@@ -324,32 +324,35 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
 
   std::vector<EmbedderDataSlot::RawData> original_embedder_values;
   std::vector<StartupData> serialized_data;
+  std::vector<bool> should_clear_slot;
 
   // 1) Iterate embedder fields. Hold onto the original value of the fields.
   //    Ignore references to heap objects since these are to be handled by the
   //    serializer. For aligned pointers, call the serialize callback. Hold
   //    onto the result.
   for (int i = 0; i < embedder_fields_count; i++) {
-    EmbedderDataSlot embedder_data_slot(raw_obj, i);
-    original_embedder_values.emplace_back(
-        embedder_data_slot.load_raw(isolate(), no_gc));
-    Tagged<Object> object = embedder_data_slot.load_tagged();
+    EmbedderDataSlot slot(raw_obj, i);
+    original_embedder_values.emplace_back(slot.load_raw(isolate(), no_gc));
+    Tagged<Object> object = slot.load_tagged();
     if (IsHeapObject(object)) {
       DCHECK(IsValidHeapObject(isolate()->heap(), Cast<HeapObject>(object)));
       serialized_data.push_back({nullptr, 0});
+      should_clear_slot.push_back(false);
     } else {
-      serialized_data.push_back(
-          wrapper(i, object == Smi::zero(), user_callback, api_obj));
+      StartupData data =
+          wrapper(i, object == Smi::zero(), user_callback, api_obj);
+      serialized_data.push_back(data);
+      bool clear_slot =
+          !DataIsEmpty(data) || slot.MustClearDuringSerialization(no_gc);
+      should_clear_slot.push_back(clear_slot);
     }
   }
 
-  // 2) Embedder fields for which the embedder callback produced non-zero
-  //    serialized data should be considered aligned pointers to objects owned
-  //    by the embedder. Clear these memory addresses to avoid non-determism
-  //    in the snapshot. This is done separately to step 1 to no not interleave
-  //    with embedder callbacks.
+  // 2) Prevent embedder fields that are not V8 objects from ending up in the
+  //    blob.  This is done separately to step 1 so as to not interleave with
+  //    embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
-    if (!DataIsEmpty(serialized_data[i])) {
+    if (should_clear_slot[i]) {
       EmbedderDataSlot(raw_obj, i).store_raw(isolate(), kNullAddress, no_gc);
     }
   }
@@ -373,10 +376,11 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
   //    headed by the back reference. Restore the original embedder fields.
   for (int i = 0; i < embedder_fields_count; i++) {
     StartupData data = serialized_data[i];
-    if (DataIsEmpty(data)) continue;
+    if (!should_clear_slot[i]) continue;
     // Restore original values from cleared fields.
     EmbedderDataSlot(raw_obj, i)
         .store_raw(isolate(), original_embedder_values[i], no_gc);
+    if (DataIsEmpty(data)) continue;
     embedder_fields_sink_.Put(kNewObject, "embedder field holder");
     embedder_fields_sink_.PutUint30(reference->back_ref_index(),
                                     "BackRefIndex");
