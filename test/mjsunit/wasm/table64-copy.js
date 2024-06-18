@@ -70,33 +70,6 @@ function checkExternRefTable(getter, size, start, count, value) {
 
   let exports = builder.instantiate().exports;
 
-  let start_dst = 3n;
-  let start_src = 6n;
-  let count = 4n;
-  let dummy_externref = {foo: 12, bar: 34};
-
-  exports.table64_fill(start_src, dummy_externref, count);
-  exports.table64_copy(start_dst, start_src, count);
-  let size = exports.table64_size(builder, table_dst);
-  checkExternRefTable(
-      exports.table64_get, size, start_dst, count, dummy_externref);
-})();
-
-(function TestTable64Copy() {
-  print(arguments.callee.name);
-  const builder = new WasmModuleBuilder();
-  const table_src =
-      builder.addTable64(kWasmExternRef, 15, 20).exportAs('table_src');
-  const table_dst =
-      builder.addTable64(kWasmExternRef, 10).exportAs('table_dst');
-
-  exportTable64Getter(builder, table_dst, kWasmExternRef);
-  exportTable64Size(builder, table_dst);
-  exportTable64Copy(builder, table_dst, table_src);
-  exportTable64FillExternRef(builder, table_src)
-
-  let exports = builder.instantiate().exports;
-
   let dummy_externref = {foo: 12, bar: 34};
 
   // Just in bounds.
