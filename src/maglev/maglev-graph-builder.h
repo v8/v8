@@ -981,9 +981,6 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachEagerDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      // This check prevents us from speculating during builtin inlining when we
-      // shouldn't. Doing so could lead to deopt loops.
-      DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
       node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame(),
                               current_speculation_feedback_);
     }
@@ -1802,11 +1799,9 @@ class MaglevGraphBuilder {
                            ValueNode* new_target,
                            compiler::SharedFunctionInfoRef shared,
                            CallArguments& args);
-  ReduceResult TryReduceBuiltin(compiler::JSFunctionRef target,
-                                compiler::SharedFunctionInfoRef shared,
-                                CallArguments& args,
-                                const compiler::FeedbackSource& feedback_source,
-                                SpeculationMode speculation_mode);
+  ReduceResult TryReduceBuiltin(
+      compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
+      CallArguments& args, const compiler::FeedbackSource& feedback_source);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   ReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, ValueNode* new_target,
@@ -1829,18 +1824,15 @@ class MaglevGraphBuilder {
   ReduceResult ReduceCallForConstant(
       compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
-          compiler::FeedbackSource(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+          compiler::FeedbackSource());
   ReduceResult ReduceCallForTarget(
       ValueNode* target_node, compiler::JSFunctionRef target,
-      CallArguments& args, const compiler::FeedbackSource& feedback_source,
-      SpeculationMode speculation_mode);
+      CallArguments& args, const compiler::FeedbackSource& feedback_source);
   ReduceResult ReduceCallForNewClosure(
       ValueNode* target_node, ValueNode* target_context,
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
-      const compiler::FeedbackSource& feedback_source,
-      SpeculationMode speculation_mode);
+      const compiler::FeedbackSource& feedback_source);
   ReduceResult TryBuildCallKnownApiFunction(
       compiler::JSFunctionRef function, compiler::SharedFunctionInfoRef shared,
       CallArguments& args);
@@ -1852,17 +1844,18 @@ class MaglevGraphBuilder {
       compiler::OptionalSharedFunctionInfoRef maybe_shared,
       compiler::OptionalJSObjectRef api_holder, CallArguments& args);
   ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
-      compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args);
+      compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
   ReduceResult ReduceCallWithArrayLikeForArgumentsObject(
       ValueNode* target_node, CallArguments& args,
-      VirtualObject* arguments_object);
-  ReduceResult ReduceCallWithArrayLike(ValueNode* target_node,
-                                       CallArguments& args);
-  ReduceResult ReduceCall(
+      VirtualObject* arguments_object,
+      const compiler::FeedbackSource& feedback_source);
+  ReduceResult ReduceCallWithArrayLike(
       ValueNode* target_node, CallArguments& args,
-      const compiler::FeedbackSource& feedback_source =
-          compiler::FeedbackSource(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+      const compiler::FeedbackSource& feedback_source);
+  ReduceResult ReduceCall(ValueNode* target_node, CallArguments& args,
+                          const compiler::FeedbackSource& feedback_source =
+                              compiler::FeedbackSource());
   void BuildCallWithFeedback(ValueNode* target_node, CallArguments& args,
                              const compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
@@ -2624,8 +2617,6 @@ class MaglevGraphBuilder {
 
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
-  SpeculationMode current_speculation_mode_ =
-      SpeculationMode::kAllowSpeculation;
 
   base::Vector<ValueNode*> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
@@ -2705,6 +2696,10 @@ class MaglevGraphBuilder {
       hash = fast_hash_combine(hash, gvn_hash_value(e));
     }
     return hash;
+  }
+
+  bool CanSpeculateCall() const {
+    return current_speculation_feedback_.IsValid();
   }
 };
 

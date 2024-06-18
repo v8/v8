@@ -284,49 +284,39 @@ class CallArguments {
   Mode mode_;
 };
 
-class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
- public:
-  CallSpeculationScope(MaglevGraphBuilder* builder,
-                       compiler::FeedbackSource feedback_source,
-                       SpeculationMode mode)
-      : builder_(builder) {
-    DCHECK(!builder_->current_speculation_feedback_.IsValid());
-    if (feedback_source.IsValid()) {
-      DCHECK_EQ(
-          FeedbackNexus(feedback_source.vector, feedback_source.slot).kind(),
-          FeedbackSlotKind::kCall);
-    }
-    builder_->current_speculation_feedback_ = feedback_source;
-    builder_->current_speculation_mode_ = mode;
-  }
-  ~CallSpeculationScope() {
-    builder_->current_speculation_feedback_ = compiler::FeedbackSource();
-    builder_->current_speculation_mode_ = SpeculationMode::kAllowSpeculation;
-  }
-
- private:
-  MaglevGraphBuilder* builder_;
-};
-
 class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
  public:
-  explicit SaveCallSpeculationScope(MaglevGraphBuilder* builder)
+  explicit SaveCallSpeculationScope(
+      MaglevGraphBuilder* builder,
+      compiler::FeedbackSource feedback_source = compiler::FeedbackSource())
       : builder_(builder) {
     saved_ = builder_->current_speculation_feedback_;
-    saved_mode_ = builder->current_speculation_mode_;
-    builder_->current_speculation_feedback_ = compiler::FeedbackSource();
+    // Only set the current speculation feedback if speculation is allowed.
+    if (IsSpeculationAllowed(builder_->broker(), feedback_source)) {
+      builder->current_speculation_feedback_ = feedback_source;
+    } else {
+      builder->current_speculation_feedback_ = compiler::FeedbackSource();
+    }
   }
   ~SaveCallSpeculationScope() {
     builder_->current_speculation_feedback_ = saved_;
-    builder_->current_speculation_mode_ = saved_mode_;
   }
 
   const compiler::FeedbackSource& value() { return saved_; }
 
  private:
-  compiler::FeedbackSource saved_;
-  SpeculationMode saved_mode_;
   MaglevGraphBuilder* builder_;
+  compiler::FeedbackSource saved_;
+
+  static bool IsSpeculationAllowed(compiler::JSHeapBroker* broker,
+                                   compiler::FeedbackSource feedback_source) {
+    if (!feedback_source.IsValid()) return false;
+    compiler::ProcessedFeedback const& processed_feedback =
+        broker->GetFeedbackForCall(feedback_source);
+    if (processed_feedback.IsInsufficient()) return false;
+    return processed_feedback.AsCall().speculation_mode() ==
+           SpeculationMode::kAllowSpeculation;
+  }
 };
 
 class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
@@ -6596,7 +6586,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
 
@@ -6786,8 +6776,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
                             {this_arg, element, index_tagged, receiver});
 
     SaveCallSpeculationScope saved(this);
-    result = ReduceCall(callback, call_args, saved.value(),
-                        SpeculationMode::kAllowSpeculation);
+    result = ReduceCall(callback, call_args, saved.value());
   }
 
   // ```
@@ -6877,7 +6866,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
 
@@ -7013,7 +7002,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7025,7 +7014,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeKeys(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7037,7 +7026,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeKeys(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeValues(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7049,7 +7038,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeValues(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   if (args.count() != 1) return ReduceResult::Fail();
@@ -7059,7 +7048,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7099,7 +7088,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7125,7 +7114,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
@@ -7199,7 +7188,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
 template <typename LoadNode>
 ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
                                                       ExternalArrayType type) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
@@ -7222,7 +7211,7 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
 template <typename StoreNode, typename Function>
 ReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     const CallArguments& args, ExternalArrayType type, Function&& getValue) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
@@ -7306,17 +7295,8 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
 
-  compiler::FeedbackSource source = current_speculation_feedback_;
-  if (!source.IsValid()) {
-    return ReduceCall(receiver, args);
-  }
-  // Reset speculation feedback source to no feedback.
-  current_speculation_feedback_ = compiler::FeedbackSource();
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForCall(source);
-  DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
-  const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-  return ReduceCall(receiver, args, source, call_feedback.speculation_mode());
+  SaveCallSpeculationScope saved(this);
+  return ReduceCall(receiver, args, saved.value());
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeApply(
@@ -7333,7 +7313,8 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeApply(
       maybe_receiver = call_feedback.target();
     }
   }
-  return ReduceFunctionPrototypeApplyCallWithReceiver(maybe_receiver, args);
+  return ReduceFunctionPrototypeApplyCallWithReceiver(
+      maybe_receiver, args, current_speculation_feedback_);
 }
 
 namespace {
@@ -7428,7 +7409,7 @@ ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   // We can't reduce Function#call when there is no receiver function.
@@ -7570,7 +7551,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   // We can't reduce Function#call when there is no receiver function.
@@ -7767,7 +7748,7 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
 
 ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
@@ -7971,17 +7952,14 @@ ReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     case ValueRepresentation::kUint32:
       return arg;
     case ValueRepresentation::kInt32:
-      if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+      if (!CanSpeculateCall()) {
         return ReduceResult::Fail();
       }
       return AddNewNode<Int32AbsWithOverflow>({arg});
     case ValueRepresentation::kTagged:
       switch (CheckTypes(arg, {NodeType::kSmi, NodeType::kNumberOrOddball})) {
         case NodeType::kSmi:
-          if (current_speculation_mode_ ==
-              SpeculationMode::kDisallowSpeculation) {
-            return ReduceResult::Fail();
-          }
+          if (!CanSpeculateCall()) return ReduceResult::Fail();
           return AddNewNode<Int32AbsWithOverflow>({GetInt32(arg)});
         case NodeType::kNumberOrOddball:
           return AddNewNode<Float64Abs>({GetHoleyFloat64ForToNumber(
@@ -8026,8 +8004,7 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
         arg = GetHoleyFloat64ForToNumber(arg,
                                          ToNumberHint::kAssumeNumberOrOddball);
       } else {
-        if (current_speculation_mode_ ==
-            SpeculationMode::kDisallowSpeculation) {
+        if (!CanSpeculateCall()) {
           return ReduceResult::Fail();
         }
         DeoptFrameScope continuation_scope(this,
@@ -8078,7 +8055,7 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     }
     return GetRootConstant(RootIndex::kNanValue);
   }
-  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+  if (!CanSpeculateCall()) {
     return ReduceResult::Fail();
   }
   // If both arguments are tagged, it is cheaper to call Math.Pow builtin,
@@ -8101,7 +8078,7 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     if (args.count() < 1) {                                                   \
       return GetRootConstant(RootIndex::kNanValue);                           \
     }                                                                         \
-    if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) { \
+    if (!CanSpeculateCall()) {                                                \
       ValueRepresentation rep = args[0]->properties().value_representation(); \
       if (rep == ValueRepresentation::kTagged ||                              \
           rep == ValueRepresentation::kHoleyFloat64) {                        \
@@ -8119,14 +8096,13 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
 
 ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
-    CallArguments& args, const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    CallArguments& args, const compiler::FeedbackSource& feedback_source) {
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  CallSpeculationScope speculate(this, feedback_source, speculation_mode);
+  SaveCallSpeculationScope speculate(this, feedback_source);
   if (!shared.HasBuiltinId()) {
     return ReduceResult::Fail();
   }
@@ -8514,8 +8490,7 @@ void MaglevGraphBuilder::BuildCheckConstTrackingLetCell(ValueNode* context,
 
 ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
     compiler::JSFunctionRef target, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    const compiler::FeedbackSource& feedback_source) {
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
@@ -8531,8 +8506,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
                               {target_node});
     }
     DCHECK(IsCallable(*target.object()));
-    RETURN_IF_DONE(TryReduceBuiltin(target, shared, args, feedback_source,
-                                    speculation_mode));
+    RETURN_IF_DONE(TryReduceBuiltin(target, shared, args, feedback_source));
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target, GetRootConstant(RootIndex::kUndefinedValue), args,
         feedback_source));
@@ -8601,18 +8575,16 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
 
 ReduceResult MaglevGraphBuilder::ReduceCallForTarget(
     ValueNode* target_node, compiler::JSFunctionRef target, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    const compiler::FeedbackSource& feedback_source) {
   RETURN_IF_ABORT(BuildCheckValue(target_node, target));
-  return ReduceCallForConstant(target, args, feedback_source, speculation_mode);
+  return ReduceCallForConstant(target, args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
     ValueNode* target_node, ValueNode* target_context,
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    const compiler::FeedbackSource& feedback_source) {
   // Do not reduce calls to functions with break points.
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
@@ -8634,7 +8606,8 @@ ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
 }
 
 ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
-    compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args) {
+    compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
   if (args.mode() != CallArguments::kDefault) return ReduceResult::Fail();
 
   ValueNode* function = GetTaggedOrUndefined(args.receiver());
@@ -8646,12 +8619,12 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   SaveCallSpeculationScope saved(this);
   if (args.count() == 0) {
     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
-    return ReduceCall(function, empty_args);
+    return ReduceCall(function, empty_args, feedback_source);
   }
   ValueNode* new_receiver = GetTaggedValue(args[0]);
   auto build_call_only_with_new_receiver = [&] {
     CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver});
-    return ReduceCall(function, new_args);
+    return ReduceCall(function, new_args, feedback_source);
   };
   if (args.count() == 1 || IsNullValue(args[1]) || IsUndefinedValue(args[1])) {
     return build_call_only_with_new_receiver();
@@ -8660,7 +8633,7 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   auto build_call_with_array_like = [&] {
     CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver, arg_list},
                            CallArguments::kWithArrayLike);
-    return ReduceCallWithArrayLike(function, new_args);
+    return ReduceCallWithArrayLike(function, new_args, feedback_source);
   };
   if (!MayBeNullOrUndefined(args[1])) {
     return build_call_with_array_like();
@@ -8696,9 +8669,9 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
       compiler::JSFunctionRef apply_function =
           native_context.function_prototype_apply(broker());
       RETURN_VOID_IF_ABORT(BuildCheckValue(target_node, apply_function));
-      PROCESS_AND_RETURN_IF_DONE(
-          ReduceFunctionPrototypeApplyCallWithReceiver(feedback_target, args),
-          SetAccumulator);
+      PROCESS_AND_RETURN_IF_DONE(ReduceFunctionPrototypeApplyCallWithReceiver(
+                                     feedback_target, args, feedback_source),
+                                 SetAccumulator);
       feedback_target = apply_function;
     } else {
       DCHECK_EQ(CallFeedbackContent::kTarget, content);
@@ -8706,14 +8679,14 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
     RETURN_VOID_IF_ABORT(BuildCheckValue(target_node, feedback_target));
   }
 
-  PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source,
-                                        call_feedback.speculation_mode()),
+  PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source),
                              SetAccumulator);
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     ValueNode* target_node, CallArguments& args,
-    VirtualObject* arguments_object) {
+    VirtualObject* arguments_object,
+    const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
   DCHECK(arguments_object->map().IsJSArgumentsObjectMap() ||
          arguments_object->map().IsJSArrayMap());
@@ -8748,7 +8721,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     DCHECK_EQ(elements_value->Cast<RootConstant>()->index(),
               RootIndex::kEmptyFixedArray);
     CallArguments new_args(ConvertReceiverMode::kAny, {args.receiver()});
-    return ReduceCall(target_node, new_args);
+    return ReduceCall(target_node, new_args, feedback_source);
   }
 
   if (Constant* constant_value = elements_value->TryCast<Constant>()) {
@@ -8764,7 +8737,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
       arg_list.push_back(GetConstant(*elements.TryGet(broker(), i)));
     }
     CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
-    return ReduceCall(target_node, new_args);
+    return ReduceCall(target_node, new_args, feedback_source);
   }
 
   DCHECK(elements_value->Is<InlinedAllocation>());
@@ -8784,7 +8757,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     arg_list.push_back(elements->get(FixedArray::OffsetOfElementAt(i)));
   }
   CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
-  return ReduceCall(target_node, new_args);
+  return ReduceCall(target_node, new_args, feedback_source);
 }
 
 namespace {
@@ -8826,15 +8799,16 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   return {};
 }
 
-ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(ValueNode* target_node,
-                                                         CallArguments& args) {
+ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(
+    ValueNode* target_node, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
 
   // TODO(victorgomes): Add the case for JSArrays and Rest parameter.
   if (std::optional<VirtualObject*> arguments_object =
           TryGetNonEscapingArgumentsObject(args.array_like_argument())) {
     RETURN_IF_DONE(ReduceCallWithArrayLikeForArgumentsObject(
-        target_node, args, *arguments_object));
+        target_node, args, *arguments_object, feedback_source));
   }
 
   // On fallthrough, create a generic call.
@@ -8843,14 +8817,12 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(ValueNode* target_node,
 
 ReduceResult MaglevGraphBuilder::ReduceCall(
     ValueNode* target_node, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    const compiler::FeedbackSource& feedback_source) {
   if (compiler::OptionalHeapObjectRef maybe_constant =
           TryGetConstant(target_node)) {
     if (maybe_constant->IsJSFunction()) {
-      ReduceResult result =
-          ReduceCallForTarget(target_node, maybe_constant->AsJSFunction(), args,
-                              feedback_source, speculation_mode);
+      ReduceResult result = ReduceCallForTarget(
+          target_node, maybe_constant->AsJSFunction(), args, feedback_source);
       RETURN_IF_DONE(result);
     }
   }
@@ -8864,7 +8836,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
         create_closure, create_closure->context().node(),
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source, speculation_mode);
+        feedback_source);
     RETURN_IF_DONE(result);
   } else if (CreateClosure* create_closure =
                  target_node->TryCast<CreateClosure>()) {
@@ -8872,7 +8844,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
         create_closure, create_closure->context().node(),
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source, speculation_mode);
+        feedback_source);
     RETURN_IF_DONE(result);
   }
 
@@ -10795,7 +10767,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
       CreateFixedArray(broker()->fixed_array_map(), length);
   for (int i = 0; i < length; i++) {
     elements->set(FixedArray::OffsetOfElementAt(i),
-                  GetInlinedTaggedArgument(i + start_index + 1));
+                  inlined_arguments_[i + start_index + 1]);
   }
   return elements;
 }
@@ -10815,7 +10787,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedUnmappedArgumentsElements(
   }
   for (; i < length; i++) {
     unmapped_elements->set(FixedArray::OffsetOfElementAt(i),
-                           GetInlinedTaggedArgument(i + 1));
+                           inlined_arguments_[i + 1]);
   }
   return unmapped_elements;
 }
@@ -12304,17 +12276,7 @@ ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
     FeedbackSlot call_slot = FeedbackVector::ToSlot(call_slot_index);
     compiler::FeedbackSource call_feedback{feedback(), call_slot};
     CallArguments args(ConvertReceiverMode::kAny, {receiver});
-
-    // TODO(victorgomes): Should we stop passing the speculation mode and rely
-    // on the call_feedback instead?
-    compiler::ProcessedFeedback const& processed_feedback =
-        broker()->GetFeedbackForCall(call_feedback);
-    SpeculationMode speculation_mode =
-        processed_feedback.IsInsufficient()
-            ? SpeculationMode::kDisallowSpeculation
-            : processed_feedback.AsCall().speculation_mode();
-    ReduceResult result_call =
-        ReduceCall(iterator_method, args, call_feedback, speculation_mode);
+    ReduceResult result_call = ReduceCall(iterator_method, args, call_feedback);
 
     if (result_call.IsDoneWithAbort()) return result_call;
     DCHECK(result_call.IsDoneWithValue());
