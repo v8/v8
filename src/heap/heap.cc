@@ -5258,7 +5258,6 @@ size_t Heap::YoungGenerationSizeOfObjects() const {
            new_lo_space()->SizeOfObjects();
   }
   if (!new_space()) return 0;
-  DCHECK(v8_flags.minor_ms);
   DCHECK_NOT_NULL(new_lo_space());
   return new_space()->SizeOfObjects() + new_lo_space()->SizeOfObjects();
 }
