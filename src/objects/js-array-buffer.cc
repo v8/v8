@@ -256,7 +256,6 @@ void JSArrayBuffer::YoungMarkExtension() {
 void JSArrayBuffer::YoungMarkExtensionPromoted() {
   ArrayBufferExtension* extension = this->extension();
   if (extension) {
-    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, extension->age());
     extension->YoungMarkPromoted();
   }
 }
