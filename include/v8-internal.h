@@ -1582,6 +1582,13 @@ class HandleHelper final {
 
 V8_EXPORT void VerifyHandleIsNonEmpty(bool is_empty);
 
+// These functions are here just to match friend declarations in
+// XxxCallbackInfo classes allowing these functions to access the internals
+// of the info objects. These functions are supposed to be called by debugger
+// macros.
+void PrintFunctionCallbackInfo(void* function_callback_info);
+void PrintPropertyCallbackInfo(void* property_callback_info);
+
 }  // namespace internal
 }  // namespace v8
 

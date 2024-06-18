@@ -163,6 +163,7 @@ class FunctionCallbackInfo {
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
   friend class debug::ConsoleCallArguments;
+  friend void internal::PrintFunctionCallbackInfo(void*);
 
   static constexpr int kHolderIndex = 0;
   static constexpr int kIsolateIndex = 1;
@@ -317,6 +318,8 @@ class PropertyCallbackInfo {
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
+  friend void internal::PrintPropertyCallbackInfo(void*);
+
   static constexpr int kShouldThrowOnErrorIndex = 0;
   static constexpr int kHolderIndex = 1;
   static constexpr int kIsolateIndex = 2;

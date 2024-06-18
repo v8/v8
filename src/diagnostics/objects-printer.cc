@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/api/api-arguments.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -59,6 +60,88 @@ void Print(Tagged<Object> obj, std::ostream& os) {
   } else {
     Cast<HeapObject>(obj)->HeapObjectPrint(os);
   }
+}
+
+namespace {
+
+#define AS_PTR(x) reinterpret_cast<void*>(x)
+#define AS_OBJ(x) Brief(Tagged<Object>(x))
+
+void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
+                               Address length, std::ostream& os) {
+  using FCA = FunctionCallbackArguments;
+
+  static_assert(FCA::kArgsLength == 6);
+  os << "FunctionCallbackInfo: "  //
+     << "\n - isolate: " << AS_PTR(implicit_args[FCA::kIsolateIndex])
+     << "\n - return_value: " << AS_OBJ(implicit_args[FCA::kReturnValueIndex])
+     << "\n - target: " << AS_OBJ(implicit_args[FCA::kTargetIndex])
+     << "\n - new_target: " << AS_OBJ(implicit_args[FCA::kNewTargetIndex])
+     << "\n - holder: " << AS_OBJ(implicit_args[FCA::kHolderIndex])
+
+     << "\n - argc: " << length  //
+     << "\n - receiver: " << AS_OBJ(js_args[0]);
+
+  constexpr int kMaxArgs = 4;
+  for (int i = 0; i < std::min(static_cast<int>(length), kMaxArgs); i++) {
+    os << "\n - arg[" << i << "]: " << AS_OBJ(js_args[i]);
+  }
+  os << "\n";
+}
+
+void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
+  using PCA = internal::PropertyCallbackArguments;
+
+  static_assert(PCA::kArgsLength == 7);
+  os << "FunctionCallbackInfo: "  //
+     << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
+     << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
+     << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
+     << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
+     << "\n - holderV2: " << AS_OBJ(args[PCA::kHolderV2Index])
+     << "\n - data: " << AS_OBJ(args[PCA::kDataIndex])  //
+     << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
+
+  // In case it's a setter call there will be additional |value| parameter,
+  // print it as a raw pointer to avoid crashing.
+  os << "\n - value?: " << AS_PTR(args[PCA::kArgsLength]);
+  os << "\n";
+}
+
+#undef AS_PTR
+#undef AS_OBJ
+
+}  // namespace
+
+void PrintFunctionCallbackInfo(void* function_callback_info) {
+  using FCI = v8::FunctionCallbackInfo<v8::Value>;
+  FCI& info = *reinterpret_cast<FCI*>(function_callback_info);
+
+  // |values| points to the first argument after the receiver.
+  Address* js_args = info.values_ - 1;
+
+  // Output into debugger's command window if a debugger is attached.
+  DbgStdoutStream dbg_os;
+  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, dbg_os);
+  dbg_os << std::flush;
+
+  StdoutStream os;
+  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, os);
+  os << std::flush;
+}
+
+void PrintPropertyCallbackInfo(void* property_callback_info) {
+  using PCI = v8::PropertyCallbackInfo<v8::Value>;
+  PCI& info = *reinterpret_cast<PCI*>(property_callback_info);
+
+  // Output into debugger's command window if a debugger is attached.
+  DbgStdoutStream dbg_os;
+  PrintPropertyCallbackInfo(info.args_, dbg_os);
+  dbg_os << std::flush;
+
+  StdoutStream os;
+  PrintPropertyCallbackInfo(info.args_, os);
+  os << std::flush;
 }
 
 namespace {
@@ -3977,5 +4060,21 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object_MarkBit(void* object) {
      << (mark_bit.Get() ? "marked" : "unmarked") << std::endl;
   os << "  mark-bit cell: " << mark_bit.CellAddress()
      << ", mask: " << mark_bit.Mask() << std::endl;
+#endif
+}
+
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE void _v8_internal_Print_FunctionCallbackInfo(
+    void* function_callback_info) {
+#ifdef OBJECT_PRINT
+  i::PrintFunctionCallbackInfo(function_callback_info);
+#endif
+}
+
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE void _v8_internal_Print_PropertyCallbackInfo(
+    void* property_callback_info) {
+#ifdef OBJECT_PRINT
+  i::PrintPropertyCallbackInfo(property_callback_info);
 #endif
 }
