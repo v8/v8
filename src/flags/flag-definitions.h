@@ -311,10 +311,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                      \
-  V(harmony_array_from_async, "harmony Array.fromAsync")              \
-  V(harmony_iterator_helpers, "JavaScript iterator helpers")          \
-  V(harmony_set_methods, "harmony Set Methods")                       \
+#define HARMONY_SHIPPING_BASE(V)                             \
+  V(harmony_array_from_async, "harmony Array.fromAsync")     \
+  V(harmony_iterator_helpers, "JavaScript iterator helpers") \
+  V(harmony_set_methods, "harmony Set Methods")              \
   V(harmony_import_attributes, "harmony import attributes")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                           \
@@ -1670,9 +1670,8 @@ FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
 DEFINE_BOOL(wasm_opt, true, "enable wasm optimization")
-DEFINE_BOOL(
-    wasm_bounds_checks, true,
-    "enable bounds checks (disable for performance testing only)")
+DEFINE_BOOL(wasm_bounds_checks, true,
+            "enable bounds checks (disable for performance testing only)")
 DEFINE_BOOL(wasm_stack_checks, true,
             "enable stack checks (disable for performance testing only)")
 DEFINE_BOOL(
@@ -2162,8 +2161,7 @@ DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
             "enable simulator trap to debugger")
 DEFINE_BOOL(riscv_debug, false, "enable debug prints")
 
-DEFINE_BOOL(riscv_constant_pool, true,
-            "enable constant pool (RISCV only)")
+DEFINE_BOOL(riscv_constant_pool, true, "enable constant pool (RISCV only)")
 
 DEFINE_BOOL(riscv_c_extension, false,
             "enable compressed extension isa variant (RISCV only)")
@@ -2587,6 +2585,13 @@ DEFINE_BOOL(default_to_experimental_regexp_engine, false,
             "run regexps with the experimental engine where possible")
 DEFINE_IMPLICATION(default_to_experimental_regexp_engine,
                    enable_experimental_regexp_engine)
+DEFINE_BOOL(experimental_regexp_engine_capture_group_opt, false,
+            "enable time optimizations for the experimental regexp engine")
+DEFINE_IMPLICATION(experimental_regexp_engine_capture_group_opt,
+                   enable_experimental_regexp_engine)
+DEFINE_UINT64(experimental_regexp_engine_capture_group_opt_max_memory_usage,
+              1024,
+              "maximum memory usage in MB allowed for experimental engine")
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 
