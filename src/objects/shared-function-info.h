@@ -698,13 +698,11 @@ class SharedFunctionInfo
   // literal.
   template <typename IsolateT>
   static void InitFromFunctionLiteral(IsolateT* isolate,
-                                      Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
   template <typename IsolateT>
-  static void CreateAndSetUncompiledData(
-      IsolateT* isolate, DirectHandle<SharedFunctionInfo> shared_info,
-      FunctionLiteral* lit);
+  static void CreateAndSetUncompiledData(IsolateT* isolate,
+                                         FunctionLiteral* lit);
 
   // Updates the expected number of properties based on estimate from parser.
   void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);

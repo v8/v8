@@ -2992,11 +2992,9 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
     // then create one and enqueue it. Otherwise, we're reparsing (e.g. for the
     // debugger, source position collection, call printing, recompile after
     // flushing, etc.) and don't want to over-compile.
-    Handle<SharedFunctionInfo> shared_info;
-    if (!Script::FindSharedFunctionInfo(script_, local_isolate_, literal)
-             .ToHandle(&shared_info)) {
-      shared_info =
-          Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
+    Handle<SharedFunctionInfo> shared_info =
+        Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
+    if (!shared_info->is_compiled()) {
       info()->dispatcher()->Enqueue(local_isolate_, shared_info,
                                     info()->character_stream()->Clone());
     }

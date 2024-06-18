@@ -153,9 +153,19 @@ class V8_NODISCARD ScopedLoggerInitializer {
       size_t start = 0) {
     CHECK_GT(log_.size(), 0);
     for (auto& search_terms : all_line_search_terms) {
-      start = IndexOfLine(search_terms, start);
-      if (start == std::string::npos) return false;
-      ++start;  // Skip the found line.
+      size_t next = IndexOfLine(search_terms, start);
+      if (next == std::string::npos) {
+        for (size_t i = 0; i < search_terms.size(); ++i) {
+          printf("%s ", search_terms[i].c_str());
+        }
+        printf(" -- mismatch\n");
+        printf("Log contents:\n");
+        for (size_t i = start; i < log_.size(); ++i) {
+          printf("%s\n", log_.at(start).c_str());
+        }
+        return false;
+      }
+      start = next + 1;  // Skip the found line.
     }
     return true;
   }

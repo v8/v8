@@ -490,8 +490,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       literal->GetName(isolate()), {}, Builtin::kCompileLazy, kind);
-  SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
-                                              is_toplevel);
+  shared->set_function_literal_id(literal->function_literal_id());
+  literal->set_shared_function_info(shared);
+  SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
                     false);
   return shared;

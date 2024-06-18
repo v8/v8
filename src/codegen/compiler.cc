@@ -767,8 +767,8 @@ void EnsureSharedFunctionInfosArrayOnScript(DirectHandle<Script> script,
   script->set_shared_function_infos(*infos);
 }
 
-void UpdateSharedFunctionFlagsAfterCompilation(
-    FunctionLiteral* literal, Tagged<SharedFunctionInfo> shared_info) {
+void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal) {
+  Tagged<SharedFunctionInfo> shared_info = *literal->shared_function_info();
   DCHECK_EQ(shared_info->language_mode(), literal->language_mode());
 
   // These fields are all initialised in ParseInfo from the SharedFunctionInfo,
@@ -857,8 +857,7 @@ ExecuteSingleUnoptimizedCompilationJob(
 
 template <typename IsolateT>
 bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-    IsolateT* isolate, Handle<SharedFunctionInfo> outer_shared_info,
-    Handle<Script> script, ParseInfo* parse_info,
+    IsolateT* isolate, Handle<Script> script, ParseInfo* parse_info,
     AccountingAllocator* allocator, IsCompiledScope* is_compiled_scope,
     FinalizeUnoptimizedCompilationDataList*
         finalize_unoptimized_compilation_data_list,
@@ -870,23 +869,10 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
   functions_to_compile.push_back(parse_info->literal());
 
   bool compilation_succeeded = true;
-  bool is_first = true;
   while (!functions_to_compile.empty()) {
     FunctionLiteral* literal = functions_to_compile.back();
     functions_to_compile.pop_back();
-    Handle<SharedFunctionInfo> shared_info;
-    if (is_first) {
-      // We get the first SharedFunctionInfo directly as outer_shared_info
-      // rather than with Compiler::GetSharedFunctionInfo, to support
-      // placeholder SharedFunctionInfos that aren't on the script's SFI list.
-      DCHECK_EQ(literal->function_literal_id(),
-                outer_shared_info->function_literal_id());
-      shared_info = outer_shared_info;
-      is_first = false;
-    } else {
-      shared_info = Compiler::GetSharedFunctionInfo(literal, script, isolate);
-    }
-
+    Handle<SharedFunctionInfo> shared_info = literal->shared_function_info();
     if (shared_info->is_compiled()) continue;
 
     std::unique_ptr<UnoptimizedCompilationJob> job =
@@ -899,8 +885,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
       // the shared function info contains uncompiled data for the next
       // compilation attempts.
       if (!shared_info->HasUncompiledData()) {
-        SharedFunctionInfo::CreateAndSetUncompiledData(isolate, shared_info,
-                                                       literal);
+        SharedFunctionInfo::CreateAndSetUncompiledData(isolate, literal);
       }
       compilation_succeeded = false;
       // Proceed finalizing other functions in case they don't have uncompiled
@@ -908,7 +893,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
       continue;
     }
 
-    UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
+    UpdateSharedFunctionFlagsAfterCompilation(literal);
 
     auto finalization_status = FinalizeSingleUnoptimizedCompilationJob(
         job.get(), shared_info, isolate,
@@ -916,7 +901,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
 
     switch (finalization_status) {
       case CompilationJob::SUCCEEDED:
-        if (shared_info.is_identical_to(outer_shared_info)) {
+        if (literal == parse_info->literal()) {
           // Ensure that the top level function is retained.
           *is_compiled_scope = shared_info->is_compiled_scope(isolate);
           DCHECK(is_compiled_scope->is_compiled());
@@ -1600,9 +1585,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 
   // Prepare and execute compilation of the outer-most function.
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-          isolate, shared_info, script, parse_info, isolate->allocator(),
-          is_compiled_scope, &finalize_unoptimized_compilation_data_list,
-          nullptr)) {
+          isolate, script, parse_info, isolate->allocator(), is_compiled_scope,
+          &finalize_unoptimized_compilation_data_list, nullptr)) {
     FailWithException(isolate, script, parse_info,
                       Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
@@ -1981,20 +1965,20 @@ void BackgroundCompileTask::Run(
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
   if (info.literal() != nullptr) {
-    Handle<SharedFunctionInfo> shared_info;
     if (toplevel_script_compilation) {
-      shared_info = CreateTopLevelSharedFunctionInfo(&info, script_, isolate);
+      CreateTopLevelSharedFunctionInfo(&info, script_, isolate);
     } else {
       // Clone into a placeholder SFI for storing the results.
-      shared_info = isolate->factory()->CloneSharedFunctionInfo(
-          input_shared_info_.ToHandleChecked());
+      info.literal()->set_shared_function_info(
+          isolate->factory()->CloneSharedFunctionInfo(
+              input_shared_info_.ToHandleChecked()));
     }
 
     if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-            isolate, shared_info, script_, &info, reusable_state->allocator(),
+            isolate, script_, &info, reusable_state->allocator(),
             &is_compiled_scope_, &finalize_unoptimized_compilation_data_,
             &jobs_to_retry_finalization_on_main_thread_)) {
-      maybe_result = shared_info;
+      maybe_result = info.literal()->shared_function_info();
     }
   }
 
@@ -2638,15 +2622,15 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
                          parsing::ReportStatisticsMode::kYes)) {
     return FailWithException(isolate, script, &parse_info, flag);
   }
+  parse_info.literal()->set_shared_function_info(shared_info);
 
   // Generate the unoptimized bytecode or asm-js data.
   FinalizeUnoptimizedCompilationDataList
       finalize_unoptimized_compilation_data_list;
 
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-          isolate, shared_info, script, &parse_info, isolate->allocator(),
-          is_compiled_scope, &finalize_unoptimized_compilation_data_list,
-          nullptr)) {
+          isolate, script, &parse_info, isolate->allocator(), is_compiled_scope,
+          &finalize_unoptimized_compilation_data_list, nullptr)) {
     return FailWithException(isolate, script, &parse_info, flag);
   }
 

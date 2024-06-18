@@ -515,13 +515,15 @@ void SharedFunctionInfo::DisableOptimization(Isolate* isolate,
 
 // static
 template <typename IsolateT>
-void SharedFunctionInfo::InitFromFunctionLiteral(
-    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
-    FunctionLiteral* lit, bool is_toplevel) {
-  DCHECK(!IsScopeInfo(shared_info->name_or_scope_info(kAcquireLoad)));
+void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
+                                                 FunctionLiteral* lit,
+                                                 bool is_toplevel) {
+  DCHECK(!IsScopeInfo(
+      lit->shared_function_info()->name_or_scope_info(kAcquireLoad)));
   {
     DisallowGarbageCollection no_gc;
-    Tagged<SharedFunctionInfo> raw_sfi = *shared_info;
+    Tagged<SharedFunctionInfo> raw_sfi = *lit->shared_function_info();
+    DCHECK_EQ(raw_sfi->function_literal_id(), lit->function_literal_id());
     // When adding fields here, make sure DeclarationScope::AnalyzePartially is
     // updated accordingly.
     raw_sfi->set_internal_formal_parameter_count(
@@ -531,7 +533,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     raw_sfi->set_syntax_kind(lit->syntax_kind());
     raw_sfi->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
     raw_sfi->set_language_mode(lit->language_mode());
-    raw_sfi->set_function_literal_id(lit->function_literal_id());
     // FunctionKind must have already been set.
     DCHECK(lit->kind() == raw_sfi->kind());
     DCHECK_IMPLIES(lit->requires_instance_members_initializer(),
@@ -577,14 +578,13 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
     raw_sfi->UpdateExpectedNofPropertiesFromEstimate(lit);
   }
-  CreateAndSetUncompiledData(isolate, shared_info, lit);
+  CreateAndSetUncompiledData(isolate, lit);
 }
 
 template <typename IsolateT>
-void SharedFunctionInfo::CreateAndSetUncompiledData(
-    IsolateT* isolate, DirectHandle<SharedFunctionInfo> shared_info,
-    FunctionLiteral* lit) {
-  DCHECK(!shared_info->HasUncompiledData());
+void SharedFunctionInfo::CreateAndSetUncompiledData(IsolateT* isolate,
+                                                    FunctionLiteral* lit) {
+  DCHECK(!lit->shared_function_info()->HasUncompiledData());
   Handle<UncompiledData> data;
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
@@ -611,26 +611,22 @@ void SharedFunctionInfo::CreateAndSetUncompiledData(
     }
   }
 
-  shared_info->set_uncompiled_data(*data);
+  lit->shared_function_info()->set_uncompiled_data(*data);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
     InitFromFunctionLiteral<Isolate>(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> shared_info,
                                      FunctionLiteral* lit, bool is_toplevel);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
-    InitFromFunctionLiteral<LocalIsolate>(
-        LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
-        FunctionLiteral* lit, bool is_toplevel);
+    InitFromFunctionLiteral<LocalIsolate>(LocalIsolate* isolate,
+                                          FunctionLiteral* lit,
+                                          bool is_toplevel);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
-    CreateAndSetUncompiledData<Isolate>(
-        Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
-        FunctionLiteral* lit);
+    CreateAndSetUncompiledData<Isolate>(Isolate* isolate, FunctionLiteral* lit);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
-    CreateAndSetUncompiledData<LocalIsolate>(
-        LocalIsolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
-        FunctionLiteral* lit);
+    CreateAndSetUncompiledData<LocalIsolate>(LocalIsolate* isolate,
+                                             FunctionLiteral* lit);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
     FunctionLiteral* literal) {

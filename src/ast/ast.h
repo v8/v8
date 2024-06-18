@@ -20,6 +20,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
@@ -2304,25 +2305,20 @@ class FunctionLiteral final : public Expression {
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Handle<String> GetInferredName(Isolate* isolate) {
-    if (!inferred_name_.is_null()) {
-      DCHECK_NULL(raw_inferred_name_);
-      return inferred_name_;
-    }
-    if (raw_inferred_name_ != nullptr) {
-      return raw_inferred_name_->GetString(isolate);
-    }
-    UNREACHABLE();
-  }
+  Handle<String> GetInferredName(Isolate* isolate);
   Handle<String> GetInferredName(LocalIsolate* isolate) const {
-    DCHECK(inferred_name_.is_null());
     DCHECK_NOT_NULL(raw_inferred_name_);
     return raw_inferred_name_->GetString(isolate);
   }
-  const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
 
-  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
-  void set_inferred_name(Handle<String> inferred_name);
+  Handle<SharedFunctionInfo> shared_function_info() const {
+    return shared_function_info_;
+  }
+  void set_shared_function_info(
+      Handle<SharedFunctionInfo> shared_function_info);
+
+  const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
+  // This should only be called if we don't have a shared function info yet.
   void set_raw_inferred_name(AstConsString* raw_inferred_name);
 
   bool pretenure() const { return Pretenure::decode(bit_field_); }
@@ -2455,7 +2451,7 @@ class FunctionLiteral final : public Expression {
   DeclarationScope* scope_;
   ZonePtrList<Statement> body_;
   AstConsString* raw_inferred_name_;
-  Handle<String> inferred_name_;
+  Handle<SharedFunctionInfo> shared_function_info_;
   ProducedPreparseData* produced_preparse_data_;
 };
 

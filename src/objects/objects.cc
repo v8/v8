@@ -4589,8 +4589,8 @@ template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
+  DCHECK(function_literal->shared_function_info().is_null());
   int function_literal_id = function_literal->function_literal_id();
-
   CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
@@ -4604,7 +4604,10 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
       IsUndefined(heap_object, isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
-  return handle(Cast<SharedFunctionInfo>(heap_object), isolate);
+  Handle<SharedFunctionInfo> result(Cast<SharedFunctionInfo>(heap_object),
+                                    isolate);
+  function_literal->set_shared_function_info(result);
+  return result;
 }
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, Isolate* isolate,

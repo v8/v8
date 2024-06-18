@@ -180,20 +180,26 @@ Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
   bit_field_ |= TokenField::encode(op);
 }
 
-void FunctionLiteral::set_inferred_name(Handle<String> inferred_name) {
-  DCHECK(!inferred_name.is_null());
-  inferred_name_ = inferred_name;
-  DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
-  raw_inferred_name_ = nullptr;
+void FunctionLiteral::set_raw_inferred_name(AstConsString* raw_inferred_name) {
+  DCHECK_NOT_NULL(raw_inferred_name);
+  DCHECK(shared_function_info_.is_null());
+  raw_inferred_name_ = raw_inferred_name;
   scope()->set_has_inferred_function_name(true);
 }
 
-void FunctionLiteral::set_raw_inferred_name(AstConsString* raw_inferred_name) {
-  DCHECK_NOT_NULL(raw_inferred_name);
-  raw_inferred_name_ = raw_inferred_name;
-  DCHECK(inferred_name_.is_null());
-  inferred_name_ = Handle<String>();
-  scope()->set_has_inferred_function_name(true);
+Handle<String> FunctionLiteral::GetInferredName(Isolate* isolate) {
+  if (raw_inferred_name_ != nullptr) {
+    return raw_inferred_name_->GetString(isolate);
+  }
+  DCHECK(!shared_function_info_.is_null());
+  return handle(shared_function_info_->inferred_name(), isolate);
+}
+
+void FunctionLiteral::set_shared_function_info(
+    Handle<SharedFunctionInfo> shared_function_info) {
+  DCHECK(shared_function_info_.is_null());
+  CHECK_EQ(shared_function_info->function_literal_id(), function_literal_id_);
+  shared_function_info_ = shared_function_info;
 }
 
 bool FunctionLiteral::ShouldEagerCompile() const {
@@ -226,8 +232,8 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     cons_string = raw_name_;
   } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
     cons_string = raw_inferred_name_;
-  } else if (!inferred_name_.is_null()) {
-    return inferred_name_->ToCString();
+  } else if (!shared_function_info_.is_null()) {
+    return shared_function_info_->inferred_name()->ToCString();
   } else {
     char* empty_str = new char[1];
     empty_str[0] = 0;
