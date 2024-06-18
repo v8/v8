@@ -2036,8 +2036,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_DoubleFromWord32Pair:
-      __ clrldi(i.TempRegister(0), i.InputRegister(1), Operand(32));
-      __ ShiftLeftU64(kScratchReg, i.InputRegister(0), Operand(32));
+      __ clrldi(kScratchReg, i.InputRegister(1), Operand(32));
+      __ ShiftLeftU64(i.TempRegister(0), i.InputRegister(0), Operand(32));
       __ OrU64(i.TempRegister(0), i.TempRegister(0), kScratchReg);
       __ MovInt64ToDouble(i.OutputDoubleRegister(), i.TempRegister(0));
       break;

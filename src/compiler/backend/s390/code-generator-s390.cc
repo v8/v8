@@ -2218,8 +2218,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(32));
       break;
     case kS390_DoubleFromWord32Pair:
-      __ LoadU32(i.TempRegister(0), i.InputRegister(1));
-      __ ShiftLeftU64(kScratchReg, i.InputRegister(0), Operand(32));
+      __ LoadU32(kScratchReg, i.InputRegister(1));
+      __ ShiftLeftU64(i.TempRegister(0), i.InputRegister(0), Operand(32));
       __ OrP(i.TempRegister(0), i.TempRegister(0), kScratchReg);
       __ MovInt64ToDouble(i.OutputDoubleRegister(), i.TempRegister(0));
       break;
