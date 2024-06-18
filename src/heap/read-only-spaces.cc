@@ -759,7 +759,12 @@ size_t ReadOnlySpace::AllocateNextPage() {
 size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   ReadOnlyPageMetadata* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
-  // If this fails we probably allocated r/o space too late.
+  if (!page) {
+    heap_->FatalProcessOutOfMemory("ReadOnly allocation failure");
+  }
+  // If this fails we got a wrong page. This means something allocated a page in
+  // the shared cage before us, stealing our required page (i.e.,
+  // ReadOnlyHeap::SetUp was called too late).
   CHECK_EQ(pos, page->ChunkAddress());
   capacity_ += AreaSize();
   AccountCommitted(page->size());
