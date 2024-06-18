@@ -111,7 +111,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
                                  BytecodeOffset::None()) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
-                           CodeKind code_kind);
+                           CodeKind code_kind,
+                           Builtin builtin = Builtin::kNoBuiltinId);
 
   OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
   OptimizedCompilationInfo& operator=(const OptimizedCompilationInfo&) = delete;

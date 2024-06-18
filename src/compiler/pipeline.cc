@@ -2643,6 +2643,11 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
 
 namespace {
 
+int HashGraphForPGO(const turboshaft::Graph* graph) {
+  // TODO(nicohartmann): Implement some kind of hashing.
+  return 42;
+}
+
 // Compute a hash of the given graph, in a way that should provide the same
 // result in multiple runs of mksnapshot, meaning the hash cannot depend on any
 // external pointer values or uncompressed heap constants. This hash can be used
@@ -2650,7 +2655,7 @@ namespace {
 // version that was profiled. Hash collisions are not catastrophic; in the worst
 // case, we just defer some blocks that ideally shouldn't be deferred. The
 // result value is in the valid Smi range.
-int HashGraphForPGO(Graph* graph) {
+int HashGraphForPGO(const Graph* graph) {
   AccountingAllocator allocator;
   Zone local_zone(&allocator, ZONE_NAME);
 
@@ -2707,9 +2712,68 @@ int HashGraphForPGO(Graph* graph) {
   return Tagged<Smi>(IntToSmi(static_cast<int>(hash))).value();
 }
 
+template <typename Graph>
+int ComputeInitialGraphHash(Builtin builtin,
+                            const ProfileDataFromFile* profile_data,
+                            const Graph* graph) {
+  int initial_graph_hash = 0;
+  if (v8_flags.turbo_profiling || v8_flags.dump_builtins_hashes_to_file ||
+      profile_data != nullptr) {
+    initial_graph_hash = HashGraphForPGO(graph);
+    if (v8_flags.dump_builtins_hashes_to_file) {
+      std::ofstream out(v8_flags.dump_builtins_hashes_to_file,
+                        std::ios_base::app);
+      out << "Builtin: " << Builtins::name(builtin) << ", hash: 0x" << std::hex
+          << initial_graph_hash << std::endl;
+    }
+  }
+  return initial_graph_hash;
+}
+
+const ProfileDataFromFile* ValidateProfileData(
+    const ProfileDataFromFile* profile_data, int initial_graph_hash,
+    const char* debug_name) {
+  if (profile_data != nullptr && profile_data->hash() != initial_graph_hash) {
+    if (v8_flags.reorder_builtins) {
+      BuiltinsCallGraph::Get()->set_all_hash_matched(false);
+    }
+    if (v8_flags.abort_on_bad_builtin_profile_data ||
+        v8_flags.warn_about_builtin_profile_data) {
+      base::EmbeddedVector<char, 256> msg;
+      SNPrintF(msg,
+               "Rejected profile data for %s due to function change. "
+               "Please use tools/builtins-pgo/generate.py to refresh it.",
+               debug_name);
+      if (v8_flags.abort_on_bad_builtin_profile_data) {
+        // mksnapshot might fail here because of the following reasons:
+        // * builtins were changed since the builtins profile generation,
+        // * current build options affect builtins code and they don't match
+        //   the options used for building the profile (for example, it might
+        //   be because of gn argument 'dcheck_always_on=true').
+        // To fix the issue one must either update the builtins PGO profiles
+        // (see tools/builtins-pgo/generate.py) or disable builtins PGO by
+        // setting gn argument v8_builtins_profiling_log_file="".
+        // One might also need to update the tools/builtins-pgo/generate.py if
+        // the set of default release arguments has changed.
+        FATAL("%s", msg.begin());
+      } else {
+        PrintF("%s\n", msg.begin());
+      }
+    }
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+    if (v8_flags.turbo_log_builtins_count_input) {
+      PrintF("The hash came from execution count file for %s was not match!\n",
+             debug_name);
+    }
+#endif
+    return nullptr;
+  }
+  return profile_data;
+}
+
 }  // namespace
 
-// TODO(nicohartmann): Move this to turboshaft::Pipeline eventually.
+// TODO(nicohartmann): Move more of this to turboshaft::Pipeline eventually.
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
@@ -2744,6 +2808,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   PipelineImpl pipeline(&data);
 
+  // Trace initial graph (if requested).
   if (info.trace_turbo_json() || info.trace_turbo_graph()) {
     CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
     tracing_scope.stream()
@@ -2760,125 +2825,34 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
 
-  int initial_graph_hash = 0;
-  if (v8_flags.turbo_profiling || v8_flags.dump_builtins_hashes_to_file ||
-      profile_data != nullptr) {
-    initial_graph_hash = HashGraphForPGO(data.graph());
-    if (v8_flags.dump_builtins_hashes_to_file) {
-      std::ofstream out(v8_flags.dump_builtins_hashes_to_file,
-                        std::ios_base::app);
-      out << "Builtin: " << Builtins::name(builtin) << ", hash: 0x" << std::hex
-          << initial_graph_hash << std::endl;
-    }
-  }
-
-  if (profile_data != nullptr && profile_data->hash() != initial_graph_hash) {
-    if (v8_flags.reorder_builtins) {
-      BuiltinsCallGraph::Get()->set_all_hash_matched(false);
-    }
-    if (v8_flags.abort_on_bad_builtin_profile_data ||
-        v8_flags.warn_about_builtin_profile_data) {
-      base::EmbeddedVector<char, 256> msg;
-      SNPrintF(msg,
-               "Rejected profile data for %s due to function change. "
-               "Please use tools/builtins-pgo/generate.py to refresh it.",
-               debug_name);
-      if (v8_flags.abort_on_bad_builtin_profile_data) {
-        // mksnapshot might fail here because of the following reasons:
-        // * builtins were changed since the builtins profile generation,
-        // * current build options affect builtins code and they don't match
-        //   the options used for building the profile (for example, it might
-        //   be because of gn argument 'dcheck_always_on=true').
-        // To fix the issue one must either update the builtins PGO profiles
-        // (see tools/builtins-pgo/generate.py) or disable builtins PGO by
-        // setting gn argument v8_builtins_profiling_log_file="".
-        // One might also need to update the tools/builtins-pgo/generate.py if
-        // the set of default release arguments has changed.
-        FATAL("%s", msg.begin());
-      } else {
-        PrintF("%s\n", msg.begin());
-      }
-    }
-#ifdef LOG_BUILTIN_BLOCK_COUNT
-    if (v8_flags.turbo_log_builtins_count_input) {
-      PrintF("The hash came from execution count file for %s was not match!\n",
-             debug_name);
-    }
-#endif
-    profile_data = nullptr;
-    data.set_profile_data(profile_data);
-  }
+  // Validate pgo profile.
+  const int initial_graph_hash =
+      ComputeInitialGraphHash(builtin, profile_data, data.graph());
+  profile_data =
+      ValidateProfileData(profile_data, initial_graph_hash, debug_name);
+  data.set_profile_data(profile_data);
 
   if (v8_flags.turboshaft_csa) {
     pipeline.ComputeScheduledGraph();
+    DCHECK_NULL(data.frame());
     DCHECK_NOT_NULL(data.schedule());
-
-    UnparkedScopeIfNeeded scope(data.broker(),
-                                v8_flags.turboshaft_trace_reduction);
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-    DCHECK_EQ(options.is_wasm,
-              data.info()->IsWasm() || data.info()->IsWasmBuiltin());
-#endif
 
     turboshaft::PipelineData turboshaft_data(
         data.zone_stats(), turboshaft::TurboshaftPipelineKind::kCSA,
         data.isolate(), data.info(), data.start_source_position(), options);
 
-    turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
-
-    turboshaft::Tracing::Scope tracing_scope(data.info());
-
+    turboshaft::BuiltinPipeline turboshaft_pipeline(&turboshaft_data);
     Linkage linkage(call_descriptor);
-    base::Optional<BailoutReason> bailout =
-        turboshaft_pipeline.Run<turboshaft::BuildGraphPhase>(&data, &linkage);
-    CHECK(!bailout.has_value());
+    CHECK(turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage));
 
-    turboshaft_pipeline.Run<turboshaft::CsaEarlyMachineOptimizationPhase>();
-    turboshaft_pipeline.Run<turboshaft::CsaLoadEliminationPhase>();
-    turboshaft_pipeline.Run<turboshaft::CsaLateEscapeAnalysisPhase>();
-    turboshaft_pipeline.Run<turboshaft::CsaBranchEliminationPhase>();
-    turboshaft_pipeline.Run<turboshaft::CsaOptimizePhase>();
+    turboshaft_pipeline.OptimizeBuiltin();
 
-    turboshaft_pipeline
-        .Run<turboshaft::CodeEliminationAndSimplificationPhase>();
-
-    // Run a first round of code generation, in order to be able
-    // to repeat it for jump optimization.
-    DCHECK_NULL(data.frame());
-    turboshaft_data.InitializeCodegenComponent(data.osr_helper_ptr(),
-                                               jump_optimization_info);
-    turboshaft_pipeline.PrepareForInstructionSelection(profile_data);
-    CHECK(turboshaft_pipeline.SelectInstructions(&linkage));
-    CHECK(
-        turboshaft_pipeline.AllocateRegisters(linkage.GetIncomingDescriptor()));
-
-    turboshaft_pipeline.AssembleCode(&linkage);
-
-    if (v8_flags.turbo_profiling) {
-      info.profiler_data()->SetHash(initial_graph_hash);
-    }
-
-    if (jump_opt.is_optimizable()) {
-      // Reset data for a second run of instruction selection.
-      turboshaft_data.ClearCodegenComponent();
-
-      jump_opt.set_optimizing();
-
-      // Perform instruction selection and register allocation.
-      turboshaft_data.InitializeCodegenComponent(data.osr_helper_ptr(),
-                                                 jump_optimization_info);
-      CHECK(turboshaft_pipeline.SelectInstructions(&linkage));
-      turboshaft_pipeline.AllocateRegisters(linkage.GetIncomingDescriptor());
-
-      // Generate the final machine code.
-      turboshaft_pipeline.AssembleCode(&linkage);
-
-      return turboshaft_pipeline.FinalizeCode();
-    } else {
-      return turboshaft_pipeline.FinalizeCode();
-    }
+    CHECK_NULL(data.osr_helper_ptr());
+    return turboshaft_pipeline.GenerateCode(&linkage, data.osr_helper_ptr(),
+                                            jump_optimization_info,
+                                            profile_data, initial_graph_hash);
   } else {
+    // TODO(nicohartmann): Remove once `--turboshaft-csa` is the default.
     pipeline.Run<CsaEarlyOptimizationPhase>();
     pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
 
@@ -2927,6 +2901,44 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
       return second_pipeline.FinalizeCode();
     }
   }
+}
+
+MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
+    turboshaft::PipelineData* turboshaft_data, CallDescriptor* call_descriptor,
+    Builtin builtin, const char* debug_name,
+    const ProfileDataFromFile* profile_data) {
+  DCHECK_EQ(builtin, turboshaft_data->info()->builtin());
+  Isolate* isolate = turboshaft_data->isolate();
+
+  // Initialize JumpOptimizationInfo if required.
+  JumpOptimizationInfo jump_opt;
+  bool should_optimize_jumps =
+      isolate->serializer_enabled() && v8_flags.turbo_rewrite_far_jumps &&
+      !v8_flags.turbo_profiling && !v8_flags.dump_builtins_hashes_to_file;
+  JumpOptimizationInfo* jump_optimization_info =
+      should_optimize_jumps ? &jump_opt : nullptr;
+
+  PipelineJobScope scope(turboshaft_data,
+                         isolate->counters()->runtime_call_stats());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
+
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
+      CreatePipelineStatistics(Handle<Script>::null(), turboshaft_data->info(),
+                               isolate, turboshaft_data->zone_stats()));
+
+  // TODO(nicohartmann): Trace initial graph (if requested).
+
+  // Validate pgo profile.
+  const int initial_graph_hash =
+      ComputeInitialGraphHash(builtin, profile_data, &turboshaft_data->graph());
+  profile_data =
+      ValidateProfileData(profile_data, initial_graph_hash, debug_name);
+
+  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
+  turboshaft_pipeline.OptimizeBuiltin();
+  Linkage linkage(call_descriptor);
+  return turboshaft_pipeline.GenerateCode(&linkage, {}, jump_optimization_info,
+                                          profile_data, initial_graph_hash);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -34,7 +34,7 @@ namespace v8::internal::compiler::turboshaft {
 
 inline constexpr char kTempZoneName[] = "temp-zone";
 
-class Pipeline final {
+class Pipeline {
  public:
   explicit Pipeline(PipelineData* data) : data_(data) {}
 
@@ -217,7 +217,9 @@ class Pipeline final {
 
   void PrepareForInstructionSelection(
       const ProfileDataFromFile* profile = nullptr) {
-    if (V8_UNLIKELY(data()->pipeline_kind() == TurboshaftPipelineKind::kCSA)) {
+    if (V8_UNLIKELY(data()->pipeline_kind() == TurboshaftPipelineKind::kCSA ||
+                    data()->pipeline_kind() ==
+                        TurboshaftPipelineKind::kTSABuiltin)) {
       if (profile) {
         Run<ProfileApplicationPhase>(profile);
       }
@@ -499,6 +501,11 @@ class Pipeline final {
     return FinalizeCode();
   }
 
+  MaybeHandle<Code> GenerateCode(
+      Linkage* linkage, std::shared_ptr<OsrHelper> osr_helper = {},
+      JumpOptimizationInfo* jump_optimization_info = nullptr,
+      const ProfileDataFromFile* profile = nullptr, int initial_graph_hash = 0);
+
   void RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
                              Linkage* linkage);
 
@@ -574,6 +581,13 @@ class Pipeline final {
 
  private:
   PipelineData* data_;
+};
+
+class BuiltinPipeline : public Pipeline {
+ public:
+  explicit BuiltinPipeline(PipelineData* data) : Pipeline(data) {}
+
+  void OptimizeBuiltin();
 };
 
 }  // namespace v8::internal::compiler::turboshaft

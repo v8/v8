@@ -58,6 +58,33 @@ class CodeAssemblerState;
   }                                                                         \
   void Name##Assembler::Generate##Name##Impl()
 
+#define TS_BUILTIN(Name, BaseAssembler)                                   \
+  class Name##Assembler {                                                 \
+    BaseAssembler assembler_;                                             \
+                                                                          \
+   public:                                                                \
+    using Descriptor = Builtin_##Name##_InterfaceDescriptor;              \
+    Name##Assembler(compiler::turboshaft::PipelineData* data,             \
+                    Isolate* isolate, compiler::turboshaft::Graph& graph, \
+                    Zone* phase_zone)                                     \
+        : assembler_(data, isolate, graph, phase_zone) {}                 \
+    BaseAssembler& Asm() { return assembler_; }                           \
+    void Generate##Name##Impl();                                          \
+                                                                          \
+    template <typename T>                                                 \
+    V<T> Parameter(Descriptor::ParameterIndices index) {                  \
+      return assembler_.Parameter<T>(index);                              \
+    }                                                                     \
+  };                                                                      \
+  void Builtins::Generate_##Name(                                         \
+      compiler::turboshaft::PipelineData* data, Isolate* isolate,         \
+      compiler::turboshaft::Graph& graph, Zone* phase_zone) {             \
+    Name##Assembler assembler(data, isolate, graph, phase_zone);          \
+    assembler.Asm().Bind(assembler.Asm().NewBlock());                     \
+    assembler.Generate##Name##Impl();                                     \
+  }                                                                       \
+  void Name##Assembler::Generate##Name##Impl()
+
 }  // namespace internal
 }  // namespace v8
 

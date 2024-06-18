@@ -71,16 +71,19 @@ struct BuiltinMetadata {
 #define DECL_CPP(Name, ...) \
   {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
 #define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
+#define DECL_TSC(Name, ...) {#Name, Builtins::TSC, {}},
 #define DECL_TFC(Name, ...) {#Name, Builtins::TFC, {}},
 #define DECL_TFS(Name, ...) {#Name, Builtins::TFS, {}},
 #define DECL_TFH(Name, ...) {#Name, Builtins::TFH, {}},
 #define DECL_BCH(Name, OperandScale, Bytecode) \
   {#Name, Builtins::BCH, {Bytecode, OperandScale}},
 #define DECL_ASM(Name, ...) {#Name, Builtins::ASM, {}},
-const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
-    DECL_CPP, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH, DECL_BCH, DECL_ASM)};
+const BuiltinMetadata builtin_metadata[] = {
+    BUILTIN_LIST(DECL_CPP, DECL_TFJ, DECL_TSC, DECL_TFC, DECL_TFS, DECL_TFH,
+                 DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
 #undef DECL_TFJ
+#undef DECL_TSC
 #undef DECL_TFC
 #undef DECL_TFS
 #undef DECL_TFH
@@ -169,7 +172,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER, CASE_OTHER,
-                 CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(builtin);
@@ -451,6 +454,7 @@ const char* Builtins::KindNameOf(Builtin builtin) {
   switch (kind) {
     case CPP: return "CPP";
     case TFJ: return "TFJ";
+    case TSC: return "TSC";
     case TFC: return "TFC";
     case TFS: return "TFS";
     case TFH: return "TFH";
@@ -481,6 +485,7 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
     case BCH:
       return kBytecodeHandlerEntrypointTag;
     case TFC:
+    case TSC:
     case TFS:
     case TFH:
     case ASM:

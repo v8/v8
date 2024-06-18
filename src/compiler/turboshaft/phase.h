@@ -167,7 +167,7 @@ template <typename P>
 struct produces_printable_graph
     : public detail::produces_printable_graph_impl<P> {};
 
-enum class TurboshaftPipelineKind { kJS, kWasm, kCSA, kJSToWasm };
+enum class TurboshaftPipelineKind { kJS, kWasm, kCSA, kTSABuiltin, kJSToWasm };
 
 class LoopUnrollingAnalyzer;
 class WasmRevecAnalyzer;

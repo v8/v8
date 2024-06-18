@@ -320,17 +320,20 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     V<Word32> Uint64GreaterThan(V<Word64> a, V<Word64> b) {
       return Uint64LessThan(b, a);
     }
-    using Assembler::Parameter;
     OpIndex Parameter(int index) {
-      return Parameter(index, RegisterRepresentation::FromMachineType(
-                                  call_descriptor()->GetParameterType(index)));
+      return Assembler::Parameter(
+          index, RegisterRepresentation::FromMachineType(
+                     call_descriptor()->GetParameterType(index)));
+    }
+    OpIndex Parameter(int index, RegisterRepresentation rep) {
+      return Assembler::Parameter(index, rep);
     }
     template <typename T>
     V<T> Parameter(int index) {
       RegisterRepresentation rep = RegisterRepresentation::FromMachineType(
           call_descriptor()->GetParameterType(index));
       DCHECK_EQ(rep, v_traits<T>::rep);
-      return Parameter(index, rep);
+      return Assembler::Parameter(index, rep);
     }
     using Assembler::Phi;
     template <typename... Args,

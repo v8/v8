@@ -2902,6 +2902,8 @@ v8_source_set("v8_initializers") {
     "src/codegen/code-stub-assembler-inl.h",
     "src/codegen/code-stub-assembler.cc",
     "src/codegen/code-stub-assembler.h",
+    "src/codegen/turboshaft-builtin-assembler.cc",
+    "src/codegen/turboshaft-builtin-assembler.h",
     "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",

@@ -123,6 +123,11 @@ class Pipeline : public AllStatic {
       const char* debug_name, Builtin builtin, const AssemblerOptions& options,
       const ProfileDataFromFile* profile_data);
 
+  static MaybeHandle<Code> GenerateCodeForTurboshaftBuiltin(
+      turboshaft::PipelineData* turboshaft_data,
+      CallDescriptor* call_descriptor, Builtin builtin, const char* debug_name,
+      const ProfileDataFromFile* profile_data);
+
   // ---------------------------------------------------------------------------
   // The following methods are for testing purposes only. Avoid production use.
   // ---------------------------------------------------------------------------
