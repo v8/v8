@@ -42,7 +42,6 @@
 
   # TODO(https://issues.chromium.org/342316792) Failing test after spec test update
   'proposals/tail-call/memory': [FAIL],
-  'proposals/memory64/table_copy_mixed': [FAIL],
   'proposals/js-types/memory': [FAIL],
   'proposals/exception-handling/memory': [FAIL],
   'proposals/extended-const/memory': [FAIL],

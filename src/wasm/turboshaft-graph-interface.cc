@@ -4039,18 +4039,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
                  const Value& dst_val, const Value& src_val,
                  const Value& size_val) {
-    const WasmTable* table_dst = imm.table_dst.table;
-    const WasmTable* table_src = imm.table_src.table;
+    const bool dst_is_table64 = imm.table_dst.table->is_table64;
+    const bool src_is_table64 = imm.table_src.table->is_table64;
     V<WordPtr> dst_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table_dst->is_table64, dst_val.op);
+        TableIndexToUintPtrOrOOBTrap(dst_is_table64, dst_val.op);
     V<WordPtr> src_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table_src->is_table64, src_val.op);
-    // TODO(crbug.com/345274931): Allow copying between table32 and table64, and
-    // take the type of the table that has smaller size.
-    DCHECK_EQ(table_src->is_table64, table_dst->is_table64);
-    V<WordPtr> size_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table_src->is_table64, size_val.op);
-    bool table_is_shared = decoder->module_->tables[imm.table_dst.index].shared;
+        TableIndexToUintPtrOrOOBTrap(src_is_table64, src_val.op);
+    V<WordPtr> size_wordptr = TableIndexToUintPtrOrOOBTrap(
+        dst_is_table64 && src_is_table64, size_val.op);
+    bool table_is_shared = imm.table_dst.table->shared;
     // TODO(14616): Is this too restrictive?
     DCHECK_EQ(table_is_shared,
               decoder->module_->tables[imm.table_src.index].shared);

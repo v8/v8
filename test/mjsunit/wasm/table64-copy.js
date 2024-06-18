@@ -111,3 +111,121 @@ function checkExternRefTable(getter, size, start, count, value) {
       kTrapTableOutOfBounds,
       () => exports.table64_copy(start_dst, start_src, count));
 })();
+
+(function TestTypingForCopyBetween32And64Bit() {
+  print(arguments.callee.name);
+  for (let [src, dst, src_type, dst_type, size_type, expect_valid] of [
+    // Copy from 32 to 64 bit with correct types.
+    [32, 64, kWasmI32, kWasmI64, kWasmI32, true],
+    // Copy from 64 to 32 bit with correct types.
+    [64, 32, kWasmI64, kWasmI32, kWasmI32, true],
+    // Copy from 32 to 64 bit with always one type wrong.
+    [32, 64, kWasmI64, kWasmI64, kWasmI32, false],
+    [32, 64, kWasmI32, kWasmI32, kWasmI32, false],
+    [32, 64, kWasmI32, kWasmI64, kWasmI64, false],
+    // Copy from 64 to 32 bit with always one type wrong.
+    [64, 32, kWasmI32, kWasmI32, kWasmI32, false],
+    [64, 32, kWasmI64, kWasmI64, kWasmI32, false],
+    [64, 32, kWasmI64, kWasmI32, kWasmI64, false],
+  ]) {
+    let type_str = type => type == kWasmI32 ? 'i32' : 'i64';
+    print(`- copy from ${src} to ${dst} using types src=${
+        type_str(src_type)}, dst=${type_str(dst_type)}, size=${
+        type_str(size_type)}`);
+    let builder = new WasmModuleBuilder();
+    const kTableSize = 10;
+    let table64_index = builder.addTable64(kWasmExternRef, kTableSize)
+                            .exportAs('table64')
+                            .index;
+    let table32_index =
+        builder.addTable(kWasmExternRef, kTableSize).exportAs('table32').index;
+
+    let src_index = src == 32 ? table32_index : table64_index;
+    let dst_index = dst == 32 ? table32_index : table64_index;
+
+    builder.addFunction('copy', makeSig([dst_type, src_type, size_type], []))
+        .addBody([
+          kExprLocalGet, 0,                                     // dst
+          kExprLocalGet, 1,                                     // src
+          kExprLocalGet, 2,                                     // size
+          kNumericPrefix, kExprTableCopy, dst_index, src_index  // table.copy
+        ])
+        .exportFunc();
+
+    if (expect_valid) {
+      builder.toModule();
+    } else {
+      assertThrows(
+          () => builder.toModule(), WebAssembly.CompileError,
+          /expected type i(32|64), found local.get of type i(32|64)/);
+    }
+  }
+})();
+
+(function TestCopyBetweenTable32AndTable64() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const kTableSize = 10;
+  let table64_index =
+      builder.addTable64(kWasmExternRef, kTableSize).exportAs('table64').index;
+  let table32_index =
+      builder.addTable(kWasmExternRef, kTableSize).exportAs('table32').index;
+
+  builder
+      .addFunction('copy_32_to_64', makeSig([kWasmI64, kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,  // dst
+        kExprLocalGet, 1,  // src
+        kExprLocalGet, 2,  // size
+        kNumericPrefix, kExprTableCopy, table64_index, table32_index
+      ])
+      .exportFunc();
+  builder
+      .addFunction('copy_64_to_32', makeSig([kWasmI32, kWasmI64, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,  // dst
+        kExprLocalGet, 1,  // src
+        kExprLocalGet, 2,  // size
+        kNumericPrefix, kExprTableCopy, table32_index, table64_index
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+  let {table32, table64, copy_32_to_64, copy_64_to_32} = instance.exports;
+
+  let object = {foo: 12, bar: 34};
+
+  // These helpers extract the table elements at [offset, offset+size)] into an
+  // Array.
+  let table32_elements = (offset, size) =>
+      new Array(size).fill(0).map((e, i) => table32.get(i));
+  let table64_elements = (offset, size) =>
+      new Array(size).fill(0).map((e, i) => table64.get(i));
+
+  // Init table32[2] to object.
+  table32.set(2, object);
+  // Copy table32[1..3] to table64[0..2].
+  copy_32_to_64(0n, 1, 3);
+  assertEquals([null, null, object, null], table32_elements(0, 4));
+  assertEquals([null, object, null, null], table64_elements(0, 4));
+  // Copy table64[1..2] to table32[0..1].
+  copy_64_to_32(0, 1n, 2);
+  assertEquals([object, null, object, null], table32_elements(0, 4));
+  assertEquals([null, object, null, null], table64_elements(0, 4));
+
+  // Just before OOB.
+  copy_32_to_64(BigInt(kTableSize), 0, 0);
+  copy_64_to_32(kTableSize, 0n, 0);
+  copy_32_to_64(BigInt(kTableSize - 3), 0, 3);
+  copy_64_to_32(kTableSize - 3, 0n, 3);
+  assertEquals([null, object, null], table64_elements(kTableSize - 3, 3));
+  // OOB.
+  assertTraps(
+      kTrapTableOutOfBounds, () => copy_32_to_64(BigInt(kTableSize + 1), 0, 0));
+  assertTraps(
+      kTrapTableOutOfBounds, () => copy_64_to_32(kTableSize + 1, 0n, 0));
+  assertTraps(
+      kTrapTableOutOfBounds, () => copy_32_to_64(BigInt(kTableSize - 2), 0, 3));
+  assertTraps(
+      kTrapTableOutOfBounds, () => copy_64_to_32(kTableSize - 2, 0n, 3));
+})();

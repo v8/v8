@@ -5421,10 +5421,8 @@ void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
   // `size`.
   TableTypeToUintPtrOrOOBTrap(table_dst.is_table64, {&dst}, position);
   TableTypeToUintPtrOrOOBTrap(table_src.is_table64, {&src}, position);
-  // TODO(crbug.com/345274931): Allow copying between table32 and table64, and
-  // take the type of the table that has smaller size.
-  DCHECK_EQ(table_src.is_table64, table_dst.is_table64);
-  TableTypeToUintPtrOrOOBTrap(table_src.is_table64, {&size}, position);
+  TableTypeToUintPtrOrOOBTrap(table_src.is_table64 && table_dst.is_table64,
+                              {&size}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableCopy, Operator::kNoThrow, dst, src, size,
       gasm_->NumberConstant(table_dst_index),

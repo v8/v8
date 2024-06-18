@@ -5999,15 +5999,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableCopy: {
         TableCopyImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType table_type_dst = TableIndexType(imm.table_dst.table);
-        if (table_type_dst != TableIndexType(imm.table_src.table)) {
-          // TODO(crbug.com/345274931): Allow copying between a 32-bit
-          // and a 64-bit table https://github.com/WebAssembly/memory64/pull/58.
-          this->DecodeError(this->pc_,
-                            "copying between tables of different type");
-        }
-        auto [dst, src, size] =
-            Pop(table_type_dst, table_type_dst, table_type_dst);
+        ValueType dst_type = TableIndexType(imm.table_dst.table);
+        ValueType src_type = TableIndexType(imm.table_src.table);
+        // size_type = min(dst_type, src_type), where kI32 < kI64.
+        ValueType size_type = dst_type == kWasmI32 ? kWasmI32 : src_type;
+
+        auto [dst, src, size] = Pop(dst_type, src_type, size_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm, dst, src, size);
         return opcode_length + imm.length;
       }
