@@ -249,6 +249,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void SetCurrentWorker(Worker* worker);
 

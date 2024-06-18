@@ -4822,9 +4822,10 @@ void Worker::ExecuteInThread() {
 
           Local<Object> global = context->Global();
           Local<Value> this_value = External::New(isolate_, this);
-          Local<FunctionTemplate> postmessage_fun_template =
-              FunctionTemplate::New(isolate_, PostMessageOut, this_value);
 
+          Local<FunctionTemplate> postmessage_fun_template =
+              FunctionTemplate::New(isolate_, Worker::PostMessageOut,
+                                    this_value);
           Local<Function> postmessage_fun;
           if (postmessage_fun_template->GetFunction(context).ToLocal(
                   &postmessage_fun)) {
@@ -4834,6 +4835,18 @@ void Worker::ExecuteInThread() {
                     v8::String::NewFromUtf8Literal(
                         isolate_, "postMessage", NewStringType::kInternalized),
                     postmessage_fun)
+                .FromJust();
+          }
+
+          Local<FunctionTemplate> close_fun_template =
+              FunctionTemplate::New(isolate_, Worker::Close, this_value);
+          Local<Function> close_fun;
+          if (close_fun_template->GetFunction(context).ToLocal(&close_fun)) {
+            global
+                ->Set(context,
+                      v8::String::NewFromUtf8Literal(
+                          isolate_, "close", NewStringType::kInternalized),
+                      close_fun)
                 .FromJust();
           }
 
@@ -4907,6 +4920,16 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
   }
+}
+
+void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  DCHECK(info.Data()->IsExternal());
+  Local<External> this_value = info.Data().As<External>();
+  Worker* worker = static_cast<Worker*>(this_value->Value());
+  worker->Terminate();
 }
 
 #ifdef V8_TARGET_OS_WIN
