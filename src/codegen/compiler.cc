@@ -884,14 +884,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
       shared_info = outer_shared_info;
       is_first = false;
     } else {
-      // The bytecode compiler will already have created the SFI while compiling
-      // the outer function. Fetch the SFI from the table rather than trying to
-      // recreate it again. If the bytecode compiler created the SFI, it might
-      // be in an invalid state up to this point: we won't be able to verify the
-      // SFI. Hence we bypass `GetSharedFunctionInfo` and directly use the
-      // underlying FindSharedFunctionInfo instead.
-      shared_info = Script::FindSharedFunctionInfo(script, isolate, literal)
-                        .ToHandleChecked();
+      shared_info = Compiler::GetSharedFunctionInfo(literal, script, isolate);
     }
 
     if (shared_info->is_compiled()) continue;
@@ -4011,10 +4004,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
               existing_uncompiled_data->end_position(), preparse_data);
       existing->set_uncompiled_data(*new_uncompiled_data);
     }
-    CHECK(existing->IsUserJavaScript());
-    CHECK(existing->HasSourceCode());
-    CHECK_EQ(literal->start_position(), existing->StartPosition());
-    CHECK_EQ(literal->end_position(), existing->EndPosition());
     return existing;
   }
 
