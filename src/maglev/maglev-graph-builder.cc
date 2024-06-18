@@ -2274,14 +2274,16 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
         if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
           if (root_constant->index() == RootIndex::kempty_string) {
             BuildCheckString(right);
-            SetAccumulator(right);
+            // The right side is already in the accumulator register.
             return;
           }
         }
         if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
           if (root_constant->index() == RootIndex::kempty_string) {
             BuildCheckString(left);
-            SetAccumulator(left);
+            MoveNodeBetweenRegisters(
+                iterator_.GetRegisterOperand(0),
+                interpreter::Register::virtual_accumulator());
             return;
           }
         }
