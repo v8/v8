@@ -1442,32 +1442,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint64T> LoadUint64Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> index);
 
   // Load a field from an object on the heap.
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
-                             std::is_base_of<T, Map>::value,
-                         int>::type = 0>
+  template <typename T>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
-    const MachineType machine_type = offset == HeapObject::kMapOffset
-                                         ? MachineType::MapInHeader()
-                                         : MachineTypeOf<T>::value;
-    return CAST(LoadFromObject(machine_type, object,
-                               IntPtrConstant(offset - kHeapObjectTag)));
-  }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
-                             !std::is_base_of<T, Map>::value,
-                         int>::type = 0>
-  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
-    return CAST(LoadFromObject(MachineTypeOf<T>::value, object,
-                               IntPtrConstant(offset - kHeapObjectTag)));
-  }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
-  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
-    return UncheckedCast<T>(
-        LoadFromObject(MachineTypeOf<T>::value, object,
-                       IntPtrConstant(offset - kHeapObjectTag)));
+    MachineType machine_type = MachineTypeOf<T>::value;
+    TNode<IntPtrT> raw_offset = IntPtrConstant(offset - kHeapObjectTag);
+    if constexpr (is_subtype_v<T, UntaggedT>) {
+      // Load an untagged field.
+      return UncheckedCast<T>(LoadFromObject(machine_type, object, raw_offset));
+    } else {
+      static_assert(is_subtype_v<T, Object>);
+      // Load a tagged field.
+      if constexpr (is_subtype_v<T, Map>) {
+        // If this is potentially loading a map, we need to check the offset.
+        if (offset == HeapObject::kMapOffset) {
+          machine_type = MachineType::MapInHeader();
+        }
+      }
+      return CAST(LoadFromObject(machine_type, object, raw_offset));
+    }
   }
   TNode<Object> LoadObjectField(TNode<HeapObject> object, int offset) {
     return UncheckedCast<Object>(
