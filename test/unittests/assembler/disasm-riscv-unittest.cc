@@ -189,7 +189,7 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(rolw(a0, s3, s4), "6149953b       rolw     a0, s3, s4");
   COMPARE(rorw(a0, s3, s4), "6149d53b       rorw     a0, s3, s4");
 #else
-  COMPARE(rori(a0, s3, 31), "61f9d513      rori      a0, s3, 31");
+  COMPARE(rori(a0, s3, 31), "61f9d513       rori      a0, s3, 31");
 #endif
 
   COMPARE(bclr(a0, s2, s1), "48991533       bclr      a0, s2, s1");

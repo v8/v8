@@ -1032,8 +1032,9 @@ void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector,
                      AtomicWidth width) {
   using node_t = typename Adapter::node_t;
   RiscvOperandGeneratorT<Adapter> g(selector);
-  node_t base = selector->input_at(node, 0);
-  node_t index = selector->input_at(node, 1);
+  auto load = selector->load_view(node);
+  node_t base = load.base();
+  node_t index = load.index();
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
@@ -1056,9 +1057,10 @@ void VisitAtomicStore(InstructionSelectorT<Adapter>* selector,
                       AtomicWidth width) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   using node_t = typename Adapter::node_t;
-  node_t base = selector->input_at(node, 0);
-  node_t index = selector->input_at(node, 1);
-  node_t value = selector->input_at(node, 2);
+  auto store = selector->store_view(node);
+  node_t base = store.base();
+  node_t index = selector->value(store.index());
+  node_t value = store.value();
 
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI) |
@@ -1082,9 +1084,10 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, ArchOpcode opcode) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   using node_t = typename Adapter::node_t;
-  node_t base = selector->input_at(node, 0);
-  node_t index = selector->input_at(node, 1);
-  node_t value = selector->input_at(node, 2);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
@@ -1501,9 +1504,10 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
                          AtomicWidth width) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   using node_t = typename Adapter::node_t;
-  node_t base = selector->input_at(node, 0);
-  node_t index = selector->input_at(node, 1);
-  node_t value = selector->input_at(node, 2);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
@@ -1528,10 +1532,11 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
                                 ArchOpcode opcode, AtomicWidth width) {
   using node_t = typename Adapter::node_t;
   RiscvOperandGeneratorT<Adapter> g(selector);
-  node_t base = selector->input_at(node, 0);
-  node_t index = selector->input_at(node, 1);
-  node_t old_value = selector->input_at(node, 2);
-  node_t new_value = selector->input_at(node, 3);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t old_value = atomic_op.expected();
+  node_t new_value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[4];
@@ -1974,12 +1979,17 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
     typename Adapter::node_t node) {
   using node_t = typename Adapter::node_t;
   RiscvOperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0)),
-                                 g.UseRegister(this->input_at(node, 1)),
-                                 g.UseFixed(this->input_at(node, 2), a1),
-                                 g.UseFixed(this->input_at(node, 3), a2),
-                                 g.UseFixed(this->input_at(node, 4), a3),
-                                 g.UseFixed(this->input_at(node, 5), a4)};
+  // In the Turbofan and the Turboshaft graph the order of expected and value is
+  // swapped.
+  const size_t expected_offset = Adapter::IsTurboshaft ? 4 : 2;
+  const size_t value_offset = Adapter::IsTurboshaft ? 2 : 4;
+  InstructionOperand inputs[] = {
+      g.UseRegister(this->input_at(node, 0)),
+      g.UseRegister(this->input_at(node, 1)),
+      g.UseFixed(this->input_at(node, expected_offset), a1),
+      g.UseFixed(this->input_at(node, expected_offset + 1), a2),
+      g.UseFixed(this->input_at(node, value_offset), a3),
+      g.UseFixed(this->input_at(node, value_offset + 1), a4)};
 
   InstructionCode code = kRiscvWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(kMode_MRI);
