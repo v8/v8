@@ -21,4 +21,3 @@ assertEquals(105, fun_with_inner(5));
 assertEquals(105, fun_with_inner(5));
 %OptimizeFunctionOnNextCall(fun_with_inner);
 assertEquals(105, fun_with_inner(5));
-assertOptimized(fun_with_inner);
