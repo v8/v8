@@ -774,7 +774,6 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
   // 4. Assert: module.[[EvaluationError]] is empty.
   CHECK_EQ(module->status(), kEvaluated);
   // 5. Set module.[[AsyncEvaluating]] to false.
-  isolate->DidFinishModuleAsyncEvaluation(module->async_evaluating_ordinal());
   module->set_async_evaluating_ordinal(kAsyncEvaluateDidFinish);
   // TODO(cbruni): update to match spec.
   // 7. If module.[[TopLevelCapability]] is not empty, then
@@ -838,7 +837,6 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
       } else {
         //   c. Otherwise,
         //    1. Set m.[[AsyncEvaluating]] to false.
-        isolate->DidFinishModuleAsyncEvaluation(m->async_evaluating_ordinal());
         m->set_async_evaluating_ordinal(kAsyncEvaluateDidFinish);
 
         //    2. If m.[[TopLevelCapability]] is not empty, then
@@ -888,7 +886,6 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   module->RecordError(isolate, *exception);
 
   // 6. Set module.[[AsyncEvaluating]] to false.
-  isolate->DidFinishModuleAsyncEvaluation(module->async_evaluating_ordinal());
   module->set_async_evaluating_ordinal(kAsyncEvaluateDidFinish);
 
   // 7. For each Module m of module.[[AsyncParentModules]], do
@@ -927,9 +924,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   // 2. Assert: module.[[Async]] is true.
   DCHECK(module->async());
 
-  // 3. Set module.[[AsyncEvaluating]] to true.
-  module->set_async_evaluating_ordinal(
-      isolate->NextModuleAsyncEvaluatingOrdinal());
+  // TODO(syg): Sync spec text.
 
   // 4. Let capability be ! NewPromiseCapability(%Promise%).
   Handle<JSPromise> capability = isolate->factory()->NewJSPromise();

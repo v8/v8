@@ -612,9 +612,6 @@ constexpr int kSimd128Size = 16;
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
 
-// Maximum ordinal used for tracking asynchronous module evaluation order.
-constexpr unsigned kMaxModuleAsyncEvaluatingOrdinal = (1 << 30) - 1;
-
 // FUNCTION_ADDR(f) gets the address of a C function f.
 #define FUNCTION_ADDR(f) (reinterpret_cast<v8::internal::Address>(f))
 

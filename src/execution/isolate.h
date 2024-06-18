@@ -1670,8 +1670,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return id;
   }
 
-  // https://github.com/tc39/proposal-top-level-await/pull/159
-  // TODO(syg): Update to actual spec link once merged.
+  // ES#sec-async-module-execution-fulfilled
+  // step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their
@@ -1679,12 +1679,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // order with next_module_async_evaluating_ordinal_. Each module that sets its
   // [[AsyncEvaluating]] to true grabs the next ordinal.
   unsigned NextModuleAsyncEvaluatingOrdinal() {
-    unsigned ordinal = next_module_async_evaluating_ordinal_++;
-    CHECK_LT(ordinal, kMaxModuleAsyncEvaluatingOrdinal);
-    return ordinal;
+    // For simplicity, V8 allows this ordinal to overflow. Overflow will result
+    // in incorrect module loading behavior for module graphs with top-level
+    // await.
+    return next_module_async_evaluating_ordinal_++;
   }
-
-  inline void DidFinishModuleAsyncEvaluation(unsigned ordinal);
 
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);

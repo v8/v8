@@ -140,8 +140,6 @@ class SourceTextModule
   static constexpr unsigned kAsyncEvaluateDidFinish = 1;
   static_assert(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
   static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
-  static_assert(kMaxModuleAsyncEvaluatingOrdinal ==
-                AsyncEvaluatingOrdinalBits::kMax);
   DECL_PRIMITIVE_ACCESSORS(async_evaluating_ordinal, unsigned)
 
   // The parent modules of a given async dependency, use async_parent_modules()
