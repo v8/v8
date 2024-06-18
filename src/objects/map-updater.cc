@@ -861,8 +861,13 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     // we'd need to generalize old_details with the root_details here.
     PropertyDetails root_details =
         root_map_->instance_descriptors()->GetDetails(i);
-    DCHECK(old_details.representation().IsCompatibleForLoad(
-        root_details.representation()));
+    DCHECK_EQ(
+        old_details.representation().generalize(root_details.representation()),
+        root_details.representation());
+    if (!root_map_->IsDetached(isolate_)) {
+      DCHECK(old_details.representation().IsCompatibleForLoad(
+          root_details.representation()));
+    }
     DCHECK_LE(old_details.constness(), root_details.constness());
     DCHECK_EQ(old_details.attributes(), root_details.attributes());
 #endif  // DEBUG

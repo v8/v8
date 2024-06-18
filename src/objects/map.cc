@@ -1632,7 +1632,7 @@ Handle<Map> Map::AddMissingTransitions(
   map->NotifyLeafMapLayoutChange(isolate);
   last_map->set_may_have_interesting_properties(false);
   InstallDescriptors(isolate, map, last_map, InternalIndex(nof_descriptors - 1),
-                     descriptors, true);
+                     descriptors);
   return last_map;
 }
 
@@ -2484,8 +2484,10 @@ Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
     new_map = handle(*maybe_map, isolate);
   } else {
     new_map = CopyForPrototypeTransition(isolate, map, prototype);
-    TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
-                                                new_map);
+    if (!map->IsDetached(isolate)) {
+      TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
+                                                  new_map);
+    }
   }
   DCHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
                  new_map->IsInobjectSlackTrackingInProgress());
