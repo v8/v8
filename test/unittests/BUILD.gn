@@ -716,7 +716,10 @@ v8_source_set("v8_unittests_sources") {
       "assembler/macro-assembler-riscv-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/riscv32/instruction-selector-riscv32-unittest.cc" ]
+      sources += [
+        "compiler/riscv32/instruction-selector-riscv32-unittest.cc",
+        "compiler/riscv32/turboshaft-instruction-selector-riscv32-unittest.cc",
+      ]
     }
   } else if (v8_current_cpu == "x64") {
     sources += [
