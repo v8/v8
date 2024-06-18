@@ -28,10 +28,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
     value = should_throw.FromJust();
   }
   slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
-  // Here the hole is set as default value.
-  // It cannot escape into js as it's removed in Call below.
-  Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
-  slot_at(T::kReturnValueIndex).store(the_hole_value);
+  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kHolderV2Index).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
@@ -47,11 +44,7 @@ FunctionCallbackArguments::FunctionCallbackArguments(
   slot_at(T::kNewTargetIndex).store(new_target);
   slot_at(T::kIsolateIndex)
       .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
-  // Here the hole is set as default value. It's converted to and not
-  // directly exposed to js.
-  // TODO(cbruni): Remove and/or use custom sentinel value.
-  Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
-  slot_at(T::kReturnValueIndex).store(the_hole_value);
+  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kContextIndex).store(isolate->context());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));

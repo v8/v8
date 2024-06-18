@@ -3683,7 +3683,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
                                       Nothing<ShouldThrow>());
-  arguments.CallAccessorSetter(info, name, value);
+  std::ignore = arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return *value;
 }

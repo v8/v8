@@ -730,17 +730,20 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
   PropertyCallbackArguments enum_args(isolate_, interceptor->data(), *receiver,
                                       *object, Just(kDontThrow));
 
-  Handle<JSObject> result;
-  if (!IsUndefined(interceptor->enumerator(), isolate_)) {
-    if (type == kIndexed) {
-      result = enum_args.CallIndexedEnumerator(interceptor);
-    } else {
-      DCHECK_EQ(type, kNamed);
-      result = enum_args.CallNamedEnumerator(interceptor);
-    }
+  if (IsUndefined(interceptor->enumerator(), isolate_)) {
+    return Just(true);
+  }
+  Handle<JSObjectOrUndefined> maybe_result;
+  if (type == kIndexed) {
+    maybe_result = enum_args.CallIndexedEnumerator(interceptor);
+  } else {
+    DCHECK_EQ(type, kNamed);
+    maybe_result = enum_args.CallNamedEnumerator(interceptor);
   }
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, enum_args, Nothing<bool>());
-  if (result.is_null()) return Just(true);
+  if (IsUndefined(*maybe_result)) return Just(true);
+  DCHECK(IsJSObject(*maybe_result));
+  Handle<JSObject> result = Cast<JSObject>(maybe_result);
 
   // Request was successfully intercepted, so accept potential side effects
   // happened up to this point.

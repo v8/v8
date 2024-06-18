@@ -114,6 +114,7 @@ BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, is_named, NamedBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
                HasNoSideEffectBit::kShift)
+// TODO(ishell): remove once all the Api changes are done.
 BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
                HasNewCallbacksSignatureBit::kShift)
 

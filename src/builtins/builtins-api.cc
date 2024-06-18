@@ -116,7 +116,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     {
       DisallowGarbageCollection no_gc;
       Tagged<Object> raw_result = *result;
-      DCHECK(IsApiCallResultType(raw_result));
+      DCHECK(Is<JSAny>(raw_result));
       if (!is_construct || IsJSReceiver(raw_result))
         return handle(raw_result, isolate);
     }

@@ -96,13 +96,16 @@ class PropertyCallbackArguments final
 
   // -------------------------------------------------------------------------
   // Accessor Callbacks
-  // Also used for AccessorSetterCallback.
-  inline Handle<JSAny> CallAccessorSetter(DirectHandle<AccessorInfo> info,
-                                          Handle<Name> name,
-                                          Handle<Object> value);
-  // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
+
+  // Returns the result of [[Get]] operation or throws an exception.
+  // In case of exception empty handle is returned.
+  // TODO(ishell, 328490288): stop returning empty handles.
   inline Handle<JSAny> CallAccessorGetter(DirectHandle<AccessorInfo> info,
                                           Handle<Name> name);
+  // Returns the result of [[Set]] operation or throws an exception.
+  V8_WARN_UNUSED_RESULT
+  inline bool CallAccessorSetter(DirectHandle<AccessorInfo> info,
+                                 Handle<Name> name, Handle<Object> value);
 
   // -------------------------------------------------------------------------
   // Named Interceptor Callbacks
@@ -120,7 +123,8 @@ class PropertyCallbackArguments final
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name);
   inline Handle<JSAny> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
                                            Handle<Name> name);
-  inline Handle<JSObject> CallNamedEnumerator(
+  // Returns JSArray-like object with property names or undefined.
+  inline Handle<JSObjectOrUndefined> CallNamedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
   // -------------------------------------------------------------------------
@@ -139,7 +143,8 @@ class PropertyCallbackArguments final
                                            uint32_t index);
   inline Handle<JSAny> CallIndexedDescriptor(
       Handle<InterceptorInfo> interceptor, uint32_t index);
-  inline Handle<JSObject> CallIndexedEnumerator(
+  // Returns JSArray-like object with property names or undefined.
+  inline Handle<JSObjectOrUndefined> CallIndexedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
   // Accept potential JavaScript side effects that might occur during life
@@ -151,15 +156,8 @@ class PropertyCallbackArguments final
   }
 
  private:
-  /*
-   * The following Call functions wrap the calling of all callbacks to handle
-   * calling either the old or the new style callbacks depending on which one
-   * has been registered.
-   * For old callbacks which return an empty handle, the ReturnValue is checked
-   * and used if it's been set to anything inside the callback.
-   * New style callbacks always use the return value.
-   */
-  inline Handle<JSObject> CallPropertyEnumerator(
+  // Returns JSArray-like object with property names or undefined.
+  inline Handle<JSObjectOrUndefined> CallPropertyEnumerator(
       Handle<InterceptorInfo> interceptor);
 
   inline Tagged<JSObject> holder() const;

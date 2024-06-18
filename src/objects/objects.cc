@@ -1531,24 +1531,15 @@ Maybe<bool> Object::SetPropertyWithAccessor(
           Nothing<bool>());
     }
 
-    // The actual type of setter callback is either
-    // v8::AccessorNameSetterCallback or
-    // i::Accesors::AccessorNameBooleanSetterCallback, depending on whether the
-    // AccessorInfo was created by the API or internally (see accessors.cc).
-    // Here we handle both cases using GenericNamedPropertySetterCallback and
-    // its Call method.
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    maybe_should_throw);
-    Handle<Object> result = args.CallAccessorSetter(info, name, value);
-    // In the case of AccessorNameSetterCallback, we know that the result value
-    // cannot have been set, so the result of Call will be null.  In the case of
-    // AccessorNameBooleanSetterCallback, the result will either be null
-    // (signalling an exception) or a boolean Oddball.
+    bool result = args.CallAccessorSetter(info, name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
-    if (result.is_null()) return Just(true);
-    DCHECK(Object::BooleanValue(*result, isolate) ||
-           GetShouldThrow(isolate, maybe_should_throw) == kDontThrow);
-    return Just(Object::BooleanValue(*result, isolate));
+    // Ensure the setter callback respects the "should throw" value - it's
+    // allowed to fail without throwing only in case of kDontThrow.
+    DCHECK_IMPLIES(!result,
+                   GetShouldThrow(isolate, maybe_should_throw) == kDontThrow);
+    return Just(result);
   }
 
   // Regular accessor.

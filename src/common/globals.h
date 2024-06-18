@@ -1105,6 +1105,8 @@ using JSCallable =
 using MaybeObject = MaybeWeak<Object>;
 using HeapObjectReference = MaybeWeak<HeapObject>;
 
+using JSObjectOrUndefined = Union<JSObject, Undefined>;
+
 // Slots are either full-pointer slots or compressed slots depending on whether
 // pointer compression is enabled or not.
 struct SlotTraits {

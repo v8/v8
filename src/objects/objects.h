@@ -699,10 +699,6 @@ V8_INLINE bool IsMinusZero(Tagged<Object> obj);
 // - JSSharedArrays
 inline bool IsShared(Tagged<Object> obj);
 
-#ifdef DEBUG
-inline bool IsApiCallResultType(Tagged<Object> obj);
-#endif  // DEBUG
-
 // Prints this object without details.
 V8_EXPORT_PRIVATE void ShortPrint(Tagged<Object> obj, FILE* out = stdout);
 
