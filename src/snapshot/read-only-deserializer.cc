@@ -35,7 +35,10 @@ class ReadOnlyHeapImageDeserializer final {
       DCHECK_LT(bytecode_as_int, ro::kNumberOfBytecodes);
       switch (static_cast<Bytecode>(bytecode_as_int)) {
         case Bytecode::kAllocatePage:
-          AllocatePage();
+          AllocatePage(false);
+          break;
+        case Bytecode::kAllocatePageAt:
+          AllocatePage(true);
           break;
         case Bytecode::kSegment:
           DeserializeSegment();
@@ -52,11 +55,12 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  void AllocatePage() {
+  void AllocatePage(bool fixed_offset) {
+    CHECK_EQ(V8_STATIC_ROOTS_BOOL, fixed_offset);
     size_t expected_page_index = static_cast<size_t>(source_->GetUint30());
     size_t actual_page_index = static_cast<size_t>(-1);
     size_t area_size_in_bytes = static_cast<size_t>(source_->GetUint30());
-    if (V8_STATIC_ROOTS_BOOL) {
+    if (fixed_offset) {
       uint32_t compressed_page_addr = source_->GetUint32();
       Address pos = isolate_->GetPtrComprCage()->base() + compressed_page_addr;
       actual_page_index = ro_space()->AllocateNextPageAt(pos);

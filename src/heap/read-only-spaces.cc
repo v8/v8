@@ -758,6 +758,7 @@ size_t ReadOnlySpace::AllocateNextPage() {
 }
 
 size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
+  CHECK(IsAligned(pos, kRegularPageSize));
   ReadOnlyPageMetadata* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
   if (!page) {

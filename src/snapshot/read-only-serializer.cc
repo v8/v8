@@ -320,7 +320,11 @@ class ReadOnlyHeapImageSerializer {
 
   void EmitAllocatePage(const ReadOnlyPageMetadata* page,
                         const std::vector<MemoryRegion>& unmapped_regions) {
-    sink_->Put(Bytecode::kAllocatePage, "page begin");
+    if (V8_STATIC_ROOTS_BOOL) {
+      sink_->Put(Bytecode::kAllocatePageAt, "fixed page begin");
+    } else {
+      sink_->Put(Bytecode::kAllocatePage, "page begin");
+    }
     sink_->PutUint30(IndexOf(page), "page index");
     sink_->PutUint30(
         static_cast<uint32_t>(page->HighWaterMark() - page->area_start()),
