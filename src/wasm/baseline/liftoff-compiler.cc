@@ -3015,7 +3015,7 @@ class LiftoffCompiler {
   }
 
   void TableGet(FullDecoder* decoder, const Value&, Value*,
-                const IndexImmediate& imm) {
+                const TableIndexImmediate& imm) {
     Register index_high_word = no_reg;
     LiftoffRegList pinned;
     VarState table_index{kI32, static_cast<int>(imm.index), 0};
@@ -3025,7 +3025,7 @@ class LiftoffCompiler {
     // Trap if any bit in the high word was set.
     CheckHighWordEmptyForTableType(decoder, index_high_word, &pinned);
 
-    ValueType type = env_->module->tables[imm.index].type;
+    ValueType type = imm.table->type;
     bool is_funcref = IsSubtypeOf(type, kWasmFuncRef, env_->module);
     auto stub =
         is_funcref ? Builtin::kWasmTableGetFuncRef : Builtin::kWasmTableGet;
@@ -3039,7 +3039,7 @@ class LiftoffCompiler {
   }
 
   void TableSet(FullDecoder* decoder, const Value&, const Value&,
-                const IndexImmediate& imm) {
+                const TableIndexImmediate& imm) {
     Register index_high_word = no_reg;
     LiftoffRegList pinned;
     VarState table_index{kI32, static_cast<int>(imm.index), 0};
@@ -3052,8 +3052,7 @@ class LiftoffCompiler {
     CheckHighWordEmptyForTableType(decoder, index_high_word, &pinned);
     VarState extract_shared_part{kI32, 0, 0};
 
-    ValueType type = env_->module->tables[imm.index].type;
-    bool is_funcref = IsSubtypeOf(type, kWasmFuncRef, env_->module);
+    bool is_funcref = IsSubtypeOf(imm.table->type, kWasmFuncRef, env_->module);
     auto stub =
         is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
 
@@ -6152,8 +6151,8 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
-  void TableGrow(FullDecoder* decoder, const IndexImmediate& imm, const Value&,
-                 const Value&, Value* result) {
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
+                 const Value&, const Value&, Value* result) {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
@@ -6175,8 +6174,7 @@ class LiftoffCompiler {
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ SmiToInt32(kReturnRegister0);
-    const WasmTable& wasm_table = decoder->module_->tables[imm.index];
-    if (wasm_table.is_table64) {
+    if (imm.table->is_table64) {
       LiftoffRegister result64 = LiftoffRegister(kReturnRegister0);
       if (kNeedI64RegPair) {
         result64 = LiftoffRegister::ForPair(kReturnRegister0, kReturnRegister1);
@@ -6189,7 +6187,7 @@ class LiftoffCompiler {
     }
   }
 
-  void TableSize(FullDecoder* decoder, const IndexImmediate& imm, Value*) {
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate& imm, Value*) {
     // We have to look up instance->tables[table_index].length.
 
     LiftoffRegList pinned;
@@ -6212,8 +6210,7 @@ class LiftoffCompiler {
 
     __ SmiUntag(result);
 
-    const WasmTable& wasm_table = decoder->module_->tables[imm.index];
-    if (wasm_table.is_table64) {
+    if (imm.table->is_table64) {
       LiftoffRegister result64 = LiftoffRegister(result);
       if (kNeedI64RegPair) {
         result64 = LiftoffRegister::ForPair(
@@ -6227,8 +6224,8 @@ class LiftoffCompiler {
     }
   }
 
-  void TableFill(FullDecoder* decoder, const IndexImmediate& imm, const Value&,
-                 const Value&, const Value&) {
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
+                 const Value&, const Value&, const Value&) {
     FUZZER_HEAVY_INSTRUCTION;
     Register high_words = no_reg;
     LiftoffRegList pinned;

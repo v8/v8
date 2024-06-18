@@ -942,7 +942,7 @@ class MjsunitImmediatesPrinter {
     out_ << ",";
   }
 
-  void TableIndex(IndexImmediate& imm) {
+  void TableIndex(TableIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTableReferenceLeb(out_, imm.index);
     out_ << ",";

@@ -529,13 +529,13 @@ class WasmGraphBuildingInterface {
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const IndexImmediate& imm) {
+                const TableIndexImmediate& imm) {
     SetAndTypeNode(
         result, builder_->TableGet(imm.index, index.node, decoder->position()));
   }
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
-                const IndexImmediate& imm) {
+                const TableIndexImmediate& imm) {
     builder_->TableSet(imm.index, index.node, value.node, decoder->position());
   }
 
@@ -1539,19 +1539,19 @@ class WasmGraphBuildingInterface {
                         src.node, size.node, decoder->position());
   }
 
-  void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
                  const Value& value, const Value& delta, Value* result) {
     SetAndTypeNode(result,
                    builder_->TableGrow(imm.index, value.node, delta.node,
                                        decoder->position()));
   }
 
-  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate& imm,
                  Value* result) {
     SetAndTypeNode(result, builder_->TableSize(imm.index));
   }
 
-  void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
     builder_->TableFill(imm.index, start.node, value.node, count.node,
                         decoder->position());

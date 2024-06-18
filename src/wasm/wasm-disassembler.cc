@@ -512,7 +512,7 @@ class ImmediatesPrinter {
     names()->PrintGlobalName(out_, imm.index);
   }
 
-  void TableIndex(IndexImmediate& imm) {
+  void TableIndex(TableIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTableName(out_, imm.index);
   }
