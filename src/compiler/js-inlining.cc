@@ -474,7 +474,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   if (inline_wasm_fct_if_supported_ && fct_index != -1 && native_module &&
       // Disable inlining for asm.js functions because we haven't tested it
       // and most asm.js opcodes aren't supported anyway.
-      native_module->enabled_features() != wasm::WasmFeatures::ForAsmjs()) {
+      !is_asmjs_module(native_module->module())) {
     inline_result = TryWasmInlining(call_node);
   }
 
