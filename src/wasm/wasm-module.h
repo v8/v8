@@ -620,17 +620,15 @@ struct TypeFeedbackStorage {
 };
 
 struct WasmTable {
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
-
-  ValueType type = kWasmVoid;     // table type.
-  uint32_t initial_size = 0;      // initial table size.
-  uint32_t maximum_size = 0;      // maximum table size.
-  bool has_maximum_size = false;  // true if there is a maximum size.
-  bool is_table64 = false;        // true if the table is 64 bit.
-  bool shared = false;            // true if the table lives in the shared heap.
-  bool imported = false;          // true if imported.
-  bool exported = false;          // true if exported.
-  ConstantExpression initial_value;
+  ValueType type = kWasmVoid;
+  uint32_t initial_size = 0;
+  uint32_t maximum_size = 0;
+  bool has_maximum_size = false;
+  bool is_table64 = false;
+  bool shared = false;
+  bool imported = false;
+  bool exported = false;
+  ConstantExpression initial_value = {};
 };
 
 // Static representation of a module.

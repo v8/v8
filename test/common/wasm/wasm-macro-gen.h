@@ -865,8 +865,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_MEMORY_INIT(seg, dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprMemoryInit), U32V_1(seg), MEMORY_ZERO
 #define WASM_DATA_DROP(seg) WASM_NUMERIC_OP(kExprDataDrop), U32V_1(seg)
-#define WASM_MEMORY_COPY(dst, src, size) \
+#define WASM_MEMORY0_COPY(dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), MEMORY_ZERO, MEMORY_ZERO
+#define WASM_MEMORY_COPY(dst_index, src_index, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), dst_index, src_index
 #define WASM_MEMORY_FILL(dst, val, size) \
   dst, val, size, WASM_NUMERIC_OP(kExprMemoryFill), MEMORY_ZERO
 #define WASM_TABLE_INIT(table, seg, dst, src, size)             \

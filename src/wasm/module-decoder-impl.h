@@ -742,17 +742,18 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalTable: {
           // ===== Imported table ==============================================
           import->index = static_cast<uint32_t>(module_->tables.size());
-          module_->num_imported_tables++;
-          module_->tables.emplace_back();
-          WasmTable* table = &module_->tables.back();
-          table->imported = true;
           const uint8_t* type_position = pc();
           ValueType type = consume_value_type();
           if (!type.is_object_reference()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
-          table->type = type;
+          module_->num_imported_tables++;
+          module_->tables.push_back(WasmTable{
+              .type = type,
+              .imported = true,
+          });
+          WasmTable* table = &module_->tables.back();
           consume_table_flags("element count", table);
           if (table->shared) module_->has_shared_part = true;
           // TODO(evih): Limit the size of the tables to
