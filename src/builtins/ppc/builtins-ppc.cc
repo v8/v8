@@ -3379,7 +3379,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
                           Isolate::thread_in_wasm_flag_address_offset()),
                r0);
     __ mov(r0, Operand(1));
-    __ StoreU64(r0, MemOperand(thread_in_wasm_flag_addr, 0));
+    __ StoreU32(r0, MemOperand(thread_in_wasm_flag_addr, 0), no_reg);
   }
 
   Register function_entry = r4;
@@ -3396,7 +3396,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
                           Isolate::thread_in_wasm_flag_address_offset()),
                r0);
     __ mov(r0, Operand(0));
-    __ StoreU64(r0, MemOperand(thread_in_wasm_flag_addr, 0));
+    __ StoreU32(r0, MemOperand(thread_in_wasm_flag_addr, 0), no_reg);
   }
 
   // `wrapper_buffer` is a parameter for `JSToWasmHandleReturns`, it therefore
