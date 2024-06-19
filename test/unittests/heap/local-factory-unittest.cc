@@ -80,9 +80,9 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
     parse_info_.set_character_stream(
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
 
-    Parser parser(local_isolate(), parse_info(), script_);
+    Parser parser(local_isolate(), parse_info());
     parser.InitializeEmptyScopeChain(parse_info());
-    parser.ParseOnBackground(local_isolate(), parse_info(), 0, 0,
+    parser.ParseOnBackground(local_isolate(), parse_info(), script_, 0, 0,
                              kFunctionLiteralIdTopLevel);
 
     DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());

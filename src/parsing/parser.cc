@@ -451,8 +451,7 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
   return factory()->NewCallRuntime(function, permissive_args, pos);
 }
 
-Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info,
-               Handle<Script> script)
+Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->ast_value_factory(),
                          info->pending_error_handler(),
@@ -460,7 +459,6 @@ Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info,
                          info->flags(), true),
       local_isolate_(local_isolate),
       info_(info),
-      script_(script),
       scanner_(info->character_stream(), flags()),
       preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
@@ -3471,8 +3469,8 @@ void Parser::UpdateStatistics(
 }
 
 void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
-                               int start_position, int end_position,
-                               int function_literal_id) {
+                               Handle<Script> script, int start_position,
+                               int end_position, int function_literal_id) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kParseProgram,
             RuntimeCallStats::CounterMode::kThreadSpecific);
   parsing_on_main_thread_ = false;
@@ -3518,7 +3516,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
   // We need to unpark by now though, to be able to internalize.
   PostProcessParseResult(isolate, info, result);
   if (flags().is_toplevel()) {
-    HandleSourceURLComments(isolate, script_);
+    HandleSourceURLComments(isolate, script);
   }
 }
 

@@ -131,7 +131,7 @@ struct ParserTypes<Parser> {
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
-  Parser(LocalIsolate* local_isolate, ParseInfo* info, Handle<Script> script);
+  Parser(LocalIsolate* local_isolate, ParseInfo* info);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
@@ -141,8 +141,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
-                         int start_position, int end_position,
-                         int function_literal_id);
+                         Handle<Script> script, int start_position,
+                         int end_position, int function_literal_id);
 
   // Initializes an empty scope chain for top-level scripts, or scopes which
   // consist of only the native context.
@@ -1101,7 +1101,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   LocalIsolate* local_isolate_;
   ParseInfo* info_;
-  Handle<Script> script_;
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;

@@ -1951,7 +1951,7 @@ void BackgroundCompileTask::Run(
   // Update the character stream's runtime call stats.
   info.character_stream()->set_runtime_call_stats(info.runtime_call_stats());
 
-  Parser parser(isolate, &info, script_);
+  Parser parser(isolate, &info);
   if (flags().is_toplevel()) {
     parser.InitializeEmptyScopeChain(&info);
   } else {
@@ -1970,8 +1970,8 @@ void BackgroundCompileTask::Run(
         Scope::DeserializationMode::kIncludingVariables);
   }
 
-  parser.ParseOnBackground(isolate, &info, start_position_, end_position_,
-                           function_literal_id_);
+  parser.ParseOnBackground(isolate, &info, script_, start_position_,
+                           end_position_, function_literal_id_);
   parser.UpdateStatistics(script_, &use_counts_, &total_preparse_skipped_);
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
