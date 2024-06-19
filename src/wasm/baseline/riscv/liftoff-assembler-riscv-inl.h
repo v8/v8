@@ -2350,6 +2350,8 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
 }
 
 void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+// The standard library used by gcc tryjobs does not consider `std::find` to be
+// `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
   static_assert(std::find(std::begin(wasm::kGpParamRegisters),
                           std::end(wasm::kGpParamRegisters),
