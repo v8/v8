@@ -146,7 +146,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object,
     wasm::ValueType type, uint32_t initial, bool has_maximum, uint32_t maximum,
-    DirectHandle<Object> initial_value) {
+    DirectHandle<Object> initial_value, WasmTableFlag table_type) {
   CHECK(type.is_object_reference());
 
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
@@ -172,6 +172,7 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
+  table_obj->set_is_table64(table_type == WasmTableFlag::kTable64);
 
   table_obj->set_uses(ReadOnlyRoots(isolate).empty_fixed_array());
   return table_obj;

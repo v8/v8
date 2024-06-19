@@ -349,7 +349,8 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
 
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
-                                 base::Optional<uint32_t> max_size) {
+                                 base::Optional<uint32_t> max_size,
+                                 bool is_table64) {
   Factory* factory = isolate->factory();
 
   Handle<String> element =
@@ -360,6 +361,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   Handle<String> element_string = factory->element_string();
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
+  Handle<String> index_string = factory->InternalizeUtf8String("index");
   JSObject::AddProperty(isolate, object, element_string, element, NONE);
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
@@ -367,6 +369,9 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     JSObject::AddProperty(isolate, object, maximum_string,
                           factory->NewNumberFromUint(max_size.value()), NONE);
   }
+  auto index = is_table64 ? "i64" : "i32";
+  JSObject::AddProperty(isolate, object, index_string,
+                        factory->InternalizeUtf8String(index), NONE);
 
   return object;
 }
@@ -427,7 +432,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
           base::Optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size);
+                                       maximum_size, table.is_table64);
         }
         import_kind = table_string;
         break;
@@ -532,7 +537,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
           base::Optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size);
+                                       maximum_size, table.is_table64);
         }
         export_kind = table_string;
         break;

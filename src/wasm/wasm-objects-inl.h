@@ -486,6 +486,14 @@ wasm::ValueType WasmTableObject::type() {
   return type;
 }
 
+bool WasmTableObject::is_table64() const {
+  int table64_smi_value =
+      TorqueGeneratedWasmTableObject<WasmTableObject, JSObject>::is_table64();
+  DCHECK_LE(0, table64_smi_value);
+  DCHECK_GE(1, table64_smi_value);
+  return table64_smi_value != 0;
+}
+
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 bool WasmMemoryObject::is_memory64() const {

@@ -942,7 +942,8 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   bool shared, bool is_memory64);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
-                                 base::Optional<uint32_t> max_size);
+                                 base::Optional<uint32_t> max_size,
+                                 bool is_table64);
 Handle<JSArray> GetImports(Isolate* isolate,
                            DirectHandle<WasmModuleObject> module);
 Handle<JSArray> GetExports(Isolate* isolate,

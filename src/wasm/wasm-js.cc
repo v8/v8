@@ -1376,10 +1376,34 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
+  // Parse the 'index' property of the descriptor.
+  v8::Local<v8::Value> index_value;
+  if (!descriptor->Get(context, v8_str(isolate, "index"))
+           .ToLocal(&index_value)) {
+    DCHECK(i_isolate->has_exception());
+    return;
+  }
+
+  i::WasmTableFlag is_table64_flag = i::WasmTableFlag::kTable32;
+  if (!index_value->IsUndefined()) {
+    v8::Local<v8::String> index;
+    if (!index_value->ToString(context).ToLocal(&index)) {
+      DCHECK(i_isolate->has_exception());
+      return;
+    }
+    if (index->StringEquals(v8_str(isolate, "i64"))) {
+      is_table64_flag = i::WasmTableFlag::kTable64;
+    } else if (!index->StringEquals(v8_str(isolate, "i32"))) {
+      thrower.TypeError("Unknown table index");
+      return;
+    }
+  }
+
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       i_isolate, i::Handle<i::WasmInstanceObject>(), type,
       static_cast<uint32_t>(initial), has_maximum,
-      static_cast<uint32_t>(maximum), DefaultReferenceValue(i_isolate, type));
+      static_cast<uint32_t>(maximum), DefaultReferenceValue(i_isolate, type),
+      is_table64_flag);
 
   // The infrastructure for `new Foo` calls allocates an object, which is
   // available here as {info.This()}. We're going to discard this object
@@ -2676,7 +2700,8 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }
   auto type = i::wasm::GetTypeForTable(i_isolate, table->type(),
-                                       table->current_length(), max_size);
+                                       table->current_length(), max_size,
+                                       table->is_table64());
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 

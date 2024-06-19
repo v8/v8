@@ -195,6 +195,7 @@ extern class WasmTableObject extends JSObject {
   // can update the instance's dispatch table when the table grows.
   uses: FixedArray;
   raw_type: Smi;
+  is_table64: Smi;  // Boolean
 }
 
 extern class WasmMemoryObject extends JSObject {

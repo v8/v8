@@ -1254,6 +1254,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                : Handle<FixedArray>();
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
+      auto table_type =
+          table.is_table64 ? WasmTableFlag::kTable64 : WasmTableFlag::kTable32;
       // Initialize tables with null for now. We will initialize non-defaultable
       // tables later, in {SetTableInitialValues}.
       DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
@@ -1261,7 +1263,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           table.has_maximum_size, table.maximum_size,
           IsSubtypeOf(table.type, kWasmExternRef, module_)
               ? Handle<HeapObject>{isolate_->factory()->null_value()}
-              : Handle<HeapObject>{isolate_->factory()->wasm_null()});
+              : Handle<HeapObject>{isolate_->factory()->wasm_null()},
+          table_type);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
     }
     trusted_data->set_tables(*tables);
@@ -2068,6 +2071,13 @@ bool InstanceBuilder::ProcessImportedTable(
     }
   }
 
+  if (table.is_table64 != table_object->is_table64()) {
+    thrower_->LinkError("cannot import table%d as table%d",
+                        table_object->is_table64() ? 64 : 32,
+                        table.is_table64 ? 64 : 32);
+    return false;
+  }
+
   const WasmModule* table_type_module =
       !IsUndefined(table_object->instance())
           ? Cast<WasmInstanceObject>(table_object->instance())->module()
@@ -2471,9 +2481,6 @@ bool InstanceBuilder::ProcessImportedMemories(
         static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
     const WasmMemory* memory = &module_->memories[memory_index];
     if (memory->is_memory64 != memory_object->is_memory64()) {
-      // For now, we forbid importing memory32 as memory64 and vice versa.
-      // TODO(13780): Check if the final spec says anything about this or has
-      // any tests. Adapt if needed.
       thrower_->LinkError("cannot import memory%d as memory%d",
                           memory_object->is_memory64() ? 64 : 32,
                           memory->is_memory64 ? 64 : 32);

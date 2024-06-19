@@ -1542,7 +1542,7 @@ class WasmModuleBuilder {
     return mem_index;
   }
 
-  addImportedTable(module, name, initial, maximum, type) {
+  addImportedTable(module, name, initial, maximum, type, is_table64) {
     if (this.tables.length != 0) {
       throw new Error('Imported tables must be declared before local ones');
     }
@@ -1552,7 +1552,8 @@ class WasmModuleBuilder {
       kind: kExternalTable,
       initial: initial,
       maximum: maximum,
-      type: type || kWasmFuncRef
+      type: type || kWasmFuncRef,
+      is_table64: !!is_table64
     };
     this.imports.push(o);
     return this.num_imported_tables++;
@@ -1806,8 +1807,13 @@ class WasmModuleBuilder {
             if (has_max) emit(imp.maximum);
           } else if (imp.kind == kExternalTable) {
             section.emit_type(imp.type);
-            var has_max = (typeof imp.maximum) != 'undefined';
-            section.emit_u8(has_max ? 1 : 0);             // flags
+            const has_max = (typeof imp.maximum) != 'undefined';
+            // TODO(manoskouk): Store sharedness as a property.
+            const is_shared = false
+            const is_table64 = !!imp.is_table64;
+            let limits_byte =
+                (is_table64 ? 4 : 0) | (is_shared ? 2 : 0) | (has_max ? 1 : 0);
+            section.emit_u8(limits_byte);                 // flags
             section.emit_u32v(imp.initial);               // initial
             if (has_max) section.emit_u32v(imp.maximum);  // maximum
           } else if (imp.kind == kExternalTag) {
