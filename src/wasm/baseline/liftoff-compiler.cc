@@ -8139,7 +8139,7 @@ class LiftoffCompiler {
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
-    const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
+    const WasmTable* table = imm.table_imm.table;
 
     if (v8_flags.wasm_deopt &&
         env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
@@ -8157,8 +8157,8 @@ class LiftoffCompiler {
             : pinned.set(__ LoadToRegister(index_slot, pinned).gp());
 
     const uint32_t max_table_size =
-        table.has_maximum_size
-            ? std::min(table.maximum_size, uint32_t{kV8MaxWasmTableSize})
+        table->has_maximum_size
+            ? std::min(table->maximum_size, uint32_t{kV8MaxWasmTableSize})
             : uint32_t{kV8MaxWasmTableSize};
     const bool statically_oob =
         is_static_index &&
@@ -8188,7 +8188,8 @@ class LiftoffCompiler {
       // Bounds check against the table size: Compare against the dispatch table
       // size, or a constant if the size is statically known.
       const bool needs_dynamic_size =
-          !table.has_maximum_size || table.maximum_size != table.initial_size;
+          !table->has_maximum_size ||
+          table->maximum_size != table->initial_size;
 
       Label* out_of_bounds_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapTableOutOfBounds);
@@ -8211,7 +8212,7 @@ class LiftoffCompiler {
                                  trapping);
         } else {
           ValueKind comparison_type = kI32;
-          if (Is64() && table.is_table64) {
+          if (Is64() && table->is_table64) {
             // {index_reg} is a uintptr, so do a ptrsize comparison.
             __ emit_u32_to_uintptr(table_size.gp_reg(), table_size.gp_reg());
             comparison_type = kIntPtrKind;
@@ -8221,10 +8222,10 @@ class LiftoffCompiler {
                             trapping);
         }
       } else {
-        DCHECK_EQ(max_table_size, table.initial_size);
+        DCHECK_EQ(max_table_size, table->initial_size);
         if (is_static_index) {
           DCHECK_LT(index_slot.i32_const(), max_table_size);
-        } else if (Is64() && table.is_table64) {
+        } else if (Is64() && table->is_table64) {
           // On 32-bit, this is the same as below, so include the `Is64()` test
           // to statically tell the compiler to skip this branch.
           // Note: {max_table_size} will be sign-extended, which is fine because
@@ -8277,9 +8278,9 @@ class LiftoffCompiler {
     }
 
     bool needs_type_check = !EquivalentTypes(
-        table.type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
+        table->type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
         decoder->module_, decoder->module_);
-    bool needs_null_check = table.type.is_nullable();
+    bool needs_null_check = table->type.is_nullable();
 
     // We do both the type check and the null check by checking the signature,
     // so this shares most code. For the null check we then only check if the

@@ -1765,7 +1765,7 @@ class WasmDecoder : public Decoder {
   bool Validate(const uint8_t* pc, CallIndirectImmediate& imm) {
     if (!ValidateSignature(pc, imm.sig_imm)) return false;
     if (!Validate(pc + imm.sig_imm.length, imm.table_imm)) return false;
-    ValueType table_type = module_->tables[imm.table_imm.index].type;
+    ValueType table_type = imm.table_imm.table->type;
     if (!VALIDATE(IsSubtypeOf(table_type, kWasmFuncRef, module_) ||
                   IsSubtypeOf(table_type,
                               ValueType::RefNull(HeapType::kFuncShared),
@@ -1897,9 +1897,10 @@ class WasmDecoder : public Decoder {
                   imm.index, num_memories);
       return false;
     }
-    V8_ASSUME(imm.index < num_memories);
 
+    V8_ASSUME(imm.index < num_memories);
     imm.memory = this->module_->memories.data() + imm.index;
+
     return true;
   }
 
@@ -1941,8 +1942,7 @@ class WasmDecoder : public Decoder {
     }
     ValueType elem_type =
         module_->elem_segments[imm.element_segment.index].type;
-    if (!VALIDATE(IsSubtypeOf(elem_type, module_->tables[imm.table.index].type,
-                              module_))) {
+    if (!VALIDATE(IsSubtypeOf(elem_type, imm.table.table->type, module_))) {
       DecodeError(pc, "table %u is not a super-type of %s", imm.table.index,
                   elem_type.name().c_str());
       return false;
@@ -1953,12 +1953,8 @@ class WasmDecoder : public Decoder {
   bool Validate(const uint8_t* pc, TableCopyImmediate& imm) {
     if (!Validate(pc, imm.table_src)) return false;
     if (!Validate(pc + imm.table_src.length, imm.table_dst)) return false;
-    size_t num_tables = module_->tables.size();
-    V8_ASSUME(imm.table_src.index < num_tables);
-    V8_ASSUME(imm.table_dst.index < num_tables);
-    ValueType src_type = module_->tables[imm.table_src.index].type;
-    if (!VALIDATE(IsSubtypeOf(
-            src_type, module_->tables[imm.table_dst.index].type, module_))) {
+    ValueType src_type = imm.table_src.table->type;
+    if (!VALIDATE(IsSubtypeOf(src_type, imm.table_dst.table->type, module_))) {
       DecodeError(pc, "table %u is not a super-type of %s", imm.table_dst.index,
                   src_type.name().c_str());
       return false;
@@ -1984,15 +1980,14 @@ class WasmDecoder : public Decoder {
                   imm.index, num_tables);
       return false;
     }
-    if (!VALIDATE(!is_shared_ || module_->tables[imm.index].shared)) {
+    imm.table = this->module_->tables.data() + imm.index;
+
+    if (!VALIDATE(!is_shared_ || imm.table->shared)) {
       DecodeError(pc,
                   "cannot reference non-shared table %u from shared function",
                   imm.index);
       return false;
     }
-
-    V8_ASSUME(imm.index < num_tables);
-    imm.table = this->module_->tables.data() + imm.index;
 
     return true;
   }
@@ -3937,8 +3932,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(CallIndirect) {
     CallIndirectImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    const WasmTable* table = &this->module_->tables[imm.table_imm.index];
-    Value index = Pop(TableIndexType(table));
+    Value index = Pop(TableIndexType(imm.table_imm.table));
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.data(),
@@ -3976,8 +3970,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                         "tail call return types mismatch");
       return 0;
     }
-    const WasmTable* table = &this->module_->tables[imm.table_imm.index];
-    Value index = Pop(TableIndexType(table));
+    Value index = Pop(TableIndexType(imm.table_imm.table));
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallIndirect, index, imm,
                                        args.data());
@@ -5985,8 +5978,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableInit: {
         TableInitImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        const WasmTable* table = &this->module_->tables[imm.table.index];
-        ValueType table_index_type = TableIndexType(table);
+        ValueType table_index_type = TableIndexType(imm.table.table);
         auto [dst, src, size] = Pop(table_index_type, kWasmI32, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm, dst, src, size);
         return opcode_length + imm.length;
@@ -6034,8 +6026,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType table_index_type = TableIndexType(imm.table);
         auto [start, value, count] =
-            Pop(table_index_type, this->module_->tables[imm.index].type,
-                table_index_type);
+            Pop(table_index_type, imm.table->type, table_index_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableFill, imm, start, value, count);
         return opcode_length + imm.length;
       }

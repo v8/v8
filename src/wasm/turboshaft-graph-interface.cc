@@ -2555,9 +2555,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
       if (should_inline(decoder, feedback_slot_,
                         std::numeric_limits<int>::max())) {
-        const WasmTable* table = &decoder->module_->tables[imm.table_imm.index];
-        V<WordPtr> index_wordptr =
-            TableIndexToUintPtrOrOOBTrap(table->is_table64, index.op);
+        V<WordPtr> index_wordptr = TableIndexToUintPtrOrOOBTrap(
+            imm.table_imm.table->is_table64, index.op);
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2718,9 +2717,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }    // if inlining_enabled
 
     // Didn't inline.
-    const WasmTable* table = &decoder->module_->tables[imm.table_imm.index];
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
     auto [target, ref] =
         BuildIndirectCallTargetAndRef(decoder, index_wordptr, imm);
     BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
@@ -2734,9 +2732,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
       if (should_inline(decoder, feedback_slot_,
                         std::numeric_limits<int>::max())) {
-        const WasmTable* table = &decoder->module_->tables[imm.table_imm.index];
-        V<WordPtr> index_wordptr =
-            TableIndexToUintPtrOrOOBTrap(table->is_table64, index.op);
+        V<WordPtr> index_wordptr = TableIndexToUintPtrOrOOBTrap(
+            imm.table_imm.table->is_table64, index.op);
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2825,9 +2822,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }    // if inlining_enabled
 
     // Didn't inline.
-    const WasmTable* table = &decoder->module_->tables[imm.table_imm.index];
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
     auto [target, ref] =
         BuildIndirectCallTargetAndRef(decoder, index_wordptr, imm);
     BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
@@ -3946,7 +3942,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const TableIndexImmediate& imm) {
-    V<WasmTableObject> table = LoadTable(decoder, imm.index);
+    V<WasmTableObject> table = LoadTable(decoder, imm);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
@@ -4049,8 +4045,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         dst_is_table64 && src_is_table64, size_val.op);
     bool table_is_shared = imm.table_dst.table->shared;
     // TODO(14616): Is this too restrictive?
-    DCHECK_EQ(table_is_shared,
-              decoder->module_->tables[imm.table_src.index].shared);
+    DCHECK_EQ(table_is_shared, imm.table_src.table->shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableCopy>(
         decoder, {dst_wordptr, src_wordptr, size_wordptr,
                   __ NumberConstant(imm.table_dst.index),
@@ -4104,18 +4099,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
          __ NumberConstant(imm.index), value.op});
   }
 
-  V<WasmTableObject> LoadTable(FullDecoder* decoder, uint32_t table_index) {
-    bool shared = decoder->module_->tables[table_index].shared;
-    V<FixedArray> tables =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(shared), Tables,
-                                      MemoryRepresentation::TaggedPointer());
+  V<WasmTableObject> LoadTable(FullDecoder* decoder,
+                               const TableIndexImmediate& imm) {
+    V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(imm.table->shared), Tables,
+        MemoryRepresentation::TaggedPointer());
     return V<WasmTableObject>::Cast(
-        __ LoadFixedArrayElement(tables, table_index));
+        __ LoadFixedArrayElement(tables, imm.index));
   }
 
   void TableSize(FullDecoder* decoder, const TableIndexImmediate& imm,
                  Value* result) {
-    V<WasmTableObject> table = LoadTable(decoder, imm.index);
+    V<WasmTableObject> table = LoadTable(decoder, imm);
     V<Word32> size_word32 = __ UntagSmi(__ Load(
         table, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
         WasmTableObject::kCurrentLengthOffset));
@@ -6989,34 +6984,34 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   std::pair<V<WordPtr>, V<ExposedTrustedObject>> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, V<WordPtr> index_wordptr, CallIndirectImmediate imm,
       bool needs_type_or_null_check = true) {
-    uint32_t table_index = imm.table_imm.index;
     static_assert(kV8MaxWasmTableSize < size_t{kMaxInt});
-    const WasmTable& table = decoder->module_->tables[table_index];
+    const WasmTable* table = imm.table_imm.table;
 
     /* Step 1: Load the indirect function tables for this table. */
     V<WasmDispatchTable> dispatch_table;
-    if (table_index == 0) {
+    if (imm.table_imm.index == 0) {
       dispatch_table =
-          LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(table.shared),
+          LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(table->shared),
                                         DispatchTable0, WasmDispatchTable);
     } else {
       V<ProtectedFixedArray> dispatch_tables =
           LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              trusted_instance_data(table.shared), DispatchTables,
+              trusted_instance_data(table->shared), DispatchTables,
               ProtectedFixedArray);
-      dispatch_table = V<WasmDispatchTable>::Cast(
-          __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
+      dispatch_table =
+          V<WasmDispatchTable>::Cast(__ LoadProtectedFixedArrayElement(
+              dispatch_tables, imm.table_imm.index));
     }
 
     /* Step 2: Bounds check against the table size. */
     V<Word32> table_length;
     bool needs_dynamic_size =
-        !table.has_maximum_size || table.maximum_size != table.initial_size;
+        !table->has_maximum_size || table->maximum_size != table->initial_size;
     if (needs_dynamic_size) {
       table_length = __ LoadField<Word32>(
           dispatch_table, AccessBuilder::ForWasmDispatchTableLength());
     } else {
-      table_length = __ Word32Constant(table.initial_size);
+      table_length = __ Word32Constant(table->initial_size);
     }
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(table_length));
@@ -7027,10 +7022,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint32_t sig_index = imm.sig_imm.index;
     bool needs_type_check =
         needs_type_or_null_check &&
-        !EquivalentTypes(table.type.AsNonNull(), ValueType::Ref(sig_index),
+        !EquivalentTypes(table->type.AsNonNull(), ValueType::Ref(sig_index),
                          decoder->module_, decoder->module_);
     bool needs_null_check =
-        needs_type_or_null_check && table.type.is_nullable();
+        needs_type_or_null_check && table->type.is_nullable();
 
     V<WordPtr> dispatch_table_entry_offset = __ WordPtrAdd(
         __ WordPtrMul(index_wordptr, WasmDispatchTable::kEntrySize),
