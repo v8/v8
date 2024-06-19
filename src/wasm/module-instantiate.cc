@@ -969,67 +969,6 @@ class InstanceBuilder {
 };
 
 namespace {
-class ReportLazyCompilationTimesTask : public v8::Task {
- public:
-  ReportLazyCompilationTimesTask(std::weak_ptr<Counters> counters,
-                                 std::weak_ptr<NativeModule> native_module,
-                                 int delay_in_seconds)
-      : counters_(std::move(counters)),
-        native_module_(std::move(native_module)),
-        delay_in_seconds_(delay_in_seconds) {}
-
-  void Run() final {
-    std::shared_ptr<NativeModule> native_module = native_module_.lock();
-    if (!native_module) return;
-    std::shared_ptr<Counters> counters = counters_.lock();
-    if (!counters) return;
-    int num_compilations = native_module->num_lazy_compilations();
-    // If no compilations happened, we don't add samples. Experiments showed
-    // many cases of num_compilations == 0, and adding these cases would make
-    // other cases less visible.
-    if (!num_compilations) return;
-    if (delay_in_seconds_ == 5) {
-      counters->wasm_num_lazy_compilations_5sec()->AddSample(num_compilations);
-      counters->wasm_sum_lazy_compilation_time_5sec()->AddSample(
-          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
-      counters->wasm_max_lazy_compilation_time_5sec()->AddSample(
-          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
-      return;
-    }
-    if (delay_in_seconds_ == 20) {
-      counters->wasm_num_lazy_compilations_20sec()->AddSample(num_compilations);
-      counters->wasm_sum_lazy_compilation_time_20sec()->AddSample(
-          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
-      counters->wasm_max_lazy_compilation_time_20sec()->AddSample(
-          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
-      return;
-    }
-    if (delay_in_seconds_ == 60) {
-      counters->wasm_num_lazy_compilations_60sec()->AddSample(num_compilations);
-      counters->wasm_sum_lazy_compilation_time_60sec()->AddSample(
-          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
-      counters->wasm_max_lazy_compilation_time_60sec()->AddSample(
-          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
-      return;
-    }
-    if (delay_in_seconds_ == 120) {
-      counters->wasm_num_lazy_compilations_120sec()->AddSample(
-          num_compilations);
-      counters->wasm_sum_lazy_compilation_time_120sec()->AddSample(
-          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
-      counters->wasm_max_lazy_compilation_time_120sec()->AddSample(
-          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
-      return;
-    }
-    UNREACHABLE();
-  }
-
- private:
-  std::weak_ptr<Counters> counters_;
-  std::weak_ptr<NativeModule> native_module_;
-  int delay_in_seconds_;
-};
-
 class WriteOutPGOTask : public v8::Task {
  public:
   explicit WriteOutPGOTask(std::weak_ptr<NativeModule> native_module)
@@ -1067,27 +1006,6 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   if (!instance_object.is_null()) {
     const std::shared_ptr<NativeModule>& native_module =
         module_object->shared_native_module();
-    // Post tasks for lazy compilation metrics before we call the start
-    // function.
-    if (v8_flags.wasm_lazy_compilation && !v8_flags.single_threaded &&
-        native_module->ShouldLazyCompilationMetricsBeReported()) {
-      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
-          std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), native_module, 5),
-          5.0);
-      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
-          std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), native_module, 20),
-          20.0);
-      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
-          std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), native_module, 60),
-          60.0);
-      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
-          std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), native_module, 120),
-          120.0);
-    }
     if (v8_flags.experimental_wasm_pgo_to_file &&
         native_module->ShouldPgoDataBeWritten() &&
         native_module->module()->num_declared_functions > 0) {

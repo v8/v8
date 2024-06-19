@@ -2880,7 +2880,7 @@ class AsyncCompileJob::CompilationStateCallback
         break;
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK_EQ(CompilationEvent::kFinishedExportWrappers, last_event_);
-        if (job_->DecrementAndCheckFinisherCount(kCompilation)) {
+        if (job_->DecrementAndCheckFinisherCount()) {
           // Install the native module in the cache, or reuse a conflicting one.
           // If we get a conflicting module, wait until we are back in the
           // main thread to update {job_->native_module_} to avoid a data race.
@@ -2901,7 +2901,7 @@ class AsyncCompileJob::CompilationStateCallback
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value() ||
                last_event_ == CompilationEvent::kFinishedExportWrappers);
-        if (job_->DecrementAndCheckFinisherCount(kCompilation)) {
+        if (job_->DecrementAndCheckFinisherCount()) {
           // Don't update {job_->native_module_} to avoid data races with other
           // compilation threads. Use a copy of the shared pointer instead.
           GetWasmEngine()->UpdateNativeModuleCache(true, job_->native_module_,
@@ -3334,7 +3334,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
-  job_->outstanding_finishers_ = 2;
+  job_->outstanding_finishers_.store(2);
   // TODO(13209): Use PGO for streaming compilation, if available.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
   compilation_unit_builder_ = InitializeCompilation(
@@ -3504,8 +3504,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
   } else {
     job_->native_module_->SetWireBytes(std::move(job_->bytes_copy_));
   }
-  const bool needs_finish =
-      job_->DecrementAndCheckFinisherCount(AsyncCompileJob::kStreamingDecoder);
+  const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();

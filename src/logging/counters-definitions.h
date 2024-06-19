@@ -86,10 +86,6 @@ namespace internal {
   HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
   /* Number of times a cache event is triggered for a wasm module. */          \
   HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
-  HR(wasm_streaming_until_compilation_finished,                                \
-     V8.WasmStreamingUntilCompilationFinishedMilliSeconds, 0, 10000, 50)       \
-  HR(wasm_compilation_until_streaming_finished,                                \
-     V8.WasmCompilationUntilStreamFinishedMilliSeconds, 0, 10000, 50)          \
   /* Number of in-use external pointers in the external pointer table. */      \
   /* Counted after sweeping the table at the end of mark-compact GC. */        \
   HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
@@ -100,14 +96,6 @@ namespace internal {
      kMaxTrustedPointers, 101)                                                 \
   HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \
      kMaxCppHeapPointers, 101)                                                 \
-  HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
-     200000, 50)                                                               \
-  HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \
-     200000, 50)                                                               \
-  HR(wasm_num_lazy_compilations_60sec, V8.WasmNumLazyCompilations60Sec, 0,     \
-     200000, 50)                                                               \
-  HR(wasm_num_lazy_compilations_120sec, V8.WasmNumLazyCompilations120Sec, 0,   \
-     200000, 50)                                                               \
   /* Outcome of external pointer table compaction: kSuccess, */                \
   /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
   /* ExternalPointerTable::TableCompactionOutcome enum for more details. */    \
@@ -308,22 +296,6 @@ namespace internal {
   HT(deserialize_script_on_background,                                         \
      V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
      MICROSECOND)                                                              \
-  HT(wasm_max_lazy_compilation_time_5sec,                                      \
-     V8.WasmMaxLazyCompilationTime5SecMilliSeconds, 5000, MILLISECOND)         \
-  HT(wasm_max_lazy_compilation_time_20sec,                                     \
-     V8.WasmMaxLazyCompilationTime20SecMilliSeconds, 5000, MILLISECOND)        \
-  HT(wasm_max_lazy_compilation_time_60sec,                                     \
-     V8.WasmMaxLazyCompilationTime60SecMilliSeconds, 5000, MILLISECOND)        \
-  HT(wasm_max_lazy_compilation_time_120sec,                                    \
-     V8.WasmMaxLazyCompilationTime120SecMilliSeconds, 5000, MILLISECOND)       \
-  HT(wasm_sum_lazy_compilation_time_5sec,                                      \
-     V8.WasmSumLazyCompilationTime5SecMilliSeconds, 20000, MILLISECOND)        \
-  HT(wasm_sum_lazy_compilation_time_20sec,                                     \
-     V8.WasmSumLazyCompilationTime20SecMilliSeconds, 20000, MILLISECOND)       \
-  HT(wasm_sum_lazy_compilation_time_60sec,                                     \
-     V8.WasmSumLazyCompilationTime60SecMilliSeconds, 20000, MILLISECOND)       \
-  HT(wasm_sum_lazy_compilation_time_120sec,                                    \
-     V8.WasmSumLazyCompilationTime120SecMilliSeconds, 20000, MILLISECOND)      \
   /* Debugger timers. */                                                       \
   HT(debug_pause_to_paused_event, V8.DebugPauseToPausedEventMilliSeconds,      \
      1000000, MILLISECOND)
