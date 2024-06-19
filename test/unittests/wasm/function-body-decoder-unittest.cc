@@ -5577,12 +5577,14 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
   uint8_t other_table =
       builder.InitializeTable(wasm::kWasmVoid, other_table_type);
 
-  // Copy from table to other_table with types i32/i64/i32.
+  // Copy from `table` to `other_table` with types i32/i64/i32. Valid if `table`
+  // is table64 (and hence `other_table` is table32).
   Validate(
-      table_type == kTable32, sigs.v_v(),
-      {WASM_TABLE_COPY(table, other_table, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
+      table_type == kTable64, sigs.v_v(),
+      {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
       kAppendEnd);
-  // Copy from table to other_table with types i64/i32/i32.
+  // Copy from `table` to `other_table` with types i64/i32/i32. Valid if `table`
+  // is table32 (and hence `other_table` is table64).
   Validate(
       table_type == kTable32, sigs.v_v(),
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO, WASM_ZERO)},
@@ -5591,18 +5593,18 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
   // bit.
   ExpectFailure(
       sigs.v_v(),
-      {WASM_TABLE_COPY(table, other_table, WASM_ZERO, WASM_ZERO64,
+      {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable32
+      table_type == kTable64
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i64, found i32.const of type i32");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_TABLE_COPY(table, other_table, WASM_ZERO64, WASM_ZERO,
+      {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable64
+      table_type == kTable32
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i32, found i64.const of type i64");
 }
