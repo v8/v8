@@ -5773,6 +5773,13 @@ class LiftoffCompiler {
       return slot;
     }
 
+    // {kI64} constants will be stored as 32-bit integers in the {VarState} and
+    // will be sign-extended later. Hence we can return constants if they are
+    // positive (such that sign-extension and zero-extension are identical).
+    if (slot.is_const() && (kIntPtrKind == kI32 || slot.i32_const() >= 0)) {
+      return {kIntPtrKind, slot.i32_const(), 0};
+    }
+
     // For memory32 on 64-bit hosts, zero-extend.
     if constexpr (Is64()) {
       DCHECK(!is_64bit_value);  // Handled above.
@@ -5847,6 +5854,13 @@ class LiftoffCompiler {
     if ((kSystemPointerSize == kInt64Size) == is_mem64) {
       if (slot.is_reg()) pinned->set(slot.reg());
       return slot;
+    }
+
+    // {kI64} constants will be stored as 32-bit integers in the {VarState} and
+    // will be sign-extended later. Hence we can return constants if they are
+    // positive (such that sign-extension and zero-extension are identical).
+    if (slot.is_const() && (kIntPtrKind == kI32 || slot.i32_const() >= 0)) {
+      return {kIntPtrKind, slot.i32_const(), 0};
     }
 
     LiftoffRegister reg = __ LoadToModifiableRegister(slot, *pinned);
