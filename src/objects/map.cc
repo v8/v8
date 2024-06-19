@@ -2258,13 +2258,10 @@ bool Map::EquivalentToForTransition(const Tagged<Map> other,
   CHECK_EQ(GetConstructor(), other->GetConstructor());
   CHECK_EQ(instance_type(), other->instance_type());
 
+  if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {
-    if (bit_field() != other->bit_field()) return false;
     if (prototype() != other->prototype()) return false;
   } else {
-    if ((bit_field() | Bits1::HasNonInstancePrototypeBit::kMask) !=
-        (other->bit_field() | Bits1::HasNonInstancePrototypeBit::kMask))
-      return false;
     if (*new_prototype != other->prototype()) return false;
   }
   if (new_target_is_base() != other->new_target_is_base()) return false;
