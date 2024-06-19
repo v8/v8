@@ -6986,6 +6986,22 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   subgraph.Bind(&else_branch);
   subgraph.set(is_done, GetBooleanConstant(true));
   subgraph.set(ret_value, GetRootConstant(RootIndex::kUndefinedValue));
+  if (!IsTypedArrayElementsKind(elements_kind)) {
+    // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
+    // value that will never pass the length check again (aka the maximum
+    // value possible for the specific iterated object). Note that this is
+    // different from what the specification says, which is changing the
+    // [[IteratedObject]] field to undefined, but that makes it difficult
+    // to eliminate the map checks and "length" accesses in for..of loops.
+    //
+    // This is not necessary for JSTypedArray's, since the length of those
+    // cannot change later and so if we were ever out of bounds for them
+    // we will stay out-of-bounds forever.
+    ValueNode* max_uint32 = GetTaggedValue(GetFloat64Constant(kMaxUInt32));
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+        {receiver, max_uint32}, JSArrayIterator::kNextIndexOffset,
+        InitializingOrTransitioning::kNo);
+  }
   subgraph.Goto(&done);
 
   // Allocate result object and return.
