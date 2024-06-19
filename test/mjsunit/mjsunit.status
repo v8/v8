@@ -1324,6 +1324,10 @@
 
   # https://crbug.com/v8/14421
   'wasm/multiple-code-spaces': [SKIP],
+
+  # Tests calling quit are not supported: https://crbug.com/341021498
+  'harmony/weakrefs/clearkeptobjects-on-quit': [SKIP],
+  'd8/d8-finalization-registry-quit': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################

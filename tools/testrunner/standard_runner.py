@@ -196,6 +196,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self.options.extra_flags.append('--predictable')
       self.options.extra_flags.append('--verify-predictable')
       self.options.extra_flags.append('--no-inline-new')
+      self.options.extra_flags.append('--omit-quit')
       # Add predictable wrapper to command prefix.
       self.options.command_prefix = (
           [sys.executable, self._predictable_wrapper()] + self.options.command_prefix)
