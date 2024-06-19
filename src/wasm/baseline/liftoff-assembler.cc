@@ -400,28 +400,6 @@ LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
   return dst;
 }
 
-LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
-                                                 LiftoffRegList pinned) {
-  DCHECK_LT(index, cache_state_.stack_state.size());
-  VarState& slot = cache_state_.stack_state.end()[-1 - index];
-  if (V8_LIKELY(slot.is_reg())) return slot.reg();
-  LiftoffRegister reg = LoadToRegister(slot, pinned);
-  cache_state_.inc_used(reg);
-  slot.MakeRegister(reg);
-  return reg;
-}
-
-void LiftoffAssembler::DropValues(int count) {
-  DCHECK_GE(cache_state_.stack_state.size(), count);
-  for (VarState& slot :
-       base::VectorOf(cache_state_.stack_state.end() - count, count)) {
-    if (slot.is_reg()) {
-      cache_state_.dec_used(slot.reg());
-    }
-  }
-  cache_state_.stack_state.pop_back(count);
-}
-
 void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
   auto* dropped = cache_state_.stack_state.begin() + offset;
   if (dropped->is_reg()) {

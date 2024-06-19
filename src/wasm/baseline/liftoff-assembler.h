@@ -450,9 +450,26 @@ class LiftoffAssembler : public MacroAssembler {
   // {PeekToRegister(0)} should result in the same register.
   // When the value is finally popped, the use counter of its register has to be
   // decremented. This can be done by popping the value with {DropValues}.
-  LiftoffRegister PeekToRegister(int index, LiftoffRegList pinned);
+  LiftoffRegister PeekToRegister(int index, LiftoffRegList pinned) {
+    DCHECK_LT(index, cache_state_.stack_state.size());
+    VarState& slot = cache_state_.stack_state.end()[-1 - index];
+    if (V8_LIKELY(slot.is_reg())) return slot.reg();
+    LiftoffRegister reg = LoadToRegister(slot, pinned);
+    cache_state_.inc_used(reg);
+    slot.MakeRegister(reg);
+    return reg;
+  }
 
-  void DropValues(int count);
+  void DropValues(int count) {
+    DCHECK_GE(cache_state_.stack_state.size(), count);
+    for (VarState& slot :
+         base::VectorOf(cache_state_.stack_state.end() - count, count)) {
+      if (slot.is_reg()) {
+        cache_state_.dec_used(slot.reg());
+      }
+    }
+    cache_state_.stack_state.pop_back(count);
+  }
 
   // Drop a specific value from the stack; this is an expensive operation which
   // is currently only used for exceptions.
