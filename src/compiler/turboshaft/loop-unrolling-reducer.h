@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE StaticCanonicalForLoopMatcher {
       : matcher_(matcher) {}
 
   IterationCount GetIterCountIfStaticCanonicalForLoop(
-      OpIndex cond_idx, bool loop_if_cond_is) const;
+      const Block* header, OpIndex cond_idx, bool loop_if_cond_is) const;
 
   enum class CmpOp {
     kEqual,
