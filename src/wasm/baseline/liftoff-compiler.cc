@@ -5832,13 +5832,12 @@ class LiftoffCompiler {
     pinned->clear(high_word);
   }
 
-  // Same, but can take a VarState in the middle of the stack without
-  // popping it.
-  // For 64-bit memories on 32-bit systems, the resulting VarState will
-  // contain a single register whose value will be kMaxUint32 if the
-  // high word had any bits set.
-  VarState MemTypeToVarStateSaturating(int stack_index,
-                                       LiftoffRegList* pinned) {
+  // Same as {PopIndexToVarState}, but can take a VarState in the middle of the
+  // stack without popping it.
+  // For 64-bit values on 32-bit systems, the resulting VarState will contain a
+  // single register whose value will be kMaxUint32 if the high word had any
+  // bits set.
+  VarState IndexToVarStateSaturating(int stack_index, LiftoffRegList* pinned) {
     DCHECK_LE(0, stack_index);
     DCHECK_LT(stack_index, __ cache_state()->stack_height());
     VarState& slot = __ cache_state()->stack_state.end()[-1 - stack_index];
@@ -5870,6 +5869,14 @@ class LiftoffCompiler {
     __ emit_jump(&ok);
     __ bind(&ok);
     return {kIntPtrKind, reg.low(), 0};
+  }
+
+  // Same as {PopIndexToVarState}, but saturates 64-bit values on 32-bit
+  // platforms like {IndexToVarStateSaturating}.
+  VarState PopIndexToVarStateSaturating(LiftoffRegList* pinned) {
+    VarState result = IndexToVarStateSaturating(0, pinned);
+    __ DropValues(1);
+    return result;
   }
 
   // The following functions are to be used inside a DCHECK. They always return
@@ -6161,8 +6168,7 @@ class LiftoffCompiler {
     LoadSmi(table_index_reg, imm.index);
     VarState table_index(kSmiKind, table_index_reg, 0);
     // If `delta` is, OOB table.grow should return -1.
-    VarState delta = MemTypeToVarStateSaturating(0, &pinned);
-    __ DropValues(1);
+    VarState delta = PopIndexToVarStateSaturating(&pinned);
     VarState value = __ PopVarState();
     VarState extract_shared_data(kI32, 0, 0);
 
@@ -7256,7 +7262,7 @@ class LiftoffCompiler {
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
 
     DCHECK(MatchingMemType(imm.memory, 1));
-    VarState address = MemTypeToVarStateSaturating(1, &pinned);
+    VarState address = IndexToVarStateSaturating(1, &pinned);
 
     CallBuiltin(
         Builtin::kWasmStringNewWtf8,
@@ -7311,7 +7317,7 @@ class LiftoffCompiler {
 
     LiftoffRegList pinned;
     DCHECK(MatchingMemType(imm.memory, 1));
-    VarState address = MemTypeToVarStateSaturating(1, &pinned);
+    VarState address = IndexToVarStateSaturating(1, &pinned);
 
     CallBuiltin(Builtin::kWasmStringNewWtf16,
                 MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32),
@@ -7415,7 +7421,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     DCHECK(MatchingMemType(imm.memory, 0));
-    VarState offset_var = MemTypeToVarStateSaturating(0, &pinned);
+    VarState offset_var = IndexToVarStateSaturating(0, &pinned);
 
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
@@ -7482,7 +7488,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     DCHECK(MatchingMemType(imm.memory, 0));
-    VarState offset_var = MemTypeToVarStateSaturating(0, &pinned);
+    VarState offset_var = IndexToVarStateSaturating(0, &pinned);
 
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
@@ -7704,7 +7710,7 @@ class LiftoffCompiler {
     VarState& pos_var = __ cache_state()->stack_state.end()[-2];
 
     DCHECK(MatchingMemType(imm.memory, 2));
-    VarState addr_var = MemTypeToVarStateSaturating(2, &pinned);
+    VarState addr_var = IndexToVarStateSaturating(2, &pinned);
 
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
@@ -7815,7 +7821,7 @@ class LiftoffCompiler {
     VarState& pos_var = __ cache_state()->stack_state.end()[-2];
 
     DCHECK(MatchingMemType(imm.memory, 2));
-    VarState offset_var = MemTypeToVarStateSaturating(2, &pinned);
+    VarState offset_var = IndexToVarStateSaturating(2, &pinned);
 
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
@@ -8148,7 +8154,7 @@ class LiftoffCompiler {
     }
 
     LiftoffRegList pinned;
-    VarState index_slot = MemTypeToVarStateSaturating(0, &pinned);
+    VarState index_slot = IndexToVarStateSaturating(0, &pinned);
 
     const bool is_static_index = index_slot.is_const();
     Register index_reg =
