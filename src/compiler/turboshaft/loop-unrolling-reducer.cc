@@ -59,7 +59,7 @@ IterationCount LoopUnrollingAnalyzer::GetLoopIterationCount(
   bool loop_if_cond_is = if_true_header == start;
 
   return canonical_loop_matcher_.GetIterCountIfStaticCanonicalForLoop(
-      branch->condition(), loop_if_cond_is);
+      start, branch->condition(), loop_if_cond_is);
 }
 
 // Tries to match `phi cmp cst` (or `cst cmp phi`).
@@ -123,13 +123,19 @@ bool StaticCanonicalForLoopMatcher::MatchWordBinop(
 
 IterationCount
 StaticCanonicalForLoopMatcher::GetIterCountIfStaticCanonicalForLoop(
-    OpIndex cond_idx, bool loop_if_cond_is) const {
+    const Block* header, OpIndex cond_idx, bool loop_if_cond_is) const {
   CmpOp cmp_op;
   OpIndex phi_idx;
   uint64_t cmp_cst;
   if (!MatchPhiCompareCst(cond_idx, &cmp_op, &phi_idx, &cmp_cst)) {
     return {};
   }
+  if (!header->Contains(phi_idx)) {
+    // The termination condition for this loop is based on a Phi that is defined
+    // in another loop.
+    return {};
+  }
+
   const PhiOp& phi = matcher_.Cast<PhiOp>(phi_idx);
 
   // We have: phi(..., ...) cmp_op cmp_cst
