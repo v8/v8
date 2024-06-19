@@ -43,6 +43,7 @@ namespace internal {
   V(FeedbackMetadata)                \
   V(Foreign)                         \
   V(FunctionTemplateInfo)            \
+  V(HeapNumber)                      \
   V(Hole)                            \
   V(Map)                             \
   V(NativeContext)                   \

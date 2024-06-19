@@ -282,7 +282,7 @@ void BodyDescriptorBase::IterateProtectedPointer(Tagged<HeapObject> obj,
 
 class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return sizeof(HeapNumber);
   }
 };

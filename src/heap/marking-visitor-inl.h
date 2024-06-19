@@ -463,17 +463,18 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
   DCHECK(concrete_visitor()->marking_state()->IsMarked(object));
-  int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  size_t current_progress_bar = progress_bar.Value();
+  const int size = FixedArray::BodyDescriptor::SizeOf(map, object);
+  const size_t current_progress_bar = progress_bar.Value();
   int start = static_cast<int>(current_progress_bar);
   if (start == 0) {
-    this->VisitMapPointer(object);
+    concrete_visitor()
+        ->template VisitMapPointerIfNeeded<VisitorId::kVisitFixedArray>(object);
     start = FixedArray::BodyDescriptor::kStartOffset;
   }
-  int end = std::min(size, start + kProgressBarScanningChunk);
+  const int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
     VisitPointers(object, object->RawField(start), object->RawField(end));
-    bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
+    const bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
     CHECK(success);
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after

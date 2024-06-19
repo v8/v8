@@ -34,6 +34,7 @@ enum InstanceType : uint16_t;
   V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
+  V(HeapNumber)                      \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
   IF_WASM(V, WasmNull)
