@@ -337,9 +337,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to SloppyArgumentsElements elements.
   static ElementAccess ForSloppyArgumentsElementsMappedEntry();
 
-  // Provides access to stack arguments
-  static ElementAccess ForStackArgument();
-
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 

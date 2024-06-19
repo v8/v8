@@ -1153,16 +1153,6 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
 }
 
 // static
-ElementAccess AccessBuilder::ForStackArgument() {
-  ElementAccess access = {
-      kUntaggedBase,
-      CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
-      Type::NonInternal(), MachineType::Pointer(),
-      WriteBarrierKind::kNoWriteBarrier};
-  return access;
-}
-
-// static
 ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
   ElementAccess access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
                           TypeCache::Get()->kFloat64, MachineType::Float64(),
