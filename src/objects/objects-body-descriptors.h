@@ -77,12 +77,20 @@ class BodyDescriptorBase {
                                                      Tagged<HeapObject> obj,
                                                      int offset);
 
-  // Treats all header and embedder fields in the range as tagged.
+  // Treats all header and in-object fields in the range as tagged. Figures out
+  // dynamically whether the object has embedder fields and visits them
+  // accordingly (as tagged fields and as external pointers).
   template <typename ObjectVisitor>
   static inline void IterateJSObjectBodyImpl(Tagged<Map> map,
                                              Tagged<HeapObject> obj,
                                              int start_offset, int end_offset,
                                              ObjectVisitor* v);
+
+  // Treats all header and in-object fields in the range as tagged.
+  template <typename ObjectVisitor>
+  static inline void IterateJSObjectBodyWithoutEmbedderFieldsImpl(
+      Tagged<Map> map, Tagged<HeapObject> obj, int start_offset, int end_offset,
+      ObjectVisitor* v);
 };
 
 // This class describes a body of an object without any pointers.
