@@ -218,9 +218,10 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   //  jobs finishing at random times.
   FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
 
-  // Experiment: Disable inlining. It seems, inlining can cause timeouts in the
-  // fuzzer.
-  FlagScope<bool> inlining(&v8_flags.experimental_wasm_inlining, false);
+  // Disable the optimizing compiler. The init expressions can be huge and might
+  // produce long compilation times. The function is only used as a reference
+  // and only run once, so use liftoff only as it allows much faster fuzzing.
+  FlagScope<bool> liftoff_only(&v8_flags.liftoff_only, true);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
