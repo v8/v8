@@ -2466,6 +2466,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     // Complete the transitive closure single-threaded to avoid races with
     // multiple threads when processing weak maps and embedder heaps.
     CHECK(heap_->concurrent_marking()->IsStopped());
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      cpp_heap->EnterProcessGlobalAtomicPause();
+    }
     MarkTransitiveClosure();
     CHECK(local_marking_worklists_->IsEmpty());
     CHECK(

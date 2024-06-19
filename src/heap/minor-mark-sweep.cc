@@ -695,9 +695,8 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   MarkRoots(root_visitor, was_marked_incrementally);
 
   // CppGC starts parallel marking tasks that will trace TracedReferences.
-  if (heap_->cpp_heap_) {
-    CppHeap::From(heap_->cpp_heap_)
-        ->EnterFinalPause(heap_->embedder_stack_state_);
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+    cpp_heap->EnterFinalPause(heap_->embedder_stack_state_);
   }
 
   {
@@ -722,6 +721,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE);
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      cpp_heap->EnterProcessGlobalAtomicPause();
+    }
     DrainMarkingWorklist();
   }
   CHECK(local_marking_worklists()->IsEmpty());

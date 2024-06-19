@@ -147,6 +147,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool IsTracingDone() const;
   void FinishMarkingAndStartSweeping();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
+  void EnterProcessGlobalAtomicPause();
   bool FinishConcurrentMarkingIfNeeded();
 
   // This method is used to re-enable concurrent marking when the isolate is

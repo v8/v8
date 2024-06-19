@@ -816,6 +816,14 @@ bool CppHeap::ShouldFinalizeIncrementalMarking() const {
   return !incremental_marking_supported() || IsTracingDone();
 }
 
+void CppHeap::EnterProcessGlobalAtomicPause() {
+  if (!TracingInitialized()) {
+    return;
+  }
+  DCHECK(in_atomic_pause_);
+  marker_->To<UnifiedHeapMarker>().EnterProcessGlobalAtomicPause();
+}
+
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!IsGCForbidden());
   // Enter atomic pause even if tracing is not initialized. This is needed to
@@ -1037,6 +1045,7 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
       StartMarking();
     }
     EnterFinalPause(stack_state);
+    EnterProcessGlobalAtomicPause();
     CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     if (FinishConcurrentMarkingIfNeeded()) {
       CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
