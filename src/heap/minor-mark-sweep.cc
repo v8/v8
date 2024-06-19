@@ -440,6 +440,10 @@ void MinorMarkSweepCollector::CollectGarbage() {
   }
 #endif  // VERIFY_HEAP
 
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
+    cpp_heap->FinishMarkingAndProcessWeakness();
+  }
+
   Sweep();
   Finish();
 

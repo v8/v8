@@ -875,7 +875,7 @@ void RecordEmbedderSpeed(GCTracer* tracer, base::TimeDelta marking_time,
 
 }  // namespace
 
-void CppHeap::FinishMarkingAndStartSweeping() {
+void CppHeap::FinishMarkingAndProcessWeakness() {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
 
@@ -898,6 +898,14 @@ void CppHeap::FinishMarkingAndStartSweeping() {
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
+}
+
+void CppHeap::CompactAndSweep() {
+  if (!TracingInitialized()) {
+    return;
+  }
+  // TODO(336734387): This should be moved at the end of marking. Currently
+  // global limit computation considers live+dead memory.
   if (isolate_) {
     used_size_ = stats_collector_->marked_bytes();
     // Force a check next time increased memory is reported. This allows for
@@ -1050,7 +1058,8 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     if (FinishConcurrentMarkingIfNeeded()) {
       CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     }
-    FinishMarkingAndStartSweeping();
+    FinishMarkingAndProcessWeakness();
+    CompactAndSweep();
     FinishAtomicSweepingIfRunning();
   });
 }

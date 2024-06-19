@@ -443,6 +443,11 @@ void MarkCompactCollector::CollectGarbage() {
   RecordObjectStats();
   ClearNonLiveReferences();
   VerifyMarking();
+
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
+    cpp_heap->FinishMarkingAndProcessWeakness();
+  }
+
   heap_->memory_measurement()->FinishProcessing(native_context_stats_);
 
   Sweep();
