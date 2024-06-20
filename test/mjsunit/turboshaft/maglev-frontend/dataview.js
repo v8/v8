@@ -14,6 +14,7 @@ function dataview() {
 }
 
 %PrepareFunctionForOptimization(dataview);
+dataview();
 let a1 = dataview();
 %OptimizeFunctionOnNextCall(dataview);
 let a2 = dataview();
