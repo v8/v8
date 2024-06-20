@@ -2451,11 +2451,16 @@ class MachineLoweringReducer : public Next {
     // for element_size_log2. On 64-bit plateforms with pointer compression,
     // this means that we're kinda loading a 32-bit value from an array of
     // 64-bit values.
-    return __ Load(
-        base, index, LoadOp::Kind::RawAligned(),
-        MemoryRepresentation::TaggedPointer(),
-        CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
-        kSystemPointerSizeLog2);
+#if V8_COMPRESS_POINTERS && V8_TARGET_BIG_ENDIAN
+    constexpr int offset =
+        CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize + 4;
+#else
+    constexpr int offset =
+        CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize;
+#endif
+    return __ Load(base, index, LoadOp::Kind::RawAligned(),
+                   MemoryRepresentation::TaggedPointer(), offset,
+                   kSystemPointerSizeLog2);
   }
 
   OpIndex REDUCE(StoreTypedElement)(OpIndex buffer, V<Object> base,
