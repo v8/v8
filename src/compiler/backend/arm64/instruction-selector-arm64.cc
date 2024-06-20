@@ -2422,6 +2422,10 @@ static base::Optional<FlagsCondition> TryMatchConditionalCompareChainShared(
 static bool TryMatchConditionalCompareChainBranch(
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone, OpIndex node,
     FlagsContinuationT<TurboshaftAdapter>* cont) {
+  // TODO(sam.parker@arm.com): Fix and re-enable.
+  // See mjsunit/regress/wasm/regress-347961785.js.
+  if ((true)) return false;
+
   if (!cont->IsBranch()) return false;
   DCHECK(cont->condition() == kNotEqual || cont->condition() == kEqual);
 
@@ -2449,6 +2453,10 @@ static bool TryMatchConditionalCompareChainBranch(
 static bool TryMatchConditionalCompareChainSet(
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone,
     OpIndex node) {
+  // TODO(sam.parker@arm.com): Fix and re-enable.
+  // See mjsunit/regress/wasm/regress-347961785.js.
+  if ((true)) return false;
+
   // Create the cmp + ccmp ... sequence.
   CompareSequence sequence;
   auto final_cond =
