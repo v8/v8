@@ -5443,8 +5443,6 @@ TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
   builder.AddMemory();
   // The memory index can be encoded in a separate field, after a 0x40
   // alignment. For now, only memory index 0 is allowed.
-  // TODO(clemensb): Extend this test once the {TestModuleBuilder} supports more
-  // than one memory.
   Validate(is_multi_memory_enabled(), sigs.i_v(),
            {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
             0 /* memory index */, 0 /* offset */});
@@ -5456,6 +5454,17 @@ TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
   Validate(false, sigs.i_v(),
            {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
             1 /* memory index */, 0 /* offset */});
+  if (is_multi_memory_enabled()) {
+    // Add another memory; memory index 1 should be valid then.
+    builder.AddMemory();
+    Validate(is_multi_memory_enabled(), sigs.i_v(),
+             {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+              1 /* memory index */, 0 /* offset */});
+  }
+  // Memory index 2 is still invalid.
+  Validate(false, sigs.i_v(),
+           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+            2 /* memory index */, 0 /* offset */});
 }
 
 /*******************************************************************************
