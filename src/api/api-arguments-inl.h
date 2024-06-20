@@ -75,17 +75,23 @@ inline Tagged<JSReceiver> FunctionCallbackArguments::holder() const {
     return {};                                                                 \
   }                                                                            \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));                 \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
+  /* TODO(ishell): cleanup this hack by embedding the PropertyCallbackInfo */  \
+  /* into PropertyCallbackArguments object. */                                 \
+  PropertyCallbackInfo<API_RETURN_TYPE>& callback_info = *(                    \
+      reinterpret_cast<PropertyCallbackInfo<API_RETURN_TYPE>*>(&values_[0]));
 
-#define PREPARE_CALLBACK_INFO_INTERCEPTOR(ISOLATE, F, API_RETURN_TYPE, \
-                                          INTERCEPTOR_INFO)            \
-  if (ISOLATE->should_check_side_effects() &&                          \
-      !ISOLATE->debug()->PerformSideEffectCheckForInterceptor(         \
-          INTERCEPTOR_INFO)) {                                         \
-    return {};                                                         \
-  }                                                                    \
-  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));         \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
+#define PREPARE_CALLBACK_INFO_INTERCEPTOR(ISOLATE, F, API_RETURN_TYPE,        \
+                                          INTERCEPTOR_INFO)                   \
+  if (ISOLATE->should_check_side_effects() &&                                 \
+      !ISOLATE->debug()->PerformSideEffectCheckForInterceptor(                \
+          INTERCEPTOR_INFO)) {                                                \
+    return {};                                                                \
+  }                                                                           \
+  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));                \
+  /* TODO(ishell): cleanup this hack by embedding the PropertyCallbackInfo */ \
+  /* into PropertyCallbackArguments object. */                                \
+  PropertyCallbackInfo<API_RETURN_TYPE>& callback_info = *(                   \
+      reinterpret_cast<PropertyCallbackInfo<API_RETURN_TYPE>*>(&values_[0]));
 
 Handle<Object> FunctionCallbackArguments::Call(
     Tagged<FunctionTemplateInfo> function) {
@@ -131,6 +137,8 @@ Handle<Object> PropertyCallbackArguments::CallNamedQuery(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedQueryCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   NamedPropertyQueryCallback f =
       ToCData<NamedPropertyQueryCallback>(interceptor->query());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor);
@@ -147,6 +155,8 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedGetter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   NamedPropertyGetterCallback f =
       ToCData<NamedPropertyGetterCallback>(interceptor->getter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
@@ -160,6 +170,8 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDescriptorCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   NamedPropertyDescriptorCallback f =
       ToCData<NamedPropertyDescriptorCallback>(interceptor->descriptor());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
@@ -175,6 +187,8 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedSetterCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   NamedPropertySetterCallback f =
       ToCData<NamedPropertySetterCallback>(interceptor->setter());
   Handle<InterceptorInfo> has_side_effects;
@@ -193,6 +207,8 @@ Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDefinerCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   NamedPropertyDefinerCallback f =
       ToCData<NamedPropertyDefinerCallback>(interceptor->definer());
   Handle<InterceptorInfo> has_side_effects;
@@ -210,6 +226,8 @@ Handle<Object> PropertyCallbackArguments::CallNamedDeleter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDeleterCallback);
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   // The constructor sets the return value to undefined, while this callback
   // must return v8::Boolean.
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).false_value());
@@ -358,6 +376,8 @@ Handle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
   // the callback is allowed to have side effects.
   AcceptSideEffects();
 
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   AccessorNameGetterCallback f =
       reinterpret_cast<AccessorNameGetterCallback>(info->getter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, info,
@@ -375,6 +395,8 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the callback is allowed to have side effects.
   AcceptSideEffects();
 
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(T::kPropertyKeyIndex).store(*name);
   // The actual type of setter callback is either
   // v8::AccessorNameSetterCallback or
   // i::Accesors::AccessorNameBooleanSetterCallback, depending on whether the

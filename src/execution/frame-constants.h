@@ -529,29 +529,73 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
       kReceiverOffset + kSystemPointerSize;
 };
 
-// Behaves like an exit frame but with v8::PropertyCallbackInfo's arguments
-// allocated in GC-ed area of the exit frame.
+// Behaves like an exit frame but with v8::PropertyCallbackInfo's (PCI)
+// fields allocated in GC-ed area of the exit frame, followed by zero or
+// more parameters (required by some callback kinds).
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+// -n-1-k|   parameter n   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n-k |  parameter n-1  |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2-k |   parameter 1   |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1-k |   parameter 0   |                            v
+//  -----+-----------------+--------------------------------
+//  -k   |   PCI slot k-1  |                            ^
+//       |- - - - - - - - -|                            |
+//  -k+1 |   PCI slot k-2  |                 v8::PropertyCallbackInfo's
+//  ...  |       ...       |                       PCI::args[k]
+//  -2   |   PCI slot 1    |                   k := PCI::kArgsLength
+//       |- - - - - - - - -|                            |
+//  -1   |   PCI slot 0    |                            v
+//  -----+-----------------+--------------------------------   <-- PCI object
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | ExitFrame                  |
+//       |- - - - - - - - -| Header     <-- frame ptr   |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |Frame Type Marker|   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    caller SP    |   v   otherwise, cp = 0    |
+//       |-----------------+----                        |
+// 4+cp  |                 |   ^                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  | C function args | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
 class ApiAccessorExitFrameConstants : public ExitFrameConstants {
  public:
   // The following constants must be in sync with v8::PropertyCallbackInfo's
   // layout. This is guaraneed by static_asserts elsewhere.
-  static constexpr int kPropertyCallbackInfoReceiverIndex = 6;
-  static constexpr int kPropertyCallbackInfoHolderIndex = 1;
-  static constexpr int kPropertyCallbackInfoArgsLength = 7;
+  static constexpr int kPropertyCallbackInfoPropertyKeyIndex = 0;
+  static constexpr int kPropertyCallbackInfoHolderIndex = 2;
+  static constexpr int kPropertyCallbackInfoReturnValueIndex = 5;
+  static constexpr int kPropertyCallbackInfoReceiverIndex = 7;
+  static constexpr int kPropertyCallbackInfoArgsLength = 8;
 
-  // Storage for v8::Local<Name> parameter.
+  // FP-relative.
+
+  // v8::PropertyCallbackInfo's args array.
+  static constexpr int kArgsArrayOffset = kFixedFrameSizeAboveFp;
   static constexpr int kPropertyNameOffset =
-      kCallerPCOffset + 1 * kSystemPointerSize;
-
-  // v8::PropertyCallbackInfo.
-  static constexpr int kPropertyCallbackInfoOffset =
-      kPropertyNameOffset + 1 * kSystemPointerSize;
+      kArgsArrayOffset +
+      kPropertyCallbackInfoPropertyKeyIndex * kSystemPointerSize;
+  static constexpr int kReturnValueOffset =
+      kArgsArrayOffset +
+      kPropertyCallbackInfoReturnValueIndex * kSystemPointerSize;
   static constexpr int kReceiverOffset =
-      kPropertyCallbackInfoOffset +
+      kArgsArrayOffset +
       kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
   static constexpr int kHolderOffset =
-      kPropertyCallbackInfoOffset +
-      kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
+      kArgsArrayOffset + kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
+
+  // v8::PropertyCallbackInfo's address is equal to address of the args_ array.
+  static constexpr int kPropertyCallbackInfoOffset = kArgsArrayOffset;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

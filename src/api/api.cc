@@ -11930,7 +11930,8 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   CHECK_IMPLIES(info.Holder() != info.HolderV2(),
                 i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.Holder())));
   END_ALLOW_USE_DEPRECATED()
-
+  i::Tagged<i::Object> key = i::PropertyCallbackArguments::GetPropertyKey(info);
+  CHECK(i::IsSmi(key) || i::IsName(key));
   CHECK(info.Data()->IsValue());
   USE(info.ShouldThrowOnError());
   if (!std::is_same<T, void>::value) {

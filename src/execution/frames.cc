@@ -1213,6 +1213,12 @@ void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
 // Ensure layout of v8::PropertyCallbackInfo is in sync with
 // ApiAccessorExitFrameConstants.
 static_assert(
+    ApiAccessorExitFrameConstants::kPropertyCallbackInfoPropertyKeyIndex ==
+    PropertyCallbackArguments::kPropertyKeyIndex);
+static_assert(
+    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReturnValueIndex ==
+    PropertyCallbackArguments::kReturnValueIndex);
+static_assert(
     ApiAccessorExitFrameConstants::kPropertyCallbackInfoReceiverIndex ==
     PropertyCallbackArguments::kThisIndex);
 static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoHolderIndex ==

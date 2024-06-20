@@ -82,6 +82,7 @@ class PropertyCallbackArguments final
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
+  static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Tagged<Object> data,
                             Tagged<Object> self, Tagged<JSObject> holder,
@@ -153,6 +154,17 @@ class PropertyCallbackArguments final
 #ifdef DEBUG
     javascript_execution_counter_ = 0;
 #endif  // DEBUG
+  }
+
+  // Unofficial way of getting property key from v8::PropertyCallbackInfo<T>.
+  template <typename T>
+  static Tagged<Object> GetPropertyKey(const PropertyCallbackInfo<T>& info) {
+    return Tagged<Object>(info.args_[kPropertyKeyIndex]);
+  }
+  template <typename T>
+  static Handle<Object> GetPropertyKeyHandle(
+      const PropertyCallbackInfo<T>& info) {
+    return Handle<Object>(&info.args_[kPropertyKeyIndex]);
   }
 
  private:

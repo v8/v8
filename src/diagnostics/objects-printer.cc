@@ -92,14 +92,15 @@ void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kArgsLength == 7);
-  os << "FunctionCallbackInfo: "  //
+  static_assert(PCA::kArgsLength == 8);
+  os << "PropertyCallbackInfo: "  //
      << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
      << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
      << "\n - holderV2: " << AS_OBJ(args[PCA::kHolderV2Index])
      << "\n - data: " << AS_OBJ(args[PCA::kDataIndex])  //
+     << "\n - property_key: " << AS_OBJ(args[PCA::kPropertyKeyIndex])
      << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
 
   // In case it's a setter call there will be additional |value| parameter,

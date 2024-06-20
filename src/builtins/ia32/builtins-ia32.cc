@@ -4596,26 +4596,28 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
-  using PCI = PropertyCallbackInfo<v8::Value>;
   using PCA = PropertyCallbackArguments;
-  static_assert(PCA::kShouldThrowOnErrorIndex == 0);
-  static_assert(PCA::kHolderIndex == 1);
-  static_assert(PCA::kIsolateIndex == 2);
-  static_assert(PCA::kHolderV2Index == 3);
-  static_assert(PCA::kReturnValueIndex == 4);
-  static_assert(PCA::kDataIndex == 5);
-  static_assert(PCA::kThisIndex == 6);
-  static_assert(PCA::kArgsLength == 7);
+  using ER = ExternalReference;
+  using FC = ApiAccessorExitFrameConstants;
 
-  // Set up PropertyCallbackInfo's args_ on the stack as follows:
-  //
+  static_assert(PCA::kPropertyKeyIndex == 0);
+  static_assert(PCA::kShouldThrowOnErrorIndex == 1);
+  static_assert(PCA::kHolderIndex == 2);
+  static_assert(PCA::kIsolateIndex == 3);
+  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kReturnValueIndex == 5);
+  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kThisIndex == 7);
+  static_assert(PCA::kArgsLength == 8);
+
+  // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
   // Current state:
   //   esp[0]: return address
   //
   // Target state:
   //   esp[0 * kSystemPointerSize]: return address
-  //   esp[1 * kSystemPointerSize]: name
-  //   esp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex   <= PCI:args_
+  //   esp[1 * kSystemPointerSize]: name                      <= PCI::args_
+  //   esp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   esp[3 * kSystemPointerSize]: kHolderIndex
   //   esp[4 * kSystemPointerSize]: kIsolateIndex
   //   esp[5 * kSystemPointerSize]: kHolderV2Index
@@ -4626,75 +4628,68 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ PopReturnAddressTo(scratch);
   __ push(receiver);
   __ push(FieldOperand(callback, AccessorInfo::kDataOffset));
-  __ PushRoot(RootIndex::kUndefinedValue);  // ReturnValue
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(Smi::zero());                     // kHolderV2
-  __ Push(Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ Push(Immediate(ER::isolate_address(masm->isolate())));
   __ push(holder);
-  __ Push(Smi::zero());  // should_throw_on_error -> false
+  __ Push(Smi::FromInt(kDontThrow));  // should_throw_on_error -> kDontThrow
 
-  // Initialize a pointer to PropertyCallbackInfo::args_ array (= &ShouldThrow).
-  Register args_array = ReassignRegister(holder);
-  __ mov(args_array, esp);
-
-  __ push(FieldOperand(callback, AccessorInfo::kNameOffset));
+  Register name = ReassignRegister(holder);
+  __ mov(name, FieldOperand(callback, AccessorInfo::kNameOffset));
+  __ push(name);
   __ PushReturnAddressFrom(scratch);
-
-  Register api_function_address = ReassignRegister(receiver);
-  __ RecordComment("Load function_address");
-  __ mov(api_function_address,
-         FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
-
-  // v8::PropertyCallbackInfo::args_ array and name handle.
-  static constexpr int kNameOnStackSize = 1;
-  static constexpr int kStackUnwindSpace = PCA::kArgsLength + kNameOnStackSize;
 
   // The API function takes a name local handle and v8::PropertyCallbackInfo
   // reference, allocate them in non-GCed space of the exit frame.
   static constexpr int kApiArgc = 2;
   static constexpr int kApiArg0Offset = 0 * kSystemPointerSize;
   static constexpr int kApiArg1Offset = 1 * kSystemPointerSize;
-  static constexpr int kApiArgsSize = kApiArgc * kSystemPointerSize;
-  // Allocate v8::PropertyCallbackInfo object in non-GCed space of the exit
-  // frame.
-  static constexpr int kApiStackSpace = 1;
-  static_assert(kApiStackSpace * kSystemPointerSize == sizeof(PCI));
 
-  __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::API_ACCESSOR_EXIT,
-                    api_function_address);
+  Register api_function_address = ReassignRegister(receiver);
+  __ RecordComment("Load function_address");
+  __ mov(api_function_address,
+         FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
+
+  __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>() + kApiArgc,
+                    StackFrame::API_ACCESSOR_EXIT, api_function_address);
   if (v8_flags.debug_code) {
     __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
-  // Initialize its args_ field.
-  Operand info_object = ExitFrameStackSlotOperand(kApiArgsSize);
-  __ mov(info_object, args_array);
+  // property_callback_info_arg = v8::PropertyCallbackInfo&
+  Register property_callback_info_arg = ReassignRegister(scratch);
+  __ lea(property_callback_info_arg, Operand(ebp, FC::kArgsArrayOffset));
+
+  DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name,
+                     callback));
 
   __ RecordComment("Local<Name>");
 #ifdef V8_ENABLE_DIRECT_LOCAL
-  __ mov(args_array, Operand(args_array, -kSystemPointerSize));
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), name);
 #else
-  __ sub(args_array, Immediate(kSystemPointerSize));
+  // name_arg = Local<Name>(&name), which is &args_array[kPropertyKeyIndex].
+  static_assert(PCA::kPropertyKeyIndex == 0);
+  __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), property_callback_info_arg);
 #endif
-  __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), args_array);
-  args_array = no_reg;
-  __ RecordComment("&v8::PropertyCallbackInfo::args_");
-  __ lea(scratch, info_object);
-  __ mov(ExitFrameStackSlotOperand(kApiArg1Offset), scratch);
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback();
+  __ RecordComment("v8::PropertyCallbackInfo<T>&");
+  __ mov(ExitFrameStackSlotOperand(kApiArg1Offset), property_callback_info_arg);
+
+  ExternalReference thunk_ref = ER::invoke_accessor_getter_callback();
   // Pass AccessorInfo to thunk wrapper in case profiler or side-effect
   // checking is enabled.
   Register thunk_arg = callback;
 
-  Operand return_value_operand = ExitFrameCallerStackSlotOperand(
-      PCA::kReturnValueIndex + kNameOnStackSize);
+  Operand return_value_operand = Operand(ebp, FC::kReturnValueOffset);
+  static constexpr int kSlotsToDropOnReturn =
+      FC::kPropertyCallbackInfoArgsLength;
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kStackUnwindSpace,
+                           thunk_ref, thunk_arg, kSlotsToDropOnReturn,
                            kUseStackSpaceConstant, return_value_operand);
 }
 

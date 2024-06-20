@@ -305,13 +305,6 @@ class PropertyCallbackInfo {
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
-  V8_DEPRECATED(
-      "This is a temporary workaround to ease migration of Chromium bindings "
-      "code to the new interceptors Api. This constructor will be removed in "
-      "V8 12.8.")
-  explicit PropertyCallbackInfo(const PropertyCallbackInfo<void>& info)
-      : PropertyCallbackInfo(info.args_) {}
-
  private:
   template <typename U>
   friend class PropertyCallbackInfo;
@@ -320,21 +313,21 @@ class PropertyCallbackInfo {
   friend class internal::CustomArguments<PropertyCallbackInfo>;
   friend void internal::PrintPropertyCallbackInfo(void*);
 
-  static constexpr int kShouldThrowOnErrorIndex = 0;
-  static constexpr int kHolderIndex = 1;
-  static constexpr int kIsolateIndex = 2;
-  static constexpr int kHolderV2Index = 3;
-  static constexpr int kReturnValueIndex = 4;
-  static constexpr int kDataIndex = 5;
-  static constexpr int kThisIndex = 6;
-  static constexpr int kArgsLength = 7;
+  static constexpr int kPropertyKeyIndex = 0;
+  static constexpr int kShouldThrowOnErrorIndex = 1;
+  static constexpr int kHolderIndex = 2;
+  static constexpr int kIsolateIndex = 3;
+  static constexpr int kHolderV2Index = 4;
+  static constexpr int kReturnValueIndex = 5;
+  static constexpr int kDataIndex = 6;
+  static constexpr int kThisIndex = 7;
+  static constexpr int kArgsLength = 8;
 
-  static constexpr int kSize = 1 * internal::kApiSystemPointerSize;
+  static constexpr int kSize = kArgsLength * internal::kApiSystemPointerSize;
 
-  V8_INLINE explicit PropertyCallbackInfo(internal::Address* args)
-      : args_(args) {}
+  explicit PropertyCallbackInfo() = default;
 
-  internal::Address* args_;
+  mutable internal::Address args_[kArgsLength];
 };
 
 using FunctionCallback = void (*)(const FunctionCallbackInfo<Value>& info);

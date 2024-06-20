@@ -18,6 +18,9 @@ PropertyCallbackArguments::PropertyCallbackArguments(
       javascript_execution_counter_(isolate->javascript_execution_counter())
 #endif  // DEBUG
 {
+  // TODO(ishell, 328104148): avoid double initalization of this field here
+  // and later in CallNamedXXX methods.
+  slot_at(T::kPropertyKeyIndex).store(Smi::zero());
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);

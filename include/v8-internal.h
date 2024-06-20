@@ -977,8 +977,8 @@ class Internals {
 
   // Constants used by PropertyCallbackInfo to check if we should throw when an
   // error occurs.
-  static const int kThrowOnError = 0;
-  static const int kDontThrow = 1;
+  static const int kDontThrow = 0;
+  static const int kThrowOnError = 1;
   static const int kInferShouldThrowMode = 2;
 
   // Soft limit for AdjustAmountofExternalAllocatedMemory. Trigger an
