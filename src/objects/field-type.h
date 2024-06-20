@@ -16,6 +16,10 @@ class FieldType;
 
 class FieldType : public AllStatic {
  public:
+  // If the GC can clear field types we must ensure that every store updates
+  // field types.
+  static constexpr bool kFieldTypesCanBeClearedOnGC = true;
+
   V8_EXPORT_PRIVATE static Tagged<FieldType> None();
   V8_EXPORT_PRIVATE static Tagged<FieldType> Any();
   V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);

@@ -32,13 +32,6 @@ inline bool EqualImmutableValues(Tagged<Object> obj1, Tagged<Object> obj2) {
 V8_WARN_UNUSED_RESULT Handle<FieldType> GeneralizeFieldType(
     Representation rep1, Handle<FieldType> type1, Representation rep2,
     Handle<FieldType> type2, Isolate* isolate) {
-  // Cleared field types need special treatment. They represent lost knowledge,
-  // so we must be conservative, so their generalization with any other type
-  // is "Any".
-  if (Map::FieldTypeIsCleared(rep1, *type1) ||
-      Map::FieldTypeIsCleared(rep2, *type2)) {
-    return FieldType::Any(isolate);
-  }
   if (FieldType::NowIs(*type1, type2)) return type2;
   if (FieldType::NowIs(*type2, type1)) return type1;
   return FieldType::Any(isolate);
@@ -1325,9 +1318,6 @@ void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
   // representation/field type.
   if (IsGeneralizableTo(new_constness, old_constness) &&
       old_representation.Equals(new_representation) &&
-      !Map::FieldTypeIsCleared(new_representation, *new_field_type) &&
-      // Checking old_field_type for being cleared is not necessary because
-      // the NowIs check below would fail anyway in that case.
       FieldType::NowIs(*new_field_type, old_field_type)) {
     DCHECK(FieldType::NowIs(
         *GeneralizeFieldType(old_representation, old_field_type,

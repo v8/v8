@@ -147,11 +147,6 @@ bool Map::IsMostGeneralFieldType(Representation representation,
 }
 
 // static
-bool Map::FieldTypeIsCleared(Representation rep, Tagged<FieldType> type) {
-  return IsNone(type) && rep.IsHeapObject();
-}
-
-// static
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
   return instance_type == JS_ARRAY_TYPE ||
          instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||

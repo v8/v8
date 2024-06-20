@@ -3006,6 +3006,39 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(
   }
 }
 
+bool MarkCompactCollector::SpecialClearMapSlot(Tagged<HeapObject> host,
+                                               Tagged<Map> map,
+                                               MaybeObjectSlot& location) {
+  ClearPotentialSimpleMapTransition(map);
+
+  // Special handling for clearing field type entries, identified by their host
+  // being a descriptor array.
+  // TODO(olivf): This whole special handling of field-type clearing
+  // could be replaced by eagerly triggering field type dependencies and
+  // generalizing field types, as soon as a field-type map becomes
+  // unstable.
+  if (IsDescriptorArray(host)) {
+    // We want to distinguish two cases:
+    // 1. There are no instances of the descriptor owner's map left.
+    // 2. The field type is not up to date because the stored object
+    //    migrated away to a different map.
+    // In case (1) it makes sense to clear the field type such that we
+    // can learn a new one should we ever start creating instances
+    // again.
+    // In case (2) we must not re-learn a new field type. Doing so could
+    // lead us to learning a field type that is not consistent with
+    // still existing object's contents. To conservatively identify case
+    // (1) we check the stability of the dead map.
+    if (map->is_stable() && FieldType::kFieldTypesCanBeClearedOnGC) {
+      location.store(FieldType::None());
+    } else {
+      location.store(FieldType::Any());
+    }
+    return true;
+  }
+  return false;
+}
+
 void MarkCompactCollector::FlushBytecodeFromSFI(
     Tagged<SharedFunctionInfo> shared_info) {
   DCHECK(shared_info->HasBytecodeArray());
@@ -3553,11 +3586,11 @@ void MarkCompactCollector::ClearWeakReferences() {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
-        if (IsMap(value)) {
-          // The map is non-live.
-          ClearPotentialSimpleMapTransition(Cast<Map>(value));
+        if (V8_LIKELY(
+                !IsMap(value) ||
+                !SpecialClearMapSlot(slot.first, Cast<Map>(value), location))) {
+          location.store(cleared_weak_ref);
         }
-        location.store(cleared_weak_ref);
       }
     }
   }

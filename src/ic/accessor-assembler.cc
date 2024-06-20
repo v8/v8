@@ -1683,24 +1683,27 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     GotoIf(TaggedIsSmi(value), bailout);
     TNode<MaybeObject> field_type =
         LoadFieldTypeByKeyIndex(descriptors, name_index);
-    const Address kNoneType = FieldType::None().ptr();
     const Address kAnyType = FieldType::Any().ptr();
-    DCHECK_NE(static_cast<uint32_t>(kNoneType), kClearedWeakHeapObjectLower32);
-    DCHECK_NE(static_cast<uint32_t>(kAnyType), kClearedWeakHeapObjectLower32);
-    // FieldType::None can't hold any value.
-    GotoIf(
-        TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(kNoneType))),
-        bailout);
     // FieldType::Any can hold any value.
     GotoIf(
         TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(kAnyType))),
         &all_fine);
-    // Cleared weak references count as FieldType::None, which can't hold any
-    // value.
-    TNode<Map> field_type_map =
-        CAST(GetHeapObjectAssumeWeak(field_type, bailout));
     // FieldType::Class(...) performs a map check.
-    Branch(TaggedEqual(LoadMap(CAST(value)), field_type_map), &all_fine,
+    // If the type is None we want this check to fail too, thus we compare the
+    // maybe weak field type as is against a weak map ptr.
+#ifdef DEBUG
+    {
+      // Check the field type is None or a weak map.
+      Label check_done(this);
+      GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
+                                         FieldType::None().ptr()))),
+             &check_done);
+      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      Goto(&check_done);
+      BIND(&check_done);
+    }
+#endif  // DEBUG
+    Branch(TaggedEqual(MakeWeak(LoadMap(CAST(value))), field_type), &all_fine,
            bailout);
   }
 
@@ -2217,15 +2220,30 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
          &done);
   TNode<IntPtrT> descriptor =
       Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
-  TNode<MaybeObject> maybe_field_type =
+  TNode<MaybeObject> field_type =
       LoadDescriptorValueOrFieldType(LoadMap(holder), descriptor);
 
-  GotoIf(TaggedIsSmi(maybe_field_type), &done);
+  const Address kAnyType = FieldType::Any().ptr();
+  GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(kAnyType))),
+         &done);
   // Check that value type matches the field type.
   {
-    TNode<HeapObject> field_type =
-        GetHeapObjectAssumeWeak(maybe_field_type, bailout);
-    Branch(TaggedEqual(LoadMap(CAST(value)), field_type), &done, bailout);
+    // If the type is None we want this check to fail too, thus we compare the
+    // maybe weak field type as is against a weak map ptr.
+#ifdef DEBUG
+    {
+      // Check the field type is None or a weak map.
+      Label check_done(this);
+      GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
+                                         FieldType::None().ptr()))),
+             &check_done);
+      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      Goto(&check_done);
+      BIND(&check_done);
+    }
+#endif  // DEBUG
+    Branch(TaggedEqual(MakeWeak(LoadMap(CAST(value))), field_type), &done,
+           bailout);
   }
   BIND(&done);
 }

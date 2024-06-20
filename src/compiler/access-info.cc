@@ -452,19 +452,18 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
             map, field_owner_map, descriptor, details_representation));
   } else if (details_representation.IsHeapObject()) {
     if (IsNone(*descriptors_field_type)) {
+      // Cleared field-types are pre-monomorphic states. The field type was
+      // garbge collected and we need to record an updated type.
+      static_assert(FieldType::kFieldTypesCanBeClearedOnGC);
       switch (access_mode) {
         case AccessMode::kStore:
         case AccessMode::kStoreInLiteral:
         case AccessMode::kDefine:
-          // Store is not safe if the field type was cleared.
           return Invalid();
         case AccessMode::kLoad:
         case AccessMode::kHas:
           break;
       }
-
-      // The field type was cleared by the GC, so we don't know anything
-      // about the contents now.
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
@@ -1150,7 +1149,9 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     if (!descriptors_field_type_ref.has_value()) return Invalid();
 
     if (IsNone(*descriptors_field_type)) {
-      // Store is not safe if the field type was cleared.
+      // Cleared field-types are pre-monomorphic states. The field type was
+      // garbge collected and we need to record an updated type.
+      static_assert(FieldType::kFieldTypesCanBeClearedOnGC);
       return Invalid();
     }
     unrecorded_dependencies.push_back(

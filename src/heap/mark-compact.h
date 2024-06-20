@@ -279,6 +279,11 @@ class MarkCompactCollector final {
   // and deoptimize dependent code of non-live maps.
   void ClearNonLiveReferences();
   void MarkDependentCodeForDeoptimization();
+
+  // Special handling for clearing map slots.
+  // Returns true if the slot was cleared.
+  bool SpecialClearMapSlot(Tagged<HeapObject> host, Tagged<Map> dead_target,
+                           MaybeObjectSlot& location);
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.

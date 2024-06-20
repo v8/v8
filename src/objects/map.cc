@@ -446,9 +446,7 @@ MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
 
 // static
 Tagged<FieldType> Map::UnwrapFieldType(Tagged<MaybeObject> wrapped_type) {
-  if (wrapped_type.IsCleared()) {
-    return FieldType::None();
-  }
+  DCHECK(!wrapped_type.IsCleared());
   Tagged<HeapObject> heap_object;
   if (wrapped_type.GetHeapObjectIfWeak(&heap_object)) {
     return Cast<FieldType>(heap_object);
@@ -696,27 +694,6 @@ Tagged<Map> SearchMigrationTarget(Isolate* isolate, Tagged<Map> old_map) {
   } while (!target.is_null() && target->is_deprecated());
   if (target.is_null()) return Map();
 
-  // TODO(ishell): if this validation ever become a bottleneck consider adding a
-  // bit to the Map telling whether it contains fields whose field types may be
-  // cleared.
-  // TODO(ishell): revisit handling of cleared field types in
-  // TryReplayPropertyTransitions() and consider checking the target map's field
-  // types instead of old_map's types.
-  // Go to slow map updating if the old_map has fast properties with cleared
-  // field types.
-  Tagged<DescriptorArray> old_descriptors =
-      old_map->instance_descriptors(isolate);
-  for (InternalIndex i : old_map->IterateOwnDescriptors()) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.location() == PropertyLocation::kField &&
-        old_details.kind() == PropertyKind::kData) {
-      Tagged<FieldType> old_type = old_descriptors->GetFieldType(i);
-      if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
-        return Map();
-      }
-    }
-  }
-
   SLOW_DCHECK(MapUpdater::TryUpdateNoLock(
                   isolate, old_map, ConcurrencyMode::kSynchronous) == target);
   return target;
@@ -784,16 +761,10 @@ Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
     if (new_details.location() == PropertyLocation::kField) {
       if (new_details.kind() == PropertyKind::kData) {
         Tagged<FieldType> new_type = new_descriptors->GetFieldType(i);
-        // Cleared field types need special treatment. They represent lost
-        // knowledge, so we must first generalize the new_type to "Any".
-        if (FieldTypeIsCleared(new_details.representation(), new_type)) {
-          return Map();
-        }
         DCHECK_EQ(PropertyKind::kData, old_details.kind());
         DCHECK_EQ(PropertyLocation::kField, old_details.location());
         Tagged<FieldType> old_type = old_descriptors->GetFieldType(i);
-        if (FieldTypeIsCleared(old_details.representation(), old_type) ||
-            !FieldType::NowIs(old_type, new_type)) {
+        if (!FieldType::NowIs(old_type, new_type)) {
           return Map();
         }
       } else {

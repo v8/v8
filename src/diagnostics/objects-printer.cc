@@ -434,6 +434,8 @@ bool JSObject::PrintProperties(std::ostream& os) {
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
       if (details.location() == PropertyLocation::kField) {
+        os << " @ ";
+        FieldType::PrintTo(descs->GetFieldType(i), os);
         int field_index = details.field_index();
         if (field_index < nof_inobject_properties) {
           os << ", location: in-object";

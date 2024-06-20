@@ -541,8 +541,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // given |representation|.
   static inline bool IsMostGeneralFieldType(Representation representation,
                                             Tagged<FieldType> field_type);
-  static inline bool FieldTypeIsCleared(Representation rep,
-                                        Tagged<FieldType> type);
 
   // Generalizes representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by

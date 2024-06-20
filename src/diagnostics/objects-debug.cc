@@ -518,9 +518,14 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         bool type_is_any = IsAny(field_type);
         if (r.IsNone()) {
           CHECK(type_is_none);
-        } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-          CHECK(!FieldType::NowStable(field_type) ||
-                FieldType::NowContains(field_type, value));
+        } else if (r.IsHeapObject()) {
+          CHECK(!type_is_none);
+          if (!type_is_any) {
+            CHECK_IMPLIES(FieldType::NowStable(field_type),
+                          FieldType::NowContains(field_type, value));
+          }
+        } else {
+          CHECK(type_is_any);
         }
         CHECK_IMPLIES(is_transitionable_fast_elements_kind,
                       Map::IsMostGeneralFieldType(r, field_type));
@@ -959,12 +964,10 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
       Tagged<MaybeObject> value = GetValue(descriptor);
-      Tagged<HeapObject> heap_object;
       if (details.location() == PropertyLocation::kField) {
         CHECK_EQ(details.field_index(), expected_field_index);
         CHECK(value == FieldType::None() || value == FieldType::Any() ||
-              value.IsCleared() ||
-              (value.GetHeapObjectIfWeak(&heap_object) && IsMap(heap_object)));
+              IsMap(value.GetHeapObjectAssumeWeak()));
         expected_field_index += details.field_width_in_words();
       } else {
         CHECK(!value.IsWeakOrCleared());
