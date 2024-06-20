@@ -6998,9 +6998,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     // cannot change later and so if we were ever out of bounds for them
     // we will stay out-of-bounds forever.
     ValueNode* max_uint32 = GetTaggedValue(GetFloat64Constant(kMaxUInt32));
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-        {receiver, max_uint32}, JSArrayIterator::kNextIndexOffset,
-        InitializingOrTransitioning::kNo);
+    BuildStoreTaggedField(receiver, max_uint32,
+                          JSArrayIterator::kNextIndexOffset,
+                          InitializingOrTransitioning::kNo);
   }
   subgraph.Goto(&done);
 
