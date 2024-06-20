@@ -392,6 +392,16 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     last_predecessor_ = nullptr;
     predecessor_count_ = 0;
   }
+  void ResetAllPredecessors() {
+    Block* pred = last_predecessor_;
+    last_predecessor_ = nullptr;
+    while (pred->neighboring_predecessor_) {
+      Block* tmp = pred->neighboring_predecessor_;
+      pred->neighboring_predecessor_ = nullptr;
+      pred = tmp;
+    }
+    predecessor_count_ = 0;
+  }
 
   // The block from the previous graph which produced the current block. This
   // has to be updated to be the last block that contributed operations to the

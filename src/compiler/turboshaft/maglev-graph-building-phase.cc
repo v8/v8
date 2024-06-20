@@ -14,6 +14,8 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/bytecode-analysis.h"
+#include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
@@ -35,7 +37,9 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -45,6 +49,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/objects.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -156,6 +161,7 @@ class GraphBuilder {
         block_mapping_(temp_zone),
         regs_to_vars_(temp_zone),
         loop_single_edge_predecessors_(temp_zone),
+        maglev_representations_(temp_zone),
         bailout_(bailout) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
@@ -215,6 +221,11 @@ class GraphBuilder {
     if (maglev_block->is_loop() &&
         MapContains(loop_single_edge_predecessors_, maglev_block)) {
       EmitLoopSinglePredecessorBlock(maglev_block);
+    }
+
+    if (maglev_block->is_exception_handler_block()) {
+      StartExceptionBlock(maglev_block);
+      return;
     }
 
     // SetMaglevInputBlock should have been called before calling Bind, and the
@@ -285,6 +296,139 @@ class GraphBuilder {
       }
       DCHECK_EQ(index, -1);
     }
+  }
+
+  // Exceptions Phis are a bit special in Maglev: they have no predecessors, and
+  // get populated on Throw based on values in the FrameState, which can be raw
+  // Int32/Float64. However, they are always Tagged, which means that retagging
+  // happens when they are populated. This can lead to exception Phis having a
+  // mix of tagged and untagged predecessors (the latter would be automatically
+  // retagged). When this happens, we need to manually retag all of the
+  // predecessors of the exception Phis. To do so:
+  //
+  //   - If {block} has a single predecessor, it means that it won't have
+  //     exception "phis" per se, but just values that have to retag.
+  //
+  //   - If {block} has multiple predecessors, then we need to do the retagging
+  //     in the predecessors. It's a bit annoying because we've already bound
+  //     and finalized all of the predecessors by now. So, we create new
+  //     predecessor blocks in which we insert the taggings, patch the old
+  //     predecessors to point to the new ones, and update the predecessors of
+  //     {block}.
+  void StartExceptionBlock(maglev::BasicBlock* maglev_catch_handler) {
+    Block* turboshaft_catch_handler = Map(maglev_catch_handler);
+    DCHECK_GT(turboshaft_catch_handler->PredecessorCount(), 0);
+    if (turboshaft_catch_handler->PredecessorCount() == 1) {
+      StartSinglePredecessorExceptionBlock(maglev_catch_handler,
+                                           turboshaft_catch_handler);
+    } else {
+      StartMultiPredecessorExceptionBlock(maglev_catch_handler,
+                                          turboshaft_catch_handler);
+    }
+  }
+  void StartSinglePredecessorExceptionBlock(
+      maglev::BasicBlock* maglev_catch_handler,
+      Block* turboshaft_catch_handler) {
+    if (!__ Bind(turboshaft_catch_handler)) return;
+    catch_block_begin_ = __ CatchBlockBegin();
+    if (!maglev_catch_handler->has_phi()) return;
+    InsertTaggingForPhis(maglev_catch_handler);
+  }
+  // InsertTaggingForPhis makes sure that all of the inputs of the exception
+  // phis of {maglev_catch_handler} are tagged. If some aren't tagged, it
+  // inserts a tagging node in the current block and updates the corresponding
+  // Variable.
+  void InsertTaggingForPhis(maglev::BasicBlock* maglev_catch_handler) {
+    DCHECK(maglev_catch_handler->has_phi());
+
+    IterCatchHandlerPhis(maglev_catch_handler, [&](interpreter::Register owner,
+                                                   Variable var) {
+      DCHECK_NE(owner, interpreter::Register::virtual_accumulator());
+      V<Any> ts_idx = __ GetVariable(var);
+      DCHECK(maglev_representations_.contains(ts_idx));
+      switch (maglev_representations_[ts_idx]) {
+        case maglev::ValueRepresentation::kTagged:
+          // Already tagged, nothing to do.
+          break;
+        case maglev::ValueRepresentation::kInt32:
+          __ SetVariable(var, __ ConvertInt32ToNumber(V<Word32>::Cast(ts_idx)));
+          break;
+        case maglev::ValueRepresentation::kFloat64:
+          __ SetVariable(
+              var,
+              Float64ToTagged(
+                  V<Float64>::Cast(ts_idx),
+                  maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+          break;
+        case maglev::ValueRepresentation::kHoleyFloat64:
+          __ SetVariable(
+              var, HoleyFloat64ToTagged(V<Float64>::Cast(ts_idx),
+                                        maglev::HoleyFloat64ToTagged::
+                                            ConversionMode::kCanonicalizeSmi));
+          break;
+        case maglev::ValueRepresentation::kUint32:
+        case maglev::ValueRepresentation::kIntPtr:
+          UNREACHABLE();
+      }
+    });
+  }
+  void StartMultiPredecessorExceptionBlock(
+      maglev::BasicBlock* maglev_catch_handler,
+      Block* turboshaft_catch_handler) {
+    if (!maglev_catch_handler->has_phi()) {
+      // The very simple case: the catch handler didn't have any Phis, we don't
+      // have to do anything complex.
+      if (!__ Bind(turboshaft_catch_handler)) return;
+      catch_block_begin_ = __ CatchBlockBegin();
+      return;
+    }
+
+    // Inserting the tagging in all of the predecessors.
+    auto predecessors = turboshaft_catch_handler->Predecessors();
+    turboshaft_catch_handler->ResetAllPredecessors();
+    base::SmallVector<V<Object>, 16> catch_block_begins;
+    for (Block* predecessor : predecessors) {
+      // Recording the CatchBlockBegin of this predecessor.
+      V<Object> catch_begin = predecessor->begin();
+      DCHECK(Asm().Get(catch_begin).template Is<CatchBlockBeginOp>());
+      catch_block_begins.push_back(catch_begin);
+
+      TagExceptionPhiInputsForBlock(predecessor, maglev_catch_handler,
+                                    turboshaft_catch_handler);
+    }
+
+    // Finally binding the catch handler.
+    __ Bind(turboshaft_catch_handler);
+
+    // We now need to insert a Phi for the CatchBlockBegins of the
+    // predecessors (usually, we would just call `__ CatchBlockbegin`, which
+    // takes care of creating a Phi node if necessary, but this won't work here,
+    // because this mechanisms expects the CatchBlockBegin to be the 1st
+    // instruction of the predecessors, and it isn't the case since the
+    // predecessors are now the blocks with the tagging).
+    catch_block_begin_ = __ Phi(base::VectorOf(catch_block_begins));
+  }
+  void TagExceptionPhiInputsForBlock(Block* old_block,
+                                     maglev::BasicBlock* maglev_catch_handler,
+                                     Block* turboshaft_catch_handler) {
+    DCHECK(maglev_catch_handler->has_phi());
+
+    // We start by patching in-place the predecessors final Goto of {old_block}
+    // to jump to a new block (in which we'll insert the tagging).
+    Block* new_block = __ NewBlock();
+    const GotoOp& old_goto =
+        old_block->LastOperation(__ output_graph()).Cast<GotoOp>();
+    DCHECK_EQ(old_goto.destination, turboshaft_catch_handler);
+    __ output_graph().Replace<GotoOp>(__ output_graph().Index(old_goto),
+                                      new_block, /* is_backedge */ false);
+    __ AddPredecessor(old_block, new_block, false);
+
+    // Now, we bind the new block and insert the taggings
+    __ BindReachable(new_block);
+    InsertTaggingForPhis(maglev_catch_handler);
+
+    // Finally, we just go from this block to the catch handler.
+    __ Goto(turboshaft_catch_handler);
   }
 
   void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* block) {
@@ -428,7 +572,12 @@ class GraphBuilder {
         DCHECK(catch_block_begin_.valid());
         SetMap(node, catch_block_begin_);
       } else {
-        SetMap(node, __ GetVariable(regs_to_vars_[node->owner().index()]));
+        Variable var = regs_to_vars_[node->owner().index()];
+        SetMap(node, __ GetVariable(var));
+        // {var} won't be used anymore once we've created the mapping from
+        // {node} to its value. We thus reset it, in order to avoid Phis being
+        // created for {var} at later merge points.
+        __ SetVariable(var, V<Object>::Invalid());
       }
       return maglev::ProcessResult::kContinue;
     }
@@ -527,6 +676,8 @@ class GraphBuilder {
     int actual_parameter_count = JSParameterCount(node->num_args());
 
     if (node->shared_function_info().HasBuiltinId()) {
+      // Note that there is no need for a ThrowingScope here:
+      // GenerateBuiltinCall takes care of creating one.
       base::SmallVector<OpIndex, 16> arguments;
       arguments.push_back(callee);
       arguments.push_back(Map(node->new_target()));
@@ -2838,50 +2989,13 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::Float64ToTagged* node,
                                 const maglev::ProcessingState& state) {
-    // Float64ToTagged's conversion mode is used to control whether integer
-    // floats should be converted to Smis or to HeapNumbers: kCanonicalizeSmi
-    // means that they can be converted to Smis, and otherwise they should
-    // remain HeapNumbers.
-    ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind =
-        node->conversion_mode() ==
-                maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi
-            ? ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber
-            : ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber;
-    SetMap(node,
-           __ ConvertUntaggedToJSPrimitive(
-               Map(node->input()), kind, RegisterRepresentation::Float64(),
-               ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
-               CheckForMinusZeroMode::kCheckForMinusZero));
+    SetMap(node, Float64ToTagged(Map(node->input()), node->conversion_mode()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::HoleyFloat64ToTagged* node,
                                 const maglev::ProcessingState& state) {
-    Label<Object> done(this);
-    V<Float64> input = Map(node->input());
-    if (node->conversion_mode() ==
-        maglev::HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi) {
-      // ConvertUntaggedToJSPrimitive cannot at the same time canonicalize smis
-      // and handle holes. We thus manually insert a smi check when the
-      // conversion_mode is CanonicalizeSmi.
-      IF (__ Float64IsSmi(input)) {
-        GOTO(done,
-             __ ConvertUntaggedToJSPrimitive(
-                 __ TruncateFloat64ToInt32OverflowUndefined(input),
-                 ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi,
-                 RegisterRepresentation::Word32(),
-                 ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
-                 CheckForMinusZeroMode::kDontCheckForMinusZero));
-      }
-    }
-    GOTO(done, __ ConvertUntaggedToJSPrimitive(
-                   Map(node->input()),
-                   ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
-                       kHeapNumberOrUndefined,
-                   RegisterRepresentation::Float64(),
-                   ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
-                   CheckForMinusZeroMode::kCheckForMinusZero));
-    BIND(done, result);
-    SetMap(node, result);
+    SetMap(node,
+           HoleyFloat64ToTagged(Map(node->input()), node->conversion_mode()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64ToHeapNumberForField* node,
@@ -3795,6 +3909,62 @@ class GraphBuilder {
                          GetArrayTypeFromElementsKind(kind));
   }
 
+  V<Number> Float64ToTagged(
+      V<Float64> input,
+      maglev::Float64ToTagged::ConversionMode conversion_mode) {
+    // Float64ToTagged's conversion mode is used to control whether integer
+    // floats should be converted to Smis or to HeapNumbers: kCanonicalizeSmi
+    // means that they can be converted to Smis, and otherwise they should
+    // remain HeapNumbers.
+    ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind =
+        conversion_mode ==
+                maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi
+            ? ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber
+            : ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber;
+    return V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
+        input, kind, RegisterRepresentation::Float64(),
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+        CheckForMinusZeroMode::kCheckForMinusZero));
+  }
+
+  V<NumberOrUndefined> HoleyFloat64ToTagged(
+      V<Float64> input,
+      maglev::HoleyFloat64ToTagged::ConversionMode conversion_mode) {
+    Label<NumberOrUndefined> done(this);
+    if (conversion_mode ==
+        maglev::HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi) {
+      // ConvertUntaggedToJSPrimitive cannot at the same time canonicalize smis
+      // and handle holes. We thus manually insert a smi check when the
+      // conversion_mode is CanonicalizeSmi.
+      IF (__ Float64IsSmi(input)) {
+        V<Word32> as_int32 = __ TruncateFloat64ToInt32OverflowUndefined(input);
+        V<Smi> as_smi = V<Smi>::Cast(__ ConvertUntaggedToJSPrimitive(
+            as_int32, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi,
+            RegisterRepresentation::Word32(),
+            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+            CheckForMinusZeroMode::kDontCheckForMinusZero));
+        GOTO(done, as_smi);
+      }
+    }
+    V<NumberOrUndefined> as_obj =
+        V<NumberOrUndefined>::Cast(__ ConvertUntaggedToJSPrimitive(
+            input,
+            ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+                kHeapNumberOrUndefined,
+            RegisterRepresentation::Float64(),
+            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+            CheckForMinusZeroMode::kCheckForMinusZero));
+    if (done.has_incoming_jump()) {
+      GOTO(done, as_obj);
+      BIND(done, result);
+      return result;
+    } else {
+      // Avoid creating a new block if {as_obj} is the only possible return
+      // value.
+      return as_obj;
+    }
+  }
+
   void FixLoopPhis(maglev::BasicBlock* loop) {
     DCHECK(loop->is_loop());
     if (!loop->has_phi()) return;
@@ -3874,16 +4044,28 @@ class GraphBuilder {
    public:
     ThrowingScope(GraphBuilder* builder, maglev::NodeBase* throwing_node)
         : builder_(*builder) {
+      DCHECK_EQ(__ current_catch_block(), nullptr);
       if (!throwing_node->properties().can_throw()) return;
       const maglev::ExceptionHandlerInfo* info =
           throwing_node->exception_handler_info();
-      if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
+      if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) {
+        return;
+      }
 
-      maglev::BasicBlock* block = info->catch_block.block_ptr();
-      auto* liveness = block->state()->frame_state().liveness();
+      catch_block_ = info->catch_block.block_ptr();
+
+      __ set_current_catch_block(builder_.Map(catch_block_));
+
+      // We now need to prepare recording the inputs for the exception phis of
+      // the catch handler.
+
+      if (!catch_block_->has_phi()) {
+        // Catch handler doesn't have any Phis, no need to do anything else.
+        return;
+      }
 
       maglev::LazyDeoptInfo* deopt_info = throwing_node->lazy_deopt_info();
-      const maglev::InterpretedDeoptFrame* lazy_frame;
+      const maglev::InterpretedDeoptFrame* lazy_frame = nullptr;
       switch (deopt_info->top_frame().type()) {
         case maglev::DeoptFrame::FrameType::kInterpretedFrame:
           lazy_frame = &deopt_info->top_frame().as_interpreted();
@@ -3895,35 +4077,25 @@ class GraphBuilder {
           lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
           break;
       }
+      DCHECK_NOT_NULL(lazy_frame);
+      const maglev::MaglevCompilationUnit& maglev_unit = lazy_frame->unit();
+      const maglev::CompactInterpreterFrameState* frame =
+          lazy_frame->frame_state();
 
-      lazy_frame->frame_state()->ForEachValue(
-          lazy_frame->unit(), [this, liveness](maglev::ValueNode* value,
-                                               interpreter::Register reg) {
-            if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
-              // Skip, since not live at the handler offset.
-              return;
-            }
-            if (reg == interpreter::Register::virtual_accumulator()) {
-              // If the accumulator is live, the it corresponds to the exception
-              // object rather than whatever value it contained before the
-              // throwing operation. We don't record anything here, and when
-              // creating the exception phis, we'll use `catch_block_begin_` for
-              // the accumulator.
-              return;
-            }
-            auto it = builder_.regs_to_vars_.find(reg.index());
-            Variable var;
-            if (it == builder_.regs_to_vars_.end()) {
-              var = __ NewVariable(RegisterRepresentation::Tagged());
-              builder_.regs_to_vars_.insert({reg.index(), var});
-            } else {
-              var = it->second;
-            }
-            __ SetVariable(var, builder_.Map(value));
+      builder_.IterCatchHandlerPhis(
+          catch_block_, [this, frame, maglev_unit](interpreter::Register owner,
+                                                   Variable var) {
+            DCHECK_NE(owner, interpreter::Register::virtual_accumulator());
+
+            maglev::ValueNode* const maglev_value =
+                frame->GetValueOf(owner, maglev_unit);
+            DCHECK_NOT_NULL(maglev_value);
+
+            V<Any> ts_value = builder_.Map(maglev_value);
+            __ SetVariable(var, ts_value);
+            builder_.RecordRepresentation(ts_value,
+                                          maglev_value->value_representation());
           });
-
-      DCHECK_EQ(__ current_catch_block(), nullptr);
-      __ set_current_catch_block(builder_.Map(block));
     }
 
     ~ThrowingScope() {
@@ -3934,12 +4106,55 @@ class GraphBuilder {
       // checking that the current_catch_block is indeed nullptr when the scope
       // is created).
       __ set_current_catch_block(nullptr);
+
+      if (catch_block_ == nullptr) return;
+      if (!catch_block_->has_phi()) return;
+
+      // We clear the Variables that we've set when initializing the scope, in
+      // order to avoid creating Phis for such Variables. These are really only
+      // meant to be used when translating the Phis in the catch handler, and
+      // when the scope is destroyed, we shouldn't be in the Catch handler yet.
+      builder_.IterCatchHandlerPhis(
+          catch_block_, [this](interpreter::Register, Variable var) {
+            __ SetVariable(var, V<Object>::Invalid());
+          });
     }
 
    private:
     GraphBuilder::AssemblerT& Asm() { return builder_.Asm(); }
     GraphBuilder& builder_;
+    const maglev::BasicBlock* catch_block_ = nullptr;
   };
+
+  template <typename Function>
+  void IterCatchHandlerPhis(const maglev::BasicBlock* catch_block,
+                            Function&& callback) {
+    DCHECK_NOT_NULL(catch_block);
+    DCHECK(catch_block->has_phi());
+    for (auto phi : *catch_block->phis()) {
+      DCHECK(phi->is_exception_phi());
+      interpreter::Register owner = phi->owner();
+      if (owner == interpreter::Register::virtual_accumulator()) {
+        // The accumulator exception phi corresponds to the exception object
+        // rather than whatever value the accumulator contained before the
+        // throwing operation. We don't need to iterate here, since there is
+        // special handling when processing Phis to use `catch_block_begin_`
+        // for it instead of a Variable.
+        continue;
+      }
+
+      auto it = regs_to_vars_.find(owner.index());
+      Variable var;
+      if (it == regs_to_vars_.end()) {
+        var = __ NewVariable(RegisterRepresentation::Tagged());
+        regs_to_vars_.insert({owner.index(), var});
+      } else {
+        var = it->second;
+      }
+
+      callback(owner, var);
+    }
+  }
 
   template <typename T>
   V<T> Map(const maglev::Input input) {
@@ -3973,6 +4188,12 @@ class GraphBuilder {
     } else {
       SetMap(node, idx);
     }
+  }
+
+  void RecordRepresentation(OpIndex idx, maglev::ValueRepresentation repr) {
+    DCHECK_IMPLIES(maglev_representations_.contains(idx),
+                   maglev_representations_[idx] == repr);
+    maglev_representations_[idx] = repr;
   }
 
   V<NativeContext> native_context() {
@@ -4024,6 +4245,15 @@ class GraphBuilder {
   // return values, we set {second_return_value_} to the 2nd projection, and
   // then use it when translating GetSecondReturnedValue.
   V<Object> second_return_value_ = V<Object>::Invalid();
+
+  // {maglev_representations_} contains a map from Turboshaft OpIndex to
+  // ValueRepresentation of the corresponding Maglev node. This is used when
+  // translating exception phis: they might need to be re-tagged, and we need to
+  // know the Maglev ValueRepresentation to distinguish between Float64 and
+  // HoleyFloat64 (both of which would have Float64 RegisterRepresentation in
+  // Turboshaft, but they need to be tagged differently).
+  ZoneAbslFlatHashMap<OpIndex, maglev::ValueRepresentation>
+      maglev_representations_;
 
   V<NativeContext> native_context_ = V<NativeContext>::Invalid();
   V<Object> new_target_param_ = V<Object>::Invalid();
