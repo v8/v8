@@ -604,7 +604,7 @@ WasmEngine::~WasmEngine() {
   DCHECK(native_module_cache_.empty());
 }
 
-bool WasmEngine::SyncValidate(Isolate* isolate, WasmFeatures enabled,
+bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
                               CompileTimeImports compile_imports,
                               ModuleWireBytes bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
@@ -636,10 +636,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // the context id in here.
   v8::metrics::Recorder::ContextId context_id =
       v8::metrics::Recorder::ContextId::Empty();
-  ModuleResult result =
-      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.module_bytes(), false,
-                       origin, isolate->counters(), isolate->metrics_recorder(),
-                       context_id, DecodingMethod::kSync);
+  ModuleResult result = DecodeWasmModule(
+      WasmEnabledFeatures::ForAsmjs(), bytes.module_bytes(), false, origin,
+      isolate->counters(), isolate->metrics_recorder(), context_id,
+      DecodingMethod::kSync);
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -654,7 +654,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // in {CompileToNativeModule}.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, WasmFeatures::ForAsmjs(), CompileTimeImports{}, thrower,
+      isolate, WasmEnabledFeatures::ForAsmjs(), CompileTimeImports{}, thrower,
       std::move(result).value(), bytes, compilation_id, context_id,
       kNoProfileInformation);
   if (!native_module) return {};
@@ -687,8 +687,9 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    ErrorThrower* thrower, ModuleWireBytes bytes) {
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, ErrorThrower* thrower,
+    ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -796,7 +797,8 @@ void WasmEngine::AsyncInstantiate(
 }
 
 void WasmEngine::AsyncCompile(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports,
     std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
     bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -869,8 +871,9 @@ void WasmEngine::AsyncCompile(
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    Handle<Context> context, const char* api_method_name,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.StartStreamingCompilation", "id",
@@ -890,7 +893,7 @@ void WasmEngine::CompileFunction(Counters* counters,
                                  NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
-  WasmFeatures detected = WasmFeatures::None();
+  WasmDetectedFeatures detected;
   WasmCompilationUnit::CompileWasmFunction(
       counters, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
@@ -1146,9 +1149,9 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
-    const char* api_method_name,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
+    DirectHandle<Context> context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
   DirectHandle<NativeContext> incumbent_context =
       isolate->GetIncumbentContext();
@@ -1449,7 +1452,8 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.NewNativeModule");

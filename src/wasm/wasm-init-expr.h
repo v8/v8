@@ -19,7 +19,6 @@ namespace internal {
 namespace wasm {
 
 struct WasmModule;
-class WasmFeatures;
 
 // Representation of an constant expression. Unlike {ConstantExpression}, this
 // does not use {WireBytesRef}, i.e., it does not depend on a wasm module's

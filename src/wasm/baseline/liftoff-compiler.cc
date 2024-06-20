@@ -345,8 +345,8 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   }
 #endif
 
-#define LIST_FEATURE(name, ...) kFeature_##name,
-  constexpr WasmFeatures kExperimentalFeatures{
+#define LIST_FEATURE(name, ...) WasmEnabledFeature::name,
+  constexpr WasmEnabledFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
 #undef LIST_FEATURE
 
@@ -9027,7 +9027,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   }
   DCHECK_IMPLIES(compiler_options.max_steps,
                  compiler_options.for_debugging == kForDebugging);
-  WasmFeatures unused_detected_features;
+  WasmDetectedFeatures unused_detected_features;
 
   WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features,
@@ -9105,7 +9105,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   Zone zone(GetWasmEngine()->allocator(), "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, function->sig);
   DebugSideTableBuilder debug_sidetable_builder;
-  WasmFeatures detected;
+  WasmDetectedFeatures detected;
   constexpr int kSteppingBreakpoints[] = {0};
   DCHECK(code->for_debugging() == kForDebugging ||
          code->for_debugging() == kForStepping);

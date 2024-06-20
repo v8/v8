@@ -69,7 +69,7 @@ ValueOrError EvaluateConstantExpression(
       // TODO(14616): Rethink this.
       constexpr bool kIsShared = false;
       FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
-      WasmFeatures detected;
+      WasmDetectedFeatures detected;
       const WasmModule* module = trusted_instance_data->module();
       ValueOrError result;
       {
@@ -81,8 +81,8 @@ ValueOrError EvaluateConstantExpression(
         // size.
         WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                         kConstantExpression>
-            decoder(zone, module, WasmFeatures::All(), &detected, body, module,
-                    isolate, trusted_instance_data,
+            decoder(zone, module, WasmEnabledFeatures::All(), &detected, body,
+                    module, isolate, trusted_instance_data,
                     shared_trusted_instance_data);
 
         decoder.DecodeFunctionBody();

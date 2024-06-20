@@ -1640,8 +1640,8 @@ DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
 DEFINE_IMPLICATION(wasm_deopt, turboshaft_wasm)
 
 // Declare command-line flags for Wasm features. Warning: avoid using these
-// flags directly in the implementation. Instead accept wasm::WasmFeatures
-// for configurability.
+// flags directly in the implementation. Instead accept
+// wasm::WasmEnabledFeatures for configurability.
 #include "src/wasm/wasm-feature-flags.h"
 
 #define DECL_WASM_FLAG(feat, desc, val) \

@@ -222,7 +222,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
   using LocalsDecl = std::pair<uint32_t, ValueType>;
   // All features are disabled by default and must be activated with
   // a WASM_FEATURE_SCOPE in individual tests.
-  WasmFeatures enabled_features_ = WasmFeatures::None();
+  WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
   TestSignatures sigs;
   TestModuleBuilder builder;
@@ -281,7 +281,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
     // Validate the code.
     constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     FunctionBody body(sig, 0, code.begin(), code.end(), kIsShared);
-    WasmFeatures unused_detected_features = WasmFeatures::None();
+    WasmDetectedFeatures unused_detected_features;
     DecodeResult result =
         ValidateFunctionBody(this->zone(), enabled_features_, module,
                              &unused_detected_features, body);
@@ -2013,7 +2013,6 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteI8x16Shuffle) {
-  WASM_FEATURE_SCOPE(simd);
   const FunctionSig* sig = sigs.i_i();
   builder.AddMemory();
   builder.AddTable(wasm::kWasmVoid);
@@ -3273,9 +3272,9 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   for (size_t i = 0; i < arraysize(code); ++i) {
     constexpr bool kIsShared = false;
     FunctionBody body(sigs.v_v(), 0, code, code + i, kIsShared);
-    WasmFeatures unused_detected_features;
+    WasmDetectedFeatures unused_detected_features;
     DecodeResult result =
-        ValidateFunctionBody(this->zone(), WasmFeatures::All(), module,
+        ValidateFunctionBody(this->zone(), WasmEnabledFeatures::All(), module,
                              &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
@@ -3732,7 +3731,6 @@ TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefEq) {
-  WASM_FEATURE_SCOPE(simd);
   WASM_FEATURE_SCOPE(exnref);
 
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
@@ -3792,7 +3790,6 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
-  WASM_FEATURE_SCOPE(simd);
   WASM_FEATURE_SCOPE(exnref);
 
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
@@ -4760,11 +4757,11 @@ class WasmOpcodeLengthTest : public TestWithZone {
   void ExpectFailure(Bytes... bytes) {
     const uint8_t code[] = {
         static_cast<uint8_t>(bytes)..., 0, 0, 0, 0, 0, 0, 0, 0};
-    WasmFeatures no_features = WasmFeatures::None();
+    WasmDetectedFeatures detected_features;
     constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     WasmDecoder<Decoder::FullValidationTag> decoder(
-        this->zone(), nullptr, no_features, &no_features, nullptr, kIsShared,
-        code, code + sizeof(code), 0);
+        this->zone(), nullptr, WasmEnabledFeatures::None(), &detected_features,
+        nullptr, kIsShared, code, code + sizeof(code), 0);
     WasmDecoder<Decoder::FullValidationTag>::OpcodeLength(&decoder, code);
     EXPECT_TRUE(decoder.failed());
   }
@@ -4786,10 +4783,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
         bytes[2] = kAnyRefCode;
       }
     }
-    WasmFeatures detected;
+    WasmDetectedFeatures detected;
     constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     WasmDecoder<Decoder::BooleanValidationTag> decoder(
-        this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr,
+        this->zone(), nullptr, WasmEnabledFeatures::All(), &detected, nullptr,
         kIsShared, bytes, bytes + sizeof(bytes), 0);
     WasmDecoder<Decoder::BooleanValidationTag>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
@@ -4989,7 +4986,7 @@ class TypeReaderTest : public TestWithZone {
   }
 
   // This variable is modified by WASM_FEATURE_SCOPE.
-  WasmFeatures enabled_features_;
+  WasmEnabledFeatures enabled_features_;
 };
 
 TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
@@ -5042,7 +5039,7 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
-  WasmFeatures enabled_features_;
+  WasmEnabledFeatures enabled_features_;
 
   size_t ExpectRun(ValueType* local_types, size_t pos, ValueType expected,
                    size_t count) {
@@ -5266,7 +5263,7 @@ class FunctionBodyDecoderTestOnBothMemoryTypes
           WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
  public:
   FunctionBodyDecoderTestOnBothMemoryTypes() {
-    if (is_memory64()) enabled_features_.Add(kFeature_memory64);
+    if (is_memory64()) enabled_features_.Add(WasmEnabledFeature::memory64);
   }
 
   bool is_memory64() const { return GetParam() == kMemory64; }
@@ -5425,7 +5422,9 @@ class FunctionBodyDecoderTestWithMultiMemory
           ::testing::TestWithParam<MultiMemoryEnabled>>> {
  public:
   FunctionBodyDecoderTestWithMultiMemory() {
-    if (is_multi_memory_enabled()) enabled_features_.Add(kFeature_multi_memory);
+    if (is_multi_memory_enabled()) {
+      enabled_features_.Add(WasmEnabledFeature::multi_memory);
+    }
   }
 
   bool is_multi_memory_enabled() const { return GetParam(); }
@@ -5468,7 +5467,7 @@ class FunctionBodyDecoderTestTable64
           WithDefaultPlatformMixin<::testing::TestWithParam<TableType>>> {
  public:
   FunctionBodyDecoderTestTable64() {
-    if (is_table64()) enabled_features_.Add(kFeature_memory64);
+    if (is_table64()) enabled_features_.Add(WasmEnabledFeature::memory64);
   }
 
   bool is_table64() const { return GetParam() == kTable64; }

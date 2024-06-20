@@ -21,7 +21,7 @@ inline CompilationEnv CompilationEnv::ForModule(
 }
 
 constexpr CompilationEnv CompilationEnv::NoModuleAllFeatures() {
-  return CompilationEnv(nullptr, WasmFeatures::All(),
+  return CompilationEnv(nullptr, WasmEnabledFeatures::All(),
                         DynamicTiering::kNoDynamicTiering, nullptr, nullptr);
 }
 

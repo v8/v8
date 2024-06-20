@@ -126,7 +126,7 @@ class Reader {
   const uint8_t* pos_;
 };
 
-void WriteHeader(Writer* writer, WasmFeatures enabled_features) {
+void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features) {
   DCHECK_EQ(0, writer->bytes_written());
   writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
@@ -941,7 +941,7 @@ void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
 }
 
 bool IsSupportedVersion(base::Vector<const uint8_t> header,
-                        WasmFeatures enabled_features) {
+                        WasmEnabledFeatures enabled_features) {
   if (header.size() < WasmSerializer::kHeaderSize) return false;
   uint8_t current_version[WasmSerializer::kHeaderSize];
   Writer writer({current_version, WasmSerializer::kHeaderSize});
@@ -954,7 +954,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
     CompileTimeImports compile_imports, base::Vector<const char> source_url) {
-  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
+  WasmEnabledFeatures enabled_features =
+      WasmEnabledFeatures::FromIsolate(isolate);
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data, enabled_features)) return {};
 

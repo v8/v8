@@ -704,7 +704,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return &import_wrapper_cache_;
   }
 
-  WasmFeatures enabled_features() const { return enabled_features_; }
+  WasmEnabledFeatures enabled_features() const { return enabled_features_; }
   CompileTimeImports compile_imports() const { return compile_imports_; }
 
   // Returns the builtin that corresponds to the given address (which
@@ -821,7 +821,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(WasmFeatures enabled_features,
+  NativeModule(WasmEnabledFeatures enabled_features,
                CompileTimeImports compile_imports,
                DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
@@ -891,7 +891,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Features enabled for this module. We keep a copy of the features that
   // were enabled at the time of the creation of this native module,
   // to be consistent across asynchronous compilations later.
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
 
   // Compile-time imports requested for this module.
   const CompileTimeImports compile_imports_;
@@ -1068,7 +1068,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmCodeLookupCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, WasmFeatures enabled_features,
+      Isolate* isolate, WasmEnabledFeatures enabled_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);
 

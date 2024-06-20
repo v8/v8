@@ -43,7 +43,7 @@ namespace v8 {
 using v8::internal::wasm::CompileTimeImport;
 using v8::internal::wasm::CompileTimeImports;
 using v8::internal::wasm::ErrorThrower;
-using v8::internal::wasm::WasmFeatures;
+using v8::internal::wasm::WasmEnabledFeatures;
 
 class WasmStreaming::WasmStreamingImpl {
  public:
@@ -53,7 +53,7 @@ class WasmStreaming::WasmStreamingImpl {
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
       : i_isolate_(isolate),
         compile_imports_(compile_imports),
-        enabled_features_(i::wasm::WasmFeatures::FromIsolate(i_isolate_)),
+        enabled_features_(WasmEnabledFeatures::FromIsolate(i_isolate_)),
         streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
             i_isolate_, enabled_features_, compile_imports_,
             handle(i_isolate_->context(), i_isolate_), api_method_name,
@@ -101,7 +101,7 @@ class WasmStreaming::WasmStreamingImpl {
  private:
   i::Isolate* const i_isolate_;
   const CompileTimeImports compile_imports_;
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
   const std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
   const std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };
@@ -530,7 +530,7 @@ void RecordCompilationMethod(i::Isolate* isolate, CompilationMethod method) {
 
 CompileTimeImports ArgumentToCompileOptions(
     Local<Value> arg_value, i::Isolate* isolate,
-    i::wasm::WasmFeatures enabled_features) {
+    WasmEnabledFeatures enabled_features) {
   if (!enabled_features.has_imported_strings()) return {};
   i::Handle<i::Object> arg = Utils::OpenHandle(*arg_value);
   if (!i::IsJSReceiver(*arg)) return {};
@@ -628,7 +628,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     resolver->OnCompilationFailed(thrower.Reify());
     return;
   }
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -706,7 +706,7 @@ void WebAssemblyCompileStreaming(
     return;
   }
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -766,7 +766,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -840,7 +840,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (thrower.error()) {
     return;
   }
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -1054,7 +1054,7 @@ void WebAssemblyInstantiateStreaming(
       new AsyncInstantiateCompileResultResolver(isolate, context,
                                                 result_resolver, ffi));
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -1176,7 +1176,7 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
@@ -1256,8 +1256,8 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                                   result, lower_bound, upper_bound)) {
     return false;
   }
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(
-      reinterpret_cast<i::Isolate*>(isolate));
+  auto enabled_features =
+      WasmEnabledFeatures::FromIsolate(reinterpret_cast<i::Isolate*>(isolate));
   if (enabled_features.has_type_reflection()) {
     bool has_minimum = false;
     int64_t minimum = 0;
@@ -1326,7 +1326,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+    auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
     // The JS api uses 'anyfunc' instead of 'funcref'.
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
@@ -1573,7 +1573,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // type could not be properly recognized.
 bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
                   Local<Context> context, i::wasm::ValueType* type,
-                  i::wasm::WasmFeatures enabled_features) {
+                  WasmEnabledFeatures enabled_features) {
   v8::Local<v8::Value> value;
   if (!maybe.ToLocal(&value)) return false;
   v8::Local<v8::String> string;
@@ -1679,7 +1679,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(info[0]);
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
 
   // The descriptor's 'mutable'.
   bool is_mutable = false;
@@ -1842,7 +1842,7 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<Object> event_type = Local<Object>::Cast(info[0]);
   Local<Context> context = isolate->GetCurrentContext();
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
 
   // Load the 'parameters' property of the event type.
   Local<String> parameters_key = v8_str(isolate, "parameters");
@@ -2235,7 +2235,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   Local<Object> function_type = Local<Object>::Cast(info[0]);
   Local<Context> context = isolate->GetCurrentContext();
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
 
   // Load the 'parameters' property of the function type.
   Local<String> parameters_key = v8_str(isolate, "parameters");
@@ -3480,9 +3480,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // The native_context is not set up completely yet. That's why we cannot use
-  // {WasmFeatures::FromIsolate} and have to use {WasmFeatures::FromFlags}
-  // instead.
-  const auto enabled_features = wasm::WasmFeatures::FromFlags();
+  // {WasmEnabledFeatures::FromIsolate} and have to use
+  // {WasmEnabledFeatures::FromFlags} instead.
+  const auto enabled_features = wasm::WasmEnabledFeatures::FromFlags();
 
   if (enabled_features.has_type_reflection()) {
     InstallTypeReflection(isolate, native_context, webassembly);

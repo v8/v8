@@ -66,7 +66,7 @@ struct CompilationEnv {
   const WasmModule* const module;
 
   // Features enabled for this compilation.
-  const WasmFeatures enabled_features;
+  const WasmEnabledFeatures enabled_features;
 
   const DynamicTiering dynamic_tiering;
 
@@ -86,7 +86,7 @@ struct CompilationEnv {
 
  private:
   constexpr CompilationEnv(const WasmModule* module,
-                           WasmFeatures enabled_features,
+                           WasmEnabledFeatures enabled_features,
                            DynamicTiering dynamic_tiering,
                            std::atomic<Address>* fast_api_targets,
                            std::atomic<bool>* fast_api_return_is_bool)

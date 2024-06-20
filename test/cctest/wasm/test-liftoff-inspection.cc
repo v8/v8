@@ -43,8 +43,8 @@ class LiftoffCompileEnvironment {
     // Now compile the function with Liftoff two times.
     CompilationEnv env = CompilationEnv::ForModule(
         wasm_runner_.builder().trusted_instance_data()->native_module());
-    WasmFeatures detected1;
-    WasmFeatures detected2;
+    WasmDetectedFeatures detected1;
+    WasmDetectedFeatures detected2;
     WasmCompilationResult result1 =
         ExecuteLiftoffCompilation(&env, test_func.body,
                                   LiftoffOptions{}

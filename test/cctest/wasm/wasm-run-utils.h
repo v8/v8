@@ -265,12 +265,14 @@ class TestingModuleBuilder {
   int32_t nondeterminism() { return nondeterminism_; }
   int32_t* non_determinism_ptr() { return &nondeterminism_; }
 
-  void EnableFeature(WasmFeature feature) { enabled_features_.Add(feature); }
+  void EnableFeature(WasmEnabledFeature feature) {
+    enabled_features_.Add(feature);
+  }
 
  private:
   std::shared_ptr<WasmModule> test_module_;
   Isolate* isolate_;
-  WasmFeatures enabled_features_;
+  WasmEnabledFeatures enabled_features_;
   uint32_t global_offset = 0;
   // The TestingModuleBuilder only supports one memory currently.
   uint8_t* mem0_start_ = nullptr;

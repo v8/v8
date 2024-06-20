@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 // Support for deserializing WebAssembly {NativeModule} objects.
 // Checks the version header of the data against the current version.
 bool IsSupportedVersion(base::Vector<const uint8_t> data,
-                        WasmFeatures enabled_features);
+                        WasmEnabledFeatures enabled_features);
 
 // Deserializes the given data to create a Wasm module object.
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> DeserializeNativeModule(

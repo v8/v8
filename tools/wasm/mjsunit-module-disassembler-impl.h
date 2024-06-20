@@ -500,13 +500,13 @@ class MjsunitFunctionDis : public WasmDecoder<Decoder::FullValidationTag> {
   using ValidationTag = Decoder::FullValidationTag;
 
   MjsunitFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
-                     bool shared, WasmFeatures* detected,
+                     bool shared, WasmDetectedFeatures* detected,
                      const FunctionSig* sig, const uint8_t* start,
                      const uint8_t* end, uint32_t offset,
                      MjsunitNamesProvider* mjsunit_names,
                      Indentation indentation)
-      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
-                                   sig, shared, start, end, offset),
+      : WasmDecoder<ValidationTag>(zone, module, WasmEnabledFeatures::All(),
+                                   detected, sig, shared, start, end, offset),
         names_(mjsunit_names),
         indentation_(indentation) {}
 
@@ -1523,7 +1523,8 @@ class MjsunitModuleDis {
         out_ << "builder.addDeclarativeElementSegment(";
       }
       out_ << "[";
-      ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes_.module_bytes(),
+      ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
+                                wire_bytes_.module_bytes(),
                                 ModuleOrigin::kWasmOrigin);
       // This implementation detail is load-bearing: if we simply let the
       // {decoder} start at this offset, it could produce WireBytesRefs that
@@ -1584,7 +1585,7 @@ class MjsunitModuleDis {
 
       // Locals and body.
       bool shared = module_->types[func.sig_index].is_shared;
-      WasmFeatures detected;
+      WasmDetectedFeatures detected;
       MjsunitFunctionDis d(&zone_, module_, index, shared, &detected, func.sig,
                            func_code.begin(), func_code.end(),
                            func.code.offset(), &mjsunit_names_,
@@ -1708,7 +1709,7 @@ class MjsunitModuleDis {
         const uint8_t* start = wire_bytes_.start() + ref.offset();
         const uint8_t* end = start + ref.length();
         auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-        WasmFeatures detected;
+        WasmDetectedFeatures detected;
         MjsunitFunctionDis d(&zone_, module_, 0, false, &detected, &sig, start,
                              end, ref.offset(), &mjsunit_names_,
                              Indentation{0, 0});

@@ -139,7 +139,8 @@ class WasmSerializationTest {
           v8::Context::New(serialization_v8_isolate);
       serialization_context->Enter();
 
-      auto enabled_features = WasmFeatures::FromIsolate(serialization_isolate);
+      auto enabled_features =
+          WasmEnabledFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
           GetWasmEngine()->SyncCompile(
               serialization_isolate, enabled_features, compile_imports_,
@@ -296,7 +297,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
     testing::SetupIsolateForWasmModule(from_i_isolate);
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
-    auto enabled_features = WasmFeatures::FromIsolate(from_i_isolate);
+    auto enabled_features = WasmEnabledFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
         GetWasmEngine()->SyncCompile(
             from_i_isolate, enabled_features, CompileTimeImports{}, &thrower,
@@ -372,7 +373,7 @@ TEST(SerializeLiftoffModuleFails) {
   ErrorThrower thrower(isolate, "Test");
   MaybeHandle<WasmModuleObject> maybe_module_object =
       GetWasmEngine()->SyncCompile(
-          isolate, WasmFeatures::All(), CompileTimeImports{}, &thrower,
+          isolate, WasmEnabledFeatures::All(), CompileTimeImports{}, &thrower,
           ModuleWireBytes(wire_bytes_buffer.begin(), wire_bytes_buffer.end()));
   DirectHandle<WasmModuleObject> module_object =
       maybe_module_object.ToHandleChecked();

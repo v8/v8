@@ -97,15 +97,15 @@ class MemoryProtectionTest : public TestWithNativeContext {
         SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0 /* locals */, kExprEnd))};
 
     ModuleResult result =
-        DecodeWasmModule(WasmFeatures::All(), base::ArrayVector(module_bytes),
-                         false, kWasmOrigin);
+        DecodeWasmModule(WasmEnabledFeatures::All(),
+                         base::ArrayVector(module_bytes), false, kWasmOrigin);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");
     constexpr int kNoCompilationId = 0;
     constexpr ProfileInformation* kNoProfileInformation = nullptr;
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-        isolate(), WasmFeatures::All(), CompileTimeImports{}, &thrower,
+        isolate(), WasmEnabledFeatures::All(), CompileTimeImports{}, &thrower,
         std::move(result).value(),
         ModuleWireBytes{base::ArrayVector(module_bytes)}, kNoCompilationId,
         v8::metrics::Recorder::ContextId::Empty(), kNoProfileInformation);

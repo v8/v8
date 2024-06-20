@@ -9,6 +9,8 @@
 #ifndef V8_WASM_WASM_FEATURES_H_
 #define V8_WASM_WASM_FEATURES_H_
 
+#include <iosfwd>
+
 // The feature flags are declared in their own header.
 #include "src/common/globals.h"
 #include "src/wasm/wasm-feature-flags.h"
@@ -32,57 +34,94 @@
 
 namespace v8::internal::wasm {
 
-enum WasmFeature {
-#define DECL_FEATURE_ENUM(feat, ...) kFeature_##feat,
+enum class WasmEnabledFeature {
+#define DECL_FEATURE_ENUM(feat, ...) feat,
+  FOREACH_WASM_FEATURE_FLAG(DECL_FEATURE_ENUM)
+#undef DECL_FEATURE_ENUM
+};
+
+enum class WasmDetectedFeature {
+#define DECL_FEATURE_ENUM(feat, ...) feat,
   FOREACH_WASM_FEATURE(DECL_FEATURE_ENUM)
 #undef DECL_FEATURE_ENUM
 };
 
-// Enabled or detected features.
-class WasmFeatures : public base::EnumSet<WasmFeature> {
+// Set of enabled features. This only includes features that have a flag.
+class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
  public:
-  constexpr WasmFeatures() = default;
-  explicit constexpr WasmFeatures(std::initializer_list<WasmFeature> features)
+  constexpr WasmEnabledFeatures() = default;
+  explicit constexpr WasmEnabledFeatures(
+      std::initializer_list<WasmEnabledFeature> features)
       : EnumSet(features) {}
 
-  // Simplified getters. Use {has_foo()} instead of {contains(kFeature_foo)}.
-#define DECL_FEATURE_GETTER(feat, ...) \
-  constexpr bool has_##feat() const { return contains(kFeature_##feat); }
-  FOREACH_WASM_FEATURE(DECL_FEATURE_GETTER)
+  // Simplified getters. Use {has_foo()} instead of
+  // {contains(WasmEnabledFeature::foo)}.
+#define DECL_FEATURE_GETTER(feat, ...)         \
+  constexpr bool has_##feat() const {          \
+    return contains(WasmEnabledFeature::feat); \
+  }
+  FOREACH_WASM_FEATURE_FLAG(DECL_FEATURE_GETTER)
 #undef DECL_FEATURE_GETTER
 
-  static constexpr const char* name_for_feature(WasmFeature feature) {
-    switch (feature) {
-#define NAME(feat, ...)              \
-  case WasmFeature::kFeature_##feat: \
-    return #feat;
-      FOREACH_WASM_FEATURE(NAME)
-    }
-#undef NAME
+  static inline constexpr WasmEnabledFeatures All() {
+#define LIST_FEATURE(feat, ...) WasmEnabledFeature::feat,
+    return WasmEnabledFeatures({FOREACH_WASM_FEATURE_FLAG(LIST_FEATURE)});
+#undef LIST_FEATURE
   }
-  static inline constexpr WasmFeatures All();
-  static inline constexpr WasmFeatures None();
-  static inline constexpr WasmFeatures ForAsmjs();
+  static inline constexpr WasmEnabledFeatures None() { return {}; }
+  static inline constexpr WasmEnabledFeatures ForAsmjs() { return {}; }
   // Retuns optional features that are enabled by flags, plus features that are
   // not enabled by a flag and are always on.
-  static WasmFeatures FromFlags();
-  static V8_EXPORT_PRIVATE WasmFeatures FromIsolate(Isolate*);
-  static V8_EXPORT_PRIVATE WasmFeatures
-  FromContext(Isolate*, Handle<NativeContext> context);
+  static WasmEnabledFeatures FromFlags();
+  static V8_EXPORT_PRIVATE WasmEnabledFeatures FromIsolate(Isolate*);
+  static V8_EXPORT_PRIVATE WasmEnabledFeatures
+  FromContext(Isolate*, Handle<NativeContext>);
 };
 
-// static
-constexpr WasmFeatures WasmFeatures::All() {
-#define LIST_FEATURE(feat, ...) kFeature_##feat,
-  return WasmFeatures({FOREACH_WASM_FEATURE(LIST_FEATURE)});
-#undef LIST_FEATURE
+// Set of detected features. This includes features that have a flag plus
+// features in FOREACH_WASM_NON_FLAG_FEATURE.
+class WasmDetectedFeatures : public base::EnumSet<WasmDetectedFeature> {
+ public:
+  constexpr WasmDetectedFeatures() = default;
+
+  // Simplified getters and setters. Use {add_foo()} and {has_foo()} instead of
+  // {Add(WasmDetectedFeature::foo)} or {contains(WasmDetectedFeature::foo)}.
+#define DECL_FEATURE_GETTER(feat, ...)                            \
+  constexpr void add_##feat() { Add(WasmDetectedFeature::feat); } \
+  constexpr bool has_##feat() const {                             \
+    return contains(WasmDetectedFeature::feat);                   \
+  }
+  FOREACH_WASM_FEATURE(DECL_FEATURE_GETTER)
+#undef DECL_FEATURE_GETTER
+};
+
+inline constexpr const char* name(WasmEnabledFeature feature) {
+  switch (feature) {
+#define NAME(feat, ...)          \
+  case WasmEnabledFeature::feat: \
+    return #feat;
+    FOREACH_WASM_FEATURE_FLAG(NAME)
+  }
+#undef NAME
 }
 
-// static
-constexpr WasmFeatures WasmFeatures::None() { return {}; }
+inline std::ostream& operator<<(std::ostream& os, WasmEnabledFeature feature) {
+  return os << name(feature);
+}
 
-// static
-constexpr WasmFeatures WasmFeatures::ForAsmjs() { return {}; }
+inline constexpr const char* name(WasmDetectedFeature feature) {
+  switch (feature) {
+#define NAME(feat, ...)           \
+  case WasmDetectedFeature::feat: \
+    return #feat;
+    FOREACH_WASM_FEATURE(NAME)
+  }
+#undef NAME
+}
+
+inline std::ostream& operator<<(std::ostream& os, WasmDetectedFeature feature) {
+  return os << name(feature);
+}
 
 enum class CompileTimeImport {
   kJsString,

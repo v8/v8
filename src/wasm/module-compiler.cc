@@ -645,7 +645,7 @@ class CompilationStateImpl {
   void OnFinishedUnits(base::Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits();
 
-  void OnCompilationStopped(WasmFeatures detected);
+  void OnCompilationStopped(WasmDetectedFeatures detected);
   void PublishDetectedFeaturesAfterCompilation(Isolate*);
   void SchedulePublishCompilationResults(
       std::vector<std::unique_ptr<WasmCode>> unpublished_code,
@@ -764,7 +764,7 @@ class CompilationStateImpl {
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
-  WasmFeatures detected_features_ = WasmFeatures::None();
+  WasmDetectedFeatures detected_features_;
 
   // Abstraction over the storage of the wire bytes. Held in a shared_ptr so
   // that background compilation jobs can keep the storage alive while
@@ -991,7 +991,7 @@ const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
 }
 
 CompileStrategy GetCompileStrategy(const WasmModule* module,
-                                   WasmFeatures enabled_features,
+                                   WasmEnabledFeatures enabled_features,
                                    uint32_t func_index, bool lazy_module) {
   if (lazy_module) return CompileStrategy::kLazy;
   if (!enabled_features.has_compilation_hints()) {
@@ -1139,7 +1139,7 @@ class CompilationUnitBuilder {
 DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
                                     int func_index,
                                     base::Vector<const uint8_t> code,
-                                    WasmFeatures enabled_features) {
+                                    WasmEnabledFeatures enabled_features) {
   // Sometimes functions get validated unpredictably in the background, for
   // debugging or when inlining one function into another. We check here if that
   // is the case, and exit early if so.
@@ -1148,7 +1148,7 @@ DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
   bool is_shared = module->types[func->sig_index].is_shared;
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end(),
                     is_shared};
-  WasmFeatures detected_features;
+  WasmDetectedFeatures detected_features;
   DecodeResult result = ValidateFunctionBody(zone, enabled_features, module,
                                              &detected_features, body);
   if (result.ok()) module->set_function_validated(func_index);
@@ -1217,7 +1217,7 @@ bool CompileLazy(Isolate* isolate,
       func_index, tiers.baseline_tier,
       is_in_debug_state ? kForDebugging : kNotForDebugging};
   CompilationEnv env = CompilationEnv::ForModule(native_module);
-  WasmFeatures detected_features;
+  WasmDetectedFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(), counters,
       &detected_features);
@@ -1893,7 +1893,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   CompilationUnitQueues::Queue* queue;
   base::Optional<WasmCompilationUnit> unit;
 
-  WasmFeatures global_detected_features = WasmFeatures::None();
+  WasmDetectedFeatures global_detected_features;
 
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
@@ -1918,7 +1918,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     while (unit->tier() == current_tier) {
       // Track detected features on a per-function basis before collecting them
       // into {global_detected_features}.
-      WasmFeatures per_function_detected_features = WasmFeatures::None();
+      WasmDetectedFeatures per_function_detected_features;
       // (asynchronous): Execute the compilation.
       WasmCompilationResult result =
           unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
@@ -2064,7 +2064,7 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
-                              WasmFeatures enabled_features) {
+                              WasmEnabledFeatures enabled_features) {
   if (IsLazyModule(module)) return true;
   if (enabled_features.has_compilation_hints()) return true;
 #ifdef ENABLE_SLOW_DCHECKS
@@ -2148,7 +2148,7 @@ class CompilationTimeCallback : public CompilationEventCallback {
 
 WasmError ValidateFunctions(const WasmModule* module,
                             base::Vector<const uint8_t> wire_bytes,
-                            WasmFeatures enabled_features,
+                            WasmEnabledFeatures enabled_features,
                             OnlyLazyFunctions only_lazy_functions) {
   DCHECK_EQ(module->origin, kWasmOrigin);
   if (only_lazy_functions &&
@@ -2396,7 +2396,7 @@ class BackgroundCompileJob final : public JobTask {
 }  // namespace
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, WasmFeatures enabled_features,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
@@ -2467,7 +2467,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 }
 
 AsyncCompileJob::AsyncCompileJob(
-    Isolate* isolate, WasmFeatures enabled_features,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
     DirectHandle<Context> context,
     DirectHandle<NativeContext> incumbent_context, const char* api_method_name,
@@ -2593,7 +2593,7 @@ struct ValidateFunctionsStreamingJobData {
 class ValidateFunctionsStreamingJob final : public JobTask {
  public:
   ValidateFunctionsStreamingJob(const WasmModule* module,
-                                WasmFeatures enabled_features,
+                                WasmEnabledFeatures enabled_features,
                                 ValidateFunctionsStreamingJobData* data)
       : module_(module), enabled_features_(enabled_features), data_(data) {}
 
@@ -2622,7 +2622,7 @@ class ValidateFunctionsStreamingJob final : public JobTask {
 
  private:
   const WasmModule* const module_;
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
   ValidateFunctionsStreamingJobData* data_;
 };
 
@@ -3577,7 +3577,7 @@ CompilationStateImpl::CompilationStateImpl(
       compilation_unit_queues_(native_module->num_functions()),
       dynamic_tiering_(dynamic_tiering) {
   if (native_module->module()->memories.size() > 1) {
-    detected_features_.Add(kFeature_multi_memory);
+    detected_features_.add_multi_memory();
   }
 }
 
@@ -4277,7 +4277,7 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
   bytes_since_last_chunk_ = 0;
 }
 
-void CompilationStateImpl::OnCompilationStopped(WasmFeatures detected) {
+void CompilationStateImpl::OnCompilationStopped(WasmDetectedFeatures detected) {
   base::MutexGuard guard(&mutex_);
   detected_features_.Add(detected);
 }
@@ -4290,32 +4290,32 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
   base::MutexGuard guard(&mutex_);
 
   using Feature = v8::Isolate::UseCounterFeature;
-  static constexpr std::pair<WasmFeature, Feature> kUseCounters[] = {
-      {kFeature_reftypes, Feature::kWasmRefTypes},
-      {kFeature_simd, Feature::kWasmSimdOpcodes},
-      {kFeature_threads, Feature::kWasmThreadOpcodes},
-      {kFeature_legacy_eh, Feature::kWasmExceptionHandling},
-      {kFeature_memory64, Feature::kWasmMemory64},
-      {kFeature_multi_memory, Feature::kWasmMultiMemory},
-      {kFeature_gc, Feature::kWasmGC},
-      {kFeature_imported_strings, Feature::kWasmImportedStrings},
-      {kFeature_return_call, Feature::kWasmReturnCall},
-      {kFeature_extended_const, Feature::kWasmExtendedConst},
-      {kFeature_relaxed_simd, Feature::kWasmRelaxedSimd},
-      {kFeature_type_reflection, Feature::kWasmTypeReflection},
-      {kFeature_exnref, Feature::kWasmExnRef},
-      {kFeature_typed_funcref, Feature::kWasmTypedFuncRef},
-      {kFeature_jspi, Feature::kWasmJavaScriptPromiseIntegration},
+  static constexpr std::pair<WasmDetectedFeature, Feature> kUseCounters[] = {
+      {WasmDetectedFeature::reftypes, Feature::kWasmRefTypes},
+      {WasmDetectedFeature::simd, Feature::kWasmSimdOpcodes},
+      {WasmDetectedFeature::threads, Feature::kWasmThreadOpcodes},
+      {WasmDetectedFeature::legacy_eh, Feature::kWasmExceptionHandling},
+      {WasmDetectedFeature::memory64, Feature::kWasmMemory64},
+      {WasmDetectedFeature::multi_memory, Feature::kWasmMultiMemory},
+      {WasmDetectedFeature::gc, Feature::kWasmGC},
+      {WasmDetectedFeature::imported_strings, Feature::kWasmImportedStrings},
+      {WasmDetectedFeature::return_call, Feature::kWasmReturnCall},
+      {WasmDetectedFeature::extended_const, Feature::kWasmExtendedConst},
+      {WasmDetectedFeature::relaxed_simd, Feature::kWasmRelaxedSimd},
+      {WasmDetectedFeature::type_reflection, Feature::kWasmTypeReflection},
+      {WasmDetectedFeature::exnref, Feature::kWasmExnRef},
+      {WasmDetectedFeature::typed_funcref, Feature::kWasmTypedFuncRef},
+      {WasmDetectedFeature::jspi, Feature::kWasmJavaScriptPromiseIntegration},
   };
 
   // Check that every staging or shipping feature has a use counter as that is
   // the main point of tracking used features.
-  auto check_use_counter = [](WasmFeature feat) constexpr -> bool {
+  auto check_use_counter = [](WasmDetectedFeature feat) constexpr -> bool {
     // Some features intentionally do not have a use counter.
-    constexpr WasmFeature kIntentionallyNoUseCounter[] = {
-        kFeature_stringref,    // Deprecated / unlikely to ship.
-        kFeature_inlining,     // Not a user-visible feature.
-        kFeature_js_inlining,  // Not a user-visible feature.
+    constexpr WasmDetectedFeature kIntentionallyNoUseCounter[] = {
+        WasmDetectedFeature::stringref,    // Deprecated / unlikely to ship.
+        WasmDetectedFeature::inlining,     // Not a user-visible feature.
+        WasmDetectedFeature::js_inlining,  // Not a user-visible feature.
     };
     for (auto no_use_counter_feature : kIntentionallyNoUseCounter) {
       if (feat == no_use_counter_feature) return true;
@@ -4326,7 +4326,7 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
     return false;
   };
 #define CHECK_USE_COUNTER(feat, ...) \
-  static_assert(check_use_counter(WasmFeature::kFeature_##feat));
+  static_assert(check_use_counter(WasmDetectedFeature::feat));
   FOREACH_WASM_STAGING_FEATURE_FLAG(CHECK_USE_COUNTER)
   FOREACH_WASM_SHIPPED_FEATURE_FLAG(CHECK_USE_COUNTER)
   FOREACH_WASM_NON_FLAG_FEATURE(CHECK_USE_COUNTER)
@@ -4544,7 +4544,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
 
   JSToWasmWrapperSet set;
   JSToWasmWrapperUnitVector compilation_units;
-  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
+  WasmEnabledFeatures enabled_features =
+      WasmEnabledFeatures::FromIsolate(isolate);
 
   // Prepare compilation units in the main thread.
   for (auto exp : module->export_table) {

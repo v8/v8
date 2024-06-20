@@ -14,7 +14,7 @@ namespace wasm {
 
 class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
  public:
-  SyncStreamingDecoder(Isolate* isolate, WasmFeatures enabled,
+  SyncStreamingDecoder(Isolate* isolate, WasmEnabledFeatures enabled,
                        CompileTimeImports compile_imports,
                        Handle<Context> context,
                        const char* api_method_name_for_errors,
@@ -89,7 +89,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 
  private:
   Isolate* isolate_;
-  const WasmFeatures enabled_;
+  const WasmEnabledFeatures enabled_;
   const CompileTimeImports compile_imports_;
   Handle<Context> context_;
   const char* api_method_name_for_errors_;
@@ -100,8 +100,9 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 };
 
 std::unique_ptr<StreamingDecoder> StreamingDecoder::CreateSyncStreamingDecoder(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    Handle<Context> context, const char* api_method_name_for_errors,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, Handle<Context> context,
+    const char* api_method_name_for_errors,
     std::shared_ptr<CompilationResultResolver> resolver) {
   return std::make_unique<SyncStreamingDecoder>(
       isolate, enabled, compile_imports, context, api_method_name_for_errors,

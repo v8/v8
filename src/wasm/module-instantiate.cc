@@ -830,7 +830,7 @@ class InstanceBuilder {
  private:
   Isolate* isolate_;
   v8::metrics::Recorder::ContextId context_id_;
-  const WasmFeatures enabled_;
+  const WasmEnabledFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
@@ -2908,7 +2908,7 @@ ValueOrError ConsumeElementSegmentEntry(
     case kExprRefNull: {
       auto [heap_type, length] =
           value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-              &decoder, decoder.pc() + 1, WasmFeatures::All());
+              &decoder, decoder.pc() + 1, WasmEnabledFeatures::All());
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
         return function_mode == kStrictFunctionsAndNull
@@ -2930,7 +2930,7 @@ ValueOrError ConsumeElementSegmentEntry(
   constexpr bool kIsShared = false;  // TODO(14616): Is this correct?
   FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end(),
                     kIsShared);
-  WasmFeatures detected;
+  WasmDetectedFeatures detected;
   ValueOrError result;
   {
     // We need a scope for the decoder because its destructor resets some Zone
@@ -2940,8 +2940,9 @@ ValueOrError ConsumeElementSegmentEntry(
     // size.
     WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                     kConstantExpression>
-        full_decoder(zone, trusted_instance_data->module(), WasmFeatures::All(),
-                     &detected, body, trusted_instance_data->module(), isolate,
+        full_decoder(zone, trusted_instance_data->module(),
+                     WasmEnabledFeatures::All(), &detected, body,
+                     trusted_instance_data->module(), isolate,
                      trusted_instance_data, shared_trusted_instance_data);
 
     full_decoder.DecodeFunctionBody();

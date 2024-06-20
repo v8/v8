@@ -27,7 +27,7 @@ namespace module_decoder_unittest {
 
 class Table64DecodingTest : public TestWithIsolateAndZone {
  public:
-  WasmFeatures enabled_features_ = WasmFeatures::None();
+  WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
   ModuleResult DecodeModule(std::initializer_list<uint8_t> module_body_bytes) {
     // Add the wasm magic and version number automatically.

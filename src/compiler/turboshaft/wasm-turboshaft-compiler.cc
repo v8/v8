@@ -20,7 +20,7 @@ namespace v8::internal::compiler::turboshaft {
 
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv* env, compiler::WasmCompilationData& data,
-    wasm::WasmFeatures* detected) {
+    wasm::WasmDetectedFeatures* detected) {
   // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
   // instead use only Turboshaft inside `GenerateWasmCodeFromTurboshaftGraph`.
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);

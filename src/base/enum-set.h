@@ -44,12 +44,12 @@ class EnumSet {
   constexpr bool is_subset_of(EnumSet set) const {
     return (bits_ & set.bits_) == bits_;
   }
-  void Add(E element) { bits_ |= Mask(element); }
-  void Add(EnumSet set) { bits_ |= set.bits_; }
-  void Remove(E element) { bits_ &= ~Mask(element); }
-  void Remove(EnumSet set) { bits_ &= ~set.bits_; }
-  void RemoveAll() { bits_ = 0; }
-  void Intersect(EnumSet set) { bits_ &= set.bits_; }
+  constexpr void Add(E element) { bits_ |= Mask(element); }
+  constexpr void Add(EnumSet set) { bits_ |= set.bits_; }
+  constexpr void Remove(E element) { bits_ &= ~Mask(element); }
+  constexpr void Remove(EnumSet set) { bits_ &= ~set.bits_; }
+  constexpr void RemoveAll() { bits_ = 0; }
+  constexpr void Intersect(EnumSet set) { bits_ &= set.bits_; }
   constexpr T ToIntegral() const { return bits_; }
 
   constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }

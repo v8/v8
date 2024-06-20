@@ -100,21 +100,20 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
-                                           WasmFeatures* detected);
+                                           WasmDetectedFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
   static void CompileWasmFunction(Counters*, NativeModule*,
-                                  WasmFeatures* detected, const WasmFunction*,
-                                  ExecutionTier);
+                                  WasmDetectedFeatures* detected,
+                                  const WasmFunction*, ExecutionTier);
 
  private:
-  WasmCompilationResult ExecuteFunctionCompilation(CompilationEnv*,
-                                                   const WireBytesStorage*,
-                                                   Counters*,
-                                                   WasmFeatures* detected);
+  WasmCompilationResult ExecuteFunctionCompilation(
+      CompilationEnv*, const WireBytesStorage*, Counters*,
+      WasmDetectedFeatures* detected);
 
   WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);
 
@@ -133,7 +132,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
                                  uint32_t canonical_sig_index,
                                  const wasm::WasmModule* module,
-                                 WasmFeatures enabled_features);
+                                 WasmEnabledFeatures enabled_features);
   ~JSToWasmWrapperCompilationUnit();
 
   // Allow move construction and assignment, for putting units in a std::vector.

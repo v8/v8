@@ -35,7 +35,7 @@ class PipelineData;
 namespace wasm {
 class AssumptionsJournal;
 struct FunctionBody;
-class WasmFeatures;
+class WasmDetectedFeatures;
 struct WasmModule;
 class WireBytesStorage;
 class TurboshaftGraphBuildingInterface;
@@ -43,7 +43,7 @@ struct CompilationEnv;
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
-    CompilationEnv* env, WasmFeatures* detected,
+    CompilationEnv* env, WasmDetectedFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);

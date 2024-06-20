@@ -75,7 +75,7 @@ void DisassembleFunctionImpl(const WasmModule* module, int func_index,
   AccountingAllocator allocator;
   Zone zone(&allocator, "Wasm disassembler");
   bool shared = module->types[func.sig_index].is_shared;
-  WasmFeatures detected;
+  WasmDetectedFeatures detected;
   FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
                              func.sig, function_body.begin(),
                              function_body.end(), func.code.offset(),
@@ -711,7 +711,8 @@ void OffsetsProvider::CollectOffsets(const WasmModule* module,
   data_offsets_.reserve(module->data_segments.size());
   recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin, this};
+  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes, kWasmOrigin,
+                            this};
   constexpr bool kNoVerifyFunctions = false;
   decoder.DecodeModule(kNoVerifyFunctions);
 }
@@ -1011,7 +1012,8 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (elem.shared) out_ << "shared ";
     names_->PrintValueType(out_, elem.type);
 
-    ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes_.module_bytes(),
+    ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
+                              wire_bytes_.module_bytes(),
                               ModuleOrigin::kWasmOrigin);
     decoder.consume_bytes(elem.elements_wire_bytes_offset);
     for (size_t i = 0; i < elem.element_count; i++) {
@@ -1043,7 +1045,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
     bool shared = module_->types[func->sig_index].is_shared;
-    WasmFeatures detected;
+    WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
     FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
@@ -1162,7 +1164,7 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
       const uint8_t* end = start_ + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
-      WasmFeatures detected;
+      WasmDetectedFeatures detected;
       FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
                                  start, end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);

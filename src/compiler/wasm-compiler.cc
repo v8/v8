@@ -152,7 +152,7 @@ WasmGraphBuilder::WasmGraphBuilder(
     const wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table,
     ParameterMode parameter_mode, Isolate* isolate,
-    wasm::WasmFeatures enabled_features)
+    wasm::WasmEnabledFeatures enabled_features)
     : gasm_(std::make_unique<WasmGraphAssembler>(mcgraph, zone)),
       zone_(zone),
       mcgraph_(mcgraph),
@@ -198,7 +198,6 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
     }                                    \
   } while (false)
 
-  DCHECK(native_module->enabled_features().has_gc());
   DCHECK(native_module->HasWireBytes());
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& inlinee = module->functions[fct_index];
@@ -220,7 +219,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
                                         bytes.begin(), bytes.end(), is_shared);
   // If the inlinee was not validated before, do that now.
   if (V8_UNLIKELY(!module->function_was_validated(fct_index))) {
-    wasm::WasmFeatures unused_detected_features;
+    wasm::WasmDetectedFeatures unused_detected_features;
     if (ValidateFunctionBody(graph()->zone(), enabled_features_, module,
                              &unused_detected_features, inlinee_body)
             .failed()) {
@@ -3001,7 +3000,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
     Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
     if (!env_->module->types[sig_index].is_final) {
-      DCHECK(enabled_features_.has_gc());
       // Do a full subtyping check.
       auto end_label = gasm_->MakeLabel();
       gasm_->GotoIf(sig_match, &end_label);
@@ -7035,7 +7033,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                           const wasm::WasmModule* module,
                           ParameterMode parameter_mode, Isolate* isolate,
                           compiler::SourcePositionTable* spt,
-                          StubCallMode stub_mode, wasm::WasmFeatures features)
+                          StubCallMode stub_mode,
+                          wasm::WasmEnabledFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt, parameter_mode,
                          isolate, features),
         module_(module),
@@ -8474,8 +8473,8 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::WasmModule* module,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
-                                 wasm::WasmFeatures features, Node* frame_state,
-                                 bool set_in_wasm_flag) {
+                                 wasm::WasmEnabledFeatures features,
+                                 Node* frame_state, bool set_in_wasm_flag) {
   WasmWrapperGraphBuilder builder(
       zone, mcgraph, signature, module, WasmGraphBuilder::kJSFunctionAbiMode,
       isolate, spt, StubCallMode::kCallBuiltinPointer, features);
@@ -8484,7 +8483,8 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module, wasm::WasmFeatures enabled_features) {
+    const wasm::WasmModule* module,
+    wasm::WasmEnabledFeatures enabled_features) {
   std::unique_ptr<char[]> debug_name = WasmExportedFunction::GetDebugName(sig);
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
@@ -8869,11 +8869,11 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
         InstructionSelector::AlignmentRequirements());
     MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-    WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
-                                    WasmGraphBuilder::kWasmApiFunctionRefMode,
-                                    nullptr, nullptr,
-                                    StubCallMode::kCallBuiltinPointer,
-                                    wasm::WasmFeatures::FromIsolate(isolate));
+    WasmWrapperGraphBuilder builder(
+        zone.get(), mcgraph, sig, module,
+        WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, nullptr,
+        StubCallMode::kCallBuiltinPointer,
+        wasm::WasmEnabledFeatures::FromIsolate(isolate));
     builder.BuildWasmToJSWrapper(kind, expected_arity, suspend, nullptr);
 
     // Generate the call descriptor.
@@ -8914,11 +8914,11 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
-                                  WasmGraphBuilder::kNoSpecialParameterMode,
-                                  nullptr, nullptr,
-                                  StubCallMode::kCallBuiltinPointer,
-                                  wasm::WasmFeatures::FromIsolate(isolate));
+  WasmWrapperGraphBuilder builder(
+      zone.get(), mcgraph, sig, module,
+      WasmGraphBuilder::kNoSpecialParameterMode, nullptr, nullptr,
+      StubCallMode::kCallBuiltinPointer,
+      wasm::WasmEnabledFeatures::FromIsolate(isolate));
   builder.BuildCWasmEntry();
 
   // Schedule and compile to machine code.
@@ -8959,7 +8959,7 @@ namespace {
 
 void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                WasmCompilationData& data,
-                               wasm::WasmFeatures* detected,
+                               wasm::WasmDetectedFeatures* detected,
                                MachineGraph* mcgraph) {
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, data.func_body.sig,
@@ -8983,7 +8983,7 @@ void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv* env, WasmCompilationData& data, Counters* counters,
-    wasm::WasmFeatures* detected) {
+    wasm::WasmDetectedFeatures* detected) {
   // Check that we do not accidentally compile a Wasm function to TurboFan if
   // --liftoff-only is set.
   DCHECK(!v8_flags.liftoff_only);

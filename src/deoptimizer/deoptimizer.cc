@@ -834,7 +834,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                                   BytecodeOffset deopt_point, bool is_topmost) {
   wasm::WasmCompilationUnit unit(function_index, wasm::ExecutionTier::kLiftoff,
                                  wasm::ForDebugging::kNotForDebugging);
-  wasm::WasmFeatures detected;
+  wasm::WasmDetectedFeatures detected;
   wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
   env.deopt_info_bytecode_offset = deopt_point.ToInt();
   env.deopt_location_kind = is_topmost

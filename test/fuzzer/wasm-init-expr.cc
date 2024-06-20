@@ -233,7 +233,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
-  auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports;
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
                                              compile_imports, wire_bytes);

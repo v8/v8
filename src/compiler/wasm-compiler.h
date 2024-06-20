@@ -69,7 +69,7 @@ namespace compiler {
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv*, WasmCompilationData& compilation_data, Counters*,
-    wasm::WasmFeatures* detected);
+    wasm::WasmDetectedFeatures* detected);
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
@@ -90,7 +90,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
 // (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module, wasm::WasmFeatures enabled_features);
+    const wasm::WasmModule* module, wasm::WasmEnabledFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::WasmModule* module,
@@ -179,13 +179,11 @@ class WasmGraphBuilder {
     kNoSpecialParameterMode
   };
 
-  V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
-                                     MachineGraph* mcgraph,
-                                     const wasm::FunctionSig* sig,
-                                     compiler::SourcePositionTable* spt,
-                                     ParameterMode parameter_mode,
-                                     Isolate* isolate,
-                                     wasm::WasmFeatures enabled_features);
+  V8_EXPORT_PRIVATE WasmGraphBuilder(
+      wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
+      const wasm::FunctionSig* sig, compiler::SourcePositionTable* spt,
+      ParameterMode parameter_mode, Isolate* isolate,
+      wasm::WasmEnabledFeatures enabled_features);
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
@@ -875,7 +873,7 @@ class WasmGraphBuilder {
   // For the main WasmGraphBuilder class, this is identical to the features
   // field in {env_}, but the WasmWrapperGraphBuilder subclass doesn't have
   // that, so common code should use this field instead.
-  wasm::WasmFeatures enabled_features_;
+  wasm::WasmEnabledFeatures enabled_features_;
 
   Node** parameters_;
 
@@ -904,7 +902,7 @@ class WasmGraphBuilder {
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
     const wasm::WasmModule* module, Isolate* isolate,
-    compiler::SourcePositionTable* spt, wasm::WasmFeatures features,
+    compiler::SourcePositionTable* spt, wasm::WasmEnabledFeatures features,
     Node* frame_state, bool set_in_wasm_flag);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(

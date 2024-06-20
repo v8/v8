@@ -733,9 +733,10 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
 
   wasm::ErrorThrower thrower{isolate, "WasmGenerateRandomModule"};
   MaybeHandle<WasmModuleObject> maybe_module_object =
-      wasm::GetWasmEngine()->SyncCompile(
-          isolate, wasm::WasmFeatures::FromFlags(), wasm::CompileTimeImports{},
-          &thrower, wasm::ModuleWireBytes{module_bytes});
+      wasm::GetWasmEngine()->SyncCompile(isolate,
+                                         wasm::WasmEnabledFeatures::FromFlags(),
+                                         wasm::CompileTimeImports{}, &thrower,
+                                         wasm::ModuleWireBytes{module_bytes});
   if (thrower.error()) {
     FATAL(
         "wasm::GenerateRandomWasmModule produced a module which did not "

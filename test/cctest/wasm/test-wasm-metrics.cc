@@ -284,7 +284,7 @@ COMPILE_TEST(TestEventMetrics) {
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
 
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   CompilationStatus status = CompilationStatus::kPending;
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;

@@ -233,12 +233,12 @@ TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
   // Test enabling/disabling via callback.
   isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
   EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_TRUE(
-      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+  EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                  .has_imported_strings());
   isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return false; });
   EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_FALSE(
-      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+  EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                   .has_imported_strings());
 }
 
 TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
@@ -267,8 +267,8 @@ TEST_F(ApiWasmTest, WasmInstallJSPI) {
   i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
 
   EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
-  i::wasm::WasmFeatures features =
-      i::wasm::WasmFeatures::FromIsolate(i_isolate());
+  i::wasm::WasmEnabledFeatures features =
+      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_FALSE(features.has_jspi());
   EXPECT_FALSE(features.has_type_reflection());
 
@@ -277,14 +277,14 @@ TEST_F(ApiWasmTest, WasmInstallJSPI) {
 
   EXPECT_TRUE(i_isolate()->IsWasmJSPIRequested(context));
   EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
-  features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
+  features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_FALSE(features.has_jspi());
   EXPECT_FALSE(features.has_type_reflection());
 
   i::WasmJs::InstallConditionalFeatures(i_isolate(), context);
 
   EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
-  features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
+  features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_TRUE(features.has_jspi());
   EXPECT_TRUE(features.has_type_reflection());
 }

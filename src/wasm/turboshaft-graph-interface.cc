@@ -2122,12 +2122,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // JS String Builtins proposal.
       case WKI::kStringCast: {
         result = ExternRefToString(args[0]);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringTest: {
         result = IsExternRefString(args[0]);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCharCodeAt: {
@@ -2135,7 +2135,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> view = V<String>::Cast(__ StringAsWtf16(string));
         // TODO(14108): Annotate `view`'s type.
         result = GetCodeUnitImpl(decoder, view, args[1].op);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCodePointAt: {
@@ -2143,7 +2143,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> view = V<String>::Cast(__ StringAsWtf16(string));
         // TODO(14108): Annotate `view`'s type.
         result = StringCodePointAt(decoder, view, args[1].op);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCompare: {
@@ -2152,7 +2152,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         result = __ UntagSmi(
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringCompare>(
                 decoder, {a_string, b_string}));
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringConcat: {
@@ -2164,7 +2164,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringEquals: {
@@ -2175,7 +2175,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> b_string = ExternRefToString(args[1], kNullSucceeds);
         result = StringEqImpl(decoder, a_string, b_string, kWasmExternRef,
                               kWasmExternRef);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromCharCode: {
@@ -2183,7 +2183,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder, {capped});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromCodePoint: {
@@ -2191,7 +2191,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
                                                             {args[0].op});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromWtf16Array: {
@@ -2200,21 +2200,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             decoder,
             {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op, args[2].op});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromUtf8Array:
         result = StringNewWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
             args[2], kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringIntoUtf8Array: {
         V<String> string = ExternRefToString(args[0]);
         result = StringEncodeWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, string,
             V<WasmArray>::Cast(NullCheck(args[1])), args[2].op);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToUtf8Array: {
@@ -2222,21 +2222,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<WasmArray> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringToUtf8Array>(decoder, {string});
         result = __ AnnotateWasmType(result_value, returns[0].type);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringLength: {
         V<Object> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(
             string, compiler::AccessBuilder::ForStringLength());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringMeasureUtf8: {
         V<String> string = ExternRefToString(args[0]);
         result = StringMeasureWtf8Impl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, string);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringSubstring: {
@@ -2248,7 +2248,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
             decoder, {V<String>::Cast(view), args[1].op, args[2].op});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToWtf16Array: {
@@ -2257,7 +2257,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
             decoder,
             {string, V<WasmArray>::Cast(NullCheck(args[1])), args[2].op});
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
 
@@ -2270,8 +2270,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
-                ? kFeature_stringref
-                : kFeature_imported_strings);
+                ? WasmDetectedFeature::stringref
+                : WasmDetectedFeature::imported_strings);
         break;
       }
       case WKI::kIntToString: {
@@ -2283,8 +2283,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
-                ? kFeature_stringref
-                : kFeature_imported_strings);
+                ? WasmDetectedFeature::stringref
+                : WasmDetectedFeature::imported_strings);
         break;
       }
       case WKI::kParseFloat: {
@@ -2307,7 +2307,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               BuiltinCallDescriptor::WasmStringToDouble>(decoder, {args[0].op});
           BuildModifyThreadInWasmFlag(decoder->zone(), true);
         }
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
       }
       case WKI::kStringIndexOf: {
@@ -2335,7 +2335,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
 
         result = GetStringIndexOf(decoder, string, search, start);
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
       }
       case WKI::kStringIndexOfImported: {
@@ -2350,7 +2350,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Word32> start = args[2].op;
 
         result = GetStringIndexOf(decoder, string, search, start);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToLocaleLowerCaseStringref:
@@ -2369,7 +2369,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         V<String> result_value = CallStringToLowercase(decoder, string);
         result = __ AnnotateWasmType(result_value, kWasmRefString);
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
 #else
         return false;
@@ -2386,7 +2386,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> string = args[0].op;
         V<String> result_value = CallStringToLowercase(decoder, string);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
 #else
         return false;
@@ -8231,7 +8231,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
-    CompilationEnv* env, WasmFeatures* detected, Graph& graph,
+    CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
     AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {

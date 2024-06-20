@@ -239,7 +239,7 @@ class DebugInfoImpl {
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
     // If lazy validation is on, we might need to lazily validate here.
     if (V8_UNLIKELY(!env.module->function_was_validated(func_index))) {
-      WasmFeatures unused_detected_features;
+      WasmDetectedFeatures unused_detected_features;
       Zone validation_zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME);
       DecodeResult validation_result =
           ValidateFunctionBody(&validation_zone, env.enabled_features,

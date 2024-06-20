@@ -765,12 +765,12 @@ class WasmGraphBuildingInterface {
       // JS String Builtins proposal.
       case WKI::kStringCast:
         result = ExternRefToString(decoder, args[0]);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringTest: {
         WasmTypeCheckConfig config{args[0].type, kWasmRefExternString};
         result = builder_->RefTestAbstract(args[0].node, config);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCharCodeAt: {
@@ -781,7 +781,7 @@ class WasmGraphBuildingInterface {
         result = builder_->StringViewWtf16GetCodeUnit(
             view, compiler::kWithoutNullCheck, args[1].node,
             decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCodePointAt: {
@@ -791,7 +791,7 @@ class WasmGraphBuildingInterface {
         builder_->SetType(view, kWasmRefExternString);
         result = builder_->StringCodePointAt(view, compiler::kWithoutNullCheck,
                                              args[1].node, decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCompare: {
@@ -800,7 +800,7 @@ class WasmGraphBuildingInterface {
         result = builder_->StringCompare(a_string, compiler::kWithoutNullCheck,
                                          b_string, compiler::kWithoutNullCheck,
                                          decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringConcat: {
@@ -810,7 +810,7 @@ class WasmGraphBuildingInterface {
             head_string, compiler::kWithoutNullCheck, tail_string,
             compiler::kWithoutNullCheck, decoder->position());
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringEquals: {
@@ -821,25 +821,25 @@ class WasmGraphBuildingInterface {
         TFNode* b_string = ExternRefToString(decoder, args[1], kNullSucceeds);
         result = builder_->StringEqual(a_string, args[0].type, b_string,
                                        args[1].type, decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromCharCode:
         result = builder_->StringFromCharCode(args[0].node);
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringFromCodePoint:
         result = builder_->StringFromCodePoint(args[0].node);
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringFromWtf16Array:
         result = builder_->StringNewWtf16Array(
             args[0].node, NullCheckFor(args[0].type), args[1].node,
             args[2].node, decoder->position());
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringFromUtf8Array:
         result = builder_->StringNewWtf8Array(
@@ -847,7 +847,7 @@ class WasmGraphBuildingInterface {
             NullCheckFor(args[0].type), args[1].node, args[2].node,
             decoder->position());
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       case WKI::kStringIntoUtf8Array: {
         TFNode* string = ExternRefToString(decoder, args[0]);
@@ -855,7 +855,7 @@ class WasmGraphBuildingInterface {
             unibrow::Utf8Variant::kLossyUtf8, string,
             compiler::kWithoutNullCheck, args[1].node,
             NullCheckFor(args[1].type), args[2].node, decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToUtf8Array: {
@@ -863,21 +863,21 @@ class WasmGraphBuildingInterface {
         result = builder_->StringToUtf8Array(
             string, compiler::kWithoutNullCheck, decoder->position());
         builder_->SetType(result, returns[0].type);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringLength: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         result = builder_->StringMeasureWtf16(
             string, compiler::kWithoutNullCheck, decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringMeasureUtf8: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         result = builder_->StringMeasureWtf8(string, compiler::kWithNullCheck,
                                              decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringSubstring: {
@@ -889,7 +889,7 @@ class WasmGraphBuildingInterface {
             view, compiler::kWithoutNullCheck, args[1].node, args[2].node,
             decoder->position());
         builder_->SetType(result, kWasmRefExternString);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToWtf16Array: {
@@ -897,7 +897,7 @@ class WasmGraphBuildingInterface {
         result = builder_->StringEncodeWtf16Array(
             string, compiler::kWithoutNullCheck, args[1].node,
             NullCheckFor(args[1].type), args[2].node, decoder->position());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
 
@@ -911,13 +911,13 @@ class WasmGraphBuildingInterface {
       case WKI::kParseFloat:
         result = builder_->WellKnown_ParseFloat(args[0].node,
                                                 NullCheckFor(args[0].type));
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
       case WKI::kStringIndexOf:
         result = builder_->WellKnown_StringIndexOf(
             args[0].node, args[1].node, args[2].node,
             NullCheckFor(args[0].type), NullCheckFor(args[1].type));
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
       case WKI::kStringToLocaleLowerCaseStringref:
         // Temporarily ignored because of bugs (v8:13977, v8:13985).
@@ -925,12 +925,12 @@ class WasmGraphBuildingInterface {
         return false;
         // result = builder_->WellKnown_StringToLocaleLowerCaseStringref(
         //     args[0].node, args[1].node, NullCheckFor(args[0].type));
-        // decoder->detected_->Add(kFeature_stringref);
+        // decoder->detected_->add_stringref();
         // break;
       case WKI::kStringToLowerCaseStringref:
         result = builder_->WellKnown_StringToLowerCaseStringref(
             args[0].node, NullCheckFor(args[0].type));
-        decoder->detected_->Add(kFeature_stringref);
+        decoder->detected_->add_stringref();
         break;
         // Not implementing for Turbofan.
       case WKI::kStringIndexOfImported:
@@ -2809,9 +2809,9 @@ class WasmGraphBuildingInterface {
 
 }  // namespace
 
-void BuildTFGraph(AccountingAllocator* allocator, WasmFeatures enabled,
+void BuildTFGraph(AccountingAllocator* allocator, WasmEnabledFeatures enabled,
                   const WasmModule* module, compiler::WasmGraphBuilder* builder,
-                  WasmFeatures* detected, const FunctionBody& body,
+                  WasmDetectedFeatures* detected, const FunctionBody& body,
                   std::vector<compiler::WasmLoopInfo>* loop_infos,
                   DanglingExceptions* dangling_exceptions,
                   compiler::NodeOriginTable* node_origins, int func_index,

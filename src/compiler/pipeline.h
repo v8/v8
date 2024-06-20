@@ -32,7 +32,7 @@ namespace wasm {
 struct CompilationEnv;
 struct FunctionBody;
 struct WasmCompilationResult;
-class WasmFeatures;
+class WasmDetectedFeatures;
 struct WasmModule;
 }  // namespace wasm
 
@@ -83,7 +83,7 @@ class Pipeline : public AllStatic {
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor,
       ZoneVector<WasmInliningPosition>* inlining_positions,
-      wasm::WasmFeatures* detected);
+      wasm::WasmDetectedFeatures* detected);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
@@ -101,7 +101,7 @@ class Pipeline : public AllStatic {
   static bool GenerateWasmCodeFromTurboshaftGraph(
       OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-      wasm::WasmFeatures* detected, CallDescriptor* call_descriptor);
+      wasm::WasmDetectedFeatures* detected, CallDescriptor* call_descriptor);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(

@@ -21,7 +21,6 @@ namespace internal {
 
 namespace wasm {
 
-class WasmFeatures;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

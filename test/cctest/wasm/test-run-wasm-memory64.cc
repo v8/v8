@@ -17,7 +17,7 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
   explicit Memory64Runner(TestExecutionTier execution_tier)
       : WasmRunner<ReturnType, ParamTypes...>(execution_tier, kWasmOrigin,
                                               nullptr, "main") {
-    this->builder().EnableFeature(kFeature_memory64);
+    this->builder().EnableFeature(WasmEnabledFeature::memory64);
   }
 
   template <typename T>

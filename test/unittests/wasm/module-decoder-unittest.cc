@@ -199,7 +199,7 @@ struct ValueTypePair {
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
-  WasmFeatures enabled_features_ = WasmFeatures::None();
+  WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
   ModuleResult DecodeModule(base::Vector<const uint8_t> module_bytes) {
     // Add the wasm magic and version number automatically.
@@ -277,7 +277,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 }
 
 TEST_F(WasmModuleVerifyTest, S128Global) {
-  WASM_FEATURE_SCOPE(simd);
   std::array<uint8_t, kSimd128Size> v = {1, 2,  3,  4,  5,  6,  7, 8,
                                          9, 10, 11, 12, 13, 14, 15};
   static const uint8_t data[] = {SECTION(Global,          // --
@@ -2193,7 +2192,7 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
 
 class WasmSignatureDecodeTest : public TestWithZone {
  public:
-  WasmFeatures enabled_features_ = WasmFeatures::None();
+  WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
   const FunctionSig* DecodeSig(base::Vector<const uint8_t> bytes) {
     Result<const FunctionSig*> res =
@@ -2324,7 +2323,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Simd) {
-  WASM_FEATURE_SCOPE(simd);
   const uint8_t data[] = {SIG_ENTRY_x(kS128Code)};
   if (!CheckHardwareSupportsSimd()) {
     EXPECT_TRUE(DecodeSigError(base::ArrayVector(data)))
@@ -2396,8 +2394,8 @@ class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
   FunctionResult DecodeWasmFunction(
       ModuleWireBytes wire_bytes, const WasmModule* module,
       base::Vector<const uint8_t> function_bytes) {
-    return DecodeWasmFunctionForTesting(WasmFeatures::All(), zone(), wire_bytes,
-                                        module, function_bytes);
+    return DecodeWasmFunctionForTesting(WasmEnabledFeatures::All(), zone(),
+                                        wire_bytes, module, function_bytes);
   }
 };
 
@@ -3173,7 +3171,7 @@ TEST_F(WasmModuleVerifyTest, Table64ActiveElementSegmentWithElements) {
       } else {
         EXPECT_FAILURE_WITH_MSG(data, "expected i32, got i64");
       }
-    };
+    }
   }
 }
 

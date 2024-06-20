@@ -301,7 +301,7 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
 // The main logic for decoding the bytes of a module.
 class ModuleDecoderImpl : public Decoder {
  public:
-  ModuleDecoderImpl(WasmFeatures enabled_features,
+  ModuleDecoderImpl(WasmEnabledFeatures enabled_features,
                     base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin,
                     ITracer* tracer = ITracer::NoTrace)
       : Decoder(wire_bytes),
@@ -1732,7 +1732,7 @@ class ModuleDecoderImpl : public Decoder {
     constexpr bool kShared = false;
     FunctionBody body{function.sig, off(pc_), pc_, end_, kShared};
 
-    WasmFeatures unused_detected_features;
+    WasmDetectedFeatures unused_detected_features;
     DecodeResult result = ValidateFunctionBody(zone, enabled_features_, module,
                                                &unused_detected_features, body);
 
@@ -2148,7 +2148,7 @@ class ModuleDecoderImpl : public Decoder {
 
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, this->pc_offset(), pc_, end_, is_shared);
-    WasmFeatures detected;
+    WasmDetectedFeatures detected;
     ConstantExpression result;
     {
       // We need a scope for the decoder because its destructor resets some Zone
@@ -2215,7 +2215,7 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::read_value_type<FullValidationTag>(
             this, pc_,
             module_->origin == kWasmOrigin ? enabled_features_
-                                           : WasmFeatures::None());
+                                           : WasmEnabledFeatures::None());
     value_type_reader::ValidateValueType<FullValidationTag>(
         this, pc_, module_.get(), result);
     if (tracer_) {
@@ -2538,7 +2538,7 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
   const std::shared_ptr<WasmModule> module_;
   const uint8_t* module_start_ = nullptr;
   const uint8_t* module_end_ = nullptr;

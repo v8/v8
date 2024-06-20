@@ -48,7 +48,7 @@ class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
 class StreamingDecoder;
-class WasmFeatures;
+class WasmEnabledFeatures;
 class WasmOrphanedGlobalHandle;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
@@ -159,7 +159,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Synchronously validates the given bytes. Returns whether the bytes
   // represent a valid encoded Wasm module.
-  bool SyncValidate(Isolate* isolate, WasmFeatures enabled,
+  bool SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports, ModuleWireBytes bytes);
 
   // Synchronously compiles the given bytes that represent a translated
@@ -176,7 +176,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
   MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
-                                            WasmFeatures enabled,
+                                            WasmEnabledFeatures enabled,
                                             CompileTimeImports compile_imports,
                                             ErrorThrower* thrower,
                                             ModuleWireBytes bytes);
@@ -193,7 +193,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // encoded Wasm module.
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
-  void AsyncCompile(Isolate* isolate, WasmFeatures enabled,
+  void AsyncCompile(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
                     ModuleWireBytes bytes, bool is_shared,
@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
                         MaybeHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, WasmFeatures enabled,
+      Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, Handle<Context> context,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // more memory.
   // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, WasmFeatures enabled_features,
+      Isolate* isolate, WasmEnabledFeatures enabled_features,
       CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
@@ -405,7 +405,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   struct NativeModuleInfo;
 
   AsyncCompileJob* CreateAsyncCompileJob(
-      Isolate* isolate, WasmFeatures enabled,
+      Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports,
       base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
       const char* api_method_name,

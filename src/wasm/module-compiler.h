@@ -53,7 +53,7 @@ struct WasmModule;
 
 V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, WasmFeatures enabled_features,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
@@ -139,7 +139,7 @@ class WrapperQueue {
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
-  AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
+  AsyncCompileJob(Isolate* isolate, WasmEnabledFeatures enabled_features,
                   CompileTimeImports compile_imports,
                   base::OwnedVector<const uint8_t> bytes,
                   DirectHandle<Context> context,
@@ -246,7 +246,7 @@ class AsyncCompileJob {
 
   Isolate* const isolate_;
   const char* const api_method_name_;
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
   const CompileTimeImports compile_imports_;
   const DynamicTiering dynamic_tiering_;
   base::TimeTicks start_time_;

@@ -71,8 +71,9 @@ const char* SectionName(SectionCode code) {
 }
 
 ModuleResult DecodeWasmModule(
-    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
-    bool validate_functions, ModuleOrigin origin, Counters* counters,
+    WasmEnabledFeatures enabled_features,
+    base::Vector<const uint8_t> wire_bytes, bool validate_functions,
+    ModuleOrigin origin, Counters* counters,
     std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id,
     DecodingMethod decoding_method) {
@@ -112,7 +113,7 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
-ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
+ModuleResult DecodeWasmModule(WasmEnabledFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
                               bool validate_functions, ModuleOrigin origin) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
@@ -124,12 +125,12 @@ ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
 ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, ITracer* tracer) {
   constexpr bool kNoValidateFunctions = false;
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
+  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes, kWasmOrigin,
                             tracer};
   return decoder.DecodeModule(kNoValidateFunctions);
 }
 
-ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features)
+ModuleDecoder::ModuleDecoder(WasmEnabledFeatures enabled_features)
     : impl_(std::make_unique<ModuleDecoderImpl>(
           enabled_features, base::Vector<const uint8_t>{}, kWasmOrigin)) {}
 
@@ -179,22 +180,23 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
 Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmFeatures enabled_features, Zone* zone,
+    WasmEnabledFeatures enabled_features, Zone* zone,
     base::Vector<const uint8_t> bytes) {
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
   return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
 }
 
 ConstantExpression DecodeWasmInitExprForTesting(
-    WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
+    WasmEnabledFeatures enabled_features, base::Vector<const uint8_t> bytes,
     ValueType expected) {
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
   return decoder.DecodeInitExprForTesting(expected);
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
-    WasmFeatures enabled_features, Zone* zone, ModuleWireBytes wire_bytes,
-    const WasmModule* module, base::Vector<const uint8_t> function_bytes) {
+    WasmEnabledFeatures enabled_features, Zone* zone,
+    ModuleWireBytes wire_bytes, const WasmModule* module,
+    base::Vector<const uint8_t> function_bytes) {
   if (function_bytes.size() > kV8MaxWasmFunctionSize) {
     return FunctionResult{
         WasmError{0, "size > maximum function size (%zu): %zu",
@@ -398,7 +400,7 @@ class ValidateFunctionsTask : public JobTask {
  public:
   explicit ValidateFunctionsTask(base::Vector<const uint8_t> wire_bytes,
                                  const WasmModule* module,
-                                 WasmFeatures enabled_features,
+                                 WasmEnabledFeatures enabled_features,
                                  std::function<bool(int)> filter,
                                  WasmError* error_out)
       : wire_bytes_(wire_bytes),
@@ -446,7 +448,7 @@ class ValidateFunctionsTask : public JobTask {
 
  private:
   bool ValidateFunction(int func_index, Zone* zone) {
-    WasmFeatures unused_detected_features;
+    WasmDetectedFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
     DCHECK_LT(0, function.code.offset());
     bool is_shared = module_->types[function.sig_index].is_shared;
@@ -476,7 +478,7 @@ class ValidateFunctionsTask : public JobTask {
 
   const base::Vector<const uint8_t> wire_bytes_;
   const WasmModule* const module_;
-  const WasmFeatures enabled_features_;
+  const WasmEnabledFeatures enabled_features_;
   const std::function<bool(int)> filter_;
   std::atomic<int> next_function_;
   const int after_last_function_;
@@ -486,7 +488,7 @@ class ValidateFunctionsTask : public JobTask {
 }  // namespace
 
 WasmError ValidateFunctions(const WasmModule* module,
-                            WasmFeatures enabled_features,
+                            WasmEnabledFeatures enabled_features,
                             base::Vector<const uint8_t> wire_bytes,
                             std::function<bool(int)> filter) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),

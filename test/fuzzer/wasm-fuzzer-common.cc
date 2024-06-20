@@ -47,7 +47,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
   // Create the native module.
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   ModuleResult module_res =
       DecodeWasmModule(enabled_features, wire_bytes, kNoVerifyFunctions,
                        ModuleOrigin::kWasmOrigin);
@@ -239,7 +239,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   if (did_output_before.exchange(true)) return;
 
   constexpr bool kVerifyFunctions = false;
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   ModuleResult module_res =
       DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
                        kVerifyFunctions, ModuleOrigin::kWasmOrigin);
@@ -361,7 +361,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
-  auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
 
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
