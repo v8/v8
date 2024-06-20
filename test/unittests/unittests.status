@@ -106,6 +106,12 @@
 }],  # system == aix and component_build
 
 ##############################################################################
+['arch == arm64', {
+  # TODO(sam.parker@arm.com): Re-enable optimization.
+  'TurboshaftInstructionSelectorTest.ConditionalCompares': [FAIL],
+}],
+
+##############################################################################
 ['arch == ppc64', {
   # PPC Page size is too large for these tests.
   'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
