@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'aa9ff5cf8bb332c4e4c81dacdfc4988813f4b45f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4865bd4799ecbb7adfabdd238596d15940d65ff6',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'eb68e6445744f4a44c957e5c7aa3316fbb2dec96',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2f080dd06eb7d9a365c2d0a6b18fc785518f5325',
   'buildtools/linux64': {
     'packages': [
       {
@@ -456,7 +456,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '887bb57a1b1d38e348bd39ac7c2e6b4b6d18b9f7',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'e432200a7931de1b0b1b50201aac8a46d9380cb2',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a87e30dd7065a194804485ec54c3548b86806c67',
   'tools/luci-go': {
