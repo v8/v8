@@ -427,6 +427,10 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
 
 #if V8_ENABLE_WEBASSEMBLY
 void LinuxPerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
+  if (code->IsAnonymous()) {
+    return;
+  }
+
   wasm::WasmModuleSourceMap* source_map =
       code->native_module()->GetWasmSourceMap();
   wasm::WireBytesRef code_ref =
