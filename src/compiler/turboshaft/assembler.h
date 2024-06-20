@@ -3538,6 +3538,17 @@ class TurboshaftAssemblerOpInterface
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // TrapIf and TrapIfNot in Wasm code do not pass a frame state.
+  void TrapIf(V<Word32> condition, TrapId trap_id) {
+    ReduceIfReachableTrapIf(condition, OptionalV<turboshaft::FrameState>{},
+                            false, trap_id);
+  }
+  void TrapIfNot(V<Word32> condition, TrapId trap_id) {
+    ReduceIfReachableTrapIf(condition, OptionalV<turboshaft::FrameState>{},
+                            true, trap_id);
+  }
+
+  // TrapIf and TrapIfNot from Wasm inlined into JS pass a frame state.
   void TrapIf(V<Word32> condition,
               OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableTrapIf(condition, frame_state, false, trap_id);

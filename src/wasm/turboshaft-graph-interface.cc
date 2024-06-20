@@ -1107,15 +1107,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    __ TrapIfNot(__ Word32Constant(0), OpIndex::Invalid(),
-                 GetTrapIdForTrap(reason));
+    __ TrapIfNot(__ Word32Constant(0), GetTrapIdForTrap(reason));
     __ Unreachable();
   }
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
-    __ TrapIfNot(__ IsNull(obj.op, obj.type), OpIndex::Invalid(),
-                 TrapId::kTrapIllegalCast);
+    __ TrapIfNot(__ IsNull(obj.op, obj.type), TrapId::kTrapIllegalCast);
     Forward(decoder, obj, result);
   }
 
@@ -3882,7 +3880,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
                __ Word32Constant(imm.memory.index), dst_uintptr, src.op,
                __ Word32Constant(imm.data_segment.index), size.op});
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
@@ -3906,7 +3904,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                __ Word32Constant(imm.memory_dst.index),
                __ Word32Constant(imm.memory_src.index), dst_uintptr,
                src_uintptr, size_uintptr});
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -3926,7 +3924,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
          __ Word32Constant(imm.index), dst_uintptr, value.op, size_uintptr});
 
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
@@ -3951,7 +3949,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     DCHECK_GE(kSmiMaxValue, v8_flags.wasm_max_table_size.value());
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(__ UntagSmi(size_smi)));
-    __ TrapIfNot(in_bounds, OpIndex::Invalid(), TrapId::kTrapTableOutOfBounds);
+    __ TrapIfNot(in_bounds, TrapId::kTrapTableOutOfBounds);
     V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::TaggedPointer(),
                                     WasmTableObject::kEntriesOffset);
@@ -4830,7 +4828,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // Bounds check.
     V<Word32> length = LoadStringLength(string);
-    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
+    __ TrapIfNot(__ Uint32LessThan(offset, length),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
     Label<> onebyte(&asm_);
@@ -4893,7 +4891,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // Bounds check.
     V<Word32> length = LoadStringLength(string);
-    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
+    __ TrapIfNot(__ Uint32LessThan(offset, length),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
     Label<> onebyte(&asm_);
@@ -5719,7 +5717,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<Word64> ExtractTruncationProjections(V<Tuple<Word64, Word32>> truncated) {
     V<Word64> result = __ template Projection<0>(truncated);
     V<Word32> check = __ template Projection<1>(truncated);
-    __ TrapIf(__ Word32Equal(check, 0), {}, TrapId::kTrapFloatUnrepresentable);
+    __ TrapIf(__ Word32Equal(check, 0), TrapId::kTrapFloatUnrepresentable);
     return result;
   }
 
@@ -5740,7 +5738,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                  ExternalReference ccall_ref) {
     auto [stack_slot, overflow] =
         BuildCCallForFloatConversion(arg, float_type, ccall_ref);
-    __ TrapIf(__ Word32Equal(overflow, 0), OpIndex::Invalid(),
+    __ TrapIf(__ Word32Equal(overflow, 0),
               compiler::TrapId::kTrapFloatUnrepresentable);
     MemoryRepresentation int64 = MemoryRepresentation::Int64();
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
@@ -5791,9 +5789,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, sig_types);
     OpIndex rc = CallC(&sig, ccall_ref, stack_slot);
-    __ TrapIf(__ Word32Equal(rc, 0), OpIndex::Invalid(), trap_zero);
-    __ TrapIf(__ Word32Equal(rc, -1), OpIndex::Invalid(),
-              TrapId::kTrapDivUnrepresentable);
+    __ TrapIf(__ Word32Equal(rc, 0), trap_zero);
+    __ TrapIf(__ Word32Equal(rc, -1), TrapId::kTrapDivUnrepresentable);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64_rep);
   }
 
@@ -5819,7 +5816,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Word32> result = __ TruncateFloat32ToInt32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeInt32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32UConvertF32: {
@@ -5827,7 +5824,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Word32> result = __ TruncateFloat32ToUint32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeUint32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32SConvertF64: {
@@ -5836,7 +5833,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             __ TruncateFloat64ToInt32OverflowUndefined(truncated);
         V<Float64> converted_back = __ ChangeInt32ToFloat64(result);
         __ TrapIf(__ Word32Equal(__ Float64Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32UConvertF64: {
@@ -5844,7 +5841,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Word32> result = __ TruncateFloat64ToUint32OverflowToMin(truncated);
         V<Float64> converted_back = __ ChangeUint32ToFloat64(result);
         __ TrapIf(__ Word32Equal(__ Float64Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI64SConvertF32:
@@ -6419,21 +6416,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case kExprI32Mul:
         return __ Word32Mul(lhs, rhs);
       case kExprI32DivS: {
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word32Equal(rhs, -1), __ Word32Equal(lhs, kMinInt));
-        __ TrapIf(unrepresentable_condition, OpIndex::Invalid(),
-                  TrapId::kTrapDivUnrepresentable);
+        __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int32Div(lhs, rhs);
       }
       case kExprI32DivU:
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint32Div(lhs, rhs);
       case kExprI32RemS: {
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
           GOTO(done, __ Word32Constant(0));
@@ -6445,8 +6438,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         return result;
       }
       case kExprI32RemU:
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint32Mod(lhs, rhs);
       case kExprI32And:
         return __ Word32BitwiseAnd(lhs, rhs);
@@ -6502,13 +6494,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word64Equal(rhs, -1),
             __ Word64Equal(lhs, std::numeric_limits<int64_t>::min()));
-        __ TrapIf(unrepresentable_condition, OpIndex::Invalid(),
-                  TrapId::kTrapDivUnrepresentable);
+        __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int64Div(lhs, rhs);
       }
       case kExprI64DivU:
@@ -6516,16 +6506,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint64Div(lhs, rhs);
       case kExprI64RemS: {
         if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
         IF (UNLIKELY(__ Word64Equal(rhs, -1))) {
           GOTO(done, __ Word64Constant(int64_t{0}));
@@ -6541,8 +6529,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint64Mod(lhs, rhs);
       case kExprI64And:
         return __ Word64BitwiseAnd(lhs, rhs);
@@ -6811,7 +6798,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       V<Word32> cond = __ TruncateWordPtrToWord32(__ WordPtrBitwiseAnd(
           effective_offset, __ IntPtrConstant(align_mask)));
       __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)),
-                   OpIndex::Invalid(), TrapId::kTrapUnalignedAccess);
+                   TrapId::kTrapUnalignedAccess);
     }
 
     // If no bounds checks should be performed (for testing), just return the
@@ -6826,7 +6813,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       DCHECK_EQ(kExplicitBoundsChecks, bounds_checks);
       V<Word32> high_word =
           __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
-      __ TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+      __ TrapIf(high_word, TrapId::kTrapMemOutOfBounds);
     }
 
     // We already checked that offset is below the max memory size.
@@ -6857,14 +6844,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // aligned; if offset is unaligned we need to directly trap because we
           // might cause a spurious unaligned access and a DCHECK failure if we
           // are running in the simulator.
-          __ TrapIf(__ Word32Constant(1), OpIndex::Invalid(),
-                    TrapId::kTrapMemOutOfBounds);
+          __ TrapIf(__ Word32Constant(1), TrapId::kTrapMemOutOfBounds);
         }
 
         V<Word32> cond = __ __ Uint64LessThan(
             V<Word64>::Cast(converted_index),
             __ Word64Constant(memory->GetMemory64GuardsSize()));
-        __ TrapIfNot(cond, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+        __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }
@@ -6875,14 +6861,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // Dynamically check the end offset against the dynamic memory size.
       __ TrapIfNot(
           __ UintPtrLessThan(__ UintPtrConstant(end_offset), memory_size),
-          OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+          TrapId::kTrapMemOutOfBounds);
     }
 
     // This produces a positive number since {end_offset <= min_size <=
     // mem_size}.
     V<WordPtr> effective_size = __ WordPtrSub(memory_size, end_offset);
     __ TrapIfNot(__ UintPtrLessThan(converted_index, effective_size),
-                 OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+                 TrapId::kTrapMemOutOfBounds);
     return {converted_index, compiler::BoundsCheckResult::kDynamicallyChecked};
   }
 
@@ -7015,7 +7001,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(table_length));
-    __ TrapIfNot(in_bounds, OpIndex::Invalid(), TrapId::kTrapTableOutOfBounds);
+    __ TrapIfNot(in_bounds, TrapId::kTrapTableOutOfBounds);
 
     /* Step 3: Check the canonical real signature against the canonical declared
      * signature. */
@@ -7055,7 +7041,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
         if (needs_null_check) {
           // Trap on null element.
-          __ TrapIf(__ Word32Equal(loaded_sig, -1), OpIndex::Invalid(),
+          __ TrapIf(__ Word32Equal(loaded_sig, -1),
                     TrapId::kTrapFuncSigMismatch);
         }
         bool shared = decoder->module_->types[sig_index].is_shared;
@@ -7104,16 +7090,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BIND(end);
       } else {
         // In this case, signatures must match exactly.
-        __ TrapIfNot(sigs_match, OpIndex::Invalid(),
-                     TrapId::kTrapFuncSigMismatch);
+        __ TrapIfNot(sigs_match, TrapId::kTrapFuncSigMismatch);
       }
     } else if (needs_null_check) {
       V<Word32> loaded_sig =
           __ Load(dispatch_table, dispatch_table_entry_offset,
                   LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
                   WasmDispatchTable::kSigBias);
-      __ TrapIf(__ Word32Equal(-1, loaded_sig), OpIndex::Invalid(),
-                TrapId::kTrapFuncSigMismatch);
+      __ TrapIf(__ Word32Equal(-1, loaded_sig), TrapId::kTrapFuncSigMismatch);
     }
 
     /* Step 4: Extract ref and target. */
@@ -7663,7 +7647,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       OpIndex length = __ ArrayLength(array, array_type.is_nullable()
                                                  ? compiler::kWithNullCheck
                                                  : compiler::kWithoutNullCheck);
-      __ TrapIfNot(__ Uint32LessThan(index, length), OpIndex::Invalid(),
+      __ TrapIfNot(__ Uint32LessThan(index, length),
                    TrapId::kTrapArrayOutOfBounds);
     }
   }
@@ -7681,8 +7665,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Uint32LessThanOrEqual(range_end, array_length),
         // OOB if (index + length) overflows.
         __ Uint32LessThanOrEqual(index, range_end));
-    __ TrapIfNot(range_valid, OpIndex::Invalid(),
-                 TrapId::kTrapArrayOutOfBounds);
+    __ TrapIfNot(range_valid, TrapId::kTrapArrayOutOfBounds);
     // The array is now guaranteed to be non-null.
     return V<WasmArray>::Cast(array);
   }

@@ -71,7 +71,7 @@ class WasmLoweringReducer : public Next {
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
             wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
             wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)) {
-          __ TrapIf(__ IsNull(object, type), {}, trap_id);
+          __ TrapIf(__ IsNull(object, type), trap_id);
         } else {
           // Otherwise, load the word after the map word.
           static_assert(WasmStruct::kHeaderSize > kTaggedSize);
@@ -82,7 +82,7 @@ class WasmLoweringReducer : public Next {
         }
       }
     } else {
-      __ TrapIf(__ IsNull(object, type), {}, trap_id);
+      __ TrapIf(__ IsNull(object, type), trap_id);
     }
     return object;
   }
@@ -213,7 +213,7 @@ class WasmLoweringReducer : public Next {
         null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), {},
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
 
@@ -235,7 +235,7 @@ class WasmLoweringReducer : public Next {
         null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), {},
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
 
@@ -284,7 +284,7 @@ class WasmLoweringReducer : public Next {
         null_check_strategy_ == NullCheckStrategy::kTrapHandler;
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef), {},
+      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
 
@@ -301,7 +301,7 @@ class WasmLoweringReducer : public Next {
     __ TrapIfNot(
         __ Uint32LessThanOrEqual(
             length, __ Word32Constant(WasmArray::MaxLength(array_type))),
-        {}, TrapId::kTrapArrayTooLarge);
+        TrapId::kTrapArrayTooLarge);
     wasm::ValueType element_type = array_type->element_type();
 
     // RoundUp(length * value_size, kObjectAlignment) =
@@ -638,8 +638,7 @@ class WasmLoweringReducer : public Next {
           to_rep == wasm::HeapType::kNoExtern ||
           to_rep == wasm::HeapType::kNoFunc ||
           to_rep == wasm::HeapType::kNoExn) {
-        __ TrapIfNot(__ IsNull(object, config.from), {},
-                     TrapId::kTrapIllegalCast);
+        __ TrapIfNot(__ IsNull(object, config.from), TrapId::kTrapIllegalCast);
         break;
       }
       // Null checks performed by any other type cast can be skipped if null
@@ -654,28 +653,28 @@ class WasmLoweringReducer : public Next {
         // transformations, we could DCHECK(object_can_be_i31) here.
         V<Word32> success =
             object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
-        __ TrapIfNot(success, {}, TrapId::kTrapIllegalCast);
+        __ TrapIfNot(success, TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kEq) {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
         }
-        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)), {},
+        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)),
                      TrapId::kTrapIllegalCast);
         break;
       }
       // array, struct, string: i31 fails.
       if (object_can_be_i31) {
-        __ TrapIf(__ IsSmi(object), {}, TrapId::kTrapIllegalCast);
+        __ TrapIf(__ IsSmi(object), TrapId::kTrapIllegalCast);
       }
       if (to_rep == wasm::HeapType::kArray) {
-        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE), {},
+        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
                      TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct) {
-        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE), {},
+        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE),
                      TrapId::kTrapIllegalCast);
         break;
       }
@@ -685,7 +684,7 @@ class WasmLoweringReducer : public Next {
             __ LoadInstanceTypeField(__ LoadMapField(object));
         __ TrapIfNot(__ Uint32LessThan(instance_type,
                                        __ Word32Constant(FIRST_NONSTRING_TYPE)),
-                     {}, TrapId::kTrapIllegalCast);
+                     TrapId::kTrapIllegalCast);
         break;
       }
       UNREACHABLE();
@@ -715,19 +714,18 @@ class WasmLoweringReducer : public Next {
       if (config.to.is_nullable()) {
         GOTO_IF(UNLIKELY(is_null), end_label);
       } else if (!v8_flags.experimental_wasm_skip_null_checks) {
-        __ TrapIf(is_null, {}, TrapId::kTrapIllegalCast);
+        __ TrapIf(is_null, TrapId::kTrapIllegalCast);
       }
     }
 
     if (object_can_be_i31) {
-      __ TrapIf(__ IsSmi(object), {}, TrapId::kTrapIllegalCast);
+      __ TrapIf(__ IsSmi(object), TrapId::kTrapIllegalCast);
     }
 
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), {},
-                   TrapId::kTrapIllegalCast);
+      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
       // First, check if types happen to be equal. This has been shown to give
@@ -737,7 +735,7 @@ class WasmLoweringReducer : public Next {
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
         V<Word32> is_wasm_obj = IsDataRefMap(map);
-        __ TrapIfNot(is_wasm_obj, {}, TrapId::kTrapIllegalCast);
+        __ TrapIfNot(is_wasm_obj, TrapId::kTrapIllegalCast);
       }
 
       V<Object> type_info = LoadWasmTypeInfo(map);
@@ -753,7 +751,7 @@ class WasmLoweringReducer : public Next {
                     WasmTypeInfo::kSupertypesLengthOffset));
         __ TrapIfNot(
             __ UintPtrLessThan(__ IntPtrConstant(rtt_depth), supertypes_length),
-            {}, TrapId::kTrapIllegalCast);
+            TrapId::kTrapIllegalCast);
       }
 
       V<Object> maybe_match =
@@ -761,7 +759,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()), {},
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()),
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     }
