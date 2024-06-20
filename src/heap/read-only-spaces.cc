@@ -82,10 +82,11 @@ SingleCopyReadOnlyArtifacts::~SingleCopyReadOnlyArtifacts() {
   // TearDown requires MemoryAllocator which itself is tied to an Isolate.
   shared_read_only_space_->pages_.resize(0);
 
-  for (ReadOnlyPageMetadata* chunk : pages_) {
-    void* chunk_address = reinterpret_cast<void*>(chunk->ChunkAddress());
-    size_t size = RoundUp(chunk->size(), page_allocator_->AllocatePageSize());
-    CHECK(page_allocator_->FreePages(chunk_address, size));
+  for (ReadOnlyPageMetadata* page : pages_) {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(page->ChunkAddress());
+    size_t size = RoundUp(page->size(), page_allocator_->AllocatePageSize());
+    page->~ReadOnlyPageMetadata();
+    CHECK(page_allocator_->FreePages(chunk, size));
   }
 }
 
