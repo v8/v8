@@ -3734,6 +3734,14 @@ Local<String> Shell::WasmLoadSourceMapCallback(Isolate* isolate,
   return Shell::ReadFile(isolate, path, false).ToLocalChecked();
 }
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+void GetContinuationPreservedEmbedderData(
+    const FunctionCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(
+      info.GetIsolate()->GetContinuationPreservedEmbedderData());
+}
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
 MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   // This needs to be a critical section since this is not thread-safe
   i::ParkedMutexGuard lock_guard(
@@ -3775,6 +3783,42 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
         context->GetExtrasBindingObject()->Get(context, name).ToLocalChecked();
     context->Global()->Set(context, name, console).FromJust();
   }
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  {
+    Local<Object> d8 =
+        context->Global()
+            ->Get(context, v8::String::NewFromUtf8Literal(isolate, "d8"))
+            .ToLocalChecked()
+            .As<Object>();
+    {
+      Local<String> name = v8::String::NewFromUtf8Literal(
+          isolate, "getContinuationPreservedEmbedderData");
+      d8->Set(context, name,
+              context->GetExtrasBindingObject()
+                  ->Get(context, name)
+                  .ToLocalChecked())
+          .FromJust();
+    }
+    {
+      Local<String> name = v8::String::NewFromUtf8Literal(
+          isolate, "getContinuationPreservedEmbedderDataViaAPIForTesting");
+      d8->Set(context, name,
+              v8::Function::New(context, GetContinuationPreservedEmbedderData)
+                  .ToLocalChecked())
+          .FromJust();
+    }
+    {
+      Local<String> name = v8::String::NewFromUtf8Literal(
+          isolate, "setContinuationPreservedEmbedderData");
+      d8->Set(context, name,
+              context->GetExtrasBindingObject()
+                  ->Get(context, name)
+                  .ToLocalChecked())
+          .FromJust();
+    }
+  }
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
   return handle_scope.Escape(context);
 }
