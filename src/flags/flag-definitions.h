@@ -281,15 +281,14 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_decorators, "decorators")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                                           \
-  HARMONY_INPROGRESS_BASE(V)                                            \
-  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")               \
-  /* Following two flags should ship the same time but may stage */     \
-  /* differently . */                                                   \
-  V(harmony_remove_intl_locale_info_getters,                            \
-    "Remove Obsoleted Intl Locale Info getters")                        \
-  V(harmony_intl_locale_info_func, "Intl Locale Info API as functions") \
-  V(harmony_intl_duration_format, "Intl DurationFormat API")
+#define HARMONY_INPROGRESS(V)                                       \
+  HARMONY_INPROGRESS_BASE(V)                                        \
+  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")           \
+  /* Following two flags should ship the same time but may stage */ \
+  /* differently . */                                               \
+  V(harmony_remove_intl_locale_info_getters,                        \
+    "Remove Obsoleted Intl Locale Info getters")                    \
+  V(harmony_intl_locale_info_func, "Intl Locale Info API as functions")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 #else
@@ -299,11 +298,12 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
-
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_promise_try, "Promise.try")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
+#define HARMONY_STAGED(V) \
+  HARMONY_STAGED_BASE(V)  \
+  V(harmony_intl_duration_format, "Intl DurationFormat API")
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
