@@ -9225,10 +9225,9 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 
       if (has_instance_field->IsJSFunction()) {
         SaveCallSpeculationScope saved(this);
-        ReduceResult result =
-            ReduceCallForConstant(has_instance_field->AsJSFunction(), args);
-        DCHECK(!result.IsDoneWithAbort());
-        call_result = result.value();
+        GET_VALUE_OR_ABORT(
+            call_result,
+            ReduceCallForConstant(has_instance_field->AsJSFunction(), args));
       } else {
         call_result = BuildGenericCall(GetConstant(*has_instance_field),
                                        Call::TargetType::kAny, args);
