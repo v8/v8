@@ -1487,7 +1487,6 @@ TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   EXPECT_FAILURE(data);
 }
 
-// TODO(evih): Use enum values instead of numbers.
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------
@@ -1495,7 +1494,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // code ----------------------------------------------------------------
       ONE_EMPTY_BODY};
 
@@ -1512,7 +1511,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
 TEST_F(WasmModuleVerifyTest, ElementSectionWithInternalTable) {
   static const uint8_t data[] = {
       // table ---------------------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // elements ------------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(0))};
 
@@ -1527,7 +1526,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               1),              // initial size
       // elements ------------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(0))};
@@ -1557,7 +1556,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1576,7 +1575,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1604,7 +1603,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       // funcs ------------------------------------------------------
       FOUR_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       // table declaration -------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 8),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 8),
       // table elements ----------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1631,9 +1630,9 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kFuncRefCode, 0, 5,     // table 0
-              kFuncRefCode, 0, 9),    // table 1
+      SECTION(Table, ENTRY_COUNT(2),         // section header
+              kFuncRefCode, kNoMaximum, 5,   // table 0
+              kFuncRefCode, kNoMaximum, 9),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1665,20 +1664,20 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kFuncRefCode, 0, 15,    // table 0
-              kFuncRefCode, 0, 19),   // table 1
+      SECTION(Table, ENTRY_COUNT(2),          // section header
+              kFuncRefCode, kNoMaximum, 15,   // table 0
+              kFuncRefCode, kNoMaximum, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1718,9 +1717,9 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kFuncRefCode, 0, 5,     // table 0
-              kFuncRefCode, 0, 9),    // table 1
+      SECTION(Table, ENTRY_COUNT(2),         // section header
+              kFuncRefCode, kNoMaximum, 5,   // table 0
+              kFuncRefCode, kNoMaximum, 9),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(3),            // entry count
@@ -1756,20 +1755,20 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kFuncRefCode, 0, 15,    // table 0
-              kFuncRefCode, 0, 19),   // table 1
+      SECTION(Table, ENTRY_COUNT(2),          // section header
+              kFuncRefCode, kNoMaximum, 15,   // table 0
+              kFuncRefCode, kNoMaximum, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1807,9 +1806,9 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kExternRefCode, 0, 5,   // table 0
-              kFuncRefCode, 0, 9),    // table 1
+      SECTION(Table, ENTRY_COUNT(2),          // section header
+              kExternRefCode, kNoMaximum, 5,  // table 0
+              kFuncRefCode, kNoMaximum, 9),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1837,8 +1836,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionIndexElementsTableWithNarrowType) {
       // sig#0 ---------------------------------------------------------------
       TYPE_SECTION_ONE_SIG_VOID_VOID,
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1),   // section header
-              kRefNullCode, 0, 0, 9),  // table 1
+      SECTION(Table, ENTRY_COUNT(1),            // section header
+              kRefNullCode, 0, kNoMaximum, 9),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),            // entry count
@@ -1856,8 +1855,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionIndexElementsTableWithNarrowType) {
 TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithFuncRefNull) {
   static const uint8_t data[] = {
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1),  // section header
-              kFuncRefCode, 0, 9),    // table 0
+      SECTION(Table, ENTRY_COUNT(1),         // section header
+              kFuncRefCode, kNoMaximum, 9),  // table 0
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),                      // entry count
@@ -1874,8 +1873,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithFuncRefNull) {
 TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithExternRefNull) {
   static const uint8_t data[] = {
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1),  // section header
-              kFuncRefCode, 0, 9),    // table 0
+      SECTION(Table, ENTRY_COUNT(1),         // section header
+              kFuncRefCode, kNoMaximum, 9),  // table 0
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),                      // entry count
@@ -1903,20 +1902,20 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kFuncRefCode,    // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kExternRefCode,  // elem_type
-              0,               // no maximum field
+              kNoMaximum,      // maximum
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(2),  // section header
-              kFuncRefCode, 0, 15,    // table 0
-              kFuncRefCode, 0, 19),   // table 1
+      SECTION(Table, ENTRY_COUNT(2),          // section header
+              kFuncRefCode, kNoMaximum, 15,   // table 0
+              kFuncRefCode, kNoMaximum, 19),  // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(4),             // entry count
@@ -2013,10 +2012,10 @@ TEST_F(WasmModuleVerifyTest, MultipleTables) {
       SECTION(Table,           // table section
               ENTRY_COUNT(2),  // 2 tables
               kFuncRefCode,    // table 1: type
-              0,               // table 1: no maximum
+              kNoMaximum,      // table 1: no maximum
               10,              // table 1: minimum size
               kExternRefCode,  // table 2: type
-              0,               // table 2: no maximum
+              kNoMaximum,      // table 2: no maximum
               11),             // table 2: minimum size
   };
 
@@ -2035,10 +2034,10 @@ TEST_F(WasmModuleVerifyTest, MultipleTables) {
 TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
   static const uint8_t data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),
-      SECTION(Table,            // table section
-              ENTRY_COUNT(1),   // 1 table
-              kRefNullCode, 0,  // table 0: type
-              0, 10)};          // table 0: limits
+      SECTION(Table,             // table section
+              ENTRY_COUNT(1),    // 1 table
+              kRefNullCode, 0,   // table 0: type
+              kNoMaximum, 10)};  // table 0: limits
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
@@ -2052,7 +2051,7 @@ TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
       SECTION(Table,                                 // table section
               ENTRY_COUNT(1),                        // 1 table
               kRefNullCode, 0,                       // table 0: type
-              0, 10,                                 // table 0: limits
+              kNoMaximum, 10,                        // table 0: limits
               kExprRefFunc, 0, kExprEnd)};           // table 0: initializer
 
   EXPECT_FAILURE_WITH_MSG(
@@ -2092,7 +2091,7 @@ TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
               0x40,                                  // table 0: has initializer
               0x00,                                  // table 0: reserved byte
               kRefNullCode, 0,                       // table 0: type
-              0, 10,                                 // table 0: limits
+              kNoMaximum, 10,                        // table 0: limits
               kExprRefFunc, 0, kExprEnd),            // table 0: initial value
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
@@ -2109,7 +2108,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
               0x40,                                  // table 0: has initializer
               0x00,                                  // table 0: reserved byte
               kRefCode, 0,                           // table 0: type
-              0, 10,                                 // table 0: limits
+              kNoMaximum, 10,                        // table 0: limits
               kExprRefFunc, 0, kExprEnd),            // table 0: initial value
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
@@ -2120,12 +2119,12 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
 TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
   static const uint8_t data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),
-      SECTION(Table,           // table section
-              ENTRY_COUNT(2),  // 2 tables
-              kRefCode, 0,     // table 0: type
-              0, 10,           // table 0: limits
-              kRefCode, 0,     // table 1: type
-              5, 6)};          // table 1: limits
+      SECTION(Table,                      // table section
+              ENTRY_COUNT(2),             // 2 tables
+              kRefCode, 0,                // table 0: type
+              kNoMaximum, 10,             // table 0: limits
+              kRefCode, 0,                // table 1: type
+              kMemory64WithMaximum, 6)};  // table 1: limits
 
   EXPECT_FAILURE_WITH_MSG(
       data, "Table of non-defaultable table (ref 0) needs initial value");
@@ -3119,7 +3118,7 @@ TEST_F(WasmModuleVerifyTest, BadNameSection) {
 TEST_F(WasmModuleVerifyTest, PassiveDataSegment) {
   static const uint8_t data[] = {
       // memory declaration ----------------------------------------------------
-      SECTION(Memory, ENTRY_COUNT(1), 0, 1),
+      SECTION(Memory, ENTRY_COUNT(1), kNoMaximum, 1),
       // data segments  --------------------------------------------------------
       SECTION(Data, ENTRY_COUNT(1), PASSIVE, ADD_COUNT('h', 'i')),
   };
@@ -3134,7 +3133,7 @@ TEST_F(WasmModuleVerifyTest, ActiveElementSegmentWithElements) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // element segments  -----------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), ACTIVE_WITH_ELEMENTS, TABLE_INDEX0,
               WASM_INIT_EXPR_I32V_1(0), kFuncRefCode, U32V_1(3),
@@ -3182,7 +3181,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // element segments  -----------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kFuncRefCode,
               U32V_1(3), REF_FUNC_ELEMENT(0), REF_FUNC_ELEMENT(0),
@@ -3200,7 +3199,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentExternRef) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // element segments  -----------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kExternRefCode,
               U32V_1(0)),
@@ -3216,7 +3215,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kNoMaximum, 1),
       // element segments ------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE, kExternalFunction,
               ENTRY_COUNT(3), U32V_1(0), U32V_1(0), U32V_1(0)),
@@ -3309,8 +3308,8 @@ TEST_F(WasmModuleVerifyTest, MultipleDataCountSections) {
 
 TEST_F(WasmModuleVerifyTest, DataCountSegmentCountMatch) {
   static const uint8_t data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
-      SECTION(DataCount, ENTRY_COUNT(1)),     // DataCount section.
+      SECTION(Memory, ENTRY_COUNT(1), kNoMaximum, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(1)),              // DataCount section.
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // Data section.
               WASM_INIT_EXPR_I32V_1(12), ADD_COUNT('h', 'i'))};
 
@@ -3319,17 +3318,17 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCountMatch) {
 
 TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_greater) {
   static const uint8_t data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
-      SECTION(DataCount, ENTRY_COUNT(3)),     // DataCount section.
-      SECTION(Data, ENTRY_COUNT(0))};         // Data section.
+      SECTION(Memory, ENTRY_COUNT(1), kNoMaximum, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(3)),              // DataCount section.
+      SECTION(Data, ENTRY_COUNT(0))};                  // Data section.
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "data segments count 0 mismatch (3 expected)");
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_less) {
   static const uint8_t data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
-      SECTION(DataCount, ENTRY_COUNT(0)),     // DataCount section.
+      SECTION(Memory, ENTRY_COUNT(1), kNoMaximum, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(0)),              // DataCount section.
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // Data section.
               WASM_INIT_EXPR_I32V_1(12), ADD_COUNT('a', 'b', 'c'))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
@@ -3337,7 +3336,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_less) {
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
-  static const uint8_t data[] = {SECTION(Memory, ENTRY_COUNT(1), 0, 1),
+  static const uint8_t data[] = {SECTION(Memory, ENTRY_COUNT(1), kNoMaximum, 1),
                                  SECTION(DataCount, ENTRY_COUNT(1))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "data segments count 0 mismatch (1 expected)");
