@@ -51,7 +51,6 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
       uint32_t equivalence_id, MaterializedInfo materialized,
       ResetVariableHint reset = ResetVariableHint::kReset);
   bool IsOnlyMemberOfEquivalenceSet() const;
-  bool IsOnlyMaterializedMemberOfEquivalenceSet() const;
   bool IsInSameEquivalenceSet(RegisterInfo* info) const;
 
   // Get a member of the register's equivalence set that is allocated.
@@ -171,13 +170,6 @@ void BytecodeRegisterOptimizer::SetVariableInRegister(Variable* var,
   } while (it != info);
 }
 
-Variable* BytecodeRegisterOptimizer::GetVariableInRegister(Register reg) {
-  RegisterInfo* info = GetRegisterInfo(reg);
-  VariableHint hint = info->variable_hint();
-  return hint.mode == VariableHintMode::kDefinitelyHasVariable ? hint.variable
-                                                               : nullptr;
-}
-
 Variable* BytecodeRegisterOptimizer::GetPotentialVariableInRegister(
     Register reg) {
   RegisterInfo* info = GetRegisterInfo(reg);
@@ -212,20 +204,6 @@ void BytecodeRegisterOptimizer::ResetTypeHintForAccumulator() {
 
 bool BytecodeRegisterOptimizer::IsAccumulatorReset() {
   return accumulator_info_->type_hint() == TypeHint::kAny;
-}
-
-bool BytecodeRegisterOptimizer::RegisterInfo::
-    IsOnlyMaterializedMemberOfEquivalenceSet() const {
-  DCHECK(materialized());
-
-  const RegisterInfo* visitor = this->next_;
-  while (visitor != this) {
-    if (visitor->materialized()) {
-      return false;
-    }
-    visitor = visitor->next_;
-  }
-  return true;
 }
 
 bool BytecodeRegisterOptimizer::RegisterInfo::IsInSameEquivalenceSet(
@@ -442,11 +420,6 @@ void BytecodeRegisterOptimizer::CreateMaterializedEquivalent(
   if (unmaterialized) {
     OutputRegisterTransfer(info, unmaterialized);
   }
-}
-
-BytecodeRegisterOptimizer::RegisterInfo*
-BytecodeRegisterOptimizer::GetMaterializedEquivalent(RegisterInfo* info) {
-  return info->materialized() ? info : info->GetMaterializedEquivalent();
 }
 
 BytecodeRegisterOptimizer::RegisterInfo*

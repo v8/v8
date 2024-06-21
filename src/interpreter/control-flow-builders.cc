@@ -41,10 +41,6 @@ void BreakableControlFlowBuilder::EmitJumpIfUndefined(BytecodeLabels* sites) {
   builder()->JumpIfUndefined(sites->New());
 }
 
-void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
-  builder()->JumpIfNull(sites->New());
-}
-
 void BreakableControlFlowBuilder::EmitJumpIfForInDone(BytecodeLabels* sites,
                                                       Register index,
                                                       Register cache_length) {

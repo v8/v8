@@ -126,7 +126,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   int32_t GetImmediateOperand(int operand_index) const;
   uint32_t GetIndexOperand(int operand_index) const;
   FeedbackSlot GetSlotOperand(int operand_index) const;
-  Register GetReceiver() const;
   Register GetParameter(int parameter_index) const;
   uint32_t GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;

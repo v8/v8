@@ -153,10 +153,6 @@ FeedbackSlot BytecodeArrayIterator::GetSlotOperand(int operand_index) const {
   return FeedbackVector::ToSlot(index);
 }
 
-Register BytecodeArrayIterator::GetReceiver() const {
-  return Register::FromParameterIndex(0);
-}
-
 Register BytecodeArrayIterator::GetParameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   // The parameter indices are shifted by 1 (receiver is the

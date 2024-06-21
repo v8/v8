@@ -164,23 +164,6 @@ Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
 }
 
 // static
-Bytecode Bytecodes::GetJumpWithoutToBoolean(Bytecode bytecode) {
-  switch (bytecode) {
-    case Bytecode::kJumpIfToBooleanTrue:
-      return Bytecode::kJumpIfTrue;
-    case Bytecode::kJumpIfToBooleanFalse:
-      return Bytecode::kJumpIfFalse;
-    case Bytecode::kJumpIfToBooleanTrueConstant:
-      return Bytecode::kJumpIfTrueConstant;
-    case Bytecode::kJumpIfToBooleanFalseConstant:
-      return Bytecode::kJumpIfFalseConstant;
-    default:
-      break;
-  }
-  UNREACHABLE();
-}
-
-// static
 bool Bytecodes::IsDebugBreak(Bytecode bytecode) {
   switch (bytecode) {
 #define CASE(Name, ...) case Bytecode::k##Name:
