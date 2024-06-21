@@ -575,6 +575,14 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
           !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(constructor, name);
       }
+    } else if (IsFunctionTemplateInfo(*maybe_constructor)) {
+      Handle<FunctionTemplateInfo> function_template =
+          Cast<FunctionTemplateInfo>(maybe_constructor);
+      if (!IsUndefined(function_template->class_name(), isolate)) {
+        return std::make_pair(
+            MaybeHandle<JSFunction>(),
+            handle(Cast<String>(function_template->class_name()), isolate));
+      }
     }
   }
 
@@ -1246,6 +1254,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     } else {
       result = args.CallNamedGetter(interceptor, it->name());
     }
+
     if (!result.is_null()) {
       args.AcceptSideEffects();
       return Just(DONT_ENUM);

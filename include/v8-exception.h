@@ -69,6 +69,68 @@ class V8_EXPORT Exception {
 };
 
 /**
+ * This is a part of experimental Api and might be changed without further
+ * notice.
+ * Do not use it.
+ */
+enum class ExceptionContext : uint32_t {
+  kUnknown,
+  kConstructor,
+  kOperation,
+  kAttributeGet,
+  kAttributeSet,
+  kIndexedQuery,
+  kIndexedGetter,
+  kIndexedDescriptor,
+  kIndexedSetter,
+  kIndexedDefiner,
+  kIndexedDeleter,
+  kNamedQuery,
+  kNamedGetter,
+  kNamedDescriptor,
+  kNamedSetter,
+  kNamedDefiner,
+  kNamedDeleter,
+  kNamedEnumerator
+};
+
+/**
+ * This is a part of experimental Api and might be changed without further
+ * notice.
+ * Do not use it.
+ */
+class ExceptionPropagationMessage {
+ public:
+  ExceptionPropagationMessage(v8::Isolate* isolate, Local<Object> exception,
+                              Local<String> interface_name,
+                              Local<String> property_name,
+                              ExceptionContext exception_context)
+      : isolate_(isolate),
+        exception_(exception),
+        interface_name_(interface_name),
+        property_name_(property_name),
+        exception_context_(exception_context) {}
+
+  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
+  V8_INLINE Local<Object> GetException() const { return exception_; }
+  V8_INLINE Local<String> GetInterfaceName() const { return interface_name_; }
+  V8_INLINE Local<String> GetPropertyName() const { return property_name_; }
+  V8_INLINE ExceptionContext GetExceptionContext() const {
+    return exception_context_;
+  }
+
+ private:
+  Isolate* isolate_;
+  Local<Object> exception_;
+  Local<String> interface_name_;
+  Local<String> property_name_;
+  ExceptionContext exception_context_;
+};
+
+using ExceptionPropagationCallback =
+    void (*)(ExceptionPropagationMessage message);
+
+/**
  * An external exception handler.
  */
 class V8_EXPORT TryCatch {

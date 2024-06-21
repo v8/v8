@@ -17,6 +17,7 @@
 #include "v8-data.h"               // NOLINT(build/include_directory)
 #include "v8-debug.h"              // NOLINT(build/include_directory)
 #include "v8-embedder-heap.h"      // NOLINT(build/include_directory)
+#include "v8-exception.h"          // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
@@ -1259,6 +1260,15 @@ class V8_EXPORT Isolate {
    * revocation of such a previous notification once the handler is added.
    */
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
+
+  /**
+   * This is a part of experimental Api and might be changed without further
+   * notice.
+   * Do not use it.
+   *
+   * Set callback to notify about a new exception being thrown.
+   */
+  void SetExceptionPropagationCallback(ExceptionPropagationCallback callback);
 
   /**
    * Runs the default MicrotaskQueue until it gets empty and perform other

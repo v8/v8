@@ -224,7 +224,8 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline Handle<Object> Call(Tagged<FunctionTemplateInfo> function);
+  inline Handle<Object> CallOrConstruct(Tagged<FunctionTemplateInfo> function,
+                                        bool is_construct);
 
   // Unofficial way of getting target FunctionTemplateInfo from
   // v8::FunctionCallbackInfo<T>.

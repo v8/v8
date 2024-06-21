@@ -2232,6 +2232,9 @@ DEFINE_BOOL(enable_vtunejit, true, "enable vtune jit interface")
 DEFINE_NEG_IMPLICATION(enable_vtunejit, compact_code_space)
 #endif  // ENABLE_VTUNE_JIT_INTERFACE
 
+DEFINE_BOOL(experimental_report_exceptions_from_callbacks, false,
+            "Notify Api callback about exceptions thrown in Api callbacks")
+
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")

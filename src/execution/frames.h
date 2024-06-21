@@ -905,6 +905,8 @@ class ApiCallbackExitFrame : public ExitFrame {
   // function, stores it in the function slot and returns JSFunction handle.
   Handle<JSFunction> GetFunction() const;
 
+  Handle<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
+
   inline Tagged<Object> receiver() const;
   inline Tagged<Object> GetParameter(int i) const;
   inline int ComputeParametersCount() const;
@@ -933,6 +935,7 @@ class ApiCallbackExitFrame : public ExitFrame {
   // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
   // JSFunction in the function slot.
   inline Tagged<HeapObject> target() const;
+
   inline void set_target(Tagged<HeapObject> function) const;
 
   inline FullObjectSlot target_slot() const;

@@ -528,6 +528,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
+  V(ExceptionPropagationCallback, exception_propagation_callback, nullptr)    \
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \
   V(int, code_and_metadata_size, 0)                                           \
   V(int, bytecode_and_metadata_size, 0)                                       \
@@ -2213,6 +2214,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
+  void ReportExceptionFunctionCallback(Handle<FunctionTemplateInfo> function,
+                                       v8::ExceptionContext callback_kind);
+  void ReportExceptionPropertyCallback(Handle<JSReceiver> holder,
+                                       Handle<Name> name,
+                                       v8::ExceptionContext callback_kind);
+  void SetExceptionPropagationCallback(ExceptionPropagationCallback callback);
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   void set_wasm_revec_verifier_for_test(
       compiler::turboshaft::WasmRevecVerifier* verifier) {
@@ -2302,6 +2310,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagateExceptionToExternalTryCatch(ExceptionHandlerType top_handler);
+
+  // Checks if the exception happened in any of the Api callback and call
+  // the |exception_propagation_callback_|.
+  void NotifyExceptionPropagationCallback();
 
   bool HasIsolatePromiseHooks() const {
     return PromiseHookFields::HasIsolatePromiseHook::decode(
@@ -2533,6 +2545,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif
 
   bool detailed_source_positions_for_profiling_;
+  bool preprocessing_exception_ = false;
 
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 

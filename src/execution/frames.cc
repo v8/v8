@@ -1185,6 +1185,19 @@ Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   return function;
 }
 
+Handle<FunctionTemplateInfo> ApiCallbackExitFrame::GetFunctionTemplateInfo()
+    const {
+  Tagged<HeapObject> maybe_function = target();
+  if (IsJSFunction(maybe_function)) {
+    Tagged<SharedFunctionInfo> shared_info =
+        Cast<JSFunction>(maybe_function)->shared();
+    DCHECK(shared_info->IsApiFunction());
+    return handle(shared_info->api_func_data(), isolate());
+  }
+  DCHECK(IsFunctionTemplateInfo(maybe_function));
+  return handle(Cast<FunctionTemplateInfo>(maybe_function), isolate());
+}
+
 Handle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
   if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();

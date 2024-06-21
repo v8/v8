@@ -10221,6 +10221,13 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   i_isolate->SetPromiseRejectCallback(callback);
 }
 
+void Isolate::SetExceptionPropagationCallback(
+    ExceptionPropagationCallback callback) {
+  if (callback == nullptr) return;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetExceptionPropagationCallback(callback);
+}
+
 void Isolate::PerformMicrotaskCheckpoint() {
   DCHECK_NE(MicrotasksPolicy::kScoped, GetMicrotasksPolicy());
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
@@ -11764,7 +11771,8 @@ void InvokeAccessorGetterCallback(
       }
     }
   }
-  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter));
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
+                                   v8::ExceptionContext::kAttributeGet, &info);
   getter(property, info);
 }
 
@@ -11812,7 +11820,11 @@ inline void InvokeFunctionCallback(
       UNREACHABLE();
   }
 
-  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(callback));
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(callback),
+                                   info.IsConstructCall()
+                                       ? v8::ExceptionContext::kConstructor
+                                       : v8::ExceptionContext::kOperation,
+                                   &info);
   callback(info);
 }
 }  // namespace
