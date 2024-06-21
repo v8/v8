@@ -8,6 +8,7 @@
 #include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory.h"
@@ -471,6 +472,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVectorAtDeopt) {
   int declared_func_index = args.smi_value_at(1);
   return AllocateFeedbackVector(isolate, trusted_instance_data,
                                 declared_func_index);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmDeleteDeoptimizer) {
+  ClearThreadInWasmScope wasm_flag(isolate);
+  Deoptimizer::DeleteForWasm(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 namespace {

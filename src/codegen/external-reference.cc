@@ -508,7 +508,6 @@ FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-FUNCTION_REFERENCE(wasm_delete_deoptimizer, Deoptimizer::DeleteForWasm)
 FUNCTION_REFERENCE(wasm_sync_stack_limit, wasm::sync_stack_limit)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)

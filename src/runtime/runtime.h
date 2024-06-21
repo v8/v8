@@ -658,6 +658,7 @@ namespace internal {
   F(WasmCompileLazy, 2, 1)                    \
   F(WasmAllocateFeedbackVector, 3, 1)         \
   F(WasmAllocateFeedbackVectorAtDeopt, 2, 1)  \
+  F(WasmDeleteDeoptimizer, 0, 1)              \
   F(WasmCompileWrapper, 1, 1)                 \
   F(IsWasmExternalFunction, 1, 1)             \
   F(TierUpWasmToJSWrapper, 1, 1)              \
