@@ -1237,17 +1237,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   int table_count = static_cast<int>(module_->tables.size());
   {
-    for (int i = 0; i < table_count; i++) {
-      const WasmTable& table = module_->tables[i];
-      if (table.initial_size > v8_flags.wasm_max_table_size) {
-        thrower_->RangeError(
-            "initial table size (%u elements) is larger than implementation "
-            "limit (%u elements)",
-            table.initial_size, v8_flags.wasm_max_table_size.value());
-        return {};
-      }
-    }
-
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
     Handle<FixedArray> shared_tables =
         shared ? isolate_->factory()->NewFixedArray(table_count)

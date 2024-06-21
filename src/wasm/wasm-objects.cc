@@ -149,6 +149,7 @@ Handle<WasmTableObject> WasmTableObject::New(
     DirectHandle<Object> initial_value, WasmTableFlag table_type) {
   CHECK(type.is_object_reference());
 
+  DCHECK_LE(initial, v8_flags.wasm_max_table_size);
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     entries->set(i, *initial_value);

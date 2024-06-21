@@ -756,10 +756,10 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           consume_table_flags("element count", table);
           if (table->shared) module_->has_shared_part = true;
-          // TODO(evih): Limit the size of the tables to
-          // v8_flags.wasm_max_table_size.
+          // Note that we should not throw an error if the declared maximum size
+          // is oob. We will instead fail when growing at runtime.
           consume_resizable_limits(
-              "element count", "elements", std::numeric_limits<uint32_t>::max(),
+              "element count", "elements", v8_flags.wasm_max_table_size,
               &table->initial_size, table->has_maximum_size,
               std::numeric_limits<uint32_t>::max(), &table->maximum_size,
               table->is_table64 ? k64BitLimits : k32BitLimits);
@@ -904,10 +904,10 @@ class ModuleDecoderImpl : public Decoder {
 
       consume_table_flags("table elements", table);
       if (table->shared) module_->has_shared_part = true;
-      // TODO(evih): Limit the size of the tables to
-      // v8_flags.wasm_max_table_size.
+      // Note that we should not throw an error if the declared maximum size is
+      // oob. We will instead fail when growing at runtime.
       consume_resizable_limits(
-          "table elements", "elements", std::numeric_limits<uint32_t>::max(),
+          "table elements", "elements", v8_flags.wasm_max_table_size,
           &table->initial_size, table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size,
           table->is_table64 ? k64BitLimits : k32BitLimits);
