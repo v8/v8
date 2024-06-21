@@ -2059,8 +2059,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   }
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      isolate, i::Handle<i::WasmInstanceObject>(), i_type, minimum, has_maximum,
-      maximum, isolate->factory()->null_value());
+      isolate, i::Handle<i::WasmTrustedInstanceData>(), i_type, minimum,
+      has_maximum, maximum, isolate->factory()->null_value());
 
   if (ref) {
     i::DirectHandle<i::FixedArray> entries{table_obj->entries(), isolate};

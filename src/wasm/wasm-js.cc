@@ -1400,7 +1400,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      i_isolate, i::Handle<i::WasmInstanceObject>(), type,
+      i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type,
       static_cast<uint32_t>(initial), has_maximum,
       static_cast<uint32_t>(maximum), DefaultReferenceValue(i_isolate, type),
       is_table64_flag);

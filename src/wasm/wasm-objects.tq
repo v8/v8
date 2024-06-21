@@ -176,13 +176,9 @@ extern class WasmModuleObject extends JSObject {
 extern class WasmDispatchTable extends TrustedObject;
 
 extern class WasmTableObject extends JSObject {
-  // The instance in which this WasmTableObject is defined.
-  // This field is undefined if the table is defined outside any Wasm module,
-  // i.e., through the JS API (WebAssembly.Table).
-  instance: WasmInstanceObject|Undefined;
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
-  // Each element is either
+  // If this is a function table, each element is either
   //   - a WasmFuncRef (Wasm function added from Wasm),
   //   - a WasmExportedFunction (exported Wasm function added from JS),
   //   - a WasmJSFunction (WebAssembly.Function created from JS), or
@@ -196,6 +192,12 @@ extern class WasmTableObject extends JSObject {
   uses: FixedArray;
   raw_type: Smi;
   is_table64: Smi;  // Boolean
+  // The instance in which this WasmTableObject is defined.
+  // This field is undefined if the table is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Table).
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
 }
 
 extern class WasmMemoryObject extends JSObject {

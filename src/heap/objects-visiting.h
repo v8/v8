@@ -70,12 +70,9 @@ namespace internal {
   IF_WASM(V, WasmArray)              \
   IF_WASM(V, WasmContinuationObject) \
   IF_WASM(V, WasmFuncRef)            \
-  IF_WASM(V, WasmInstanceObject)     \
   IF_WASM(V, WasmNull)               \
   IF_WASM(V, WasmResumeData)         \
   IF_WASM(V, WasmStruct)             \
-  IF_WASM(V, WasmSuspenderObject)    \
-  IF_WASM(V, WasmSuspendingObject)   \
   IF_WASM(V, WasmTypeInfo)           \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
@@ -92,7 +89,11 @@ namespace internal {
   V(JSSynchronizationPrimitive)             \
   V(JSTypedArray)                           \
   V(JSWeakCollection)                       \
-  V(JSWeakRef)
+  V(JSWeakRef)                              \
+  IF_WASM(V, WasmInstanceObject)            \
+  IF_WASM(V, WasmSuspenderObject)           \
+  IF_WASM(V, WasmSuspendingObject)          \
+  IF_WASM(V, WasmTableObject)
 
 // List of visitor ids that can only appear in read-only maps. Unfortunately,
 // these are generally contained in all other lists.

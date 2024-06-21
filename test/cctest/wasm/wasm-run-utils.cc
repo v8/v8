@@ -276,8 +276,9 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
       isolate_, trusted_instance_data_, table_index, table_size);
   DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
-      isolate_, instance_object_, table.type, table.initial_size,
-      table.has_maximum_size, table.maximum_size,
+      isolate_, handle(instance_object_->trusted_data(isolate_), isolate_),
+      table.type, table.initial_size, table.has_maximum_size,
+      table.maximum_size,
       IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
           ? Handle<HeapObject>{isolate_->factory()->null_value()}
           : Handle<HeapObject>{isolate_->factory()->wasm_null()});

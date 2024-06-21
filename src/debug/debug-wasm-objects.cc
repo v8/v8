@@ -1113,10 +1113,9 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
     wasm::WasmValue wasm_value(entry, table->type());
     Handle<WasmModuleObject> module;
-    if (IsWasmInstanceObject(table->instance())) {
+    if (table->has_trusted_data()) {
       module = Handle<WasmModuleObject>(
-          Cast<WasmInstanceObject>(table->instance())->module_object(),
-          isolate);
+          table->trusted_data(isolate)->module_object(), isolate);
     }
     DirectHandle<Object> debug_value =
         WasmValueObject::New(isolate, wasm_value, module);
