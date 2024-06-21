@@ -924,6 +924,25 @@ class WasmTrustedInstanceData::BodyDescriptor final
   }
 };
 
+class WasmTableObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
+                    kTrustedDataOffset, v);
+    IterateTrustedPointer(obj, kTrustedDataOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmTrustedInstanceDataIndirectPointerTag);
+    IterateJSObjectBodyImpl(map, obj, kIsTable64Offset + kTaggedSize,
+                            object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
+
 class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1272,6 +1291,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmContinuationObject);
     case WASM_STRUCT_TYPE:
       return CALL_APPLY(WasmStruct);
+    case WASM_TABLE_OBJECT_TYPE:
+      return CALL_APPLY(WasmTableObject);
     case WASM_TYPE_INFO_TYPE:
       return CALL_APPLY(WasmTypeInfo);
     case WASM_SUSPENDER_OBJECT_TYPE:
@@ -1357,7 +1378,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
-    case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -837,15 +837,14 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(IsUndefined(table->instance())
-             ? table->type() == wasm::kWasmFuncRef
-             : (IsSubtypeOf(
-                    table->type(), wasm::kWasmFuncRef,
-                    Cast<WasmInstanceObject>(table->instance())->module()) ||
-                IsSubtypeOf(
-                    table->type(),
-                    wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
-                    Cast<WasmInstanceObject>(table->instance())->module())));
+  DCHECK(
+      !table->has_trusted_data()
+          ? table->type() == wasm::kWasmFuncRef
+          : (IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                         table->trusted_data(isolate)->module()) ||
+             IsSubtypeOf(table->type(),
+                         wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
+                         table->trusted_data(isolate)->module())));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -868,15 +867,14 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(IsUndefined(table->instance())
-             ? table->type() == wasm::kWasmFuncRef
-             : (IsSubtypeOf(
-                    table->type(), wasm::kWasmFuncRef,
-                    Cast<WasmInstanceObject>(table->instance())->module()) ||
-                IsSubtypeOf(
-                    table->type(),
-                    wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
-                    Cast<WasmInstanceObject>(table->instance())->module())));
+  DCHECK(
+      !table->has_trusted_data()
+          ? table->type() == wasm::kWasmFuncRef
+          : (IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                         table->trusted_data(isolate)->module()) ||
+             IsSubtypeOf(table->type(),
+                         wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
+                         table->trusted_data(isolate)->module())));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);

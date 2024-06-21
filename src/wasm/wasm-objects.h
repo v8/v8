@@ -185,7 +185,11 @@ class WasmModuleObject
 class WasmTableObject
     : public TorqueGeneratedWasmTableObject<WasmTableObject, JSObject> {
  public:
+  class BodyDescriptor;
+
   inline wasm::ValueType type();
+
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
                                     Handle<WasmTableObject> table,
@@ -193,7 +197,7 @@ class WasmTableObject
                                     DirectHandle<Object> init_value);
 
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
-      Isolate* isolate, Handle<WasmInstanceObject> instance_object,
+      Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, uint32_t initial, bool has_maximum,
       uint32_t maximum, DirectHandle<Object> initial_value,
       WasmTableFlag table_type = WasmTableFlag::kTable32);

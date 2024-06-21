@@ -1259,8 +1259,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       // Initialize tables with null for now. We will initialize non-defaultable
       // tables later, in {SetTableInitialValues}.
       DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
-          isolate_, instance_object, table.type, table.initial_size,
-          table.has_maximum_size, table.maximum_size,
+          isolate_, table.shared ? shared_trusted_data : trusted_data,
+          table.type, table.initial_size, table.has_maximum_size,
+          table.maximum_size,
           IsSubtypeOf(table.type, kWasmExternRef, module_)
               ? Handle<HeapObject>{isolate_->factory()->null_value()}
               : Handle<HeapObject>{isolate_->factory()->wasm_null()},
@@ -2079,8 +2080,8 @@ bool InstanceBuilder::ProcessImportedTable(
   }
 
   const WasmModule* table_type_module =
-      !IsUndefined(table_object->instance())
-          ? Cast<WasmInstanceObject>(table_object->instance())->module()
+      table_object->has_trusted_data()
+          ? table_object->trusted_data(isolate_)->module()
           : trusted_instance_data->module();
 
   if (!EquivalentTypes(table.type, table_object->type(), module_,
