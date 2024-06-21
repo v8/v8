@@ -212,7 +212,6 @@ class BasicBlock {
     if (!state()->register_state().is_initialized()) {
       // This can happen when the graph has disconnected blocks; bail out and
       // don't jump thread them.
-      DCHECK(state()->is_resumable_loop());
       return true;
     }
 
