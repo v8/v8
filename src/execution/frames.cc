@@ -1637,7 +1637,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
                        frame_header_limit);
 }
 
-void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
+void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   Tagged<Object> maybe_signature = Tagged<Object>(
       Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset));
   if (IsSmi(maybe_signature)) {
@@ -1753,6 +1753,18 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
     }
   }
 }
+
+void TypedFrame::IterateParamsOfOptimizedWasmToJSWrapper(RootVisitor* v) const {
+  Tagged<GcSafeCode> code = GcSafeLookupCode();
+  if (code->wasm_js_tagged_parameter_count() > 0) {
+    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+    tagged_parameter_base += code->wasm_js_first_tagged_parameter();
+    FullObjectSlot tagged_parameter_limit =
+        tagged_parameter_base + code->wasm_js_tagged_parameter_count();
+    v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
+                         tagged_parameter_limit);
+  }
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TypedFrame::Iterate(RootVisitor* v) const {
@@ -1784,10 +1796,13 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_to_js =
+  bool is_generic_wasm_to_js =
       code->is_builtin() && code->builtin_id() == Builtin::kWasmToJsWrapperCSA;
-  if (is_wasm_to_js) {
-    IterateParamsOfWasmToJSWrapper(v);
+  bool is_optimized_wasm_to_js = this->type() == WASM_TO_JS_FUNCTION;
+  if (is_generic_wasm_to_js) {
+    IterateParamsOfGenericWasmToJSWrapper(v);
+  } else if (is_optimized_wasm_to_js) {
+    IterateParamsOfOptimizedWasmToJSWrapper(v);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
@@ -1820,10 +1835,14 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   // wrapper switched to before pushing the outgoing stack parameters and
   // calling the target. It marks the limit of the stack param area, and is
   // distinct from the beginning of the spill area.
-  Address central_stack_sp =
-      Memory<Address>(fp() + WasmToJSWrapperConstants::kCentralStackSPOffset);
+  int central_stack_sp_offset =
+      is_generic_wasm_to_js
+          ? WasmToJSWrapperConstants::kCentralStackSPOffset
+          : WasmImportWrapperFrameConstants::kCentralStackSPOffset;
+  Address central_stack_sp = Memory<Address>(fp() + central_stack_sp_offset);
   FullObjectSlot parameters_limit(
-      is_wasm_to_js && central_stack_sp != kNullAddress
+      (is_generic_wasm_to_js || is_optimized_wasm_to_js) &&
+              central_stack_sp != kNullAddress
           ? central_stack_sp
           : frame_header_base.address() - spill_slots_size);
 #else

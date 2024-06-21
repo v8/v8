@@ -2311,6 +2311,14 @@ CompilationJob::Status FinalizeWrapperCompilation(
                                        Handle<AbstractCode>::cast(code),
                                        info->GetDebugName().get()));
     }
+    // Set the wasm-to-js specific code fields needed to scan the incoming stack
+    // parameters.
+    if (code->kind() == CodeKind::WASM_TO_JS_FUNCTION) {
+      code->set_wasm_js_tagged_parameter_count(
+          call_descriptor->GetTaggedParameterSlots() & 0xffff);
+      code->set_wasm_js_first_tagged_parameter(
+          call_descriptor->GetTaggedParameterSlots() >> 16);
+    }
     return CompilationJob::SUCCEEDED;
 }
 
@@ -2337,6 +2345,12 @@ CompilationJob::Status FinalizeWrapperCompilation(
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                      Handle<AbstractCode>::cast(code),
                                      info->GetDebugName().get()));
+  }
+  if (code->kind() == CodeKind::WASM_TO_JS_FUNCTION) {
+    code->set_wasm_js_tagged_parameter_count(
+        call_descriptor->GetTaggedParameterSlots() & 0xffff);
+    code->set_wasm_js_first_tagged_parameter(
+        call_descriptor->GetTaggedParameterSlots() >> 16);
   }
   return CompilationJob::SUCCEEDED;
 }

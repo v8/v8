@@ -644,7 +644,8 @@ class TypedFrame : public CommonFrame {
   Tagged<HeapObject> unchecked_code() const override { return {}; }
   void Iterate(RootVisitor* v) const override;
 
-  void IterateParamsOfWasmToJSWrapper(RootVisitor* v) const;
+  void IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const;
+  void IterateParamsOfOptimizedWasmToJSWrapper(RootVisitor* v) const;
 
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
