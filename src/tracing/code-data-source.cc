@@ -60,7 +60,7 @@ InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
       return InternedV8JsFunction::KIND_NORMAL_FUNCTION;
     case FunctionKind::kModule:
       return InternedV8JsFunction::KIND_MODULE;
-    case FunctionKind::kAsyncModule:
+    case FunctionKind::kModuleWithTopLevelAwait:
       return InternedV8JsFunction::KIND_ASYNC_MODULE;
     case FunctionKind::kBaseConstructor:
       return InternedV8JsFunction::KIND_BASE_CONSTRUCTOR;

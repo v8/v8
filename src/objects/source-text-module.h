@@ -37,9 +37,9 @@ class SourceTextModule
 
   Tagged<Script> GetScript() const;
 
-  // Whether or not this module is an async module. Set during module creation
-  // and does not change afterwards.
-  DECL_BOOLEAN_ACCESSORS(async)
+  // Whether or not this module contains a toplevel await. Set during module
+  // creation and does not change afterwards.
+  DECL_BOOLEAN_ACCESSORS(has_toplevel_await)
 
   // Get the SourceTextModuleInfo associated with the code.
   inline Tagged<SourceTextModuleInfo> info() const;
@@ -78,7 +78,7 @@ class SourceTextModule
       SubclassBodyDescriptor<Module::BodyDescriptor,
                              FixedBodyDescriptor<kCodeOffset, kSize, kSize>>;
 
-  static constexpr unsigned kFirstAsyncEvaluatingOrdinal = 2;
+  static constexpr unsigned kFirstAsyncEvaluationOrdinal = 2;
 
   enum ExecuteAsyncModuleContextSlots {
     kModule = Context::MIN_CONTEXT_SLOTS,
@@ -93,9 +93,9 @@ class SourceTextModule
   friend class Factory;
   friend class Module;
 
-  struct AsyncEvaluatingOrdinalCompare;
-  using AsyncParentCompletionSet =
-      ZoneSet<Handle<SourceTextModule>, AsyncEvaluatingOrdinalCompare>;
+  struct AsyncEvaluationOrdinalCompare;
+  using AvailableAncestorsSet =
+      ZoneSet<Handle<SourceTextModule>, AsyncEvaluationOrdinalCompare>;
 
   // Appends a tuple of module and generator to the async parent modules
   // ArrayList.
@@ -114,7 +114,7 @@ class SourceTextModule
   // Returns the number of async parent modules for a given async child.
   inline int AsyncParentModuleCount();
 
-  inline bool IsAsyncEvaluating() const;
+  inline bool HasAsyncEvaluationOrdinal() const;
 
   inline bool HasPendingAsyncDependencies();
   inline void IncrementPendingAsyncDependencies();
@@ -123,7 +123,7 @@ class SourceTextModule
   // Bits for flags.
   DEFINE_TORQUE_GENERATED_SOURCE_TEXT_MODULE_FLAGS()
 
-  // async_evaluating_ordinal, top_level_capability, pending_async_dependencies,
+  // async_evaluation_ordinal, top_level_capability, pending_async_dependencies,
   // and async_parent_modules are used exclusively during evaluation of async
   // modules and the modules which depend on them.
   //
@@ -139,8 +139,8 @@ class SourceTextModule
   static constexpr unsigned kNotAsyncEvaluated = 0;
   static constexpr unsigned kAsyncEvaluateDidFinish = 1;
   static_assert(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
-  static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
-  DECL_PRIMITIVE_ACCESSORS(async_evaluating_ordinal, unsigned)
+  static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluationOrdinal);
+  DECL_PRIMITIVE_ACCESSORS(async_evaluation_ordinal, unsigned)
 
   // The parent modules of a given async dependency, use async_parent_modules()
   // to retrieve the ArrayList representation.
@@ -184,9 +184,9 @@ class SourceTextModule
                                Handle<SourceTextModule> module, Zone* zone,
                                UnorderedModuleSet* visited);
 
-  static void GatherAsyncParentCompletions(Isolate* isolate, Zone* zone,
-                                           Handle<SourceTextModule> start,
-                                           AsyncParentCompletionSet* exec_list);
+  static void GatherAvailableAncestors(Isolate* isolate, Zone* zone,
+                                       Handle<SourceTextModule> start,
+                                       AvailableAncestorsSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(

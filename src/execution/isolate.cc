@@ -3932,8 +3932,8 @@ Isolate::Isolate(IsolateGroup* isolate_group)
       persistent_handles_list_(new PersistentHandlesList()),
       jitless_(v8_flags.jitless),
       next_unique_sfi_id_(0),
-      next_module_async_evaluating_ordinal_(
-          SourceTextModule::kFirstAsyncEvaluatingOrdinal),
+      next_module_async_evaluation_ordinal_(
+          SourceTextModule::kFirstAsyncEvaluationOrdinal),
       cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();

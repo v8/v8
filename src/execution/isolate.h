@@ -1671,19 +1671,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return id;
   }
 
-  // ES#sec-async-module-execution-fulfilled
-  // step 10
+  // ES#sec-async-module-execution-fulfilled step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their
-  // [[AsyncEvaluating]] flags were set to true. V8 tracks this global total
-  // order with next_module_async_evaluating_ordinal_. Each module that sets its
-  // [[AsyncEvaluating]] to true grabs the next ordinal.
-  unsigned NextModuleAsyncEvaluatingOrdinal() {
+  // [[AsyncEvaluation]] flags were set to true. V8 tracks this global total
+  // order with next_module_async_evaluation_ordinal_. Each module that sets its
+  // [[AsyncEvaluation]] to true grabs the next ordinal.
+  unsigned NextModuleAsyncEvaluationOrdinal() {
     // For simplicity, V8 allows this ordinal to overflow. Overflow will result
     // in incorrect module loading behavior for module graphs with top-level
     // await.
-    return next_module_async_evaluating_ordinal_++;
+    return next_module_async_evaluation_ordinal_++;
   }
 
   void AddCallCompletedCallback(CallCompletedCallback callback);
@@ -2572,7 +2571,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   std::atomic<uint32_t> next_unique_sfi_id_;
 
-  unsigned next_module_async_evaluating_ordinal_;
+  unsigned next_module_async_evaluation_ordinal_;
 
   // Vector of callbacks before a Call starts execution.
   std::vector<BeforeCallEnteredCallback> before_call_entered_callbacks_;

@@ -463,7 +463,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
     worklist.pop_back();
     DCHECK_GE(current->status(), kLinked);
 
-    if (current->async()) return true;
+    if (current->has_toplevel_await()) return true;
     Tagged<FixedArray> requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
       Tagged<Module> descendant = Cast<Module>(requested_modules->get(i));

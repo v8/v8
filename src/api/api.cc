@@ -2274,8 +2274,9 @@ Module::Status Module::GetStatus() const {
     case i::Module::kLinked:
       return kInstantiated;
     case i::Module::kEvaluating:
-    case i::Module::kEvaluatingAsync:
       return kEvaluating;
+    case i::Module::kEvaluatingAsync:
+      // TODO(syg): Expose kEvaluatingAsync in API as well.
     case i::Module::kEvaluated:
       return kEvaluated;
     case i::Module::kErrored:

@@ -29,9 +29,10 @@ NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
 NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
-BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
-BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluating_ordinal,
-                    SourceTextModule::AsyncEvaluatingOrdinalBits)
+BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
+               HasToplevelAwaitBit::kShift)
+BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
+                    SourceTextModule::AsyncEvaluationOrdinalBits)
 ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
           kAsyncParentModulesOffset)
 
@@ -104,7 +105,7 @@ class UnorderedModuleSet
 
 Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
     Isolate* isolate) const {
-  CHECK_GE(status(), kEvaluated);
+  CHECK_GE(status(), kEvaluatingAsync);
   DCHECK(!IsTheHole(cycle_root(), isolate));
   Handle<SourceTextModule> root(Cast<SourceTextModule>(cycle_root()), isolate);
   return root;
@@ -131,8 +132,8 @@ int SourceTextModule::AsyncParentModuleCount() {
   return async_parent_modules()->length();
 }
 
-bool SourceTextModule::IsAsyncEvaluating() const {
-  return async_evaluating_ordinal() >= kFirstAsyncEvaluatingOrdinal;
+bool SourceTextModule::HasAsyncEvaluationOrdinal() const {
+  return async_evaluation_ordinal() >= kFirstAsyncEvaluationOrdinal;
 }
 
 bool SourceTextModule::HasPendingAsyncDependencies() {

@@ -991,9 +991,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return IsClassMembersInitializerFunction(function_kind());
   }
 
-  void set_is_async_module() {
+  void set_module_has_toplevel_await() {
     DCHECK(IsModule(function_kind_));
-    function_kind_ = FunctionKind::kAsyncModule;
+    function_kind_ = FunctionKind::kModuleWithTopLevelAwait;
   }
 
   void DeclareThis(AstValueFactory* ast_value_factory);

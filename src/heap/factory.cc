@@ -3250,8 +3250,8 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
   module->set_flags(0);
-  module->set_async(IsAsyncModule(sfi->kind()));
-  module->set_async_evaluating_ordinal(SourceTextModule::kNotAsyncEvaluated);
+  module->set_has_toplevel_await(IsModuleWithTopLevelAwait(sfi->kind()));
+  module->set_async_evaluation_ordinal(SourceTextModule::kNotAsyncEvaluated);
   module->set_cycle_root(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module->set_async_parent_modules(roots.empty_array_list());
   module->set_pending_async_dependencies(0);

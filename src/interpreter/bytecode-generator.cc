@@ -4227,7 +4227,7 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()) ||
-           IsAsyncModule(info()->literal()->kind()));
+           IsModuleWithTopLevelAwait(info()->literal()->kind()));
     RegisterList args = register_allocator()->NewRegisterList(2);
     builder()
         ->MoveRegister(generator_object(), args[0])  // generator
@@ -7896,7 +7896,7 @@ void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
   Runtime::FunctionId function_id =
       ((IsAsyncFunction(info()->literal()->kind()) &&
         !IsAsyncGeneratorFunction(info()->literal()->kind())) ||
-       IsAsyncModule(info()->literal()->kind()))
+       IsModuleWithTopLevelAwait(info()->literal()->kind()))
           ? Runtime::kInlineAsyncFunctionEnter
           : Runtime::kInlineCreateJSGeneratorObject;
   builder()

@@ -638,16 +638,16 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
         StatementListT statements(pointer_buffer());
         ParseModuleItemList(&statements);
         // Modules will always have an initial yield. If there are any
-        // additional suspends, i.e. awaits, then we treat the module as an
-        // AsyncModule.
+        // additional suspends, they are awaits, and we treat the module as a
+        // ModuleWithTopLevelAwait.
         if (function_state.suspend_count() > 1) {
-          scope->set_is_async_module();
+          scope->set_module_has_toplevel_await();
           block = factory()->NewBlock(true, statements);
         } else {
           statements.MergeInto(&body);
         }
       }
-      if (IsAsyncModule(scope->function_kind())) {
+      if (IsModuleWithTopLevelAwait(scope->function_kind())) {
         impl()->RewriteAsyncFunctionBody(
             &body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
       }

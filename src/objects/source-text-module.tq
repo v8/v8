@@ -5,8 +5,8 @@
 type SourceTextModuleInfo extends FixedArray;
 
 bitfield struct SourceTextModuleFlags extends uint31 {
-  async: bool: 1 bit;
-  async_evaluating_ordinal: uint32: 30 bit;
+  has_toplevel_await: bool: 1 bit;
+  async_evaluation_ordinal: uint32: 30 bit;
 }
 
 extern class SourceTextModule extends Module {
