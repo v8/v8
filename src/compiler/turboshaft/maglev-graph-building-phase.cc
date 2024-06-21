@@ -1378,6 +1378,37 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CreateShallowArrayLiteral* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+
+    OpIndex arguments[] = {__ HeapConstant(node->feedback().vector),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->constant_elements().object()),
+                           __ SmiConstant(Smi::FromInt(node->flags())),
+                           native_context()};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kCreateShallowArrayLiteral,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::StoreInArrayLiteralGeneric* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+
+    OpIndex arguments[] = {Map(node->object_input()),
+                           Map(node->name_input()),
+                           Map(node->value_input()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           native_context()};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kStoreInArrayLiteralIC,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TestInstanceOf* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
