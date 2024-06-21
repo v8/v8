@@ -435,7 +435,7 @@ class MachineOptimizationReducer : public Next {
       }
     } else if (double k; rep == FloatRepresentation::Float64() &&
                          matcher.MatchFloat64Constant(input, &k)) {
-      if (std::isnan(k)) {
+      if (std::isnan(k) && !signalling_nan_possible) {
         return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
       }
       switch (kind) {
