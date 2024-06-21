@@ -144,7 +144,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 }
 
 Handle<WasmTableObject> WasmTableObject::New(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
+    Isolate* isolate, Handle<WasmInstanceObject> instance_object,
     wasm::ValueType type, uint32_t initial, bool has_maximum, uint32_t maximum,
     DirectHandle<Object> initial_value, WasmTableFlag table_type) {
   CHECK(type.is_object_reference());
@@ -167,11 +167,7 @@ Handle<WasmTableObject> WasmTableObject::New(
       Cast<WasmTableObject>(isolate->factory()->NewJSObject(table_ctor));
   DisallowGarbageCollection no_gc;
 
-  if (!trusted_data.is_null()) {
-    table_obj->set_trusted_data(*trusted_data);
-  } else {
-    table_obj->clear_trusted_data();
-  }
+  if (!instance_object.is_null()) table_obj->set_instance(*instance_object);
   table_obj->set_entries(*entries);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
@@ -270,9 +266,10 @@ bool WasmTableObject::is_in_bounds(uint32_t entry_index) {
 MaybeHandle<Object> WasmTableObject::JSToWasmElement(
     Isolate* isolate, DirectHandle<WasmTableObject> table, Handle<Object> entry,
     const char** error_message) {
-  const WasmModule* module = !table->has_trusted_data()
-                                 ? nullptr
-                                 : table->trusted_data(isolate)->module();
+  const WasmModule* module =
+      IsUndefined(table->instance())
+          ? nullptr
+          : Cast<WasmInstanceObject>(table->instance())->module();
   return wasm::JSToWasmObject(isolate, module, entry, table->type(),
                               error_message);
 }
@@ -346,9 +343,10 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
-      DCHECK(table->has_trusted_data());
-      if (table->trusted_data(isolate)->module()->has_signature(
-              table->type().ref_index())) {
+      DCHECK(!IsUndefined(table->instance()));
+      if (Cast<WasmInstanceObject>(table->instance())
+              ->module()
+              ->has_signature(table->type().ref_index())) {
         SetFunctionTableEntry(isolate, table, entry_index, entry);
         return;
       }
@@ -395,8 +393,9 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
-      DCHECK(table->has_trusted_data());
-      const WasmModule* module = table->trusted_data(isolate)->module();
+      DCHECK(!IsUndefined(table->instance()));
+      const WasmModule* module =
+          Cast<WasmInstanceObject>(table->instance())->module();
       if (module->has_array(table->type().ref_index()) ||
           module->has_struct(table->type().ref_index())) {
         return entry;

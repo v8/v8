@@ -39,70 +39,69 @@ enum InstanceType : uint16_t;
   V(SeqTwoByteString)                \
   IF_WASM(V, WasmNull)
 
-#define POINTER_VISITOR_ID_LIST(V)   \
-  V(AccessorInfo)                    \
-  V(AllocationSite)                  \
-  V(BytecodeWrapper)                 \
-  V(CallSiteInfo)                    \
-  V(Cell)                            \
-  V(CodeWrapper)                     \
-  V(ConsString)                      \
-  V(ConstTrackingLetCell)            \
-  V(DataHandler)                     \
-  V(DebugInfo)                       \
-  V(EmbedderDataArray)               \
-  V(EphemeronHashTable)              \
-  V(ExternalPointerArray)            \
-  V(ExternalString)                  \
-  V(FeedbackCell)                    \
-  V(Foreign)                         \
-  V(FreeSpace)                       \
-  V(FunctionTemplateInfo)            \
-  V(Hole)                            \
-  V(JSApiObject)                     \
-  V(JSArrayBuffer)                   \
-  V(JSDataViewOrRabGsabDataView)     \
-  V(JSExternalObject)                \
-  V(JSFinalizationRegistry)          \
-  V(JSFunction)                      \
-  V(JSObject)                        \
-  V(JSObjectFast)                    \
-  V(JSSynchronizationPrimitive)      \
-  V(JSTypedArray)                    \
-  V(JSWeakCollection)                \
-  V(JSWeakRef)                       \
-  V(Map)                             \
-  V(NativeContext)                   \
-  V(Oddball)                         \
-  V(PreparseData)                    \
-  V(PropertyArray)                   \
-  V(PropertyCell)                    \
-  V(PrototypeInfo)                   \
-  V(SharedFunctionInfo)              \
-  V(ShortcutCandidate)               \
-  V(SlicedString)                    \
-  V(SloppyArgumentsElements)         \
-  V(SmallOrderedHashMap)             \
-  V(SmallOrderedHashSet)             \
-  V(SmallOrderedNameDictionary)      \
-  V(SourceTextModule)                \
-  V(Struct)                          \
-  V(SwissNameDictionary)             \
-  V(Symbol)                          \
-  V(SyntheticModule)                 \
-  V(ThinString)                      \
-  V(TransitionArray)                 \
-  IF_WASM(V, WasmArray)              \
-  IF_WASM(V, WasmContinuationObject) \
-  IF_WASM(V, WasmFuncRef)            \
-  IF_WASM(V, WasmInstanceObject)     \
-  IF_WASM(V, WasmResumeData)         \
-  IF_WASM(V, WasmStruct)             \
-  IF_WASM(V, WasmSuspenderObject)    \
-  IF_WASM(V, WasmSuspendingObject)   \
-  IF_WASM(V, WasmTableObject)        \
-  IF_WASM(V, WasmTypeInfo)           \
-  V(WeakCell)                        \
+#define POINTER_VISITOR_ID_LIST(V)     \
+  V(AccessorInfo)                      \
+  V(AllocationSite)                    \
+  V(BytecodeWrapper)                   \
+  V(CallSiteInfo)                      \
+  V(Cell)                              \
+  V(CodeWrapper)                       \
+  V(ConsString)                        \
+  V(ConstTrackingLetCell)              \
+  V(DataHandler)                       \
+  V(DebugInfo)                         \
+  V(EmbedderDataArray)                 \
+  V(EphemeronHashTable)                \
+  V(ExternalPointerArray)              \
+  V(ExternalString)                    \
+  V(FeedbackCell)                      \
+  V(Foreign)                           \
+  V(FreeSpace)                         \
+  V(FunctionTemplateInfo)              \
+  V(Hole)                              \
+  V(JSApiObject)                       \
+  V(JSArrayBuffer)                     \
+  V(JSDataViewOrRabGsabDataView)       \
+  V(JSExternalObject)                  \
+  V(JSFinalizationRegistry)            \
+  V(JSFunction)                        \
+  V(JSObject)                          \
+  V(JSObjectFast)                      \
+  V(JSSynchronizationPrimitive)        \
+  V(JSTypedArray)                      \
+  V(JSWeakCollection)                  \
+  V(JSWeakRef)                         \
+  V(Map)                               \
+  V(NativeContext)                     \
+  V(Oddball)                           \
+  V(PreparseData)                      \
+  V(PropertyArray)                     \
+  V(PropertyCell)                      \
+  V(PrototypeInfo)                     \
+  V(SharedFunctionInfo)                \
+  V(ShortcutCandidate)                 \
+  V(SlicedString)                      \
+  V(SloppyArgumentsElements)           \
+  V(SmallOrderedHashMap)               \
+  V(SmallOrderedHashSet)               \
+  V(SmallOrderedNameDictionary)        \
+  V(SourceTextModule)                  \
+  V(Struct)                            \
+  V(SwissNameDictionary)               \
+  V(Symbol)                            \
+  V(SyntheticModule)                   \
+  V(ThinString)                        \
+  V(TransitionArray)                   \
+  IF_WASM(V, WasmArray)                \
+  IF_WASM(V, WasmContinuationObject)   \
+  IF_WASM(V, WasmFuncRef)              \
+  IF_WASM(V, WasmInstanceObject)       \
+  IF_WASM(V, WasmResumeData)           \
+  IF_WASM(V, WasmStruct)               \
+  IF_WASM(V, WasmSuspenderObject)      \
+  IF_WASM(V, WasmSuspendingObject)     \
+  IF_WASM(V, WasmTypeInfo)             \
+  V(WeakCell)                          \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \

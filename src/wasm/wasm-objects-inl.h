@@ -474,10 +474,6 @@ EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
 
-TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_data,
-                          WasmTrustedInstanceData, kTrustedDataOffset,
-                          kWasmTrustedInstanceDataIndirectPointerTag)
-
 wasm::ValueType WasmTableObject::type() {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
   // value as index into a global array. As such, if the index is corrupted
