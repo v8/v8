@@ -2234,7 +2234,14 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
   os << "\n - instruction_size: " << instruction_size();
   os << "\n - metadata_size: " << metadata_size();
 
-  os << "\n - inlined_bytecode_size: " << inlined_bytecode_size();
+  if (kind() != CodeKind::WASM_TO_JS_FUNCTION) {
+    os << "\n - inlined_bytecode_size: " << inlined_bytecode_size();
+  } else {
+    os << "\n - wasm_js_tagged_parameter_count: "
+       << wasm_js_tagged_parameter_count();
+    os << "\n - wasm_js_first_tagged_parameter: "
+       << wasm_js_first_tagged_parameter();
+  }
   os << "\n - osr_offset: " << osr_offset();
   os << "\n - handler_table_offset: " << handler_table_offset();
   os << "\n - unwinding_info_offset: " << unwinding_info_offset();
