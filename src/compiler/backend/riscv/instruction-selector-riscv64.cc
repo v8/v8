@@ -670,25 +670,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
     VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvXor32, true,
                                            kRiscvXor32);
   } else {
-    Int32BinopMatcher m(node);
-    if (m.left().IsWord32Or() && CanCover(node, m.left().node()) &&
-        m.right().Is(-1)) {
-      Int32BinopMatcher mleft(m.left().node());
-      if (!mleft.right().HasResolvedValue()) {
-        RiscvOperandGeneratorT<Adapter> g(this);
-        Emit(kRiscvNor32, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()),
-             g.UseRegister(mleft.right().node()));
-        return;
-      }
-    }
-    if (m.right().Is(-1)) {
-      // Use Nor for bit negation and eliminate constant loading for xori.
-      RiscvOperandGeneratorT<Adapter> g(this);
-      Emit(kRiscvNor32, g.DefineAsRegister(node),
-           g.UseRegister(m.left().node()), g.TempImmediate(0));
-      return;
-    }
     VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvXor32, true,
                                            kRiscvXor32);
   }
@@ -701,25 +682,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
     VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvXor, true,
                                            kRiscvXor);
   } else {
-    Int64BinopMatcher m(node);
-    if (m.left().IsWord64Or() && CanCover(node, m.left().node()) &&
-        m.right().Is(-1)) {
-      Int64BinopMatcher mleft(m.left().node());
-      if (!mleft.right().HasResolvedValue()) {
-        RiscvOperandGeneratorT<Adapter> g(this);
-        Emit(kRiscvNor, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()),
-             g.UseRegister(mleft.right().node()));
-        return;
-      }
-    }
-    if (m.right().Is(-1)) {
-      // Use Nor for bit negation and eliminate constant loading for xori.
-      RiscvOperandGeneratorT<Adapter> g(this);
-      Emit(kRiscvNor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(0));
-      return;
-    }
     VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvXor, true,
                                            kRiscvXor);
   }

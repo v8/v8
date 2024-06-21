@@ -161,8 +161,6 @@ namespace compiler {
   V(RiscvAnd32)                           \
   V(RiscvOr)                              \
   V(RiscvOr32)                            \
-  V(RiscvNor)                             \
-  V(RiscvNor32)                           \
   V(RiscvXor)                             \
   V(RiscvXor32)                           \
   V(RiscvClz32)                           \

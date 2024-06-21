@@ -229,8 +229,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulS:
     case kRiscvNegD:
     case kRiscvNegS:
-    case kRiscvNor:
-    case kRiscvNor32:
     case kRiscvOr:
     case kRiscvOr32:
     case kRiscvPopcnt32:
@@ -1239,17 +1237,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvOr32: {
       bool is_operand_register = instr->InputAt(1)->IsRegister();
       int latency = OrLatency(is_operand_register);
-      if (is_operand_register) {
-        return latency + 2;
-      } else {
-        return latency + 1;
-      }
-    }
-    case kRiscvNor:
-      return NorLatency(instr->InputAt(1)->IsRegister());
-    case kRiscvNor32: {
-      bool is_operand_register = instr->InputAt(1)->IsRegister();
-      int latency = NorLatency(is_operand_register);
       if (is_operand_register) {
         return latency + 2;
       } else {
