@@ -18,6 +18,19 @@ WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
   return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
 }
 
+TNode<Object> WasmBuiltinsAssembler::LoadFeedbackVectorOrSmiFromParentFrame() {
+  return LoadFromParentFrame(-WasmLiftoffFrameConstants::kFeedbackVectorOffset);
+}
+
+void WasmBuiltinsAssembler::StoreFeedbackVectorOnParentFrame(
+    TNode<FixedArray> vector) {
+  TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
+  StoreFullTaggedNoWriteBarrier(
+      frame_pointer,
+      IntPtrConstant(-WasmLiftoffFrameConstants::kFeedbackVectorOffset),
+      vector);
+}
+
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     TNode<WasmInstanceObject> instance_object) {

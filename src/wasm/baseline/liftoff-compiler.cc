@@ -8164,7 +8164,7 @@ class LiftoffCompiler {
     if (v8_flags.wasm_deopt &&
         env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
         env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
-      StoreFrameDescriptionForDeopt(decoder);
+      EmitDeoptPoint(decoder);
     }
 
     LiftoffRegList pinned;
@@ -8507,6 +8507,22 @@ class LiftoffCompiler {
             __ cache_state()->cached_instance_data});
   }
 
+  void EmitDeoptPoint(FullDecoder* decoder) {
+    LiftoffAssembler::CacheState initial_state(zone_);
+    initial_state.Split(*__ cache_state());
+    // TODO(mliedtke): The deopt point should be in out-of-line-code.
+    Label deopt_point;
+    Label callref;
+    __ emit_jump(&callref);
+    __ bind(&deopt_point);
+    StoreFrameDescriptionForDeopt(decoder);
+    CallBuiltin(Builtin::kWasmLiftoffDeoptFinish, MakeSig(), {},
+                kNoSourcePosition);
+    __ MergeStackWith(initial_state, 0, LiftoffAssembler::kForwardJump);
+    __ cache_state() -> Steal(initial_state);
+    __ bind(&callref);
+  }
+
   void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
                    const FunctionSig* type_sig, TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, type_sig);
@@ -8524,7 +8540,7 @@ class LiftoffCompiler {
       if (v8_flags.wasm_deopt &&
           env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
           env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
-        StoreFrameDescriptionForDeopt(decoder);
+        EmitDeoptPoint(decoder);
       }
       LiftoffRegList pinned;
       LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));

@@ -142,6 +142,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateZeroedFixedArray)                                              \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(DeoptimizationEntry_Eager)                                                 \
+  V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)
 
 namespace detail {
