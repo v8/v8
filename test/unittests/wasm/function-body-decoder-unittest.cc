@@ -5375,7 +5375,6 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
 }
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
-  WASM_FEATURE_SCOPE(multi_memory);
   MemoryType mem_type = GetParam();
   MemoryType other_mem_type = mem_type == kMemory32 ? kMemory64 : kMemory32;
   uint8_t memory0 = builder.AddMemory(mem_type);
@@ -5415,56 +5414,25 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
  * Multi-memory tests.
  ******************************************************************************/
 
-enum MultiMemoryEnabled : bool { kMultiMemory = true, kNoMultiMemory = false };
-
-class FunctionBodyDecoderTestWithMultiMemory
-    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
-          ::testing::TestWithParam<MultiMemoryEnabled>>> {
- public:
-  FunctionBodyDecoderTestWithMultiMemory() {
-    if (is_multi_memory_enabled()) {
-      enabled_features_.Add(WasmEnabledFeature::multi_memory);
-    }
-  }
-
-  bool is_multi_memory_enabled() const { return GetParam(); }
-};
-
-std::string PrintMultiMemoryEnabled(
-    ::testing::TestParamInfo<MultiMemoryEnabled> info) {
-  return info.param ? "kMultiMemory" : "kNoMultiMemory";
-}
-
-INSTANTIATE_TEST_SUITE_P(MultiMemory, FunctionBodyDecoderTestWithMultiMemory,
-                         ::testing::Values(kMultiMemory, kNoMultiMemory),
-                         PrintMultiMemoryEnabled);
-
-TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
+TEST_F(FunctionBodyDecoderTest, ExtendedMemoryAccessImmediate) {
   builder.AddMemory();
   // The memory index can be encoded in a separate field, after a 0x40
   // alignment. For now, only memory index 0 is allowed.
-  Validate(is_multi_memory_enabled(), sigs.i_v(),
-           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
-            0 /* memory index */, 0 /* offset */});
+  ExpectValidates(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+                               0 /* memory index */, 0 /* offset */});
   // The memory index is LEB-encoded, so index 0 can also be store in 5 bytes.
-  Validate(is_multi_memory_enabled(), sigs.i_v(),
-           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
-            U32V_5(0) /* memory index */, 0 /* offset */});
+  ExpectValidates(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+                               U32V_5(0) /* memory index */, 0 /* offset */});
   // Memory index 1 is invalid.
-  Validate(false, sigs.i_v(),
-           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
-            1 /* memory index */, 0 /* offset */});
-  if (is_multi_memory_enabled()) {
-    // Add another memory; memory index 1 should be valid then.
-    builder.AddMemory();
-    Validate(is_multi_memory_enabled(), sigs.i_v(),
-             {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
-              1 /* memory index */, 0 /* offset */});
-  }
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+                             1 /* memory index */, 0 /* offset */});
+  // Add another memory; memory index 1 should be valid then.
+  builder.AddMemory();
+  ExpectValidates(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+                               1 /* memory index */, 0 /* offset */});
   // Memory index 2 is still invalid.
-  Validate(false, sigs.i_v(),
-           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
-            2 /* memory index */, 0 /* offset */});
+  ExpectFailure(sigs.i_v(), {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+                             2 /* memory index */, 0 /* offset */});
 }
 
 /*******************************************************************************

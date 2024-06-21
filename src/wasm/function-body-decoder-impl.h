@@ -834,7 +834,6 @@ struct MemoryAccessImmediate {
   template <typename ValidationTag>
   V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
                                   uint32_t max_alignment, bool memory64_enabled,
-                                  bool multi_memory_enabled,
                                   ValidationTag = {}) {
     // Check for the fast path (two single-byte LEBs, mem index 0).
     const bool two_bytes = !ValidationTag::validate || decoder->end() - pc >= 2;
@@ -845,8 +844,8 @@ struct MemoryAccessImmediate {
       offset = pc[1];
       length = 2;
     } else {
-      ConstructSlow<ValidationTag>(decoder, pc, max_alignment, memory64_enabled,
-                                   multi_memory_enabled);
+      ConstructSlow<ValidationTag>(decoder, pc, max_alignment,
+                                   memory64_enabled);
     }
     if (!VALIDATE(alignment <= max_alignment)) {
       DecodeError<ValidationTag>(
@@ -862,13 +861,12 @@ struct MemoryAccessImmediate {
   V8_NOINLINE V8_PRESERVE_MOST void ConstructSlow(Decoder* decoder,
                                                   const uint8_t* pc,
                                                   uint32_t max_alignment,
-                                                  bool memory64_enabled,
-                                                  bool multi_memory_enabled) {
+                                                  bool memory64_enabled) {
     uint32_t alignment_length;
     std::tie(alignment, alignment_length) =
         decoder->read_u32v<ValidationTag>(pc, "alignment");
     length = alignment_length;
-    if (multi_memory_enabled && (alignment & 0x40)) {
+    if (alignment & 0x40) {
       alignment &= ~0x40;
       uint32_t mem_index_length;
       std::tie(mem_index, mem_index_length) =
@@ -1881,14 +1879,8 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const uint8_t* pc, MemoryIndexImmediate& imm) {
     size_t num_memories = module_->memories.size();
-    if (!VALIDATE(this->enabled_.has_multi_memory() ||
-                  (imm.index == 0 && imm.length == 1))) {
-      DecodeError(pc,
-                  "expected a single 0 byte for the memory index, found %u "
-                  "encoded in %u bytes; pass --experimental-wasm-multi-memory "
-                  "to enable multi-memory support",
-                  imm.index, imm.length);
-      return false;
+    if (imm.index > 0 || imm.length > 1) {
+      this->detected_->add_multi_memory();
     }
 
     if (!VALIDATE(imm.index < num_memories)) {
@@ -2092,7 +2084,6 @@ class WasmDecoder : public Decoder {
     // immediates. This is backwards-compatible; decode errors will be detected
     // at another time when actually decoding that opcode.
     constexpr bool kConservativelyAssumeMemory64 = true;
-    constexpr bool kConservativelyAssumeMultiMemory = true;
     switch (opcode) {
       /********** Control opcodes **********/
       case kExprUnreachable:
@@ -2243,7 +2234,7 @@ class WasmDecoder : public Decoder {
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE) {
         MemoryAccessImmediate imm(decoder, pc + 1, UINT32_MAX,
                                   kConservativelyAssumeMemory64,
-                                  kConservativelyAssumeMultiMemory, validate);
+                                  validate);
         (ios.MemoryAccess(imm), ...);
         return 1 + imm.length;
       }
@@ -2338,7 +2329,6 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
                                       kConservativelyAssumeMemory64,
-                                      kConservativelyAssumeMultiMemory,
                                       validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
@@ -2347,7 +2337,7 @@ class WasmDecoder : public Decoder {
             MemoryAccessImmediate imm(
                 decoder, pc + length, UINT32_MAX,
                 kConservativelyAssumeMemory64,
-                kConservativelyAssumeMultiMemory, validate);
+                validate);
         if (sizeof...(ios) > 0) {
               SimdLaneImmediate lane_imm(decoder,
                                          pc + length + imm.length, validate);
@@ -2379,9 +2369,8 @@ class WasmDecoder : public Decoder {
             decoder->read_prefixed_opcode<ValidationTag>(pc, "atomic_index");
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
-            MemoryAccessImmediate imm(
-                decoder, pc + length, UINT32_MAX, kConservativelyAssumeMemory64,
-                kConservativelyAssumeMultiMemory, validate);
+            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
+                                      kConservativelyAssumeMemory64, validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -2983,8 +2972,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   V8_INLINE MemoryAccessImmediate
   MakeMemoryAccessImmediate(uint32_t pc_offset, uint32_t max_alignment) {
     return MemoryAccessImmediate(this, this->pc_ + pc_offset, max_alignment,
-                                 this->enabled_.has_memory64(),
-                                 this->enabled_.has_multi_memory(), validate);
+                                 this->enabled_.has_memory64(), validate);
   }
 
 #ifdef DEBUG

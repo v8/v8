@@ -768,15 +768,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalMemory: {
           // ===== Imported memory =============================================
           static_assert(kV8MaxWasmMemories <= kMaxUInt32);
-          if (!enabled_features_.has_multi_memory()) {
-            if (!module_->memories.empty()) {
-              error(
-                  "At most one imported memory is supported (pass "
-                  "--experimental-wasm-multi-memory to allow more "
-                  "memories)");
-              break;
-            }
-          } else if (module_->memories.size() >= kV8MaxWasmMemories - 1) {
+          if (module_->memories.size() >= kV8MaxWasmMemories - 1) {
             errorf("At most %u imported memories are supported",
                    kV8MaxWasmMemories);
             break;
@@ -935,22 +927,12 @@ class ModuleDecoderImpl : public Decoder {
     // messages.
     uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
     size_t imported_memories = module_->memories.size();
-    if (enabled_features_.has_multi_memory()) {
-      DCHECK_GE(kV8MaxWasmMemories, imported_memories);
-      if (memory_count > kV8MaxWasmMemories - imported_memories) {
-        errorf(mem_count_pc,
-               "Exceeding maximum number of memories (%u; declared %u, "
-               "imported %zu)",
-               kV8MaxWasmMemories, memory_count, imported_memories);
-      }
-    } else {
-      DCHECK_GE(1, imported_memories);
-      if (imported_memories + memory_count > 1) {
-        errorf(mem_count_pc,
-               "At most one memory is supported (declared %u, imported %zu); "
-               "pass --experimental-wasm-multi-memory to allow more memories",
-               memory_count, imported_memories);
-      }
+    DCHECK_GE(kV8MaxWasmMemories, imported_memories);
+    if (memory_count > kV8MaxWasmMemories - imported_memories) {
+      errorf(mem_count_pc,
+             "Exceeding maximum number of memories (%u; declared %u, "
+             "imported %zu)",
+             kV8MaxWasmMemories, memory_count, imported_memories);
     }
     module_->memories.resize(imported_memories + memory_count);
 

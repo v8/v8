@@ -2783,7 +2783,6 @@ class WasmGraphBuildingInterface {
          it.has_next(); it.next()) {
       WasmOpcode opcode = it.current();
       constexpr bool kConservativelyAssumeMemory64 = true;
-      constexpr bool kConservativelyAssumeMultiMemory = true;
       switch (opcode) {
         default:
           break;
@@ -2791,9 +2790,9 @@ class WasmGraphBuildingInterface {
           FOREACH_LOAD_MEM_OPCODE(CASE)
           FOREACH_STORE_MEM_OPCODE(CASE)
 #undef CASE
-          MemoryAccessImmediate imm(
-              &it, it.pc() + 1, UINT32_MAX, kConservativelyAssumeMemory64,
-              kConservativelyAssumeMultiMemory, Decoder::kNoValidation);
+          MemoryAccessImmediate imm(&it, it.pc() + 1, UINT32_MAX,
+                                    kConservativelyAssumeMemory64,
+                                    Decoder::kNoValidation);
           return imm.mem_index;
       }
     }

@@ -25,7 +25,8 @@
   V(relaxed_simd)                        \
   V(gc)                                  \
   V(typed_funcref)                       \
-  V(js_inlining)
+  V(js_inlining)                         \
+  V(multi_memory)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
