@@ -702,14 +702,14 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
 
 ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::TrimPredecessorsAndBind(
     Label* label) {
-  DCHECK_LE(label->merge_state_->predecessors_so_far(),
-            label->predecessor_count_);
+  int predecessors_so_far = label->merge_state_ == nullptr
+                                ? 0
+                                : label->merge_state_->predecessors_so_far();
+  DCHECK_LE(predecessors_so_far, label->predecessor_count_);
   builder_->current_block_ = nullptr;
-  ReducePredecessorCount(label, label->predecessor_count_ -
-                                    label->merge_state_->predecessors_so_far());
-  if (label->merge_state_->predecessors_so_far() == 0) {
-    return ReduceResult::DoneWithAbort();
-  }
+  ReducePredecessorCount(label,
+                         label->predecessor_count_ - predecessors_so_far);
+  if (predecessors_so_far == 0) return ReduceResult::DoneWithAbort();
   Bind(label);
   return ReduceResult::Done();
 }
@@ -4630,8 +4630,15 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
           return ReduceResult::Fail();
         }
         if (map.IsHeapNumberMap()) {
-          DCHECK_EQ(number_map_index, -1);
-          number_map_index = i;
+          GetOrCreateInfoFor(lookup_start_object);
+          base::SmallVector<compiler::MapRef, 1> known_maps = {map};
+          KnownMapsMerger merger(broker(), base::VectorOf(known_maps));
+          merger.IntersectWithKnownNodeAspects(lookup_start_object,
+                                               known_node_aspects());
+          if (!merger.intersect_set().is_empty()) {
+            DCHECK_EQ(number_map_index, -1);
+            number_map_index = i;
+          }
         }
       }
     }
