@@ -1731,51 +1731,42 @@ class MaglevGraphBuilder {
                                      ExternalArrayType type,
                                      Function&& getValue);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
-  V(GetContinuationPreservedEmbedderData)            \
-  V(SetContinuationPreservedEmbedderData)
-#else
-#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
-#define MAGLEV_REDUCED_BUILTIN(V)              \
-  V(ArrayForEach)                              \
-  V(ArrayIsArray)                              \
-  V(ArrayIteratorPrototypeNext)                \
-  V(ArrayPrototypeEntries)                     \
-  V(ArrayPrototypeKeys)                        \
-  V(ArrayPrototypeValues)                      \
-  V(DataViewPrototypeGetInt8)                  \
-  V(DataViewPrototypeSetInt8)                  \
-  V(DataViewPrototypeGetInt16)                 \
-  V(DataViewPrototypeSetInt16)                 \
-  V(DataViewPrototypeGetInt32)                 \
-  V(DataViewPrototypeSetInt32)                 \
-  V(DataViewPrototypeGetFloat64)               \
-  V(DataViewPrototypeSetFloat64)               \
-  V(FunctionPrototypeApply)                    \
-  V(FunctionPrototypeCall)                     \
-  V(FunctionPrototypeHasInstance)              \
-  V(ObjectPrototypeGetProto)                   \
-  V(ObjectGetPrototypeOf)                      \
-  V(ReflectGetPrototypeOf)                     \
-  V(ObjectPrototypeHasOwnProperty)             \
-  V(NumberParseInt)                            \
-  V(MathCeil)                                  \
-  V(MathFloor)                                 \
-  V(MathPow)                                   \
-  V(ArrayPrototypePush)                        \
-  V(ArrayPrototypePop)                         \
-  V(MathAbs)                                   \
-  V(MathRound)                                 \
-  V(StringConstructor)                         \
-  V(StringFromCharCode)                        \
-  V(StringPrototypeCharCodeAt)                 \
-  V(StringPrototypeCodePointAt)                \
-  V(StringPrototypeIterator)                   \
-  V(StringPrototypeLocaleCompare)              \
-  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
+#define MAGLEV_REDUCED_BUILTIN(V)  \
+  V(ArrayForEach)                  \
+  V(ArrayIsArray)                  \
+  V(ArrayIteratorPrototypeNext)    \
+  V(ArrayPrototypeEntries)         \
+  V(ArrayPrototypeKeys)            \
+  V(ArrayPrototypeValues)          \
+  V(DataViewPrototypeGetInt8)      \
+  V(DataViewPrototypeSetInt8)      \
+  V(DataViewPrototypeGetInt16)     \
+  V(DataViewPrototypeSetInt16)     \
+  V(DataViewPrototypeGetInt32)     \
+  V(DataViewPrototypeSetInt32)     \
+  V(DataViewPrototypeGetFloat64)   \
+  V(DataViewPrototypeSetFloat64)   \
+  V(FunctionPrototypeApply)        \
+  V(FunctionPrototypeCall)         \
+  V(FunctionPrototypeHasInstance)  \
+  V(ObjectPrototypeGetProto)       \
+  V(ObjectGetPrototypeOf)          \
+  V(ReflectGetPrototypeOf)         \
+  V(ObjectPrototypeHasOwnProperty) \
+  V(NumberParseInt)                \
+  V(MathCeil)                      \
+  V(MathFloor)                     \
+  V(MathPow)                       \
+  V(ArrayPrototypePush)            \
+  V(ArrayPrototypePop)             \
+  V(MathAbs)                       \
+  V(MathRound)                     \
+  V(StringConstructor)             \
+  V(StringFromCharCode)            \
+  V(StringPrototypeCharCodeAt)     \
+  V(StringPrototypeCodePointAt)    \
+  V(StringPrototypeIterator)       \
+  V(StringPrototypeLocaleCompare)  \
   IEEE_754_UNARY_LIST(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                      \
