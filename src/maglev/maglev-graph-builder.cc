@@ -8212,8 +8212,11 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
       return AddNewCallNode<CallWithSpread>(args, target, GetContext());
     case CallArguments::kWithArrayLike:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
+      // We don't use AddNewCallNode here, because the number of required
+      // arguments is known statically.
       return AddNewNode<CallWithArrayLike>(
-          {target, args.receiver(), args[0], GetContext()});
+          {target, GetTaggedOrUndefined(args.receiver()),
+           GetTaggedValue(args[0]), GetContext()});
   }
 }
 
@@ -8646,17 +8649,15 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
     return ReduceCall(function, empty_args, feedback_source);
   }
-  ValueNode* new_receiver = GetTaggedValue(args[0]);
   auto build_call_only_with_new_receiver = [&] {
-    CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver});
+    CallArguments new_args(ConvertReceiverMode::kAny, {args[0]});
     return ReduceCall(function, new_args, feedback_source);
   };
   if (args.count() == 1 || IsNullValue(args[1]) || IsUndefinedValue(args[1])) {
     return build_call_only_with_new_receiver();
   }
-  ValueNode* arg_list = GetTaggedValue(args[1]);
   auto build_call_with_array_like = [&] {
-    CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver, arg_list},
+    CallArguments new_args(ConvertReceiverMode::kAny, {args[0], args[1]},
                            CallArguments::kWithArrayLike);
     return ReduceCallWithArrayLike(function, new_args, feedback_source);
   };
@@ -8665,7 +8666,7 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   }
   return SelectReduction(
       [&](auto& builder) {
-        return BuildBranchIfUndefinedOrNull(builder, arg_list);
+        return BuildBranchIfUndefinedOrNull(builder, args[1]);
       },
       build_call_only_with_new_receiver, build_call_with_array_like);
 }
