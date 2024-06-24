@@ -210,18 +210,15 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
+  // Disable the optimizing compiler. The init expressions can be huge and might
+  // produce long compilation times. The function is only used as a reference
+  // and only run once, so use liftoff only as it allows much faster fuzzing.
+  v8_flags.liftoff_only = true;
+
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
   EnableExperimentalWasmFeatures(isolate);
-  //  We switch it to synchronous mode to avoid the nondeterminism of background
-  //  jobs finishing at random times.
-  FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
-
-  // Disable the optimizing compiler. The init expressions can be huge and might
-  // produce long compilation times. The function is only used as a reference
-  // and only run once, so use liftoff only as it allows much faster fuzzing.
-  FlagScope<bool> liftoff_only(&v8_flags.liftoff_only, true);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
