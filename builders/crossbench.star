@@ -84,8 +84,6 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench Pytype Try",
-            includable_only = True,
-            cancel_stale = False,
         ),
     ],
 )
