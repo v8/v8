@@ -8382,8 +8382,11 @@ class LiftoffCompiler {
             ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                    rtt_depth * kTaggedSize));
         ScopedTempRegister formal_rtt{temps, kGpReg};
+        // Instead of {pinned}, we use {kGpCacheRegList} as the list of pinned
+        // registers, to prevent any attempt to cache the instance, which would
+        // be incompatible with the {FREEZE_STATE} that is in effect here.
         LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt.gp_reg(), ManagedObjectMaps,
-                                       pinned);
+                                       kGpCacheRegList);
         __ LoadTaggedPointer(
             formal_rtt.gp_reg(), formal_rtt.gp_reg(), no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
