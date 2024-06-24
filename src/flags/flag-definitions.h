@@ -2396,7 +2396,7 @@ DEFINE_INT(max_valid_polymorphic_map_count, 4,
 DEFINE_BOOL(
     clone_object_sidestep_transitions, false,
     "support sidestep transitions for dependency tracking object clone maps")
-DEFINE_WEAK_IMPLICATION(future, move_prototype_transitions_first)
+DEFINE_WEAK_IMPLICATION(future, clone_object_sidestep_transitions)
 
 // map-inl.h
 DEFINE_INT(fast_properties_soft_limit, 12,
