@@ -963,6 +963,9 @@
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
 
+  # RISCV don't preserve signalling NaNs.
+  'regress/wasm/regress-347914831': [SKIP],
+
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
   # should be platform-independent.
