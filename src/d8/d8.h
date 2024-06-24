@@ -313,10 +313,6 @@ class PerIsolateData {
     int previous_index_;
   };
 
-  inline void SetTimeout(Local<Function> callback, Local<Context> context);
-  inline MaybeLocal<Function> GetTimeoutCallback();
-  inline MaybeLocal<Context> GetTimeoutContext();
-
   AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
 
   void RemoveUnhandledPromise(Local<Promise> promise);
@@ -344,8 +340,6 @@ class PerIsolateData {
   int realm_switch_;
   Global<Context>* realms_;
   Global<Value> realm_shared_;
-  std::queue<Global<Function>> set_timeout_callbacks_;
-  std::queue<Global<Context>> set_timeout_contexts_;
   bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
