@@ -2161,7 +2161,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
+  std::vector<wasm::StackMemory*>& wasm_stacks() { return wasm_stacks_; }
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
   void UpdateCentralStackInfo();
@@ -2707,7 +2707,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  wasm::StackMemory* wasm_stacks_ = nullptr;
+  std::vector<wasm::StackMemory*> wasm_stacks_;
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
 #endif
 

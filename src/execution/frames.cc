@@ -76,7 +76,7 @@ class StackHandlerIterator {
     // Make sure the handler has already been unwound to this frame. With stack
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
-    DCHECK_IMPLIES(frame->isolate()->wasm_stacks() == nullptr,
+    DCHECK_IMPLIES(frame->isolate()->wasm_stacks().empty(),
                    frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
@@ -141,7 +141,7 @@ void StackFrameIterator::Advance() {
   // chain must have been completely unwound. Except for wasm stack-switching:
   // we stop at the end of the current segment.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK_IMPLIES(done() && isolate()->wasm_stacks() == nullptr,
+  DCHECK_IMPLIES(done() && isolate()->wasm_stacks().empty(),
                  handler_ == nullptr);
 #else
   DCHECK_IMPLIES(done(), handler_ == nullptr);
@@ -809,7 +809,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
-    DCHECK(isolate_->wasm_stacks() != nullptr);  // I.e., JSPI active
+    DCHECK(!isolate_->wasm_stacks().empty());  // I.e., JSPI active
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif
@@ -900,7 +900,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
-    DCHECK(isolate_->wasm_stacks() != nullptr);  // I.e., JSPI active
+    DCHECK(!isolate_->wasm_stacks().empty());  // I.e., JSPI active
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif

@@ -1334,7 +1334,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       WasmContinuationObject::New(isolate, wasm::JumpBuffer::Inactive, parent);
   auto target_stack =
       Cast<Managed<wasm::StackMemory>>(target->stack())->get().get();
-  isolate->wasm_stacks()->Add(target_stack);
+  isolate->wasm_stacks().push_back(target_stack);
+  target_stack->set_index(isolate->wasm_stacks().size() - 1);
+  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
+    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
+  }
   isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
 
   // Update the suspender state.

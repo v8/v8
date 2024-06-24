@@ -51,15 +51,11 @@ class StackMemory {
     return reinterpret_cast<Address>(jslimit()) <= addr && addr < base();
   }
   int id() { return id_; }
-
-  // Insert a stack in the linked list after this stack.
-  void Add(StackMemory* stack);
-
-  StackMemory* next() { return next_; }
-
   // Track external memory usage for Managed<StackMemory> objects.
   size_t owned_size() { return sizeof(StackMemory) + (owned_ ? size_ : 0); }
   bool IsActive() { return jmpbuf_.state == JumpBuffer::Active; }
+  void set_index(size_t index) { index_ = index; }
+  size_t index() { return index_; }
 
 #ifdef DEBUG
   static constexpr int kJSLimitOffsetKB = 80;
@@ -79,10 +75,12 @@ class StackMemory {
   size_t size_;
   bool owned_;
   JumpBuffer jmpbuf_;
+  // Stable ID.
   int id_;
-  // Stacks form a circular doubly linked list per isolate.
-  StackMemory* next_ = this;
-  StackMemory* prev_ = this;
+  // Index of this stack in the global Isolate::wasm_stacks() vector. This
+  // allows us to find and remove the stack from the vector in constant time
+  // when the destructor is called.
+  size_t index_;
 };
 
 }  // namespace v8::internal::wasm

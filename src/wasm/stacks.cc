@@ -23,19 +23,15 @@ StackMemory::~StackMemory() {
   if (owned_ && !allocator->DecommitPages(limit_, size_)) {
     V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
   }
-  // We don't need to handle removing the last stack from the list (next_ ==
-  // this). This only happens on isolate tear down, otherwise there is always
-  // at least one reachable stack (the active stack).
-  isolate_->wasm_stacks() = next_;
-  prev_->next_ = next_;
-  next_->prev_ = prev_;
-}
-
-void StackMemory::Add(StackMemory* stack) {
-  stack->next_ = this->next_;
-  stack->prev_ = this;
-  this->next_->prev_ = stack;
-  this->next_ = stack;
+  DCHECK_LT(index_, isolate_->wasm_stacks().size());
+  if (index_ != isolate_->wasm_stacks().size() - 1) {
+    isolate_->wasm_stacks()[index_] = isolate_->wasm_stacks().back();
+    isolate_->wasm_stacks()[index_]->set_index(index_);
+  }
+  isolate_->wasm_stacks().pop_back();
+  for (size_t i = 0; i < isolate_->wasm_stacks().size(); ++i) {
+    SLOW_DCHECK(isolate_->wasm_stacks()[i]->index() == i);
+  }
 }
 
 StackMemory::StackMemory(Isolate* isolate) : isolate_(isolate), owned_(true) {

@@ -608,20 +608,13 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  wasm::StackMemory* current = wasm_stacks_;
-  if (current != nullptr) {
-    do {
-      if (current->IsActive()) {
-        // The active stack's jump buffer does not match the current state, use
-        // the thread info below instead.
-        current = current->next();
-        continue;
-      }
-      for (StackFrameIterator it(this, current); !it.done(); it.Advance()) {
-        it.frame()->Iterate(v);
-      }
-      current = current->next();
-    } while (current != wasm_stacks_);
+  for (wasm::StackMemory* stack : wasm_stacks_) {
+    if (stack->IsActive()) {
+      continue;
+    }
+    for (StackFrameIterator it(this, stack); !it.done(); it.Advance()) {
+      it.frame()->Iterate(v);
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
@@ -6074,7 +6067,8 @@ void Isolate::WasmInitJSPIFeature() {
   if (IsUndefined(root(RootIndex::kActiveContinuation))) {
     std::unique_ptr<wasm::StackMemory> stack(
         wasm::StackMemory::GetCurrentStackView(this));
-    this->wasm_stacks() = stack.get();
+    this->wasm_stacks().push_back(stack.get());
+    stack->set_index(0);
     if (v8_flags.trace_wasm_stack_switching) {
       PrintF("Set up native stack object (limit: %p, base: %p)\n",
              stack->jslimit(), reinterpret_cast<void*>(stack->base()));
