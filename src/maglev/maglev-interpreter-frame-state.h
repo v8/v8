@@ -5,7 +5,6 @@
 #ifndef V8_MAGLEV_MAGLEV_INTERPRETER_FRAME_STATE_H_
 #define V8_MAGLEV_MAGLEV_INTERPRETER_FRAME_STATE_H_
 
-#include "src/base/logging.h"
 #include "src/base/threaded-list.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
@@ -493,14 +492,18 @@ struct KnownNodeAspects {
 class InterpreterFrameState {
  public:
   InterpreterFrameState(const MaglevCompilationUnit& info,
-                        KnownNodeAspects* known_node_aspects)
-      : frame_(info), known_node_aspects_(known_node_aspects) {
+                        KnownNodeAspects* known_node_aspects,
+                        VirtualObject::List virtual_objects)
+      : frame_(info),
+        known_node_aspects_(known_node_aspects),
+        virtual_objects_(virtual_objects) {
     frame_[interpreter::Register::virtual_accumulator()] = nullptr;
   }
 
   explicit InterpreterFrameState(const MaglevCompilationUnit& info)
-      : InterpreterFrameState(
-            info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
+      : InterpreterFrameState(info,
+                              info.zone()->New<KnownNodeAspects>(info.zone()),
+                              VirtualObject::List()) {}
 
   inline void CopyFrom(const MaglevCompilationUnit& info,
                        MergePointInterpreterFrameState& state);
@@ -547,9 +550,18 @@ class InterpreterFrameState {
 
   void clear_known_node_aspects() { known_node_aspects_ = nullptr; }
 
+  void add_object(VirtualObject* vobject) { virtual_objects_.Add(vobject); }
+  const VirtualObject::List& virtual_objects() const {
+    return virtual_objects_;
+  }
+  void set_virtual_objects(const VirtualObject::List& virtual_objects) {
+    virtual_objects_ = virtual_objects;
+  }
+
  private:
   RegisterFrameArray<ValueNode*> frame_;
   KnownNodeAspects* known_node_aspects_;
+  VirtualObject::List virtual_objects_;
 };
 
 class CompactInterpreterFrameState {
@@ -558,14 +570,22 @@ class CompactInterpreterFrameState {
                                const compiler::BytecodeLivenessState* liveness)
       : live_registers_and_accumulator_(
             info.zone()->AllocateArray<ValueNode*>(SizeFor(info, liveness))),
-        liveness_(liveness) {}
+        liveness_(liveness),
+        virtual_objects_() {}
 
   CompactInterpreterFrameState(const MaglevCompilationUnit& info,
                                const compiler::BytecodeLivenessState* liveness,
                                const InterpreterFrameState& state)
       : CompactInterpreterFrameState(info, liveness) {
+    virtual_objects_ = state.virtual_objects();
     ForEachValue(info, [&](ValueNode*& entry, interpreter::Register reg) {
       entry = state.get(reg);
+      if (entry != nullptr && entry->Is<InlinedAllocation>()) {
+        // Ensure the object is snapshotted and use the current snapshot.
+        VirtualObject* vobj = entry->Cast<InlinedAllocation>()->object();
+        vobj->Snapshot();
+        entry = vobj;
+      }
     });
   }
 
@@ -693,6 +713,13 @@ class CompactInterpreterFrameState {
     return SizeFor(info, liveness_);
   }
 
+  const VirtualObject::List& virtual_objects() const {
+    return virtual_objects_;
+  }
+  void set_virtual_objects(const VirtualObject::List& vos) {
+    virtual_objects_ = vos;
+  }
+
  private:
   static size_t SizeFor(const MaglevCompilationUnit& info,
                         const compiler::BytecodeLivenessState* liveness) {
@@ -705,6 +732,7 @@ class CompactInterpreterFrameState {
   static const int context_register_count_ = 1;
   ValueNode** const live_registers_and_accumulator_;
   const compiler::BytecodeLivenessState* const liveness_;
+  VirtualObject::List virtual_objects_;
 };
 
 class MergePointRegisterState {
@@ -847,6 +875,10 @@ class MergePointInterpreterFrameState {
     // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
     DCHECK_LT(i, predecessor_count_);
     predecessors_[i] = val;
+  }
+
+  void set_virtual_objects(const VirtualObject::List& vos) {
+    frame_state_.set_virtual_objects(vos);
   }
 
   bool is_loop() const {
@@ -1002,11 +1034,17 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
                                      MergePointInterpreterFrameState& state) {
   state.frame_state().ForEachValue(
       info, [&](ValueNode* value, interpreter::Register reg) {
-        frame_[reg] = value;
+        // Patch the allocation back.
+        if (VirtualObject* vobj = value->TryCast<VirtualObject>()) {
+          frame_[reg] = vobj->allocation();
+        } else {
+          frame_[reg] = value;
+        }
       });
   // Move "what we know" across without copying -- we can safely mutate it
   // now, as we won't be entering this merge point again.
   known_node_aspects_ = state.TakeKnownNodeAspects();
+  virtual_objects_ = state.frame_state().virtual_objects();
 }
 
 }  // namespace maglev

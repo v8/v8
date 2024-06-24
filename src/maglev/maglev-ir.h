@@ -4918,6 +4918,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   using Base = FixedInputValueNodeT<0, VirtualObject>;
 
  public:
+  class List;
+
   enum Type {
     kDefault,
     kHeapNumber,
@@ -4991,7 +4993,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return slots_.data[offset / kTaggedSize];
   }
 
-  ValueNode* get_by_index(uint32_t i) {
+  ValueNode* get_by_index(uint32_t i) const {
     DCHECK_EQ(type_, kDefault);
     return slots_.data[i];
   }
@@ -5004,6 +5006,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void set(uint32_t offset, ValueNode* value) {
     DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
+    DCHECK(!IsSnapshot());
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     slots_.data[offset / kTaggedSize] = value;
@@ -5016,6 +5019,18 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       slots_.data[i] = clear_value;
     }
   }
+
+  InlinedAllocation* allocation() const { return allocation_; }
+  void set_allocation(InlinedAllocation* allocation) {
+    allocation_ = allocation;
+  }
+
+  // VOs are snapshotted at branch points and when they are leaked to
+  // DeoptInfos. This is because the snapshots need to preserve the original
+  // values at the time of branching or deoptimization. While a VO is not yet
+  // snapshotted, it can be modified freely.
+  bool IsSnapshot() const { return snapshotted_; }
+  void Snapshot() { snapshotted_ = true; }
 
  private:
   struct DoubleArray {
@@ -5031,11 +5046,64 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   Type type_;  // We need to cache the type. We cannot do map comparison in some
                // parts of the pipeline, because we would need to derefernece a
                // handle.
+  bool snapshotted_ = false;  // Object should not be modified anymore.
   union {
     Float64 number_;
     DoubleArray double_array_;
     ObjectFields slots_;
   };
+  mutable InlinedAllocation* allocation_ = nullptr;
+
+  VirtualObject* next_ = nullptr;
+  friend List;
+};
+
+class VirtualObject::List {
+ public:
+  List() : head_(nullptr) {}
+
+  class Iterator final {
+   public:
+    explicit Iterator(VirtualObject* entry) : entry_(entry) {}
+
+    Iterator& operator++() {
+      entry_ = entry_->next_;
+      return *this;
+    }
+    bool operator==(const Iterator& other) const {
+      return entry_ == other.entry_;
+    }
+    bool operator!=(const Iterator& other) const {
+      return entry_ != other.entry_;
+    }
+    VirtualObject*& operator*() { return entry_; }
+    VirtualObject* operator->() { return entry_; }
+
+   private:
+    VirtualObject* entry_;
+  };
+
+  void Add(VirtualObject* object) {
+    DCHECK_NOT_NULL(object);
+    DCHECK_NULL(object->next_);
+    object->next_ = head_;
+    head_ = object;
+  }
+
+  VirtualObject* FindAllocatedWith(InlinedAllocation* allocation) const {
+    for (VirtualObject* vo : *this) {
+      if (vo->allocation() == allocation) {
+        return vo;
+      }
+    }
+    UNREACHABLE();
+  }
+
+  Iterator begin() const { return Iterator(head_); }
+  Iterator end() const { return Iterator(nullptr); }
+
+ private:
+  VirtualObject* head_;
 };
 
 enum class EscapeAnalysisResult {

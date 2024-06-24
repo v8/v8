@@ -32,7 +32,7 @@
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
-#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/deoptimization-data.h"
@@ -615,8 +615,12 @@ class ExceptionHandlerTrampolineBuilder {
         continue;
       }
 
-      ValueNode* const source = register_frame->GetValueOf(phi->owner(), unit);
+      ValueNode* source = register_frame->GetValueOf(phi->owner(), unit);
       DCHECK_NOT_NULL(source);
+      if (VirtualObject* vobj = source->TryCast<VirtualObject>()) {
+        DCHECK(vobj->allocation()->HasEscaped());
+        source = vobj->allocation();
+      }
       // All registers must have been spilled due to the call.
       // TODO(jgruber): Which call? Because any throw requires at least a call
       // to Runtime::kThrowFoo?
@@ -1209,15 +1213,19 @@ class MaglevFrameTranslationBuilder {
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
         static_cast<uint32_t>(frame.arguments().size()));
 
+    const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+
     // Closure
-    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
+    BuildDeoptFrameSingleValue(frame.closure(), current_input_location,
+                               virtual_objects);
 
     // Arguments
     // TODO(victorgomes): Technically we don't need all arguments, only the
     // extra ones. But doing this at the moment, since it matches the
     // TurboFan behaviour.
     for (ValueNode* value : frame.arguments()) {
-      BuildDeoptFrameSingleValue(value, current_input_location);
+      BuildDeoptFrameSingleValue(value, current_input_location,
+                                 virtual_objects);
     }
   }
 
@@ -1226,11 +1234,15 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->BeginConstructInvokeStubFrame(
         GetDeoptLiteral(GetSharedFunctionInfo(frame)));
 
+    const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+
     // Implicit receiver
-    BuildDeoptFrameSingleValue(frame.receiver(), current_input_location);
+    BuildDeoptFrameSingleValue(frame.receiver(), current_input_location,
+                               virtual_objects);
 
     // Context
-    BuildDeoptFrameSingleValue(frame.context(), current_input_location);
+    BuildDeoptFrameSingleValue(frame.context(), current_input_location,
+                               virtual_objects);
   }
 
   void BuildSingleDeoptFrame(const BuiltinContinuationDeoptFrame& frame,
@@ -1249,6 +1261,8 @@ class MaglevFrameTranslationBuilder {
           bailout_id, literal_id, height);
     }
 
+    const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+
     // Closure
     if (frame.is_javascript()) {
       translation_array_builder_->StoreLiteral(
@@ -1259,7 +1273,8 @@ class MaglevFrameTranslationBuilder {
 
     // Parameters
     for (ValueNode* value : frame.parameters()) {
-      BuildDeoptFrameSingleValue(value, current_input_location);
+      BuildDeoptFrameSingleValue(value, current_input_location,
+                                 virtual_objects);
     }
 
     // Extra fixed JS frame parameters. These at the end since JS builtins
@@ -1279,7 +1294,7 @@ class MaglevFrameTranslationBuilder {
 
     // Context
     ValueNode* value = frame.context();
-    BuildDeoptFrameSingleValue(value, current_input_location);
+    BuildDeoptFrameSingleValue(value, current_input_location, virtual_objects);
   }
 
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
@@ -1370,8 +1385,9 @@ class MaglevFrameTranslationBuilder {
     }
   }
 
-  void BuildNestedValue(ValueNode* value,
-                        const InputLocation*& input_location) {
+  void BuildNestedValue(const ValueNode* value,
+                        const InputLocation*& input_location,
+                        const VirtualObject::List& virtual_objects) {
     if (IsConstantNode(value->opcode())) {
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1393,18 +1409,33 @@ class MaglevFrameTranslationBuilder {
       case Opcode::kRestLength:
         translation_array_builder_->RestLength();
         break;
+      case Opcode::kVirtualObject:
+        UNREACHABLE();
+      case Opcode::kInlinedAllocation: {
+        // If the object hasn't been snapshotted yet, then it's the most
+        // up-to-date version and we can directly use the object pointed to by
+        // the allocation.
+        VirtualObject* vobject = value->Cast<InlinedAllocation>()->object();
+        if (vobject->IsSnapshot()) {
+          vobject = virtual_objects.FindAllocatedWith(vobject->allocation());
+        }
+        BuildDeoptFrameSingleValue(vobject, input_location, virtual_objects);
+        break;
+      }
       default:
-        BuildDeoptFrameSingleValue(value, input_location);
+        BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
         break;
     }
   }
 
-  void BuildVirtualObject(intptr_t id, VirtualObject* object,
-                          const InputLocation*& input_location) {
+  void BuildVirtualObject(const VirtualObject* object,
+                          const InputLocation*& input_location,
+                          const VirtualObject::List& virtual_objects) {
     if (object->type() == VirtualObject::kHeapNumber) {
       return BuildHeapNumber(object->number());
     }
-    int dup_id = GetDuplicatedId(id);
+    int dup_id =
+        GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
       input_location += object->InputLocationSizeNeeded();
@@ -1419,22 +1450,25 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(
         GetDeoptLiteral(*object->map().object()));
     for (uint32_t i = 0; i < object->slot_count(); i++) {
-      BuildNestedValue(object->get_by_index(i), input_location);
+      BuildNestedValue(object->get_by_index(i), input_location,
+                       virtual_objects);
     }
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
-                                  const InputLocation*& input_location) {
+                                  const InputLocation*& input_location,
+                                  const VirtualObject::List& virtual_objects) {
     DCHECK(!value->Is<Identity>());
+    // The InlinedAllocation should have been patched by a VirtualObject.
+    DCHECK(!value->Is<InlinedAllocation>());
     size_t input_locations_to_advance = 1;
-    if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-      if (alloc->HasBeenElided()) {
+    if (const VirtualObject* vobject = value->TryCast<VirtualObject>()) {
+      if (vobject->allocation()->HasBeenElided()) {
         input_location++;
-        BuildVirtualObject(reinterpret_cast<intptr_t>(alloc), alloc->object(),
-                           input_location);
+        BuildVirtualObject(vobject, input_location, virtual_objects);
         return;
       }
-      input_locations_to_advance += alloc->object()->InputLocationSizeNeeded();
+      input_locations_to_advance += vobject->InputLocationSizeNeeded();
     }
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
@@ -1462,8 +1496,11 @@ class MaglevFrameTranslationBuilder {
     // here. We should make this clearer and guard against this invariant
     // failing.
 
+    const VirtualObject::List& virtual_objects =
+        checkpoint_state->virtual_objects();
+
     // Closure
-    BuildDeoptFrameSingleValue(closure, input_location);
+    BuildDeoptFrameSingleValue(closure, input_location, virtual_objects);
 
     // Parameters
     {
@@ -1475,7 +1512,8 @@ class MaglevFrameTranslationBuilder {
                                               result_size)) {
               translation_array_builder_->StoreOptimizedOut();
             } else {
-              BuildDeoptFrameSingleValue(value, input_location);
+              BuildDeoptFrameSingleValue(value, input_location,
+                                         virtual_objects);
             }
             i++;
           });
@@ -1483,7 +1521,7 @@ class MaglevFrameTranslationBuilder {
 
     // Context
     ValueNode* value = checkpoint_state->context(compilation_unit);
-    BuildDeoptFrameSingleValue(value, input_location);
+    BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
 
     // Locals
     {
@@ -1499,7 +1537,7 @@ class MaglevFrameTranslationBuilder {
               i++;
             }
             DCHECK_EQ(i, reg.index());
-            BuildDeoptFrameSingleValue(value, input_location);
+            BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
             i++;
           });
       while (i < compilation_unit.register_count()) {
@@ -1515,7 +1553,7 @@ class MaglevFrameTranslationBuilder {
               interpreter::Register::virtual_accumulator(), result_location,
               result_size)) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
-        BuildDeoptFrameSingleValue(value, input_location);
+        BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
       } else {
         translation_array_builder_->StoreOptimizedOut();
       }

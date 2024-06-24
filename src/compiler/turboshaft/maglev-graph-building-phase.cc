@@ -3678,6 +3678,10 @@ class GraphBuilder {
 
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::ValueNode* node) {
+    if (const maglev::VirtualObject* vobj =
+            node->TryCast<maglev::VirtualObject>()) {
+      node = vobj->allocation();
+    }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
 

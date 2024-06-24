@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-interpreter-frame-state.h"
 
+#include "src/base/logging.h"
 #include "src/handles/handles-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -12,6 +13,7 @@
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/objects/function-kind.h"
 
 namespace v8 {
@@ -91,6 +93,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
   merge_state->predecessors_[0] = predecessor;
   merge_state->known_node_aspects_ =
       state.known_node_aspects()->Clone(info.zone());
+  merge_state->set_virtual_objects(state.virtual_objects());
   return merge_state;
 }
 
@@ -195,6 +198,22 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
                     frame_state_.size(info))) {}
 
 namespace {
+void PrintVirtualObjects(const MaglevCompilationUnit& compilation_unit,
+                         const VirtualObject::List& from_ifs,
+                         const VirtualObject::List& from_mfs) {
+  if (!v8_flags.trace_maglev_graph_building) return;
+  std::cout << "VOs (Interpreter Frame State): ";
+  for (const VirtualObject* vo : from_ifs) {
+    std::cout << PrintNodeLabel(compilation_unit.graph_labeller(), vo) << "; ";
+  }
+  std::cout << std::endl;
+  std::cout << "VOs (Merge Frame State): ";
+  for (const VirtualObject* vo : from_mfs) {
+    std::cout << PrintNodeLabel(compilation_unit.graph_labeller(), vo) << "; ";
+  }
+  std::cout << std::endl;
+}
+
 void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
                       ValueNode* current_value, ValueNode* unmerged_value,
                       interpreter::Register reg, KnownNodeAspects* kna) {
@@ -261,6 +280,21 @@ void MergePointInterpreterFrameState::Merge(
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Merging..." << std::endl;
   }
+
+  if (known_node_aspects_ == nullptr) {
+    DCHECK(is_unmerged_loop());
+    DCHECK_EQ(predecessors_so_far_, 0);
+    known_node_aspects_ =
+        unmerged.known_node_aspects()->CloneForLoopHeader(builder->zone());
+    frame_state_.set_virtual_objects(unmerged.virtual_objects());
+  } else {
+    known_node_aspects_->Merge(*unmerged.known_node_aspects(), builder->zone());
+  }
+
+  // TODO(victorgomes): Merge virtual objects.
+  PrintVirtualObjects(compilation_unit, unmerged.virtual_objects(),
+                      frame_state_.virtual_objects());
+
   int i = 0;
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
                                                   interpreter::Register reg) {
@@ -271,15 +305,6 @@ void MergePointInterpreterFrameState::Merge(
     PrintAfterMerge(compilation_unit, value, known_node_aspects_);
     ++i;
   });
-
-  if (known_node_aspects_ == nullptr) {
-    DCHECK(is_unmerged_loop());
-    DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ =
-        unmerged.known_node_aspects()->CloneForLoopHeader(builder->zone());
-  } else {
-    known_node_aspects_->Merge(*unmerged.known_node_aspects(), builder->zone());
-  }
 
   predecessors_so_far_++;
   DCHECK_LE(predecessors_so_far_, predecessor_count_);
@@ -351,6 +376,8 @@ void MergePointInterpreterFrameState::MergeThrow(
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Merging into exception handler..." << std::endl;
   }
+
+  // TODO(victorgomes): Merge virtual object lists.
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
@@ -524,6 +551,14 @@ NodeType GetNodeType(compiler::JSHeapBroker* broker, LocalIsolate* isolate,
   return StaticTypeForNode(broker, isolate, node);
 }
 
+ValueNode* ReplaceInlinedAllocationWithVirtualObject(ValueNode* value) {
+  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+    alloc->object()->Snapshot();
+    return alloc->object();
+  }
+  return value;
+}
+
 }  // namespace
 
 NodeType MergePointInterpreterFrameState::AlternativeType(
@@ -550,7 +585,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     } else {
       DCHECK(is_exception_handler());
     }
-    return unmerged;
+    return ReplaceInlinedAllocationWithVirtualObject(unmerged);
   }
 
   Phi* result = merged->TryCast<Phi>();
@@ -581,6 +616,24 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
 
     return result;
+  }
+
+  if (InlinedAllocation* unmerged_allocation =
+          unmerged->TryCast<InlinedAllocation>()) {
+    if (merged == unmerged_allocation->object()) {
+      return merged;
+    }
+    if (VirtualObject* merged_vobject = merged->TryCast<VirtualObject>()) {
+      // If the objects have different allocations, we are merging distinct
+      // objects, we should fallback to a phi node.
+      if (unmerged_allocation == merged_vobject->allocation()) {
+        // The objects should have already been merged into the current
+        // virtual_objects list, we can just look for its value.
+        merged = frame_state_.virtual_objects().FindAllocatedWith(
+            unmerged_allocation);
+        return merged;
+      }
+    }
   }
 
   if (merged == unmerged) {
@@ -629,6 +682,13 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     for (int i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
+  }
+
+  // If merge is a VirtualObject, we should force the object to escape and patch
+  // back the inlined allocation, before adding it to the Phi.
+  if (VirtualObject* merged_vobject = merged->TryCast<VirtualObject>()) {
+    merged_vobject->allocation()->ForceEscaping();
+    merged = merged_vobject->allocation();
   }
 
   NodeType merged_type =

@@ -664,6 +664,17 @@ class MaglevGraphBuilder {
     }
   }
 
+  void PrintVirtualObjects() {
+    if (!v8_flags.trace_maglev_graph_building) return;
+    std::cout << "VOs (Interpreter Frame State): ";
+    for (const VirtualObject* vo :
+         current_interpreter_frame_.virtual_objects()) {
+      std::cout << PrintNodeLabel(compilation_unit()->graph_labeller(), vo)
+                << "; ";
+    }
+    std::cout << std::endl;
+  }
+
   void VisitSingleBytecode() {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << std::setw(4) << iterator_.current_offset() << " : ";
@@ -766,6 +777,10 @@ class MaglevGraphBuilder {
         }
         int handler = table.GetRangeHandler(next_handler_table_index_);
         catch_block_stack_.push({end, handler});
+        // Merge VOs into catch block state.
+        DCHECK_NOT_NULL(merge_states_[handler]);
+        merge_states_[handler]->set_virtual_objects(
+            current_interpreter_frame_.virtual_objects());
         next_handler_table_index_++;
       }
     }
@@ -1655,6 +1670,7 @@ class MaglevGraphBuilder {
       current_block_->set_predecessor(predecessor);
     }
     refs_to_block.Bind(current_block_);
+    PrintVirtualObjects();
   }
 
   template <typename ControlNodeT, typename... Args>
@@ -2152,11 +2168,16 @@ class MaglevGraphBuilder {
   void ClearCurrentAllocationBlock();
 
   inline void AddDeoptUse(ValueNode* node) {
-    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      AddNonEscapingUses(alloc, 1);
-      AddDeoptUse(alloc->object());
+    if (node == nullptr) return;
+    DCHECK(!node->Is<InlinedAllocation>());
+    if (VirtualObject* vobject = node->TryCast<VirtualObject>()) {
+      AddDeoptUse(vobject);
+      // Add an escaping use for the allocation.
+      AddNonEscapingUses(vobject->allocation(), 1);
+      vobject->allocation()->add_use();
+    } else {
+      node->add_use();
     }
-    node->add_use();
   }
   void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);

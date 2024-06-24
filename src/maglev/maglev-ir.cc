@@ -361,10 +361,12 @@ size_t VirtualObject::InputLocationSizeNeeded() const {
 }
 
 size_t ValueNode::GetInputLocationsArraySize() const {
+  // We allocate the space needed for the Virtual Object plus one location
+  // used if the allocation escapes.
   if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
-    // We allocate the space needed for the captured object plus one location
-    // used if the InlinedAllocation escapes.
     return alloc->object()->InputLocationSizeNeeded() + 1;
+  } else if (const VirtualObject* vobj = TryCast<VirtualObject>()) {
+    return vobj->InputLocationSizeNeeded() + 1;
   }
   return 1;
 }

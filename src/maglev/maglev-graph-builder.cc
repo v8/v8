@@ -114,6 +114,23 @@ class FunctionContextSpecialization final : public AllStatic {
   }
 };
 
+ValueNode* ReplaceInlinedAllocationWithVirtualObject(ValueNode* value) {
+  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+    alloc->object()->Snapshot();
+    return alloc->object();
+  }
+  return value;
+}
+
+base::Vector<ValueNode*> ReplaceInlinedAllocationWithVirtualObject(
+    Zone* zone, base::Vector<ValueNode* const> values) {
+  auto* new_array = zone->AllocateArray<ValueNode*>(values.size());
+  for (size_t i = 0; i < values.size(); i++) {
+    new_array[i] = ReplaceInlinedAllocationWithVirtualObject(values[i]);
+  }
+  return {new_array, values.size()};
+}
+
 }  // namespace
 
 ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
@@ -326,7 +343,10 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
       : builder_(builder),
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation, {}, builder->GetContext(), maybe_js_target}) {
+            continuation,
+            {},
+            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext()),
+            maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -340,8 +360,11 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
       : builder_(builder),
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation, builder->zone()->CloneVector(parameters),
-            builder->GetContext(), maybe_js_target}) {
+            continuation,
+            ReplaceInlinedAllocationWithVirtualObject(builder->zone(),
+                                                      parameters),
+            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext()),
+            maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -356,7 +379,8 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::ConstructInvokeStubFrameData{
             *builder->compilation_unit(), builder->current_source_position_,
-            receiver, builder->GetContext()}) {
+            ReplaceInlinedAllocationWithVirtualObject(receiver),
+            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext())}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
@@ -566,7 +590,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     : builder_(builder),
       compilation_unit_(MaglevCompilationUnit::NewDummy(
           builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
-      pseudo_frame_(*compilation_unit_, nullptr) {
+      pseudo_frame_(*compilation_unit_, nullptr, VirtualObject::List()) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.
   pseudo_frame_.set(interpreter::Register::current_context(),
@@ -866,7 +890,9 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           *compilation_unit_,
           is_inline() ? parent->current_interpreter_frame_.known_node_aspects()
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
-                            compilation_unit_->zone())),
+                            compilation_unit_->zone()),
+          is_inline() ? parent->current_interpreter_frame_.virtual_objects()
+                      : VirtualObject::List()),
       caller_bytecode_offset_(caller_bytecode_offset),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
@@ -1214,10 +1240,13 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
     // formal parameter and arguments count.
     if (HasMismatchedArgumentAndParameterCount()) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
-          *compilation_unit_, caller_bytecode_offset_, GetClosure(),
-          inlined_arguments_, parent_deopt_frame_);
+          *compilation_unit_, caller_bytecode_offset_,
+          ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
+          ReplaceInlinedAllocationWithVirtualObject(zone(), inlined_arguments_),
+          parent_deopt_frame_);
       AddDeoptUse(GetClosure());
-      for (ValueNode* arg : inlined_arguments_) {
+      for (ValueNode* arg :
+           parent_deopt_frame_->as_inlined_arguments().arguments()) {
         AddDeoptUse(arg);
       }
     }
@@ -1234,8 +1263,9 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-        GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        current_source_position_, GetParentDeoptFrame()));
+        ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        GetParentDeoptFrame()));
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1304,8 +1334,9 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
-        GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        current_source_position_, GetParentDeoptFrame());
+        ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        GetParentDeoptFrame());
     ret.frame_state()->ForEachValue(
         *compilation_unit_, [this, result_location, result_size](
                                 ValueNode* node, interpreter::Register reg) {
@@ -1366,8 +1397,9 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
           *compilation_unit_,
           GetInLivenessFor(graph_->is_osr() ? bailout_for_entrypoint() : 0),
           current_interpreter_frame_),
-      GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
-      current_source_position_, nullptr);
+      ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
+      BytecodeOffset(bailout_for_entrypoint()), current_source_position_,
+      nullptr);
 
   (*entry_stack_check_frame_)
       .frame_state()
@@ -6530,6 +6562,10 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
 
+  // Propagate virtual object lists back to the caller.
+  current_interpreter_frame_.set_virtual_objects(
+      inner_graph_builder.current_interpreter_frame_.virtual_objects());
+
   DCHECK(result.IsDoneWithValue());
   // Resume execution using the final block of the inner builder.
   current_block_ = inner_graph_builder.current_block_;
@@ -10353,7 +10389,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
       fast_literal->set(offset,
-                        GetFloat64Constant(Float64::FromBits(
+                        CreateHeapNumber(Float64::FromBits(
                             boilerplate_value.AsHeapNumber().value_as_bits())));
     } else {
       // It's fine to store the 'uninitialized' Oddball into a Smi field since
@@ -10437,20 +10473,27 @@ VirtualObject* MaglevGraphBuilder::CreateVirtualObject(
   DCHECK_GT(slot_count_including_map, 0);
   uint32_t slot_count = slot_count_including_map - 1;
   ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
-  return NodeBase::New<VirtualObject>(zone(), 0, map, slot_count, slots);
+  VirtualObject* vobject =
+      NodeBase::New<VirtualObject>(zone(), 0, map, slot_count, slots);
+  current_interpreter_frame_.add_object(vobject);
+  return vobject;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
   // VirtualObjects are not added to the Maglev graph.
-  return NodeBase::New<VirtualObject>(zone(), 0, broker()->heap_number_map(),
-                                      value);
+  VirtualObject* vobject = NodeBase::New<VirtualObject>(
+      zone(), 0, broker()->heap_number_map(), value);
+  current_interpreter_frame_.add_object(vobject);
+  return vobject;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateDoubleFixedArray(
     uint32_t elements_length, compiler::FixedDoubleArrayRef elements) {
   // VirtualObjects are not added to the Maglev graph.
-  return NodeBase::New<VirtualObject>(
+  VirtualObject* vobject = NodeBase::New<VirtualObject>(
       zone(), 0, broker()->fixed_double_array_map(), elements_length, elements);
+  current_interpreter_frame_.add_object(vobject);
+  return vobject;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
@@ -10681,6 +10724,7 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
       AddNewNode<InlinedAllocation>({current_allocation_block_}, vobject);
   graph()->allocations().emplace(allocation, zone());
   current_allocation_block_->Add(allocation);
+  vobject->set_allocation(allocation);
   return allocation;
 }
 
@@ -10702,10 +10746,16 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
   if (vobject->type() != VirtualObject::kDefault) return;
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
     ValueNode* value = vobject->get_by_index(i);
-    if (!IsConstantNode(value->opcode()) &&
-        value->opcode() != Opcode::kArgumentsElements &&
-        value->opcode() != Opcode::kArgumentsLength &&
-        value->opcode() != Opcode::kRestLength) {
+    if (InlinedAllocation* nested_allocation =
+            value->TryCast<InlinedAllocation>()) {
+      VirtualObject* nested_object =
+          current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+              nested_allocation);
+      AddDeoptUse(nested_object);
+    } else if (!IsConstantNode(value->opcode()) &&
+               value->opcode() != Opcode::kArgumentsElements &&
+               value->opcode() != Opcode::kArgumentsLength &&
+               value->opcode() != Opcode::kRestLength) {
       AddDeoptUse(value);
     }
   }
@@ -11245,6 +11295,8 @@ void MaglevGraphBuilder::PeelLoop() {
   in_peeled_iteration_ = true;
   any_peeled_loop_ = true;
   allow_loop_peeling_ = false;
+  VirtualObject::List virtual_objects_backup =
+      current_interpreter_frame_.virtual_objects();
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
     VisitSingleBytecode();
@@ -11303,6 +11355,7 @@ void MaglevGraphBuilder::PeelLoop() {
 
     BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[loop_header]);
     MergeIntoFrameState(block, loop_header);
+    merge_states_[loop_header]->set_virtual_objects(virtual_objects_backup);
   } else {
     merge_states_[loop_header] = nullptr;
     predecessors_[loop_header] = 0;
@@ -11399,6 +11452,7 @@ void MaglevGraphBuilder::VisitJumpIfToBooleanFalseConstant() {
 
 void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
                                              int target) {
+  PrintVirtualObjects();
   if (merge_states_[target] == nullptr) {
     DCHECK(!bytecode_analysis().IsLoopHeader(target) ||
            loop_headers_to_peel_.Contains(target));

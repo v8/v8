@@ -53,6 +53,12 @@ class MaglevGraphLabeller {
   int max_node_id() const { return next_node_label_ - 1; }
 
   void PrintNodeLabel(std::ostream& os, const NodeBase* node) {
+    if (node != nullptr && node->Is<VirtualObject>()) {
+      // VirtualObjects are unregisted nodes, since they are not attached to
+      // the graph, but its inlined allocation is.
+      os << "VO:";
+      node = node->Cast<VirtualObject>()->allocation();
+    }
     auto node_id_it = nodes_.find(node);
 
     if (node_id_it == nodes_.end()) {

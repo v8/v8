@@ -12,6 +12,15 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+inline const VirtualObject::List& GetVirtualObjects(
+    const DeoptFrame& deopt_frame) {
+  if (deopt_frame.type() == DeoptFrame::FrameType::kInterpretedFrame) {
+    return deopt_frame.as_interpreted().frame_state()->virtual_objects();
+  }
+  DCHECK_NOT_NULL(deopt_frame.parent());
+  return GetVirtualObjects(*deopt_frame.parent());
+}
+
 namespace detail {
 
 enum class DeoptFrameVisitMode {
@@ -69,49 +78,78 @@ void DeepForEachInputSingleFrameImpl(
 }
 
 template <typename Function>
-void DeepForVirtualObject(VirtualObject* vobject,
-                          InputLocation*& input_location, Function&& f) {
+void DeepForVirtualObject(const VirtualObject* vobject,
+                          InputLocation*& input_location,
+                          const VirtualObject::List& virtual_objects,
+                          Function&& f) {
   if (vobject->type() != VirtualObject::kDefault) return;
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
     ValueNode* value = vobject->get_by_index(i);
-    if (!IsConstantNode(value->opcode()) &&
-        value->opcode() != Opcode::kArgumentsElements &&
-        value->opcode() != Opcode::kArgumentsLength &&
-        value->opcode() != Opcode::kRestLength) {
-      f(value, input_location, f);
+    if (IsConstantNode(value->opcode())) {
+      // No location assigned to constants.
+      continue;
+    }
+    // Special nodes.
+    switch (value->opcode()) {
+      case Opcode::kArgumentsElements:
+      case Opcode::kArgumentsLength:
+      case Opcode::kRestLength:
+        // No location assigned to these opcodes.
+        break;
+      case Opcode::kVirtualObject:
+        UNREACHABLE();
+      case Opcode::kInlinedAllocation: {
+        InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+        // Check if it has escaped.
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+          input_location++;  // Reserved for the inlined allocation.
+          DeepForVirtualObject(vobject, input_location, virtual_objects, f);
+        } else {
+          f(alloc, input_location);
+          input_location += alloc->object()->InputLocationSizeNeeded() + 1;
+        }
+        break;
+      }
+      default:
+        f(value, input_location);
+        input_location++;
+        break;
     }
   }
 }
 
 template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputAndDeoptObject(
+void DeepForEachInputAndVirtualObject(
     const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
     Function&& f,
     std::function<bool(interpreter::Register)> is_result_register =
         [](interpreter::Register) { return false; }) {
-  auto update_node = [&f](ValueNodeT<mode> node,
-                          InputLocation*& input_location) {
-    auto lambda = [&f](ValueNodeT<mode> node, InputLocation*& input_location,
-                       const auto& lambda) {
-      size_t input_locations_to_advance = 1;
-      if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
-        if (node->template Is<Identity>()) {
-          node = node->input(0).node();
-        }
+  const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+  auto update_node = [&f, &virtual_objects](ValueNodeT<mode> node,
+                                            InputLocation*& input_location) {
+    // Node cannot be an InlinedAllocation, since we patched to a VirtualObject
+    // snapshot.
+    DCHECK(!node->template Is<InlinedAllocation>());
+    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
+      if (node->template Is<Identity>()) {
+        node = node->input(0).node();
       }
-      if (InlinedAllocation* alloc =
-              node->template TryCast<InlinedAllocation>()) {
-        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-          input_location++;  // Reserved for the inlined allocation.
-          return DeepForVirtualObject(alloc->object(), input_location, lambda);
-        }
-        input_locations_to_advance +=
-            alloc->object()->InputLocationSizeNeeded();
+    }
+    if (auto vobject = node->template TryCast<VirtualObject>()) {
+      InlinedAllocation* alloc = vobject->allocation();
+      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+        input_location++;  // Reserved for the inlined allocation.
+        return DeepForVirtualObject(vobject, input_location, virtual_objects,
+                                    f);
+      } else {
+        f(alloc, input_location);
+        input_location += vobject->InputLocationSizeNeeded() + 1;
       }
+    } else {
       f(node, input_location);
-      input_location += input_locations_to_advance;
-    };
-    lambda(node, input_location, lambda);
+      input_location++;
+    }
   };
   DeepForEachInputSingleFrameImpl<mode>(frame, input_location, update_node,
                                         is_result_register);
@@ -123,7 +161,7 @@ void DeepForEachInputImpl(const_if_default<mode, DeoptFrame>& frame,
   if (frame.parent()) {
     DeepForEachInputImpl<mode>(*frame.parent(), input_location, f);
   }
-  DeepForEachInputAndDeoptObject<mode>(frame, input_location, f);
+  DeepForEachInputAndVirtualObject<mode>(frame, input_location, f);
 }
 
 template <DeoptFrameVisitMode mode, typename Function>
@@ -142,7 +180,7 @@ void DeepForEachInputForLazy(const_if_default<mode, LazyDeoptInfo>* deopt_info,
   if (top_frame.parent()) {
     DeepForEachInputImpl<mode>(*top_frame.parent(), input_location, f);
   }
-  DeepForEachInputAndDeoptObject<mode>(
+  DeepForEachInputAndVirtualObject<mode>(
       top_frame, input_location, f, [deopt_info](interpreter::Register reg) {
         return deopt_info->IsResultRegister(reg);
       });
