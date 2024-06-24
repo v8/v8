@@ -3389,8 +3389,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
 
-  // Need at least one extra slot for return address location.
-  int arg_stack_space = 1;
+  int arg_stack_space = 0;
 
   // Pass buffer for return value on stack if necessary
   bool needs_return_buffer =

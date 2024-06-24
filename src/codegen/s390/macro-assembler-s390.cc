@@ -1510,7 +1510,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
   DCHECK_EQ(0 * kSystemPointerSize, ExitFrameConstants::kCallerFPOffset);
-  DCHECK_GT(stack_space, 0);
 
   using ER = ExternalReference;
 
