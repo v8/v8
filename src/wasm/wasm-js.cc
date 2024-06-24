@@ -3135,6 +3135,7 @@ static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
 }
 
 namespace internal {
+namespace {
 
 Handle<JSFunction> CreateFunc(
     Isolate* isolate, Handle<String> name, FunctionCallback func,
@@ -3149,17 +3150,26 @@ Handle<JSFunction> CreateFunc(
 }
 
 Handle<JSFunction> InstallFunc(
-    Isolate* isolate, Handle<JSObject> object, const char* str,
+    Isolate* isolate, Handle<JSObject> object, Handle<String> name,
     FunctionCallback func, int length, bool has_prototype = false,
     PropertyAttributes attributes = NONE,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
-  Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
       CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared()->set_length(length);
   CHECK(!JSObject::HasRealNamedProperty(isolate, object, name).FromMaybe(true));
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
+}
+
+Handle<JSFunction> InstallFunc(
+    Isolate* isolate, Handle<JSObject> object, const char* str,
+    FunctionCallback func, int length, bool has_prototype = false,
+    PropertyAttributes attributes = NONE,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
+  Handle<String> name = v8_str(isolate, str);
+  return InstallFunc(isolate, object, name, func, length, has_prototype,
+                     attributes, side_effect_type);
 }
 
 Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
@@ -3243,7 +3253,6 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
   return proto;
 }
 
-namespace {
 constexpr wasm::ValueType kWasmExceptionTagParams[] = {
     wasm::kWasmExternRef,
 };
@@ -3627,14 +3636,14 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   }
 
   // Checks are done, start installing the new fields.
-  InstallFunc(isolate, table_proto, "type", WebAssemblyTableType, 0, false,
+  InstallFunc(isolate, table_proto, type_string, WebAssemblyTableType, 0, false,
               NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, memory_proto, "type", WebAssemblyMemoryType, 0, false,
+  InstallFunc(isolate, memory_proto, type_string, WebAssemblyMemoryType, 0,
+              false, NONE, SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, global_proto, type_string, WebAssemblyGlobalType, 0,
+              false, NONE, SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, tag_proto, type_string, WebAssemblyTagType, 0, false,
               NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, global_proto, "type", WebAssemblyGlobalType, 0, false,
-              NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0, false, NONE,
-              SideEffectType::kHasNoSideEffect);
 
   // Create the Function object.
   Handle<JSFunction> function_constructor = InstallConstructorFunc(
@@ -3660,7 +3669,7 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
                         isolate->factory()->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Function"), ro_attributes);
 
-  InstallFunc(isolate, function_proto, "type", WebAssemblyFunctionType, 0);
+  InstallFunc(isolate, function_proto, type_string, WebAssemblyFunctionType, 0);
   SimpleInstallFunction(isolate, function_proto, "bind",
                         Builtin::kWebAssemblyFunctionPrototypeBind, 1, false);
   // Make all exported functions an instance of {WebAssembly.Function}.
