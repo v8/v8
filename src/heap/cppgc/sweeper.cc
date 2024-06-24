@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/sweeper.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -568,7 +569,10 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     }
   }
 
-  void SweepPage(BasePage& page) { Traverse(page); }
+  void SweepPage(BasePage& page) {
+    page.ResetMarkedBytes();
+    Traverse(page);
+  }
 
   // Returns true if out of work. This implies that sweeping is done only if
   // `sweeping_mode` is kAll.
@@ -678,6 +682,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
     for (SpaceState& state : *prioritized_states_) {
       while (auto page = state.unswept_pages.Pop()) {
+        page.value()->ResetMarkedBytes();
         Traverse(**page);
         if (delegate->ShouldYield()) return;
       }
@@ -794,6 +799,11 @@ class PrepareForSweepVisitor final
  private:
   void ExtractPages(BaseSpace& space) {
     BaseSpace::Pages space_pages = space.RemoveAllPages();
+    std::sort(space_pages.begin(), space_pages.end(),
+              [](const BasePage* a, const BasePage* b) {
+                return a->marked_bytes() < b->marked_bytes();
+              });
+    // Insert pages starting with the page that has the least marked bytes.
     (*states_)[space.index()]->unswept_pages.Insert(space_pages.begin(),
                                                     space_pages.end());
   }
@@ -829,14 +839,12 @@ class Sweeper::SweeperImpl final {
 
   ~SweeperImpl() { CancelAllSweepers(); }
 
-  void Start(SweepingConfig config, cppgc::Platform* platform,
-             double initial_heap_limit_percent) {
+  void Start(SweepingConfig config, cppgc::Platform* platform) {
     StatsCollector::EnabledScope stats_scope(stats_collector_,
                                              StatsCollector::kAtomicSweep);
     is_in_progress_ = true;
     platform_ = platform;
     config_ = config;
-    heap_limit_percent_ = initial_heap_limit_percent;
 
     // Verify bitmap for all spaces regardless of |compactable_space_handling|.
     ObjectStartBitmapVerifier().Verify(heap_);
@@ -852,7 +860,6 @@ class Sweeper::SweeperImpl final {
       // The discarded counter will be recomputed.
       heap_.heap()->stats_collector()->ResetDiscardedMemory();
     }
-
     PrepareForSweepVisitor(&prioritized_space_states_, &space_states_,
                            config.compactable_space_handling)
         .Run(heap_);
@@ -941,14 +948,6 @@ class Sweeper::SweeperImpl final {
     // Bail out for recursive sweeping calls. This can happen when finalizers
     // allocate new memory.
     if (is_sweeping_on_mutator_thread_) {
-      return false;
-    }
-
-    // Latency critical sweeping if we are not using max time delta. In this
-    // case we should bail out if we are not close to the heap limit.
-    if (config_.sweeping_strategy == SweepingStrategy::kMinimizeMutatorInterference &&
-        !max_duration.IsMax() &&
-        (heap_limit_percent_ < kMaxHeapPercentageForNoSweeping)) {
       return false;
     }
 
@@ -1094,7 +1093,6 @@ class Sweeper::SweeperImpl final {
     is_in_progress_ = false;
     notify_done_pending_ = true;
     regular_task_is_delayed_idle_task_ = false;
-    heap_limit_percent_ = 100.0;
   }
 
   void NotifyDone() {
@@ -1163,10 +1161,6 @@ class Sweeper::SweeperImpl final {
                   mutator_thread_sweeping_observers_.end(), observer);
     DCHECK_NE(mutator_thread_sweeping_observers_.end(), it);
     mutator_thread_sweeping_observers_.erase(it);
-  }
-
-  void UpdateHeapLimitPercent(double heap_limit_percent) {
-    heap_limit_percent_ = heap_limit_percent;
   }
 
  private:
@@ -1395,9 +1389,6 @@ class Sweeper::SweeperImpl final {
   // The idle task count when scheduling an incremental task. Is used to signal
   // idle task progress.
   size_t saved_idle_task_count_ = 0;
-  // Current percent of the heap limit. 100% indicates that we reached the heap
-  // limit and GC is imminent. Lower percentages disable sweeping on allocation.
-  double heap_limit_percent_ = 100.0;
   // Indicates whether the sweeping phase is in progress.
   bool is_in_progress_ = false;
   bool notify_done_pending_ = false;
@@ -1417,8 +1408,8 @@ Sweeper::Sweeper(HeapBase& heap)
 
 Sweeper::~Sweeper() = default;
 
-void Sweeper::Start(SweepingConfig config, double initial_heap_limit_percent) {
-  impl_->Start(config, heap_.platform(), initial_heap_limit_percent);
+void Sweeper::Start(SweepingConfig config) {
+  impl_->Start(config, heap_.platform());
 }
 
 bool Sweeper::FinishIfRunning() { return impl_->FinishIfRunning(); }
@@ -1446,10 +1437,6 @@ bool Sweeper::PerformSweepOnMutatorThread(v8::base::TimeDelta max_duration,
                                           StatsCollector::ScopeId scope_id) {
   return impl_->PerformSweepOnMutatorThread(max_duration, scope_id,
                                             MutatorThreadSweepingMode::kAll);
-}
-
-void Sweeper::UpdateHeapLimitPercentageImpl(double heap_limit_percent) {
-  impl_->UpdateHeapLimitPercent(heap_limit_percent);
 }
 
 Sweeper::SweepingOnMutatorThreadObserver::SweepingOnMutatorThreadObserver(

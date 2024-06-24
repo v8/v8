@@ -6775,6 +6775,7 @@ v8_header_set("v8_heap_base_headers") {
     "src/heap/base/active-system-pages.h",
     "src/heap/base/basic-slot-set.h",
     "src/heap/base/bytes.h",
+    "src/heap/base/cached-unordered-map.h",
     "src/heap/base/incremental-marking-schedule.h",
     "src/heap/base/memory-tagging.h",
     "src/heap/base/stack.h",

@@ -10,7 +10,6 @@
 
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/functional.h"
 #include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -33,73 +32,6 @@ class Isolate;
 class NonAtomicMarkingState;
 class MutablePageMetadata;
 class WeakObjects;
-
-struct MemoryChunkData {
-  intptr_t live_bytes;
-  std::unique_ptr<TypedSlots> typed_slots;
-};
-
-// This class is a wrapper around an unordered_map that defines the minimum
-// interface to be usable in marking. It aims to provide faster access in the
-// common case where the requested element is the same as the one previously
-// tried.
-class MemoryChunkDataMap final {
-  using MemoryChunkDataMapT =
-      std::unordered_map<MutablePageMetadata*, MemoryChunkData,
-                         base::hash<MutablePageMetadata*>>;
-
- public:
-  MemoryChunkDataMapT::mapped_type& operator[](
-      const MemoryChunkDataMapT::key_type& key) {
-    // nullptr value is used to indicate absence of a last key.
-    DCHECK_NOT_NULL(key);
-
-    if (key == last_key_) {
-      return *last_mapped_;
-    }
-
-    auto it = map_.find(key);
-    if (it == map_.end()) {
-      auto result = map_.emplace(key, MemoryChunkData());
-      DCHECK(result.second);
-      it = result.first;
-    }
-
-    last_key_ = key;
-    last_mapped_ = &it->second;
-
-    return it->second;
-  }
-
-  MemoryChunkDataMapT::size_type erase(
-      const MemoryChunkDataMapT::key_type& key) {
-    last_key_ = nullptr;
-    last_mapped_ = nullptr;
-    return map_.erase(key);
-  }
-
-  // No iterator is cached in this class so an actual find() has to be executed
-  // everytime.
-  MemoryChunkDataMapT::iterator find(const MemoryChunkDataMapT::key_type& key) {
-    return map_.find(key);
-  }
-
-  MemoryChunkDataMapT::iterator begin() { return map_.begin(); }
-  MemoryChunkDataMapT::const_iterator end() { return map_.end(); }
-
-  void clear() {
-    last_key_ = nullptr;
-    last_mapped_ = nullptr;
-    map_.clear();
-  }
-
-  bool empty() const { return map_.empty(); }
-
- private:
-  MemoryChunkDataMapT::key_type last_key_ = nullptr;
-  MemoryChunkDataMapT::mapped_type* last_mapped_ = nullptr;
-  MemoryChunkDataMapT map_;
-};
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {
  public:

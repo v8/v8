@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/base/cached-unordered-map.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -25,6 +26,7 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
@@ -44,12 +46,18 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/objects/visitors.h"
 #include "src/utils/utils-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
+
+struct MemoryChunkData final {
+  intptr_t live_bytes = 0;
+  std::unique_ptr<TypedSlots> typed_slots;
+};
+
+using MemoryChunkDataMap =
+    ::heap::base::CachedUnorderedMap<MutablePageMetadata*, MemoryChunkData>;
 
 class ConcurrentMarkingVisitor final
     : public FullMarkingVisitorBase<ConcurrentMarkingVisitor> {

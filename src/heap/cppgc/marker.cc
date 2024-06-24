@@ -638,7 +638,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               mutator_marking_state_.concurrent_marking_bailout_worklist(),
               [this](
                   const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
-                mutator_marking_state_.AccountMarkedBytes(item.bailedout_size);
+                mutator_marking_state_.AccountMarkedBytes(
+                    BasePage::FromPayload(const_cast<void*>(item.parameter)),
+                    item.bailedout_size);
                 item.callback(&visitor(), item.parameter);
               })) {
         return false;

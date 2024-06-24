@@ -82,6 +82,8 @@ void MarkingVerifierBase::Run(
 #endif  // !defined(THREAD_SANITIZER)
   if (expected_marked_bytes && verifier_found_marked_bytes_are_exact_) {
     CHECK_EQ(expected_marked_bytes.value(), verifier_found_marked_bytes_);
+    CHECK_EQ(expected_marked_bytes.value(),
+             verifier_found_marked_bytes_in_pages_);
   }
 }
 
@@ -110,6 +112,16 @@ void MarkingVerifierBase::VisitPointer(const void* address) {
   // - Fully constructed objects: Visit()
   // - Objects in construction: VisitInConstructionConservatively()
   TraceConservativelyIfNeeded(address);
+}
+
+bool MarkingVerifierBase::VisitNormalPage(NormalPage& page) {
+  verifier_found_marked_bytes_in_pages_ += page.marked_bytes();
+  return false;  // Continue visitation.
+}
+
+bool MarkingVerifierBase::VisitLargePage(LargePage& page) {
+  verifier_found_marked_bytes_in_pages_ += page.marked_bytes();
+  return false;  // Continue visitation.
 }
 
 bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {

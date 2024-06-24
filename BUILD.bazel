@@ -3679,6 +3679,7 @@ filegroup(
         "src/heap/base/active-system-pages.h",
         "src/heap/base/basic-slot-set.h",
         "src/heap/base/bytes.h",
+        "src/heap/base/cached-unordered-map.h",
         "src/heap/base/incremental-marking-schedule.cc",
         "src/heap/base/incremental-marking-schedule.h",
         "src/heap/base/memory-tagging.h",
