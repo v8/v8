@@ -3584,45 +3584,57 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
     return false;
   }
 
-  Handle<String> type_string = v8_str(isolate, "type");
-#define INSTANCE_PROTO_HANDLE(Name) \
-  handle(Cast<JSObject>(context->Name()->instance_prototype()), isolate)
+  Handle<JSObject> table_proto(
+      Cast<JSObject>(context->wasm_table_constructor()->instance_prototype()),
+      isolate);
+  Handle<JSObject> global_proto(
+      Cast<JSObject>(context->wasm_global_constructor()->instance_prototype()),
+      isolate);
+  Handle<JSObject> memory_proto(
+      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
+      isolate);
+  Handle<JSObject> tag_proto(
+      Cast<JSObject>(context->wasm_tag_constructor()->instance_prototype()),
+      isolate);
 
-  if (JSObject::HasRealNamedProperty(
-          isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), type_string)
+  Handle<String> type_string = v8_str(isolate, "type");
+  if (JSObject::HasRealNamedProperty(isolate, table_proto, type_string)
           .FromMaybe(true)) {
     return false;
   }
-  if (JSObject::HasRealNamedProperty(
-          isolate, INSTANCE_PROTO_HANDLE(wasm_global_constructor), type_string)
+  if (JSObject::HasRealNamedProperty(isolate, global_proto, type_string)
           .FromMaybe(true)) {
     return false;
   }
-  if (JSObject::HasRealNamedProperty(
-          isolate, INSTANCE_PROTO_HANDLE(wasm_memory_constructor), type_string)
+  if (JSObject::HasRealNamedProperty(isolate, memory_proto, type_string)
           .FromMaybe(true)) {
     return false;
   }
-  if (JSObject::HasRealNamedProperty(
-          isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), type_string)
+  if (JSObject::HasRealNamedProperty(isolate, tag_proto, type_string)
           .FromMaybe(true)) {
+    return false;
+  }
+
+  // Ensure prototype objects are extensible, otherwise adding properties
+  // to them will fail. Extensibility of the `WebAssembly` object should
+  // already have been checked by the caller.
+  DCHECK(webassembly->map()->is_extensible());
+  if (!table_proto->map()->is_extensible() ||
+      !global_proto->map()->is_extensible() ||
+      !memory_proto->map()->is_extensible() ||
+      !tag_proto->map()->is_extensible()) {
     return false;
   }
 
   // Checks are done, start installing the new fields.
-  InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), "type",
-              WebAssemblyTableType, 0, false, NONE,
+  InstallFunc(isolate, table_proto, "type", WebAssemblyTableType, 0, false,
+              NONE, SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, memory_proto, "type", WebAssemblyMemoryType, 0, false,
+              NONE, SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, global_proto, "type", WebAssemblyGlobalType, 0, false,
+              NONE, SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0, false, NONE,
               SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_memory_constructor), "type",
-              WebAssemblyMemoryType, 0, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_global_constructor), "type",
-              WebAssemblyGlobalType, 0, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), "type",
-              WebAssemblyTagType, 0, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-#undef INSTANCE_PROTO_HANDLE
 
   // Create the Function object.
   Handle<JSFunction> function_constructor = InstallConstructorFunc(
