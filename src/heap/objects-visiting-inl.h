@@ -297,14 +297,14 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
-  const int size = TBodyDescriptor::SizeOf(map, object);
   const int used_size = map->UsedInstanceSize();
-  DCHECK_LE(used_size, size);
-  DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
   // It is important to visit only the used field and ignore the slack fields
   // because the slack fields may be trimmed concurrently and we don't want to
   // find fillers (slack) during pointer visitation.
   TBodyDescriptor::IterateBody(map, object, used_size, visitor);
+  const int size = TBodyDescriptor::SizeOf(map, object);
+  DCHECK_LE(used_size, size);
+  DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
   return size;
 }
 
