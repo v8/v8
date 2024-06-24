@@ -94,6 +94,52 @@ namespace internal {
   V(JSWeakCollection)                       \
   V(JSWeakRef)
 
+// List of visitor ids that can only appear in read-only maps. Unfortunately,
+// these are generally contained in all other lists.
+//
+// Adding an instance type here allows skipping vistiation of Map slots for
+// visitors with `ShouldVisitReadOnlyMapPointer() == false`.
+#define VISITOR_IDS_WITH_READ_ONLY_MAPS_LIST(V)           \
+  /* All trusted objects have maps in read-only space. */ \
+  CONCRETE_TRUSTED_OBJECT_TYPE_LIST1(V)                   \
+  V(AccessorInfo)                                         \
+  V(AllocationSite)                                       \
+  V(BigInt)                                               \
+  V(BytecodeWrapper)                                      \
+  V(ByteArray)                                            \
+  V(Cell)                                                 \
+  V(CodeWrapper)                                          \
+  V(DataHandler)                                          \
+  V(DataObject)                                           \
+  V(DescriptorArray)                                      \
+  V(EmbedderDataArray)                                    \
+  V(ExternalString)                                       \
+  V(FeedbackCell)                                         \
+  V(FeedbackMetadata)                                     \
+  V(FeedbackVector)                                       \
+  V(FixedArray)                                           \
+  V(FixedDoubleArray)                                     \
+  V(FunctionTemplateInfo)                                 \
+  V(HeapNumber)                                           \
+  V(PreparseData)                                         \
+  V(PropertyArray)                                        \
+  V(PropertyCell)                                         \
+  V(PrototypeInfo)                                        \
+  V(ScopeInfo)                                            \
+  V(SeqOneByteString)                                     \
+  V(SeqTwoByteString)                                     \
+  V(SharedFunctionInfo)                                   \
+  V(ShortcutCandidate)                                    \
+  V(SlicedString)                                         \
+  V(SloppyArgumentsElements)                              \
+  V(Symbol)                                               \
+  V(ThinString)                                           \
+  V(TransitionArray)                                      \
+  V(UncompiledDataWithoutPreparseData)                    \
+  V(UncompiledDataWithPreparseData)                       \
+  V(WeakArrayList)                                        \
+  V(WeakFixedArray)
+
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
 TYPED_VISITOR_WITH_SLACK_ID_LIST(FORWARD_DECLARE)

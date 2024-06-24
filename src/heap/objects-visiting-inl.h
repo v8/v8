@@ -40,52 +40,6 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   return false;
 }
 
-// List of visitor ids that can only appear in read-only maps. Unfortunately,
-// these are generally contained in all other lists. Adding an instance type
-// here optimizes handling in visitors that do not need to Map objects with such
-// visitor ids.
-#define READ_ONLY_MAPS_VISITOR_ID_LIST(V) \
-  V(AccessorInfo)                         \
-  V(AllocationSite)                       \
-  V(BigInt)                               \
-  V(BytecodeArray)                        \
-  V(BytecodeWrapper)                      \
-  V(ByteArray)                            \
-  V(Cell)                                 \
-  V(Code)                                 \
-  V(CodeWrapper)                          \
-  V(DataHandler)                          \
-  V(DataObject)                           \
-  V(DescriptorArray)                      \
-  V(EmbedderDataArray)                    \
-  V(ExternalString)                       \
-  V(FeedbackCell)                         \
-  V(FeedbackMetadata)                     \
-  V(FeedbackVector)                       \
-  V(FixedArray)                           \
-  V(FixedDoubleArray)                     \
-  V(FunctionTemplateInfo)                 \
-  V(HeapNumber)                           \
-  V(InstructionStream)                    \
-  V(PreparseData)                         \
-  V(PropertyArray)                        \
-  V(PropertyCell)                         \
-  V(PrototypeInfo)                        \
-  V(ScopeInfo)                            \
-  V(SeqOneByteString)                     \
-  V(SeqTwoByteString)                     \
-  V(SharedFunctionInfo)                   \
-  V(ShortcutCandidate)                    \
-  V(SlicedString)                         \
-  V(SloppyArgumentsElements)              \
-  V(Symbol)                               \
-  V(ThinString)                           \
-  V(TransitionArray)                      \
-  V(UncompiledDataWithoutPreparseData)    \
-  V(UncompiledDataWithPreparseData)       \
-  V(WeakArrayList)                        \
-  V(WeakFixedArray)
-
 #define DEFINE_READ_ONLY_MAP_SPECIALIZATION(VisitorIdType)                    \
   template <>                                                                 \
   inline bool ContainsReadOnlyMap<VisitorId::kVisit##VisitorIdType>(          \
@@ -95,9 +49,8 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
     DCHECK(InReadOnlySpace(object->map(cage_base)));                          \
     return true;                                                              \
   }
-READ_ONLY_MAPS_VISITOR_ID_LIST(DEFINE_READ_ONLY_MAP_SPECIALIZATION)
+VISITOR_IDS_WITH_READ_ONLY_MAPS_LIST(DEFINE_READ_ONLY_MAP_SPECIALIZATION)
 #undef DEFINE_READ_ONLY_MAP_SPECIALIZATION
-#undef READ_ONLY_MAPS_VISITOR_ID_LIST
 
 template <typename ResultType, typename ConcreteVisitor>
 HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(
