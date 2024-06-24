@@ -289,11 +289,11 @@ template <typename ResultType, typename ConcreteVisitor>
 template <typename T, typename TBodyDescriptor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
     Tagged<Map> map, Tagged<T> object) {
-  // If you see the following DCHECK fail, then the size computation of
-  // BodyDescriptor doesn't match the size return via obj.Size(). This is
-  // problematic as the GC requires those sizes to match for accounting reasons.
-  // The fix likely involves adding a padding field in the object defintions.
-  DCHECK_EQ(object->SizeFromMap(map), TBodyDescriptor::SizeOf(map, object));
+  // JSObject types are subject to slack tracking. At the end of slack tracking
+  // a Map's instance size is adjusted properly. Since this changes the instance
+  // size, we cannot DCHECK that `SizeFromMap()` is consistent with
+  // `TBodyDescriptor::SizeOf()` as that would require taking a snapshot of the
+  // Map.
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
