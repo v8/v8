@@ -289,6 +289,14 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
                                ValueRepresentation::kHoleyFloat64};
   }
 
+  // When hoisting we must ensure that we don't turn a tagged flowing into
+  // CheckedSmiUntag into a float64. This would cause us to loose the smi check
+  // which in turn can invalidate assumptions on aliasing values.
+  if (hoist_untagging.size() && node->uses_require_31_bit_value()) {
+    allowed_inputs_for_uses.Remove(
+        {ValueRepresentation::kFloat64, ValueRepresentation::kHoleyFloat64});
+  }
+
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
@@ -619,6 +627,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                                    TaggedToFloat64ConversionType::kOnlyNumber),
                                block, NewNodePosition::kEnd);
           } else {
+            DCHECK(!phi->uses_require_31_bit_value());
             untagged = AddNode(NodeBase::New<CheckedNumberOrOddballToFloat64>(
                                    builder_->zone(), {input},
                                    TaggedToFloat64ConversionType::kOnlyNumber),
