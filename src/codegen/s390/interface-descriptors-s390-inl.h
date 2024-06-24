@@ -166,6 +166,22 @@ constexpr Register TypeConversionDescriptor::ArgumentRegister() { return r2; }
 constexpr auto TypeofDescriptor::registers() { return RegisterArray(r2); }
 
 // static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::FlagsRegister() {
+  return r4;
+}
+// static
+constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
+    FeedbackVectorRegister() {
+  return r7;
+}
+// static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::TemporaryRegister() {
+  return r6;
+}
+
+// static
 constexpr auto CallTrampolineDescriptor::registers() {
   // r2 : number of arguments
   // r3 : the target to call

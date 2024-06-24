@@ -4241,6 +4241,8 @@ v8_header_set("v8_internal_headers") {
       sources += [ "src/maglev/arm64/maglev-assembler-arm64-inl.h" ]
     } else if (v8_current_cpu == "x64") {
       sources += [ "src/maglev/x64/maglev-assembler-x64-inl.h" ]
+    } else if (v8_current_cpu == "s390x") {
+      sources += [ "src/maglev/s390/maglev-assembler-s390-inl.h" ]
     }
   }
 
@@ -5736,6 +5738,11 @@ v8_source_set("v8_base_without_compiler") {
       sources += [
         "src/maglev/x64/maglev-assembler-x64.cc",
         "src/maglev/x64/maglev-ir-x64.cc",
+      ]
+    } else if (v8_current_cpu == "s390x") {
+      sources += [
+        "src/maglev/s390/maglev-assembler-s390.cc",
+        "src/maglev/s390/maglev-ir-s390.cc",
       ]
     }
   }

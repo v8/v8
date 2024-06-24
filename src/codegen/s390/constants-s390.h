@@ -190,6 +190,14 @@ inline Condition NegateCondition(Condition cond) {
       return CC_OF;
     case CC_OF:
       return CC_NOF;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThanEqual;
+    case kUnsignedLessThanEqual:
+      return kUnsignedGreaterThan;
+    case kUnsignedGreaterThanEqual:
+      return kUnsignedLessThan;
     default:
       DCHECK(false);
   }

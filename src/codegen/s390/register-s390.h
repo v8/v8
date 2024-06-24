@@ -222,6 +222,7 @@ DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register kStackPointerRegister = sp;
 constexpr Register kReturnRegister0 = r2;
 constexpr Register kReturnRegister1 = r3;
 constexpr Register kReturnRegister2 = r4;
