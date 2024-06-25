@@ -607,6 +607,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   bool SweepSpaceWithDeadline(SpaceState* state, v8::base::TimeTicks deadline) {
     DeadlineChecker deadline_check(deadline);
     while (auto page = state->unswept_pages.Pop()) {
+      page.value()->ResetMarkedBytes();
       Traverse(**page);
       if (deadline_check.Check()) return false;
     }
