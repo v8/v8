@@ -439,9 +439,6 @@ v8::Intercepted JsHttpRequestProcessor::MapSet(
 
   // Update the map.
   (*obj)[key] = value;
-
-  // Return the value; any non-empty handle will work.
-  info.GetReturnValue().Set(value_obj);
   return v8::Intercepted::kYes;
 }
 

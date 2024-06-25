@@ -31,8 +31,8 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   // TODO(ishell): refactor the whole test.
   CHECK(IsTheHole(*returnObjectSlot, isolate) ||
         IsUndefined(*returnObjectSlot, isolate) ||
-        // This is a default value for Deleter callbacks.
-        IsFalse(*returnObjectSlot, isolate) ||
+        // This is a default value for Setter/Definer/Deleter callbacks.
+        IsTrue(*returnObjectSlot, isolate) ||
         // This is a default value for Query callbacks.
         (*returnObjectSlot == i::Smi::FromInt(v8::None)));
   CHECK(CheckValueMap(returnValue));
@@ -64,8 +64,8 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   returnValue.Set(v8::Local<v8::Object>());
   CHECK(IsTheHole(*returnObjectSlot, isolate) ||
         IsUndefined(*returnObjectSlot, isolate) ||
-        // This is a default value for Deleter callbacks.
-        IsFalse(*returnObjectSlot, isolate) ||
+        // This is a default value for Setter/Definer/Deleter callbacks.
+        IsTrue(*returnObjectSlot, isolate) ||
         // This is a default value for Query callbacks.
         (*returnObjectSlot == i::Smi::FromInt(v8::None)));
   CHECK(CheckValueMap(returnValue));

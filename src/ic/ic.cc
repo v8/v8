@@ -3779,14 +3779,31 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
         interceptor_holder->GetNamedInterceptor(), isolate);
 
     DCHECK(!interceptor->non_masking());
-    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                        *receiver, Just(kDontThrow));
+    // TODO(ishell, 348688196): why is it known that it shouldn't throw?
+    Maybe<ShouldThrow> should_throw = Just(kDontThrow);
+    PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                   *receiver, should_throw);
 
-    Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
-    RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
-    if (!result.is_null()) return *value;
-    // If the interceptor didn't handle the request, then there must be no
-    // side effects.
+    v8::Intercepted intercepted =
+        args.CallNamedSetter(interceptor, name, value);
+    // Stores initiated by StoreICs don't care about the exact result of
+    // the store operation returned by the callback as long as it doesn't
+    // throw an exception.
+    constexpr bool ignore_return_value = true;
+    InterceptorResult result;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        args.GetBooleanReturnValue(intercepted, "Setter", ignore_return_value));
+
+    switch (result) {
+      case InterceptorResult::kFalse:
+      case InterceptorResult::kTrue:
+        return *value;
+
+      case InterceptorResult::kNotIntercepted:
+        // Proceed storing past the interceptor.
+        break;
+    }
   }
 
   LookupIterator it(isolate, receiver, name, receiver);

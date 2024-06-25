@@ -114,14 +114,20 @@ class PropertyCallbackArguments final
                                        Handle<Name> name);
   inline Handle<JSAny> CallNamedGetter(Handle<InterceptorInfo> interceptor,
                                        Handle<Name> name);
-  inline Handle<Object> CallNamedSetter(
+
+  // Calls Setter/Definer/Deleter callback and returns whether the request
+  // was intercepted.
+  // Pending exception handling and interpretation of the result should be
+  // done by the caller using GetBooleanReturnValue(..).
+  inline v8::Intercepted CallNamedSetter(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
       Handle<Object> value);
-  inline Handle<Object> CallNamedDefiner(
+  inline v8::Intercepted CallNamedDefiner(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
       const v8::PropertyDescriptor& desc);
-  inline Handle<Object> CallNamedDeleter(
+  inline v8::Intercepted CallNamedDeleter(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name);
+
   inline Handle<JSAny> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
                                            Handle<Name> name);
   // Returns JSArray-like object with property names or undefined.
@@ -134,14 +140,20 @@ class PropertyCallbackArguments final
                                          uint32_t index);
   inline Handle<JSAny> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
                                          uint32_t index);
-  inline Handle<Object> CallIndexedSetter(
+
+  // Calls Setter/Definer/Deleter callback and returns whether the request
+  // was intercepted.
+  // Pending exception handling and interpretation of the result should be
+  // done by the caller using GetBooleanReturnValue(..).
+  inline v8::Intercepted CallIndexedSetter(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index,
       Handle<Object> value);
-  inline Handle<Object> CallIndexedDefiner(
+  inline v8::Intercepted CallIndexedDefiner(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index,
       const v8::PropertyDescriptor& desc);
-  inline Handle<Object> CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
-                                           uint32_t index);
+  inline v8::Intercepted CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
+                                            uint32_t index);
+
   inline Handle<JSAny> CallIndexedDescriptor(
       Handle<InterceptorInfo> interceptor, uint32_t index);
   // Returns JSArray-like object with property names or undefined.
@@ -154,6 +166,28 @@ class PropertyCallbackArguments final
 #ifdef DEBUG
     javascript_execution_counter_ = 0;
 #endif  // DEBUG
+  }
+
+  // Converts the result of Setter/Definer/Deleter interceptor callback to
+  // Maybe<InterceptorResult>.
+  // Currently, in certain scenarios the actual boolean result returned by
+  // the Setter/Definer operation is ignored and thus we don't need to process
+  // the actual return value.
+  inline Maybe<InterceptorResult> GetBooleanReturnValue(
+      v8::Intercepted intercepted, const char* callback_kind_for_error_message,
+      bool ignore_return_value = false);
+
+  // TODO(ishell): cleanup this hack by embedding the PropertyCallbackInfo
+  // into PropertyCallbackArguments object.
+  template <typename T>
+  const v8::PropertyCallbackInfo<T>& GetPropertyCallbackInfo() {
+    return *(reinterpret_cast<PropertyCallbackInfo<T>*>(&values_[0]));
+  }
+
+  // Forwards ShouldThrowOnError() request to the underlying
+  // v8::PropertyCallbackInfo<> object.
+  bool ShouldThrowOnError() {
+    return GetPropertyCallbackInfo<Value>().ShouldThrowOnError();
   }
 
   // Unofficial way of getting property key from v8::PropertyCallbackInfo<T>.

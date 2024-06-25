@@ -12378,8 +12378,6 @@ void ShouldThrowOnErrorAccessorSetter(
             ->Set(isolate->GetCurrentContext(), v8_str("should_throw_setter"),
                   should_throw_on_error_value)
             .FromJust());
-  // Return a boolean to indicate that the operation was intercepted.
-  info.GetReturnValue().Set(True(isolate));
 }
 }  // namespace
 
@@ -17839,7 +17837,6 @@ v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
       .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
-  info.GetReturnValue().Set(v8_num(23));
   return v8::Intercepted::kYes;
 }
 

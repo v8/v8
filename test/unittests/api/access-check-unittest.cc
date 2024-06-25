@@ -327,7 +327,6 @@ v8::Intercepted NamedSetter(Local<Name> property, Local<Value> value,
   if (value->IsInt32()) {
     g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
   }
-  info.GetReturnValue().Set(value);
   return v8::Intercepted::kYes;
 }
 
@@ -383,7 +382,6 @@ v8::Intercepted IndexedSetter(uint32_t index, Local<Value> value,
     if (value->IsInt32()) {
       g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
     }
-    info.GetReturnValue().Set(value);
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;

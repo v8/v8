@@ -2231,10 +2231,22 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          Maybe<bool> result =
-              JSObject::SetPropertyWithInterceptor(it, should_throw, value);
-          if (result.IsNothing() || result.FromJust()) return result;
-          // Assuming that the callback have side effects, we use
+          InterceptorResult result;
+          if (!JSObject::SetPropertyWithInterceptor(it, should_throw, value)
+                   .To(&result)) {
+            // An exception was thrown in the interceptor. Propagate.
+            return Nothing<bool>();
+          }
+          switch (result) {
+            case InterceptorResult::kFalse:
+              return Just(false);
+            case InterceptorResult::kTrue:
+              return Just(true);
+            case InterceptorResult::kNotIntercepted:
+              // Proceed lookup.
+              break;
+          }
+          // Assuming that the callback has side effects, we use
           // Object::SetSuperProperty() which works properly regardless on
           // whether the property was present on the receiver or not when
           // storing to the receiver.

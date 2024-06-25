@@ -242,7 +242,6 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
             .FromJust());
   x_register[offset] =
       value->Int32Value(isolate->GetCurrentContext()).FromJust();
-  info.GetReturnValue().Set(v8_num(-1));
 }
 
 static void XSetter(Local<Name> name, Local<Value> value,
@@ -253,6 +252,7 @@ static void XSetter(Local<Name> name, Local<Value> value,
 static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK_EQ(1, info.Length());
   XSetter(info[0], info, 1);
+  info.GetReturnValue().Set(v8_num(-1));
 }
 
 

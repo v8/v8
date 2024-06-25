@@ -435,9 +435,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(DirectHandle<JSObject> object);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithInterceptor(
-      LookupIterator* it, Maybe<ShouldThrow> should_throw,
-      Handle<Object> value);
+  V8_WARN_UNUSED_RESULT static Maybe<InterceptorResult>
+  SetPropertyWithInterceptor(LookupIterator* it,
+                             Maybe<ShouldThrow> should_throw,
+                             Handle<Object> value);
 
   // The API currently still wants DefineOwnPropertyIgnoreAttributes to convert
   // AccessorInfo objects to data fields. We allow FORCE_FIELD as an exception
@@ -945,8 +946,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       LookupIterator* it, Handle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
-      LookupIterator* it, ShouldThrow should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<InterceptorResult>
+  DeletePropertyWithInterceptor(LookupIterator* it, ShouldThrow should_throw);
 
   bool ReferencesObjectFromElements(Tagged<FixedArray> elements,
                                     ElementsKind kind, Tagged<Object> object);

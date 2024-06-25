@@ -948,15 +948,22 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
       case LookupIterator::INTERCEPTOR: {
         ShouldThrow should_throw =
             is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
-        Maybe<bool> result =
-            JSObject::DeletePropertyWithInterceptor(it, should_throw);
-        // An exception was thrown in the interceptor. Propagate.
-        if (isolate->has_exception()) return Nothing<bool>();
-        // Delete with interceptor succeeded. Return result.
-        // TODO(neis): In strict mode, we should probably throw if the
-        // interceptor returns false.
-        if (result.IsJust()) return result;
-        continue;
+        InterceptorResult result;
+        if (!JSObject::DeletePropertyWithInterceptor(it, should_throw)
+                 .To(&result)) {
+          // An exception was thrown in the interceptor. Propagate.
+          return Nothing<bool>();
+        }
+        switch (result) {
+          case InterceptorResult::kFalse:
+            return Just(false);
+          case InterceptorResult::kTrue:
+            return Just(true);
+          case InterceptorResult::kNotIntercepted:
+            // Proceed lookup.
+            continue;
+        }
+        UNREACHABLE();
       }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return Just(true);
@@ -1266,7 +1273,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   return Just(ABSENT);
 }
 
-Maybe<bool> SetPropertyWithInterceptorInternal(
+Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
     LookupIterator* it, DirectHandle<InterceptorInfo> interceptor,
     Maybe<ShouldThrow> should_throw, Handle<Object> value) {
   Isolate* isolate = it->isolate();
@@ -1274,34 +1281,32 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  if (IsUndefined(interceptor->setter(), isolate)) return Just(false);
+  if (IsUndefined(interceptor->setter(), isolate)) {
+    return Just(InterceptorResult::kNotIntercepted);
+  }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  bool result;
   Handle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
                                      Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<bool>());
+                                     Nothing<InterceptorResult>());
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, should_throw);
 
-  if (it->IsElement(*holder)) {
-    // TODO(neis): In the future, we may want to actually return the
-    // interceptor's result, which then should be a boolean.
-    result = !args.CallIndexedSetter(interceptor, it->array_index(), value)
-                  .is_null();
-  } else {
-    result = !args.CallNamedSetter(interceptor, it->name(), value).is_null();
-  }
+  v8::Intercepted intercepted =
+      it->IsElement(*holder)
+          ? args.CallIndexedSetter(interceptor, it->array_index(), value)
+          : args.CallNamedSetter(interceptor, it->name(), value);
 
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(it->isolate(), args, Nothing<bool>());
-  if (result) args.AcceptSideEffects();
-  return Just(result);
+  // TODO(ishell, 348660658): enable propagation of boolean return value for
+  // Setter/Definer callbacks once the hole state is removed from ReturnValue.
+  constexpr bool ignore_return_value = true;
+  return args.GetBooleanReturnValue(intercepted, "Setter", ignore_return_value);
 }
 
-Maybe<bool> DefinePropertyWithInterceptorInternal(
+Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
     LookupIterator* it, DirectHandle<InterceptorInfo> interceptor,
     Maybe<ShouldThrow> should_throw, PropertyDescriptor* desc) {
   Isolate* isolate = it->isolate();
@@ -1309,15 +1314,16 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  if (IsUndefined(interceptor->definer(), isolate)) return Just(false);
+  if (IsUndefined(interceptor->definer(), isolate)) {
+    return Just(InterceptorResult::kNotIntercepted);
+  }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  bool result;
   Handle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
                                      Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<bool>());
+                                     Nothing<InterceptorResult>());
   }
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
@@ -1329,7 +1335,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
           isolate, getter,
           ApiNatives::InstantiateFunction(
               isolate, Cast<FunctionTemplateInfo>(getter), MaybeHandle<Name>()),
-          Nothing<bool>());
+          Nothing<InterceptorResult>());
     }
     Handle<Object> setter = desc->set();
     if (!setter.is_null() && IsFunctionTemplateInfo(*setter)) {
@@ -1337,7 +1343,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
           isolate, setter,
           ApiNatives::InstantiateFunction(
               isolate, Cast<FunctionTemplateInfo>(setter), MaybeHandle<Name>()),
-          Nothing<bool>());
+          Nothing<InterceptorResult>());
     }
     descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),
                                                 v8::Utils::ToLocal(setter)));
@@ -1359,18 +1365,17 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, should_throw);
-  if (it->IsElement(*holder)) {
-    result =
-        !args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
-             .is_null();
-  } else {
-    result =
-        !args.CallNamedDefiner(interceptor, it->name(), *descriptor).is_null();
-  }
 
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(it->isolate(), args, Nothing<bool>());
-  if (result) args.AcceptSideEffects();
-  return Just(result);
+  v8::Intercepted intercepted =
+      it->IsElement(*holder)
+          ? args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
+          : args.CallNamedDefiner(interceptor, it->name(), *descriptor);
+
+  // TODO(ishell, 348660658): enable propagation of boolean return value for
+  // Setter/Definer callbacks once the hole state is removed from ReturnValue.
+  constexpr bool ignore_return_value = true;
+  return args.GetBooleanReturnValue(intercepted, "Definer",
+                                    ignore_return_value);
 }
 
 }  // namespace
@@ -1414,10 +1419,22 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
   // Handle interceptor.
   if (it.state() == LookupIterator::INTERCEPTOR) {
     if (it.HolderIsReceiverOrHiddenPrototype()) {
-      Maybe<bool> result = DefinePropertyWithInterceptorInternal(
-          &it, it.GetInterceptor(), should_throw, desc);
-      if (result.IsNothing() || result.FromJust()) {
-        return result;
+      InterceptorResult result;
+      if (!DefinePropertyWithInterceptorInternal(&it, it.GetInterceptor(),
+                                                 should_throw, desc)
+               .To(&result)) {
+        // An exception was thrown in the interceptor. Propagate.
+        return Nothing<bool>();
+      }
+      switch (result) {
+        case InterceptorResult::kFalse:
+          return Just(false);
+        case InterceptorResult::kTrue:
+          return Just(true);
+
+        case InterceptorResult::kNotIntercepted:
+          // Proceed lookup.
+          break;
       }
       // We need to restart the lookup in case the accessor ran with side
       // effects.
@@ -2684,10 +2701,22 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
   Handle<InterceptorInfo> interceptor =
       it->GetInterceptorForFailedAccessCheck();
   if (!interceptor.is_null()) {
-    Maybe<bool> result = SetPropertyWithInterceptorInternal(
-        it, interceptor, should_throw, value);
-    if (isolate->has_exception()) return Nothing<bool>();
-    if (result.IsJust()) return result;
+    InterceptorResult result;
+    if (!SetPropertyWithInterceptorInternal(it, interceptor, should_throw,
+                                            value)
+             .To(&result)) {
+      // An exception was thrown in the interceptor. Propagate.
+      return Nothing<bool>();
+    }
+    switch (result) {
+      case InterceptorResult::kFalse:
+        return Just(false);
+      case InterceptorResult::kTrue:
+        return Just(true);
+      case InterceptorResult::kNotIntercepted:
+        // Fall through to report failed access check.
+        break;
+    }
   }
   RETURN_ON_EXCEPTION_VALUE(isolate, isolate->ReportFailedAccessCheck(checked),
                             Nothing<bool>());
@@ -3428,7 +3457,7 @@ void JSObject::ForceSetPrototype(Isolate* isolate,
   JSObject::MigrateToMap(isolate, object, new_map);
 }
 
-Maybe<bool> JSObject::SetPropertyWithInterceptor(
+Maybe<InterceptorResult> JSObject::SetPropertyWithInterceptor(
     LookupIterator* it, Maybe<ShouldThrow> should_throw, Handle<Object> value) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   return SetPropertyWithInterceptorInternal(it, it->GetInterceptor(),
@@ -3648,23 +3677,40 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       // JSProxy claims it has, and verifies that they are compatible. If not,
       // they throw. Here we should do the same.
       case LookupIterator::INTERCEPTOR: {
-        Maybe<bool> result = Just(false);
+        InterceptorResult result;
         if (semantics == EnforceDefineSemantics::kDefine) {
           PropertyDescriptor descriptor;
           descriptor.set_configurable((attributes & DONT_DELETE) != 0);
           descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
           descriptor.set_writable((attributes & READ_ONLY) != 0);
           descriptor.set_value(Cast<JSAny>(value));
-          result = DefinePropertyWithInterceptorInternal(
-              it, it->GetInterceptor(), should_throw, &descriptor);
+          if (!DefinePropertyWithInterceptorInternal(it, it->GetInterceptor(),
+                                                     should_throw, &descriptor)
+                   .To(&result)) {
+            // An exception was thrown in the interceptor. Propagate.
+            return Nothing<bool>();
+          }
         } else {
           DCHECK_EQ(semantics, EnforceDefineSemantics::kSet);
           if (handling == DONT_FORCE_FIELD) {
-            result =
-                JSObject::SetPropertyWithInterceptor(it, should_throw, value);
+            if (!JSObject::SetPropertyWithInterceptor(it, should_throw, value)
+                     .To(&result)) {
+              // An exception was thrown in the interceptor. Propagate.
+              return Nothing<bool>();
+            }
+          } else {
+            result = InterceptorResult::kNotIntercepted;
           }
         }
-        if (result.IsNothing() || result.FromJust()) return result;
+        switch (result) {
+          case InterceptorResult::kFalse:
+            return Just(false);
+          case InterceptorResult::kTrue:
+            return Just(true);
+          case InterceptorResult::kNotIntercepted:
+            // Proceed lookup.
+            break;
+        }
 
         if (semantics == EnforceDefineSemantics::kDefine) {
           it->Restart();
@@ -4057,8 +4103,8 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   return dictionary;
 }
 
-Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
-                                                    ShouldThrow should_throw) {
+Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
+    LookupIterator* it, ShouldThrow should_throw) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -4066,32 +4112,26 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
 
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   Handle<InterceptorInfo> interceptor(it->GetInterceptor());
-  if (IsUndefined(interceptor->deleter(), isolate)) return Nothing<bool>();
-
+  if (IsUndefined(interceptor->deleter(), isolate)) {
+    return Just(InterceptorResult::kNotIntercepted);
+  }
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   Handle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
                                      Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<bool>());
+                                     Nothing<InterceptorResult>());
   }
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(should_throw));
-  Handle<Object> result;
-  if (it->IsElement(*holder)) {
-    result = args.CallIndexedDeleter(interceptor, it->array_index());
-  } else {
-    result = args.CallNamedDeleter(interceptor, it->name());
-  }
 
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
-  if (result.is_null()) return Nothing<bool>();
+  v8::Intercepted intercepted =
+      it->IsElement(*holder)
+          ? args.CallIndexedDeleter(interceptor, it->array_index())
+          : args.CallNamedDeleter(interceptor, it->name());
 
-  DCHECK(IsBoolean(*result));
-  args.AcceptSideEffects();
-  // Rebox CustomArguments::kReturnValueIndex before returning.
-  return Just(IsTrue(*result, isolate));
+  return args.GetBooleanReturnValue(intercepted, "Deleter");
 }
 
 Maybe<bool> JSObject::CreateDataProperty(Isolate* isolate,

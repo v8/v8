@@ -73,7 +73,6 @@ v8::Intercepted EmptyInterceptorDefinerWithSideEffect(
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Value> result = CompileRun("interceptor_definer_side_effect()");
   if (!result->IsNull()) {
-    info.GetReturnValue().Set(result);
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
@@ -167,7 +166,6 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
     Local<Object> self = info.This().As<Object>();
     Local<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
     self->SetPrivate(context, symbol, value).FromJust();
-    info.GetReturnValue().Set(value);
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
@@ -214,7 +212,6 @@ v8::Intercepted GenericInterceptorSetter(
 
   Local<Object> self = info.This().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
-  info.GetReturnValue().Set(value);
   return v8::Intercepted::kYes;
 }
 
@@ -544,7 +541,6 @@ v8::Intercepted SetterCallback(Local<Name> property, Local<Value> value,
 v8::Intercepted InterceptingSetterCallback(
     Local<Name> property, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
-  info.GetReturnValue().Set(value);
   return v8::Intercepted::kYes;
 }
 
@@ -1778,7 +1774,6 @@ v8::Intercepted InterceptorStoreICSetter(
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   CHECK(v8_str("x")->Equals(context, key).FromJust());
   CHECK_EQ(42, value->Int32Value(context).FromJust());
-  info.GetReturnValue().Set(value);
   return v8::Intercepted::kYes;
 }
 }  // namespace
@@ -2320,9 +2315,6 @@ v8::Intercepted CheckConfigurablePropertyDefineCallback(
                    .FromJust());
   CHECK(desc.has_configurable());
   CHECK(desc.configurable());
-
-  // intercept the callback by setting a non-empty handle
-  info.GetReturnValue().Set(name);
   return v8::Intercepted::kYes;
 }
 }  // namespace
@@ -2359,9 +2351,6 @@ v8::Intercepted CheckWritablePropertyDefineCallback(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(desc.has_writable());
   CHECK(desc.writable());
-
-  // intercept the callback by setting a non-empty handle
-  info.GetReturnValue().Set(name);
   return v8::Intercepted::kYes;
 }
 }  // namespace
@@ -2398,8 +2387,6 @@ v8::Intercepted CheckGetterPropertyDefineCallback(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(desc.has_get());
   CHECK(!desc.has_set());
-  // intercept the callback by setting a non-empty handle
-  info.GetReturnValue().Set(name);
   return v8::Intercepted::kYes;
 }
 }  // namespace
@@ -2436,8 +2423,6 @@ v8::Intercepted CheckSetterPropertyDefineCallback(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(desc.has_set());
   CHECK(!desc.has_get());
-  // intercept the callback by setting a non-empty handle
-  info.GetReturnValue().Set(name);
   return v8::Intercepted::kYes;
 }
 }  // namespace
@@ -2480,7 +2465,6 @@ v8::Intercepted LogDefinerCallsAndStopCallback(
     const v8::PropertyCallbackInfo<void>& info) {
   String::Utf8Value utf8(info.GetIsolate(), name);
   definer_calls.push_back(*utf8);
-  info.GetReturnValue().Set(name);
   return v8::Intercepted::kYes;
 }
 
@@ -3557,7 +3541,6 @@ v8::Intercepted UnboxedDoubleIndexedPropertySetter(
   if (index < 25) {
     // Side effects are allowed only when the property is present or throws.
     ApiTestFuzzer::Fuzz();
-    info.GetReturnValue().Set(v8_num(index));
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
@@ -5966,7 +5949,6 @@ v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
                              .ToLocalChecked()
                              .As<v8::Object>();
   db->Set(context, name, value).FromJust();
-  info.GetReturnValue().Set(value);
   return v8::Intercepted::kYes;
 }
 

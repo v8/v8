@@ -1589,6 +1589,14 @@ enum ShouldThrow {
   kThrowOnError = Internals::kThrowOnError,
 };
 
+// The result that might be returned by Setter/Definer/Deleter interceptor
+// callback when it doesn't throw an exception.
+enum class InterceptorResult {
+  kFalse = 0,
+  kTrue = 1,
+  kNotIntercepted = 2,
+};
+
 enum class ThreadKind { kMain, kBackground };
 
 // Union used for customized checking of the IEEE double types

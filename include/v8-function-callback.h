@@ -69,6 +69,7 @@ class ReturnValue {
   // Fast JS primitive setters
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
+  V8_INLINE void SetFalse();
   V8_INLINE void SetEmptyString();
   // Convenience getter for Isolate
   V8_INLINE Isolate* GetIsolate() const;
@@ -396,10 +397,25 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Local<S> handle) {
-  static_assert(std::is_void<T>::value || std::is_base_of<T, S>::value,
-                "type check");
+  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
+#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  static constexpr bool is_allowed_void = false;
+  static_assert(!std::is_void<T>::value,
+                "ReturnValue<void>::Set(const Local<S>) is deprecated. "
+                "Do nothing to indicate that the operation succeeded or use "
+                "SetFalse() to indicate that the operation failed (don't "
+                "forget to handle info.ShouldThrowOnError()). "
+                "See http://crbug.com/348660658 for details.");
+#else
+  static constexpr bool is_allowed_void = std::is_void<T>::value;
+#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+  static_assert(is_allowed_void || std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetTheHole();
+  } else if constexpr (is_allowed_void) {
+    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
+    // it was possible to set the return value even for ReturnValue<void>.
+    Set(handle->BooleanValue(GetIsolate()));
   } else {
     SetInternal(handle.ptr());
   }
@@ -408,12 +424,29 @@ void ReturnValue<T>::Set(const Local<S> handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
-  static_assert(std::is_void<T>::value || std::is_base_of<T, S>::value,
-                "type check");
+  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
+#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  static constexpr bool is_allowed_void = false;
+  static_assert(!std::is_void<T>::value,
+                "ReturnValue<void>::SetNonEmpty(const Local<S>) is deprecated. "
+                "Do nothing to indicate that the operation succeeded or use "
+                "SetFalse() to indicate that the operation failed (don't "
+                "forget to handle info.ShouldThrowOnError()). "
+                "See http://crbug.com/348660658 for details.");
+#else
+  static constexpr bool is_allowed_void = std::is_void<T>::value;
+#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+  static_assert(is_allowed_void || std::is_base_of<T, S>::value, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  SetInternal(handle.ptr());
+  if constexpr (is_allowed_void) {
+    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
+    // it was possible to set the return value even for ReturnValue<void>.
+    Set(handle->BooleanValue(GetIsolate()));
+  } else {
+    SetInternal(handle.ptr());
+  }
 }
 
 template <typename T>
@@ -482,7 +515,8 @@ void ReturnValue<T>::Set(uint64_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(bool value) {
-  static_assert(std::is_base_of<T, Boolean>::value, "type check");
+  static_assert(std::is_void<T>::value || std::is_base_of<T, Boolean>::value,
+                "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
 #ifdef V8_ENABLE_CHECKS
@@ -539,6 +573,22 @@ void ReturnValue<T>::SetUndefined() {
   SetInternal(I::StaticReadOnlyRoot::kUndefinedValue);
 #else
   *value_ = I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
+template <typename T>
+void ReturnValue<T>::SetFalse() {
+  static_assert(std::is_void<T>::value || std::is_base_of<T, Boolean>::value,
+                "type check");
+  using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+#ifdef V8_ENABLE_CHECKS
+  internal::PerformCastCheck(
+      internal::ValueHelper::SlotAsValue<Value, true>(value_));
+#endif  // V8_ENABLE_CHECKS
+  SetInternal(I::StaticReadOnlyRoot::kFalseValue);
+#else
+  *value_ = I::GetRoot(GetIsolate(), I::kFalseValueRootIndex);
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 
