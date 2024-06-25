@@ -1177,7 +1177,7 @@ class MjsunitModuleDis {
           break;
         }
       }
-      for (uint32_t pre = i; pre < std::min(recgroup.end_type_index, i + 1);
+      for (uint32_t pre = i; recgroup.valid() && pre < recgroup.end_type_index;
            pre++) {
         if (needed_at[pre] == i) {
           out_ << "let ";

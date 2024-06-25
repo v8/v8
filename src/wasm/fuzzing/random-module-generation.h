@@ -84,10 +84,6 @@ extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     Zone*, base::Vector<const uint8_t> data, size_t* count);
-
-V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForDeopt(
-    Zone*, base::Vector<const uint8_t> data, std::vector<std::string>& callees,
-    std::vector<std::string>& inlinees);
 #endif
 
 }  // namespace v8::internal::wasm::fuzzing

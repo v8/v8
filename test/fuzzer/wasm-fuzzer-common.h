@@ -32,10 +32,6 @@ void ExecuteAgainstReference(Isolate* isolate,
                              Handle<WasmModuleObject> module_object,
                              int32_t max_executed_instructions);
 
-Handle<WasmModuleObject> CompileReferenceModule(
-    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    int32_t* max_steps, int32_t* nondeterminism);
-
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
 

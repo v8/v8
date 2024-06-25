@@ -33,45 +33,11 @@
 
 namespace v8::internal::wasm::fuzzing {
 
-namespace {
 constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
   return CompileTimeImports({CompileTimeImport::kJsString,
                              CompileTimeImport::kTextEncoder,
                              CompileTimeImport::kTextDecoder});
 }
-
-void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
-                                              int32_t* max_steps,
-                                              int32_t* nondeterminism) {
-  const WasmModule* module = native_module->module();
-  WasmCodeRefScope code_ref_scope;
-  CompilationEnv env = CompilationEnv::ForModule(native_module);
-  ModuleWireBytes wire_bytes_accessor{native_module->wire_bytes()};
-  for (size_t i = module->num_imported_functions; i < module->functions.size();
-       ++i) {
-    auto& func = module->functions[i];
-    base::Vector<const uint8_t> func_code =
-        wire_bytes_accessor.GetFunctionBytes(&func);
-    constexpr bool kIsShared = false;
-    FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), kIsShared);
-    auto result =
-        ExecuteLiftoffCompilation(&env, func_body,
-                                  LiftoffOptions{}
-                                      .set_func_index(func.func_index)
-                                      .set_for_debugging(kForDebugging)
-                                      .set_max_steps(max_steps)
-                                      .set_nondeterminism(nondeterminism));
-    if (!result.succeeded()) {
-      FATAL(
-          "Liftoff compilation failed on a valid module. Run with "
-          "--trace-wasm-decoder (in a debug build) to see why.");
-    }
-    native_module->PublishCode(native_module->AddCompiledCode(result));
-  }
-}
-
-}  // namespace
 
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
@@ -99,8 +65,31 @@ Handle<WasmModuleObject> CompileReferenceModule(
   module->set_all_functions_validated();
 
   // Compile all functions with Liftoff.
-  CompileAllFunctionsForReferenceExecution(native_module.get(), max_steps,
-                                           nondeterminism);
+  WasmCodeRefScope code_ref_scope;
+  CompilationEnv env = CompilationEnv::ForModule(native_module.get());
+  ModuleWireBytes wire_bytes_accessor{wire_bytes};
+  for (size_t i = module->num_imported_functions; i < module->functions.size();
+       ++i) {
+    auto& func = module->functions[i];
+    base::Vector<const uint8_t> func_code =
+        wire_bytes_accessor.GetFunctionBytes(&func);
+    constexpr bool kIsShared = false;
+    FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
+                           func_code.end(), kIsShared);
+    auto result =
+        ExecuteLiftoffCompilation(&env, func_body,
+                                  LiftoffOptions{}
+                                      .set_func_index(func.func_index)
+                                      .set_for_debugging(kForDebugging)
+                                      .set_max_steps(max_steps)
+                                      .set_nondeterminism(nondeterminism));
+    if (!result.succeeded()) {
+      FATAL(
+          "Liftoff compilation failed on a valid module. Run with "
+          "--trace-wasm-decoder (in a debug build) to see why.");
+    }
+    native_module->PublishCode(native_module->AddCompiledCode(result));
+  }
 
   // Create the module object.
   constexpr base::Vector<const char> kNoSourceUrl;

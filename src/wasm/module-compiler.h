@@ -90,9 +90,8 @@ void ThrowLazyCompilationError(Isolate* isolate,
 V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, Tagged<WasmTrustedInstanceData>,
                                      int func_index);
 // Synchronous version of the above.
-V8_EXPORT_PRIVATE void TierUpNowForTesting(Isolate*,
-                                           Tagged<WasmTrustedInstanceData>,
-                                           int func_index);
+void TierUpNowForTesting(Isolate*, Tagged<WasmTrustedInstanceData>,
+                         int func_index);
 // Same, but all functions.
 V8_EXPORT_PRIVATE void TierUpAllForTesting(Isolate*,
                                            Tagged<WasmTrustedInstanceData>);
