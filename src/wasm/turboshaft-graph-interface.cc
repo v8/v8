@@ -7928,9 +7928,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     OptionalV<FrameState> frame_state;
-    if (v8_flags.wasm_deopt && !is_tail_call) {
-      frame_state =
-          CreateFrameState(decoder, sig, /*funcref*/ nullptr, /*args*/ nullptr);
+    if (v8_flags.wasm_deopt) {
+      frame_state = is_tail_call
+                        ? parent_frame_state_
+                        : CreateFrameState(decoder, sig, /*funcref*/ nullptr,
+                                           /*args*/ nullptr);
     }
 
     WasmFullDecoder<Decoder::FullValidationTag,
