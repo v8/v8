@@ -21,6 +21,10 @@ class LeakyObject;
 
 namespace internal {
 
+#ifdef V8_ENABLE_SANDBOX
+class Sandbox;
+#endif
+
 // An IsolateGroup allows an API user to control which isolates get allocated
 // together in a shared pointer cage.
 //
@@ -103,6 +107,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   friend class PoolTest;
   // Only used for testing.
   static void ReleaseGlobal();
+
+#ifdef V8_ENABLE_SANDBOX
+  void Initialize(Sandbox* sandbox);
+#else   // V8_ENABLE_SANDBOX
+  void Initialize();
+#endif  // V8_ENABLE_SANDBOX
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
