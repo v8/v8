@@ -3515,9 +3515,9 @@ class Float64ToHeapNumberForField
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
-  static constexpr OpProperties kProperties =
-      OpProperties::NotIdempotent() | OpProperties::CanAllocate() |
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::NotIdempotent() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall();
 
   Input& input() { return Node::input(0); }
 
@@ -7180,18 +7180,25 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
   const int offset_;
 };
 
-enum class InitializingOrTransitioning : bool { kNo, kYes };
+enum class StoreTaggedMode : uint8_t {
+  kDefault,
+  kInitializing,
+  kTransitioning
+};
+inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
+  return mode == StoreTaggedMode::kInitializing ||
+         mode == StoreTaggedMode::kTransitioning;
+}
 
 class StoreTaggedFieldNoWriteBarrier
     : public FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier> {
   using Base = FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier>;
 
  public:
-  explicit StoreTaggedFieldNoWriteBarrier(
-      uint64_t bitfield, int offset,
-      InitializingOrTransitioning initializing_or_transitioning)
+  explicit StoreTaggedFieldNoWriteBarrier(uint64_t bitfield, int offset,
+                                          StoreTaggedMode store_mode)
       : Base(bitfield | InitializingOrTransitioningField::encode(
-                            initializing_or_transitioning)),
+                            IsInitializingOrTransitioning(store_mode))),
         offset_(offset) {}
 
   // StoreTaggedFieldNoWriteBarrier never does a Deferred Call. However,
@@ -7206,7 +7213,7 @@ class StoreTaggedFieldNoWriteBarrier
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
-  InitializingOrTransitioning initializing_or_transitioning() const {
+  bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
   }
 
@@ -7231,8 +7238,7 @@ class StoreTaggedFieldNoWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  using InitializingOrTransitioningField =
-      NextBitField<InitializingOrTransitioning, 1>;
+  using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
 };
@@ -7282,11 +7288,10 @@ class StoreTaggedFieldWithWriteBarrier
   using Base = FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier>;
 
  public:
-  explicit StoreTaggedFieldWithWriteBarrier(
-      uint64_t bitfield, int offset,
-      InitializingOrTransitioning initializing_or_transitioning)
+  explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset,
+                                            StoreTaggedMode store_mode)
       : Base(bitfield | InitializingOrTransitioningField::encode(
-                            initializing_or_transitioning)),
+                            IsInitializingOrTransitioning(store_mode))),
         offset_(offset) {}
 
   static constexpr OpProperties kProperties =
@@ -7295,7 +7300,7 @@ class StoreTaggedFieldWithWriteBarrier
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
-  InitializingOrTransitioning initializing_or_transitioning() const {
+  bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
   }
 
@@ -7317,8 +7322,7 @@ class StoreTaggedFieldWithWriteBarrier
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  using InitializingOrTransitioningField =
-      NextBitField<InitializingOrTransitioning, 1>;
+  using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
 };
