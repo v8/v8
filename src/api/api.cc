@@ -6032,6 +6032,13 @@ bool v8::String::IsExternalOneByte() const {
   return false;
 }
 
+Local<v8::String> v8::String::InternalizeString(Isolate* v8_isolate) {
+  auto* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  auto str = Utils::OpenDirectHandle(this);
+  return Utils::ToLocal(isolate->factory()->InternalizeString(str),
+                        isolate);
+}
+
 void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
   i::DisallowGarbageCollection no_gc;

@@ -223,6 +223,12 @@ class V8_EXPORT String : public Name {
    */
   bool IsExternalOneByte() const;
 
+  /**
+   * Returns the internalized string. See `NewStringType::kInternalized` for
+   * details on internalized strings.
+   */
+  Local<String> InternalizeString(Isolate* isolate);
+
   class V8_EXPORT ExternalStringResourceBase {
    public:
     virtual ~ExternalStringResourceBase() = default;
