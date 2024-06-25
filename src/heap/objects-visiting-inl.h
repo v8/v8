@@ -116,8 +116,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
           map, ConcreteVisitor::template Cast<ConsString>(object));
-    case kVisitDataObject:
-      return visitor->VisitDataObject(map, object);
     case kVisitJSObjectFast:
       return visitor->VisitJSObjectFast(
           map, ConcreteVisitor::template Cast<JSObject>(object));
@@ -126,6 +124,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
           map, ConcreteVisitor::template Cast<JSObject>(object));
     case kVisitStruct:
       return visitor->VisitStruct(map, object);
+    case kVisitFiller:
+      return visitor->VisitFiller(map, object);
     case kVisitFreeSpace:
       return visitor->VisitFreeSpace(map, Cast<FreeSpace>(object));
     case kDataOnlyVisitorIdCount:
@@ -196,12 +196,25 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFiller(
     Tagged<Map> map, Tagged<HeapObject> object) {
+  if constexpr (!ConcreteVisitor::CanEncounterFillerOrFreeSpace()) {
+    UNREACHABLE();
+  }
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
-      object);
+  visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFiller>(object);
   return static_cast<ResultType>(map->instance_size());
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
+    Tagged<Map> map, Tagged<FreeSpace> object) {
+  if constexpr (!ConcreteVisitor::CanEncounterFillerOrFreeSpace()) {
+    UNREACHABLE();
+  }
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFreeSpace>(object);
+  return static_cast<ResultType>(object->size(kRelaxedLoad));
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -228,14 +241,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitStruct>(object);
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
-    Tagged<Map> map, Tagged<FreeSpace> object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFreeSpace>(object);
-  return static_cast<ResultType>(object->size(kRelaxedLoad));
 }
 
 template <typename ResultType, typename ConcreteVisitor>

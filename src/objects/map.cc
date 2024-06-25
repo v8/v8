@@ -101,6 +101,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case EXTERNAL_POINTER_ARRAY_TYPE:
       return kVisitExternalPointerArray;
 
+    case FILLER_TYPE:
+      return kVisitFiller;
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 
@@ -349,9 +351,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ATOMICS_MUTEX_TYPE:
     case JS_ATOMICS_CONDITION_TYPE:
       return kVisitJSSynchronizationPrimitive;
-
-    case FILLER_TYPE:
-      return kVisitDataObject;
 
     case HEAP_NUMBER_TYPE:
       return kVisitHeapNumber;

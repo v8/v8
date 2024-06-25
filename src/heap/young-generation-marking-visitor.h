@@ -100,6 +100,10 @@ class YoungGenerationMarkingVisitor final
     ephemeron_table_list_local_.Publish();
   }
 
+  V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
+    return false;
+  }
+
  private:
   bool TryMark(Tagged<HeapObject> obj) {
     return MarkBit::From(obj).Set<AccessMode::ATOMIC>();

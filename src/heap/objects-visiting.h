@@ -110,16 +110,17 @@ namespace internal {
   V(Cell)                                                 \
   V(CodeWrapper)                                          \
   V(DataHandler)                                          \
-  V(DataObject)                                           \
   V(DescriptorArray)                                      \
   V(EmbedderDataArray)                                    \
   V(ExternalString)                                       \
   V(FeedbackCell)                                         \
   V(FeedbackMetadata)                                     \
   V(FeedbackVector)                                       \
+  V(Filler)                                               \
   V(FixedArray)                                           \
   V(FixedDoubleArray)                                     \
   V(FunctionTemplateInfo)                                 \
+  V(FreeSpace)                                            \
   V(HeapNumber)                                           \
   V(PreparseData)                                         \
   V(PropertyArray)                                        \
@@ -178,6 +179,11 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
     return true;
   }
+  // If this predicate returns false the default implementation of
+  // `VisitFiller()` and `VisitFreeSpace()` will be unreachable.
+  V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
+    return true;
+  }
 
   // Only visits the Map pointer if `ShouldVisitMapPointer()` returns true.
   template <VisitorId visitor_id>
@@ -201,13 +207,12 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Tagged<Map> map,
                                               Tagged<ConsString> object);
-  V8_INLINE ResultType VisitDataObject(Tagged<Map> map,
-                                       Tagged<HeapObject> object);
   V8_INLINE ResultType VisitJSObjectFast(Tagged<Map> map,
                                          Tagged<JSObject> object);
   V8_INLINE ResultType VisitJSApiObject(Tagged<Map> map,
                                         Tagged<JSObject> object);
   V8_INLINE ResultType VisitStruct(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE ResultType VisitFiller(Tagged<Map> map, Tagged<HeapObject> object);
   V8_INLINE ResultType VisitFreeSpace(Tagged<Map> map,
                                       Tagged<FreeSpace> object);
 

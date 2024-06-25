@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARKING_VISITOR_H_
 #define V8_HEAP_MARKING_VISITOR_H_
 
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/marking-state.h"
@@ -161,6 +162,10 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                             MarkingHelper::WorklistTarget target_worklist);
 
   V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
+    return false;
+  }
+
+  V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return false;
   }
 

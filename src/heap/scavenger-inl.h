@@ -401,14 +401,6 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
       return EvacuateInPlaceInternalizableString(
           map, slot, UncheckedCast<String>(source), size,
           Map::ObjectFieldsFrom(kVisitSeqOneByteString));
-    case kVisitDataObject:  // External strings have kVisitDataObject.
-      if (String::IsInPlaceInternalizableExcludingExternal(
-              map->instance_type())) {
-        return EvacuateInPlaceInternalizableString(
-            map, slot, UncheckedCast<String>(source), size,
-            ObjectFields::kDataOnly);
-      }
-      [[fallthrough]];
     default:
       return EvacuateObjectDefault(map, slot, source, size,
                                    Map::ObjectFieldsFrom(visitor_id));
@@ -490,6 +482,10 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   V8_INLINE int VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
                                       ExternalPointerSlot slot);
+
+  V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
+    return false;
+  }
 
  private:
   template <typename TSlot>
