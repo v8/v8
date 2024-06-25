@@ -204,6 +204,7 @@ class CallArguments {
     DCHECK_IMPLIES(mode != kDefault,
                    receiver_mode == ConvertReceiverMode::kAny);
     DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+    CheckArgumentsAreNotConversionNodes();
   }
 
   CallArguments(ConvertReceiverMode receiver_mode,
@@ -212,6 +213,7 @@ class CallArguments {
     DCHECK_IMPLIES(mode != kDefault,
                    receiver_mode == ConvertReceiverMode::kAny);
     DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+    CheckArgumentsAreNotConversionNodes();
   }
 
   ValueNode* receiver() const {
@@ -226,6 +228,7 @@ class CallArguments {
       args_.insert(args_.data(), receiver);
       receiver_mode_ = ConvertReceiverMode::kAny;
     } else {
+      DCHECK(!receiver->properties().is_conversion());
       args_[0] = receiver;
     }
   }
@@ -258,6 +261,7 @@ class CallArguments {
       i++;
     }
     DCHECK_LT(i, args_.size());
+    DCHECK(!node->properties().is_conversion());
     args_[i] = node;
   }
 
@@ -299,6 +303,16 @@ class CallArguments {
   ConvertReceiverMode receiver_mode_;
   base::SmallVector<ValueNode*, 8> args_;
   Mode mode_;
+
+  void CheckArgumentsAreNotConversionNodes() {
+#ifdef DEBUG
+    // Arguments can leak to the interpreter frame if the call is inlined,
+    // conversions should be stored in known_node_aspects/NodeInfo.
+    for (ValueNode* arg : args_) {
+      DCHECK(!arg->properties().is_conversion());
+    }
+#endif  // DEBUG
+  }
 };
 
 class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
@@ -4490,7 +4504,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
   switch (access_info.kind()) {
     case compiler::PropertyAccessInfo::kFastAccessorConstant:
       return TryBuildPropertySetterCall(access_info, receiver,
-                                        GetAccumulatorTagged());
+                                        GetRawAccumulator());
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
       ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
@@ -8055,41 +8069,34 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
     return GetRootConstant(RootIndex::kNanValue);
   }
   ValueNode* arg = args[0];
-  switch (arg->value_representation()) {
-    case ValueRepresentation::kInt32:
-    case ValueRepresentation::kUint32:
-      return arg;
-    case ValueRepresentation::kTagged:
-      if (CheckType(arg, NodeType::kSmi)) return arg;
-      if (CheckType(arg, NodeType::kNumberOrOddball)) {
-        arg = GetHoleyFloat64ForToNumber(arg,
-                                         ToNumberHint::kAssumeNumberOrOddball);
-      } else {
-        if (!CanSpeculateCall()) {
-          return ReduceResult::Fail();
-        }
-        DeoptFrameScope continuation_scope(this,
-                                           Float64Round::continuation(kind));
-        ToNumberOrNumeric* conversion =
-            AddNewNode<ToNumberOrNumeric>({arg}, Object::Conversion::kToNumber);
-        arg = AddNewNode<UncheckedNumberOrOddballToFloat64>(
-            {conversion}, TaggedToFloat64ConversionType::kOnlyNumber);
-      }
-      break;
-    case ValueRepresentation::kIntPtr:
-      UNREACHABLE();
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
-      break;
+  auto arg_repr = arg->value_representation();
+  if (arg_repr == ValueRepresentation::kInt32 ||
+      arg_repr == ValueRepresentation::kUint32) {
+    return arg;
   }
-  if (IsSupported(CpuOperation::kFloat64Round)) {
+  if (CheckType(arg, NodeType::kSmi)) return arg;
+  if (!IsSupported(CpuOperation::kFloat64Round)) {
+    return ReduceResult::Fail();
+  }
+  if (arg_repr == ValueRepresentation::kFloat64 ||
+      arg_repr == ValueRepresentation::kHoleyFloat64) {
     return AddNewNode<Float64Round>({arg}, kind);
   }
-
-  // Update the first argument, in case there was a side-effecting ToNumber
-  // conversion.
-  args.set_arg(0, arg);
-  return ReduceResult::Fail();
+  DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
+  if (CheckType(arg, NodeType::kNumberOrOddball)) {
+    return AddNewNode<Float64Round>(
+        {GetHoleyFloat64ForToNumber(arg, ToNumberHint::kAssumeNumberOrOddball)},
+        kind);
+  }
+  if (!CanSpeculateCall()) {
+    return ReduceResult::Fail();
+  }
+  DeoptFrameScope continuation_scope(this, Float64Round::continuation(kind));
+  ToNumberOrNumeric* conversion =
+      AddNewNode<ToNumberOrNumeric>({arg}, Object::Conversion::kToNumber);
+  ValueNode* float64_value = AddNewNode<UncheckedNumberOrOddballToFloat64>(
+      {conversion}, TaggedToFloat64ConversionType::kOnlyNumber);
+  return AddNewNode<Float64Round>({float64_value}, kind);
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
@@ -9100,8 +9107,8 @@ void MaglevGraphBuilder::
 void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* value = GetTaggedValue(args[0]);
-  ValueNode* done = GetTaggedValue(args[1]);
+  ValueNode* value = current_interpreter_frame_.get(args[0]);
+  ValueNode* done = current_interpreter_frame_.get(args[1]);
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result = CreateJSIteratorResult(map, value, done);
@@ -9423,8 +9430,8 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
         [&] {
           ValueNode* elements = AddNewNode<AllocateElementsArray>(
               {int32_length}, allocation_type);
-          return BuildAndAllocateJSArray(initial_map, GetTaggedValue(args[0]),
-                                         elements, slack_tracking_prediction,
+          return BuildAndAllocateJSArray(initial_map, args[0], elements,
+                                         slack_tracking_prediction,
                                          allocation_type);
         },
         [&] {
@@ -10888,7 +10895,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               parameter_count_without_receiver());
           return CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
-              GetTaggedValue(length), elements, GetClosure());
+              length, elements, GetClosure());
         }
       } else {
         // If the parameter count is zero, we should have used the unmapped
@@ -10947,7 +10954,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
           return CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
-              GetTaggedValue(length), elements, GetClosure());
+              length, elements, GetClosure());
         }
       }
     case CreateArgumentsType::kUnmappedArguments:
@@ -10965,7 +10972,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             parameter_count_without_receiver());
         return CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
-            GetTaggedValue(length), elements);
+            length, elements);
       }
     case CreateArgumentsType::kRestParameter:
       if (is_inline()) {

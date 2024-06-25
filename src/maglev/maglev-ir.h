@@ -5000,6 +5000,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   void set_by_index(uint32_t i, ValueNode* value) {
     DCHECK_EQ(type_, kDefault);
+    // Values set here can leak to the interpreter. Conversions should be stored
+    // in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     slots_.data[i] = value;
   }
 
@@ -5007,6 +5010,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
     DCHECK(!IsSnapshot());
+    // Values set here can leak to the interpreter. Conversions should be stored
+    // in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     slots_.data[offset / kTaggedSize] = value;
