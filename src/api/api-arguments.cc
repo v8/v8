@@ -18,9 +18,13 @@ PropertyCallbackArguments::PropertyCallbackArguments(
       javascript_execution_counter_(isolate->javascript_execution_counter())
 #endif  // DEBUG
 {
-  // TODO(ishell, 328104148): avoid double initalization of this field here
-  // and later in CallNamedXXX methods.
-  slot_at(T::kPropertyKeyIndex).store(Smi::zero());
+  if (DEBUG_BOOL) {
+    // Zap these fields to ensure that they are initialized by a subsequent
+    // CallXXX(..).
+    Tagged<Object> zap_value(kZapValue);
+    slot_at(T::kPropertyKeyIndex).store(zap_value);
+    slot_at(T::kReturnValueIndex).store(zap_value);
+  }
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);
@@ -31,7 +35,6 @@ PropertyCallbackArguments::PropertyCallbackArguments(
     value = should_throw.FromJust();
   }
   slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
-  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kHolderV2Index).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));

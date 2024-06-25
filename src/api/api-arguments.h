@@ -81,6 +81,12 @@ class PropertyCallbackArguments final
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
   static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
 
+  // This constructor leaves kPropertyKeyIndex and kReturnValueIndex slots
+  // uninitialized in order to let them be initialized by the subsequent
+  // CallXXX(..) and avoid double initialization. As a consequence, there
+  // must be no GC call between this constructor and CallXXX(..).
+  // In debug mode these slots are zapped, so GC should be able to detect
+  // the misuse of this object.
   PropertyCallbackArguments(Isolate* isolate, Tagged<Object> data,
                             Tagged<Object> self, Tagged<JSObject> holder,
                             Maybe<ShouldThrow> should_throw);

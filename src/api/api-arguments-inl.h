@@ -162,15 +162,12 @@ Handle<Object> PropertyCallbackArguments::CallNamedQuery(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedQueryCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
+  slot_at(kPropertyKeyIndex).store(*name);
+  slot_at(kReturnValueIndex).store(Smi::FromInt(v8::None));
   NamedPropertyQueryCallback f =
       ToCData<NamedPropertyQueryCallback>(interceptor->query());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kNamedQuery);
-  // Constructor sets the return value to undefined, while this callback
-  // must return v8::Integer, set default value to v8::None.
-  callback_info.GetReturnValue().Set(static_cast<uint16_t>(v8::None));
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
   return GetReturnValue<Object>(isolate);
@@ -181,8 +178,8 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedGetter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
+  slot_at(kPropertyKeyIndex).store(*name);
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   NamedPropertyGetterCallback f =
       ToCData<NamedPropertyGetterCallback>(interceptor->getter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
@@ -197,8 +194,8 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDescriptorCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
+  slot_at(kPropertyKeyIndex).store(*name);
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   NamedPropertyDescriptorCallback f =
       ToCData<NamedPropertyDescriptorCallback>(interceptor->descriptor());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
@@ -214,11 +211,7 @@ v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedSetterCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(kPropertyKeyIndex).store(*name);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   NamedPropertySetterCallback f =
       ToCData<NamedPropertySetterCallback>(interceptor->setter());
@@ -236,11 +229,7 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDefinerCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(kPropertyKeyIndex).store(*name);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   NamedPropertyDefinerCallback f =
       ToCData<NamedPropertyDefinerCallback>(interceptor->definer());
@@ -257,11 +246,7 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDeleter(
   DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDeleterCallback);
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(kPropertyKeyIndex).store(*name);
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   NamedPropertyDeleterCallback f =
       ToCData<NamedPropertyDeleterCallback>(interceptor->deleter());
@@ -288,13 +273,13 @@ Handle<Object> PropertyCallbackArguments::CallIndexedQuery(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedQueryCallback);
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
+  slot_at(kReturnValueIndex).store(Smi::FromInt(v8::None));
   IndexedPropertyQueryCallbackV2 f =
       ToCData<IndexedPropertyQueryCallbackV2>(interceptor->query());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kIndexedQuery);
-  // Constructor sets the return value to undefined, while this callback
-  // must return v8::Integer, set default value to v8::None.
-  callback_info.GetReturnValue().Set(static_cast<uint16_t>(v8::None));
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
   return GetReturnValue<Object>(isolate);
@@ -305,6 +290,9 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   IndexedPropertyGetterCallbackV2 f =
       ToCData<IndexedPropertyGetterCallbackV2>(interceptor->getter());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
@@ -319,6 +307,9 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDescriptorCallback);
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   IndexedPropertyDescriptorCallbackV2 f =
       ToCData<IndexedPropertyDescriptorCallbackV2>(interceptor->descriptor());
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
@@ -334,9 +325,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedSetterCallback);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertySetterCallbackV2 f =
       ToCData<IndexedPropertySetterCallbackV2>(interceptor->setter());
@@ -354,9 +344,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDefiner(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDefinerCallback);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertyDefinerCallbackV2 f =
       ToCData<IndexedPropertyDefinerCallbackV2>(interceptor->definer());
@@ -372,9 +361,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDeleterCallback);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  // TODO(ishell, 328104148): propagate index value.
+  slot_at(kPropertyKeyIndex).store(Smi::zero());
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   IndexedPropertyDeleterCallbackV2 f =
       ToCData<IndexedPropertyDeleterCallbackV2>(interceptor->deleter());
@@ -389,18 +377,19 @@ Handle<JSObjectOrUndefined> PropertyCallbackArguments::CallPropertyEnumerator(
   // Named and indexed enumerator callbacks have same signatures.
   static_assert(std::is_same<NamedPropertyEnumeratorCallback,
                              IndexedPropertyEnumeratorCallback>::value);
+  Isolate* isolate = this->isolate();
+  slot_at(kPropertyKeyIndex).store(Smi::zero());  // not relevant
   // Enumerator callback's return value is initialized with undefined even
   // though it's supposed to return v8::Array.
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   // TODO(ishell): consider making it return v8::Intercepted to indicate
   // whether the result was set or not.
   IndexedPropertyEnumeratorCallback f =
       v8::ToCData<IndexedPropertyEnumeratorCallback>(interceptor->enumerator());
-  Isolate* isolate = this->isolate();
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Array, interceptor,
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
   Handle<JSAny> result = GetReturnValue<JSAny>(isolate);
-  if (result.is_null()) return isolate->factory()->undefined_value();
   DCHECK(IsUndefined(*result) || IsJSObject(*result));
   return Cast<JSObjectOrUndefined>(result);
 }
@@ -416,8 +405,8 @@ Handle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
   // the callback is allowed to have side effects.
   AcceptSideEffects();
 
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
+  slot_at(kPropertyKeyIndex).store(*name);
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   AccessorNameGetterCallback f =
       reinterpret_cast<AccessorNameGetterCallback>(info->getter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, info,
@@ -436,8 +425,8 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the callback is allowed to have side effects.
   AcceptSideEffects();
 
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(T::kPropertyKeyIndex).store(*name);
+  slot_at(kPropertyKeyIndex).store(*name);
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   // The actual type of setter callback is either
   // v8::AccessorNameSetterCallback or
   // i::Accesors::AccessorNameBooleanSetterCallback, depending on whether the
@@ -452,10 +441,6 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info,
                                  handle(receiver(), isolate), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
-  // The constructor sets the return value to undefined, while this callback
-  // must return v8::Boolean.
-  // TODO(ishell, 328104148): avoid double initalization of this slot.
-  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
   // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
   // to set the result and not setting the result was treated as successful
