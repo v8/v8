@@ -2475,9 +2475,7 @@ class MaglevGraphBuilder {
         // complicated.
         if (loop_info.innermost() && !loop_info.resumable() &&
             (loop_info.loop_end() - loop_info.loop_start()) <
-                v8_flags.maglev_loop_peeling_max_size &&
-            (!v8_flags.maglev_loop_peeling_only_trivial ||
-             loop_info.trivial())) {
+                v8_flags.maglev_loop_peeling_max_size) {
           DCHECK(!is_loop_peeling_iteration);
           is_loop_peeling_iteration = true;
           loop_headers_to_peel_.Add(iterator.current_offset());

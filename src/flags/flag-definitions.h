@@ -576,9 +576,6 @@ DEFINE_BOOL(maglev_loop_peeling, true,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_INT(maglev_loop_peeling_max_size, 150,
            "max loop size for loop peeling in the maglev optimizing compiler")
-DEFINE_BOOL(maglev_loop_peeling_only_trivial, true,
-            "enable loop peeling only for trivial loops in the maglev "
-            "optimizing compiler")
 DEFINE_BOOL(maglev_deopt_data_on_background, true,
             "Generate deopt data on background thread")
 DEFINE_BOOL(maglev_build_code_on_background, true,
@@ -589,7 +586,6 @@ DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
 DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
-DEFINE_WEAK_NEG_IMPLICATION(maglev_future, maglev_loop_peeling_only_trivial)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
