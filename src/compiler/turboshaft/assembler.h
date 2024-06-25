@@ -2681,6 +2681,16 @@ class TurboshaftAssemblerOpInterface
     return uninitialized.ReleaseObject();
   }
 
+  V<HeapNumber> AllocateHeapNumberWithValue(V<Float64> value,
+                                            Factory* factory) {
+    auto result = __ template Allocate<HeapNumber>(
+        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
+    __ InitializeField(result, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory->heap_number_map()));
+    __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
+    return __ FinishInitialization(std::move(result));
+  }
+
   OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }

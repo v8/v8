@@ -3326,12 +3326,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<HeapNumber> AllocateHeapNumberWithValue(V<Float64> value) {
-    auto result = __ template Allocate<HeapNumber>(
-        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
-    __ InitializeField(result, AccessBuilder::ForMap(),
-                       __ HeapConstant(factory_->heap_number_map()));
-    __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
-    return __ FinishInitialization(std::move(result));
+    return __ AllocateHeapNumberWithValue(value, factory_);
   }
 
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(

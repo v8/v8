@@ -3022,13 +3022,13 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::Float64ToHeapNumberForField* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ ConvertUntaggedToJSPrimitive(
-               Map(node->input()),
-               ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber,
-               RegisterRepresentation::Float64(),
-               ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
-               CheckForMinusZeroMode::kCheckForMinusZero));
+    // We don't use ConvertUntaggedToJSPrimitive but instead the lower level
+    // AllocateHeapNumberWithValue helper, because ConvertUntaggedToJSPrimitive
+    // can be GVNed, which we don't want for Float64ToHeapNumberForField, since
+    // it creates a mutable HeapNumber, that will then be owned by an object
+    // field.
+    SetMap(node, __ AllocateHeapNumberWithValue(Map(node->input()),
+                                                isolate_->factory()));
     return maglev::ProcessResult::kContinue;
   }
 
