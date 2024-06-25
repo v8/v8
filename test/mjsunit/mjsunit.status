@@ -986,6 +986,12 @@
 
   # Disabling Turboshaft's from-Maglev graph building until support maglev
   'turboshaft/maglev-frontend/*': [SKIP],
+
+  # Needs sandbox enabled.
+  'shared-memory/condition-async-wait-timeout' :['pointer_compression', SKIP],
+  'shared-memory/condition-async-wait-realm-disposed' :['pointer_compression', SKIP],
+  'shared-memory/mutex-async-lock-workers-timeout' :['pointer_compression', SKIP],
+  'shared-memory/mutex-async-lock-realm-disposed' :['pointer_compression', SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
@@ -1802,7 +1808,7 @@
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, loong64, s390x) or (arch == s390x and pointer_compression)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64, s390x, riscv64, riscv32) or (arch == s390x and pointer_compression)', {
   'baseline/*': [SKIP],
   'regress/regress-1242306': [SKIP],
 }],
