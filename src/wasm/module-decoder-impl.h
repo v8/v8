@@ -768,7 +768,7 @@ class ModuleDecoderImpl : public Decoder {
           // Note that we should not throw an error if the declared maximum size
           // is oob. We will instead fail when growing at runtime.
           consume_resizable_limits(
-              "element count", "elements", v8_flags.wasm_max_table_size,
+              "table", "elements", v8_flags.wasm_max_table_size,
               &table->initial_size, table->has_maximum_size,
               std::numeric_limits<uint32_t>::max(), &table->maximum_size,
               table->is_table64 ? k64BitLimits : k32BitLimits);
@@ -916,7 +916,7 @@ class ModuleDecoderImpl : public Decoder {
       // Note that we should not throw an error if the declared maximum size is
       // oob. We will instead fail when growing at runtime.
       consume_resizable_limits(
-          "table elements", "elements", v8_flags.wasm_max_table_size,
+          "table", "elements", v8_flags.wasm_max_table_size,
           &table->initial_size, table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size,
           table->is_table64 ? k64BitLimits : k32BitLimits);

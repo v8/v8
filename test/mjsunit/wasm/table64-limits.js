@@ -14,7 +14,7 @@ const oob_size = max_size + 1;
   const builder = new WasmModuleBuilder();
   builder.addTable64(kWasmAnyFunc, oob_size).exportAs('table').index;
 
-  const err_msg = `WebAssembly.Module(): initial table elements size \
+  const err_msg = `WebAssembly.Module(): initial table size \
 (${oob_size} elements) is larger than implementation limit \
 (10000000 elements) @+13`;
   assertThrows(

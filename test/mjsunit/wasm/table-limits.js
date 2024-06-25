@@ -28,7 +28,7 @@ const oob = 11;
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(oob);
 
-  const err_msg = `WebAssembly.Module(): initial table elements size \
+  const err_msg = `WebAssembly.Module(): initial table size \
 (11 elements) is larger than implementation limit (10 elements) @+13`;
   assertThrows(
     () => builder.instantiate(),
