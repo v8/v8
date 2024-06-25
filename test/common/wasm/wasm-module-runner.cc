@@ -115,15 +115,15 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
-  Handle<WasmExportedFunction> main_export;
-  if (!maybe_export.ToHandle(&main_export)) {
+  Handle<WasmExportedFunction> exported_function;
+  if (!maybe_export.ToHandle(&exported_function)) {
     return -1;
   }
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval = Execution::Call(isolate, main_export, undefined,
-                                               args.length(), args.begin());
+  MaybeHandle<Object> retval = Execution::Call(
+      isolate, exported_function, undefined, args.length(), args.begin());
 
   // The result should be a number.
   if (retval.is_null()) {
