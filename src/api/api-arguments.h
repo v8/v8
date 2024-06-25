@@ -42,9 +42,6 @@ class CustomArguments : public CustomArgumentsBase {
   template <typename V>
   Handle<V> GetReturnValue(Isolate* isolate) const;
 
-  template <typename V>
-  Handle<V> GetReturnValueNoHoleCheck(Isolate* isolate) const;
-
   inline Isolate* isolate() const {
     return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
   }

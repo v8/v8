@@ -1300,10 +1300,7 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
           ? args.CallIndexedSetter(interceptor, it->array_index(), value)
           : args.CallNamedSetter(interceptor, it->name(), value);
 
-  // TODO(ishell, 348660658): enable propagation of boolean return value for
-  // Setter/Definer callbacks once the hole state is removed from ReturnValue.
-  constexpr bool ignore_return_value = true;
-  return args.GetBooleanReturnValue(intercepted, "Setter", ignore_return_value);
+  return args.GetBooleanReturnValue(intercepted, "Setter");
 }
 
 Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
@@ -1371,11 +1368,7 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
           ? args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
           : args.CallNamedDefiner(interceptor, it->name(), *descriptor);
 
-  // TODO(ishell, 348660658): enable propagation of boolean return value for
-  // Setter/Definer callbacks once the hole state is removed from ReturnValue.
-  constexpr bool ignore_return_value = true;
-  return args.GetBooleanReturnValue(intercepted, "Definer",
-                                    ignore_return_value);
+  return args.GetBooleanReturnValue(intercepted, "Definer");
 }
 
 }  // namespace

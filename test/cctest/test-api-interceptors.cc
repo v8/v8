@@ -270,6 +270,7 @@ v8::Intercepted CheckThisIndexedPropertyDefiner(
     uint32_t index, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
@@ -281,6 +282,7 @@ v8::Intercepted CheckThisNamedPropertyDefiner(
     Local<Name> property, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
@@ -292,6 +294,19 @@ v8::Intercepted CheckThisIndexedPropertySetter(
     uint32_t index, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertySetter));
+  // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
+  CHECK(info.This()
+            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
+            .FromJust());
+  return v8::Intercepted::kNo;
+}
+
+v8::Intercepted CheckThisNamedPropertySetter(
+    Local<Name> property, Local<Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
@@ -314,17 +329,6 @@ v8::Intercepted CheckThisNamedPropertyDescriptor(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDescriptor));
-  // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  return v8::Intercepted::kNo;
-}
-
-v8::Intercepted CheckThisNamedPropertySetter(
-    Local<Name> property, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))

@@ -30,22 +30,6 @@ template <typename V>
 Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   // Check the ReturnValue.
   FullObjectSlot slot = slot_at(kReturnValueIndex);
-  // Nothing was set, return empty handle as per previous behaviour.
-  Tagged<Object> raw_object = *slot;
-  if (IsTheHole(raw_object, isolate)) return Handle<V>();
-  DCHECK(Is<JSAny>(raw_object));
-  return Cast<V>(Handle<Object>(slot.location()));
-}
-
-template <typename T>
-template <typename V>
-Handle<V> CustomArguments<T>::GetReturnValueNoHoleCheck(
-    Isolate* isolate) const {
-  // Check the ReturnValue.
-  FullObjectSlot slot = slot_at(kReturnValueIndex);
-  // TODO(ishell): remove the hole check once it's no longer possible to set
-  // return value to the hole.
-  CHECK(!IsTheHole(*slot, isolate));
   DCHECK(Is<JSAny>(*slot));
   return Cast<V>(Handle<Object>(slot.location()));
 }
@@ -189,7 +173,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedQuery(
   callback_info.GetReturnValue().Set(static_cast<uint16_t>(v8::None));
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<Object>(isolate);
+  return GetReturnValue<Object>(isolate);
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallNamedGetter(
@@ -205,7 +189,7 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedGetter(
                                     ExceptionContext::kNamedGetter);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<JSAny>(isolate);
+  return GetReturnValue<JSAny>(isolate);
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
@@ -221,7 +205,7 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
                                     ExceptionContext::kNamedDescriptor);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<JSAny>(isolate);
+  return GetReturnValue<JSAny>(isolate);
 }
 
 v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
@@ -313,7 +297,7 @@ Handle<Object> PropertyCallbackArguments::CallIndexedQuery(
   callback_info.GetReturnValue().Set(static_cast<uint16_t>(v8::None));
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<Object>(isolate);
+  return GetReturnValue<Object>(isolate);
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
@@ -327,7 +311,7 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
                                     ExceptionContext::kIndexedGetter);
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<JSAny>(isolate);
+  return GetReturnValue<JSAny>(isolate);
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
@@ -341,7 +325,7 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
                                     ExceptionContext::kIndexedDescriptor);
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValueNoHoleCheck<JSAny>(isolate);
+  return GetReturnValue<JSAny>(isolate);
 }
 
 v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
@@ -461,34 +445,32 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // Here we handle both cases using the AccessorNameSetterCallback signature
   // and checking whether the returned result is set to default value
   // (the undefined value).
-  // TODO(ishell): update V8 Api to allow setter callbacks provide the result
-  // of [[Set]] operation according to JavaScript semantics.
+  // TODO(ishell, 348660658): update V8 Api to allow setter callbacks provide
+  // the result of [[Set]] operation according to JavaScript semantics.
   AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
       accessor_info->setter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info,
                                  handle(receiver(), isolate), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
-  // Constructor sets the return value to undefined, while for API callbacks
-  // we still need to detect the "result was never set" or the "result
-  // value was set to empty handle" cases to treat them as a successful
-  // completion. So, keep on initializing the default value with "the_hole".
-  // TODO(ishell, 328490288): avoid the need to deal with empty handles by
-  // using "true_value" as the defaut value for PropertyCallbackInfo<void>'s
-  // result slot.
-  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).the_hole_value());
+  // The constructor sets the return value to undefined, while this callback
+  // must return v8::Boolean.
+  // TODO(ishell, 328104148): avoid double initalization of this slot.
+  slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).true_value());
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
-  Handle<JSAny> result = GetReturnValue<JSAny>(isolate);
-  // In case of v8::AccessorNameSetterCallback, we know that the result
-  // value cannot be set, so the result slot will always contain the
-  // default value (the undefined_value) indicating successful completion.
-  // In case of AccessorNameBooleanSetterCallback, the result will either be
-  // set to v8::Boolean or an exception will be thrown (in which case the
-  // result is ignored anyway).
-  // We've been treating the "result was never set" or the "result value was
-  // set to empty handle" case as a successful completion for API callbacks.
-  // TODO(ishell, 328490288): avoid the need to deal with empty handles and
-  // handle random result values here.
-  return result.is_null() || Object::BooleanValue(*result, isolate);
+  // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
+  // to set the result and not setting the result was treated as successful
+  // execution.
+  // During interceptors Api refactoring it was temporarily allowed to call
+  // v8::ReturnValue<void>::Set[NonEmpty](Local<S>) and the result was just
+  // converted to v8::Boolean which was then treated as a result of [[Set]].
+  // In case of AccessorNameBooleanSetterCallback, the result is always
+  // set to v8::Boolean or an exception is be thrown (in which case the
+  // result is ignored anyway). So, regardless of whether the signature was
+  // v8::AccessorNameSetterCallback or AccessorNameBooleanSetterCallback
+  // the result is guaranteed to be v8::Boolean value indicating success or
+  // failure.
+  Handle<Boolean> result = GetReturnValue<Boolean>(isolate);
+  return IsTrue(*result, isolate);
 }
 
 #undef PREPARE_CALLBACK_INFO_ACCESSOR
