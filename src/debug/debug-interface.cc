@@ -656,8 +656,8 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
-    DCHECK_EQ(0, location.GetLineNumber());
-    return Just(location.GetColumnNumber());
+    return location.GetLineNumber() == 0 ? Just(location.GetColumnNumber())
+                                         : Nothing<int>();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
