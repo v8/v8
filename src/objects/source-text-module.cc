@@ -463,24 +463,24 @@ bool SourceTextModule::MaybeTransitionComponent(
     //   iii. Assert: requiredModule is a Cyclic Module Record.
     //    iv. Set requiredModule.[[Status]] to LINKED.
     //     v. If requiredModule and module are the same Module Record, set done
-    //     to
-    //        true.
+    //        to true.
     do {
       ancestor = stack->front();
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
                 new_status == kLinked ? kLinking : kEvaluating);
       if (new_status == kLinked) {
-        if (!SourceTextModule::RunInitializationCode(isolate, ancestor))
+        if (!SourceTextModule::RunInitializationCode(isolate, ancestor)) {
           return false;
-      } else if (new_status == kEvaluated) {
+        }
+        ancestor->SetStatus(kLinked);
+      } else {
         DCHECK(IsTheHole(ancestor->cycle_root(), isolate));
         ancestor->set_cycle_root(*cycle_root);
-        if (ancestor->HasAsyncEvaluationOrdinal()) {
-          new_status = kEvaluatingAsync;
-        }
+        ancestor->SetStatus(ancestor->HasAsyncEvaluationOrdinal()
+                                ? kEvaluatingAsync
+                                : kEvaluated);
       }
-      ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
   }
   return true;
@@ -1115,11 +1115,6 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
     // 8. Set module.[[PendingAsyncDependencies]] to 0.
     DCHECK(!raw_module->HasPendingAsyncDependencies());
-
-    // (We initialize the list here but in the spec it's done at Source Text
-    // Module Record creation time.)
-    raw_module->set_async_parent_modules(
-        ReadOnlyRoots(isolate).empty_array_list());
 
     // 9. Set index to index + 1.
     (*dfs_index)++;
