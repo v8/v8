@@ -1712,10 +1712,10 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   const uint32_t offset = 0;
   i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
-      i::WasmGlobalObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
-                               i::MaybeHandle<i::JSArrayBuffer>(),
-                               i::MaybeHandle<i::FixedArray>(), type, offset,
-                               is_mutable);
+      i::WasmGlobalObject::New(
+          i_isolate, i::Handle<i::WasmTrustedInstanceData>(),
+          i::MaybeHandle<i::JSArrayBuffer>(), i::MaybeHandle<i::FixedArray>(),
+          type, offset, is_mutable);
 
   i::Handle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
@@ -3061,8 +3061,8 @@ void WebAssemblyGlobalSetValueImpl(
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
       const i::wasm::WasmModule* module =
-          IsWasmInstanceObject(receiver->instance())
-              ? i::Cast<i::WasmInstanceObject>(receiver->instance())->module()
+          receiver->has_trusted_data()
+              ? receiver->trusted_data(i_isolate)->module()
               : nullptr;
       i::Handle<i::Object> value = Utils::OpenHandle(*info[0]);
       const char* error_message;

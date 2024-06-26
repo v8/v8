@@ -318,7 +318,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TAG_OBJECT_TYPE:
     case WASM_EXCEPTION_PACKAGE_TYPE:
-    case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
@@ -412,6 +411,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmFuncRef;
     case WASM_TABLE_OBJECT_TYPE:
       return kVisitWasmTableObject;
+    case WASM_GLOBAL_OBJECT_TYPE:
+      return kVisitWasmGlobalObject;
     case WASM_SUSPENDER_OBJECT_TYPE:
       return kVisitWasmSuspenderObject;
     case WASM_SUSPENDING_OBJECT_TYPE:

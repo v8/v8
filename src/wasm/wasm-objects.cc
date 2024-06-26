@@ -958,7 +958,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
 // static
 MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance_object,
+    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
     MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
     MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
     int32_t offset, bool is_mutable) {
@@ -969,7 +969,11 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
   {
     // Disallow GC until all fields have acceptable types.
     DisallowGarbageCollection no_gc;
-    if (!instance_object.is_null()) global_obj->set_instance(*instance_object);
+    if (!trusted_data.is_null()) {
+      global_obj->set_trusted_data(*trusted_data);
+    } else {
+      global_obj->clear_trusted_data();
+    }
     global_obj->set_type(type);
     global_obj->set_offset(offset);
     global_obj->set_is_mutable(is_mutable);

@@ -317,15 +317,18 @@ class WasmMemoryObject
 class WasmGlobalObject
     : public TorqueGeneratedWasmGlobalObject<WasmGlobalObject, JSObject> {
  public:
+  class BodyDescriptor;
+
   DECL_ACCESSORS(untagged_buffer, Tagged<JSArrayBuffer>)
   DECL_ACCESSORS(tagged_buffer, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmGlobalObject)
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
-      Isolate* isolate, Handle<WasmInstanceObject> instance_object,
+      Isolate* isolate, Handle<WasmTrustedInstanceData> instance_object,
       MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
       MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);

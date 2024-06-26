@@ -95,6 +95,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmArray)              \
   IF_WASM(V, WasmContinuationObject) \
   IF_WASM(V, WasmFuncRef)            \
+  IF_WASM(V, WasmGlobalObject)       \
   IF_WASM(V, WasmInstanceObject)     \
   IF_WASM(V, WasmResumeData)         \
   IF_WASM(V, WasmStruct)             \

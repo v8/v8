@@ -211,8 +211,9 @@ extern class WasmGlobalObject extends JSObject {
   // The instance in which this WasmGlobalObject is defined.
   // This field is undefined if the global is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Global).
-  // Because it might be undefined, we declare it as a HeapObject.
-  instance: WasmInstanceObject|Undefined;
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
   untagged_buffer: JSArrayBuffer|Undefined;
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;

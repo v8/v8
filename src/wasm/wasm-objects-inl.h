@@ -103,6 +103,9 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, Tagged<FixedArray>,
           kTaggedBufferOffset)
+TRUSTED_POINTER_ACCESSORS(WasmGlobalObject, trusted_data,
+                          WasmTrustedInstanceData, kTrustedDataOffset,
+                          kWasmTrustedInstanceDataIndirectPointerTag)
 
 wasm::ValueType WasmGlobalObject::type() const {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum

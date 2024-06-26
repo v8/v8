@@ -2102,8 +2102,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   }
 
   const WasmModule* global_type_module =
-      !IsUndefined(global_object->instance())
-          ? Cast<WasmInstanceObject>(global_object->instance())->module()
+      global_object->has_trusted_data()
+          ? global_object->trusted_data(isolate_)->module()
           : trusted_instance_data->module();
 
   bool valid_type =
@@ -2735,9 +2735,11 @@ void InstanceBuilder::ProcessExports(
         // Since the global's array untagged_buffer is always provided,
         // allocation should never fail.
         Handle<WasmGlobalObject> global_obj =
-            WasmGlobalObject::New(isolate_, instance_object, untagged_buffer,
-                                  tagged_buffer, global.type, offset,
-                                  global.mutability)
+            WasmGlobalObject::New(isolate_,
+                                  global.shared ? shared_trusted_instance_data
+                                                : trusted_instance_data,
+                                  untagged_buffer, tagged_buffer, global.type,
+                                  offset, global.mutability)
                 .ToHandleChecked();
         value = global_obj;
         break;

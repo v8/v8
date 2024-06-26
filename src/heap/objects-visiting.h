@@ -90,6 +90,7 @@ namespace internal {
   V(JSTypedArray)                           \
   V(JSWeakCollection)                       \
   V(JSWeakRef)                              \
+  IF_WASM(V, WasmGlobalObject)              \
   IF_WASM(V, WasmInstanceObject)            \
   IF_WASM(V, WasmSuspenderObject)           \
   IF_WASM(V, WasmSuspendingObject)          \

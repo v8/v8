@@ -943,6 +943,27 @@ class WasmTableObject::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmGlobalObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
+                    kTrustedDataOffset, v);
+    IterateTrustedPointer(obj, kTrustedDataOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmTrustedInstanceDataIndirectPointerTag);
+    IteratePointer(obj, kUntaggedBufferOffset, v);
+    IteratePointer(obj, kTaggedBufferOffset, v);
+    IterateJSObjectBodyImpl(map, obj, kIsMutableOffset + kTaggedSize,
+                            object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
+
 class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1285,6 +1306,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmExceptionPackage);
     case WASM_FUNC_REF_TYPE:
       return CALL_APPLY(WasmFuncRef);
+    case WASM_GLOBAL_OBJECT_TYPE:
+      return CALL_APPLY(WasmGlobalObject);
     case WASM_RESUME_DATA_TYPE:
       return CALL_APPLY(WasmResumeData);
     case WASM_CONTINUATION_OBJECT_TYPE:
@@ -1375,7 +1398,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
