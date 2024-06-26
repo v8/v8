@@ -281,6 +281,8 @@ deps = {
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '32eb84a95951fa3a0148fb3e6a1a02f830ded136',
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '1d17ea141d2c11b8917d2c7d029f1c4e2b9769b2',
+  'third_party/highway/src':
+    Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '163e29159ecb39d4c165c48272e565614a1e024a',
   'third_party/instrumented_libs': {

@@ -71,6 +71,8 @@
 !/third_party/glibc
 !/third_party/googletest
 /third_party/googletest/src
+!/third_party/highway
+/third_party/highway/src
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
