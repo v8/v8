@@ -7937,7 +7937,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.
-  bool BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
+  void BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend,
                             const wasm::WasmModule* module) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
@@ -7957,7 +7957,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError,
                                     native_context, nullptr, 0);
       TerminateThrow(effect(), control());
-      return false;
+      return;
     }
 
     Node* callable_node = gasm_->Load(
@@ -8093,7 +8093,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     if (ContainsInt64(sig_)) LowerInt64(wasm::kCalledFromWasm);
-    return true;
   }
 
   void BuildCapiCallWrapper() {
