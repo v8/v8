@@ -11479,6 +11479,10 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
                                                                        data);
 }
 
+bool HeapProfiler::IsTakingSnapshot() {
+  return reinterpret_cast<i::HeapProfiler*>(this)->IsTakingSnapshot();
+}
+
 const char* HeapProfiler::CopyNameForHeapSnapshot(const char* name) {
   return reinterpret_cast<i::HeapProfiler*>(this)->CopyNameForHeapSnapshot(
       name);
