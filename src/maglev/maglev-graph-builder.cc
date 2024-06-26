@@ -11169,9 +11169,6 @@ void MaglevGraphBuilder::VisitCreateBlockContext() {
   compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(0);
   compiler::MapRef map =
       broker()->target_native_context().block_context_map(broker());
-  // We check if the scope info contains a bare minimum number of context slots
-  // even if it got corrupted.
-  SBXCHECK_GE(scope_info.ContextLength(), Context::MIN_CONTEXT_SLOTS);
 
   auto done = [&](ValueNode* res) {
     graph()->record_scope_info(res, scope_info);
