@@ -7434,17 +7434,21 @@ group("v8_fuzzers") {
   ]
 
   if (v8_enable_webassembly) {
+    if (!is_official_build) {
+      data_deps += [
+        ":v8_simple_wasm_compile_all_fuzzer",
+        ":v8_simple_wasm_compile_fuzzer",
+        ":v8_simple_wasm_compile_simd_fuzzer",
+        ":v8_simple_wasm_compile_wasmgc_fuzzer",
+        ":v8_simple_wasm_deopt_fuzzer",
+        ":v8_simple_wasm_init_expr_fuzzer",
+      ]
+    }
     data_deps += [
       ":v8_simple_multi_return_fuzzer",
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
-      ":v8_simple_wasm_compile_all_fuzzer",
-      ":v8_simple_wasm_compile_fuzzer",
-      ":v8_simple_wasm_compile_simd_fuzzer",
-      ":v8_simple_wasm_compile_wasmgc_fuzzer",
-      ":v8_simple_wasm_deopt_fuzzer",
       ":v8_simple_wasm_fuzzer",
-      ":v8_simple_wasm_init_expr_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
     ]
   }
@@ -7836,45 +7840,51 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-compile-all.cc",
-    ]
-  }
-
-  v8_wasm_fuzzer("wasm_compile_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-compile.cc",
-    ]
-  }
-
-  v8_wasm_fuzzer("wasm_compile_simd_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-compile-simd.cc",
-    ]
-  }
-
-  v8_wasm_fuzzer("wasm_compile_wasmgc_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-compile-wasmgc.cc",
-    ]
-  }
-
   v8_wasm_fuzzer("wasm_streaming_fuzzer") {
     sources = [ "test/fuzzer/wasm-streaming.cc" ]
   }
 
-  v8_wasm_fuzzer("wasm_init_expr_fuzzer") {
-    sources = [ "test/fuzzer/wasm-init-expr.cc" ]
-  }
+  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
+  # For binary size reasons this functionality is not available for official
+  # builds, therefore these fuzzers do not function there and should be skipped
+  # instead.
+  if (!is_official_build) {
+    v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm-compile-all.cc",
+      ]
+    }
 
-  v8_wasm_fuzzer("wasm_deopt_fuzzer") {
-    sources = [ "test/fuzzer/wasm-deopt.cc" ]
-  }
+    v8_wasm_fuzzer("wasm_compile_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm-compile.cc",
+      ]
+    }
+
+    v8_wasm_fuzzer("wasm_compile_simd_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm-compile-simd.cc",
+      ]
+    }
+
+    v8_wasm_fuzzer("wasm_compile_wasmgc_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm-compile-wasmgc.cc",
+      ]
+    }
+
+    v8_wasm_fuzzer("wasm_init_expr_fuzzer") {
+      sources = [ "test/fuzzer/wasm-init-expr.cc" ]
+    }
+
+    v8_wasm_fuzzer("wasm_deopt_fuzzer") {
+      sources = [ "test/fuzzer/wasm-deopt.cc" ]
+    }
+  }  # !is_official_build
 }
 
 v8_fuzzer("inspector_fuzzer") {
