@@ -763,7 +763,7 @@ class ModuleDecoderImpl : public Decoder {
               .imported = true,
           });
           WasmTable* table = &module_->tables.back();
-          consume_table_flags("element count", table);
+          consume_table_flags(table);
           if (table->shared) module_->has_shared_part = true;
           // Note that we should not throw an error if the declared maximum size
           // is oob. We will instead fail when growing at runtime.
@@ -911,7 +911,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       table->type = table_type;
 
-      consume_table_flags("table elements", table);
+      consume_table_flags(table);
       if (table->shared) module_->has_shared_part = true;
       // Note that we should not throw an error if the declared maximum size is
       // oob. We will instead fail when growing at runtime.
@@ -1900,74 +1900,68 @@ class ModuleDecoderImpl : public Decoder {
     bool is_64bit() const { return flags & 0x4; }
   };
 
-  // TODO(evih): Make error messages consistent with `consume_memory_flags()`.
-  void consume_table_flags(const char* name, WasmTable* table) {
-    if (tracer_) tracer_->Bytes(pc_, 1);
-    LimitsByte limits{consume_u8("table limits flags")};
-    if (!limits.is_valid()) {
-      errorf(pc() - 1, "invalid %s limits flags", name);
-    }
-    table->has_maximum_size = limits.has_maximum();
-    table->shared = limits.is_shared();
-    table->is_table64 = limits.is_64bit();
+  enum LimitsByteType { kMemory, kTable };
 
-    if (limits.is_shared() && !v8_flags.experimental_wasm_shared) {
-      errorf(pc() - 1,
-             "invalid %s limits flags, enable with --experimental-wasm-shared",
-             name);
+  template <LimitsByteType limits_type>
+  LimitsByte consume_limits_byte() {
+    if (tracer_) tracer_->Bytes(pc_, 1);
+    LimitsByte limits{consume_u8(
+        limits_type == kMemory ? "memory limits flags" : "table limits flags")};
+    if (!limits.is_valid()) {
+      errorf(pc() - 1, "invalid %s limits flags 0x%x",
+             limits_type == kMemory ? "memory" : "table", limits.flags);
+    }
+
+    if (limits.is_shared()) {
+      if constexpr (limits_type == kMemory) {
+        // V8 does not support shared memory without a maximum.
+        if (!limits.has_maximum()) {
+          error(pc() - 1, "shared memory must have a maximum defined");
+        }
+        if (v8_flags.experimental_wasm_shared) {
+          error(pc() - 1,
+                "shared memories are not supported with "
+                "--experimental-wasm-shared yet.");
+        }
+      } else if (!v8_flags.experimental_wasm_shared) {  // table
+        error(pc() - 1,
+              "invalid table limits flags, enable with "
+              "--experimental-wasm-shared");
+      }
     }
 
     if (limits.is_64bit() && !enabled_features_.has_memory64()) {
       errorf(pc() - 1,
-             "invalid limits flags 0x%x (enable with "
+             "invalid %s limits flags 0x%x (enable with "
              "--experimental-wasm-memory64)",
-             limits.flags);
-    }
-
-    if (tracer_) {
-      tracer_->Description(limits.has_maximum() ? " no maximum"
-                                                : " with maximum");
-      if (limits.is_shared()) tracer_->Description(" shared");
-      if (limits.is_64bit()) tracer_->Description(" table64");
-      tracer_->NextLine();
-    }
-  }
-
-  void consume_memory_flags(WasmMemory* memory) {
-    if (tracer_) tracer_->Bytes(pc_, 1);
-    LimitsByte limits{consume_u8("memory limits flags")};
-    if (!limits.is_valid()) {
-      errorf(pc() - 1, "invalid memory limits flags 0x%x", limits.flags);
-    }
-    memory->has_maximum_pages = limits.has_maximum();
-    memory->is_shared = limits.is_shared();
-    memory->is_memory64 = limits.is_64bit();
-
-    // V8 does not support shared memory without a maximum.
-    if (limits.is_shared() && !limits.has_maximum()) {
-      error(pc() - 1, "shared memory must have a maximum defined");
-    }
-
-    if (limits.is_64bit() && !enabled_features_.has_memory64()) {
-      errorf(pc() - 1,
-             "invalid memory limits flags 0x%x (enable via "
-             "--experimental-wasm-memory64)",
-             limits.flags);
-    }
-
-    if (limits.is_shared() && v8_flags.experimental_wasm_shared) {
-      error(pc() - 1,
-            "shared memories are not supported with "
-            "--experimental-wasm-shared yet.");
+             limits_type == kMemory ? "memory" : "table", limits.flags);
     }
 
     if (tracer_) {
       if (limits.is_shared()) tracer_->Description(" shared");
-      if (limits.is_64bit()) tracer_->Description(" mem64");
+      if (limits.is_64bit()) {
+        tracer_->Description(limits_type == kMemory ? " mem64" : " table64");
+      }
       tracer_->Description(limits.has_maximum() ? " with maximum"
                                                 : " no maximum");
       tracer_->NextLine();
     }
+
+    return limits;
+  }
+
+  void consume_table_flags(WasmTable* table) {
+    LimitsByte limits = consume_limits_byte<kTable>();
+    table->has_maximum_size = limits.has_maximum();
+    table->shared = limits.is_shared();
+    table->is_table64 = limits.is_64bit();
+  }
+
+  void consume_memory_flags(WasmMemory* memory) {
+    LimitsByte limits = consume_limits_byte<kMemory>();
+    memory->has_maximum_pages = limits.has_maximum();
+    memory->is_shared = limits.is_shared();
+    memory->is_memory64 = limits.is_64bit();
   }
 
   std::pair<bool, bool> consume_global_flags() {

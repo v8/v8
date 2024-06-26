@@ -96,15 +96,15 @@ TEST_F(Table64DecodingTest, InvalidTableLimits) {
   const uint8_t kInvalidLimits = 0x15;
   ModuleResult module = DecodeModule({SECTION(
       Table, ENTRY_COUNT(1), kFuncRefCode, kInvalidLimits, U32V_2(5))});
-  EXPECT_NOT_OK(module, "invalid table elements limits flags");
+  EXPECT_NOT_OK(module, "invalid table limits flags");
 }
 
 TEST_F(Table64DecodingTest, DisabledFlag) {
   ModuleResult module = DecodeModule({SECTION(
       Table, ENTRY_COUNT(1), kFuncRefCode, kMemory64NoMaximum, U32V_2(5))});
-  EXPECT_NOT_OK(
-      module,
-      "invalid limits flags 0x4 (enable with --experimental-wasm-memory64)");
+  EXPECT_NOT_OK(module,
+                "invalid table limits flags 0x4 (enable with "
+                "--experimental-wasm-memory64)");
 }
 
 TEST_F(Table64DecodingTest, ImportedTable64) {
