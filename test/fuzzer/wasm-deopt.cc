@@ -34,6 +34,34 @@
 // or not inlined, the fuzzer won't generate a deopt node and won't perform a
 // deopt.
 
+// Pseudo code of a minimal wasm module that the fuzzer could generate:
+//
+// int global0 = 0;
+// Table table = [callee0, callee1];
+//
+// int callee0(int a, int b) {
+//   return a + b;
+// }
+//
+// int callee1(int a, int b) {
+//   return a * b;
+// }
+//
+// int inlinee(int a, int b) {
+//   auto callee = table.get(global0);
+//   return call_ref(auto_callee)(a, b);
+// }
+//
+// int main(int callee_index) {
+//   global0 = callee_index;
+//   return inlinee(1, 2);
+// }
+
+// The fuzzer then performs the following test:
+//   assertEquals(expected_val0, main(0)); // Collects feedback.
+//   %WasmTierUpFunction(main);
+//   assertEquals(expected_val1, main(1)); // Potentially triggers deopt.
+
 namespace v8::internal::wasm::fuzzing {
 
 namespace {
@@ -69,11 +97,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
 
   auto arguments = base::OwnedVector<Handle<Object>>::New(1);
 
-  for (const std::string& callee_name : callees) {
-    Handle<WasmExportedFunction> callee =
-        testing::GetExportedFunction(isolate, instance, callee_name.c_str())
-            .ToHandleChecked();
-
+  for (uint32_t i = 0; i < callees.size(); ++i) {
     struct OomCallbackData {
       Isolate* isolate;
       bool heap_limit_reached{false};
@@ -92,7 +116,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
     isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
                                               &oom_callback_data);
 
-    arguments[0] = callee;
+    arguments[0] = handle(Smi::FromInt(i), isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result = testing::CallWasmFunctionForTesting(
         isolate, instance, "main", arguments.as_vector(), &exception);
@@ -189,6 +213,14 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
   }
 
+  ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
+  MaybeHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
+      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
+  if (!valid) {
+    FATAL("Generated module should validate, but got: %s\n",
+          thrower.error_msg());
+  }
+
   std::vector<ExecutionResult> reference_results = PerformReferenceRun(
       callees, wire_bytes, compile_imports, enabled_features, valid, i_isolate);
 
@@ -198,9 +230,6 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     return;
   }
 
-  ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
-  MaybeHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
   Handle<WasmModuleObject> module_object = compiled.ToHandleChecked();
   Handle<WasmInstanceObject> instance =
       GetWasmEngine()
@@ -220,12 +249,9 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   }
 
   size_t num_callees = reference_results.size();
-  for (size_t i = 0; i < num_callees; ++i) {
+  for (uint32_t i = 0; i < num_callees; ++i) {
     auto arguments = base::OwnedVector<Handle<Object>>::New(1);
-    Handle<WasmExportedFunction> callee =
-        testing::GetExportedFunction(i_isolate, instance, callees[i].c_str())
-            .ToHandleChecked();
-    arguments[0] = callee;
+    arguments[0] = handle(Smi::FromInt(i), i_isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result_value = testing::CallWasmFunctionForTesting(
         i_isolate, instance, "main", arguments.as_vector(), &exception);

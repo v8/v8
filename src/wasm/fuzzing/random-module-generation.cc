@@ -410,10 +410,6 @@ class BodyGen {
     bool emit_end_;
   };
 
-  int NumImportedFunctions() {
-    return builder_->builder()->NumImportedFunctions();
-  }
-
   void block(base::Vector<const ValueType> param_types,
              base::Vector<const ValueType> return_types, DataRange* data) {
     BlockScope block_scope(this, kExprBlock, param_types, return_types,
@@ -2204,6 +2200,10 @@ class BodyGen {
       local = GetValueType<options>(data, num_types);
       fn->AddLocal(local);
     }
+  }
+
+  int NumImportedFunctions() {
+    return builder_->builder()->NumImportedFunctions();
   }
 
   // Generator functions.
@@ -4389,17 +4389,57 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
 }
 
 namespace {
+
+bool HasSameReturns(const FunctionSig* a, const FunctionSig* b) {
+  if (a->return_count() != b->return_count()) return false;
+  for (size_t i = 0; i < a->return_count(); ++i) {
+    if (a->GetReturn(i) != b->GetReturn(i)) return false;
+  }
+  return true;
+}
+
 template <WasmModuleGenerationOptions options>
 void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
                               const FunctionSig* target_sig,
                               uint32_t target_sig_index, uint32_t global_index,
-                              DataRange* data) {
-  // TODO(mliedtke): Add support for call_indirect and return calls as well.
+                              uint32_t table_index, DataRange* data) {
   gen_body.Generate(base::VectorOf(target_sig->parameters().begin(),
                                    target_sig->parameters().size()),
                     data);
   f->EmitWithU32V(kExprGlobalGet, global_index);
-  f->EmitWithU32V(kExprCallRef, target_sig_index);
+  // Tail calls can only be emitted if the return types match.
+  bool same_returns = HasSameReturns(target_sig, f->signature());
+  size_t option_count = (same_returns + 1) * 2;
+  switch (data->get<uint8_t>() % option_count) {
+    case 0:
+      // Emit call_ref.
+      f->Emit(kExprTableGet);
+      f->EmitU32V(table_index);
+      f->EmitWithPrefix(kExprRefCast);
+      f->EmitI32V(target_sig_index);
+      f->EmitWithU32V(kExprCallRef, target_sig_index);
+      break;
+    case 1:
+      // Emit call_indirect.
+      f->EmitWithU32V(kExprCallIndirect, target_sig_index);
+      f->EmitByte(table_index);
+      break;
+    case 2:
+      // Emit return_call_ref.
+      f->Emit(kExprTableGet);
+      f->EmitU32V(table_index);
+      f->EmitWithPrefix(kExprRefCast);
+      f->EmitI32V(target_sig_index);
+      f->EmitWithU32V(kExprReturnCallRef, target_sig_index);
+      break;
+    case 3:
+      // Emit return_call_indirect.
+      f->EmitWithU32V(kExprReturnCallIndirect, target_sig_index);
+      f->EmitByte(table_index);
+      break;
+    default:
+      UNREACHABLE();
+  }
   gen_body.ConsumeAndGenerate(base::VectorOf(target_sig->returns().begin(),
                                              target_sig->returns().size()),
                               base::VectorOf(f->signature()->returns().begin(),
@@ -4409,13 +4449,49 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
 
 template <WasmModuleGenerationOptions options>
 void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
-                             const FunctionSig* callee_sig,
-                             uint32_t callee_index, DataRange* data) {
+                             WasmFunctionBuilder* callee, uint32_t table_index,
+                             DataRange* data) {
+  const FunctionSig* callee_sig = callee->signature();
+  uint32_t callee_index =
+      callee->func_index() + gen_body.NumImportedFunctions();
   gen_body.Generate(base::VectorOf(callee_sig->parameters().begin(),
                                    callee_sig->parameters().size()),
                     data);
-  // TODO(mliedtke): Also support call_indirect, call_ref + return calls?
-  f->EmitWithU32V(kExprCallFunction, callee_index);
+  // Tail calls can only be emitted if the return types match.
+  bool same_returns = HasSameReturns(callee_sig, f->signature());
+  size_t option_count = (same_returns + 1) * 3;
+  switch (data->get<uint8_t>() % option_count) {
+    case 0:
+      f->EmitWithU32V(kExprCallFunction, callee_index);
+      break;
+    case 1:
+      f->EmitWithU32V(kExprRefFunc, callee_index);
+      f->EmitWithU32V(kExprCallRef, callee->sig_index());
+      break;
+    case 2:
+      // Note that this assumes that the declared function index is the same as
+      // the index of the function in the table.
+      f->EmitI32Const(callee->func_index());
+      f->EmitWithU32V(kExprCallIndirect, callee->sig_index());
+      f->EmitByte(table_index);
+      break;
+    case 3:
+      f->EmitWithU32V(kExprReturnCall, callee_index);
+      break;
+    case 4:
+      f->EmitWithU32V(kExprRefFunc, callee_index);
+      f->EmitWithU32V(kExprReturnCallRef, callee->sig_index());
+      break;
+    case 5:
+      // Note that this assumes that the declared function index is the same as
+      // the index of the function in the table.
+      f->EmitI32Const(callee->func_index());
+      f->EmitWithU32V(kExprReturnCallIndirect, callee->sig_index());
+      f->EmitByte(table_index);
+      break;
+    default:
+      UNREACHABLE();
+  }
   gen_body.ConsumeAndGenerate(base::VectorOf(callee_sig->returns().begin(),
                                              callee_sig->returns().size()),
                               base::VectorOf(f->signature()->returns().begin(),
@@ -4490,10 +4566,12 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   DCHECK_EQ(current_type_index, num_structs + num_arrays);
 
   // Create signature for call target.
+  std::vector<ValueType> return_types =
+      GenerateTypes<options>(&range, num_types);
   constexpr bool kIsFinal = true;
   const FunctionSig* target_sig = CreateSignature(
       builder.zone(), base::VectorOf(GenerateTypes<options>(&range, num_types)),
-      base::VectorOf(GenerateTypes<options>(&range, num_types)));
+      base::VectorOf(return_types));
   uint32_t target_sig_index = builder.ForceAddSignature(target_sig, kIsFinal);
 
   for (int i = 0; i < num_call_targets; ++i) {
@@ -4503,19 +4581,24 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   }
 
   // Create signatures for inlinees.
+  // Use the same return types with a certain chance. This increases the chance
+  // to emit return calls.
+  uint8_t use_same_return = range.get<uint8_t>();
   for (int i = 0; i < num_inlinees; ++i) {
+    if ((use_same_return & (1 << i)) == 0) {
+      return_types = GenerateTypes<options>(&range, num_types);
+    }
     const FunctionSig* inlinee_sig = CreateSignature(
         builder.zone(),
         base::VectorOf(GenerateTypes<options>(&range, num_types)),
-        base::VectorOf(GenerateTypes<options>(&range, num_types)));
+        base::VectorOf(return_types));
     function_signatures.push_back(
         builder.ForceAddSignature(inlinee_sig, kIsFinal));
   }
 
   // Create signature for main function.
   const FunctionSig* main_sig = CreateSignature(
-      builder.zone(), base::VectorOf({ValueType::Ref(target_sig_index)}),
-      base::VectorOf({kWasmI32}));
+      builder.zone(), base::VectorOf({kWasmI32}), base::VectorOf({kWasmI32}));
   function_signatures.push_back(builder.ForceAddSignature(main_sig, kIsFinal));
 
   DCHECK_EQ(function_signatures.back(),
@@ -4533,16 +4616,26 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     functions.push_back(builder.AddFunction(function_signatures[i]));
   }
 
+  uint32_t num_entries = num_call_targets + num_inlinees;
+  uint32_t table_index =
+      builder.AddTable(kWasmFuncRef, num_entries, num_entries);
+  WasmModuleBuilder::WasmElemSegment segment(zone, kWasmFuncRef, table_index,
+                                             WasmInitExpr(0));
+  for (uint32_t i = 0; i < num_entries; i++) {
+    segment.entries.emplace_back(
+        WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
+        builder.NumImportedFunctions() + i);
+  }
+  builder.AddElementSegment(std::move(segment));
+
   gen_module.GenerateRandomTables(array_types, struct_types);
 
-  // Create global for call target.
+  // Create global for call target index.
   // Simplification: This global is used to specify the call target at the deopt
   // point instead of passing the call target around dynamically.
-  uint32_t global_index = builder.AddExportedGlobal(
-      ValueType::RefNull(target_sig_index), true,
-      WasmInitExpr::RefNullConst(
-          HeapType(static_cast<uint32_t>(target_sig_index)).representation()),
-      base::StaticCharVector("call_target"));
+  uint32_t global_index =
+      builder.AddExportedGlobal(kWasmI32, true, WasmInitExpr(0),
+                                base::StaticCharVector("call_target_index"));
 
   // Create inlinee bodies.
   for (int i = 0; i < num_inlinees; ++i) {
@@ -4558,16 +4651,12 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     if (i == 0) {
       // For the inner-most inlinee, emit the deopt point (e.g. a call_ref).
       EmitDeoptAndReturnValues(gen_body, f, target_sig, target_sig_index,
-                               global_index, &function_range);
+                               global_index, table_index, &function_range);
     } else {
       // All other inlinees call the previous inlinee.
       uint32_t callee_declared_index = declared_func_index - 1;
-      uint32_t callee_index =
-          callee_declared_index + builder.NumImportedFunctions();
-      const FunctionSig* callee_sig =
-          functions[callee_declared_index]->signature();
-      EmitCallAndReturnValues(gen_body, f, callee_sig, callee_index,
-                              &function_range);
+      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+                              table_index, &function_range);
     }
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
@@ -4600,16 +4689,12 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     if (num_inlinees == 0) {
       // If we don't have any inlinees, directly emit the deopt point.
       EmitDeoptAndReturnValues(gen_body, f, target_sig, target_sig_index,
-                               global_index, &function_range);
+                               global_index, table_index, &function_range);
     } else {
       // Otherwise call the "outer-most" inlinee.
       uint32_t callee_declared_index = declared_func_index - 1;
-      uint32_t callee_index =
-          callee_declared_index + builder.NumImportedFunctions();
-      const FunctionSig* callee_sig =
-          functions[callee_declared_index]->signature();
-      EmitCallAndReturnValues(gen_body, f, callee_sig, callee_index,
-                              &function_range);
+      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+                              table_index, &function_range);
     }
 
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is

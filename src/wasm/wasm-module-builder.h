@@ -209,9 +209,9 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const;
 
   WasmModuleBuilder* builder() const { return builder_; }
-  uint32_t func_index() { return func_index_; }
-  uint32_t sig_index() { return signature_index_; }
-  inline const FunctionSig* signature();
+  uint32_t func_index() const { return func_index_; }
+  uint32_t sig_index() const { return signature_index_; }
+  inline const FunctionSig* signature() const;
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -522,7 +522,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #endif
 };
 
-const FunctionSig* WasmFunctionBuilder::signature() {
+const FunctionSig* WasmFunctionBuilder::signature() const {
   return builder_->types_[signature_index_].function_sig;
 }
 
