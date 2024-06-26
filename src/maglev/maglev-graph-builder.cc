@@ -4602,10 +4602,12 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       switch (access_mode) {
         case compiler::AccessMode::kLoad:
           return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
-              {receiver, GetConstant(feedback.name())}, feedback_source);
+              {GetTaggedValue(receiver), GetConstant(feedback.name())},
+              feedback_source);
         case compiler::AccessMode::kStore:
           return BuildCallBuiltin<Builtin::kStoreIC_Megamorphic>(
-              {receiver, GetConstant(feedback.name()), GetAccumulatorTagged()},
+              {GetTaggedValue(receiver), GetConstant(feedback.name()),
+               GetAccumulatorTagged()},
               feedback_source);
         case compiler::AccessMode::kDefine:
           return ReduceResult::Fail();
@@ -4745,8 +4747,9 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
         subgraph.Bind(&*is_number);
       }
 
-      ReduceResult result = TryBuildPropertyLoad(receiver, lookup_start_object,
-                                                 feedback.name(), access_info);
+      ReduceResult result =
+          TryBuildPropertyLoad(GetTaggedValue(receiver), lookup_start_object,
+                               feedback.name(), access_info);
       switch (result.kind()) {
         case ReduceResult::kDoneWithValue:
           subgraph.set(ret_val, result.value());
@@ -5651,7 +5654,7 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
 
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
-  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* object = LoadRegisterRaw(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -5659,8 +5662,8 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       TryBuildLoadNamedProperty(object, name, feedback_source), SetAccumulator);
   // Create a generic load in the fallthrough.
   ValueNode* context = GetContext();
-  SetAccumulator(
-      AddNewNode<LoadNamedGeneric>({context, object}, name, feedback_source));
+  SetAccumulator(AddNewNode<LoadNamedGeneric>({context, GetTaggedValue(object)},
+                                              name, feedback_source));
 }
 
 ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
@@ -5688,7 +5691,7 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
 
 void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   // GetNamedPropertyFromSuper <receiver> <name_index> <slot>
-  ValueNode* receiver = LoadRegisterTagged(0);
+  ValueNode* receiver = LoadRegisterRaw(0);
   ValueNode* home_object = GetAccumulatorTagged();
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
@@ -5705,12 +5708,13 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   // Create a generic load.
   ValueNode* context = GetContext();
   SetAccumulator(AddNewNode<LoadNamedFromSuperGeneric>(
-      {context, receiver, lookup_start_object}, name, feedback_source));
+      {context, GetTaggedValue(receiver), lookup_start_object}, name,
+      feedback_source));
 }
 
 void MaglevGraphBuilder::VisitGetKeyedProperty() {
   // GetKeyedProperty <object> <slot>
-  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* object = LoadRegisterRaw(0);
   // TODO(leszeks): We don't need to tag the key if it's an Int32 and a simple
   // monomorphic element load.
   FeedbackSlot slot = GetSlotOperand(1);
@@ -5733,15 +5737,16 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
     // TODO(leszeks): Cache the field index per iteration.
     auto* field_index = AddNewNode<LoadFixedArrayElement>(
         {current_for_in_state.enum_cache_indices, current_for_in_state.index});
-    SetAccumulator(
-        AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
+    SetAccumulator(AddNewNode<LoadTaggedFieldByFieldIndex>(
+        {GetTaggedValue(object), field_index}));
     return;
   }
 
   auto build_generic_access = [this, object, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* key = GetAccumulatorTagged();
-    return AddNewNode<GetKeyedGeneric>({context, object, key}, feedback_source);
+    return AddNewNode<GetKeyedGeneric>({context, GetTaggedValue(object), key},
+                                       feedback_source);
   };
 
   switch (processed_feedback.kind()) {
@@ -5754,8 +5759,8 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       // will try to pick the best representation.
       ValueNode* index = current_interpreter_frame_.accumulator();
       ReduceResult result = TryBuildElementAccess(
-          object, index, processed_feedback.AsElementAccess(), feedback_source,
-          build_generic_access);
+          GetTaggedValue(object), index, processed_feedback.AsElementAccess(),
+          feedback_source, build_generic_access);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
@@ -5894,7 +5899,7 @@ void MaglevGraphBuilder::BuildLoadGlobal(
 
 void MaglevGraphBuilder::VisitSetNamedProperty() {
   // SetNamedProperty <object> <name_index> <slot>
-  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* object = LoadRegisterRaw(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -5920,12 +5925,13 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  AddNewNode<SetNamedGeneric>({context, object, value}, name, feedback_source);
+  AddNewNode<SetNamedGeneric>({context, GetTaggedValue(object), value}, name,
+                              feedback_source);
 }
 
 void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   // DefineNamedOwnProperty <object> <name_index> <slot>
-  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* object = LoadRegisterRaw(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -5952,8 +5958,8 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  AddNewNode<DefineNamedOwnGeneric>({context, object, value}, name,
-                                    feedback_source);
+  AddNewNode<DefineNamedOwnGeneric>({context, GetTaggedValue(object), value},
+                                    name, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitSetKeyedProperty() {
@@ -12358,7 +12364,8 @@ ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
     iterator_method = result_load.value();
   }
   auto throw_iterator_error = [&] {
-    return BuildCallRuntime(Runtime::kThrowIteratorError, {receiver});
+    return BuildCallRuntime(Runtime::kThrowIteratorError,
+                            {GetTaggedValue(receiver)});
   };
   if (!iterator_method->is_tagged()) {
     return throw_iterator_error();
@@ -12393,15 +12400,15 @@ ReduceResult MaglevGraphBuilder::TryReduceGetIterator(ValueNode* receiver,
 
 void MaglevGraphBuilder::VisitGetIterator() {
   // GetIterator <object>
-  ValueNode* receiver = LoadRegisterTagged(0);
+  ValueNode* receiver = LoadRegisterRaw(0);
   int load_slot = iterator_.GetIndexOperand(1);
   int call_slot = iterator_.GetIndexOperand(2);
   PROCESS_AND_RETURN_IF_DONE(
       TryReduceGetIterator(receiver, load_slot, call_slot), SetAccumulator);
   // Fallback to the builtin.
   ValueNode* context = GetContext();
-  SetAccumulator(AddNewNode<GetIterator>({context, receiver}, load_slot,
-                                         call_slot, feedback()));
+  SetAccumulator(AddNewNode<GetIterator>({context, GetTaggedValue(receiver)},
+                                         load_slot, call_slot, feedback()));
 }
 
 void MaglevGraphBuilder::VisitDebugger() {
