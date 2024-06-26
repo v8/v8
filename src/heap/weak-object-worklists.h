@@ -18,8 +18,24 @@ struct Ephemeron {
   Tagged<HeapObject> value;
 };
 
-using HeapObjectAndSlot = std::pair<Tagged<HeapObject>, HeapObjectSlot>;
-using HeapObjectAndCode = std::pair<Tagged<HeapObject>, Tagged<Code>>;
+namespace detail {
+// SlotType will be HeapObjectSlot, which is defined in "globals.h" as an
+// incomplete type. Its definition depends on whether pointer compression
+// is used. It needs to be defined before this type is used.
+template <typename SlotType>
+struct HeapObjectAndSlotPOD {
+  Tagged<HeapObject> heap_object;
+  SlotType slot;
+};
+}  // namespace detail
+
+using HeapObjectAndSlot = detail::HeapObjectAndSlotPOD<HeapObjectSlot>;
+
+struct HeapObjectAndCode {
+  Tagged<HeapObject> heap_object;
+  Tagged<Code> code;
+};
+
 class EphemeronHashTable;
 class JSFunction;
 class SharedFunctionInfo;

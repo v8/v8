@@ -3017,8 +3017,8 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
   HeapObjectAndCode weak_object_in_code;
   while (local_weak_objects()->weak_objects_in_code_local.Pop(
       &weak_object_in_code)) {
-    Tagged<HeapObject> object = weak_object_in_code.first;
-    Tagged<Code> code = weak_object_in_code.second;
+    Tagged<HeapObject> object = weak_object_in_code.heap_object;
+    Tagged<Code> code = weak_object_in_code.code;
     if (!non_atomic_marking_state_->IsMarked(object) &&
         !code->embedded_objects_cleared()) {
       if (!code->marked_for_deoptimization()) {
@@ -3633,14 +3633,14 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
     // as MaybeObjectSlot.
-    MaybeObjectSlot location(slot.second);
+    MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
       DCHECK(!InReadOnlySpace(value));
       DCHECK(MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
       if (non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
-        RecordSlot(slot.first, HeapObjectSlot(location), value);
+        RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
         // The value of the weak reference is non-live.
         // This is a non-atomic store, which is fine as long as we only have a
@@ -3659,19 +3659,19 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
     // as MaybeObjectSlot.
-    MaybeObjectSlot location(slot.second);
+    MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
       DCHECK(!InReadOnlySpace(value));
       DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
       if (non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
-        RecordSlot(slot.first, HeapObjectSlot(location), value);
+        RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
         DCHECK(IsMap(value));
         // The map is non-live.
-        if (V8_LIKELY(
-                !SpecialClearMapSlot(slot.first, Cast<Map>(value), location))) {
+        if (V8_LIKELY(!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
+                                           location))) {
           location.store(cleared_weak_ref);
         }
       }

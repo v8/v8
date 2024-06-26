@@ -112,10 +112,10 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     // non-trivial ones: Map, TransitionArray, DescriptorArray.
     if (IsTrivialWeakReferenceValue(heap_object)) {
       local_weak_objects_->weak_references_trivial_local.Push(
-          std::make_pair(host, slot));
+          HeapObjectAndSlot{host, slot});
     } else {
       local_weak_objects_->weak_references_non_trivial_local.Push(
-          std::make_pair(host, slot));
+          HeapObjectAndSlot{host, slot});
     }
   }
 }
@@ -176,7 +176,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
     Tagged<Code> code = UncheckedCast<Code>(host->raw_code(kAcquireLoad));
     if (code->IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
-          std::make_pair(object, code));
+          HeapObjectAndCode{object, code});
       concrete_visitor()->AddWeakReferenceForReferenceSummarizer(host, object);
     } else {
       MarkObject(host, object, target_worklist.value());
