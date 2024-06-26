@@ -338,17 +338,27 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     TNode<IntPtrT> object = BitcastTaggedToWord(
         UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
 
-    InYoungGeneration(object, next, &generational_barrier_check);
+    if (!v8_flags.sticky_mark_bits) {
+      // With sticky markbits we know everything will be old after the GC so no
+      // need to check the age.
+      InYoungGeneration(object, next, &generational_barrier_check);
 
-    BIND(&generational_barrier_check);
+      BIND(&generational_barrier_check);
+    }
 
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
-    InYoungGeneration(value, &generational_barrier_slow, &shared_barrier_check);
 
-    BIND(&generational_barrier_slow);
-    GenerationalBarrierSlow(slot, next, fp_mode);
+    if (!v8_flags.sticky_mark_bits) {
+      // With sticky markbits we know everything will be old after the GC so no
+      // need to track old-to-new references.
+      InYoungGeneration(value, &generational_barrier_slow,
+                        &shared_barrier_check);
 
-    BIND(&shared_barrier_check);
+      BIND(&generational_barrier_slow);
+      GenerationalBarrierSlow(slot, next, fp_mode);
+
+      BIND(&shared_barrier_check);
+    }
 
     InSharedHeap(value, &shared_barrier_slow, next);
 
@@ -360,6 +370,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
                          Label* false_label) {
     if (v8_flags.sticky_mark_bits) {
+      // This method is currently only used when marking is disabled. Checking
+      // markbits while marking is active may result in unexpected results.
+      CSA_DCHECK(this, Word32Equal(IsMarking(), BoolConstant(false)));
+
       Label not_read_only(this);
 
       TNode<BoolT> is_read_only_page =
@@ -387,9 +401,14 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                                     SaveFPRegsMode fp_mode, Label* next) {
     Label check_is_unmarked(this, Label::kDeferred);
 
-    InYoungGeneration(value, &check_is_unmarked, next);
+    if (!v8_flags.sticky_mark_bits) {
+      // With sticky markbits, InYoungGeneration and IsUnmarked below are
+      // equivalent.
+      InYoungGeneration(value, &check_is_unmarked, next);
 
-    BIND(&check_is_unmarked);
+      BIND(&check_is_unmarked);
+    }
+
     GotoIfNot(IsUnmarked(value), next);
 
     {
