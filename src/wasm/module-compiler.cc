@@ -1496,10 +1496,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
   // Since this is combining untrusted data ({feedback} vector on the JS heap)
   // with trusted data ({call_targets}), make sure to avoid an OOB access.
-  SBXCHECK_EQ(feedback->length(), call_targets.size() * 2);
+  int checked_feedback_length = feedback->length();
+  SBXCHECK_EQ(checked_feedback_length, call_targets.size() * 2);
   FeedbackMaker fm(isolate_, instance_data_, func_index,
-                   feedback->length() / 2);
-  for (int i = 0; i < feedback->length(); i += 2) {
+                   checked_feedback_length / 2);
+  for (int i = 0; i < checked_feedback_length; i += 2) {
     uint32_t sentinel_or_target = call_targets[i / 2];
     Tagged<Object> first_slot = feedback->get(i);
     Tagged<Object> second_slot = feedback->get(i + 1);
@@ -1533,15 +1534,17 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // Polymorphic call_ref or call_indirect.
       Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
       DCHECK(IsUndefined(second_slot));
+      int checked_polymorphic_length = polymorphic->length();
+      SBXCHECK_LE(checked_polymorphic_length, 2 * kMaxPolymorphism);
       if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
-        for (int j = 0; j < polymorphic->length(); j += 2) {
+        for (int j = 0; j < checked_polymorphic_length; j += 2) {
           Tagged<WasmFuncRef> target = Cast<WasmFuncRef>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallRefCandidate(target, count);
         }
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
-        for (int j = 0; j < polymorphic->length(); j += 2) {
+        for (int j = 0; j < checked_polymorphic_length; j += 2) {
           Tagged<Smi> target = Cast<Smi>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallIndirectCandidate(target, count);
