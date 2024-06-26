@@ -968,23 +968,25 @@ Handle<WasmValueObject> WasmValueObject::New(
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
-        // The cast is safe; structs always have the instance defined.
-        DirectHandle<WasmModuleObject> module(
-            Cast<WasmInstanceObject>(type_info->instance())->module_object(),
-            isolate);
-        t = GetRefTypeName(isolate, type, module->native_module());
-        v = StructProxy::Create(isolate, Cast<WasmStruct>(ref), module);
+        // Getting the trusted data is safe; structs always have the instance
+        // data defined.
+        DirectHandle<WasmTrustedInstanceData> wtid(
+            type_info->trusted_data(isolate), isolate);
+        t = GetRefTypeName(isolate, type, wtid->native_module());
+        v = StructProxy::Create(isolate, Cast<WasmStruct>(ref),
+                                direct_handle(wtid->module_object(), isolate));
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
-        // The cast is safe; arrays always have the instance defined.
-        DirectHandle<WasmModuleObject> module(
-            Cast<WasmInstanceObject>(type_info->instance())->module_object(),
-            isolate);
-        t = GetRefTypeName(isolate, type, module->native_module());
-        v = ArrayProxy::Create(isolate, Cast<WasmArray>(ref), module);
+        // Getting the trusted data is safe; arrays always have the instance
+        // data defined.
+        DirectHandle<WasmTrustedInstanceData> wtid(
+            type_info->trusted_data(isolate), isolate);
+        t = GetRefTypeName(isolate, type, wtid->native_module());
+        v = ArrayProxy::Create(isolate, Cast<WasmArray>(ref),
+                               direct_handle(wtid->module_object(), isolate));
       } else if (IsWasmFuncRef(*ref)) {
         DirectHandle<WasmInternalFunction> internal_fct{
             Cast<WasmFuncRef>(*ref)->internal(isolate), isolate};

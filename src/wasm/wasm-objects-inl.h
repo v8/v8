@@ -471,6 +471,9 @@ Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
                            kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
+TRUSTED_POINTER_ACCESSORS(WasmTypeInfo, trusted_data, WasmTrustedInstanceData,
+                          kTrustedDataOffset,
+                          kWasmTrustedInstanceDataIndirectPointerTag)
 
 #undef OPTIONAL_ACCESSORS
 #undef READ_PRIMITIVE_FIELD

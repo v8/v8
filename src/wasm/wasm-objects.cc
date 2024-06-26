@@ -2385,7 +2385,8 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   constexpr uint32_t kNoIndex = ~0u;
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, Handle<WasmInstanceObject>(), kNoIndex);
+      kNullAddress, opt_rtt_parent, Handle<WasmTrustedInstanceData>(),
+      kNoIndex);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
@@ -2778,7 +2779,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
         uint32_t real_idx = type_info->type_index();
         const WasmModule* real_module =
-            Cast<WasmInstanceObject>(type_info->instance())->module();
+            type_info->trusted_data(isolate)->module();
         uint32_t real_canonical_index =
             real_module->isorecursive_canonical_type_ids[real_idx];
         if (!type_canonicalizer->IsCanonicalSubtype(real_canonical_index,

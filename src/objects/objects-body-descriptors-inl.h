@@ -868,12 +868,14 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IteratePointer(obj, kInstanceOffset, v);
-    IteratePointers(obj, kSupertypesOffset, SizeOf(map, obj), v);
-
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kNativeTypeOffset,
                                           kWasmTypeInfoNativeTypeTag));
+
+    IterateTrustedPointer(obj, kTrustedDataOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmTrustedInstanceDataIndirectPointerTag);
+    IteratePointers(obj, kSupertypesOffset, SizeOf(map, obj), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

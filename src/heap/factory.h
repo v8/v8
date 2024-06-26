@@ -721,7 +721,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(
       Address type_address, Handle<Map> opt_parent,
-      DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
+      DirectHandle<WasmTrustedInstanceData> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index,
       uintptr_t signature_hash);

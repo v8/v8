@@ -959,11 +959,10 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     Tagged<WasmTypeInfo> info = object->map()->wasm_type_info();
-    // The cast is safe; structs and arrays always have their instance defined.
-    wasm::NamesProvider* names = Cast<WasmInstanceObject>(info->instance())
-                                     ->module_object()
-                                     ->native_module()
-                                     ->GetNamesProvider();
+    // Getting the trusted data is safe; structs and arrays always have their
+    // trusted data defined.
+    wasm::NamesProvider* names =
+        info->trusted_data(isolate())->native_module()->GetNamesProvider();
     wasm::StringBuilder sb;
     names->PrintTypeName(sb, info->type_index());
     sb << " (wasm)" << '\0';
@@ -2177,11 +2176,10 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
                                                  HeapEntry* entry) {
   wasm::StructType* type = obj->type();
   Tagged<WasmTypeInfo> info = obj->map()->wasm_type_info();
-  // The cast is safe; structs always have their instance defined.
-  wasm::NamesProvider* names = Cast<WasmInstanceObject>(info->instance())
-                                   ->module_object()
-                                   ->native_module()
-                                   ->GetNamesProvider();
+  // Getting the trusted data is safe; structs always have their trusted data
+  // defined.
+  wasm::NamesProvider* names =
+      info->trusted_data(isolate())->native_module()->GetNamesProvider();
   Isolate* isolate = heap_->isolate();
   for (uint32_t i = 0; i < type->field_count(); i++) {
     wasm::StringBuilder sb;

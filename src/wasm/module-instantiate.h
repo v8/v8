@@ -125,6 +125,7 @@ base::Optional<MessageTemplate> InitializeElementSegment(
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, int type_index,
+    Handle<WasmTrustedInstanceData> trusted_data,
     Handle<WasmInstanceObject> instance_object,
     Handle<FixedArray> maybe_shared_maps);
 

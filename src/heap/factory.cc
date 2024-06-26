@@ -1613,7 +1613,8 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
 #if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent,
-    DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index) {
+    DirectHandle<WasmTrustedInstanceData> opt_trusted_data,
+    uint32_t type_index) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
@@ -1651,10 +1652,10 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     result->set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
   result->init_native_type(isolate(), type_address);
-  if (opt_instance.is_null()) {
-    result->set_instance(read_only_roots().undefined_value());
+  if (opt_trusted_data.is_null()) {
+    result->clear_trusted_data();
   } else {
-    result->set_instance(*opt_instance);
+    result->set_trusted_data(*opt_trusted_data);
   }
   result->set_type_index(type_index);
   return handle(result, isolate());

@@ -1132,6 +1132,7 @@ class WasmTypeInfo
     : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {
  public:
   DECL_EXTERNAL_POINTER_ACCESSORS(native_type, Address)
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   DECL_PRINTER(WasmTypeInfo)
 

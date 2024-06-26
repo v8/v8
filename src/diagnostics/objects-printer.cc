@@ -2362,13 +2362,14 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 }
 
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(native_type());
   os << "\n - supertypes: ";
   for (int i = 0; i < supertypes_length(); i++) {
     os << "\n  - " << Brief(supertypes(i));
   }
-  os << "\n - instance: " << Brief(instance());
+  os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   os << "\n";
 }
 

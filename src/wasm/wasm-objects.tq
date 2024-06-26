@@ -245,7 +245,7 @@ extern class WasmTypeInfo extends HeapObject {
   // We must make sure that the StructType/ArrayType, which is allocated in
   // the WasmModule's "signature_zone", stays around as long as there are
   // HeapObjects referring to it. Short term, we simply keep a reference to
-  // the instance, which in turn keeps the entire WasmModule alive.
+  // the trusted instance data, which in turn keeps the entire WasmModule alive.
   // TODO(jkummerow): Possible optimization: manage the "signature_zone"'s
   // lifetime separately by having WasmModule refer to it via std::shared_ptr,
   // and introduce a new link from here to just that zone using a Managed<...>.
@@ -255,7 +255,9 @@ extern class WasmTypeInfo extends HeapObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   // Is undefined for WasmExternalFunctions referring to WasmJSFunctions.
-  instance: WasmInstanceObject|Undefined;
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;
 }
