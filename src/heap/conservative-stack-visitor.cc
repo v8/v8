@@ -7,6 +7,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/objects/visitors.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -51,12 +52,20 @@ Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
   // If it is not in the young generation and we're only interested in young
   // generation pointers, we must ignore it.
-  if (Heap::IsYoungGenerationCollector(collector_) &&
-      !chunk->InYoungGeneration())
-    return kNullAddress;
-  // If it is in the young generation "from" semispace, it is not used and we
-  // must ignore it, as its markbits may not be clean.
-  if (chunk->IsFromPage()) return kNullAddress;
+  if (v8_flags.sticky_mark_bits) {
+    if (Heap::IsYoungGenerationCollector(collector_) &&
+        chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD))
+      return kNullAddress;
+  } else {
+    if (Heap::IsYoungGenerationCollector(collector_) &&
+        !chunk->InYoungGeneration())
+      return kNullAddress;
+
+    // If it is in the young generation "from" semispace, it is not used and we
+    // must ignore it, as its markbits may not be clean.
+    if (chunk->IsFromPage()) return kNullAddress;
+  }
+
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);
