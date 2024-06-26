@@ -44,35 +44,29 @@ namespace liftoff {
 inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
                            Register offset, uintptr_t offset_imm,
                            bool i64_offset = false, unsigned shift_amount = 0) {
-  DCHECK_NE(addr, kScratchReg2);
-  DCHECK_NE(offset, kScratchReg2);
-  if (!i64_offset && offset != no_reg) {
-    // extract bit[0:31] without sign extend
-    assm->ExtractBits(kScratchReg2, offset, 0, 32, false);
-    offset = kScratchReg2;
-  }
-  if (is_uint31(offset_imm)) {
-    int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
-    if (offset == no_reg) return MemOperand(addr, offset_imm32);
+  if (offset != no_reg) {
+    if (!i64_offset) {
+      // extract bit[0:31] without sign extend
+      assm->ExtractBits(kScratchReg2, offset, 0, 32, false);
+      offset = kScratchReg2;
+    }
     if (shift_amount != 0) {
       assm->CalcScaledAddress(kScratchReg2, addr, offset, shift_amount);
     } else {
       assm->Add64(kScratchReg2, offset, addr);
     }
-    return MemOperand(kScratchReg2, offset_imm32);
+    addr = kScratchReg2;
   }
-  // Offset immediate does not fit in 31 bits.
-  assm->li(kScratchReg2, offset_imm);
-  assm->Add64(kScratchReg2, kScratchReg2, addr);
-  if (offset != no_reg) {
-    if (shift_amount != 0) {
-      assm->CalcScaledAddress(kScratchReg2, kScratchReg2, offset, shift_amount);
-    } else {
-      assm->Add64(kScratchReg2, kScratchReg2, offset);
-    }
+  if (is_int31(offset_imm)) {
+    int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
+    return MemOperand(addr, offset_imm32);
+  } else {
+    assm->li(kScratchReg, Operand(offset_imm));
+    assm->Add64(kScratchReg2, addr, kScratchReg);
+    return MemOperand(kScratchReg2, 0);
   }
-  return MemOperand(kScratchReg2, 0);
 }
+
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueKind kind) {
   switch (kind) {

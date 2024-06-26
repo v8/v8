@@ -478,6 +478,8 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   slli(destination, destination, kExternalPointerTableEntrySizeLog2);
   AddWord(external_table, external_table, destination);
   LoadWord(destination, MemOperand(external_table, 0));
+  temps.Include(external_table);
+  external_table = no_reg;
   And(destination, destination, Operand(~tag));
 #else
   LoadWord(destination, field_operand);
