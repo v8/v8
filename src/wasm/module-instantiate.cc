@@ -2754,10 +2754,9 @@ void InstanceBuilder::ProcessExports(
               isolate_);
           uint32_t canonical_sig_index =
               module_->isorecursive_canonical_type_ids[tag.sig_index];
-          DirectHandle<WasmInstanceObject> instance =
-              direct_handle(trusted_instance_data->instance_object(), isolate_);
+          // TODO(42204563): Support shared tags.
           wrapper = WasmTagObject::New(isolate_, tag.sig, canonical_sig_index,
-                                       tag_object, instance);
+                                       tag_object, trusted_instance_data);
           tags_wrappers_[exp.index] = wrapper;
         }
         value = wrapper;

@@ -226,8 +226,10 @@ extern class WasmGlobalObject extends JSObject {
 extern class WasmTagObject extends JSObject {
   serialized_signature: PodArrayOfWasmValueType;
   tag: HeapObject;
-  instance: WasmInstanceObject|Undefined;
   canonical_type_index: Smi;
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
 }
 
 type WasmExportedFunction extends JSFunction;

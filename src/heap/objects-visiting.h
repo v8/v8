@@ -94,7 +94,8 @@ namespace internal {
   IF_WASM(V, WasmInstanceObject)            \
   IF_WASM(V, WasmSuspenderObject)           \
   IF_WASM(V, WasmSuspendingObject)          \
-  IF_WASM(V, WasmTableObject)
+  IF_WASM(V, WasmTableObject)               \
+  IF_WASM(V, WasmTagObject)
 
 // List of visitor ids that can only appear in read-only maps. Unfortunately,
 // these are generally contained in all other lists.

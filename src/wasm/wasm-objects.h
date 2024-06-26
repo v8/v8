@@ -619,6 +619,8 @@ class WasmInstanceObject
 class WasmTagObject
     : public TorqueGeneratedWasmTagObject<WasmTagObject, JSObject> {
  public:
+  class BodyDescriptor;
+
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this tag object.
   bool MatchesSignature(uint32_t expected_canonical_type_index);
@@ -626,7 +628,9 @@ class WasmTagObject
   static Handle<WasmTagObject> New(
       Isolate* isolate, const wasm::FunctionSig* sig,
       uint32_t canonical_type_index, DirectHandle<HeapObject> tag,
-      DirectHandle<Union<Undefined, WasmInstanceObject>> instance);
+      DirectHandle<WasmTrustedInstanceData> instance);
+
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };

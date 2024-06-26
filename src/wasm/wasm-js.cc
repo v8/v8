@@ -1888,7 +1888,7 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::JSObject> tag_object =
       i::WasmTagObject::New(i_isolate, &sig, canonical_type_index, tag,
-                            i_isolate->factory()->undefined_value());
+                            i::Handle<i::WasmTrustedInstanceData>());
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
@@ -1995,11 +1995,11 @@ void EncodeExceptionValues(
         uint32_t canonical_index = i::wasm::kInvalidCanonicalIndex;
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
-          i::Tagged<i::HeapObject> maybe_instance = tag_object->instance();
           // Indexed types are guaranteed to come from an instance.
-          CHECK(i::IsWasmInstanceObject(maybe_instance));
-          auto instance = i::Cast<i::WasmInstanceObject>(maybe_instance);
-          const i::wasm::WasmModule* module = instance->module();
+          CHECK(tag_object->has_trusted_data());
+          i::Tagged<i::WasmTrustedInstanceData> wtid =
+              tag_object->trusted_data(i_isolate);
+          const i::wasm::WasmModule* module = wtid->module();
           canonical_index =
               module->isorecursive_canonical_type_ids[type.ref_index()];
         }
@@ -3383,7 +3383,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     static constexpr uint32_t kInitialCanonicalTypeIndex = 0;
     Handle<JSObject> js_tag_object = WasmTagObject::New(
         isolate, &kWasmExceptionTagSignature, kInitialCanonicalTypeIndex,
-        js_tag, isolate->factory()->undefined_value());
+        js_tag, Handle<WasmTrustedInstanceData>());
     native_context->set_wasm_js_tag(*js_tag_object);
     JSObject::AddProperty(isolate, webassembly, "JSTag", js_tag_object,
                           ro_attributes);

@@ -1838,7 +1838,7 @@ void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
 Handle<WasmTagObject> WasmTagObject::New(
     Isolate* isolate, const wasm::FunctionSig* sig,
     uint32_t canonical_type_index, DirectHandle<HeapObject> tag,
-    DirectHandle<Union<Undefined, WasmInstanceObject>> instance) {
+    DirectHandle<WasmTrustedInstanceData> trusted_data) {
   Handle<JSFunction> tag_cons(isolate->native_context()->wasm_tag_constructor(),
                               isolate);
 
@@ -1859,7 +1859,11 @@ Handle<WasmTagObject> WasmTagObject::New(
   tag_wrapper->set_serialized_signature(*serialized_sig);
   tag_wrapper->set_canonical_type_index(canonical_type_index);
   tag_wrapper->set_tag(*tag);
-  tag_wrapper->set_instance(*instance);
+  if (!trusted_data.is_null()) {
+    tag_wrapper->set_trusted_data(*trusted_data);
+  } else {
+    tag_wrapper->clear_trusted_data();
+  }
 
   return tag_wrapper;
 }

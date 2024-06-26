@@ -102,6 +102,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmSuspenderObject)    \
   IF_WASM(V, WasmSuspendingObject)   \
   IF_WASM(V, WasmTableObject)        \
+  IF_WASM(V, WasmTagObject)          \
   IF_WASM(V, WasmTypeInfo)           \
   V(WeakCell)                        \
   SIMPLE_HEAP_OBJECT_LIST1(V)
