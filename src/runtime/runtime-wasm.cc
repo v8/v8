@@ -438,6 +438,7 @@ Tagged<FixedArray> AllocateFeedbackVector(
   DCHECK_EQ(trusted_instance_data->feedback_vectors()->get(declared_func_index),
             Smi::zero());
   trusted_instance_data->feedback_vectors()->set(declared_func_index, *vector);
+  isolate->set_context(Tagged<Context>());
   return *vector;
 }
 }  // namespace
@@ -461,22 +462,42 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
                                 declared_func_index);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVectorAtDeopt) {
-  // TODO(mliedtke): Instead of doing this for the frame on top of the stack,
-  // this needs to be done for all deopted frames.
+RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
   ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
-  int declared_func_index = args.smi_value_at(1);
-  return AllocateFeedbackVector(isolate, trusted_instance_data,
-                                declared_func_index);
-}
+  // Destroy the Deoptimizer object stored on the isolate.
+  size_t deopt_frame_count = Deoptimizer::DeleteForWasm(isolate);
+  size_t i = 0;
 
-RUNTIME_FUNCTION(Runtime_WasmDeleteDeoptimizer) {
-  ClearThreadInWasmScope wasm_flag(isolate);
-  Deoptimizer::DeleteForWasm(isolate);
+  // For each liftoff frame, check if the feedback vector is already present.
+  // If it is not, allocate a new feedback vector for it.
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* frame = it.frame();
+    if (frame->is_wasm() && WasmFrame::cast(frame)->wasm_code()->is_liftoff()) {
+      Address vector_address =
+          frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
+      Tagged<Object> vector_or_smi(Memory<intptr_t>(vector_address));
+      if (vector_or_smi.IsSmi()) {
+        int declared_func_index = Cast<Smi>(vector_or_smi).value();
+        Tagged<Object> vector =
+            trusted_instance_data->feedback_vectors()->get(declared_func_index);
+        // The vector can already exist if the same function appears multiple
+        // times in the deopted frames (i.e. it was inlined recursively).
+        if (vector == Smi::zero()) {
+          vector = AllocateFeedbackVector(isolate, trusted_instance_data,
+                                          declared_func_index);
+        }
+        memcpy(reinterpret_cast<void*>(vector_address), &vector,
+               sizeof(intptr_t));
+      }
+      if (++i == deopt_frame_count) {
+        break;  // All deopt frames have been visited.
+      }
+    }
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

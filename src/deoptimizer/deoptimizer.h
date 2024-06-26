@@ -68,6 +68,7 @@ class Deoptimizer : public Malloced {
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
+  int output_count() const { return output_count_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
   // function we generated OSR'd code for. If the deopt occurred in an inlined
@@ -80,7 +81,9 @@ class Deoptimizer : public Malloced {
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
-  static void DeleteForWasm(Isolate* isolate);
+  // Delete and deregister the deoptimizer from the current isolate. Returns the
+  // count of output (liftoff) frames that were constructed by the deoptimizer.
+  static size_t DeleteForWasm(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
   // freed before another one can be generated.

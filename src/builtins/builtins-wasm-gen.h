@@ -17,9 +17,6 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<WasmTrustedInstanceData> LoadInstanceDataFromFrame();
 
-  TNode<Object> LoadFeedbackVectorOrSmiFromParentFrame();
-  void StoreFeedbackVectorOnParentFrame(TNode<FixedArray> vector);
-
   TNode<WasmTrustedInstanceData> LoadTrustedDataFromInstance(
       TNode<WasmInstanceObject>);
 

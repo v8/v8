@@ -279,13 +279,15 @@ Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   return result;
 }
 
-void Deoptimizer::DeleteForWasm(Isolate* isolate) {
+size_t Deoptimizer::DeleteForWasm(Isolate* isolate) {
   // The deoptimizer disallows garbage collections.
   DCHECK(!AllowGarbageCollection::IsAllowed());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  int output_count = deoptimizer->output_count();
   delete deoptimizer;
   // Now garbage collections are allowed again.
   DCHECK(AllowGarbageCollection::IsAllowed());
+  return output_count;
 }
 
 DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(

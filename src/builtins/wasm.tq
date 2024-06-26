@@ -77,9 +77,8 @@ extern runtime WasmStringFromCodePoint(Context, Number): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
 extern runtime WasmJSToWasmObject(Context, JSAny, Smi, Smi): JSAny;
-extern runtime WasmAllocateFeedbackVectorAtDeopt(
-    NoContext, WasmTrustedInstanceData, Smi): FixedArray;
-extern runtime WasmDeleteDeoptimizer(NoContext): Undefined;
+extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
+    Undefined;
 
 extern runtime PropagateException(NoContext): JSAny;
 }
@@ -107,10 +106,6 @@ extern macro WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
 
 extern macro WasmBuiltinsAssembler::LoadInstanceDataFromFrame():
     WasmTrustedInstanceData;
-extern macro WasmBuiltinsAssembler::LoadFeedbackVectorOrSmiFromParentFrame():
-    Object;
-extern macro WasmBuiltinsAssembler::StoreFeedbackVectorOnParentFrame(
-    FixedArray): void;
 
 // WasmTrustedInstanceData has a field layout that Torque can't handle yet.
 // TODO(bbudge) Eliminate these functions when Torque is ready.
@@ -420,15 +415,9 @@ builtin WasmAllocateFixedArray(size: intptr): FixedArray {
       ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
 }
 
-builtin WasmLiftoffDeoptFinish(): int32 {
-  runtime::WasmDeleteDeoptimizer(kNoContext);
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const feedbackVectorOrSmi = LoadFeedbackVectorOrSmiFromParentFrame();
-  const declaredFuncIndex = Cast<Smi>(feedbackVectorOrSmi) otherwise return 0;
-  const feedbackVector = runtime::WasmAllocateFeedbackVectorAtDeopt(
-      kNoContext, trustedData, declaredFuncIndex);
-  StoreFeedbackVectorOnParentFrame(feedbackVector);
-  return 0;
+builtin WasmLiftoffDeoptFinish(): Undefined {
+  const trustedData = LoadInstanceDataFromFrame();
+  tail runtime::WasmLiftoffDeoptFinish(kNoContext, trustedData);
 }
 
 builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
@@ -449,7 +438,7 @@ builtin WasmRethrowExplicitContext(
 }
 
 builtin WasmTriggerTierUp(): JSAny {
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), trustedData);
 }
 
