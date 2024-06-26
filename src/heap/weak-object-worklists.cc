@@ -101,9 +101,9 @@ void WeakObjects::UpdateDiscoveredEphemerons(
   discovered_ephemerons.Update(EphemeronUpdater);
 }
 
-// static
-void WeakObjects::UpdateWeakReferences(
-    WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
+namespace {
+void UpdateWeakReferencesHelper(
+    WeakObjects::WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
   weak_references.Update(
       [](HeapObjectAndSlot slot_in, HeapObjectAndSlot* slot_out) -> bool {
         Tagged<HeapObject> heap_obj = slot_in.first;
@@ -120,6 +120,19 @@ void WeakObjects::UpdateWeakReferences(
 
         return false;
       });
+}
+}  // anonymous namespace
+
+// static
+void WeakObjects::UpdateWeakReferencesTrivial(
+    WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
+  UpdateWeakReferencesHelper(weak_references);
+}
+
+// static
+void WeakObjects::UpdateWeakReferencesNonTrivial(
+    WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
+  UpdateWeakReferencesHelper(weak_references);
 }
 
 // static

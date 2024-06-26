@@ -2779,6 +2779,37 @@ class ClearSharedStructTypeRegistryJobItem final
 
 }  // namespace
 
+class MarkCompactCollector::ClearTrivialWeakRefJobItem final
+    : public ParallelClearingJob::ClearingItem {
+ public:
+  explicit ClearTrivialWeakRefJobItem(MarkCompactCollector* collector)
+      : collector_(collector),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  collector->heap()->tracer()->CurrentEpoch(
+                      GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL)) {}
+
+  void Run(JobDelegate* delegate) final {
+    Heap* heap = collector_->heap();
+
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(heap->isolate());
+
+    TRACE_GC1_WITH_FLOW(heap->tracer(),
+                        GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
+                        delegate->IsJoiningThread() ? ThreadKind::kMain
+                                                    : ThreadKind::kBackground,
+                        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+    collector_->ClearTrivialWeakReferences();
+  }
+
+  uint64_t trace_id() const { return trace_id_; }
+
+ private:
+  MarkCompactCollector* collector_;
+  const uint64_t trace_id_;
+};
+
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR);
 
@@ -2811,23 +2842,25 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
-  auto clearing_job = std::make_unique<ParallelClearingJob>(this);
-  auto clear_string_table_job_item =
-      std::make_unique<ClearStringTableJobItem>(isolate);
-  const uint64_t trace_id = clear_string_table_job_item->trace_id();
-  clearing_job->Add(std::move(clear_string_table_job_item));
-  TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
-                          TRACE_EVENT_FLAG_FLOW_OUT);
-  if (isolate->is_shared_space_isolate() &&
-      isolate->shared_struct_type_registry()) {
-    auto clear_shared_struct_type_registry_job_item =
-        std::make_unique<ClearSharedStructTypeRegistryJobItem>(isolate);
-    clearing_job->Add(std::move(clear_shared_struct_type_registry_job_item));
+  std::unique_ptr<JobHandle> clear_string_table_job_handle;
+  {
+    auto job = std::make_unique<ParallelClearingJob>(this);
+    auto job_item = std::make_unique<ClearStringTableJobItem>(isolate);
+    const uint64_t trace_id = job_item->trace_id();
+    job->Add(std::move(job_item));
+    TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    if (isolate->is_shared_space_isolate() &&
+        isolate->shared_struct_type_registry()) {
+      auto registry_job_item =
+          std::make_unique<ClearSharedStructTypeRegistryJobItem>(isolate);
+      job->Add(std::move(registry_job_item));
+    }
+    clear_string_table_job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserBlocking, std::move(job));
   }
-  auto clearing_job_handle = V8::GetCurrentPlatform()->CreateJob(
-      TaskPriority::kUserBlocking, std::move(clearing_job));
   if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
-    clearing_job_handle->NotifyConcurrencyIncrease();
+    clear_string_table_job_handle->NotifyConcurrencyIncrease();
   }
 
   {
@@ -2877,6 +2910,26 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
 
+  // Start a parallel job for clearing trivial weak references. The job cannot
+  // be started before the following methods have finished, as they may mark
+  // more objects and create a data race:
+  //   - ProcessOldCodeCandidates
+  //   - ProcessAllWeakReferences
+  std::unique_ptr<JobHandle> clear_trivial_weakrefs_job_handle;
+  {
+    auto job = std::make_unique<ParallelClearingJob>(this);
+    auto job_item = std::make_unique<ClearTrivialWeakRefJobItem>(this);
+    const uint64_t trace_id = job_item->trace_id();
+    job->Add(std::move(job_item));
+    TRACE_GC_NOTE_WITH_FLOW("ClearTrivialWeakRefJob started", trace_id,
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    clear_trivial_weakrefs_job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserBlocking, std::move(job));
+  }
+  if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
+    clear_trivial_weakrefs_job_handle->NotifyConcurrencyIncrease();
+  }
+
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
     // ClearFullMapTransitions must be called before weak references are
@@ -2886,9 +2939,10 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // potentially move everywhere after `ClearFullMapTransitions()`.
     WeakenStrongDescriptorArrays();
   }
+
   {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
-    ClearWeakReferences();
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_WEAKNESS_HANDLING);
+    ClearNonTrivialWeakReferences();
     ClearWeakCollections();
     ClearJSWeakRefs();
   }
@@ -2938,7 +2992,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
-    clearing_job_handle->Join();
+    clear_string_table_job_handle->Join();
+    clear_trivial_weakrefs_job_handle->Join();
   }
 
   if (v8_flags.sticky_mark_bits) {
@@ -2948,7 +3003,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
-  DCHECK(weak_objects_.weak_references.IsEmpty());
+  DCHECK(weak_objects_.weak_references_trivial.IsEmpty());
+  DCHECK(weak_objects_.weak_references_non_trivial.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.weak_cells.IsEmpty());
@@ -3570,24 +3626,51 @@ void MarkCompactCollector::ClearWeakCollections() {
   }
 }
 
-void MarkCompactCollector::ClearWeakReferences() {
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
+void MarkCompactCollector::ClearTrivialWeakReferences() {
   HeapObjectAndSlot slot;
   Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
-  while (local_weak_objects()->weak_references_local.Pop(&slot)) {
+  while (local_weak_objects()->weak_references_trivial_local.Pop(&slot)) {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
     // as MaybeObjectSlot.
     MaybeObjectSlot location(slot.second);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
-      if (InReadOnlySpace(value) ||
-          non_atomic_marking_state_->IsMarked(value)) {
+      DCHECK(!InReadOnlySpace(value));
+      DCHECK(MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
+      if (non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
+        // The value of the weak reference is non-live.
+        // This is a non-atomic store, which is fine as long as we only have a
+        // single clearing job.
+        location.store(cleared_weak_ref);
+      }
+    }
+  }
+}
+
+void MarkCompactCollector::ClearNonTrivialWeakReferences() {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
+  HeapObjectAndSlot slot;
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  while (local_weak_objects()->weak_references_non_trivial_local.Pop(&slot)) {
+    Tagged<HeapObject> value;
+    // The slot could have been overwritten, so we have to treat it
+    // as MaybeObjectSlot.
+    MaybeObjectSlot location(slot.second);
+    if ((*location).GetHeapObjectIfWeak(&value)) {
+      DCHECK(!IsCell(value));
+      DCHECK(!InReadOnlySpace(value));
+      DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
+      if (non_atomic_marking_state_->IsMarked(value)) {
+        // The value of the weak reference is alive.
+        RecordSlot(slot.first, HeapObjectSlot(location), value);
+      } else {
+        DCHECK(IsMap(value));
+        // The map is non-live.
         if (V8_LIKELY(
-                !IsMap(value) ||
                 !SpecialClearMapSlot(slot.first, Cast<Map>(value), location))) {
           location.store(cleared_weak_ref);
         }
@@ -3597,6 +3680,7 @@ void MarkCompactCollector::ClearWeakReferences() {
 }
 
 void MarkCompactCollector::ClearJSWeakRefs() {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES);
   Tagged<JSWeakRef> weak_ref;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {

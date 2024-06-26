@@ -652,6 +652,7 @@
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                \
   F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)              \
   F(MC_CLEAR_JOIN_JOB)                          \
+  F(MC_CLEAR_JS_WEAK_REFERENCES)                \
   F(MC_CLEAR_MAPS)                              \
   F(MC_CLEAR_SLOTS_BUFFER)                      \
   F(MC_CLEAR_STRING_TABLE)                      \
@@ -659,6 +660,7 @@
   F(MC_CLEAR_WEAK_GLOBAL_HANDLES)               \
   F(MC_CLEAR_WEAK_LISTS)                        \
   F(MC_CLEAR_WEAK_REFERENCES)                   \
+  F(MC_CLEAR_WEAK_REFERENCES_TRIVIAL)           \
   F(MC_SWEEP_EXTERNAL_POINTER_TABLE)            \
   F(MC_SWEEP_TRUSTED_POINTER_TABLE)             \
   F(MC_SWEEP_CODE_POINTER_TABLE)                \
@@ -703,7 +705,8 @@
   F(MC_SWEEP_SHARED_LO)                         \
   F(MC_SWEEP_TRUSTED)                           \
   F(MC_SWEEP_TRUSTED_LO)                        \
-  F(MC_SWEEP_START_JOBS)
+  F(MC_SWEEP_START_JOBS)                        \
+  F(MC_WEAKNESS_HANDLING)
 
 #define TRACER_SCOPES(F)                 \
   MC_INCREMENTAL_SCOPES(F)               \

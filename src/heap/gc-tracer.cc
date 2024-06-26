@@ -985,7 +985,9 @@ void GCTracer::PrintNVP() const {
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
+          "clear.js_weak_references=%.1f "
           "clear.join_job=%.1f "
+          "weakness_handling=%.1f "
           "complete.sweep_array_buffers=%.1f "
           "complete.sweeping=%.1f "
           "epilogue=%.1f "
@@ -1074,7 +1076,9 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS),
           current_scope(Scope::MC_CLEAR_WEAK_LISTS),
           current_scope(Scope::MC_CLEAR_WEAK_REFERENCES),
+          current_scope(Scope::MC_CLEAR_JS_WEAK_REFERENCES),
           current_scope(Scope::MC_CLEAR_JOIN_JOB),
+          current_scope(Scope::MC_WEAKNESS_HANDLING),
           current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MC_COMPLETE_SWEEPING),
           current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),

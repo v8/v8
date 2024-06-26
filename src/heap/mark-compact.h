@@ -329,8 +329,12 @@ class MarkCompactCollector final {
   // Goes through the list of encountered weak references and clears those with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
-  // transition.
-  void ClearWeakReferences();
+  // transition. Trivial weak references, involving no custom weakness clearing,
+  // can be cleared via a parallel job.
+  void ClearTrivialWeakReferences();
+  void ClearNonTrivialWeakReferences();
+
+  class ClearTrivialWeakRefJobItem;
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.

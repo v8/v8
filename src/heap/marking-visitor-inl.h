@@ -78,6 +78,13 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }
 
+// static
+template <typename ConcreteVisitor>
+constexpr bool MarkingVisitorBase<ConcreteVisitor>::IsTrivialWeakReferenceValue(
+    Tagged<HeapObject> heap_object) {
+  return InReadOnlySpace(heap_object) || !IsMap(heap_object);
+}
+
 // class template arguments
 template <typename ConcreteVisitor>
 // method template arguments
@@ -101,7 +108,15 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     // If we do not know about liveness of the value, we have to process
     // the reference when we know the liveness of the whole transitive
     // closure.
-    local_weak_objects_->weak_references_local.Push(std::make_pair(host, slot));
+    // Distinguish trivial cases (non involving custom weakness) from
+    // non-trivial ones: Map, TransitionArray, DescriptorArray.
+    if (IsTrivialWeakReferenceValue(heap_object)) {
+      local_weak_objects_->weak_references_trivial_local.Push(
+          std::make_pair(host, slot));
+    } else {
+      local_weak_objects_->weak_references_non_trivial_local.Push(
+          std::make_pair(host, slot));
+    }
   }
 }
 
@@ -620,7 +635,6 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
         weak_cell, unregister_token);
   }
   return Base::VisitWeakCell(map, weak_cell);
-  ;
 }
 
 // ===========================================================================
