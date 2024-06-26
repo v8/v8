@@ -140,6 +140,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_jammy_gcc_compile_dbg",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
+    execution_timeout = 7200,
+)
+
+try_builder(
     name = "v8_linux64_gcc_light_compile_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
