@@ -714,12 +714,13 @@ class PreParserFactory {
   }
 
   PreParserExpression NewImportCallExpression(const PreParserExpression& args,
+                                              const ModuleImportPhase phase,
                                               int pos) {
     return PreParserExpression::Default();
   }
 
   PreParserExpression NewImportCallExpression(
-      const PreParserExpression& specifier,
+      const PreParserExpression& specifier, const ModuleImportPhase phase,
       const PreParserExpression& import_options, int pos) {
     return PreParserExpression::Default();
   }

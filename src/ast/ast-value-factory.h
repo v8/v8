@@ -274,6 +274,7 @@ using AstRawStringMap =
   F(prototype, "prototype")                        \
   F(return, "return")                              \
   F(set_space, "set ")                             \
+  F(source, "source")                              \
   F(string, "string")                              \
   F(symbol, "symbol")                              \
   F(target, "target")                              \

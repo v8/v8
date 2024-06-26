@@ -2710,24 +2710,28 @@ class SuperCallReference final : public Expression {
 class ImportCallExpression final : public Expression {
  public:
   Expression* specifier() const { return specifier_; }
+  ModuleImportPhase phase() const { return phase_; }
   Expression* import_options() const { return import_options_; }
 
  private:
   friend class AstNodeFactory;
   friend Zone;
 
-  ImportCallExpression(Expression* specifier, int pos)
+  ImportCallExpression(Expression* specifier, ModuleImportPhase phase, int pos)
       : Expression(pos, kImportCallExpression),
         specifier_(specifier),
+        phase_(phase),
         import_options_(nullptr) {}
 
-  ImportCallExpression(Expression* specifier, Expression* import_options,
-                       int pos)
+  ImportCallExpression(Expression* specifier, ModuleImportPhase phase,
+                       Expression* import_options, int pos)
       : Expression(pos, kImportCallExpression),
         specifier_(specifier),
+        phase_(phase),
         import_options_(import_options) {}
 
   Expression* specifier_;
+  ModuleImportPhase phase_;
   Expression* import_options_;
 };
 
@@ -3407,14 +3411,17 @@ class AstNodeFactory final {
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* specifier,
+                                                ModuleImportPhase phase,
                                                 int pos) {
-    return zone_->New<ImportCallExpression>(specifier, pos);
+    return zone_->New<ImportCallExpression>(specifier, phase, pos);
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* specifier,
+                                                ModuleImportPhase phase,
                                                 Expression* import_options,
                                                 int pos) {
-    return zone_->New<ImportCallExpression>(specifier, import_options, pos);
+    return zone_->New<ImportCallExpression>(specifier, phase, import_options,
+                                            pos);
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(

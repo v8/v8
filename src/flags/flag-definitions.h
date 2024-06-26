@@ -278,7 +278,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_explicit_resource_management, "explicit resource management")         \
   V(js_float16array,                                                         \
     "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
-  V(js_decorators, "decorators")
+  V(js_decorators, "decorators")                                             \
+  V(js_source_phase_imports, "source phase imports")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                                       \

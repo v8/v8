@@ -9742,6 +9742,20 @@ TEST_F(ParsingTest, DestructuringAssignmentNegativeTests) {
   // clang-format on
   RunParserSyncTest(context_data, data, kError);
 
+  {
+    i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+    // clang-format off
+    const char* data[] = {
+      "{ import.source }",
+      "{ x: import.source }",
+      "{ x: import.source = 1 }",
+      "[import.source]",
+      "[import.source = 1]",
+      nullptr};
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+  }
+
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
@@ -10106,6 +10120,208 @@ TEST_F(ParsingTest, ImportMetaFailure) {
     nullptr
   };
 
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportSourceSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    // Basic import declarations, not a source phase import
+    "import source from ''",
+    "import from from ''",
+    // Source phase imports
+    "import source source from ''",
+    "import source from from ''",
+    "import source x from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  // Skip preparser
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
+}
+
+TEST_F(ParsingTest, ImportSourceFailure) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import source source source from ''",
+    "import source from from from ''",
+    "import source default from ''",
+    "import source * from from ''",
+    "import * source from from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportSourceAttributesNotAllowed) {
+  i::FlagScope<bool> f_js_source_phase_imports(
+      &v8_flags.js_source_phase_imports, true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+  i::FlagScope<bool> f_harmony_import_assertions(
+      &v8_flags.harmony_import_assertions, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import source x from '' with {}",
+    "import source x from '' assert {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportCallSourceSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source('')",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
+}
+
+TEST_F(ParsingTest, ImportCallSourceFailure) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var ", ""},
+    {"let ", ""},
+    {"const ", ""},
+    {"var [", "] = [1]"},
+    {"([", "] = [1])"},
+    {"({", "} = {1})"},
+    {"var {", " = 1} = 1"},
+    {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source",
+    "import.source.url",
+    "import.source[0]",
+    "import.source.couldBeMutable = true",
+    "import.source()",
+    "new import.source.MagicClass",
+    "new import.source",
+    "t = [...import.source]",
+    "f = {...import.source}",
+    "delete import.source",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportCallSourceAttributesNotAllowed) {
+  i::FlagScope<bool> f_js_source_phase_imports(
+      &v8_flags.js_source_phase_imports, true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+  i::FlagScope<bool> f_harmony_import_assertions(
+      &v8_flags.harmony_import_assertions, true);
+
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source('', )",
+    "import.source('', {})",
+    nullptr
+  };
   // clang-format on
 
   RunParserSyncTest(context_data, data, kError);

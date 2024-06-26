@@ -1135,7 +1135,7 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 
 template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(
-    IsolateT* isolate, DirectHandle<String> specifier,
+    IsolateT* isolate, DirectHandle<String> specifier, ModuleImportPhase phase,
     DirectHandle<FixedArray> import_attributes, int position) {
   auto result = Cast<ModuleRequest>(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
@@ -1143,16 +1143,21 @@ Handle<ModuleRequest> ModuleRequest::New(
   Tagged<ModuleRequest> raw = *result;
   raw->set_specifier(*specifier);
   raw->set_import_attributes(*import_attributes);
+  raw->set_flags(0);
+
+  raw->set_phase(phase);
+  DCHECK_GE(position, 0);
   raw->set_position(position);
   return result;
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
-    Isolate* isolate, DirectHandle<String> specifier,
+    Isolate* isolate, DirectHandle<String> specifier, ModuleImportPhase phase,
     DirectHandle<FixedArray> import_attributes, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, DirectHandle<String> specifier,
-    DirectHandle<FixedArray> import_attributes, int position);
+    ModuleImportPhase phase, DirectHandle<FixedArray> import_attributes,
+    int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(

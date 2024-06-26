@@ -5885,6 +5885,10 @@ void Genesis::InitializeGlobal_js_float16array() {
                                    Context::FLOAT16_ARRAY_FUN_INDEX);
 }
 
+void Genesis::InitializeGlobal_js_source_phase_imports() {
+  // TODO(42204365): Initialize AbstractModuleSource.
+}
+
 void Genesis::InitializeGlobal_regexp_linear_flag() {
   if (!v8_flags.enable_experimental_regexp_engine) return;
 

@@ -3950,18 +3950,32 @@ ParserBase<Impl>::ParseMemberExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseImportExpressions() {
+  // ImportCall[Yield, Await] :
+  //   import ( AssignmentExpression[+In, ?Yield, ?Await] )
+  //   import . source ( AssignmentExpression[+In, ?Yield, ?Await] )
+  //
+  // ImportMeta : import . meta
+
   Consume(Token::kImport);
   int pos = position();
-  if (Check(Token::kPeriod)) {
-    ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
-                            pos);
-    if (!flags().is_module()) {
-      impl()->ReportMessageAt(scanner()->location(),
-                              MessageTemplate::kImportMetaOutsideModule);
-      return impl()->FailureExpression();
-    }
 
-    return impl()->ImportMetaExpression(pos);
+  ModuleImportPhase phase = ModuleImportPhase::kEvaluation;
+
+  // Distinguish import meta and import phase calls.
+  if (Check(Token::kPeriod)) {
+    if (v8_flags.js_source_phase_imports &&
+        CheckContextualKeyword(ast_value_factory()->source_string())) {
+      phase = ModuleImportPhase::kSource;
+    } else {
+      ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
+                              pos);
+      if (!flags().is_module()) {
+        impl()->ReportMessageAt(scanner()->location(),
+                                MessageTemplate::kImportMetaOutsideModule);
+        return impl()->FailureExpression();
+      }
+      return impl()->ImportMetaExpression(pos);
+    }
   }
 
   if (V8_UNLIKELY(peek() != Token::kLeftParen)) {
@@ -3984,23 +3998,29 @@ ParserBase<Impl>::ParseImportExpressions() {
   AcceptINScope scope(this, true);
   ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
 
-  if ((v8_flags.harmony_import_assertions ||
-       v8_flags.harmony_import_attributes) &&
-      Check(Token::kComma)) {
+  DCHECK_IMPLIES(phase == ModuleImportPhase::kSource,
+                 v8_flags.js_source_phase_imports);
+  // TODO(42204365): Enable import attributes with source phase import once
+  // specified.
+  const bool check_import_attributes = (v8_flags.harmony_import_assertions ||
+                                        v8_flags.harmony_import_attributes) &&
+                                       phase == ModuleImportPhase::kEvaluation;
+  if (check_import_attributes && Check(Token::kComma)) {
     if (Check(Token::kRightParen)) {
       // A trailing comma allowed after the specifier.
-      return factory()->NewImportCallExpression(specifier, pos);
+      return factory()->NewImportCallExpression(specifier, phase, pos);
     } else {
       ExpressionT import_options = ParseAssignmentExpressionCoverGrammar();
       Check(Token::kComma);  // A trailing comma is allowed after the import
                              // assertions.
       Expect(Token::kRightParen);
-      return factory()->NewImportCallExpression(specifier, import_options, pos);
+      return factory()->NewImportCallExpression(specifier, phase,
+                                                import_options, pos);
     }
   }
 
   Expect(Token::kRightParen);
-  return factory()->NewImportCallExpression(specifier, pos);
+  return factory()->NewImportCallExpression(specifier, phase, pos);
 }
 
 template <typename Impl>

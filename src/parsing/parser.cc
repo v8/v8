@@ -1444,6 +1444,7 @@ void Parser::ParseImportDeclaration() {
   //   'import' ImportClause 'from' ModuleSpecifier [no LineTerminator here]
   //       AssertClause ';'
   //   'import' ModuleSpecifier [no LineTerminator here] AssertClause';'
+  //   'import' 'source' ImportedBinding 'from' ModuleSpecifier ';'
   //
   // ImportClause :
   //   ImportedDefaultBinding
@@ -1471,10 +1472,18 @@ void Parser::ParseImportDeclaration() {
     return;
   }
 
-  // Parse ImportedDefaultBinding if present.
+  // Parse ImportedDefaultBinding or 'source' ImportedBinding if present.
   const AstRawString* import_default_binding = nullptr;
   Scanner::Location import_default_binding_loc;
+  ModuleImportPhase import_phase = ModuleImportPhase::kEvaluation;
   if (tok != Token::kMul && tok != Token::kLeftBrace) {
+    if (v8_flags.js_source_phase_imports &&
+        PeekContextualKeyword(ast_value_factory()->source_string()) &&
+        PeekAhead() == Token::kIdentifier &&
+        PeekAheadAhead() == Token::kIdentifier) {
+      Consume(Token::kIdentifier);
+      import_phase = ModuleImportPhase::kSource;
+    }
     import_default_binding = ParseNonRestrictedIdentifier();
     import_default_binding_loc = scanner()->location();
     DeclareUnboundVariable(import_default_binding, VariableMode::kConst,
@@ -1485,7 +1494,8 @@ void Parser::ParseImportDeclaration() {
   const AstRawString* module_namespace_binding = nullptr;
   Scanner::Location module_namespace_binding_loc;
   const ZonePtrList<const NamedImport>* named_imports = nullptr;
-  if (import_default_binding == nullptr || Check(Token::kComma)) {
+  if (import_phase == ModuleImportPhase::kEvaluation &&
+      (import_default_binding == nullptr || Check(Token::kComma))) {
     switch (peek()) {
       case Token::kMul: {
         Consume(Token::kMul);
@@ -1510,7 +1520,12 @@ void Parser::ParseImportDeclaration() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
-  const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
+  // TODO(42204365): Enable import attributes with source phase import once
+  // specified.
+  const ImportAttributes* import_attributes =
+      import_phase == ModuleImportPhase::kEvaluation
+          ? ParseImportWithOrAssertClause()
+          : zone()->New<ImportAttributes>(zone());
   ExpectSemicolon();
 
   // Now that we have all the information, we can make the appropriate
@@ -1522,26 +1537,30 @@ void Parser::ParseImportDeclaration() {
   // Declare that takes a location?
 
   if (module_namespace_binding != nullptr) {
+    DCHECK_EQ(ModuleImportPhase::kEvaluation, import_phase);
     module()->AddStarImport(module_namespace_binding, module_specifier,
                             import_attributes, module_namespace_binding_loc,
                             specifier_loc, zone());
   }
 
   if (import_default_binding != nullptr) {
+    DCHECK_IMPLIES(import_phase == ModuleImportPhase::kSource,
+                   v8_flags.js_source_phase_imports);
     module()->AddImport(ast_value_factory()->default_string(),
-                        import_default_binding, module_specifier,
+                        import_default_binding, module_specifier, import_phase,
                         import_attributes, import_default_binding_loc,
                         specifier_loc, zone());
   }
 
   if (named_imports != nullptr) {
+    DCHECK_EQ(ModuleImportPhase::kEvaluation, import_phase);
     if (named_imports->length() == 0) {
       module()->AddEmptyImport(module_specifier, import_attributes,
                                specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
         module()->AddImport(import->import_name, import->local_name,
-                            module_specifier, import_attributes,
+                            module_specifier, import_phase, import_attributes,
                             import->location, specifier_loc, zone());
       }
     }

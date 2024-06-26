@@ -8,6 +8,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
+#include "src/objects/string.h"
 #include "src/zone/zone-containers.h"
 #include "torque-generated/bit-fields.h"
 
@@ -286,12 +287,21 @@ class ModuleRequest
   template <typename IsolateT>
   static Handle<ModuleRequest> New(IsolateT* isolate,
                                    DirectHandle<String> specifier,
+                                   ModuleImportPhase phase,
                                    DirectHandle<FixedArray> import_attributes,
                                    int position);
 
   // The number of entries in the import_attributes FixedArray that are used for
   // a single attribute.
   static const size_t kAttributeEntrySize = 3;
+
+  // Bits for flags.
+  DEFINE_TORQUE_GENERATED_MODULE_REQUEST_FLAGS()
+  static_assert(PositionBits::kMax >= String::kMaxLength,
+                "String::kMaxLength should fit in PositionBits::kMax");
+  DECL_PRIMITIVE_ACCESSORS(position, unsigned)
+  inline void set_phase(ModuleImportPhase phase);
+  inline ModuleImportPhase phase() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 

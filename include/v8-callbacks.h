@@ -339,6 +339,14 @@ using JavaScriptCompileHintsMagicEnabledCallback =
 using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
 
 /**
+ * Import phases in import requests.
+ */
+enum class ModuleImportPhase {
+  kSource,
+  kEvaluation,
+};
+
+/**
  * HostImportModuleDynamicallyCallback is called when we
  * require the embedder to load a module. This is used as part of the dynamic
  * import syntax.

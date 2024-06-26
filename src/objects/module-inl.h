@@ -36,6 +36,19 @@ BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
 ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
           kAsyncParentModulesOffset)
 
+BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
+
+inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
+  DCHECK_GE(PhaseBit::kMax, phase);
+  int hints = flags();
+  hints = PhaseBit::update(hints, phase);
+  set_flags(hints);
+}
+
+inline ModuleImportPhase ModuleRequest::phase() const {
+  return PhaseBit::decode(flags());
+}
+
 struct Module::Hash {
   V8_INLINE size_t operator()(Tagged<Module> module) const {
     return module->hash();
