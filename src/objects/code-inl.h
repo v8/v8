@@ -48,6 +48,8 @@ GCSAFE_CODE_FWD_ACCESSOR(bool, has_tagged_outgoing_params)
 GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
 GCSAFE_CODE_FWD_ACCESSOR(Tagged<Object>, raw_instruction_stream)
 GCSAFE_CODE_FWD_ACCESSOR(int, stack_slots)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_tagged_parameter_count)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_first_tagged_parameter)
 GCSAFE_CODE_FWD_ACCESSOR(Address, constant_pool)
 GCSAFE_CODE_FWD_ACCESSOR(Address, safepoint_table_address)
 #undef GCSAFE_CODE_FWD_ACCESSOR
@@ -427,6 +429,31 @@ unsigned Code::inlined_bytecode_size() const {
 void Code::set_inlined_bytecode_size(unsigned size) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
   RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
+}
+
+// For optimized on-heap wasm-js wrappers, we repurpose the (otherwise unused)
+// 32-bit InlinedBytecodeSize field to encode two 16 values needed for scanning
+// the frame: the count and starting offset of incoming tagged parameters.
+// TODO(wasm): Eventually the wrappers should be managed off-heap by the wasm
+// engine. Remove these accessors when that is the case.
+void Code::set_wasm_js_tagged_parameter_count(uint16_t count) {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  RELAXED_WRITE_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset, count);
+}
+
+uint16_t Code::wasm_js_tagged_parameter_count() const {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  return RELAXED_READ_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset);
+}
+
+void Code::set_wasm_js_first_tagged_parameter(uint16_t count) {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  RELAXED_WRITE_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset + 2, count);
+}
+
+uint16_t Code::wasm_js_first_tagged_parameter() const {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  return RELAXED_READ_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset + 2);
 }
 
 BytecodeOffset Code::osr_offset() const {
