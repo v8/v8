@@ -812,7 +812,8 @@ class MergePointInterpreterFrameState {
   // start of the target catchblock.
   void MergeThrow(const MaglevGraphBuilder* handler_builder,
                   const MaglevCompilationUnit* handler_unit,
-                  const KnownNodeAspects& known_node_aspects);
+                  const KnownNodeAspects& known_node_aspects,
+                  const VirtualObject::List virtual_objects);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).

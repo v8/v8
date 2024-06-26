@@ -1041,7 +1041,8 @@ class MaglevGraphBuilder {
         DCHECK_NOT_NULL(catch_block.state);
         catch_block.state->MergeThrow(
             builder, catch_block.unit,
-            *current_interpreter_frame_.known_node_aspects());
+            *current_interpreter_frame_.known_node_aspects(),
+            current_interpreter_frame_.virtual_objects());
       } else {
         // Patch no exception handler marker.
         // TODO(victorgomes): Avoid allocating exception handler data in this

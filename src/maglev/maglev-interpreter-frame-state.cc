@@ -362,7 +362,8 @@ void MergePointInterpreterFrameState::MergeLoop(
 void MergePointInterpreterFrameState::MergeThrow(
     const MaglevGraphBuilder* builder,
     const MaglevCompilationUnit* handler_unit,
-    const KnownNodeAspects& known_node_aspects) {
+    const KnownNodeAspects& known_node_aspects,
+    const VirtualObject::List virtual_objects) {
   // We don't count total predecessors on exception handlers, but we do want to
   // special case the first predecessor so we do count predecessors_so_far
   DCHECK_EQ(predecessor_count_, 0);
@@ -375,6 +376,14 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Merging into exception handler..." << std::endl;
+  }
+
+  if (known_node_aspects_ == nullptr) {
+    DCHECK_EQ(predecessors_so_far_, 0);
+    known_node_aspects_ = known_node_aspects.Clone(builder->zone());
+    frame_state_.set_virtual_objects(virtual_objects);
+  } else {
+    known_node_aspects_->Merge(known_node_aspects, builder->zone());
   }
 
   // TODO(victorgomes): Merge virtual object lists.
@@ -409,12 +418,6 @@ void MergePointInterpreterFrameState::MergeThrow(
       builder_frame.get(catch_block_context_register_), nullptr);
   PrintAfterMerge(*handler_unit, context, known_node_aspects_);
 
-  if (known_node_aspects_ == nullptr) {
-    DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ = known_node_aspects.Clone(builder->zone());
-  } else {
-    known_node_aspects_->Merge(known_node_aspects, builder->zone());
-  }
   predecessors_so_far_++;
 }
 
