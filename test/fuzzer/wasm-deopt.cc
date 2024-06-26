@@ -154,7 +154,8 @@ std::vector<ExecutionResult> PerformReferenceRun(
   return results;
 }
 
-void FuzzIt(base::Vector<const uint8_t> data) {
+int FuzzIt(base::Vector<const uint8_t> data) {
+  int deopt_count_before = GetWasmEngine()->GetDeoptsExecutedCount();
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
 
@@ -227,7 +228,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   if (reference_results.empty()) {
     // If the first run already included non-determinism, there isn't any value
     // in even compiling it (as this fuzzer focusses on executing deopts).
-    return;
+    // Return -1 to not add this case to the corpus.
+    return -1;
   }
 
   Handle<WasmModuleObject> module_object = compiled.ToHandleChecked();
@@ -272,13 +274,18 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     TierUpNowForTesting(i_isolate, instance->trusted_data(i_isolate),
                         function_to_optimize);
   }
+
+  // If no deopt was triggered, return -1 to prevent adding this case to the
+  // corpus.
+  bool deopt_triggered =
+      GetWasmEngine()->GetDeoptsExecutedCount() != deopt_count_before;
+  return deopt_triggered ? 0 : -1;
 }
 
 }  // anonymous namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FuzzIt({data, size});
-  return 0;
+  return FuzzIt({data, size});
 }
 
 }  // namespace v8::internal::wasm::fuzzing
