@@ -546,6 +546,14 @@
       {'name': 'v8testing'},
     ],
   },
+  'v8_linux64_jammy_gcc_rel': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'v8_linux64_minor_mc_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1626,6 +1634,14 @@
   'V8 Linux64 gcc': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-20.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux64 - jammy - gcc': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
     },
     'tests': [
       {'name': 'v8testing'},
