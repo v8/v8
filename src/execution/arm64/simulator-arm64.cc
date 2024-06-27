@@ -1083,6 +1083,10 @@ int Simulator::CodeFromName(const char* name) {
   if ((strcmp("sp", name) == 0) || (strcmp("wsp", name) == 0)) {
     return kSPRegInternalCode;
   }
+  if (strcmp("x16", name) == 0) return CodeFromName("ip0");
+  if (strcmp("x17", name) == 0) return CodeFromName("ip1");
+  if (strcmp("x29", name) == 0) return CodeFromName("fp");
+  if (strcmp("x30", name) == 0) return CodeFromName("lr");
   return -1;
 }
 
