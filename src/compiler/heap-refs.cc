@@ -804,6 +804,10 @@ base::Optional<bool> HeapObjectData::TryGetBooleanValueImpl(
 InstanceType HeapObjectData::GetMapInstanceType() const {
   ObjectData* map_data = map();
   if (map_data->should_access_heap()) {
+    // The map instance type is used to check if a static_cast to the right
+    // subclass is valid. We shouldn't read the value from the heap except if
+    // it's coming from the ReadOnly pages.
+    SBXCHECK_EQ(map_data->kind(), kUnserializedReadOnlyHeapObject);
     return Cast<Map>(map_data->object())->instance_type();
   }
   if (this == map_data) {
@@ -1066,31 +1070,31 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
     return nullptr;
   }
 
-  if (ReadOnlyHeap::Contains(Cast<HeapObject>(*object))) {
+  if (ReadOnlyHeap::SandboxSafeContains(Cast<HeapObject>(*object))) {
     entry = refs_->LookupOrInsert(object.address());
     return zone()->New<ObjectData>(this, &entry->value, object,
                                    kUnserializedReadOnlyHeapObject);
   }
 
-#define CREATE_DATA(Name)                                             \
-  if (i::Is##Name(*object)) {                                         \
-    entry = refs_->LookupOrInsert(object.address());                  \
-    object_data = zone()->New<ref_traits<Name>::data_type>(           \
-        this, &entry->value, Cast<Name>(object),                      \
-        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
-    /* NOLINTNEXTLINE(readability/braces) */                          \
+#define CREATE_DATA(Name)                                                      \
+  if (i::Is##Name(*object)) {                                                  \
+    entry = refs_->LookupOrInsert(object.address());                           \
+    object_data = zone()->New<ref_traits<Name>::data_type>(                    \
+        this, &entry->value, Cast<Name>(object),                               \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));          \
+    /* We use different classes for object types and static_cast the           \
+     * object_data after a Is##Name() check (check out the As##Name()          \
+     * functions). We chose the class here based on in-sandbox data and before \
+     * serializing the map. Ensure that the serialized map fits the object     \
+     * type. See also crbug.com/326700497 for more details. */                 \
+    SBXCHECK(object_data->Is##Name());                                         \
+    /* NOLINTNEXTLINE(readability/braces) */                                   \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
   {
     UNREACHABLE();
   }
-
-  // Our type checking (essentially GetMapInstanceType) assumes that a heap
-  // object with itself as map must be a meta map and so must be a MAP_TYPE.
-  // However, this isn't necessarily true in case of heap memory corruption.
-  // This check defends against that. See b/326700497 for more details.
-  SBXCHECK_EQ(object_data->IsMap(), IsMap(*object));
 
   // At this point the entry pointer is not guaranteed to be valid as
   // the refs_ hash hable could be resized by one of the constructors above.

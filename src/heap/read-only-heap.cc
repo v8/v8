@@ -286,11 +286,16 @@ bool ReadOnlyHeap::Contains(Address address) {
 
 // static
 bool ReadOnlyHeap::Contains(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return third_party_heap::Heap::InReadOnlySpace(object.address());
-  } else {
-    return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
-  }
+  return Contains(object.address());
+}
+
+// static
+bool ReadOnlyHeap::SandboxSafeContains(Tagged<HeapObject> object) {
+#ifdef V8_ENABLE_SANDBOX
+  return MemoryChunk::FromHeapObject(object)->SandboxSafeInReadOnlySpace();
+#else
+  return Contains(object);
+#endif
 }
 
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
