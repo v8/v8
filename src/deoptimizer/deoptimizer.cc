@@ -1194,7 +1194,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
   {
     // Mark the cached feedback result produced by the
-    // TransitiveFeedbackProcessor as outdated.
+    // TransitiveTypeFeedbackProcessor as outdated.
     // This is required to prevent deopt loops as new feedback is ignored
     // otherwise.
     wasm::TypeFeedbackStorage& feedback =

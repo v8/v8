@@ -2639,6 +2639,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           bool is_last_feedback_case = (i == feedback_cases.size() - 1);
           if (use_deopt_slowpath && is_last_feedback_case) {
+            if (inlining_decisions_
+                    ->has_non_inlineable_targets()[feedback_slot_]) {
+              if (v8_flags.trace_wasm_inlining) {
+                PrintF(
+                    "[function %d%s: Not emitting deopt slow-path for "
+                    "call_indirect #%d as feedback contains non-inlineable "
+                    "targets]\n",
+                    func_index_, mode_ == kRegular ? "" : " (inlined)",
+                    feedback_slot_);
+              }
+              use_deopt_slowpath = false;
+            }
+          }
+          if (use_deopt_slowpath && is_last_feedback_case) {
             const FunctionSig* sig =
                 decoder->module_->functions[inlined_index].sig;
             V<FrameState> frame_state =
@@ -2897,6 +2911,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
 
         bool is_last_feedback_case = (i == feedback_cases.size() - 1);
+        if (use_deopt_slowpath && is_last_feedback_case) {
+          if (inlining_decisions_
+                  ->has_non_inlineable_targets()[feedback_slot_]) {
+            if (v8_flags.trace_wasm_inlining) {
+              PrintF(
+                  "[function %d%s: Not emitting deopt slow-path for "
+                  "call_ref #%d as feedback contains non-inlineable "
+                  "targets]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  feedback_slot_);
+            }
+            use_deopt_slowpath = false;
+          }
+        }
         if (use_deopt_slowpath && is_last_feedback_case) {
           V<FrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);

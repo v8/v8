@@ -1370,9 +1370,15 @@ class FeedbackMaker {
     Tagged<WasmInternalFunction> internal_function =
         Cast<WasmFuncRef>(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
-    if (internal_function->ref() != instance_data_) return;
+    if (internal_function->ref() != instance_data_) {
+      has_non_inlineable_targets_ = true;
+      return;
+    }
     // Discard imports for now.
-    if (internal_function->function_index() < num_imported_functions_) return;
+    if (internal_function->function_index() < num_imported_functions_) {
+      has_non_inlineable_targets_ = true;
+      return;
+    }
     AddCall(internal_function->function_index(), count);
   }
 
@@ -1397,6 +1403,7 @@ class FeedbackMaker {
     if (target_truncated < jt_start_truncated ||
         target_truncated >= jt_end_truncated) {
       // Was not in the main table (e.g., because it's an imported function).
+      has_non_inlineable_targets_ = true;
       return;
     }
 
@@ -1446,6 +1453,8 @@ class FeedbackMaker {
       }
       result_.emplace_back(polymorphic, cache_usage_);
     }
+    result_.back().set_has_non_inlineable_targets(has_non_inlineable_targets_);
+    has_non_inlineable_targets_ = false;
     cache_usage_ = 0;
   }
 
@@ -1462,6 +1471,7 @@ class FeedbackMaker {
   int cache_usage_{0};
   int targets_cache_[kMaxPolymorphism];
   int counts_cache_[kMaxPolymorphism];
+  bool has_non_inlineable_targets_ = false;
 };
 
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {

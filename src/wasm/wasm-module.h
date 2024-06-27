@@ -551,6 +551,12 @@ class CallSiteFeedback {
     if (index_or_count_ >= 0) return static_cast<int>(frequency_or_ool_);
     return polymorphic_storage()[i].absolute_call_frequency;
   }
+  bool has_non_inlineable_targets() const {
+    return has_non_inlineable_targets_;
+  }
+  void set_has_non_inlineable_targets(bool has_non_inlineable_targets) {
+    has_non_inlineable_targets_ = has_non_inlineable_targets;
+  }
 
  private:
   bool is_monomorphic() const { return index_or_count_ >= 0; }
@@ -562,6 +568,7 @@ class CallSiteFeedback {
   }
 
   int index_or_count_;
+  bool has_non_inlineable_targets_ = false;
   intptr_t frequency_or_ool_;
 };
 

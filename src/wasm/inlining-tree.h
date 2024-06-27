@@ -67,6 +67,9 @@ class InliningTree : public ZoneObject {
   // depleted.
   void FullyExpand(const size_t initial_graph_size);
   base::Vector<CasesPerCallSite> function_calls() { return function_calls_; }
+  base::Vector<bool> has_non_inlineable_targets() {
+    return has_non_inlineable_targets_;
+  }
   bool feedback_found() { return feedback_found_; }
   bool is_inlined() { return is_inlined_; }
   uint32_t function_index() { return function_index_; }
@@ -89,6 +92,7 @@ class InliningTree : public ZoneObject {
   bool feedback_found_ = false;
 
   base::Vector<CasesPerCallSite> function_calls_{};
+  base::Vector<bool> has_non_inlineable_targets_{};
 
   // Limit the nesting depth of inlining. Inlining decisions are based on call
   // counts. A small function with high call counts that is called recursively
@@ -118,9 +122,13 @@ void InliningTree::Inline() {
     feedback_found_ = true;
     function_calls_ =
         zone_->AllocateVector<CasesPerCallSite>(type_feedback.size());
+    has_non_inlineable_targets_ =
+        zone_->AllocateVector<bool>(type_feedback.size());
     for (size_t i = 0; i < type_feedback.size(); i++) {
       function_calls_[i] =
           zone_->AllocateVector<InliningTree*>(type_feedback[i].num_cases());
+      has_non_inlineable_targets_[i] =
+          type_feedback[i].has_non_inlineable_targets();
       for (int the_case = 0; the_case < type_feedback[i].num_cases();
            the_case++) {
         uint32_t callee_index = type_feedback[i].function_index(the_case);
