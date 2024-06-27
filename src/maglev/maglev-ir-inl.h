@@ -77,8 +77,8 @@ void DeepForEachInputSingleFrameImpl(
   }
 }
 
-template <typename Function>
-void DeepForVirtualObject(const VirtualObject* vobject,
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForVirtualObject(VirtualObject* vobject,
                           InputLocation*& input_location,
                           const VirtualObject::List& virtual_objects,
                           Function&& f) {
@@ -88,6 +88,12 @@ void DeepForVirtualObject(const VirtualObject* vobject,
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
       continue;
+    }
+    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
+      if (value->Is<Identity>()) {
+        value = value->input(0).node();
+        vobject->set_by_index(i, value);
+      }
     }
     // Special nodes.
     switch (value->opcode()) {
@@ -104,7 +110,8 @@ void DeepForVirtualObject(const VirtualObject* vobject,
         if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
           VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
           input_location++;  // Reserved for the inlined allocation.
-          DeepForVirtualObject(vobject, input_location, virtual_objects, f);
+          DeepForVirtualObject<mode>(vobject, input_location, virtual_objects,
+                                     f);
         } else {
           f(alloc, input_location);
           input_location += alloc->object()->InputLocationSizeNeeded() + 1;
@@ -140,8 +147,8 @@ void DeepForEachInputAndVirtualObject(
       InlinedAllocation* alloc = vobject->allocation();
       if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
         input_location++;  // Reserved for the inlined allocation.
-        return DeepForVirtualObject(vobject, input_location, virtual_objects,
-                                    f);
+        return DeepForVirtualObject<mode>(vobject, input_location,
+                                          virtual_objects, f);
       } else {
         f(alloc, input_location);
         input_location += vobject->InputLocationSizeNeeded() + 1;
