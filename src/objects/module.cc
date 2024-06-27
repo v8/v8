@@ -42,8 +42,10 @@ void PrintModuleName(Tagged<Module> module, std::ostream& os) {
 void PrintStatusTransition(Tagged<Module> module, Module::Status old_status) {
   if (!v8_flags.trace_module_status) return;
   StdoutStream os;
-  os << "Changing module status from " << old_status << " to "
-     << module->status() << " for ";
+  os << "Changing module status from " << Module::StatusString(old_status)
+     << " to "
+     << Module::StatusString(static_cast<Module::Status>(module->status()))
+     << " for ";
   PrintModuleName(module, os);
 }
 
@@ -67,6 +69,30 @@ void SetStatusInternal(Tagged<Module> module, Module::Status new_status) {
 }
 
 }  // end namespace
+
+#ifdef DEBUG
+// static
+const char* Module::StatusString(Module::Status status) {
+  switch (status) {
+    case Module::kUnlinked:
+      return "Unlinked";
+    case Module::kPreLinking:
+      return "PreLinking";
+    case Module::kLinking:
+      return "Linking";
+    case Module::kLinked:
+      return "Linked";
+    case Module::kEvaluating:
+      return "Evaluating";
+    case Module::kEvaluatingAsync:
+      return "EvaluatingAsync";
+    case Module::kEvaluated:
+      return "Evaluated";
+    case Module::kErrored:
+      return "Errored";
+  }
+}
+#endif  // DEBUG
 
 void Module::SetStatus(Status new_status) {
   DisallowGarbageCollection no_gc;

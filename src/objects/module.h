@@ -47,6 +47,10 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
     kErrored
   };
 
+#ifdef DEBUG
+  static const char* StatusString(Module::Status status);
+#endif  // DEBUG
+
   // The exception in the case {status} is kErrored.
   Tagged<Object> GetException();
 

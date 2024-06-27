@@ -419,6 +419,14 @@ bool SourceTextModule::MaybeTransitionComponent(
     ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status) {
   DCHECK(new_status == kLinked || new_status == kEvaluated);
 
+#ifdef DEBUG
+  if (v8_flags.trace_module_status) {
+    StdoutStream os;
+    os << "Transitioning strongly connected module graph component to "
+       << Module::StatusString(new_status) << " {\n";
+  }
+#endif  // DEBUG
+
   // Below, N/M means step N in InnerModuleEvaluation and step M in
   // InnerModuleLinking.
 
@@ -483,6 +491,12 @@ bool SourceTextModule::MaybeTransitionComponent(
       }
     } while (*ancestor != *module);
   }
+#ifdef DEBUG
+  if (v8_flags.trace_module_status) {
+    StdoutStream os;
+    os << "}\n";
+  }
+#endif  // DEBUG
   return true;
 }
 
