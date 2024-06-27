@@ -465,6 +465,7 @@
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/wasm-inlining-sigcheck': [SKIP],
   'sandbox/wasm-signature-verification': [SKIP],
+  'sandbox/wasm-table-import': [SKIP],
   'sandbox/wasm-table-sigcheck': [SKIP],
 
   # Tests tracing when generating wasm in TurboFan.

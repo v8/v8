@@ -181,6 +181,13 @@ class WasmModuleObject
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)
 };
 
+#if V8_ENABLE_SANDBOX || DEBUG
+// This should be checked before writing an untrusted function reference
+// into a dispatch table (e.g. via WasmTableObject::Set).
+bool FunctionSigMatchesTable(uint32_t canonical_sig_id,
+                             const wasm::WasmModule* module, int table_index);
+#endif
+
 // Representation of a WebAssembly.Table JavaScript-level object.
 class WasmTableObject
     : public TorqueGeneratedWasmTableObject<WasmTableObject, JSObject> {

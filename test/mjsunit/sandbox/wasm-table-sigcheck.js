@@ -48,7 +48,7 @@ let table0 = instance.exports.table0;
 
 // Prepare corruption utilities.
 const kHeapObjectTag = 1;
-const kWasmTableObjectTypeOffset = 32;
+const kWasmTableObjectTypeOffset = 28;
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 

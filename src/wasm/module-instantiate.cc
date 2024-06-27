@@ -2012,6 +2012,8 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     uint32_t canonical_sig_index =
         target_module->isorecursive_canonical_type_ids[function.sig_index];
+    SBXCHECK(FunctionSigMatchesTable(
+        canonical_sig_index, trusted_instance_data->module(), table_index));
 
     trusted_instance_data->dispatch_table(table_index)
         ->Set(i, *ref, entry.call_target(), canonical_sig_index);
@@ -2029,7 +2031,7 @@ bool InstanceBuilder::ProcessImportedTable(
   }
   const WasmTable& table = module_->tables[table_index];
 
-  auto table_object = Cast<WasmTableObject>(value);
+  Handle<WasmTableObject> table_object = Cast<WasmTableObject>(value);
 
   uint32_t imported_table_size =
       static_cast<uint32_t>(table_object->current_length());

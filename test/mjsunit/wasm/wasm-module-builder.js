@@ -1543,7 +1543,8 @@ class WasmModuleBuilder {
     return mem_index;
   }
 
-  addImportedTable(module, name, initial, maximum, type, is_table64) {
+  addImportedTable(
+      module, name, initial, maximum, type = kWasmFuncRef, is_table64 = false) {
     if (this.tables.length != 0) {
       throw new Error('Imported tables must be declared before local ones');
     }
@@ -1553,7 +1554,7 @@ class WasmModuleBuilder {
       kind: kExternalTable,
       initial: initial,
       maximum: maximum,
-      type: type || kWasmFuncRef,
+      type: type,
       is_table64: !!is_table64
     };
     this.imports.push(o);
