@@ -24,8 +24,8 @@ namespace {
 // TODO(v8:12547): Move this logic into a static method JSPromise::PerformThen
 // so that other callsites like this one can use it.
 // Set fulfill/reject handlers for a JSPromise object.
-MaybeHandle<JSPromise> PerformPromiseThen(
-    Isolate* isolate, Handle<JSPromise> promise,
+MaybeHandle<JSReceiver> PerformPromiseThen(
+    Isolate* isolate, Handle<JSReceiver> promise,
     Handle<JSFunction> fulfill_handler,
     MaybeHandle<JSFunction> reject_handler = MaybeHandle<JSFunction>()) {
   Handle<Object> reject_handler_handle = isolate->factory()->undefined_value();
@@ -41,12 +41,12 @@ MaybeHandle<JSPromise> PerformPromiseThen(
       Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
                              arraysize(argv), argv));
 
-  return Cast<JSPromise>(then_result);
+  return Cast<JSReceiver>(then_result);
 }
 
 MaybeHandle<Context> SetAsyncUnlockHandlers(
     Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
-    Handle<JSPromise> waiting_for_callback_promise,
+    Handle<JSReceiver> waiting_for_callback_promise,
     DirectHandle<JSPromise> unlocked_promise) {
   Handle<Context> handlers_context = isolate->factory()->NewBuiltinContext(
       isolate->native_context(), JSAtomicsMutex::kAsyncContextLength);
@@ -815,7 +815,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     std::optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_locked_promise =
       requester->factory()->NewJSPromise();
-  Handle<JSPromise> waiting_for_callback_promise;
+  Handle<JSReceiver> waiting_for_callback_promise;
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, waiting_for_callback_promise,
       PerformPromiseThen(requester, internal_locked_promise,
@@ -1255,7 +1255,7 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
 // 2. `lock_promise`, which will be resolved when the lock is acquired after
 //    waiting.
 // static
-MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
+MaybeHandle<JSReceiver> JSAtomicsCondition::WaitAsync(
     Isolate* requester, Handle<JSAtomicsCondition> cv,
     DirectHandle<JSAtomicsMutex> mutex,
     std::optional<base::TimeDelta> timeout) {
@@ -1273,7 +1273,7 @@ MaybeHandle<JSPromise> JSAtomicsCondition::WaitAsync(
           .set_map(requester->strict_function_without_prototype_map())
           .Build();
 
-  Handle<JSPromise> lock_promise;
+  Handle<JSReceiver> lock_promise;
 
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, lock_promise,

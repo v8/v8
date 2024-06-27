@@ -408,7 +408,7 @@ class JSAtomicsCondition
                                         Handle<JSAtomicsMutex> mutex,
                                         std::optional<base::TimeDelta> timeout);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> WaitAsync(
+  V8_EXPORT_PRIVATE static MaybeHandle<JSReceiver> WaitAsync(
       Isolate* requester, Handle<JSAtomicsCondition> cv,
       DirectHandle<JSAtomicsMutex> mutex,
       std::optional<base::TimeDelta> timeout);

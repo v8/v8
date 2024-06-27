@@ -376,7 +376,7 @@ BUILTIN(AtomicsConditionWaitAsync) {
         NewTypeError(MessageTemplate::kAtomicsMutexNotOwnedByCurrentThread));
   }
 
-  Handle<JSPromise> result_promise;
+  Handle<JSReceiver> result_promise;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result_promise,
       JSAtomicsCondition::WaitAsync(isolate, js_condition, js_mutex, timeout));
