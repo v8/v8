@@ -3637,7 +3637,7 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
       DCHECK(!InReadOnlySpace(value));
-      DCHECK(MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
+      DCHECK(!IsMap(value));
       if (non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
@@ -3663,12 +3663,11 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
       DCHECK(!InReadOnlySpace(value));
-      DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(value));
+      DCHECK(IsMap(value));
       if (non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
-        DCHECK(IsMap(value));
         // The map is non-live.
         if (V8_LIKELY(!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
                                            location))) {
