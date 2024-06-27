@@ -48,6 +48,10 @@ function buildWasm(name, sig, body) {
     'test_wasm_memory',
     makeSig([kWasmI32], [kWasmI32]),
   );
+
+  const throw_no_fallback = builder.addImport(
+      'fast_c_api', 'throw_no_fallback', makeSig([], [kWasmI32]));
+
   const mem_index = builder.addMemory(1, 1);
   builder.exportMemoryAs("memory", mem_index);
   builder.addFunction(name, sig)
@@ -57,8 +61,10 @@ function buildWasm(name, sig, body) {
         add_all_nested_bound,
         overloaded_add_all_32bit_int,
         test_wasm_memory,
+        throw_no_fallback
       }))
       .exportFunc();
+
   const x = {};
   const module = builder.instantiate({
     fast_c_api: {
@@ -69,6 +75,7 @@ function buildWasm(name, sig, body) {
         .bind(x),
       overloaded_add_all_32bit_int: fast_c_api.overloaded_add_all_32bit_int_no_sig.bind(fast_c_api),
       test_wasm_memory: fast_c_api.test_wasm_memory.bind(fast_c_api),
+      throw_no_fallback: fast_c_api.throw_no_fallback.bind(fast_c_api),
     },
   });
   fast_c_api.wasm_memory = module.exports.memory;
@@ -194,5 +201,14 @@ const test_wasm_memory_wasm = buildWasm(
 // Test hits fast path.
 fast_c_api.reset_counts();
 assertEquals(42, test_wasm_memory_wasm())
+assertEquals(1, fast_c_api.fast_call_count());
+assertEquals(0, fast_c_api.slow_call_count());
+
+const test_throw_no_fallback = buildWasm(
+    'test_throw_no_fallback', makeSig([], [kWasmI32]),
+    ({throw_no_fallback}) => [kExprCallFunction, throw_no_fallback]);
+
+fast_c_api.reset_counts();
+assertThrows(test_throw_no_fallback, Error, 'Exception from fast callback');
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());

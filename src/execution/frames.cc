@@ -173,7 +173,12 @@ StackFrame::Type GetStateForFastCCallCallerFP(Isolate* isolate, Address fp,
   state->callee_pc = kNullAddress;
   state->constant_pool_address = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
-  if (wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
+  if (wasm::WasmCode* code =
+          wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
+    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
+      return StackFrame::WASM_TO_JS;
+    }
+    DCHECK_EQ(code->kind(), wasm::WasmCode::kWasmFunction);
     return StackFrame::WASM;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1549,8 +1554,8 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //
   // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
-  auto pair =
-      wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
+  auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
+      isolate(), maybe_unauthenticated_pc());
   wasm::WasmCode* wasm_code = pair.first;
   SafepointEntry safepoint_entry = pair.second;
 
