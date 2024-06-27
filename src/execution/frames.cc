@@ -77,7 +77,7 @@ class StackHandlerIterator {
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
     DCHECK_IMPLIES(frame->isolate()->wasm_stacks().empty(),
-                   frame->sp() <= AddressOf(handler));
+                   frame->InFastCCall() || frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
@@ -1581,7 +1581,6 @@ void WasmFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
 
   // Parameters passed to the callee.
-  FullObjectSlot parameters_base(&Memory<Address>(sp()));
   Address central_stack_sp = Memory<Address>(
       fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
   FullObjectSlot parameters_limit(
@@ -1595,7 +1594,8 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   bool has_tagged_outgoing_params =
       wasm_code->kind() != wasm::WasmCode::kWasmFunction &&
       wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
-  if (has_tagged_outgoing_params) {
+  if (!InFastCCall() && has_tagged_outgoing_params) {
+    FullObjectSlot parameters_base(&Memory<Address>(sp()));
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }

@@ -281,7 +281,10 @@ class StackFrame {
   bool is_java_script() const { return IsJavaScript(type()); }
 
   // Accessors.
-  Address sp() const { return state_.sp; }
+  Address sp() const {
+    DCHECK(!InFastCCall());
+    return state_.sp;
+  }
   Address fp() const { return state_.fp; }
   Address callee_fp() const { return state_.callee_fp; }
   Address callee_pc() const { return state_.callee_pc; }
@@ -304,7 +307,7 @@ class StackFrame {
 
   // If the stack pointer is missing, this is a fast C call frame. For such
   // frames we cannot compute a stack pointer because of the missing ExitFrame.
-  bool InFastCCall() const { return sp() == kNullAddress; }
+  bool InFastCCall() const { return state_.sp == kNullAddress; }
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
