@@ -243,6 +243,7 @@ class TestingModuleBuilder {
 
   void SwitchToDebug() {
     SetDebugState();
+    WasmCodeRefScope ref_scope;
     native_module_->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }

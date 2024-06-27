@@ -649,8 +649,8 @@ RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
 }
 
 RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
-  wasm::GetWasmEngine()->FlushCode();
-  return ReadOnlyRoots(isolate).undefined_value();
+  int code_size = static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
+  return Smi::FromInt(code_size);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {

@@ -916,6 +916,7 @@ void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
       native_module->SetDebugState(kDebugging);
     }
   }
+  WasmCodeRefScope ref_scope;
   for (auto& native_module : native_modules) {
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
@@ -958,6 +959,7 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
     if (remove_debug_code) {
+      WasmCodeRefScope ref_scope;
       native_module->RemoveCompiledCode(
           NativeModule::RemoveFilter::kRemoveDebugCode);
     }
@@ -1097,19 +1099,22 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   return module_object;
 }
 
-void WasmEngine::FlushCode() {
-  for (auto& entry : native_modules_) {
-    NativeModule* native_module = entry.first;
-    native_module->RemoveCompiledCode(
+size_t WasmEngine::FlushLiftoffCode() {
+  WasmCodeRefScope ref_scope;
+  base::MutexGuard guard(&mutex_);
+  size_t codesize_liftoff = 0;
+  for (auto& [native_module, info] : native_modules_) {
+    codesize_liftoff += native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveLiftoffCode);
   }
+  return codesize_liftoff;
 }
 
-size_t WasmEngine::GetLiftoffCodeSize() {
+size_t WasmEngine::GetLiftoffCodeSizeForTesting() {
+  base::MutexGuard guard(&mutex_);
   size_t codesize_liftoff = 0;
-  for (auto& entry : native_modules_) {
-    NativeModule* native_module = entry.first;
-    codesize_liftoff += native_module->SumLiftoffCodeSize();
+  for (auto& [native_module, info] : native_modules_) {
+    codesize_liftoff += native_module->SumLiftoffCodeSizeForTesting();
   }
   return codesize_liftoff;
 }
@@ -1535,6 +1540,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
   }
   if (remove_all_code) {
+    WasmCodeRefScope ref_scope;
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
@@ -1567,6 +1573,7 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
     }
   }
   if (remove_all_code) {
+    WasmCodeRefScope ref_scope;
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }

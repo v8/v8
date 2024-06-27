@@ -2223,7 +2223,13 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     std::shared_ptr<const WasmModule> module) {
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
-    GetWasmEngine()->FlushCode();
+    // Flush Liftoff code and record the flushed code size.
+    if (v8_flags.flush_liftoff_code) {
+      int liftoff_codesize =
+          static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
+      isolate->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
+          liftoff_codesize);
+    }
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
     size_t committed = total_committed_code_space_.load();
@@ -2422,14 +2428,15 @@ bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
 }
 }  // namespace
 
-void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
+size_t NativeModule::RemoveCompiledCode(RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
-  WasmCodeRefScope ref_scope;
   base::RecursiveMutexGuard guard(&allocation_mutex_);
+  size_t removed_codesize = 0;
   for (uint32_t i = 0; i < num_functions; i++) {
     WasmCode* code = code_table_[i];
     if (code && ShouldRemoveCode(code, filter)) {
+      removed_codesize += code->instructions_size();
       code_table_[i] = nullptr;
       // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop to
       // zero here. It might in the {WasmCodeRefScope} destructor, though.
@@ -2446,16 +2453,17 @@ void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
       filter == RemoveFilter::kRemoveTurbofanCode) {
     compilation_state_->AllowAnotherTopTierJobForAllFunctions();
   }
+  return removed_codesize;
 }
 
-size_t NativeModule::SumLiftoffCodeSize() {
+size_t NativeModule::SumLiftoffCodeSizeForTesting() const {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
   const uint32_t num_functions = module_->num_declared_functions;
   size_t codesize_liftoff = 0;
   for (uint32_t i = 0; i < num_functions; i++) {
     WasmCode* code = code_table_[i];
     if (code && code->is_liftoff()) {
-      codesize_liftoff +=
-          code->instructions_size() + code->EstimateCurrentMemoryConsumption();
+      codesize_liftoff += code->instructions_size();
     }
   }
   return codesize_liftoff;

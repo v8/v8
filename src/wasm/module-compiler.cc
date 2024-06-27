@@ -2842,6 +2842,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   // streaming is tricky, we just remove all code which may have been generated,
   // and compile debug code lazily.
   if (native_module_->IsInDebugState()) {
+    WasmCodeRefScope ref_scope;
     native_module_->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }

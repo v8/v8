@@ -2438,6 +2438,7 @@ int InstanceBuilder::ProcessImports(
         module_->type_feedback.well_known_imports.Update(
             base::VectorOf(well_known_imports_));
     if (result == WellKnownImportsList::UpdateResult::kFoundIncompatibility) {
+      WasmCodeRefScope ref_scope;
       module_object_->native_module()->RemoveCompiledCode(
           NativeModule::RemoveFilter::kRemoveTurbofanCode);
     }

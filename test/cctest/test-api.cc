@@ -26913,12 +26913,12 @@ TEST(WasmCodeFlushingOnMemoryPressure) {
   CHECK_EQ(55, r.Call());
 
   // We should have some Liftoff code compiled.
-  CHECK_NE(GetWasmEngine()->GetLiftoffCodeSize(), 0);
+  CHECK_NE(GetWasmEngine()->GetLiftoffCodeSizeForTesting(), 0);
 
   v8::Isolate* isolate = CcTest::isolate();
   isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical);
   // When there is memory pressure, flush all Liftoff code.
-  CHECK_EQ(GetWasmEngine()->GetLiftoffCodeSize(), 0);
+  CHECK_EQ(GetWasmEngine()->GetLiftoffCodeSizeForTesting(), 0);
 }
 
 TEST(WasmI32AtomicWaitCallback) {

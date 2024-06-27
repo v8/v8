@@ -4265,12 +4265,11 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 }
 
 void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
-  // Flush all Liftoff code.
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.flush_liftoff_code) {
-    wasm::GetWasmEngine()->FlushCode();
+    // Flush Liftoff code and record the flushed code size.
     int liftoff_codesize =
-        static_cast<int>(wasm::GetWasmEngine()->GetLiftoffCodeSize());
+        static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
     isolate_->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
         liftoff_codesize);
   }

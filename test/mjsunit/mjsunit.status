@@ -1091,7 +1091,7 @@
   # Tier down/up Wasm functions is non-deterministic with
   # multiple isolates, as dynamic tiering relies on a array shared
   # in the module, that can be modified by all instances.
-  'wasm/code-flushing': [SKIP],
+  'wasm/code-flushing-single-isolate': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/wasm-to-js-tierup': [SKIP],
@@ -1472,7 +1472,7 @@
 ['variant == turboshaft', {
   # TODO(v8:14108): These tests require Liftoff. Enable again when we remove
   # --no-liftoff from this variant.
-  'wasm/code-flushing': [FAIL],
+  'wasm/code-flushing-single-isolate': [FAIL],
   'wasm/enter-and-leave-debug-state': [FAIL],
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],

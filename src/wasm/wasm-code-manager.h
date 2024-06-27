@@ -736,12 +736,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kRemoveTurbofanCode,
     kRemoveAllCode,
   };
-  // Remove all compiled code from the {NativeModule} and replace it with
-  // {CompileLazy} builtins.
-  void RemoveCompiledCode(RemoveFilter filter);
+  // Remove all compiled code based on the `filter` from the {NativeModule},
+  // replace it with {CompileLazy} builtins and return the removed code size.
+  size_t RemoveCompiledCode(RemoveFilter filter);
 
   // Returns the code size of all Liftoff compiled functions.
-  size_t SumLiftoffCodeSize();
+  size_t SumLiftoffCodeSizeForTesting() const;
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
