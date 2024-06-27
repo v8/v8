@@ -2036,11 +2036,13 @@ class MaglevGraphBuilder {
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
       compiler::AccessMode access_mode);
+  template <typename GenericAccessFunc>
   ReduceResult TryBuildNamedAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NamedAccessFeedback const& feedback,
       compiler::FeedbackSource const& feedback_source,
-      compiler::AccessMode access_mode);
+      compiler::AccessMode access_mode,
+      GenericAccessFunc&& build_generic_access);
 
   ReduceResult TryBuildLoadNamedProperty(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -2088,6 +2090,13 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* index,
       const compiler::KeyedAccessMode& keyed_mode,
       const ZoneVector<compiler::ElementAccessInfo>& access_infos,
+      GenericAccessFunc&& build_generic_access);
+  template <typename GenericAccessFunc>
+  ReduceResult TryBuildPolymorphicPropertyAccess(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NamedAccessFeedback const& feedback,
+      compiler::AccessMode access_mode,
+      const ZoneVector<compiler::PropertyAccessInfo>& access_infos,
       GenericAccessFunc&& build_generic_access);
 
   // Load elimination -- when loading or storing a simple property without

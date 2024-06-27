@@ -4251,7 +4251,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
   if (constant.IsJSFunction()) {
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
-    return ReduceCallForConstant(constant.AsJSFunction(), args);
+    RETURN_IF_ABORT(ReduceCallForConstant(constant.AsJSFunction(), args));
+    return ReduceResult::Done();
   } else {
     // TODO(victorgomes): API calls.
     return ReduceResult::Fail();
@@ -4519,9 +4520,10 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
   }
 
   switch (access_info.kind()) {
-    case compiler::PropertyAccessInfo::kFastAccessorConstant:
+    case compiler::PropertyAccessInfo::kFastAccessorConstant: {
       return TryBuildPropertySetterCall(access_info, receiver,
                                         GetRawAccumulator());
+    }
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
       ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
@@ -4562,11 +4564,13 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
   }
 }
 
+template <typename GenericAccessFunc>
 ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::NamedAccessFeedback const& feedback,
     compiler::FeedbackSource const& feedback_source,
-    compiler::AccessMode access_mode) {
+    compiler::AccessMode access_mode,
+    GenericAccessFunc&& build_generic_access) {
   compiler::ZoneRefSet<Map> inferred_maps;
 
   if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
@@ -4675,118 +4679,10 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
                                   feedback.name(), access_info, access_mode);
   } else {
     // TODO(victorgomes): Unify control flow logic with
-    // TryBuildPolymorphicElementAccess and support polymorphic stores.
-
-    // Only support polymorphic load at the moment.
-    if (access_mode != compiler::AccessMode::kLoad) {
-      return ReduceResult::Fail();
-    }
-
-    const int access_info_count = static_cast<int>(access_infos.size());
-    int number_map_index = -1;
-
-    // Check if we support the polymorphic load.
-    for (int i = 0; i < access_info_count; i++) {
-      compiler::PropertyAccessInfo const& access_info = access_infos[i];
-      DCHECK(!access_info.IsInvalid());
-      // TODO(victorgomes): Support map migration.
-      for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
-        if (map.is_migration_target()) {
-          return ReduceResult::Fail();
-        }
-        if (map.IsHeapNumberMap()) {
-          GetOrCreateInfoFor(lookup_start_object);
-          base::SmallVector<compiler::MapRef, 1> known_maps = {map};
-          KnownMapsMerger merger(broker(), base::VectorOf(known_maps));
-          merger.IntersectWithKnownNodeAspects(lookup_start_object,
-                                               known_node_aspects());
-          if (!merger.intersect_set().is_empty()) {
-            DCHECK_EQ(number_map_index, -1);
-            number_map_index = i;
-          }
-        }
-      }
-    }
-
-    MaglevSubGraphBuilder subgraph(this, 1);
-    MaglevSubGraphBuilder::Variable ret_val(0);
-    MaglevSubGraphBuilder::Label done(&subgraph, access_info_count, {&ret_val});
-    base::Optional<MaglevSubGraphBuilder::Label> is_number;
-    base::Optional<MaglevSubGraphBuilder::Label> generic_access;
-
-    if (number_map_index >= 0) {
-      is_number.emplace(&subgraph, 2);
-      subgraph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
-    } else {
-      BuildCheckHeapObject(lookup_start_object);
-    }
-    ValueNode* lookup_start_object_map =
-        BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
-
-    for (int i = 0; i < access_info_count; i++) {
-      compiler::PropertyAccessInfo const& access_info = access_infos[i];
-      base::Optional<MaglevSubGraphBuilder::Label> check_next_map;
-      ReduceResult map_check_result;
-      const auto& maps = access_info.lookup_start_object_maps();
-      if (i == access_info_count - 1) {
-        map_check_result =
-            BuildCheckMaps(lookup_start_object, base::VectorOf(maps));
-      } else {
-        map_check_result =
-            BuildCompareMaps(lookup_start_object, lookup_start_object_map,
-                             base::VectorOf(maps), &subgraph, check_next_map);
-      }
-      if (map_check_result.IsDoneWithAbort()) {
-        // We know from known possible maps that this branch is not reachable,
-        // so don't emit any code for it.
-        continue;
-      }
-      if (i == number_map_index) {
-        DCHECK(is_number.has_value());
-        subgraph.Goto(&*is_number);
-        subgraph.Bind(&*is_number);
-      }
-
-      ReduceResult result =
-          TryBuildPropertyLoad(GetTaggedValue(receiver), lookup_start_object,
-                               feedback.name(), access_info);
-      switch (result.kind()) {
-        case ReduceResult::kDoneWithValue:
-          subgraph.set(ret_val, result.value());
-          subgraph.Goto(&done);
-          break;
-        case ReduceResult::kDoneWithAbort:
-          break;
-        case ReduceResult::kFail:
-          if (!generic_access.has_value()) {
-            // Conservatively assume that all remaining branches can go into the
-            // generic path, as we have to initialize the predecessors upfront.
-            // TODO(pthier): Find a better way to do that.
-            generic_access.emplace(&subgraph, access_info_count - i);
-          }
-          subgraph.Goto(&*generic_access);
-          break;
-        default:
-          UNREACHABLE();
-      }
-
-      if (check_next_map.has_value()) {
-        subgraph.Bind(&*check_next_map);
-      }
-    }
-
-    if (generic_access.has_value() &&
-        !subgraph.TrimPredecessorsAndBind(&*generic_access).IsDoneWithAbort()) {
-      // Create a generic load.
-      ValueNode* context = GetContext();
-      subgraph.set(ret_val, AddNewNode<LoadNamedGeneric>(
-                                {context, lookup_start_object}, feedback.name(),
-                                feedback_source));
-      subgraph.Goto(&done);
-    }
-
-    RETURN_IF_ABORT(subgraph.TrimPredecessorsAndBind(&done));
-    return subgraph.get(ret_val);
+    // TryBuildPolymorphicElementAccess.
+    return TryBuildPolymorphicPropertyAccess(
+        receiver, lookup_start_object, feedback, access_mode, access_infos,
+        build_generic_access);
   }
 }
 
@@ -5546,6 +5442,157 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   }
 }
 
+template <typename GenericAccessFunc>
+ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
+    ValueNode* receiver, ValueNode* lookup_start_object,
+    compiler::NamedAccessFeedback const& feedback,
+    compiler::AccessMode access_mode,
+    const ZoneVector<compiler::PropertyAccessInfo>& access_infos,
+    GenericAccessFunc&& build_generic_access) {
+  const bool is_any_store = compiler::IsAnyStore(access_mode);
+  const int access_info_count = static_cast<int>(access_infos.size());
+  int number_map_index = -1;
+
+  for (int i = 0; i < access_info_count; i++) {
+    compiler::PropertyAccessInfo const& access_info = access_infos[i];
+    DCHECK(!access_info.IsInvalid());
+    // TODO(victorgomes): Support map migration.
+    for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
+      if (map.is_migration_target()) {
+        return ReduceResult::Fail();
+      }
+      if (map.IsHeapNumberMap()) {
+        GetOrCreateInfoFor(lookup_start_object);
+        base::SmallVector<compiler::MapRef, 1> known_maps = {map};
+        KnownMapsMerger merger(broker(), base::VectorOf(known_maps));
+        merger.IntersectWithKnownNodeAspects(lookup_start_object,
+                                             known_node_aspects());
+        if (!merger.intersect_set().is_empty()) {
+          DCHECK_EQ(number_map_index, -1);
+          number_map_index = i;
+        }
+      }
+    }
+  }
+
+  // Stores don't return a value, so we don't need a variable for the result.
+  MaglevSubGraphBuilder sub_graph(this, is_any_store ? 0 : 1);
+  base::Optional<MaglevSubGraphBuilder::Variable> ret_val;
+  base::Optional<MaglevSubGraphBuilder::Label> done;
+  base::Optional<MaglevSubGraphBuilder::Label> is_number;
+  base::Optional<MaglevSubGraphBuilder::Label> generic_access;
+
+  if (number_map_index >= 0) {
+    is_number.emplace(&sub_graph, 2);
+    sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
+  } else {
+    BuildCheckHeapObject(lookup_start_object);
+  }
+  ValueNode* lookup_start_object_map =
+      BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
+
+  for (int i = 0; i < access_info_count; i++) {
+    compiler::PropertyAccessInfo const& access_info = access_infos[i];
+    base::Optional<MaglevSubGraphBuilder::Label> check_next_map;
+    ReduceResult map_check_result;
+    const auto& maps = access_info.lookup_start_object_maps();
+    if (i == access_info_count - 1) {
+      map_check_result =
+          BuildCheckMaps(lookup_start_object, base::VectorOf(maps));
+    } else {
+      map_check_result =
+          BuildCompareMaps(lookup_start_object, lookup_start_object_map,
+                           base::VectorOf(maps), &sub_graph, check_next_map);
+    }
+    if (map_check_result.IsDoneWithAbort()) {
+      // We know from known possible maps that this branch is not reachable,
+      // so don't emit any code for it.
+      continue;
+    }
+    if (i == number_map_index) {
+      DCHECK(is_number.has_value());
+      sub_graph.Goto(&*is_number);
+      sub_graph.Bind(&*is_number);
+    }
+
+    ReduceResult result;
+    if (is_any_store) {
+      result = TryBuildPropertyStore(GetTaggedValue(receiver), feedback.name(),
+                                     access_info, access_mode);
+    } else {
+      result =
+          TryBuildPropertyLoad(GetTaggedValue(receiver), lookup_start_object,
+                               feedback.name(), access_info);
+    }
+
+    switch (result.kind()) {
+      case ReduceResult::kDoneWithValue:
+      case ReduceResult::kDoneWithoutValue:
+        DCHECK_EQ(result.HasValue(), !is_any_store);
+        if (!done.has_value()) {
+          // We initialize the label {done} lazily on the first possible path.
+          // If no possible path exists, it is guaranteed that BuildCheckMaps
+          // emitted an unconditional deopt and we return DoneWithAbort at the
+          // end. We need one extra predecessor to jump from the generic case.
+          const int possible_predecessors = access_info_count - i + 1;
+          if (is_any_store) {
+            done.emplace(&sub_graph, possible_predecessors);
+          } else {
+            ret_val.emplace(0);
+            done.emplace(
+                &sub_graph, possible_predecessors,
+                std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+                    &*ret_val});
+          }
+        }
+
+        if (!is_any_store) {
+          sub_graph.set(*ret_val, result.value());
+        }
+        sub_graph.Goto(&*done);
+        break;
+      case ReduceResult::kDoneWithAbort:
+        break;
+      case ReduceResult::kFail:
+        if (!generic_access.has_value()) {
+          // Conservatively assume that all remaining branches can go into the
+          // generic path, as we have to initialize the predecessors upfront.
+          // TODO(pthier): Find a better way to do that.
+          generic_access.emplace(&sub_graph, access_info_count - i);
+        }
+        sub_graph.Goto(&*generic_access);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    if (check_next_map.has_value()) {
+      sub_graph.Bind(&*check_next_map);
+    }
+  }
+
+  if (generic_access.has_value() &&
+      !sub_graph.TrimPredecessorsAndBind(&*generic_access).IsDoneWithAbort()) {
+    ReduceResult generic_result = build_generic_access();
+    DCHECK(generic_result.IsDone());
+    DCHECK_EQ(generic_result.IsDoneWithValue(), !is_any_store);
+    if (!done.has_value()) {
+      return is_any_store ? ReduceResult::Done() : generic_result.value();
+    }
+    if (!is_any_store) {
+      sub_graph.set(*ret_val, generic_result.value());
+    }
+    sub_graph.Goto(&*done);
+  }
+
+  if (done.has_value()) {
+    RETURN_IF_ABORT(sub_graph.TrimPredecessorsAndBind(&*done));
+    return is_any_store ? ReduceResult::Done() : sub_graph.get(*ret_val);
+  } else {
+    return ReduceResult::DoneWithAbort();
+  }
+}
+
 void MaglevGraphBuilder::RecordKnownProperty(
     ValueNode* lookup_start_object, KnownNodeAspects::LoadedPropertyMapKey key,
     ValueNode* value, bool is_const, compiler::AccessMode access_mode) {
@@ -5642,11 +5689,20 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
     case compiler::ProcessedFeedback::kInsufficient:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    case compiler::ProcessedFeedback::kNamedAccess:
+    case compiler::ProcessedFeedback::kNamedAccess: {
       RETURN_IF_DONE(TryReuseKnownPropertyLoad(lookup_start_object, name));
-      return TryBuildNamedAccess(receiver, lookup_start_object,
-                                 processed_feedback.AsNamedAccess(),
-                                 feedback_source, compiler::AccessMode::kLoad);
+      auto build_generic_access = [this, &lookup_start_object,
+                                   &processed_feedback, &feedback_source]() {
+        ValueNode* context = GetContext();
+        return AddNewNode<LoadNamedGeneric>(
+            {context, lookup_start_object},
+            processed_feedback.AsNamedAccess().name(), feedback_source);
+      };
+
+      return TryBuildNamedAccess(
+          receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
+          feedback_source, compiler::AccessMode::kLoad, build_generic_access);
+    }
     default:
       return ReduceResult::Fail();
   }
@@ -5775,7 +5831,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
 
       result = TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kLoad);
+          compiler::AccessMode::kLoad, build_generic_access);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
       break;
     }
@@ -5908,6 +5964,14 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kStore, name);
 
+  auto build_generic_access = [this, object, &name, &feedback_source]() {
+    ValueNode* context = GetContext();
+    ValueNode* value = GetAccumulatorTagged();
+    AddNewNode<SetNamedGeneric>({context, GetTaggedValue(object), value}, name,
+                                feedback_source);
+    return ReduceResult::Done();
+  };
+
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
       RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
@@ -5916,17 +5980,14 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       RETURN_VOID_IF_DONE(TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kStore));
+          compiler::AccessMode::kStore, build_generic_access));
       break;
     default:
       break;
   }
 
   // Create a generic store in the fallthrough.
-  ValueNode* context = GetContext();
-  ValueNode* value = GetAccumulatorTagged();
-  AddNewNode<SetNamedGeneric>({context, GetTaggedValue(object), value}, name,
-                              feedback_source);
+  RETURN_VOID_IF_ABORT(build_generic_access());
 }
 
 void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
@@ -5940,6 +6001,13 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kStore, name);
 
+  auto build_generic_access = [this, object, &name, &feedback_source]() {
+    ValueNode* context = GetContext();
+    ValueNode* value = GetAccumulatorTagged();
+    AddNewNode<DefineNamedOwnGeneric>({context, GetTaggedValue(object), value},
+                                      name, feedback_source);
+    return ReduceResult::Done();
+  };
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
       RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
@@ -5948,7 +6016,7 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       RETURN_VOID_IF_DONE(TryBuildNamedAccess(
           object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kDefine));
+          compiler::AccessMode::kDefine, build_generic_access));
       break;
 
     default:
@@ -5956,10 +6024,7 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   }
 
   // Create a generic store in the fallthrough.
-  ValueNode* context = GetContext();
-  ValueNode* value = GetAccumulatorTagged();
-  AddNewNode<DefineNamedOwnGeneric>({context, GetTaggedValue(object), value},
-                                    name, feedback_source);
+  RETURN_VOID_IF_ABORT(build_generic_access());
 }
 
 void MaglevGraphBuilder::VisitSetKeyedProperty() {
