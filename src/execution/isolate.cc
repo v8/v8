@@ -4217,6 +4217,7 @@ void Isolate::Deinit() {
 
   // Tear down data that requires the shared heap before detaching.
   heap_.TearDownWithSharedHeap();
+  DumpAndResetBuiltinsProfileData();
 
   // Detach from the shared heap isolate and then unlock the mutex.
   if (has_shared_space() && !is_shared_space_isolate()) {
@@ -5687,6 +5688,9 @@ void Isolate::DumpAndResetStats() {
     counters()->runtime_call_stats()->Reset();
   }
 #endif  // V8_RUNTIME_CALL_STATS
+}
+
+void Isolate::DumpAndResetBuiltinsProfileData() {
   if (BasicBlockProfiler::Get()->HasData(this)) {
     if (v8_flags.turbo_profiling_output) {
       FILE* f = std::fopen(v8_flags.turbo_profiling_output, "w");
