@@ -11713,7 +11713,20 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndefined(
 MaglevGraphBuilder::BranchResult
 MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
                                                  ValueNode* node) {
-  // TODO(victorgomes): Optimize.
+  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  if (maybe_constant.has_value()) {
+    return builder.FromBool(maybe_constant->IsNullOrUndefined());
+  }
+  if (!node->is_tagged()) {
+    if (node->properties().value_representation() ==
+        ValueRepresentation::kHoleyFloat64) {
+      return BuildBranchIfFloat64IsHole(builder, node);
+    }
+    return builder.AlwaysFalse();
+  }
+  if (HasDifferentType(node, NodeType::kOddball)) {
+    return builder.AlwaysFalse();
+  }
   return builder.Build<BranchIfUndefinedOrNull>({node});
 }
 
