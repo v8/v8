@@ -6386,9 +6386,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   RootConstant* undefined_constant =
       GetRootConstant(RootIndex::kUndefinedValue);
   int arg_count = static_cast<int>(args.count());
-  int formal_parameter_count =
-      compilation_unit_->shared_function_info()
-          .internal_formal_parameter_count_without_receiver();
+  int formal_parameter_count = compilation_unit_->parameter_count() - 1;
   for (int i = 0; i < formal_parameter_count; i++) {
     ValueNode* arg_value = args[i];
     if (arg_value == nullptr) arg_value = undefined_constant;
