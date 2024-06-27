@@ -2129,13 +2129,15 @@ bool HasJSPromiseIntegrationFlag(Isolate* isolate, Local<Object> usage_obj,
 // {outer_sig} must be: [externref ti*] -> [to*]
 bool IsSuspendingSignature(const i::wasm::FunctionSig* inner_sig,
                            const i::wasm::FunctionSig* outer_sig) {
+  // Checked by the caller.
+  DCHECK_GT(outer_sig->parameter_count(), 0);
+  DCHECK_EQ(outer_sig->GetParam(0), i::wasm::kWasmExternRef);
   if (inner_sig->parameter_count() + 1 != outer_sig->parameter_count()) {
     return false;
   }
   if (inner_sig->return_count() != outer_sig->return_count()) {
     return false;
   }
-  if (outer_sig->GetParam(0) != i::wasm::kWasmExternRef) return false;
   for (size_t i = 1; i < outer_sig->parameter_count(); ++i) {
     if (outer_sig->GetParam(i) != inner_sig->GetParam(i - 1)) return false;
   }
@@ -2379,13 +2381,21 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // now.
     UNIMPLEMENTED();
   }
-  if (is_wasm_js_function && suspend != i::wasm::kNoSuspend) {
-    auto wasm_js_function = i::Cast<i::WasmJSFunction>(*callable);
-    const i::wasm::FunctionSig* inner_sig =
-        wasm_js_function->GetSignature(&zone);
-    if (!IsSuspendingSignature(inner_sig, sig)) {
+  if (suspend == internal::wasm::kSuspendWithSuspender) {
+    if (sig->parameter_count() == 0 ||
+        sig->GetParam(0) != i::wasm::kWasmExternRef) {
       thrower.TypeError("Incompatible signature for suspending function");
       return;
+    }
+    if (is_wasm_js_function) {
+      // Check that the rest of the signature matches.
+      auto wasm_js_function = i::Cast<i::WasmJSFunction>(*callable);
+      const i::wasm::FunctionSig* inner_sig =
+          wasm_js_function->GetSignature(&zone);
+      if (!IsSuspendingSignature(inner_sig, sig)) {
+        thrower.TypeError("Incompatible signature for suspending function");
+        return;
+      }
     }
   }
   i::Handle<i::JSFunction> result =
