@@ -873,6 +873,10 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
     FunctionLiteral* literal = functions_to_compile.back();
     functions_to_compile.pop_back();
     Handle<SharedFunctionInfo> shared_info = literal->shared_function_info();
+    // It's possible that compilation of an outer function overflowed the stack,
+    // so a literal we'd like to compile won't have its SFI yet. Skip compiling
+    // the inner function in that case.
+    if (shared_info.is_null()) continue;
     if (shared_info->is_compiled()) continue;
 
     std::unique_ptr<UnoptimizedCompilationJob> job =
