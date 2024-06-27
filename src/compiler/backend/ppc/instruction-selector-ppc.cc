@@ -3762,12 +3762,10 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
   PPCOperandGeneratorT<Adapter> g(this);
   InstructionCode opcode = kArchNop;
-  int32_t lane;
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const Simd128LaneMemoryOp& load =
         this->Get(node).template Cast<Simd128LaneMemoryOp>();
-    lane = load.lane;
     switch (load.lane_kind) {
       case Simd128LaneMemoryOp::LaneKind::k8:
         opcode = kPPC_S128Load8Lane;
@@ -3785,10 +3783,9 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
     Emit(opcode | AddressingModeField::encode(kMode_MRR),
          g.DefineSameAsFirst(node), g.UseRegister(load.value()),
          g.UseRegister(load.base()), g.UseRegister(load.index()),
-         g.UseImmediate(lane));
+         g.UseImmediate(load.lane));
   } else {
     LoadLaneParameters params = LoadLaneParametersOf(node->op());
-    lane = params.laneidx;
     if (params.rep == MachineType::Int8()) {
       opcode = kPPC_S128Load8Lane;
     } else if (params.rep == MachineType::Int16()) {
