@@ -6,7 +6,7 @@
 // Flags: --harmony-struct --allow-natives-syntax
 if (this.Worker) {
   (function TestWorkerTerminated() {
-    let workerLockScript = `onmessage = function(msg) {
+    let workerLockScript = `onmessage = function({data:msg}) {
       let {mutex, sharedObj} = msg;
       Atomics.Mutex.lock(mutex, function() {
         postMessage('Lock acquired');
@@ -15,7 +15,7 @@ if (this.Worker) {
       postMessage('Lock released');
     };
     postMessage('Worker started');`;
-    let workerWaitScript = `onmessage = function(msg) {
+    let workerWaitScript = `onmessage = function({data:msg}) {
       let {cv_mutex, cv, shared_Obj} = msg;
       Atomics.Mutex.lock(cv_mutex, function() {
         postMessage('Waiting started');
@@ -24,7 +24,7 @@ if (this.Worker) {
       postMessage('Waiting done');
     };
     postMessage('Worker started');`;
-    let workerAsyncScript = `onmessage = function(msg) {
+    let workerAsyncScript = `onmessage = function({data:msg}) {
       if (msg.type === 'lock') {
         let {mutex, sharedObj} = msg;
         for (let i = 0; i < 10; i++) {

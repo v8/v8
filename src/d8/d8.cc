@@ -525,11 +525,10 @@ std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
     Shell::profiler_end_callback_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
+
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
 std::atomic<bool> Shell::valid_fuzz_script_{false};
-base::LazyMutex Shell::isolate_status_lock_;
-std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
 base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
@@ -1727,6 +1726,18 @@ Local<FunctionTemplate> PerIsolateData::GetDomNodeCtor() const {
 
 void PerIsolateData::SetDomNodeCtor(Local<FunctionTemplate> ctor) {
   dom_node_ctor_.Reset(isolate_, ctor);
+}
+
+bool PerIsolateData::HasRunningSubscribedWorkers() {
+  // Clear out workers that are no longer running.
+  std::erase_if(subscribed_workers_, [](const std::shared_ptr<Worker>& worker) {
+    return worker->IsTerminated();
+  });
+  return !subscribed_workers_.empty();
+}
+
+void PerIsolateData::RegisterSubscribedWorker(std::shared_ptr<Worker> worker) {
+  subscribed_workers_.push_back(std::move(worker));
 }
 
 PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
@@ -3042,6 +3053,129 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+// Task processing one onmessage event received from a Worker.
+class OnMessageFromWorkerTask : public v8::Task {
+ public:
+  OnMessageFromWorkerTask(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                          v8::Local<v8::Value> callback,
+                          std::unique_ptr<SerializationData> data)
+      : isolate_(isolate),
+        context_(isolate, context),
+        callback_(isolate, callback),
+        data_(std::move(data)) {}
+
+  void Run() override {
+    HandleScope scope(isolate_);
+    Local<Context> context = context_.Get(isolate_);
+    Context::Scope context_scope(context);
+    MicrotasksScope microtasks_scope(context,
+                                     MicrotasksScope::kDoNotRunMicrotasks);
+
+    Local<Object> global = context->Global();
+
+    // Get the message handler.
+    Local<Value> onmessage = callback_.Get(isolate_);
+    if (!onmessage->IsFunction()) return;
+    Local<Function> onmessage_fun = onmessage.As<Function>();
+
+    v8::TryCatch try_catch(isolate_);
+    try_catch.SetVerbose(true);
+    Local<Value> value;
+    if (Shell::DeserializeValue(isolate_, std::move(data_)).ToLocal(&value)) {
+      DCHECK(!isolate_->IsExecutionTerminating());
+      Local<Object> event = v8::Object::New(isolate_);
+      event
+          ->CreateDataProperty(
+              context,
+              String::NewFromUtf8Literal(isolate_, "data",
+                                         NewStringType::kInternalized),
+              value)
+          .ToChecked();
+      Local<Value> argv[] = {event};
+      MaybeLocal<Value> result = onmessage_fun->Call(context, global, 1, argv);
+      USE(result);
+    }
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  v8::Global<v8::Value> callback_;
+  std::unique_ptr<SerializationData> data_;
+};
+
+// Check, on the main thread, whether a worker has any enqueued any message
+// events. Workers post this task when posting a message, instead of posting
+// OnMessageFromWorkerTask directly, to avoid races between message posting
+// and onmessage subscription.
+class CheckMessageFromWorkerTask : public v8::Task {
+ public:
+  CheckMessageFromWorkerTask(v8::Isolate* isolate,
+                             std::shared_ptr<Worker> worker,
+                             const v8::Global<v8::Context>& context,
+                             const v8::Global<v8::Value>& callback)
+      : isolate_(isolate),
+        worker_(std::move(worker)),
+        context_(context),
+        callback_(callback) {}
+
+  void Run() override {
+    HandleScope scope(isolate_);
+
+    std::unique_ptr<SerializationData> result;
+    while ((result = worker_->TryGetMessage())) {
+      // Each onmessage callback call is posted as a separate task.
+      g_platform->GetForegroundTaskRunner(isolate_)->PostTask(
+          std::make_unique<OnMessageFromWorkerTask>(
+              isolate_, context_.Get(isolate_), callback_.Get(isolate_),
+              std::move(result)));
+    }
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  std::shared_ptr<Worker> worker_;
+  const v8::Global<v8::Context>& context_;
+  const v8::Global<v8::Value>& callback_;
+};
+
+void Shell::WorkerOnMessageGetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  std::shared_ptr<Worker> worker =
+      GetWorkerFromInternalField(isolate, info.This());
+  if (!worker.get()) {
+    return;
+  }
+  info.GetReturnValue().Set(worker->GetOnMessage(isolate));
+}
+
+void Shell::WorkerOnMessageSetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  if (info.Length() < 1) {
+    ThrowError(isolate, "Invalid argument");
+    return;
+  }
+
+  std::shared_ptr<Worker> worker =
+      GetWorkerFromInternalField(isolate, info.This());
+  if (!worker.get()) {
+    return;
+  }
+
+  Local<Value> callback = info[0];
+
+  PerIsolateData::Get(isolate)->RegisterSubscribedWorker(worker);
+  worker->SetOnMessage(isolate, callback);
+}
+
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -3456,6 +3590,13 @@ Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->PrototypeTemplate()->SetAccessorProperty(
+      String::NewFromUtf8(isolate, "onmessage", NewStringType::kInternalized)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, WorkerOnMessageGetter, Local<Value>(),
+                            worker_signature),
+      FunctionTemplate::New(isolate, WorkerOnMessageSetter, Local<Value>(),
                             worker_signature));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
   return worker_fun_template;
@@ -4687,6 +4828,27 @@ class TerminateTask : public i::CancelableTask {
   std::shared_ptr<Worker> worker_;
 };
 
+Local<Value> Worker::GetOnMessage(Isolate* isolate) const {
+  if (on_message_isolate_ == nullptr) return Undefined(isolate);
+  return on_message_callback_.Get(isolate);
+}
+
+void Worker::SetOnMessage(Isolate* isolate, Local<Value> callback) {
+  Local<Context> context = isolate->GetCurrentContext();
+
+  {
+    base::MutexGuard lock_guard(&worker_mutex_);
+
+    on_message_isolate_ = isolate;
+    on_message_context_ = Global<Context>(isolate, context);
+    on_message_callback_ = Global<Value>(isolate, callback);
+  }
+  g_platform->GetForegroundTaskRunner(isolate)->PostTask(
+      std::make_unique<CheckMessageFromWorkerTask>(
+          on_message_isolate_, this->shared_from_this(), on_message_context_,
+          on_message_callback_));
+}
+
 std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   std::unique_ptr<SerializationData> result;
   while (!out_queue_.Dequeue(&result)) {
@@ -4695,6 +4857,14 @@ std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
     if (!is_running()) break;
     out_semaphore_.ParkedWait(
         reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
+  }
+  return result;
+}
+
+std::unique_ptr<SerializationData> Worker::TryGetMessage() {
+  std::unique_ptr<SerializationData> result;
+  if (!out_queue_.Dequeue(&result)) {
+    return nullptr;
   }
   return result;
 }
@@ -4753,7 +4923,15 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   Local<Value> value;
   if (Shell::DeserializeValue(isolate_, std::move(data)).ToLocal(&value)) {
     DCHECK(!isolate_->IsExecutionTerminating());
-    Local<Value> argv[] = {value};
+    Local<Object> event = Object::New(isolate_);
+    event
+        ->CreateDataProperty(
+            context,
+            String::NewFromUtf8Literal(isolate_, "data",
+                                       NewStringType::kInternalized),
+            value)
+        .ToChecked();
+    Local<Value> argv[] = {event};
     MaybeLocal<Value> result = onmessage_fun->Call(context, global, 1, argv);
     USE(result);
   }
@@ -4780,6 +4958,11 @@ void Worker::SetCurrentWorker(Worker* worker) {
 
 // static
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
+
+class NoOpTask : public v8::Task {
+ public:
+  void Run() override {}
+};
 
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
@@ -4855,6 +5038,21 @@ void Worker::ExecuteInThread() {
                 .FromJust();
           }
 
+          Local<FunctionTemplate> importScripts_fun_template =
+              FunctionTemplate::New(isolate_, Worker::ImportScripts,
+                                    this_value);
+          Local<Function> importScripts_fun;
+          if (importScripts_fun_template->GetFunction(context).ToLocal(
+                  &importScripts_fun)) {
+            global
+                ->Set(context,
+                      v8::String::NewFromUtf8Literal(
+                          isolate_, "importScripts",
+                          NewStringType::kInternalized),
+                      importScripts_fun)
+                .FromJust();
+          }
+
           // First run the script
           Local<String> file_name =
               String::NewFromUtf8Literal(isolate_, "unnamed");
@@ -4902,6 +5100,15 @@ void Worker::ExecuteInThread() {
   // Post nullptr to wake the thread waiting on GetMessage() if there is one.
   out_queue_.Enqueue(nullptr);
   out_semaphore_.Signal();
+  // Also post a no-op task in case a thread is waiting for messages, so that it
+  // sees that this worker is terminated.
+  {
+    base::MutexGuard lock_guard(&worker_mutex_);
+    if (on_message_isolate_ != nullptr) {
+      g_platform->GetForegroundTaskRunner(on_message_isolate_)
+          ->PostTask(std::make_unique<NoOpTask>());
+    }
+  }
 }
 
 void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -4922,9 +5129,23 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK(info.Data()->IsExternal());
     Local<External> this_value = info.Data().As<External>();
     Worker* worker = static_cast<Worker*>(this_value->Value());
+
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
+    {
+      base::MutexGuard lock_guard(&worker->worker_mutex_);
+      if (worker->on_message_isolate_ != nullptr) {
+        g_platform->GetForegroundTaskRunner(worker->on_message_isolate_)
+            ->PostTask(std::make_unique<CheckMessageFromWorkerTask>(
+                worker->on_message_isolate_, worker->shared_from_this(),
+                worker->on_message_context_, worker->on_message_callback_));
+      }
+    }
   }
+}
+
+void Worker::ImportScripts(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Shell::ExecuteFile(info);
 }
 
 void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -5408,19 +5629,6 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
-void Shell::NotifyStartStreamingTask(Isolate* isolate) {
-  DCHECK(options.streaming_compile);
-  base::MutexGuard guard(isolate_status_lock_.Pointer());
-  ++isolate_running_streaming_tasks_[isolate];
-}
-
-void Shell::NotifyFinishStreamingTask(Isolate* isolate) {
-  DCHECK(options.streaming_compile);
-  base::MutexGuard guard(isolate_status_lock_.Pointer());
-  --isolate_running_streaming_tasks_[isolate];
-  DCHECK_GE(isolate_running_streaming_tasks_[isolate], 0);
-}
-
 namespace {
 bool ProcessMessages(
     Isolate* isolate,
@@ -5471,12 +5679,14 @@ bool ProcessMessages(
 
 bool Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
-    base::MutexGuard guard(isolate_status_lock_.Pointer());
-    bool should_wait = (options.wait_for_background_tasks &&
-                        isolate->HasPendingBackgroundTasks()) ||
-                       isolate_running_streaming_tasks_[isolate] > 0;
-    return should_wait ? platform::MessageLoopBehavior::kWaitForWork
-                       : platform::MessageLoopBehavior::kDoNotWait;
+    if (options.wait_for_background_tasks &&
+        isolate->HasPendingBackgroundTasks()) {
+      return platform::MessageLoopBehavior::kWaitForWork;
+    }
+    if (PerIsolateData::Get(isolate)->HasRunningSubscribedWorkers()) {
+      return platform::MessageLoopBehavior::kWaitForWork;
+    }
+    return platform::MessageLoopBehavior::kDoNotWait;
   };
   if (i::v8_flags.verify_predictable) {
     bool ran_tasks = ProcessMessages(

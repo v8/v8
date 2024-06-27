@@ -22,6 +22,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/parked-scope.h"
 
 namespace v8 {
@@ -193,12 +194,21 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // SerializationData. This function should only be called by the thread that
   // created the Worker.
   void PostMessage(std::unique_ptr<SerializationData> data);
+  // Get the onmessage handler from the worker.
+  Local<Value> GetOnMessage(Isolate* isolate) const;
+  // Set the onmessage handler on the worker.
+  void SetOnMessage(Isolate* isolate, Local<Value> callback);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
   std::unique_ptr<SerializationData> GetMessage(Isolate* requester);
+  // Synchronously retrieve messages from the worker's outgoing message queue.
+  // If there is no message in the queue, or the worker is no longer running,
+  // return nullptr.
+  // This function should only be called by the thread that created the Worker.
+  std::unique_ptr<SerializationData> TryGetMessage();
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
@@ -214,6 +224,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   // Enters State::kTerminated for the Worker and resets the task runner.
   void EnterTerminatedState();
+  bool IsTerminated() const { return state_ == State::kTerminated; }
 
   // Returns the Worker instance for this thread.
   static Worker* GetCurrentWorker();
@@ -249,12 +260,17 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void ImportScripts(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void SetCurrentWorker(Worker* worker);
 
   i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
+  Isolate* on_message_isolate_ = nullptr;
+  Global<Context> on_message_context_;
+  Global<Value> on_message_callback_;
+
   base::Thread* thread_ = nullptr;
   char* script_;
   std::atomic<State> state_;
@@ -331,6 +347,9 @@ class PerIsolateData {
   Local<FunctionTemplate> GetDomNodeCtor() const;
   void SetDomNodeCtor(Local<FunctionTemplate> ctor);
 
+  bool HasRunningSubscribedWorkers();
+  void RegisterSubscribedWorker(std::shared_ptr<Worker> worker);
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -349,6 +368,7 @@ class PerIsolateData {
 #endif
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
+  std::vector<std::shared_ptr<Worker>> subscribed_workers_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& info,
                         int arg_offset);
@@ -635,6 +655,10 @@ class Shell : public i::AllStatic {
   static void WorkerPostMessage(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WorkerOnMessageGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WorkerOnMessageSetter(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WorkerTerminateAndWait(
       const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -702,8 +726,6 @@ class Shell : public i::AllStatic {
   static ArrayBuffer::Allocator* array_buffer_allocator;
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
-  static void NotifyStartStreamingTask(Isolate* isolate);
-  static void NotifyFinishStreamingTask(Isolate* isolate);
 
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
