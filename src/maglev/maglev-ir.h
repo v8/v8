@@ -2103,6 +2103,10 @@ class Node : public NodeBase {
            op != Opcode::kCheckMaps;
   }
 
+  static constexpr bool needs_epoch_check(Opcode op) {
+    return StaticPropertiesForOpcode(op).can_read();
+  }
+
  protected:
   using NodeBase::NodeBase;
 

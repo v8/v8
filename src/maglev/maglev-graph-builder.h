@@ -821,11 +821,6 @@ class MaglevGraphBuilder {
     // VirtualObjects should never be add to the Maglev graph.
     DCHECK(!node->Is<VirtualObject>());
     current_block_->nodes().Add(node);
-    if (v8_flags.maglev_cse) {
-      if (node->properties().can_write()) {
-        known_node_aspects().increment_effect_epoch();
-      }
-    }
     if (has_graph_labeller())
       graph_labeller()->RegisterNode(node, compilation_unit_,
                                      BytecodeOffset(iterator_.current_offset()),
@@ -883,7 +878,6 @@ class MaglevGraphBuilder {
       value_number = static_cast<uint32_t>(tmp_value_number);
     }
 
-    bool needs_epoch_check = StaticPropertiesForOpcode(op).can_read();
     auto exists = known_node_aspects().available_expressions.find(value_number);
     if (exists != known_node_aspects().available_expressions.end()) {
       auto candidate = exists->second.node;
@@ -894,7 +888,7 @@ class MaglevGraphBuilder {
                      (StaticPropertiesForOpcode(op) &
                       candidate->properties()) == candidate->properties());
       const bool epoch_check =
-          !needs_epoch_check ||
+          !Node::needs_epoch_check(op) ||
           known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
       if (sanity_check && epoch_check) {
         if (static_cast<NodeT*>(candidate)->options() ==
@@ -918,9 +912,12 @@ class MaglevGraphBuilder {
     NodeT* node =
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
     DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
-    known_node_aspects().available_expressions[value_number] = {
-        node, needs_epoch_check ? known_node_aspects().effect_epoch()
-                                : std::numeric_limits<uint32_t>::max()};
+    uint32_t epoch = Node::needs_epoch_check(op)
+                         ? known_node_aspects().effect_epoch()
+                         : KnownNodeAspects::kEffectEpochForPureInstructions;
+    if (epoch != KnownNodeAspects::kEffectEpochOverflow) {
+      known_node_aspects().available_expressions[value_number] = {node, epoch};
+    }
     return AttachExtraInfoAndAddToGraph(node);
   }
 
@@ -981,8 +978,8 @@ class MaglevGraphBuilder {
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
     AttachExceptionHandlerInfo(node);
-    MarkPossibleSideEffect(node);
     AddInitializedNodeToGraph(node);
+    MarkPossibleSideEffect(node);
     return node;
   }
 
@@ -1600,6 +1597,10 @@ class MaglevGraphBuilder {
   void MarkPossibleSideEffect(NodeT* node) {
     // Don't do anything for nodes without side effects.
     if constexpr (!NodeT::kProperties.can_write()) return;
+
+    if (v8_flags.maglev_cse) {
+      known_node_aspects().increment_effect_epoch();
+    }
 
     // We only need to clear unstable node aspects on the current builder, not
     // the parent, since we'll anyway copy the known_node_aspects to the parent

@@ -300,10 +300,16 @@ struct KnownNodeAspects {
     clone->loaded_constant_properties = loaded_constant_properties;
     clone->loaded_context_constants = loaded_context_constants;
 
+    clone->effect_epoch_ = effect_epoch_;
     // To account for the back-jump we must not allow effects to be reshuffled
     // across loop headers.
     // TODO(olivf): Only do this if the loop contains write effects.
-    clone->effect_epoch_++;
+    clone->increment_effect_epoch();
+    for (const auto& e : available_expressions) {
+      if (e.second.effect_epoch >= clone->effect_epoch()) {
+        clone->available_expressions.emplace(e);
+      }
+    }
     return clone;
   }
 
@@ -478,7 +484,13 @@ struct KnownNodeAspects {
   };
   ZoneMap<uint32_t, AvailableExpression> available_expressions;
   uint32_t effect_epoch() const { return effect_epoch_; }
-  void increment_effect_epoch() { effect_epoch_++; }
+  static constexpr uint32_t kEffectEpochForPureInstructions =
+      std::numeric_limits<uint32_t>::max();
+  static constexpr uint32_t kEffectEpochOverflow =
+      kEffectEpochForPureInstructions - 1;
+  void increment_effect_epoch() {
+    if (effect_epoch_ < kEffectEpochOverflow) effect_epoch_++;
+  }
 
  private:
   NodeInfos node_infos;

@@ -36,6 +36,10 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
       [&](const AvailableExpression& lhs, const AvailableExpression& rhs) {
         DCHECK_IMPLIES(lhs.node == rhs.node,
                        lhs.effect_epoch == rhs.effect_epoch);
+        DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
+        DCHECK_EQ(Node::needs_epoch_check(lhs.node->opcode()),
+                  lhs.effect_epoch != kEffectEpochForPureInstructions);
+
         return lhs.node == rhs.node && lhs.effect_epoch >= effect_epoch_;
       });
 
