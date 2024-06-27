@@ -1418,7 +1418,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
         isolate, "throw_no_fallback",
         FunctionTemplate::New(
             isolate, FastCApiObject::ThrowFallbackSlowCallback, Local<Value>(),
-            signature, 1, ConstructorBehavior::kThrow,
+            Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &throw_no_fallback_func));
 
     CFunction copy_str_func = CFunction::Make(

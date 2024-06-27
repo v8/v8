@@ -185,6 +185,7 @@ class FastApiCallBuilder {
                      Node** inputs, Node* target,
                      const CFunctionInfo* c_signature, int c_arg_count,
                      Node* stack_slot);
+  void PropagateException();
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
@@ -229,6 +230,34 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
            target_address, 0, __ IntPtrConstant(0));
 
   return call;
+}
+
+void FastApiCallBuilder::PropagateException() {
+  Runtime::FunctionId fun_id = Runtime::FunctionId::kPropagateException;
+  const Runtime::Function* fun = Runtime::FunctionForId(fun_id);
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), fun_id, fun->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  // The CEntryStub is loaded from the IsolateRoot so that generated code is
+  // Isolate independent. At the moment this is only done for CEntryStub(1).
+  Node* isolate_root = __ LoadRootRegister();
+  DCHECK_EQ(1, fun->result_size);
+  auto centry_id = Builtin::kWasmCEntry;
+  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(centry_id);
+  Node* centry_stub =
+      __ Load(MachineType::Pointer(), isolate_root, builtin_slot_offset);
+  const int kInputCount = 6;
+  Node* inputs[kInputCount];
+  int count = 0;
+  inputs[count++] = centry_stub;
+  inputs[count++] = __ ExternalConstant(ExternalReference::Create(fun_id));
+  inputs[count++] = __ Int32Constant(fun->nargs);
+  inputs[count++] = __ IntPtrConstant(0);
+  inputs[count++] = __ effect();
+  inputs[count++] = __ control();
+  DCHECK_EQ(kInputCount, count);
+
+  __ Call(call_descriptor, count, inputs);
 }
 
 Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
@@ -355,6 +384,25 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
       WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,
                    inputs[0], c_signature, c_arg_count, stack_slot);
 
+  Node* exception = __ Load(MachineType::IntPtr(),
+                            __ ExternalConstant(ExternalReference::Create(
+                                IsolateAddressId::kExceptionAddress, isolate_)),
+                            0);
+
+  Node* the_hole =
+      __ Load(MachineType::IntPtr(), __ LoadRootRegister(),
+              IsolateData::root_slot_offset(RootIndex::kTheHoleValue));
+
+  auto throw_label = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+  __ GotoIfNot(__ IntPtrEqual(exception, the_hole), &throw_label);
+  __ Goto(&done);
+
+  __ Bind(&throw_label);
+  PropagateException();
+  __ Unreachable();
+
+  __ Bind(&done);
   Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);
