@@ -711,6 +711,8 @@ KeyAccumulator::FilterForEnumerableProperties(
       CHECK(IsName(*element));
       attributes = args.CallNamedQuery(interceptor, Cast<Name>(element));
     }
+    // An exception was thrown in the interceptor. Propagate.
+    RETURN_VALUE_IF_EXCEPTION(isolate_, ExceptionStatus::kException);
 
     if (!attributes.is_null()) {
       int32_t value;
@@ -740,6 +742,7 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
     DCHECK_EQ(type, kNamed);
     maybe_result = enum_args.CallNamedEnumerator(interceptor);
   }
+  // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, enum_args, Nothing<bool>());
   if (IsUndefined(*maybe_result)) return Just(true);
   DCHECK(IsJSObject(*maybe_result));

@@ -3716,7 +3716,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
                                         *holder, Just(kDontThrow));
 
     Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
-
+    // An exception was thrown in the interceptor. Propagate.
     RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
     if (!result.is_null()) {
@@ -3833,7 +3833,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
-
+  // An exception was thrown in the interceptor. Propagate.
   RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
   if (result.is_null()) {
@@ -3881,15 +3881,21 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
 
     if (!IsUndefined(interceptor->query(), isolate)) {
       Handle<Object> result = arguments.CallIndexedQuery(interceptor, index);
+      // An exception was thrown in the interceptor. Propagate.
+      RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
         int32_t value;
         CHECK(Object::ToInt32(*result, &value));
+        // TODO(ishell): PropertyAttributes::ABSENT is not exposed in the Api,
+        // so it can't be officially returned. We should fix the tests instead.
         if (value == ABSENT) return ReadOnlyRoots(isolate).false_value();
         arguments.AcceptSideEffects();
         return ReadOnlyRoots(isolate).true_value();
       }
     } else if (!IsUndefined(interceptor->getter(), isolate)) {
       Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
+      // An exception was thrown in the interceptor. Propagate.
+      RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
         arguments.AcceptSideEffects();
         return ReadOnlyRoots(isolate).true_value();

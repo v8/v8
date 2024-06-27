@@ -113,6 +113,9 @@ class PropertyCallbackArguments final
 
   // -------------------------------------------------------------------------
   // Named Interceptor Callbacks
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
   inline Handle<Object> CallNamedQuery(Handle<InterceptorInfo> interceptor,
                                        Handle<Name> name);
   inline Handle<JSAny> CallNamedGetter(Handle<InterceptorInfo> interceptor,
@@ -131,6 +134,8 @@ class PropertyCallbackArguments final
   inline v8::Intercepted CallNamedDeleter(
       DirectHandle<InterceptorInfo> interceptor, Handle<Name> name);
 
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
   inline Handle<JSAny> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
                                            Handle<Name> name);
   // Returns JSArray-like object with property names or undefined.
@@ -139,6 +144,9 @@ class PropertyCallbackArguments final
 
   // -------------------------------------------------------------------------
   // Indexed Interceptor Callbacks
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
   inline Handle<Object> CallIndexedQuery(Handle<InterceptorInfo> interceptor,
                                          uint32_t index);
   inline Handle<JSAny> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
@@ -157,6 +165,8 @@ class PropertyCallbackArguments final
   inline v8::Intercepted CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
                                             uint32_t index);
 
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
   inline Handle<JSAny> CallIndexedDescriptor(
       Handle<InterceptorInfo> interceptor, uint32_t index);
   // Returns JSArray-like object with property names or undefined.

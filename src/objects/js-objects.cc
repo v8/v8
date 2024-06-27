@@ -1200,12 +1200,11 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
                                  *holder, Just(kDontThrow));
 
   if (it->IsElement(*holder)) {
-    result =
-        Cast<JSAny>(args.CallIndexedGetter(interceptor, it->array_index()));
+    result = args.CallIndexedGetter(interceptor, it->array_index());
   } else {
-    result = Cast<JSAny>(args.CallNamedGetter(interceptor, it->name()));
+    result = args.CallNamedGetter(interceptor, it->name());
   }
-
+  // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, kNullMaybeHandle);
   if (result.is_null()) return isolate->factory()->undefined_value();
   *done = true;
@@ -1240,13 +1239,17 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     } else {
       result = args.CallNamedQuery(interceptor, it->name());
     }
+    // An exception was thrown in the interceptor. Propagate.
+    RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
+                                       Nothing<PropertyAttributes>());
+
     if (!result.is_null()) {
       int32_t value;
       CHECK(Object::ToInt32(*result, &value));
       DCHECK_IMPLIES((value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK) != 0,
                      value == PropertyAttributes::ABSENT);
       // In case of absent property side effects are not allowed.
-      // TODO(ishell): the PropertyAttributes::ABSENT is not exposed in the Api,
+      // TODO(ishell): PropertyAttributes::ABSENT is not exposed in the Api,
       // so it can't be officially returned. We should fix the tests instead.
       if (value != PropertyAttributes::ABSENT) {
         args.AcceptSideEffects();
@@ -1261,15 +1264,15 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     } else {
       result = args.CallNamedGetter(interceptor, it->name());
     }
+    // An exception was thrown in the interceptor. Propagate.
+    RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
+                                       Nothing<PropertyAttributes>());
 
     if (!result.is_null()) {
       args.AcceptSideEffects();
       return Just(DONT_ENUM);
     }
   }
-
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
-                                     Nothing<PropertyAttributes>());
   return Just(ABSENT);
 }
 
