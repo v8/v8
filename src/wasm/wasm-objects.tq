@@ -141,8 +141,8 @@ extern class WasmResumeData extends HeapObject {
 }
 
 extern class WasmContinuationObject extends HeapObject {
-  stack: Foreign;
   parent: WasmContinuationObject|Undefined;
+  stack: ExternalPointer;
   jmpbuf: ExternalPointer;  // Direct access to the stack's jump buffer.
 }
 

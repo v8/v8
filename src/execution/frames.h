@@ -1671,7 +1671,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
 
   bool IsValidStackAddress(Address addr) const {
 #if V8_ENABLE_WEBASSEMBLY
-    for (wasm::StackMemory* stack : wasm_stacks_) {
+    for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
       if (stack->Contains(addr)) return true;
     }
 #endif
@@ -1700,7 +1700,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 #if V8_ENABLE_WEBASSEMBLY
-  std::vector<wasm::StackMemory*>& wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks_;
 #endif
 };
 

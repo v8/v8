@@ -12,8 +12,9 @@
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
-#include "src/roots/roots.h"
+#include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
@@ -656,6 +657,28 @@ double flat_string_to_f64(Address string_address) {
 void sync_stack_limit(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
+  isolate->SyncStackLimit();
+}
+
+void return_switch(Isolate* isolate, Address raw_continuation) {
+  DisallowGarbageCollection no_gc;
+
+  Tagged<WasmContinuationObject> continuation =
+      Cast<WasmContinuationObject>(Tagged<Object>{raw_continuation});
+  auto* wasm_engine = wasm::GetWasmEngine();
+  size_t index = reinterpret_cast<StackMemory*>(continuation->stack())->index();
+  // We can only return from a stack that was still in the global list.
+  DCHECK_LT(index, isolate->wasm_stacks().size());
+  std::unique_ptr<StackMemory> stack = std::move(isolate->wasm_stacks()[index]);
+  if (index != isolate->wasm_stacks().size() - 1) {
+    isolate->wasm_stacks()[index] = std::move(isolate->wasm_stacks().back());
+    isolate->wasm_stacks()[index]->set_index(index);
+  }
+  isolate->wasm_stacks().pop_back();
+  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
+    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
+  }
+  wasm_engine->stack_pool().Add(std::move(stack));
   isolate->SyncStackLimit();
 }
 
