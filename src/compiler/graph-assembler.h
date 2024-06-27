@@ -338,9 +338,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Parameter(int index);
 
   Node* LoadFramePointer();
-
-  Node* LoadRootRegister();
-
 #if V8_ENABLE_WEBASSEMBLY
   Node* LoadStackPointer();
   Node* SetStackPointer(Node* sp);

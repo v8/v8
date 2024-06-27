@@ -173,12 +173,7 @@ StackFrame::Type GetStateForFastCCallCallerFP(Isolate* isolate, Address fp,
   state->callee_pc = kNullAddress;
   state->constant_pool_address = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
-  if (wasm::WasmCode* code =
-          wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
-    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
-      return StackFrame::WASM_TO_JS;
-    }
-    DCHECK_EQ(code->kind(), wasm::WasmCode::kWasmFunction);
+  if (wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
     return StackFrame::WASM;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

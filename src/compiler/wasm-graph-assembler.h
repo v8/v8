@@ -332,6 +332,10 @@ class WasmGraphAssembler : public GraphAssembler {
         effect(), control()));
   }
 
+  Node* LoadRootRegister() {
+    return AddNode(graph()->NewNode(mcgraph()->machine()->LoadRootRegister()));
+  }
+
   Node* LoadTrustedDataFromInstanceObject(Node* instance_object);
 
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
