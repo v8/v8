@@ -5101,12 +5101,15 @@ class VirtualObject::List {
   }
 
   VirtualObject* FindAllocatedWith(InlinedAllocation* allocation) const {
+    VirtualObject* result = nullptr;
     for (VirtualObject* vo : *this) {
       if (vo->allocation() == allocation) {
-        return vo;
+        result = vo;
+        break;
       }
     }
-    UNREACHABLE();
+    CHECK_NOT_NULL(result);
+    return result;
   }
 
   Iterator begin() const { return Iterator(head_); }
