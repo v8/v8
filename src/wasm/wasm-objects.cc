@@ -22,7 +22,6 @@
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/signature-hashing.h"
-#include "src/wasm/stacks.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -2056,7 +2055,7 @@ void DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
 
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, wasm::StackMemory* stack,
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
     wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
     AllocationType allocation_type) {
   stack->jmpbuf()->stack_limit = stack->jslimit();
@@ -2064,9 +2063,14 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->state = state;
   wasm::JumpBuffer* jmpbuf = stack->jmpbuf();
+  size_t external_size = stack->owned_size();
+  DirectHandle<Foreign> managed_stack =
+      Managed<wasm::StackMemory>::FromUniquePtr(
+          isolate, external_size, std::move(stack), allocation_type);
   Handle<WasmContinuationObject> result =
       isolate->factory()->NewWasmContinuationObject(
-          reinterpret_cast<Address>(jmpbuf), stack, parent, allocation_type);
+          reinterpret_cast<Address>(jmpbuf), managed_stack, parent,
+          allocation_type);
   return result;
 }
 
@@ -2092,10 +2096,20 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, wasm::StackMemory* stack,
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
     wasm::JumpBuffer::StackState state, AllocationType allocation_type) {
   auto parent = ReadOnlyRoots(isolate).undefined_value();
-  return New(isolate, stack, state, handle(parent, isolate), allocation_type);
+  return New(isolate, std::move(stack), state, handle(parent, isolate),
+             allocation_type);
+}
+
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, wasm::JumpBuffer::StackState state,
+    DirectHandle<WasmContinuationObject> parent) {
+  auto stack =
+      std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New(isolate));
+  return New(isolate, std::move(stack), state, parent);
 }
 
 // static

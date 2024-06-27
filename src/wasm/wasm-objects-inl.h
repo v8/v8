@@ -702,9 +702,6 @@ TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,
 EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, jmpbuf, Address,
                            kJmpbufOffset, kWasmContinuationJmpbufTag)
 
-EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, stack, Address, kStackOffset,
-                           kWasmStackMemoryTag)
-
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace v8::internal

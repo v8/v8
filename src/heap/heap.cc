@@ -1268,9 +1268,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     // Discard pooled pages for scavenger if needed.
     if (ShouldReduceMemory()) {
       memory_allocator_->pool()->ReleasePooledChunks();
-#if V8_ENABLE_WEBASSEMBLY
-      wasm::GetWasmEngine()->stack_pool().ReleaseFinishedStacks();
-#endif
     }
   }
 

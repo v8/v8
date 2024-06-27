@@ -608,11 +608,11 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
+  for (wasm::StackMemory* stack : wasm_stacks_) {
     if (stack->IsActive()) {
       continue;
     }
-    for (StackFrameIterator it(this, stack.get()); !it.done(); it.Advance()) {
+    for (StackFrameIterator it(this, stack); !it.done(); it.Advance()) {
       it.frame()->Iterate(v);
     }
   }
@@ -3604,7 +3604,7 @@ void Isolate::SyncStackLimit() {
   auto continuation =
       Cast<WasmContinuationObject>(root(RootIndex::kActiveContinuation));
   wasm::StackMemory* stack =
-      reinterpret_cast<wasm::StackMemory*>(continuation->stack());
+      Cast<Managed<wasm::StackMemory>>(continuation->stack())->raw();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch to stack #%d\n", stack->id());
   }
@@ -3616,8 +3616,11 @@ void Isolate::SyncStackLimit() {
 void Isolate::UpdateCentralStackInfo() {
   Tagged<Object> current = root(RootIndex::kActiveContinuation);
   DCHECK(!IsUndefined(current));
-  wasm::StackMemory* wasm_stack = reinterpret_cast<wasm::StackMemory*>(
-      Cast<WasmContinuationObject>(current)->stack());
+  wasm::StackMemory* wasm_stack =
+      Cast<Managed<wasm::StackMemory>>(
+          Cast<WasmContinuationObject>(current)->stack())
+          ->get()
+          .get();
   current = Cast<WasmContinuationObject>(current)->parent();
   thread_local_top()->is_on_central_stack_flag_ =
       IsOnCentralStack(wasm_stack->jmpbuf()->sp);
@@ -3627,7 +3630,8 @@ void Isolate::UpdateCentralStackInfo() {
   // may contain cpp heap pointers.
   while (!IsUndefined(current)) {
     auto cont = Cast<WasmContinuationObject>(current);
-    auto* wasm_stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
+    auto* wasm_stack =
+        Cast<Managed<wasm::StackMemory>>(cont->stack())->get().get();
     // On x64 and arm64 we don't need to record the stack segments for
     // conservative stack scanning. We switch to the central stack for foreign
     // calls, so secondary stacks only contain wasm frames which use the precise
@@ -6061,8 +6065,9 @@ void Isolate::FireCallCompletedCallbackInternal(
 #ifdef V8_ENABLE_WEBASSEMBLY
 void Isolate::WasmInitJSPIFeature() {
   if (IsUndefined(root(RootIndex::kActiveContinuation))) {
-    wasm::StackMemory* stack(wasm::StackMemory::GetCurrentStackView(this));
-    this->wasm_stacks().emplace_back(stack);
+    std::unique_ptr<wasm::StackMemory> stack(
+        wasm::StackMemory::GetCurrentStackView(this));
+    this->wasm_stacks().push_back(stack.get());
     stack->set_index(0);
     if (v8_flags.trace_wasm_stack_switching) {
       PrintF("Set up native stack object (limit: %p, base: %p)\n",
@@ -6070,7 +6075,8 @@ void Isolate::WasmInitJSPIFeature() {
     }
     HandleScope scope(this);
     DirectHandle<WasmContinuationObject> continuation =
-        WasmContinuationObject::New(this, stack, wasm::JumpBuffer::Active,
+        WasmContinuationObject::New(this, std::move(stack),
+                                    wasm::JumpBuffer::Active,
                                     AllocationType::kOld);
     heap()
         ->roots_table()

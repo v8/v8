@@ -37,9 +37,7 @@ class StackMemory {
  public:
   static constexpr ExternalPointerTag kManagedTag = kWasmStackMemoryTag;
 
-  static std::unique_ptr<StackMemory> New() {
-    return std::unique_ptr<StackMemory>(new StackMemory());
-  }
+  static StackMemory* New(Isolate* isolate) { return new StackMemory(isolate); }
 
   // Returns a non-owning view of the current (main) stack. This may be
   // the simulator's stack when running on the simulator.
@@ -53,6 +51,8 @@ class StackMemory {
     return reinterpret_cast<Address>(jslimit()) <= addr && addr < base();
   }
   int id() { return id_; }
+  // Track external memory usage for Managed<StackMemory> objects.
+  size_t owned_size() { return sizeof(StackMemory) + (owned_ ? size_ : 0); }
   bool IsActive() { return jmpbuf_.state == JumpBuffer::Active; }
   void set_index(size_t index) { index_ = index; }
   size_t index() { return index_; }
@@ -63,15 +63,14 @@ class StackMemory {
   static constexpr int kJSLimitOffsetKB = 40;
 #endif
 
-  friend class StackPool;
-
  private:
   // This constructor allocates a new stack segment.
-  StackMemory();
+  explicit StackMemory(Isolate* isolate);
 
   // Overload to represent a view of the libc stack.
-  StackMemory(uint8_t* limit, size_t size);
+  StackMemory(Isolate* isolate, uint8_t* limit, size_t size);
 
+  Isolate* isolate_;
   uint8_t* limit_;
   size_t size_;
   bool owned_;
@@ -79,29 +78,9 @@ class StackMemory {
   // Stable ID.
   int id_;
   // Index of this stack in the global Isolate::wasm_stacks() vector. This
-  // allows us to add and remove from the vector in constant time (see
-  // return_switch()).
+  // allows us to find and remove the stack from the vector in constant time
+  // when the destructor is called.
   size_t index_;
-};
-
-// A pool of "finished" stacks, i.e. stacks whose last frame have returned and
-// whose memory can be reused for new suspendable computations.
-class StackPool {
- public:
-  // Gets a stack from the free list if one exists, else allocates it.
-  std::unique_ptr<StackMemory> GetOrAllocate();
-  // Adds a finished stack to the free list.
-  void Add(std::unique_ptr<StackMemory> stack);
-  // Decommit the stack memories and empty the freelist.
-  void ReleaseFinishedStacks();
-  size_t Size() const;
-
- private:
-  std::vector<std::unique_ptr<StackMemory>> freelist_;
-  size_t size_;
-  // If the next finished stack would move the total size above this limit, the
-  // stack is freed instead of being added to the free list.
-  static constexpr int kMaxSize = 4 * MB;
 };
 
 }  // namespace v8::internal::wasm

@@ -21,7 +21,6 @@
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/wasm/canonical-types.h"
-#include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -386,8 +385,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
     return &call_descriptors_;
   }
 
-  StackPool& stack_pool() { return stack_pool_; }
-
   // Returns an approximation of current off-heap memory used by this engine,
   // excluding code space.
   size_t EstimateCurrentMemoryConsumption() const;
@@ -441,8 +438,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   TypeCanonicalizer type_canonicalizer_;
 
   compiler::WasmCallDescriptors call_descriptors_;
-
-  StackPool stack_pool_;
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

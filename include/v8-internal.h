@@ -558,8 +558,7 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   V(kWasmTypeInfoNativeTypeTag,                 TAG(17)) \
   V(kWasmExportedFunctionDataSignatureTag,      TAG(18)) \
   V(kWasmContinuationJmpbufTag,                 TAG(19)) \
-  V(kWasmStackMemoryTag,                        TAG(20)) \
-  V(kWasmIndirectFunctionTargetTag,             TAG(21)) \
+  V(kWasmIndirectFunctionTargetTag,             TAG(20)) \
   /* Foreigns */ \
   V(kGenericForeignTag,                         TAG(30)) \
   /* Managed */ \
@@ -569,17 +568,18 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   V(kWasmFuncDataTag,                           TAG(42)) \
   V(kWasmManagedDataTag,                        TAG(43)) \
   V(kWasmNativeModuleTag,                       TAG(44)) \
-  V(kIcuBreakIteratorTag,                       TAG(45)) \
-  V(kIcuUnicodeStringTag,                       TAG(46)) \
-  V(kIcuListFormatterTag,                       TAG(47)) \
-  V(kIcuLocaleTag,                              TAG(48)) \
-  V(kIcuSimpleDateFormatTag,                    TAG(49)) \
-  V(kIcuDateIntervalFormatTag,                  TAG(50)) \
-  V(kIcuRelativeDateTimeFormatterTag,           TAG(51)) \
-  V(kIcuLocalizedNumberFormatterTag,            TAG(52)) \
-  V(kIcuPluralRulesTag,                         TAG(53)) \
-  V(kIcuCollatorTag,                            TAG(54)) \
-  V(kDisplayNamesInternalTag,                   TAG(55)) \
+  V(kWasmStackMemoryTag,                        TAG(45)) \
+  V(kIcuBreakIteratorTag,                       TAG(46)) \
+  V(kIcuUnicodeStringTag,                       TAG(47)) \
+  V(kIcuListFormatterTag,                       TAG(48)) \
+  V(kIcuLocaleTag,                              TAG(49)) \
+  V(kIcuSimpleDateFormatTag,                    TAG(50)) \
+  V(kIcuDateIntervalFormatTag,                  TAG(51)) \
+  V(kIcuRelativeDateTimeFormatterTag,           TAG(52)) \
+  V(kIcuLocalizedNumberFormatterTag,            TAG(53)) \
+  V(kIcuPluralRulesTag,                         TAG(54)) \
+  V(kIcuCollatorTag,                            TAG(55)) \
+  V(kDisplayNamesInternalTag,                   TAG(56)) \
   /* External resources whose lifetime is tied to */     \
   /* their entry in the external pointer table but */    \
   /* which are not referenced via a Managed */           \

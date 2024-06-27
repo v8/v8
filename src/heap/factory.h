@@ -91,7 +91,6 @@ enum Suspend : int;
 enum Promise : int;
 class ValueType;
 using FunctionSig = Signature<ValueType>;
-class StackMemory;
 }  // namespace wasm
 #endif
 
@@ -779,7 +778,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
       DirectHandle<Map> map);
   Handle<WasmContinuationObject> NewWasmContinuationObject(
-      Address jmpbuf, wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
+      Address jmpbuf, DirectHandle<Foreign> managed_stack,
+      DirectHandle<HeapObject> parent,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(

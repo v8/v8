@@ -1697,14 +1697,13 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
 
-  for (const std::unique_ptr<StackMemory>& stack : isolate->wasm_stacks()) {
+  for (wasm::StackMemory* stack : isolate->wasm_stacks()) {
     if (stack->IsActive()) {
       // The active stack's jump buffer does not match the current state, use
       // the thread info below instead.
       continue;
     }
-    for (StackFrameIterator it(isolate, stack.get()); !it.done();
-         it.Advance()) {
+    for (StackFrameIterator it(isolate, stack); !it.done(); it.Advance()) {
       StackFrame* const frame = it.frame();
       ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
     }
@@ -1902,7 +1901,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 752);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 720);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 192);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 144);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
@@ -1938,7 +1937,6 @@ size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
       result += ContentSize(current_gc_info_->outstanding_isolates);
       result += ContentSize(current_gc_info_->dead_code);
     }
-    result += stack_pool_.Size();
   }
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmEngine: %zu\n", result);
