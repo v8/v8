@@ -4,3 +4,5 @@ clemensb@chromium.org
 marja@chromium.org
 syg@chromium.org
 verwaest@chromium.org
+
+per-file d8-test.cc=ahaas@chromium.org
