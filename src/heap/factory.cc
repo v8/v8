@@ -2912,10 +2912,12 @@ void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
   // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
-  InitializeJSObjectBody(obj, map, JSObject::kHeaderSize);
-
   DCHECK_EQ(IsJSApiWrapperObject(map),
             new_js_object_type == NewJSObjectType::kAPIWrapper);
+  InitializeJSObjectBody(obj, map,
+                         new_js_object_type == NewJSObjectType::kNoAPIWrapper
+                             ? JSObject::kHeaderSize
+                             : JSAPIObjectWithEmbedderSlots::kHeaderSize);
   if (new_js_object_type == NewJSObjectType::kAPIWrapper) {
     InitializeCppHeapWrapper(obj);
   }
