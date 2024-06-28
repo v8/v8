@@ -198,8 +198,6 @@ class Worker : public std::enable_shared_from_this<Worker> {
   Local<Value> GetOnMessage(Isolate* isolate) const;
   // Set the onmessage handler on the worker.
   void SetOnMessage(Isolate* isolate, Local<Value> callback);
-  // Clear the onmessage handler on the worker.
-  void ClearOnMessage(Isolate* isolate);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
   // If there are no messages in the queue and the worker is no longer running,
@@ -351,7 +349,6 @@ class PerIsolateData {
 
   bool HasRunningSubscribedWorkers();
   void RegisterSubscribedWorker(std::shared_ptr<Worker> worker);
-  void UnregisterSubscribedWorker(std::shared_ptr<Worker> worker);
 
  private:
   friend class Shell;
@@ -371,7 +368,7 @@ class PerIsolateData {
 #endif
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
-  std::set<std::shared_ptr<Worker>> subscribed_workers_;
+  std::vector<std::shared_ptr<Worker>> subscribed_workers_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& info,
                         int arg_offset);
