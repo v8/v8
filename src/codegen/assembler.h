@@ -224,7 +224,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // external references). Only valid if code will not survive the process.
   bool enable_root_relative_access = false;
   // Enables specific assembler sequences only used for the simulator.
-  bool enable_simulator_code = false;
+  bool enable_simulator_code = USE_SIMULATOR_BOOL;
   // Enables use of isolate-independent constants, indirected through the
   // root array.
   // (macro assembler feature).
