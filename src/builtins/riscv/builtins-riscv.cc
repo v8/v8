@@ -2363,7 +2363,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register src = a6;
     Register scratch = len;
     UseScratchRegisterScope temps(masm);
-    Register hole_value = temps.Acquire();
     __ AddWord(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
     __ SllWord(scratch, len, kTaggedSizeLog2);
@@ -2372,12 +2371,17 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // We do not use the Branch(reg, RootIndex) macro without static roots,
     // as it would do a LoadRoot behind the scenes and we want to avoid that
     // in a loop.
+    Register hole_value = temps.Acquire();
     __ LoadTaggedRoot(hole_value, RootIndex::kTheHoleValue);
 #endif  // !V8_STATIC_ROOTS_BOOL
     __ bind(&loop);
     __ LoadTaggedField(a5, MemOperand(src));
     __ AddWord(src, src, kTaggedSize);
+#if V8_STATIC_ROOTS_BOOL
+    __ CompareRootAndBranch(a5, RootIndex::kTheHoleValue, ne, &push);
+#else
     __ CompareTaggedAndBranch(&push, ne, a5, Operand(hole_value));
+#endif
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ StoreWord(a5, MemOperand(a7, 0));
