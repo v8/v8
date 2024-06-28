@@ -2173,12 +2173,21 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::DirectHandle<i::WasmTrustedInstanceData> trusted_instance_data{
       data->instance_data(), i_isolate};
   int func_index = data->function_index();
-  i::DirectHandle<i::Code> wrapper =
-      with_suspender_param ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
-                           : BUILTIN_CODE(i_isolate, WasmPromising);
-
   const i::wasm::WasmModule* module = trusted_instance_data->module();
   int sig_index = module->functions[func_index].sig_index;
+  const i::wasm::FunctionSig* sig = module->signature(sig_index);
+  i::DirectHandle<i::Code> wrapper;
+  if (!internal::wasm::IsJSCompatibleSignature(sig)) {
+    // If the signature is incompatible with JS, the original export will have
+    // compiled an incompatible signature wrapper, so just reuse that.
+    wrapper =
+        i::DirectHandle<i::Code>(data->wrapper_code(i_isolate), i_isolate);
+  } else {
+    wrapper = with_suspender_param
+                  ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
+                  : BUILTIN_CODE(i_isolate, WasmPromising);
+  }
+
   // TODO(14034): Create funcref RTTs lazily?
   i::DirectHandle<i::Map> rtt{
       i::Cast<i::Map>(
