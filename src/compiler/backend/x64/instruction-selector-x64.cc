@@ -4289,7 +4289,7 @@ void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector,
       DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
       Handle<HeapObject> object;
       if (equal.rep == RegisterRepresentation::Tagged() &&
-          selector->MatchTaggedConstant(equal.right(), &object)) {
+          selector->MatchHeapConstant(equal.right(), &object)) {
         if (roots_table.IsRootHandle(object, &root_index)) {
           InstructionCode opcode =
               kX64Cmp | AddressingModeField::encode(kMode_Root);
@@ -4342,7 +4342,7 @@ bool MatchHeapObjectEqual(InstructionSelectorT<TurboshaftAdapter>* selector,
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const ComparisonOp& equal = selector->Get(node).Cast<ComparisonOp>();
   DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
-  if (selector->MatchTaggedConstant(equal.right(), right)) {
+  if (selector->MatchHeapConstant(equal.right(), right)) {
     *left = equal.left();
     return true;
   }

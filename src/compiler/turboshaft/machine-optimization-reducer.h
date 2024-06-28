@@ -39,6 +39,26 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+// ******************************** OVERVIEW ********************************
+//
+// The MachineOptimizationAssembler performs basic optimizations on low-level
+// operations that can be performed on-the-fly, without requiring type analysis
+// or analyzing uses. It largely corresponds to MachineOperatorReducer in
+// sea-of-nodes Turbofan.
+//
+// These peephole optimizations are typically very local: they based on the
+// immediate inputs of an operation, we try to constant-fold or strength-reduce
+// the operation.
+//
+// Typical examples include:
+//
+//   * Reducing `a == a` to `1`
+//
+//   * Reducing `a + 0` to `a`
+//
+//   * Reducing `a * 2^k` to `a << k`
+//
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <typename>
@@ -147,15 +167,6 @@ struct BitfieldCheck {
 
 }  // namespace
 
-// The MachineOptimizationAssembler performs basic optimizations on low-level
-// operations that can be performed on-the-fly, without requiring type analysis
-// or analyzing uses. It largely corresponds to MachineOperatorReducer in
-// sea-of-nodes Turbofan.
-//
-// Additional optimizations include some of the control-flow reductions that
-// were previously done in CommonOperatorReducer, including:
-//    1- Reducing Phis, whose all inputs are the same, replace
-//      them with their input.
 
 template <class Next>
 class MachineOptimizationReducer : public Next {
@@ -945,20 +956,7 @@ class MachineOptimizationReducer : public Next {
 
             static_assert(kSmiTagMask == 1);
             // HeapObject & 1 => 1  ("& 1" is a Smi-check)
-            // Note that we don't constant-fold the general case of
-            // "HeapObject binop cst", because it's a bit unclear when such
-            // operations would be used outside of smi-checks, and it's thus
-            // unclear whether constant-folding would be safe.
-            if (const ConstantOp* cst = matcher.TryCast<ConstantOp>(left)) {
-              if (cst->kind ==
-                  any_of(ConstantOp::Kind::kHeapObject,
-                         ConstantOp::Kind::kCompressedHeapObject)) {
-                return __ WordConstant(1, rep);
-              }
-            }
-
-            // AllocateOp & 1 => 1  ("& 1" is a Smi-check)
-            if (matcher.Is<AllocateOp>(left)) {
+            if (TryMatchHeapObject(left)) {
               return __ WordConstant(1, rep);
             }
           }
@@ -1150,6 +1148,25 @@ class MachineOptimizationReducer : public Next {
     }
 
     return Next::ReduceWordBinop(left, right, kind, rep);
+  }
+
+  bool TryMatchHeapObject(V<Any> idx, int depth = 0) {
+    constexpr int kMaxDepth = 2;
+    if (depth == kMaxDepth) return false;
+
+    if (matcher.MatchHeapConstant(idx)) return true;
+    if (matcher.Is<AllocateOp>(idx)) return true;
+    if (matcher.Is<Opmask::kTaggedBitcastHeapObject>(idx)) return true;
+
+    // A Phi whose inputs are all HeapObject is itself a HeapObject.
+    if (const PhiOp* phi = matcher.TryCast<Opmask::kTaggedPhi>(idx)) {
+      return base::all_of(phi->inputs(), [depth, this](V<Any> input) {
+        return TryMatchHeapObject(input, depth + 1);
+      });
+    }
+
+    // For anything else, assume that it's not a heap object.
+    return false;
   }
 
   base::Optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
@@ -2038,8 +2055,8 @@ class MachineOptimizationReducer : public Next {
           }
           case RegisterRepresentation::Tagged(): {
             if (Handle<HeapObject> o1, o2;
-                matcher.MatchTaggedConstant(left, &o1) &&
-                matcher.MatchTaggedConstant(right, &o2)) {
+                matcher.MatchHeapConstant(left, &o1) &&
+                matcher.MatchHeapConstant(right, &o2)) {
               return __ Word32Constant(o1.address() == o2.address());
             }
             break;

@@ -108,14 +108,17 @@ class OperationMatcher {
     return MatchFloat(matched, &k) && std::isnan(k);
   }
 
-  bool MatchTaggedConstant(OpIndex matched, Handle<HeapObject>* tagged) const {
+  bool MatchHeapConstant(OpIndex matched,
+                         Handle<HeapObject>* tagged = nullptr) const {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (!(op->kind == any_of(ConstantOp::Kind::kHeapObject,
                              ConstantOp::Kind::kCompressedHeapObject))) {
       return false;
     }
-    *tagged = op->handle();
+    if (tagged) {
+      *tagged = op->handle();
+    }
     return true;
   }
 

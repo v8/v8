@@ -238,7 +238,7 @@ bool IsBuiltinCall(const turboshaft::Operation& op,
 
   OperationMatcher matcher(graph);
   Handle<HeapObject> heap_constant;
-  if (!matcher.MatchTaggedConstant(callee_index, &heap_constant)) return false;
+  if (!matcher.MatchHeapConstant(callee_index, &heap_constant)) return false;
   if (!IsCode(*heap_constant)) return false;
   Handle<Code> code = Cast<Code>(heap_constant);
   if (!code->is_builtin()) return false;
