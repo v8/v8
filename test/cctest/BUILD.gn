@@ -268,6 +268,13 @@ v8_source_set("cctest_sources") {
       ### gcmole(s390) ###
       "test-assembler-s390.cc",
     ]
+    if (current_os == "zos" && is_component_build) {
+      # for OpcodeFormatTable:
+      sources += [
+        "../../src/codegen/s390/constants-s390.cc",
+        "../../src/codegen/s390/constants-s390.h",
+      ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       ### gcmole(riscv64) ###

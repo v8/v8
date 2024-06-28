@@ -41,7 +41,7 @@
 #define V8_CODEGEN_S390_ASSEMBLER_S390_H_
 #include <stdio.h>
 #include <memory>
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390 && !V8_OS_ZOS
 // elf.h include is required for auxv check for STFLE facility used
 // for hardware detection, which is sensible only on s390 hosts.
 #include <elf.h>
@@ -57,27 +57,6 @@
 #include "src/codegen/s390/constants-s390.h"
 #include "src/codegen/s390/register-s390.h"
 #include "src/objects/smi.h"
-
-#define ABI_USES_FUNCTION_DESCRIPTORS 0
-
-#define ABI_PASSES_HANDLES_IN_REGS 1
-
-// ObjectPair is defined under runtime/runtime-util.h.
-// On 31-bit, ObjectPair == uint64_t.  ABI dictates long long
-//            be returned with the lower addressed half in r2
-//            and the higher addressed half in r3. (Returns in Regs)
-// On 64-bit, ObjectPair is a Struct.  ABI dictaes Structs be
-//            returned in a storage buffer allocated by the caller,
-//            with the address of this buffer passed as a hidden
-//            argument in r2. (Does NOT return in Regs)
-// For x86 linux, ObjectPair is returned in registers.
-#if V8_TARGET_ARCH_S390X
-#define ABI_RETURNS_OBJECTPAIR_IN_REGS 0
-#else
-#define ABI_RETURNS_OBJECTPAIR_IN_REGS 1
-#endif
-
-#define ABI_CALL_VIA_IP 1
 
 namespace v8 {
 namespace internal {
@@ -1293,6 +1272,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     NON_MARKING_NOP = 0,
     GROUP_ENDING_NOP,
     DEBUG_BREAK_NOP,
+#if V8_OS_ZOS
+    BASR_CALL_TYPE_NOP,
+    BRAS_CALL_TYPE_NOP,
+    BRASL_CALL_TYPE_NOP,
+#endif
     // IC markers.
     PROPERTY_ACCESS_INLINED,
     PROPERTY_ACCESS_INLINED_CONTEXT,

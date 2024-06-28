@@ -798,6 +798,37 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   Label invoke, handler_entry, exit;
 
+#if V8_OS_ZOS
+  const int stack_space = 12 * kSystemPointerSize;
+
+  // Store r4 - r15 to Stack
+  __ StoreMultipleP(r4, sp, MemOperand(r4, kStackPointerBias - stack_space));
+  // Grow stack
+  __ lay(r4, MemOperand(r4, -stack_space));
+
+  // Shuffle input XPLINK register arguments to match LoZ
+  __ mov(sp, r4);
+  __ mov(r4, r3);
+  __ mov(r3, r2);
+  __ mov(r2, r1);
+
+  // Load args 4 and 5 from XPLINK extra frame slots in r5 and r6
+  __ LoadMultipleP(
+      r5, r6,
+      MemOperand(sp, kStackPointerBias +
+                         kXPLINKStackFrameExtraParamSlot * kSystemPointerSize +
+                         stack_space));
+
+  // Load arg 6 from XPLINK extra arg slot
+  __ LoadU64(r0, MemOperand(sp, kStackPointerBias +
+                                    kXPLINKStackFrameExtraParamSlot *
+                                        kSystemPointerSize +
+                                    stack_space + 2 * kSystemPointerSize));
+
+  // Store arg 6 to expected LoZ save area
+  __ StoreU64(r0, MemOperand(sp, kCalleeRegisterSaveAreaSize));
+#endif
+
   int pushed_stack_space = 0;
   {
     NoRootArrayScope no_root_array(masm);
@@ -1002,7 +1033,15 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ la(sp, MemOperand(sp, 2 * kDoubleSize));
 #endif
 
+#if V8_OS_ZOS
+  // On z/OS, the return register is r3
+  __ mov(r3, r2);
+  // Restore r4 - r15 from Stack
+  __ LoadMultipleP(r4, sp, MemOperand(sp, kStackPointerBias));
+  __ b(r7);
+#else
   __ b(r14);
+#endif
 }
 
 }  // namespace
@@ -3398,7 +3437,11 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static constexpr Register target_fun = r7;  // C callee-saved
   static constexpr Register argv = r3;
   static constexpr Register scratch = ip;
+#if V8_OS_ZOS
+  static constexpr Register argc_sav = r9;  // C callee-saved
+#else
   static constexpr Register argc_sav = r6;  // C callee-saved
+#endif
 
   __ mov(target_fun, argv);
 
@@ -3460,6 +3503,43 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Call C built-in.
   __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
+#if V8_OS_ZOS
+  // Shuffle input arguments to match XPLINK ABI
+  __ mov(r1, r2);
+  __ mov(r2, r3);
+  __ mov(r3, r4);
+  // Save stack arguments to XPLINK extra param slot
+  const int stack_args = 3;
+  const int stack_space = kXPLINKStackFrameExtraParamSlot + stack_args;
+  __ lay(r4, MemOperand(sp, -((stack_space * kSystemPointerSize) +
+                              kStackPointerBias)));
+  __ StoreMultipleP(
+      r5, target_fun,
+      MemOperand(r4, kStackPointerBias +
+                         kXPLINKStackFrameExtraParamSlot * kSystemPointerSize));
+  // Load environment from slot 0 of fn desc.
+  __ LoadU64(r5, MemOperand(target_fun));
+  // Load function pointer from slot 1 of fn desc.
+  __ LoadU64(r8, MemOperand(target_fun, kSystemPointerSize));
+  __ StoreReturnAddressAndCall(r8);
+
+  // r9 and r13 are used to store argc and argv on z/OS instead
+  // of r6 and r8 since r6 is not callee saved.
+  __ mov(r6, r9);
+  __ mov(r8, r13);
+
+  // Shuffler arguments based on result_size to match XPLINK ABI
+  if (result_size == 1) {
+    __ mov(r2, r3);
+  } else if (result_size == 2) {
+    __ mov(r3, r2);
+    __ mov(r2, r1);
+  } else {
+    __ mov(r4, r3);
+    __ mov(r3, r2);
+    __ mov(r2, r1);
+  }
+#else
   __ StoreReturnAddressAndCall(target_fun);
 
   // If return value is on the stack, pop it to registers.
@@ -3468,6 +3548,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ LoadU64(r3, MemOperand(r2, kSystemPointerSize));
     __ LoadU64(r2, MemOperand(r2));
   }
+#endif
 
   // Check result for exception sentinel.
   Label exception_returned;

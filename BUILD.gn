@@ -804,6 +804,12 @@ config("libbase_config") {
   }
 }
 
+config("zoslib_config") {
+  if (current_os == "zos") {
+    configs = [ "//third_party/zoslib:zoslib_config" ]
+  }
+}
+
 # Standalone cppgc cannot be built within chrome or with perfetto.
 assert(!cppgc_is_standalone || !build_with_chromium)
 assert(!cppgc_is_standalone || !v8_use_perfetto)
@@ -1390,7 +1396,7 @@ config("toolchain") {
     }
     if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
-    } else {
+    } else if (current_os != "zos") {
       cflags += [ "-march=z196" ]
     }
   }
@@ -2273,6 +2279,12 @@ group("v8_abseil") {
   ]
 }
 
+group("zoslib") {
+  if (current_os == "zos") {
+    deps = [ "//third_party/zoslib" ]
+  }
+}
+
 v8_header_set("torque_runtime_support") {
   visibility = [ ":*" ]
 
@@ -2404,6 +2416,12 @@ template("run_mksnapshot") {
 
     data = []
 
+    if (current_os != "zos") {
+      ext = "S"
+    } else {
+      ext = "s"
+    }
+
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
@@ -2419,7 +2437,7 @@ template("run_mksnapshot") {
       "--target_arch=$current_cpu",
 
       "--embedded_src",
-      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+      rebase_path("$target_gen_dir/embedded${suffix}.${ext}", root_build_dir),
     ]
 
     if (v8_log_builtins_block_count_input != "") {
@@ -2462,7 +2480,7 @@ template("run_mksnapshot") {
 
     args += invoker.args
 
-    outputs += [ "$target_gen_dir/embedded${suffix}.S" ]
+    outputs += [ "$target_gen_dir/embedded${suffix}.${ext}" ]
     if (invoker.embedded_variant != "") {
       args += [
         "--embedded_variant",
@@ -2809,7 +2827,11 @@ v8_source_set("v8_snapshot") {
     deps += [ ":asm_to_inline_asm_default" ]
     sources += [ "$target_gen_dir/embedded.cc" ]
   } else {
-    sources += [ "$target_gen_dir/embedded.S" ]
+    if (current_os != "zos") {
+      sources += [ "$target_gen_dir/embedded.S" ]
+    } else {
+      sources += [ "$target_gen_dir/embedded.s" ]
+    }
   }
 
   configs = [ ":internal_config" ]
@@ -6206,7 +6228,8 @@ v8_source_set("v8_base_without_compiler") {
   # to implement atomic memory access
   if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
-      v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
+      (current_os != "zos" &&
+       (v8_current_cpu == "s390" || v8_current_cpu == "s390x")) ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
     if (!is_clang) {
       libs += [ "atomic" ]
@@ -6486,6 +6509,11 @@ v8_component("v8_libbase") {
 
   deps = [ ":v8_config_headers" ]
 
+  if (current_os == "zos") {
+    public_configs += [ ":zoslib_config" ]
+    deps += [ ":zoslib" ]
+  }
+
   libs = []
 
   data = []
@@ -6503,7 +6531,7 @@ v8_component("v8_libbase") {
       "src/base/platform/platform-posix.cc",
       "src/base/platform/platform-posix.h",
     ]
-    if (current_os != "aix") {
+    if (current_os != "aix" && current_os != "zos") {
       sources += [
         "src/base/platform/platform-posix-time.cc",
         "src/base/platform/platform-posix-time.h",
@@ -6594,6 +6622,11 @@ v8_component("v8_libbase") {
     }
 
     data_deps += [ "//build/win:runtime_libs" ]
+  } else if (current_os == "zos") {
+    sources += [
+      "src/base/debug/stack_trace_zos.cc",
+      "src/base/platform/platform-zos.cc",
+    ]
   }
 
   if (v8_current_cpu == "mips64") {
@@ -6819,6 +6852,8 @@ v8_source_set("v8_heap_base") {
       sources += [ "src/heap/base/asm/arm64/push_registers_asm.cc" ]
     } else if (current_cpu == "ppc64") {
       sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
+    } else if (current_os == "zos") {
+      sources += [ "src/heap/base/asm/zos/push_registers_asm.cc" ]
     } else if (current_cpu == "s390x") {
       sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
@@ -6911,6 +6946,10 @@ v8_header_set("cppgc_headers") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+
+  if (current_os == "zos" && is_component_build) {
+    deps += [ ":zoslib" ]
+  }
 
   public_deps = [ ":v8_config_headers" ]
 }
@@ -7176,6 +7215,8 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/embedded/platform-embedded-file-writer-mac.h",
       "src/snapshot/embedded/platform-embedded-file-writer-win.cc",
       "src/snapshot/embedded/platform-embedded-file-writer-win.h",
+      "src/snapshot/embedded/platform-embedded-file-writer-zos.cc",
+      "src/snapshot/embedded/platform-embedded-file-writer-zos.h",
       "src/snapshot/mksnapshot.cc",
       "src/snapshot/snapshot-empty.cc",
       "src/snapshot/static-roots-gen.cc",
@@ -7623,6 +7664,9 @@ v8_executable("d8") {
   if (v8_enable_vtunejit) {
     deps += [ "src/third_party/vtune:v8_vtune" ]
   }
+  if (current_os == "zos" && is_component_build) {
+    deps += [ ":zoslib" ]
+  }
 }
 
 v8_executable("v8_hello_world") {
@@ -7666,6 +7710,9 @@ v8_executable("v8_sample_process") {
     ":v8_libplatform",
     "//build/win:default_exe_manifest",
   ]
+  if (current_os == "zos" && is_component_build) {
+    deps += [ ":zoslib" ]
+  }
 }
 
 if (want_v8_shell) {
@@ -7685,6 +7732,9 @@ if (want_v8_shell) {
       ":v8_libplatform",
       "//build/win:default_exe_manifest",
     ]
+    if (current_os == "zos" && is_component_build) {
+      deps += [ ":zoslib" ]
+    }
   }
 }
 

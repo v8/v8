@@ -31,6 +31,8 @@ path. Add it with -I<path> to the command line
 # include <TargetConditionals.h>
 #elif defined(__linux__)
 # include <features.h>
+#elif defined(__MVS__)
+# include "zos-base.h"
 #endif
 
 
@@ -91,6 +93,7 @@ path. Add it with -I<path> to the command line
 //  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
+//  V8_OS_ZOS           - z/OS
 
 #if defined(__ANDROID__)
 # define V8_OS_ANDROID 1
@@ -171,6 +174,11 @@ path. Add it with -I<path> to the command line
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 # define V8_OS_STRING "windows"
+
+#elif defined(__MVS__)
+# define V8_OS_POSIX 1
+# define V8_OS_ZOS 1
+# define V8_OS_STRING "zos"
 #endif
 
 // -----------------------------------------------------------------------------

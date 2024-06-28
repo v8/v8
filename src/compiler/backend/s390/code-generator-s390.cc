@@ -1271,9 +1271,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      int const fp_param_field = FPParamField::decode(instr->opcode());
+      int num_fp_parameters = fp_param_field;
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
       Label return_location;
+      bool has_function_descriptor = false;
+#if ABI_USES_FUNCTION_DESCRIPTORS
+      int kNumFPParametersMask = kHasFunctionDescriptorBitMask - 1;
+      num_fp_parameters = kNumFPParametersMask & fp_param_field;
+      has_function_descriptor =
+          (fp_param_field & kHasFunctionDescriptorBitMask) != 0;
+#endif
       // Put the return address in a stack slot.
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
@@ -1288,11 +1296,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         pc_offset = __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                                     set_isolate_data_slots, &return_location);
+                                     set_isolate_data_slots,
+                                     has_function_descriptor, &return_location);
       } else {
         Register func = i.InputRegister(0);
         pc_offset = __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                                     set_isolate_data_slots, &return_location);
+                                     set_isolate_data_slots,
+                                     has_function_descriptor, &return_location);
       }
       RecordSafepoint(instr->reference_map(), pc_offset);
 

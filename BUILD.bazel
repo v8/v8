@@ -3759,6 +3759,8 @@ filegroup(
         "src/snapshot/embedded/platform-embedded-file-writer-mac.h",
         "src/snapshot/embedded/platform-embedded-file-writer-win.cc",
         "src/snapshot/embedded/platform-embedded-file-writer-win.h",
+        "src/snapshot/embedded/platform-embedded-file-writer-zos.cc",
+        "src/snapshot/embedded/platform-embedded-file-writer-zos.h",
         "src/snapshot/mksnapshot.cc",
         "src/snapshot/snapshot-empty.cc",
         "src/snapshot/static-roots-gen.cc",

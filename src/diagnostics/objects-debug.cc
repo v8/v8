@@ -1494,11 +1494,12 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK(
       IsAligned(code->instruction_size(),
                 static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
-#if !defined(_MSC_VER) || defined(__clang__)
-  // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
+#if (!defined(_MSC_VER) || defined(__clang__)) && !defined(V8_OS_ZOS)
+  // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment
+  //      and: PlatformEmbeddedFileWriterZOS::AlignToCodeAlignment
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
-#endif  // !defined(_MSC_VER) || defined(__clang__)
+#endif  // (!defined(_MSC_VER) || defined(__clang__)) && !defined(V8_OS_ZOS)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code->instruction_stream());

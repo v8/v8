@@ -1417,6 +1417,13 @@
 }],  # 'system == aix'
 
 ##############################################################################
+['system == zos', {
+  # Currently no tz database on z/OS:
+  'tzoffset-seoul-noi18n': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+}],  # 'system == zos'
+
+##############################################################################
 ['arch == s390x', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],

@@ -449,6 +449,12 @@
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
+['system == zos', {
+  # Currently no profiler support on z/OS:
+  'test-cpu-profiler/*': [SKIP],
+}],
+
+##############################################################################
 ['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # Pass but take too long with the simulator.

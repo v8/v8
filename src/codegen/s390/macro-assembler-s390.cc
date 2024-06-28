@@ -433,10 +433,23 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Jump(const ExternalReference& reference) {
+#if V8_OS_ZOS
+  // Place reference into scratch r12 ip register
+  Move(ip, reference);
+  // z/OS uses function descriptors, extract code entry into r6
+  LoadMultipleP(r5, r6, MemOperand(ip));
+  // Preserve return address into r14
+  mov(r14, r7);
+  // Call C Function
+  StoreReturnAddressAndCall(r6);
+  // Branch to return address in r14
+  b(r14);
+#else
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Move(scratch, reference);
   Jump(scratch);
+#endif
 }
 
 void MacroAssembler::Call(Register target) {
@@ -2270,10 +2283,14 @@ void MacroAssembler::Abort(AbortReason reason) {
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     lgfi(r2, Operand(static_cast<int>(reason)));
     PrepareCallCFunction(1, 0, r3);
+#if V8_OS_ZOS
+    CallCFunction(ExternalReference::abort_with_reason(), 1, 0);
+#else
     Move(r3, ExternalReference::abort_with_reason());
     // Use Call directly to avoid any unneeded overhead. The function won't
     // return anyway.
     Call(r3);
+#endif
     return;
   }
 
@@ -2563,19 +2580,49 @@ int MacroAssembler::CallCFunction(ExternalReference function,
                                   int num_reg_arguments,
                                   int num_double_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor,
                                   Label* return_label) {
   Move(ip, function);
   return CallCFunction(ip, num_reg_arguments, num_double_arguments,
-                       set_isolate_data_slots, return_label);
+                       set_isolate_data_slots, has_function_descriptor,
+                       return_label);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                   int num_double_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor,
                                   Label* return_label) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+#if V8_OS_ZOS
+  // Shuffle input arguments
+  mov(r1, r2);
+  mov(r2, r3);
+  mov(r3, r4);
+
+  // XPLINK treats r7 as voliatile return register, but r14 as preserved
+  // Since Linux is the other way around, perserve r7 value in r14 across
+  // the call.
+  mov(r14, r7);
+
+  // XPLINK linkage requires args in r5,r6,r7,r8,r9 to be passed on the stack.
+  // However, for DirectAPI C calls, there may not be stack slots
+  // for these 4th and 5th parameters if num_reg_arguments are less
+  // than 3.  In that case, we need to still preserve r5/r6 into
+  // register save area, as they are considered volatile in XPLINK.
+  if (num_reg_arguments == 4) {
+    StoreU64(r5, MemOperand(sp, 19 * kSystemPointerSize));
+    StoreU64(r6, MemOperand(sp, 6 * kSystemPointerSize));
+  } else if (num_reg_arguments >= 5) {
+    // Save original r5 - r6  to Stack, r7 - r9 already saved to Stack
+    StoreMultipleP(r5, r6, MemOperand(sp, 19 * kSystemPointerSize));
+  } else {
+    StoreMultipleP(r5, r6, MemOperand(sp, 5 * kSystemPointerSize));
+  }
+#endif
 
   Label get_pc;
 
@@ -2591,7 +2638,12 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                               IsolateData::fast_c_call_caller_fp_offset()));
     } else {
       DCHECK_NOT_NULL(isolate());
+#if V8_OS_ZOS
+      // Use r4 as a scratch register on z/OS because r1 represents the 1st arg
+      Register addr_scratch = r4;
+#else
       Register addr_scratch = r1;
+#endif
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_pc_address(isolate()));
       StoreU64(r0, MemOperand(addr_scratch));
@@ -2601,6 +2653,16 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     }
   }
 
+#if V8_OS_ZOS
+  // Set up the system stack pointer with the XPLINK bias.
+  lay(r4, MemOperand(sp, -kStackPointerBias));
+
+  Register dest = function;
+  if (has_function_descriptor) {
+    LoadMultipleP(r5, r6, MemOperand(function));
+    dest = r6;
+  }
+#else
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -2609,8 +2671,36 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Move(ip, function);
     dest = ip;
   }
+#endif
 
+#if V8_OS_ZOS
+  if (has_function_descriptor) {
+    // Branch to target via indirect branch
+    basr(r7, dest);
+    nop(BASR_CALL_TYPE_NOP);
+  } else {
+    basr(r7, dest);
+  }
+
+  // Restore r5-r9 from the appropriate stack locations (see notes above).
+  if (num_reg_arguments == 4) {
+    LoadU64(r5, MemOperand(sp, 19 * kSystemPointerSize));
+    LoadU64(r6, MemOperand(sp, 6 * kSystemPointerSize));
+  } else if (num_reg_arguments >= 5) {
+    LoadMultipleP(r5, r6, MemOperand(sp, 19 * kSystemPointerSize));
+  } else {
+    LoadMultipleP(r5, r6, MemOperand(sp, 5 * kSystemPointerSize));
+  }
+
+  // Restore original r7
+  mov(r7, r14);
+
+  // Shuffle the result
+  mov(r2, r3);
+#else
   Call(dest);
+#endif
+
   int call_pc_offset = pc_offset();
   bind(&get_pc);
   if (return_label) bind(return_label);
@@ -2648,16 +2738,18 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
 int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor,
                                   Label* return_label) {
   return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                       return_label);
+                       has_function_descriptor, return_label);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor,
                                   Label* return_label) {
   return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                       return_label);
+                       has_function_descriptor, return_label);
 }
 
 void MacroAssembler::CheckPageFlag(
@@ -5132,6 +5224,38 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   JumpCodeObject(code, jump_mode);
 }
 
+#if V8_OS_ZOS
+// Helper for CallApiFunctionAndReturn().
+void MacroAssembler::zosStoreReturnAddressAndCall(Register target,
+                                                  Register scratch) {
+  DCHECK(target == r3 || target == r4);
+  // Shuffle the arguments from Linux arg register to XPLINK arg regs
+  mov(r1, r2);
+  if (target == r3) {
+    mov(r2, r3);
+  } else {
+    mov(r2, r3);
+    mov(r3, r4);
+  }
+
+  // Update System Stack Pointer with the appropriate XPLINK stack bias.
+  lay(r4, MemOperand(sp, -kStackPointerBias));
+
+  // Preserve r7 by placing into callee-saved register r13
+  mov(r13, r7);
+
+  // Load function pointer from slot 1 of fn desc.
+  LoadU64(ip, MemOperand(scratch, kSystemPointerSize));
+  // Load environment from slot 0 of fn desc.
+  LoadU64(r5, MemOperand(scratch));
+
+  StoreReturnAddressAndCall(ip);
+
+  // Restore r7 from r13
+  mov(r7, r13);
+}
+#endif  // V8_OS_ZOS
+
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
@@ -5140,9 +5264,20 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // currently being generated) is immovable or that the callee function cannot
   // trigger GC, since the callee function will return to it.
 
+#if V8_OS_ZOS
+  Register ra = r7;
+#else
+  Register ra = r14;
+#endif
   Label return_label;
-  larl(r14, &return_label);  // Generate the return addr of call later.
-  StoreU64(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
+  larl(ra, &return_label);  // Generate the return addr of call later.
+#if V8_OS_ZOS
+  // Mimic the XPLINK expected no-op (2-byte) instruction at the return point.
+  // When the C call returns, the 2 bytes are skipped and then the proper
+  // instruction is executed.
+  lay(ra, MemOperand(ra, -2));
+#endif
+  StoreU64(ra, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
 
   // zLinux ABI requires caller's frame to have sufficient space for callee
   // preserved regsiter save area.
@@ -6594,13 +6729,21 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
       ER::handle_scope_level_address(isolate), no_reg);
 
   Register return_value = r2;
+#if V8_OS_ZOS
+  Register scratch = r6;
+#else
   Register scratch = ip;
+#endif
   Register scratch2 = r1;
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
   // by allocating it in callee-saved registers it'll be preserved by C code.
+#if V8_OS_ZOS
+  Register prev_next_address_reg = r14;
+#else
   Register prev_next_address_reg = r6;
+#endif
   Register prev_limit_reg = r7;
   Register prev_level_reg = r8;
 
@@ -6644,7 +6787,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   }
 
   __ RecordComment("Call the api function directly.");
+#if V8_OS_ZOS
+  __ mov(scratch, function_address);
+  __ zosStoreReturnAddressAndCall(function_address, scratch);
+#else
   __ StoreReturnAddressAndCall(function_address);
+#endif
   __ bind(&done_api_call);
 
   Label propagate_exception;
@@ -6716,7 +6864,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
       __ StoreU64(thunk_arg, thunk_arg_mem_op);
     }
     __ Move(scratch, thunk_ref);
+#if V8_OS_ZOS
+    __ zosStoreReturnAddressAndCall(function_address, scratch);
+#else
     __ StoreReturnAddressAndCall(scratch);
+#endif
     __ b(&done_api_call);
   }
 

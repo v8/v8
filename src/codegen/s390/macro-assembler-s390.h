@@ -953,19 +953,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   int CallCFunction(
       ExternalReference function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      bool has_function_descriptor = ABI_USES_FUNCTION_DESCRIPTORS,
       Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      bool has_function_descriptor = ABI_USES_FUNCTION_DESCRIPTORS,
       Label* return_label = nullptr);
   int CallCFunction(
       ExternalReference function, int num_reg_arguments,
       int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      bool has_function_descriptor = ABI_USES_FUNCTION_DESCRIPTORS,
       Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_reg_arguments, int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      bool has_function_descriptor = ABI_USES_FUNCTION_DESCRIPTORS,
       Label* return_label = nullptr);
 
   void MovFromFloatParameter(DoubleRegister dst);
@@ -1178,6 +1182,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
+#if V8_OS_ZOS
+  void zosStoreReturnAddressAndCall(Register target, Register scratch);
+#endif
 
   // ---------------------------------------------------------------------------
   // Simd Support.
