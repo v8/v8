@@ -11,6 +11,7 @@
 #include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
 #include "src/heap/linear-allocation-area.h"
+#include "src/init/isolate-group.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
@@ -116,12 +117,15 @@ class Isolate;
 // indirectly via the root register.
 class IsolateData final {
  public:
-  IsolateData(Isolate* isolate, Address cage_base, Address trusted_cage_base)
-      : cage_base_(cage_base),
+  IsolateData(Isolate* isolate, IsolateGroup* group)
+      :
+#ifdef V8_COMPRESS_POINTERS
+        cage_base_(group->GetPtrComprCageBase()),
+#endif
         stack_guard_(isolate)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        trusted_cage_base_(trusted_cage_base)
+        trusted_cage_base_(group->GetTrustedPtrComprCageBase())
 #endif
   {
   }
@@ -253,7 +257,7 @@ class IsolateData final {
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
 #undef FIELDS
 
-  const Address cage_base_;
+  const Address cage_base_ = kNullAddress;
 
   // Fields related to the system and JS stack. In particular, this contains
   // the stack limit used by stack checks in generated code.

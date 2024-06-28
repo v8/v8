@@ -59,6 +59,7 @@ IsolateGroup* IsolateGroup::GetProcessWideIsolateGroup() {
 
 #ifdef V8_ENABLE_SANDBOX
 void IsolateGroup::Initialize(Sandbox* sandbox) {
+  DCHECK(!reservation_.IsReserved());
   CHECK(sandbox->is_initialized());
   PtrComprCageReservationParams params;
   Address base = sandbox->address_space()->AllocatePages(
@@ -80,6 +81,7 @@ void IsolateGroup::Initialize(Sandbox* sandbox) {
 }
 #elif defined(V8_COMPRESS_POINTERS)
 void IsolateGroup::Initialize() {
+  DCHECK(!reservation_.IsReserved());
   PtrComprCageReservationParams params;
   if (!reservation_.InitReservation(params)) {
     V8::FatalProcessOutOfMemory(
@@ -93,8 +95,6 @@ void IsolateGroup::Initialize() {
 }
 #else   // !V8_COMPRESS_POINTERS
 void IsolateGroup::Initialize() {
-  pointer_compression_cage_ = &reservation_;
-  trusted_pointer_compression_cage_ = &reservation_;
   page_allocator_ = GetPlatformPageAllocator();
 }
 #endif  // V8_ENABLE_SANDBOX
@@ -103,7 +103,6 @@ void IsolateGroup::Initialize() {
 void IsolateGroup::InitializeOncePerProcess() {
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup* group = GetProcessWideIsolateGroup();
-  DCHECK(!group->reservation_.IsReserved());
 
 #ifdef V8_ENABLE_SANDBOX
   group->Initialize(GetProcessWideSandbox());
@@ -160,10 +159,12 @@ void IsolateGroup::ReleaseGlobal() {
   IsolateGroup *group = GetProcessWideIsolateGroup();
   CHECK_EQ(group->reference_count_.load(), 1);
   group->page_allocator_ = nullptr;
+#ifdef V8_COMPRESS_POINTERS
   group->trusted_pointer_compression_cage_ = nullptr;
   group->pointer_compression_cage_ = nullptr;
-  DCHECK_EQ(COMPRESS_POINTERS_BOOL, group->reservation_.IsReserved());
-  if (COMPRESS_POINTERS_BOOL) group->reservation_.Free();
+  DCHECK(group->reservation_.IsReserved());
+  group->reservation_.Free();
+#endif  // V8_COMPRESS_POINTERS
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 }
 

@@ -61,9 +61,13 @@ class ReadOnlyHeapImageDeserializer final {
     size_t actual_page_index = static_cast<size_t>(-1);
     size_t area_size_in_bytes = static_cast<size_t>(source_->GetUint30());
     if (fixed_offset) {
+#ifdef V8_COMPRESS_POINTERS
       uint32_t compressed_page_addr = source_->GetUint32();
-      Address pos = isolate_->GetPtrComprCage()->base() + compressed_page_addr;
+      Address pos = isolate_->cage_base() + compressed_page_addr;
       actual_page_index = ro_space()->AllocateNextPageAt(pos);
+#else
+      UNREACHABLE();
+#endif  // V8_COMPRESS_POINTERS
     } else {
       actual_page_index = ro_space()->AllocateNextPage();
     }

@@ -3909,8 +3909,7 @@ v8::PageAllocator* Isolate::page_allocator() const {
 }
 
 Isolate::Isolate(IsolateGroup* isolate_group)
-    : isolate_data_(this, isolate_group->GetPtrComprCageBase(),
-                    isolate_group->GetTrustedPtrComprCageBase()),
+    : isolate_data_(this, isolate_group),
       isolate_group_(isolate_group),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
@@ -4985,10 +4984,12 @@ class BigIntPlatform : public bigint::Platform {
 };
 }  // namespace
 
+#ifdef V8_COMPRESS_POINTERS
 VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
   return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range()
                                      : isolate_group_->GetPtrComprCage();
 }
+#endif  // V8_COMPRESS_POINTERS
 
 void Isolate::VerifyStaticRoots() {
 #if V8_STATIC_ROOTS_BOOL

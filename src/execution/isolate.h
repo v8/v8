@@ -1194,11 +1194,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   IsolateGroup* isolate_group() const { return isolate_group_; }
 
+#ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* GetPtrComprCage() const {
     return isolate_group()->GetPtrComprCage();
   }
-
   VirtualMemoryCage* GetPtrComprCodeCageForTesting();
+#endif
 
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).

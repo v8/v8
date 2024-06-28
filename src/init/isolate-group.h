@@ -83,21 +83,27 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
+#ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* GetPtrComprCage() const {
     return pointer_compression_cage_;
   }
   VirtualMemoryCage* GetTrustedPtrComprCage() const {
     return trusted_pointer_compression_cage_;
   }
-
   Address GetPtrComprCageBase() const { return GetPtrComprCage()->base(); }
   Address GetTrustedPtrComprCageBase() const {
     return GetTrustedPtrComprCage()->base();
   }
+#endif  // V8_COMPRESS_POINTERS
 
  private:
   friend class ::v8::base::LeakyObject<IsolateGroup>;
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  // Unless multiple pointer compression cages are enabled, all isolates in a
+  // process are in the same isolate group and share process-wide resources from
+  // that group.
   static IsolateGroup* GetProcessWideIsolateGroup();
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
   IsolateGroup() {}
   ~IsolateGroup() { DCHECK_EQ(reference_count_.load(), 0); }
@@ -116,9 +122,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
+
+#ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* trusted_pointer_compression_cage_ = nullptr;
   VirtualMemoryCage* pointer_compression_cage_ = nullptr;
   VirtualMemoryCage reservation_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 }  // namespace internal
