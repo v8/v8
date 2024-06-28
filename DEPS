@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:21.20240613.1.1',
+  'fuchsia_version': 'version:21.20240620.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b9d7a70ab49e26d7b8953e34e37a78733ece7585',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ea08c530e2770fb61b649e70be31e11b85868d8f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0f37180034a7c13e1e570f5b41ca1f7c9c29ea70',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '904d293e09a30c06aa90a087e5a563aa90ab889b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7a03bcd1a2b9c67ff0df6afabc743a01ebd8df8b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1f4f982beb6c427808779bc28093a5474832f2c2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '06673958a399758b95be5eeae3af2828e8d1a82d',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -302,7 +302,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '21ea0bf4a787394b584a028a2851cf782a6c763a',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '472d9aad97ad38d294aa0634100a4a1c0b6b34b9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '100fb18f5da1322b7d308f775d706faddce64988',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c8f1d81998280ae2ea0e76ddb60aae6e1b4b860e',
   'third_party/llvm-build/Release+Asserts': {
@@ -442,7 +442,7 @@ deps = {
   'third_party/protobuf_chrome':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'ed9284c473211491ae6de41d60ac0329a79270d8',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '67570dea85d20f2a4cf030ad757dcc26baddab40',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '85dd7ad833a73095ecf3e3baea608ba051bbe2c7',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
