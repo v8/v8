@@ -91,6 +91,7 @@ enum class MachineSemantic : uint8_t {
   kSignedBigInt64,
   kUnsignedBigInt64,
   kNumber,
+  kHoleyFloat64,
   kAny
 };
 
@@ -211,6 +212,10 @@ class MachineType {
   constexpr static MachineType Float64() {
     return MachineType(MachineRepresentation::kFloat64,
                        MachineSemantic::kNumber);
+  }
+  constexpr static MachineType HoleyFloat64() {
+    return MachineType(MachineRepresentation::kFloat64,
+                       MachineSemantic::kHoleyFloat64);
   }
   constexpr static MachineType Simd128() {
     return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);

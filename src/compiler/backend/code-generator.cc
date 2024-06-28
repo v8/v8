@@ -1358,11 +1358,17 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     }
   } else if (op->IsFPStackSlot()) {
     switch (type.representation()) {
-      case MachineRepresentation::kFloat64:
-        translations_.StoreDoubleStackSlot(LocationOperand::cast(op)->index());
-        break;
       case MachineRepresentation::kFloat32:
         translations_.StoreFloatStackSlot(LocationOperand::cast(op)->index());
+        break;
+      case MachineRepresentation::kFloat64:
+        if (type.semantic() == MachineSemantic::kHoleyFloat64) {
+          translations_.StoreHoleyDoubleStackSlot(
+              LocationOperand::cast(op)->index());
+        } else {
+          translations_.StoreDoubleStackSlot(
+              LocationOperand::cast(op)->index());
+        }
         break;
       case MachineRepresentation::kSimd128:
         translations_.StoreSimd128StackSlot(LocationOperand::cast(op)->index());
@@ -1402,7 +1408,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
         translations_.StoreFloatRegister(converter.ToFloatRegister(op));
         break;
       case MachineRepresentation::kFloat64:
-        translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
+        if (type.semantic() == MachineSemantic::kHoleyFloat64) {
+          translations_.StoreHoleyDoubleRegister(
+              converter.ToDoubleRegister(op));
+        } else {
+          translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
+        }
         break;
       case MachineRepresentation::kSimd128:
         translations_.StoreSimd128Register(converter.ToSimd128Register(op));
@@ -1514,6 +1525,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
+        DCHECK_NE(type, MachineType::HoleyFloat64());
         literal = DeoptimizationLiteral(constant.ToFloat64().value());
         break;
       case Constant::kHeapObject:

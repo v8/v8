@@ -89,6 +89,8 @@ std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
       return os << "kTypeUnsignedBigInt64";
     case MachineSemantic::kNumber:
       return os << "kTypeNumber";
+    case MachineSemantic::kHoleyFloat64:
+      return os << "kTypeHoleyFloat64";
     case MachineSemantic::kAny:
       return os << "kTypeAny";
   }

@@ -70,8 +70,7 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
     case maglev::ValueRepresentation::kFloat64:
       return MachineType::Float64();
     case maglev::ValueRepresentation::kHoleyFloat64:
-      // TODO(dmercadier): is this correct?
-      return MachineType::Float64();
+      return MachineType::HoleyFloat64();
   }
 }
 
@@ -895,7 +894,8 @@ class GraphBuilder {
 
     OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
     if (call_descriptor->NeedsFrameState()) {
-      frame_state = BuildFrameState(node->lazy_deopt_info());
+      GET_FRAME_STATE_MAYBE_ABORT(frame_state_value, node->lazy_deopt_info());
+      frame_state = frame_state_value;
     }
 
     LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
