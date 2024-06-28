@@ -53,6 +53,10 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/jsonstream-helper.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-module-builder.h"
+#endif
+
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
@@ -4329,3 +4333,77 @@ TEST(ObjectRetainedInDirectHandle) {
   // Make sure to keep the handle alive.
   CHECK(!direct.is_null());
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TEST(HeapSnapshotWithManagedWasmNativeModule) {
+  LocalContext env2;
+  v8::Isolate* isolate = env2->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+  i::wasm::ZoneBuffer buffer(&zone);
+  i::wasm::WasmModuleBuilder module_builder{&zone};
+  module_builder.WriteTo(&buffer);
+
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  // Get the "WebAssembly.Module" function.
+  auto get_property = [context, isolate](
+                          v8::Local<v8::Object> obj,
+                          const char* property_name) -> v8::Local<v8::Object> {
+    auto name = v8::String::NewFromUtf8(isolate, property_name,
+                                        v8::NewStringType::kInternalized)
+                    .ToLocalChecked();
+    return obj->Get(context, name).ToLocalChecked().As<v8::Object>();
+  };
+  auto wasm_class = get_property(context->Global(), "WebAssembly");
+  auto module_class = get_property(wasm_class, "Module");
+
+  // Create an arraybuffer with the wire bytes.
+  v8::Local<v8::ArrayBuffer> buf = v8::ArrayBuffer::New(isolate, buffer.size());
+  memcpy(static_cast<uint8_t*>(buf->GetBackingStore()->Data()), buffer.data(),
+         buffer.size());
+
+  // Now call the "WebAssembly.Module" function with the array buffer.
+  v8::Local<v8::Value> args[] = {buf};
+  v8::Local<v8::Value> module_object =
+      module_class->CallAsConstructor(context, arraysize(args), args)
+          .ToLocalChecked();
+  auto set_property = [context, isolate](v8::Local<v8::Object> obj,
+                                         const char* property_name,
+                                         v8::Local<v8::Value> value) {
+    auto name = v8::String::NewFromUtf8(isolate, property_name,
+                                        v8::NewStringType::kInternalized)
+                    .ToLocalChecked();
+    CHECK(obj->Set(context, name, value).FromMaybe(false));
+  };
+  set_property(context->Global(), "module", module_object);
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+
+  // Verify that the global "module" object has a property with name
+  // "system / Managed<wasm::NativeModule>".
+  const v8::HeapGraphNode* module_node =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "module");
+  CHECK_NOT_NULL(module_node);
+  // TODO(clemensb): Provide better names for the edges.
+  const v8::HeapGraphNode* managed_node =
+      GetProperty(isolate, module_node, v8::HeapGraphEdge::kHidden, "2");
+  CHECK_NOT_NULL(managed_node);
+  v8::String::Utf8Value managed_name{isolate, managed_node->GetName()};
+#if V8_ENABLE_SANDBOX
+  CHECK_EQ(std::string_view{"system / Managed<wasm::NativeModule>"},
+           std::string_view{*managed_name});
+  // The size of the Managed is computed from the size of the NativeModule. This
+  // is multiple kB, just conservatively assume >= 500b here.
+  CHECK_LE(500, managed_node->GetShallowSize());
+#else
+  CHECK_EQ(std::string_view{"system / Foreign"},
+           std::string_view{*managed_name});
+#endif  // V8_ENABLE_SANDBOX
+}
+#endif  // V8_ENABLE_WEBASSEMBLY

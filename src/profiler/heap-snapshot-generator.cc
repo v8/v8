@@ -850,6 +850,41 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   snapshot_->AddLocation(entry, scriptId, info.line, info.column);
 }
 
+namespace {
+// Templatized struct to statically generate the string "system / Managed<Foo>"
+// from "kFooTag".
+template <const char kTagNameCStr[]>
+struct ManagedName {
+  static constexpr std::string_view kTagName = kTagNameCStr;
+  static_assert(kTagName.starts_with("k"));
+  static_assert(kTagName.ends_with("Tag"));
+
+  static constexpr std::string_view prefix = "system / Managed<";
+  static constexpr std::string_view suffix = ">";
+
+  // We strip four characters, but add prefix and suffix and null termination.
+  static constexpr size_t kManagedNameLength =
+      kTagName.size() - 4 + prefix.size() + suffix.size() + 1;
+
+  static constexpr auto str_arr =
+      base::make_array<kManagedNameLength>([](std::size_t i) {
+        if (i < prefix.size()) return prefix[i];
+        if (i == kManagedNameLength - 2) return suffix[0];
+        if (i == kManagedNameLength - 1) return '\0';
+        return kTagName[i - prefix.size() + 1];
+      });
+  static constexpr const char* str = str_arr.data();
+
+  // Ignore "kFirstManagedResourceTag".
+  static constexpr bool ignore_me = kTagName == "kFirstManagedResourceTag";
+};
+
+// A little inline test:
+constexpr const char kTagNameForTesting[] = "kFooTag";
+static_assert(std::string_view{ManagedName<kTagNameForTesting>::str} ==
+              std::string_view{"system / Managed<Foo>"});
+}  // namespace
+
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object->map(cage_base)->instance_type();
@@ -942,28 +977,53 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     // just over 64 KB) and mostly includes a guard region. We report it as
     // much smaller to avoid confusion.
     static constexpr size_t kSize = WasmNull::kHeaderSize;
-    HeapEntry::Type type = v8_flags.heap_profiler_show_hidden_objects
-                               ? HeapEntry::kNative
-                               : HeapEntry::kHidden;
-    return AddEntry(object.address(), type, "system / WasmNull", kSize);
+    return AddEntry(object.address(), HeapEntry::kHidden, "system / WasmNull",
+                    kSize);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (InstanceTypeChecker::IsForeign(instance_type)) {
+    Tagged<Foreign> foreign = Cast<Foreign>(object);
+    ExternalPointerTag tag = foreign->GetTag();
+    if (tag >= kFirstManagedResourceTag && tag < kLastManagedResourceTag) {
+      // First handle special cases with more information.
+#if V8_ENABLE_WEBASSEMBLY
+      if (tag == kWasmNativeModuleTag) {
+        wasm::NativeModule* native_module =
+            Cast<Managed<wasm::NativeModule>>(foreign)->raw();
+        size_t size = native_module->EstimateCurrentMemoryConsumption();
+        return AddEntry(object.address(), HeapEntry::kHidden,
+                        "system / Managed<wasm::NativeModule>", size);
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#define MANAGED_TAG(name, ...)                                                 \
+  if (tag == name) {                                                           \
+    static constexpr const char kTagName[] = #name;                            \
+    if constexpr (!ManagedName<kTagName>::ignore_me) {                         \
+      return AddEntry(object, HeapEntry::kHidden, ManagedName<kTagName>::str); \
+    }                                                                          \
+  }
+      PER_ISOLATE_EXTERNAL_POINTER_TAGS(MANAGED_TAG)
+#undef MANAGED_TAG
+    }
+  }
+
   return AddEntry(object, GetSystemEntryType(object),
                   GetSystemEntryName(object));
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object,
                                     HeapEntry::Type type, const char* name) {
-  if (v8_flags.heap_profiler_show_hidden_objects &&
-      type == HeapEntry::kHidden) {
-    type = HeapEntry::kNative;
-  }
   PtrComprCageBase cage_base(isolate());
   return AddEntry(object.address(), type, name, object->Size(cage_base));
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(Address address, HeapEntry::Type type,
                                     const char* name, size_t size) {
+  if (v8_flags.heap_profiler_show_hidden_objects &&
+      type == HeapEntry::kHidden) {
+    type = HeapEntry::kNative;
+  }
   SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(
       address, static_cast<unsigned int>(size));
   unsigned trace_node_id = 0;

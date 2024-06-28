@@ -35,6 +35,10 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   // returned pointer will not be dereferenced.
   inline Address foreign_address_unchecked() const;
 
+  // Get the tag of this foreign from the external pointer table. Non-sandbox
+  // builds will always return {kAnyExternalPointerTag}.
+  inline ExternalPointerTag GetTag() const;
+
   // Dispatched behavior.
   DECL_PRINTER(Foreign)
 

@@ -523,6 +523,7 @@
   'test-jump-table-assembler/*': [SKIP],
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
+  'test-heap-profiler/HeapSnapshotWithManagedWasmNativeModule': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-liftoff-for-fuzzing/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],

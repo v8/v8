@@ -14,8 +14,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/foreign-tq-inl.inc"
 
@@ -51,8 +50,19 @@ Address Foreign::foreign_address_unchecked() const {
                                                   isolate);
 }
 
-}  // namespace internal
-}  // namespace v8
+ExternalPointerTag Foreign::GetTag() const {
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerHandle handle =
+      RawExternalPointerField(kForeignAddressOffset, kAnyExternalPointerTag)
+          .Relaxed_LoadHandle();
+  return GetIsolateForSandbox(*this)->external_pointer_table().GetTag(handle);
+#endif  // V8_ENABLE_SANDBOX
+  // Without the sandbox the address is stored untagged; just return
+  // kAnyExternalPointerTag.
+  return kAnyExternalPointerTag;
+}
+
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 
