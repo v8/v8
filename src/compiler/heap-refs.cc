@@ -285,6 +285,11 @@ namespace {
 
 // Separate function for racy HeapNumber value read, so that we can explicitly
 // suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
+// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
+// see that this is where the race is, and does indeed ignore it.
+#ifdef V8_IS_TSAN
+V8_NOINLINE
+#endif
 uint64_t RacyReadHeapNumberBits(Tagged<HeapNumber> value) {
   return value->value_as_bits();
 }
