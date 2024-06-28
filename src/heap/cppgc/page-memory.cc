@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
@@ -51,13 +52,13 @@ V8_WARN_UNUSED_RESULT bool TryDiscard(PageAllocator& allocator,
                                       page_memory.overall_region().size());
 }
 
-v8::base::Optional<MemoryRegion> ReserveMemoryRegion(PageAllocator& allocator,
-                                                     size_t allocation_size) {
+std::optional<MemoryRegion> ReserveMemoryRegion(PageAllocator& allocator,
+                                                size_t allocation_size) {
   void* region_memory =
       allocator.AllocatePages(nullptr, allocation_size, kPageSize,
                               PageAllocator::Permission::kNoAccess);
   if (!region_memory) {
-    return v8::base::nullopt;
+    return std::nullopt;
   }
   const MemoryRegion reserved_region(static_cast<Address>(region_memory),
                                      allocation_size);

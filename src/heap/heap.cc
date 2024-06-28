@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -18,7 +19,6 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/once.h"
-#include "src/base/optional.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
@@ -1744,9 +1744,8 @@ void Heap::CollectGarbage(AllocationSpace space,
     {
       GCTracer::RecordGCPhasesInfo record_gc_phases_info(this, collector,
                                                          gc_reason);
-      base::Optional<TimedHistogramScope> histogram_timer_scope;
-      base::Optional<OptionalTimedHistogramScope>
-          histogram_timer_priority_scope;
+      std::optional<TimedHistogramScope> histogram_timer_scope;
+      std::optional<OptionalTimedHistogramScope> histogram_timer_priority_scope;
       TRACE_EVENT0("v8", record_gc_phases_info.trace_event_name());
       if (record_gc_phases_info.type_timer()) {
         histogram_timer_scope.emplace(record_gc_phases_info.type_timer(),
@@ -1984,7 +1983,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     CompleteSweepingFull();
   }
 
-  base::Optional<SafepointScope> safepoint_scope;
+  std::optional<SafepointScope> safepoint_scope;
 
   {
     AllowGarbageCollection allow_shared_gc;
@@ -2310,7 +2309,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
 
-  base::Optional<SafepointScope> safepoint_scope;
+  std::optional<SafepointScope> safepoint_scope;
   {
     AllowGarbageCollection allow_shared_gc;
 
@@ -3550,7 +3549,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   if (v8_flags.enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    base::Optional<IsolateSafepointScope> safepoint_scope;
+    std::optional<IsolateSafepointScope> safepoint_scope;
 
     {
       AllowGarbageCollection allow_gc;
@@ -7162,14 +7161,14 @@ bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
   return start <= addr && addr < end;
 }
 
-base::Optional<Tagged<InstructionStream>>
+std::optional<Tagged<InstructionStream>>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
     return UncheckedCast<InstructionStream>(HeapObject::FromAddress(start));
   }
 
-  base::Optional<Address> start =
+  std::optional<Address> start =
       ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
   if (start.has_value()) {
     return UncheckedCast<InstructionStream>(HeapObject::FromAddress(*start));
@@ -7178,7 +7177,7 @@ Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   return {};
 }
 
-base::Optional<Tagged<GcSafeCode>> Heap::GcSafeTryFindCodeForInnerPointer(
+std::optional<Tagged<GcSafeCode>> Heap::GcSafeTryFindCodeForInnerPointer(
     Address inner_pointer) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
@@ -7186,7 +7185,7 @@ base::Optional<Tagged<GcSafeCode>> Heap::GcSafeTryFindCodeForInnerPointer(
     return Cast<GcSafeCode>(isolate()->builtins()->code(maybe_builtin));
   }
 
-  base::Optional<Tagged<InstructionStream>> maybe_istream =
+  std::optional<Tagged<InstructionStream>> maybe_istream =
       GcSafeTryFindInstructionStreamForInnerPointer(inner_pointer);
   if (!maybe_istream) return {};
 
@@ -7198,19 +7197,19 @@ Tagged<Code> Heap::FindCodeForInnerPointer(Address inner_pointer) {
 }
 
 Tagged<GcSafeCode> Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
-  base::Optional<Tagged<GcSafeCode>> maybe_code =
+  std::optional<Tagged<GcSafeCode>> maybe_code =
       GcSafeTryFindCodeForInnerPointer(inner_pointer);
   // Callers expect that the code object is found.
   CHECK(maybe_code.has_value());
   return UncheckedCast<GcSafeCode>(maybe_code.value());
 }
 
-base::Optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(
+std::optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(
     Address inner_pointer) {
   if (InSpaceSlow(inner_pointer, i::CODE_SPACE) ||
       InSpaceSlow(inner_pointer, i::CODE_LO_SPACE) ||
       i::OffHeapInstructionStream::PcIsOffHeap(isolate(), inner_pointer)) {
-    base::Optional<Tagged<GcSafeCode>> maybe_code =
+    std::optional<Tagged<GcSafeCode>> maybe_code =
         GcSafeTryFindCodeForInnerPointer(inner_pointer);
     if (maybe_code.has_value()) {
       return maybe_code.value()->UnsafeCastToCode();

@@ -5,6 +5,7 @@
 #include "src/heap/scavenger.h"
 
 #include <atomic>
+#include <optional>
 
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
@@ -291,7 +292,7 @@ void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
 void ScavengerCollector::JobTask::ConcurrentScavengePages(
     Scavenger* scavenger) {
   while (remaining_memory_chunks_.load(std::memory_order_relaxed) > 0) {
-    base::Optional<size_t> index = generator_.GetNext();
+    std::optional<size_t> index = generator_.GetNext();
     if (!index) return;
     for (size_t i = *index; i < memory_chunks_.size(); ++i) {
       auto& work_item = memory_chunks_[i];

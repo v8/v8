@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_MARKING_BARRIER_H_
 #define V8_HEAP_MARKING_BARRIER_H_
 
+#include <optional>
+
 #include "include/v8-internal.h"
 #include "src/base/functional.h"
 #include "src/common/globals.h"
@@ -87,7 +89,7 @@ class MarkingBarrier {
   MinorMarkSweepCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
   std::unique_ptr<MarkingWorklists::Local> current_worklists_;
-  base::Optional<MarkingWorklists::Local> shared_heap_worklists_;
+  std::optional<MarkingWorklists::Local> shared_heap_worklists_;
   MarkingState marking_state_;
   std::unordered_map<MutablePageMetadata*, std::unique_ptr<TypedSlots>,
                      base::hash<MutablePageMetadata*>>

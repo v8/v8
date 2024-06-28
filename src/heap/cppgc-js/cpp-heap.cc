@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <numeric>
+#include <optional>
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
@@ -15,7 +16,6 @@
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -396,21 +396,21 @@ bool CppHeap::MetricRecorderAdapter::YoungGCMetricsReportPending() const {
   return last_young_gc_event_.has_value();
 }
 
-const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+const std::optional<cppgc::internal::MetricRecorder::GCCycle>
 CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
   auto res = std::move(last_full_gc_event_);
   last_full_gc_event_.reset();
   return res;
 }
 
-const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+const std::optional<cppgc::internal::MetricRecorder::GCCycle>
 CppHeap::MetricRecorderAdapter::ExtractLastYoungGcEvent() {
   auto res = std::move(last_young_gc_event_);
   last_young_gc_event_.reset();
   return res;
 }
 
-const base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
+const std::optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
 CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
   auto res = std::move(last_incremental_mark_event_);
   last_incremental_mark_event_.reset();
@@ -939,7 +939,7 @@ void CppHeap::CompactAndSweep() {
     cppgc::internal::SweepingConfig::CompactableSpaceHandling
         compactable_space_handling;
     {
-      base::Optional<SweepingOnMutatorThreadForGlobalHandlesScope>
+      std::optional<SweepingOnMutatorThreadForGlobalHandlesScope>
           global_handles_scope;
       if (isolate_) {
         global_handles_scope.emplace(*isolate_->traced_handles());
@@ -1259,9 +1259,9 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-v8::base::Optional<int> CppHeap::UpdateAllocationTimeout() {
+std::optional<int> CppHeap::UpdateAllocationTimeout() {
   if (!v8_flags.cppgc_random_gc_interval) {
-    return v8::base::nullopt;
+    return std::nullopt;
   }
   if (!allocation_timeout_rng_) {
     allocation_timeout_rng_.emplace(v8_flags.fuzzer_random_seed);

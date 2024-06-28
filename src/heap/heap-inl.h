@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cmath>
+#include <optional>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Avoid including anything but `heap.h` from `src/heap` where possible.
@@ -444,7 +445,7 @@ bool Heap::IsPendingAllocation(Tagged<Object> object) {
 }
 
 void Heap::ExternalStringTable::AddString(Tagged<String> string) {
-  base::Optional<base::MutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
 
   // With --shared-string-table client isolates may insert into the main
   // isolate's table concurrently.

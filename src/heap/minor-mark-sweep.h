@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -46,7 +47,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
 
    private:
     YoungGenerationRememberedSetsMarkingWorklist* const handler_;
-    base::Optional<size_t> index_;
+    std::optional<size_t> index_;
   };
 
   static std::vector<MarkingItem> CollectItems(Heap* heap);
@@ -107,7 +108,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
   };
 
   template <typename Visitor>
-  bool ProcessNextItem(Visitor* visitor, base::Optional<size_t>& index);
+  bool ProcessNextItem(Visitor* visitor, std::optional<size_t>& index);
 
   std::vector<MarkingItem> remembered_sets_marking_items_;
   std::atomic_size_t remaining_remembered_sets_marking_items_;
@@ -242,7 +243,7 @@ class MinorMarkSweepCollector final {
 
   ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
-  base::Optional<bool> use_background_threads_in_cycle_;
+  std::optional<bool> use_background_threads_in_cycle_;
 
   std::atomic<bool> is_in_atomic_pause_{false};
   std::atomic<bool> gc_finalization_requested_{false};

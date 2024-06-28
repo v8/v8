@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include <cmath>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
@@ -798,7 +799,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   DCHECK(IsMajorMarking());
   const auto start = v8::base::TimeTicks::Now();
 
-  base::Optional<SafepointScope> safepoint_scope;
+  std::optional<SafepointScope> safepoint_scope;
   // Conceptually an incremental marking step (even though it always runs on the
   // main thread) may introduce a form of concurrent marking when background
   // threads access the heap concurrently (e.g. concurrent compilation). On

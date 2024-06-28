@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -1027,7 +1027,7 @@ void Sweeper::RawSweep(PageMetadata* p,
 
   // Phase 1: Prepare the page for sweeping.
 
-  base::Optional<ActiveSystemPages> active_system_pages_after_sweeping;
+  std::optional<ActiveSystemPages> active_system_pages_after_sweeping;
   if (should_reduce_memory) {
     // Only decrement counter when we discard unused system pages.
     active_system_pages_after_sweeping = ActiveSystemPages();

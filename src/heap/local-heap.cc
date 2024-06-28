@@ -6,9 +6,9 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -364,7 +364,7 @@ void LocalHeap::SleepInSafepoint() {
 
     heap_->safepoint()->WaitInSafepoint();
 
-    base::Optional<IgnoreLocalGCRequests> ignore_gc_requests;
+    std::optional<IgnoreLocalGCRequests> ignore_gc_requests;
     if (is_main_thread()) ignore_gc_requests.emplace(heap());
     Unpark();
   });

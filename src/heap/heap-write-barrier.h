@@ -6,7 +6,6 @@
 #define V8_HEAP_HEAP_WRITE_BARRIER_H_
 
 #include "include/v8-internal.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 

@@ -4,8 +4,9 @@
 
 #include "src/heap/main-allocator.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/execution/vm-state.h"
@@ -318,13 +319,13 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin) {
 #ifdef V8_RUNTIME_CALL_STATS
-  base::Optional<RuntimeCallTimerScope> rcs_scope;
+  std::optional<RuntimeCallTimerScope> rcs_scope;
   if (is_main_thread()) {
     rcs_scope.emplace(isolate_heap()->isolate(),
                       RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   }
 #endif  // V8_RUNTIME_CALL_STATS
-  base::Optional<VMState<GC>> vmstate;
+  std::optional<VMState<GC>> vmstate;
   if (is_main_thread()) {
     vmstate.emplace(isolate_heap()->isolate());
   }
@@ -452,12 +453,12 @@ Heap* AllocatorPolicy::isolate_heap() const {
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  base::Optional<base::MutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();
 
-  base::Optional<std::pair<Address, Address>> allocation_result =
+  std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
   if (!allocation_result) return false;
 
@@ -499,7 +500,7 @@ void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   allocator_->Verify();
 #endif  // DEBUG
 
-  base::Optional<base::MutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();

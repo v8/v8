@@ -6,6 +6,7 @@
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
@@ -215,7 +216,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
                      base::hash<MutablePageMetadata*>>
       background_live_bytes_;
   std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
-  base::Optional<uint64_t> current_trace_id_;
+  std::optional<uint64_t> current_trace_id_;
 
   friend class IncrementalMarkingJob;
 };

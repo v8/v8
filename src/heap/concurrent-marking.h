@@ -7,10 +7,10 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/marking-visitor.h"
@@ -122,13 +122,13 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   std::unique_ptr<JobHandle> job_handle_;
   Heap* const heap_;
-  base::Optional<GarbageCollector> garbage_collector_;
+  std::optional<GarbageCollector> garbage_collector_;
   MarkingWorklists* marking_worklists_;
   WeakObjects* const weak_objects_;
   std::vector<std::unique_ptr<TaskState>> task_state_;
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
-  base::Optional<uint64_t> current_job_trace_id_;
+  std::optional<uint64_t> current_job_trace_id_;
   std::unique_ptr<MinorMarkingState> minor_marking_state_;
   std::atomic<size_t> estimate_concurrency_{0};
 

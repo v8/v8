@@ -5,7 +5,8 @@
 #ifndef V8_HEAP_MAIN_ALLOCATOR_H_
 #define V8_HEAP_MAIN_ALLOCATOR_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
@@ -352,11 +353,11 @@ class MainAllocator {
   Heap* const isolate_heap_;
   SpaceWithLinearArea* const space_;
 
-  base::Optional<AllocationCounter> allocation_counter_;
+  std::optional<AllocationCounter> allocation_counter_;
   LinearAllocationArea* const allocation_info_;
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
-  base::Optional<LinearAreaOriginalData> linear_area_original_data_;
+  std::optional<LinearAreaOriginalData> linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
   const bool supports_extending_lab_;

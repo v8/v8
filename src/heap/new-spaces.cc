@@ -5,6 +5,7 @@
 #include "src/heap/new-spaces.h"
 
 #include <atomic>
+#include <optional>
 
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
@@ -798,7 +799,7 @@ bool SemiSpaceNewSpace::IsPromotionCandidate(
   return !page->Contains(age_mark());
 }
 
-base::Optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
+std::optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
     int size_in_bytes, AllocationAlignment alignment) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_TOP(allocation_top(), to_space_);

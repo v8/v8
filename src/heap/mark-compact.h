@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "include/v8-internal.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"

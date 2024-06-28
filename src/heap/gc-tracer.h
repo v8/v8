@@ -5,10 +5,11 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
+#include <optional>
+
 #include "include/v8-metrics.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
 #include "src/heap/base/bytes.h"
@@ -147,7 +148,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 #ifdef V8_RUNTIME_CALL_STATS
     RuntimeCallTimer timer_;
     RuntimeCallStats* runtime_stats_ = nullptr;
-    base::Optional<WorkerThreadRuntimeCallStatsScope> runtime_call_stats_scope_;
+    std::optional<WorkerThreadRuntimeCallStatsScope> runtime_call_stats_scope_;
 #endif  // defined(V8_RUNTIME_CALL_STATS)
   };
 
@@ -381,25 +382,25 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double NewSpaceAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double OldGenerationAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double EmbedderAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      std::optional<base::TimeDelta> selected_duration = base::nullopt) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double AllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration) const;
+      std::optional<base::TimeDelta> selected_duration) const;
 
   // Allocation throughput in heap in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
@@ -449,7 +450,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Returns the average time between scheduling and invocation of an
   // incremental marking task.
-  base::Optional<base::TimeDelta> AverageTimeToIncrementalMarkingTask() const;
+  std::optional<base::TimeDelta> AverageTimeToIncrementalMarkingTask() const;
   void RecordTimeToIncrementalMarkingTask(base::TimeDelta time_to_task);
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -516,7 +517,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   Event previous_;
 
   // The starting time of the observable pause if set.
-  base::Optional<base::TimeTicks> start_of_observable_pause_;
+  std::optional<base::TimeTicks> start_of_observable_pause_;
 
   // We need two epochs, since there can be scavenges during incremental
   // marking.
@@ -526,11 +527,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Incremental marking speed for major GCs. Marking for minor GCs is ignored.
   double recorded_major_incremental_marking_speed_ = 0.0;
 
-  base::Optional<base::TimeDelta> average_time_to_incremental_marking_task_;
+  std::optional<base::TimeDelta> average_time_to_incremental_marking_task_;
 
   double recorded_embedder_speed_ = 0.0;
 
-  base::Optional<base::TimeTicks> last_marking_start_time_;
+  std::optional<base::TimeTicks> last_marking_start_time_;
   uint16_t code_flushing_increase_s_ = 0;
 
   // Incremental scopes carry more information than just the duration. The infos

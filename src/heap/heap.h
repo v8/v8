@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1528,12 +1529,12 @@ class Heap final {
   V8_EXPORT_PRIVATE Tagged<Code> FindCodeForInnerPointer(Address inner_pointer);
   // Use the GcSafe family of functions if called while GC is in progress.
   Tagged<GcSafeCode> GcSafeFindCodeForInnerPointer(Address inner_pointer);
-  base::Optional<Tagged<GcSafeCode>> GcSafeTryFindCodeForInnerPointer(
+  std::optional<Tagged<GcSafeCode>> GcSafeTryFindCodeForInnerPointer(
       Address inner_pointer);
-  base::Optional<Tagged<InstructionStream>>
+  std::optional<Tagged<InstructionStream>>
   GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer);
   // Only intended for use from the `jco` gdb macro.
-  base::Optional<Tagged<Code>> TryFindCodeForInnerPointerForPrinting(
+  std::optional<Tagged<Code>> TryFindCodeForInnerPointerForPrinting(
       Address inner_pointer);
 
   // Returns true if {addr} is contained within {instruction_stream} and false

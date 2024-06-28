@@ -5,11 +5,11 @@
 #include "src/heap/gc-tracer.h"
 
 #include <cstdarg>
+#include <optional>
 
 #include "include/v8-metrics.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/time.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
@@ -53,7 +53,7 @@ using BytesAndDuration = ::heap::base::BytesAndDuration;
 
 double BoundedAverageSpeed(
     const base::RingBuffer<BytesAndDuration>& buffer,
-    v8::base::Optional<v8::base::TimeDelta> selected_duration) {
+    std::optional<v8::base::TimeDelta> selected_duration) {
   constexpr size_t kMinNonEmptySpeedInBytesPerMs = 1;
   constexpr size_t kMaxSpeedInBytesPerMs = GB;
   return ::heap::base::AverageSpeed(
@@ -1171,7 +1171,7 @@ void GCTracer::RecordTimeToIncrementalMarkingTask(
   }
 }
 
-base::Optional<base::TimeDelta> GCTracer::AverageTimeToIncrementalMarkingTask()
+std::optional<base::TimeDelta> GCTracer::AverageTimeToIncrementalMarkingTask()
     const {
   return average_time_to_incremental_marking_task_;
 }
@@ -1298,28 +1298,28 @@ double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
 }
 
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
-    base::Optional<base::TimeDelta> selected_duration) const {
+    std::optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_new_generation_allocations_,
       selected_duration);
 }
 
 double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
-    base::Optional<base::TimeDelta> selected_duration) const {
+    std::optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_old_generation_allocations_,
       selected_duration);
 }
 
 double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
-    base::Optional<base::TimeDelta> selected_duration) const {
+    std::optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_embedder_generation_allocations_,
       selected_duration);
 }
 
 double GCTracer::AllocationThroughputInBytesPerMillisecond(
-    base::Optional<base::TimeDelta> selected_duration) const {
+    std::optional<base::TimeDelta> selected_duration) const {
   return NewSpaceAllocationThroughputInBytesPerMillisecond(selected_duration) +
          OldGenerationAllocationThroughputInBytesPerMillisecond(
              selected_duration);
@@ -1546,7 +1546,7 @@ void GCTracer::ReportFullCycleToRecorder() {
   // Managed C++ heap statistics:
   if (cpp_heap) {
     cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
-    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+    const std::optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event =
             cpp_heap->GetMetricRecorder()->ExtractLastFullGcEvent();
     DCHECK(optional_cppgc_event.has_value());
@@ -1672,7 +1672,7 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder(double v8_duration) {
   if (!recorder->HasEmbedderRecorder()) return;
   incremental_mark_batched_events_.events.emplace_back();
   if (heap_->cpp_heap()) {
-    const base::Optional<
+    const std::optional<
         cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
         cppgc_event = v8::internal::CppHeap::From(heap_->cpp_heap())
                           ->GetMetricRecorder()
@@ -1723,7 +1723,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
-    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+    const std::optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event = metric_recorder->ExtractLastYoungGcEvent();
     // We bail out from Oilpan's young GC if the full GC is already in progress.
     // Check here if the young generation event was reported.

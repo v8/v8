@@ -8,12 +8,12 @@
 #include <atomic>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <variant>
 
 #include "src/base/bounds.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -171,7 +171,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Allocate the requested number of bytes in the space from a background
   // thread.
-  V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
+  V8_WARN_UNUSED_RESULT std::optional<std::pair<Address, size_t>>
   RawAllocateBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
                         size_t max_size_in_bytes, AllocationOrigin origin);
 
@@ -345,7 +345,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
       }
     }
 
-    base::Optional<base::MutexGuard> guard_;
+    std::optional<base::MutexGuard> guard_;
   };
 
   bool SupportsConcurrentAllocation() const {

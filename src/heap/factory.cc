@@ -6,6 +6,7 @@
 
 #include <algorithm>  // For copy
 #include <memory>     // For shared_ptr<>
+#include <optional>
 #include <string>
 #include <utility>  // For move
 
@@ -1933,7 +1934,7 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
   // now.
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
-  base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+  std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
       &zone, isolate(), trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) {

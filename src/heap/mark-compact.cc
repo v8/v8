@@ -8,12 +8,12 @@
 #include <atomic>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1572,7 +1572,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #if DEBUG
   Address abort_evacuation_at_address_{kNullAddress};
 #endif  // DEBUG
-  base::Optional<base::RandomNumberGenerator> rng_;
+  std::optional<base::RandomNumberGenerator> rng_;
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
@@ -3812,7 +3812,7 @@ void MarkCompactCollector::RecordRelocSlot(Tagged<InstructionStream> host,
 
   // Access to TypeSlots need to be protected, since LocalHeaps might
   // publish code in the background thread.
-  base::Optional<base::MutexGuard> opt_guard;
+  std::optional<base::MutexGuard> opt_guard;
   if (v8_flags.concurrent_sparkplug) {
     opt_guard.emplace(info.page_metadata->mutex());
   }
@@ -4468,7 +4468,7 @@ class PageEvacuationJob : public v8::JobTask {
 
   void ProcessItems(JobDelegate* delegate, Evacuator* evacuator) {
     while (remaining_evacuation_items_.load(std::memory_order_relaxed) > 0) {
-      base::Optional<size_t> index = generator_.GetNext();
+      std::optional<size_t> index = generator_.GetNext();
       if (!index) return;
       for (size_t i = *index; i < evacuation_items_.size(); ++i) {
         auto& work_item = evacuation_items_[i];
@@ -4517,7 +4517,7 @@ size_t CreateAndExecuteEvacuationTasks(
     Heap* heap, MarkCompactCollector* collector,
     std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
         evacuation_items) {
-  base::Optional<ProfilingMigrationObserver> profiling_observer;
+  std::optional<ProfilingMigrationObserver> profiling_observer;
   if (heap->isolate()->log_object_relocation()) {
     profiling_observer.emplace(heap);
   }
@@ -4827,7 +4827,7 @@ class PointersUpdatingJob : public v8::JobTask {
 
   void UpdatePointers(JobDelegate* delegate) {
     while (remaining_updating_items_.load(std::memory_order_relaxed) > 0) {
-      base::Optional<size_t> index = generator_.GetNext();
+      std::optional<size_t> index = generator_.GetNext();
       if (!index) return;
       for (size_t i = *index; i < updating_items_.size(); ++i) {
         auto& work_item = updating_items_[i];

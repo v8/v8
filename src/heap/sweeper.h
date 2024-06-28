@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"

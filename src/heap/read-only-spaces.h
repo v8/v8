@@ -6,6 +6,7 @@
 #define V8_HEAP_READ_ONLY_SPACES_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "include/v8-platform.h"
@@ -156,7 +157,7 @@ class ReadOnlyArtifacts {
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if
   // any.
-  base::Optional<uint32_t> read_only_blob_checksum_;
+  std::optional<uint32_t> read_only_blob_checksum_;
 #endif  // DEBUG
 };
 

@@ -4,6 +4,8 @@
 
 #include "src/heap/cppgc/marking-verifier.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
@@ -50,8 +52,8 @@ MarkingVerifierBase::MarkingVerifierBase(
       visitor_(std::move(visitor)),
       collection_type_(collection_type) {}
 
-void MarkingVerifierBase::Run(
-    StackState stack_state, v8::base::Optional<size_t> expected_marked_bytes) {
+void MarkingVerifierBase::Run(StackState stack_state,
+                              std::optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
 // Avoid verifying the stack when running with TSAN as the TSAN runtime changes
 // stack contents when e.g. working with locks. Specifically, the marker uses

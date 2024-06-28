@@ -8,10 +8,10 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/cppgc/platform.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/free-list.h"
@@ -48,8 +48,6 @@ class DeadlineChecker final {
   const v8::base::TimeTicks end_;
   size_t count_ = 0;
 };
-
-using v8::base::Optional;
 
 enum class MutatorThreadSweepingMode {
   kOnlyFinalizers,
@@ -187,11 +185,11 @@ class ThreadSafeStack {
     is_empty_.store(false, std::memory_order_relaxed);
   }
 
-  Optional<T> Pop() {
+  std::optional<T> Pop() {
     v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
     if (vector_.empty()) {
       is_empty_.store(true, std::memory_order_relaxed);
-      return v8::base::nullopt;
+      return std::nullopt;
     }
     T top = std::move(vector_.back());
     vector_.pop_back();
@@ -1008,7 +1006,7 @@ class Sweeper::SweeperImpl final {
     if (is_sweeping_on_mutator_thread_) return false;
 
     {
-      v8::base::Optional<StatsCollector::EnabledScope> stats_scope;
+      std::optional<StatsCollector::EnabledScope> stats_scope;
       if (config_.sweeping_type != SweepingConfig::SweepingType::kAtomic) {
         stats_scope.emplace(stats_collector_,
                             StatsCollector::kIncrementalSweep);

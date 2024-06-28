@@ -6,6 +6,7 @@
 #define V8_HEAP_MINOR_MARK_SWEEP_INL_H_
 
 #include <atomic>
+#include <optional>
 
 #include "src/base/build_config.h"
 #include "src/common/globals.h"
@@ -57,7 +58,7 @@ void YoungGenerationRootMarkingVisitor::VisitPointersImpl(Root root,
 
 template <typename Visitor>
 bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
-    Visitor* visitor, base::Optional<size_t>& index) {
+    Visitor* visitor, std::optional<size_t>& index) {
   if (remaining_remembered_sets_marking_items_.load(
           std::memory_order_relaxed) == 0) {
     return false;

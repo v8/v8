@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_PARKED_SCOPE_H_
 #define V8_HEAP_PARKED_SCOPE_H_
 
+#include <optional>
+
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -64,7 +66,7 @@ class V8_NODISCARD UnparkedScopeIfOnBackground {
   }
 
  private:
-  base::Optional<UnparkedScope> scope_;
+  std::optional<UnparkedScope> scope_;
 };
 
 // Scope that automatically parks the thread while blocking on the given

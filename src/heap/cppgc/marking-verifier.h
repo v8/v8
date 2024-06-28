@@ -5,9 +5,9 @@
 #ifndef V8_HEAP_CPPGC_MARKING_VERIFIER_H_
 #define V8_HEAP_CPPGC_MARKING_VERIFIER_H_
 
+#include <optional>
 #include <unordered_set>
 
-#include "src/base/optional.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(StackState, v8::base::Optional<size_t>);
+  void Run(StackState, std::optional<size_t>);
 
  protected:
   MarkingVerifierBase(HeapBase&, CollectionType, VerificationState&,

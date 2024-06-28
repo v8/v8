@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <numeric>
+#include <optional>
 
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
@@ -455,7 +456,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetCurrentSpace();
 
-  base::Optional<std::pair<Address, Address>> Allocate(
+  std::optional<std::pair<Address, Address>> Allocate(
       int size_in_bytes, AllocationAlignment alignment);
 
   // Removes a page from the space. Assumes the page is in the `from_space` semi
