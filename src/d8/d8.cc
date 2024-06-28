@@ -1729,15 +1729,16 @@ void PerIsolateData::SetDomNodeCtor(Local<FunctionTemplate> ctor) {
 }
 
 bool PerIsolateData::HasRunningSubscribedWorkers() {
-  // Clear out workers that are no longer running.
-  std::erase_if(subscribed_workers_, [](const std::shared_ptr<Worker>& worker) {
-    return worker->IsTerminated();
-  });
   return !subscribed_workers_.empty();
 }
 
 void PerIsolateData::RegisterSubscribedWorker(std::shared_ptr<Worker> worker) {
-  subscribed_workers_.push_back(std::move(worker));
+  subscribed_workers_.insert(std::move(worker));
+}
+
+void PerIsolateData::UnregisterSubscribedWorker(
+    std::shared_ptr<Worker> worker) {
+  subscribed_workers_.erase(std::move(worker));
 }
 
 PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
@@ -3137,6 +3138,26 @@ class CheckMessageFromWorkerTask : public v8::Task {
   std::shared_ptr<Worker> worker_;
   const v8::Global<v8::Context>& context_;
   const v8::Global<v8::Value>& callback_;
+};
+
+// Unregister the given isolate from message events from the given worker.
+// This must be done before the isolate or worker are destroyed, so that the
+// global handles for context and callback are cleaned up correctly -- thus the
+// event loop blocks until all workers are unregistered.
+class UnsubscribeWorkerTask : public v8::Task {
+ public:
+  UnsubscribeWorkerTask(v8::Isolate* isolate, std::shared_ptr<Worker> worker)
+      : isolate_(isolate), worker_(std::move(worker)) {}
+
+  void Run() override {
+    worker_->ClearOnMessage(isolate_);
+    PerIsolateData::Get(isolate_)->UnregisterSubscribedWorker(
+        std::move(worker_));
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  std::shared_ptr<Worker> worker_;
 };
 
 void Shell::WorkerOnMessageGetter(
@@ -4849,6 +4870,16 @@ void Worker::SetOnMessage(Isolate* isolate, Local<Value> callback) {
           on_message_callback_));
 }
 
+void Worker::ClearOnMessage(Isolate* isolate) {
+  {
+    base::MutexGuard lock_guard(&worker_mutex_);
+
+    on_message_isolate_ = nullptr;
+    on_message_context_.Reset();
+    on_message_callback_.Reset();
+  }
+}
+
 std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   std::unique_ptr<SerializationData> result;
   while (!out_queue_.Dequeue(&result)) {
@@ -4958,11 +4989,6 @@ void Worker::SetCurrentWorker(Worker* worker) {
 
 // static
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
-
-class NoOpTask : public v8::Task {
- public:
-  void Run() override {}
-};
 
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
@@ -5100,13 +5126,15 @@ void Worker::ExecuteInThread() {
   // Post nullptr to wake the thread waiting on GetMessage() if there is one.
   out_queue_.Enqueue(nullptr);
   out_semaphore_.Signal();
-  // Also post a no-op task in case a thread is waiting for messages, so that it
-  // sees that this worker is terminated.
+  // Also post an unsubscribe task in case a thread is subscribed to messages,
+  // so that it sees that this worker is terminated and can clean up its
+  // subscription.
   {
     base::MutexGuard lock_guard(&worker_mutex_);
     if (on_message_isolate_ != nullptr) {
       g_platform->GetForegroundTaskRunner(on_message_isolate_)
-          ->PostTask(std::make_unique<NoOpTask>());
+          ->PostTask(std::make_unique<UnsubscribeWorkerTask>(
+              on_message_isolate_, this->shared_from_this()));
     }
   }
 }
