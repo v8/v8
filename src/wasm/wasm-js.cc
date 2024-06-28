@@ -2195,7 +2195,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate};
 
   int num_imported_functions = module->num_imported_functions;
-  i::DirectHandle<i::ExposedTrustedObject> ref;
+  i::DirectHandle<i::TrustedObject> ref;
   if (func_index >= num_imported_functions) {
     ref = trusted_instance_data;
   } else {

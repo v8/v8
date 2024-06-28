@@ -76,11 +76,11 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
                        Handle<WasmTrustedInstanceData> target_instance_data,
                        int target_func_index);
   // The "ref" will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
-  Handle<ExposedTrustedObject> ref() { return ref_; }
+  Handle<TrustedObject> ref() { return ref_; }
   Address call_target() { return call_target_; }
 
  private:
-  Handle<ExposedTrustedObject> ref_;
+  Handle<TrustedObject> ref_;
   Address call_target_;
 };
 
@@ -717,8 +717,7 @@ class WasmDispatchTable : public TrustedObject {
   // Set an entry for an import. We check signatures statically there, so the
   // signature is not updated in the dispatch table.
   // {ref} has to be a WasmApiFunctionRef or a WasmInstanceObject.
-  void V8_EXPORT_PRIVATE SetForImport(int index,
-                                      Tagged<ExposedTrustedObject> ref,
+  void V8_EXPORT_PRIVATE SetForImport(int index, Tagged<TrustedObject> ref,
                                       Address call_target);
 
   void Clear(int index);
@@ -917,7 +916,7 @@ class WasmExportedFunctionData
 
 class WasmApiFunctionRef
     : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef,
-                                               ExposedTrustedObject> {
+                                               TrustedObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmApiFunctionRef)
@@ -947,11 +946,10 @@ class WasmApiFunctionRef
   static void SetFuncRefAsCallOrigin(DirectHandle<WasmApiFunctionRef> ref,
                                      DirectHandle<WasmFuncRef> func_ref);
 
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedExposedTrustedObjectBodyDescriptor<
-          WasmApiFunctionRef, kWasmApiFunctionRefIndirectPointerTag>,
-      WithProtectedPointer<kProtectedInstanceDataOffset>,
-      WithStrongCodePointer<kCodeOffset>>;
+  using BodyDescriptor =
+      StackedBodyDescriptor<FixedBodyDescriptorFor<WasmApiFunctionRef>,
+                            WithProtectedPointer<kProtectedInstanceDataOffset>,
+                            WithStrongCodePointer<kCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
 };
@@ -967,7 +965,7 @@ class WasmInternalFunction
   V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
       DirectHandle<WasmInternalFunction> internal);
 
-  DECL_PROTECTED_POINTER_ACCESSORS(ref, ExposedTrustedObject)
+  DECL_PROTECTED_POINTER_ACCESSORS(ref, TrustedObject)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)

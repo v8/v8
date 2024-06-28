@@ -469,12 +469,12 @@ void WasmTableObject::UpdateDispatchTables(
   DirectHandle<FixedArray> uses(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  DirectHandle<ExposedTrustedObject> call_ref =
+  DirectHandle<TrustedObject> call_ref =
       func->imported
           // The function in the target instance was imported. Use its imports
           // table to look up the ref.
           ? direct_handle(
-                Cast<ExposedTrustedObject>(
+                Cast<TrustedObject>(
                     target_instance_data->dispatch_table_for_imports()->ref(
                         func->func_index)),
                 isolate)
@@ -1016,7 +1016,7 @@ FunctionTargetAndRef::FunctionTargetAndRef(
           target_instance_data->module()->num_imported_functions)) {
     // The function in the target instance was imported. Load the ref from the
     // dispatch table for imports.
-    ref_ = handle(Cast<ExposedTrustedObject>(
+    ref_ = handle(Cast<TrustedObject>(
                       target_instance_data->dispatch_table_for_imports()->ref(
                           target_func_index)),
                   isolate);
@@ -1446,10 +1446,10 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       function_index < static_cast<int>(module->num_imported_functions);
   uint32_t sig_index = module->functions[function_index].sig_index;
   const wasm::FunctionSig* sig = module->signature(sig_index);
-  DirectHandle<ExposedTrustedObject> ref =
+  DirectHandle<TrustedObject> ref =
       is_import
           ? direct_handle(
-                Cast<ExposedTrustedObject>(
+                Cast<TrustedObject>(
                     trusted_instance_data->dispatch_table_for_imports()->ref(
                         function_index)),
                 isolate)
@@ -1547,7 +1547,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   //   refers to the imported instance.
   // It cannot be a JS/C API function as for those, the external function is set
   // at creation.
-  DirectHandle<ExposedTrustedObject> ref{internal->ref(), isolate};
+  DirectHandle<TrustedObject> ref{internal->ref(), isolate};
   DirectHandle<WasmTrustedInstanceData> instance_data =
       IsWasmTrustedInstanceData(*ref)
           ? Cast<WasmTrustedInstanceData>(ref)
@@ -1913,8 +1913,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
   WriteField<int>(offset + kSigBias, sig_id);
 }
 
-void WasmDispatchTable::SetForImport(int index,
-                                     Tagged<ExposedTrustedObject> ref,
+void WasmDispatchTable::SetForImport(int index, Tagged<TrustedObject> ref,
                                      Address call_target) {
   SBXCHECK_LT(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));

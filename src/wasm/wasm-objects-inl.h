@@ -394,7 +394,7 @@ PROTECTED_POINTER_ACCESSORS(WasmApiFunctionRef, instance_data,
 // WasmInternalFunction
 
 // {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
-PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,
+PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, TrustedObject,
                             kProtectedRefOffset)
 
 // WasmFuncRef

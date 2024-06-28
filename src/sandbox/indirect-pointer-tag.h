@@ -57,11 +57,9 @@ constexpr uint64_t kIndirectPointerTagMaskWithoutFreeEntryBit =
   V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE, 3) \
   IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,          \
           WASM_TRUSTED_INSTANCE_DATA_TYPE, 4)                     \
-  IF_WASM(V, kWasmApiFunctionRefIndirectPointerTag,               \
-          WASM_API_FUNCTION_REF_TYPE, 5)                          \
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag,             \
-          WASM_INTERNAL_FUNCTION_TYPE, 6)                         \
-  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WASM_FUNCTION_DATA_TYPE, 7)
+          WASM_INTERNAL_FUNCTION_TYPE, 5)                         \
+  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WASM_FUNCTION_DATA_TYPE, 6)
 
 #define MAKE_TAG(i) \
   (kAllTagsForAndBasedTypeChecking[i] << kIndirectPointerTagShift)

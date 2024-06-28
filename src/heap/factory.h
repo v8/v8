@@ -722,7 +722,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<ExposedTrustedObject> ref, int function_index,
+      DirectHandle<TrustedObject> ref, int function_index,
       uintptr_t signature_hash);
   Handle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,

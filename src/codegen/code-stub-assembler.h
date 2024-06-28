@@ -1354,7 +1354,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
-  TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
+  TNode<TrustedObject> LoadRefFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {
     TNode<Object> obj = LoadProtectedPointerField(
         object, WasmInternalFunction::kProtectedRefOffset);

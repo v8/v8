@@ -3832,7 +3832,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   if (shared.object()->HasWasmExportedFunctionData()) {
     // TODO(jkummerow): Introduce a pointer from WasmExportedFunctionData
     // to WasmTrustedInstanceData.
-    Tagged<ExposedTrustedObject> ref =
+    Tagged<TrustedObject> ref =
         shared.object()->wasm_exported_function_data()->internal()->ref();
     if (!IsWasmTrustedInstanceData(ref)) return NoChange();
     native_module = Cast<WasmTrustedInstanceData>(ref)->native_module();
