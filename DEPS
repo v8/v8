@@ -77,10 +77,10 @@ vars = {
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/build_support/ninja-1_11_1/
-  'ninja_version': 'version:2@1.11.1.chromium.1',
+  'ninja_version': 'version:2@1.11.1.chromium.2',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:5da337f40aeac8d9f65b89e335b519291356d3d5',
+  'siso_version': 'git_revision:b45592fde7d08bdee282d3d2d0cf4faa55588885',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:6fb4d5d26773ebddeac2c57506324493e4220007',
@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:21.20240620.2.1',
+  'fuchsia_version': 'version:22.20240627.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ea08c530e2770fb61b649e70be31e11b85868d8f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '04d8986a8e579d5b3de0a00c4d1a44c5edb32d49',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0f37180034a7c13e1e570f5b41ca1f7c9c29ea70',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4fc53c36f2e0bbdc0120db514eabdd0d5b7f4c4e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -228,15 +228,15 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'f367119ee51a64378e910c830cdd911a5920a609',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '35f4fcbdeae229a56fd50320dc03ae6de407aca4',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '66d274dfbab9e4f84599f06504987c418ca087d9',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'f01108e4761e1d4189cb134322c3cb01dc71ef87',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7a03bcd1a2b9c67ff0df6afabc743a01ebd8df8b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3652f862721d45d123c52c71d3032963608bcf4b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '06673958a399758b95be5eeae3af2828e8d1a82d',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '99548b292dd81ecef659d66248ffefc7921512ec',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -300,11 +300,11 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '21ea0bf4a787394b584a028a2851cf782a6c763a',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'de0d1a15133cc0bcaf3113b88432a866694d8690',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '100fb18f5da1322b7d308f775d706faddce64988',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '6171cc7fb1b842b112cfe5afa05c0e42a6342fe1',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c8f1d81998280ae2ea0e76ddb60aae6e1b4b860e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '48659aac13221a8cb4b552a9646e392bd49163ab',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -442,7 +442,7 @@ deps = {
   'third_party/protobuf_chrome':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'ed9284c473211491ae6de41d60ac0329a79270d8',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '85dd7ad833a73095ecf3e3baea608ba051bbe2c7',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6144b62bece50a4af8bcdb166f04f6ec5af3d6d8',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
@@ -458,9 +458,9 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'e432200a7931de1b0b1b50201aac8a46d9380cb2',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '8b7eff801b46f9d52d756a21b31239ae4e403611',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd7c8d9867e74840d13ce47106a16607f1863ec09',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e5f2479d0d4290113cf482a999276266f2ff2170',
   'tools/luci-go': {
       'packages': [
         {
@@ -478,7 +478,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '4af535936f9bd0a667b4991c6f346c9eeae43591',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '3736ae744b8bd621ca949b91c1756257eccee919',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
