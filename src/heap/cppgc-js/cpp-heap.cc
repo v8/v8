@@ -898,15 +898,9 @@ void CppHeap::FinishMarkingAndProcessWeakness() {
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
-}
 
-void CppHeap::CompactAndSweep() {
-  if (!TracingInitialized()) {
-    return;
-  }
-  // TODO(336734387): This should be moved at the end of marking. Currently
-  // global limit computation considers live+dead memory.
   if (isolate_) {
+    // The size is used for recomputing the global heap limit.
     used_size_ = stats_collector_->marked_bytes();
     // Force a check next time increased memory is reported. This allows for
     // setting limits close to actual heap sizes.
@@ -915,6 +909,13 @@ void CppHeap::CompactAndSweep() {
     RecordEmbedderSpeed(isolate_->heap()->tracer(),
                         stats_collector_->marking_time(), used_size_);
   }
+}
+
+void CppHeap::CompactAndSweep() {
+  if (!TracingInitialized()) {
+    return;
+  }
+
   // The allocated bytes counter in v8 was reset to the current marked bytes, so
   // any pending allocated bytes updates should be discarded.
   buffered_allocated_bytes_ = 0;
