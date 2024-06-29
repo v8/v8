@@ -482,7 +482,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
-    'url': Var('chromium_url') + '/external/github.com/ibmruntimes/zoslib.git' + '@' + '3accd08b136344128beb3f594e8ab3eb30accc56',
+    'url': Var('chromium_url') + '/external/github.com/ibmruntimes/zoslib.git' + '@' + '1e68de6e37efced3738a88536fccb6bbfe2d70b2',
     'condition': 'host_os == "zos"',
   }
 }
