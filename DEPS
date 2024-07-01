@@ -442,7 +442,7 @@ deps = {
   'third_party/protobuf_chrome':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'ed9284c473211491ae6de41d60ac0329a79270d8',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '99b6b5c7d537f29cfd60016c951f5cb0ae141984',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6dcd83d60f7944926bfd308cc13979fc53dd69ca',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '8b7eff801b46f9d52d756a21b31239ae4e403611',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'c4afbdfe7a37cf36d63096ca578d9e0567c0d75b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7e2aebd75d01a54cb7611b30fb1bd7ff8a38dfbe',
   'tools/luci-go': {
       'packages': [
         {
