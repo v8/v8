@@ -649,8 +649,8 @@ RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
 }
 
 RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
-  int code_size = static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
-  return Smi::FromInt(code_size);
+  auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
+  return Smi::FromInt(static_cast<int>(code_size + metadata_size));
 }
 
 RUNTIME_FUNCTION(Runtime_EstimateCurrentMemoryConsumption) {

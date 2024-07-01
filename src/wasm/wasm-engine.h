@@ -227,8 +227,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
       base::Vector<const char> source_url);
 
-  // Flushes all Liftoff code and returns the size of the flushed code.
-  size_t FlushLiftoffCode();
+  // Flushes all Liftoff code and returns the sizes of the removed
+  // (executable) code and the removed meta data.
+  std::pair<size_t, size_t> FlushLiftoffCode();
 
   // Returns the code size of all Liftoff compiled functions in all modules.
   size_t GetLiftoffCodeSizeForTesting();
