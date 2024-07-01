@@ -1460,8 +1460,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
-              isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
+          Managed<icu::number::LocalizedNumberFormatter>::From(
+              isolate, 0,
+              std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSNumberFormat> number_format = Cast<JSNumberFormat>(

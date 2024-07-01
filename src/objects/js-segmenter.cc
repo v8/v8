@@ -101,8 +101,8 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate,
   DCHECK_NOT_NULL(icu_break_iterator.get());
 
   DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::FromUniquePtr(isolate, 0,
-                                                 std::move(icu_break_iterator));
+      Managed<icu::BreakIterator>::From(isolate, 0,
+                                        std::move(icu_break_iterator));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSSegmenter> segmenter =

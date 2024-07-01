@@ -116,15 +116,15 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate,
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
-  icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
-      icu_locale, GetIcuType(type_enum), GetIcuWidth(style_enum), status);
+  std::shared_ptr<icu::ListFormatter> formatter{
+      icu::ListFormatter::createInstance(icu_locale, GetIcuType(type_enum),
+                                         GetIcuWidth(style_enum), status)};
   if (U_FAILURE(status) || formatter == nullptr) {
-    delete formatter;
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
   DirectHandle<Managed<icu::ListFormatter>> managed_formatter =
-      Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
+      Managed<icu::ListFormatter>::From(isolate, 0, std::move(formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSListFormat> list_format =

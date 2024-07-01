@@ -13,8 +13,7 @@
 #include "src/objects/foreign.h"
 #include "src/sandbox/external-pointer-table.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // Mechanism for associating an ExternalPointerTag with a C++ type that is
 // referenced via a Managed. Every such C++ type must have a unique
@@ -107,28 +106,9 @@ class Managed : public Foreign {
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
-  // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.
-  template <typename... Args>
-  static Handle<Managed<CppType>> Allocate(Isolate* isolate,
-                                           size_t estimated_size,
-                                           Args&&... args);
-
-  // Create a {Managed<CppType>} from an existing raw {CppType*}. The returned
-  // object will now own the memory pointed to by {CppType}.
-  static Handle<Managed<CppType>> FromRawPtr(Isolate* isolate,
-                                             size_t estimated_size,
-                                             CppType* ptr);
-
-  // Create a {Managed<CppType>} from an existing {std::unique_ptr<CppType>}.
-  // The returned object will now own the memory pointed to by {CppType}, and
-  // the unique pointer will be released.
-  static Handle<Managed<CppType>> FromUniquePtr(
-      Isolate* isolate, size_t estimated_size,
-      std::unique_ptr<CppType> unique_ptr,
-      AllocationType allocation_type = AllocationType::kYoung);
-
-  // Create a {Managed<CppType>} from an existing {std::shared_ptr<CppType>}.
-  static Handle<Managed<CppType>> FromSharedPtr(
+  // Create a {Managed>} from an existing {std::shared_ptr} or {std::unique_ptr}
+  // (which will automatically convert to a {std::shared_ptr}).
+  static Handle<Managed<CppType>> From(
       Isolate* isolate, size_t estimated_size,
       std::shared_ptr<CppType> shared_ptr,
       AllocationType allocation_type = AllocationType::kYoung);
@@ -145,16 +125,8 @@ class Managed : public Foreign {
     return reinterpret_cast<std::shared_ptr<CppType>*>(
         destructor->shared_ptr_ptr_);
   }
-
-  // Called by either isolate shutdown or the {ManagedObjectFinalizer} in order
-  // to actually delete the shared pointer and decrement the shared refcount.
-  static void Destructor(void* ptr) {
-    auto shared_ptr_ptr = reinterpret_cast<std::shared_ptr<CppType>*>(ptr);
-    delete shared_ptr_ptr;
-  }
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_MANAGED_H_

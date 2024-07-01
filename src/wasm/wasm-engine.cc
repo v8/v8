@@ -1035,8 +1035,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
       code_size_estimate +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   DirectHandle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
-                                                 std::move(native_module));
+      Managed<wasm::NativeModule>::From(isolate, memory_estimate,
+                                        std::move(native_module));
 
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->undefined_value());

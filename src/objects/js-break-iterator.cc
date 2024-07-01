@@ -100,10 +100,9 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
 
   // Construct managed objects from pointers
   DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::FromUniquePtr(isolate, 0,
-                                                 std::move(break_iterator));
+      Managed<icu::BreakIterator>::From(isolate, 0, std::move(break_iterator));
   DirectHandle<Managed<icu::UnicodeString>> managed_unicode_string =
-      Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, nullptr);
+      Managed<icu::UnicodeString>::From(isolate, 0, nullptr);
 
   DirectHandle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());

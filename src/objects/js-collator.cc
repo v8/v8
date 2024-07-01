@@ -538,8 +538,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   }
 
   DirectHandle<Managed<icu::Collator>> managed_collator =
-      Managed<icu::Collator>::FromUniquePtr(isolate, 0,
-                                            std::move(icu_collator));
+      Managed<icu::Collator>::From(isolate, 0, std::move(icu_collator));
 
   // We only need to do so if it is different from the collator would return.
   DirectHandle<String> locale_str =

@@ -371,7 +371,8 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 31. Set locale.[[Locale]] to r.[[locale]].
   DirectHandle<Managed<icu::Locale>> managed_locale =
-      Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
+      Managed<icu::Locale>::From(
+          isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSLocale> locale =
@@ -386,7 +387,8 @@ namespace {
 MaybeHandle<JSLocale> Construct(Isolate* isolate,
                                 const icu::Locale& icu_locale) {
   DirectHandle<Managed<icu::Locale>> managed_locale =
-      Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
+      Managed<icu::Locale>::From(
+          isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   Handle<JSFunction> constructor(
       isolate->native_context()->intl_locale_function(), isolate);

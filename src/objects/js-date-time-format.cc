@@ -1944,8 +1944,8 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     return date_interval_format;
   }
   DirectHandle<Managed<icu::DateIntervalFormat>> managed_interval_format =
-      Managed<icu::DateIntervalFormat>::FromUniquePtr(
-          isolate, 0, std::move(date_interval_format));
+      Managed<icu::DateIntervalFormat>::From(isolate, 0,
+                                             std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
   return std::unique_ptr<icu::DateIntervalFormat>(
       managed_interval_format->raw()->clone());
@@ -2631,14 +2631,15 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
           maybe_locale_str.FromJust().c_str());
 
   DirectHandle<Managed<icu::Locale>> managed_locale =
-      Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
+      Managed<icu::Locale>::From(
+          isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   DirectHandle<Managed<icu::SimpleDateFormat>> managed_format =
-      Managed<icu::SimpleDateFormat>::FromUniquePtr(isolate, 0,
-                                                    std::move(icu_date_format));
+      Managed<icu::SimpleDateFormat>::From(isolate, 0,
+                                           std::move(icu_date_format));
 
   DirectHandle<Managed<icu::DateIntervalFormat>> managed_interval_format =
-      Managed<icu::DateIntervalFormat>::FromRawPtr(isolate, 0, nullptr);
+      Managed<icu::DateIntervalFormat>::From(isolate, 0, nullptr);
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSDateTimeFormat> date_time_format = Cast<JSDateTimeFormat>(

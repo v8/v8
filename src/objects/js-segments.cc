@@ -29,14 +29,14 @@ namespace internal {
 MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
                                            DirectHandle<JSSegmenter> segmenter,
                                            Handle<String> string) {
-  icu::BreakIterator* break_iterator =
-      segmenter->icu_break_iterator()->raw()->clone();
+  std::shared_ptr<icu::BreakIterator> break_iterator{
+      segmenter->icu_break_iterator()->raw()->clone()};
   DCHECK_NOT_NULL(break_iterator);
 
   DirectHandle<Managed<icu::UnicodeString>> unicode_string =
-      Intl::SetTextToBreakIterator(isolate, string, break_iterator);
+      Intl::SetTextToBreakIterator(isolate, string, break_iterator.get());
   DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
+      Managed<icu::BreakIterator>::From(isolate, 0, std::move(break_iterator));
 
   // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
   // 2. Let segments be ! ObjectCreate(%Segments.prototype%, internalSlotsList).

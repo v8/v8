@@ -470,8 +470,9 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
   // but all we get from the embedder is a {void*}, so our best estimate
   // is the size of the metadata.
   size_t estimated_size = sizeof(ManagedData);
-  i::DirectHandle<i::Object> wrapper = i::Managed<ManagedData>::FromRawPtr(
-      i_isolate(), estimated_size, new ManagedData(info, finalizer));
+  i::DirectHandle<i::Object> wrapper = i::Managed<ManagedData>::From(
+      i_isolate(), estimated_size,
+      std::make_shared<ManagedData>(info, finalizer));
   int32_t hash = i::Object::GetOrCreateHash(*object, i_isolate()).value();
   i::JSWeakCollection::Set(host_info_map_, object, wrapper, hash);
 }
@@ -1500,14 +1501,14 @@ class SignatureHelper : public i::AllStatic {
 #endif
 };
 
-auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
+auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
   i::DirectHandle<i::Managed<FuncData>> embedder_data =
-      i::Managed<FuncData>::FromRawPtr(isolate, sizeof(FuncData), data);
+      i::Managed<FuncData>::From(isolate, sizeof(FuncData), data);
 #if V8_ENABLE_SANDBOX
   uint64_t signature_hash = SignatureHelper::Hash(data->type.get());
 #else
@@ -1528,14 +1529,15 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
 
 auto Func::make(Store* store, const FuncType* type, Func::callback callback)
     -> own<Func> {
-  auto data = new FuncData(store, type, FuncData::kCallback);
+  auto data = std::make_shared<FuncData>(store, type, FuncData::kCallback);
   data->callback = callback;
   return make_func(store, data);
 }
 
 auto Func::make(Store* store, const FuncType* type, callback_with_env callback,
                 void* env, void (*finalizer)(void*)) -> own<Func> {
-  auto data = new FuncData(store, type, FuncData::kCallbackWithEnv);
+  auto data =
+      std::make_shared<FuncData>(store, type, FuncData::kCallbackWithEnv);
   data->callback_with_env = callback;
   data->env = env;
   data->finalizer = finalizer;

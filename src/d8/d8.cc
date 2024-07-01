@@ -782,8 +782,9 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
   i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
-      i::Managed<ModuleEmbedderData>::Allocate(
-          i_isolate, kModuleEmbedderDataEstimate, context->GetIsolate());
+      i::Managed<ModuleEmbedderData>::From(
+          i_isolate, kModuleEmbedderDataEstimate,
+          std::make_shared<ModuleEmbedderData>(context->GetIsolate()));
   v8::Local<v8::Value> module_data = Utils::ToLocal(module_data_managed);
   context->SetEmbedderData(kModuleEmbedderDataIndex, module_data);
   return module_data_managed->get();
@@ -2984,8 +2985,8 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     auto worker = std::make_shared<Worker>(*script);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
-    i::Handle<i::Object> managed = i::Managed<Worker>::FromSharedPtr(
-        i_isolate, kWorkerSizeEstimate, worker);
+    i::Handle<i::Object> managed =
+        i::Managed<Worker>::From(i_isolate, kWorkerSizeEstimate, worker);
     info.This()->SetInternalField(0, Utils::ToLocal(managed));
     base::Thread::Priority priority =
         options.apply_priority ? base::Thread::Priority::kUserBlocking

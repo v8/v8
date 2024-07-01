@@ -164,7 +164,7 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Object> obj = async_hooks_templ.Get(v8_isolate)
                           ->NewInstance(currentContext)
                           .ToLocalChecked();
-  i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::FromSharedPtr(
+  i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::From(
       reinterpret_cast<i::Isolate*>(v8_isolate), sizeof(AsyncHooksWrap), wrap);
   obj->SetInternalField(0, Utils::ToLocal(managed));
 

@@ -6983,8 +6983,8 @@ TEST(Regress8014) {
   {
     HandleScope scope(isolate);
     for (int i = 0; i < 10000; i++) {
-      auto handle = Managed<DeleteNative>::FromRawPtr(isolate, 1000000,
-                                                      new DeleteNative());
+      auto handle = Managed<DeleteNative>::From(
+          isolate, 1000000, std::make_shared<DeleteNative>());
       USE(handle);
     }
   }

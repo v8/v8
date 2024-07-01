@@ -198,12 +198,11 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
   // Ref: https://github.com/tc39/proposal-intl-relative-time/issues/11
-  icu::RelativeDateTimeFormatter* icu_formatter =
-      new icu::RelativeDateTimeFormatter(icu_locale, number_format,
-                                         toIcuStyle(style_enum),
-                                         UDISPCTX_CAPITALIZATION_NONE, status);
+  std::shared_ptr<icu::RelativeDateTimeFormatter> icu_formatter =
+      std::make_shared<icu::RelativeDateTimeFormatter>(
+          icu_locale, number_format, toIcuStyle(style_enum),
+          UDISPCTX_CAPITALIZATION_NONE, status);
   if (U_FAILURE(status) || icu_formatter == nullptr) {
-    delete icu_formatter;
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
@@ -212,8 +211,8 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
           Intl::GetNumberingSystem(icu_locale).c_str());
 
   DirectHandle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
-      Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
-                                                          icu_formatter);
+      Managed<icu::RelativeDateTimeFormatter>::From(isolate, 0,
+                                                    std::move(icu_formatter));
 
   Handle<JSRelativeTimeFormat> relative_time_format_holder =
       Cast<JSRelativeTimeFormat>(

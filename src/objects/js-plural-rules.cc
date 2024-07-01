@@ -146,14 +146,14 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
       settings.locale(icu_locale);
 
   DirectHandle<Managed<icu::PluralRules>> managed_plural_rules =
-      Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,
-                                               std::move(icu_plural_rules));
+      Managed<icu::PluralRules>::From(isolate, 0, std::move(icu_plural_rules));
 
   DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
+          Managed<icu::number::LocalizedNumberFormatter>::From(
               isolate, 0,
-              new icu::number::LocalizedNumberFormatter(icu_number_formatter));
+              std::make_shared<icu::number::LocalizedNumberFormatter>(
+                  icu_number_formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSPluralRules> plural_rules = Cast<JSPluralRules>(

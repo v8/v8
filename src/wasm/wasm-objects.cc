@@ -74,7 +74,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     size_t memory_estimate =
         native_module->committed_code_space() +
         wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-    managed_native_module = Managed<wasm::NativeModule>::FromSharedPtr(
+    managed_native_module = Managed<wasm::NativeModule>::From(
         isolate, memory_estimate, std::move(native_module));
   }
   Handle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
@@ -2571,8 +2571,8 @@ Handle<AsmWasmData> AsmWasmData::New(
           module, kUsesLiftoff, wasm::kNoDynamicTiering) +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   DirectHandle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
-                                                 std::move(native_module));
+      Managed<wasm::NativeModule>::From(isolate, memory_estimate,
+                                        std::move(native_module));
   auto result = Cast<AsmWasmData>(
       isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, AllocationType::kOld));
   result->set_managed_native_module(*managed_native_module);

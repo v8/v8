@@ -331,7 +331,8 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
   DirectHandle<Managed<icu::Locale>> managed_locale =
-      Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
+      Managed<icu::Locale>::From(
+          isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
   // 16. Let prevStyle be the empty String.
   // 17. For each row of Table 1, except the header row, in table order, do
   //   a. Let styleSlot be the Style Slot value of the current row.
@@ -449,8 +450,9 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   }
   DirectHandle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
-          Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
-              isolate, 0, new icu::number::LocalizedNumberFormatter(fmt));
+          Managed<icu::number::LocalizedNumberFormatter>::From(
+              isolate, 0,
+              std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 
   // 19. Return durationFormat.
   Handle<JSDurationFormat> duration_format =

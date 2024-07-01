@@ -717,11 +717,11 @@ void WebAssemblyCompileStreaming(
 
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
-  i::Handle<i::Managed<WasmStreaming>> data =
-      i::Managed<WasmStreaming>::Allocate(
-          i_isolate, 0,
+  i::Handle<i::Managed<WasmStreaming>> data = i::Managed<WasmStreaming>::From(
+      i_isolate, 0,
+      std::make_shared<WasmStreaming>(
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
-              i_isolate, kAPIMethodName, compile_imports, resolver));
+              i_isolate, kAPIMethodName, compile_imports, resolver)));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(v8::Function, compile_callback,
@@ -1066,12 +1066,12 @@ void WebAssemblyInstantiateStreaming(
 
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
-  i::Handle<i::Managed<WasmStreaming>> data =
-      i::Managed<WasmStreaming>::Allocate(
-          i_isolate, 0,
+  i::Handle<i::Managed<WasmStreaming>> data = i::Managed<WasmStreaming>::From(
+      i_isolate, 0,
+      std::make_shared<WasmStreaming>(
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
               i_isolate, kAPIMethodName, compile_imports,
-              compilation_resolver));
+              compilation_resolver)));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(v8::Function, compile_callback,
