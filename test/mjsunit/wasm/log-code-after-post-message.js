@@ -9,7 +9,7 @@ function workerCode() {
     postMessage(profile.indexOf('foo'));
   }
 
-  onmessage = ({data:wasm_module}) => {
+  onmessage = (wasm_module) => {
     WebAssembly.instantiate(wasm_module, {q: {func: d8.profiler.triggerSample}})
         .then(instance => {
           instance.exports.foo();

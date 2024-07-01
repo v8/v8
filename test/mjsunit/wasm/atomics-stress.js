@@ -298,7 +298,7 @@ function getSequence(start, end) {
 
 function spawnWorkers() {
   function workerCode() {
-    onmessage = function({data:msg}) {
+    onmessage = function(msg) {
       if (msg.module) {
         let module = msg.module;
         let mem = msg.mem;

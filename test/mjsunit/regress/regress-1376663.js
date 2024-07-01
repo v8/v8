@@ -5,7 +5,7 @@
 // Flags: --ignore-unhandled-promises
 
 function __f_0() {
-  onmessage = function({data:e}) {
+  onmessage = function(e) {
     import("./does_not_exist.js");
     while(true) {}
   }

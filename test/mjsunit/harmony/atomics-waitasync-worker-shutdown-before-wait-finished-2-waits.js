@@ -11,7 +11,7 @@
 
   (function createWorker() {
     function workerCode(location) {
-      onmessage = function({data:msg}) {
+      onmessage = function(msg) {
         if (msg.sab) {
           const i32a = new Int32Array(msg.sab);
           // Start 2 async waits in the same location.

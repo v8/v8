@@ -32,7 +32,7 @@ function workerScript(script) {
       }
     };
 
-    var onmessage = function({data:msg}) {
+    var onmessage = function(msg) {
       switch (msg.kind) {
         case 'start':
           i32a = msg.i32a;

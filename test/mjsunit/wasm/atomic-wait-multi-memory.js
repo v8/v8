@@ -64,7 +64,7 @@ const k10s = 10000;
   print(arguments.callee.name);
   function workerCode() {
     instance = undefined;
-    onmessage = function({data:msg}) {
+    onmessage = function(msg) {
       if (!instance) {
         instance = new WebAssembly.Instance(msg.module, msg.imports);
         postMessage('instantiated');

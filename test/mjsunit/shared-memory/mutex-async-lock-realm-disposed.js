@@ -7,7 +7,7 @@
 
 if (this.Worker) {
   (function TestRealmWithAsyncWaiterDisposed() {
-    let workerLockScript = `onmessage = function({data:msg}) {
+    let workerLockScript = `onmessage = function(msg) {
         let {mutex, sharedObj} = msg;
         Atomics.Mutex.lock(mutex, function() {
           postMessage('Lock acquired');

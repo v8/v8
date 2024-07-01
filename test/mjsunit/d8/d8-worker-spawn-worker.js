@@ -28,7 +28,7 @@
 if (this.Worker) {
   var workerScript =
     `var w = new Worker('postMessage(42)', {type: 'string'});
-     onmessage = function({data:parentMsg}) {
+     onmessage = function(parentMsg) {
        w.postMessage(parentMsg);
        var childMsg = w.getMessage();
        postMessage(childMsg);

@@ -12,7 +12,7 @@ builder.addFunction('main', kSig_v_v).addBody([
 const module = builder.toModule();
 
 function workerCode() {
-  onmessage = function({data:module}) {
+  onmessage = function(module) {
     print('[worker] Creating instance.');
     let instance = new WebAssembly.Instance(module);
     print('[worker] Reporting start.');

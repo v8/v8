@@ -35,7 +35,7 @@ var workerScript =
 // context.
    foo = 100;
    var c = 0;
-   onmessage = function({data:m}) {
+   onmessage = function(m) {
      switch (c++) {
        case 0:
          if (m !== undefined) throw new Error('undefined');

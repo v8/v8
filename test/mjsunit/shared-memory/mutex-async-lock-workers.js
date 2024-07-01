@@ -8,7 +8,7 @@
 
 if (this.Worker) {
   (function TestTimeout() {
-    let workerScript = `onmessage = function({data:msg}) {
+    let workerScript = `onmessage = function(msg) {
         let {mutex, box, cv, cv_mutex} = msg;
         Atomics.Mutex.lock(mutex, function() {
           Atomics.Mutex.lock(cv_mutex, function() {

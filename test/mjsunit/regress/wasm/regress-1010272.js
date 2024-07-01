@@ -15,7 +15,8 @@ function AllocMemory(initial, maximum = initial) {
   let worker = [];
   for (let w = 0; w < kNumWorkers; w++) {
     worker[w] = new Worker(
-        `onmessage = function({data:msg}) {
+        `onmessage =
+        function(msg) {
           msg.memory.grow(1);
         }`, {type : 'string'});
   }

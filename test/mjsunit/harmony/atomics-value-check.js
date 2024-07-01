@@ -6,7 +6,7 @@ var sab = new SharedArrayBuffer(4);
 var sta = new Int8Array(sab);
 sta[0] = 5;
 function workerCode() {
-  onmessage = function({data:msg}) {
+  onmessage = function(msg) {
     postMessage(0);
   };
 }

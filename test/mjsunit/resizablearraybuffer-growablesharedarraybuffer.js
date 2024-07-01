@@ -523,7 +523,7 @@ const arrayBufferCtors = [[ArrayBuffer, (b) => b.resizable],
         postMessage('error');
       }
     }
-    onmessage = function({data:params}) {
+    onmessage = function(params) {
       const gsab = params.gsab;
       assert(!(gsab instanceof ArrayBuffer));
       assert(gsab instanceof SharedArrayBuffer);

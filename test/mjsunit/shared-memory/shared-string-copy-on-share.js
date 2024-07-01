@@ -13,7 +13,7 @@ if (this.Worker) {
     let b1 = new Box();
     b1.payload = "started";
     postMessage(b1);
-    onmessage = function({data:box}) {
+    onmessage = function(box) {
       if (!%IsSharedString(box.payload)) {
         throw new Error("str isn't shared");
       }

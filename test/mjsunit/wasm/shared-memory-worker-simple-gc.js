@@ -8,7 +8,7 @@ const kNumIterations = 10;
 
 function NewWorker() {
   let script =
-`onmessage = ({data:msg}) => {
+`onmessage = (msg) => {
    if (msg.memory) postMessage("ack");
    if (msg.quit) postMessage("bye");
    gc();

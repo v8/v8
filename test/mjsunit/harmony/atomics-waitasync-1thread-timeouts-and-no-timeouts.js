@@ -32,7 +32,7 @@ function workerCode(N) {
     postMessage("notify return value " + notify_return_value);
   }
 
-  onmessage = function({data:param}) {
+  onmessage = function(param) {
     if (param == "start") {
       start();
     } else if (param == "wakeUpRemainingWaiters") {

@@ -6,7 +6,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const kNumberOfWorker = 4;
 
-const workerOnMessage = function({data:msg}) {
+const workerOnMessage = function(msg) {
   if (msg.module) {
     let module = msg.module;
     let mem = msg.mem;

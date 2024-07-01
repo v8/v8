@@ -10,7 +10,7 @@ if (this.Worker) {
 
 (function TestMutexWorkers() {
   let workerScript =
-      `onmessage = function({data:msg}) {
+      `onmessage = function(msg) {
          let mutex = msg.mutex;
          let box = msg.box;
          for (let i = 0; i < 10; i++) {
@@ -43,7 +43,7 @@ if (this.Worker) {
 })();
 
 (function TestMutexWaiters() {
-  let workerScript = `onmessage = function({data:msg}) {
+  let workerScript = `onmessage = function(msg) {
          let mutex = msg.mutex;
          let box = msg.box;
          Atomics.Mutex.lock(mutex, function() {
@@ -81,7 +81,7 @@ if (this.Worker) {
 })();
 
 (function TestTimeout() {
-  let worker1Script = `onmessage = function({data:msg}) {
+  let worker1Script = `onmessage = function(msg) {
         let {mutex, box, cv, cv_mutex} = msg;
         Atomics.Mutex.lock(mutex, function() {
           Atomics.Mutex.lock(cv_mutex, function() {
@@ -96,7 +96,7 @@ if (this.Worker) {
         postMessage("done");
       };
       postMessage("started");`;
-  let worker2Script = `onmessage = function({data:msg}) {
+  let worker2Script = `onmessage = function(msg) {
          let {mutex, box, cv, cv_mutex} = msg;
          let result =
             Atomics.Mutex.lockWithTimeout(mutex, ()=>{} , 1);
@@ -134,7 +134,7 @@ if (this.Worker) {
   // Racy version of the timeout test, where the worker holding the lock might
   // unlock it while the other worker is timing out and cleaning its waiter from
   // the queue.
-  let workerLockScript = `onmessage = function({data:msg}) {
+  let workerLockScript = `onmessage = function(msg) {
       let {mutex, box} = msg;
       Atomics.Mutex.lock(mutex, function() {
         while (!Atomics.load(box, 'isDone')) {}
@@ -143,7 +143,7 @@ if (this.Worker) {
     }
     postMessage("started");`;
 
-  let timedOutWorkerScript = `onmessage = function({data:msg}) {
+  let timedOutWorkerScript = `onmessage = function(msg) {
       let {mutex} = msg;
       let result = Atomics.Mutex.lockWithTimeout(mutex, function() {}, 0);
       postMessage("done");
