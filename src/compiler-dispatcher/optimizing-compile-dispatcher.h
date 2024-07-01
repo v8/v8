@@ -91,6 +91,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void QueueForOptimization(TurbofanCompilationJob* job);
   void AwaitCompileTasks();
   void InstallOptimizedFunctions();
+  void InstallGeneratedBuiltins();
 
   inline bool IsQueueAvailable() { return input_queue_.IsAvailable(); }
 
@@ -101,7 +102,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   // Whether to finalize and thus install the optimized code.  Defaults to true.
   // Only set to false for testing (where finalization is then manually
-  // requested using %FinalizeOptimization).
+  // requested using %FinalizeOptimization) and when compiling embedded builtins
+  // concurrently. For the latter, all builtins are installed at once at the end
+  // in InstallGeneratedBuiltins().
   bool finalize() const { return finalize_; }
   void set_finalize(bool finalize) {
     CHECK(!HasJobs());
@@ -130,7 +133,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   OptimizingCompileDispatcherQueue input_queue_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<TurbofanCompilationJob*> output_queue_;
+  std::deque<TurbofanCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;
