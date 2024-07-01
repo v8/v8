@@ -4366,33 +4366,35 @@ void CompilationStateImpl::PublishCompilationResults(
 
   // For import wrapper compilation units, add result to the cache.
   int num_imported_functions = native_module_->num_imported_functions();
-  base::Optional<WasmImportWrapperCache::ModificationScope>
-      import_wrapper_cache_modification_scope;
-  for (const auto& code : unpublished_code) {
-    int func_index = code->index();
-    DCHECK_LE(0, func_index);
-    DCHECK_LT(func_index, native_module_->num_functions());
-    if (func_index < num_imported_functions) {
-      const WasmFunction& function =
-          native_module_->module()->functions[func_index];
-      uint32_t canonical_type_index =
-          native_module_->module()
-              ->isorecursive_canonical_type_ids[function.sig_index];
-      WasmImportWrapperCache::CacheKey key(
-          kDefaultImportCallKind, canonical_type_index,
-          static_cast<int>(function.sig->parameter_count()), kNoSuspend);
-      if (!import_wrapper_cache_modification_scope.has_value()) {
-        import_wrapper_cache_modification_scope.emplace(
-            native_module_->import_wrapper_cache());
+  {
+    base::Optional<WasmImportWrapperCache::ModificationScope>
+        import_wrapper_cache_modification_scope;
+    for (const auto& code : unpublished_code) {
+      int func_index = code->index();
+      DCHECK_LE(0, func_index);
+      DCHECK_LT(func_index, native_module_->num_functions());
+      if (func_index < num_imported_functions) {
+        const WasmFunction& function =
+            native_module_->module()->functions[func_index];
+        uint32_t canonical_type_index =
+            native_module_->module()
+                ->isorecursive_canonical_type_ids[function.sig_index];
+        WasmImportWrapperCache::CacheKey key(
+            kDefaultImportCallKind, canonical_type_index,
+            static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+        if (!import_wrapper_cache_modification_scope.has_value()) {
+          import_wrapper_cache_modification_scope.emplace(
+              native_module_->import_wrapper_cache());
+        }
+        // If two imported functions have the same key, only one of them should
+        // have been added as a compilation unit. So it is always the first time
+        // we compile a wrapper for this key here.
+        WasmCode*& cache_slot =
+            import_wrapper_cache_modification_scope.value()[key];
+        DCHECK_NULL(cache_slot);
+        cache_slot = code.get();
+        code->IncRef();
       }
-      // If two imported functions have the same key, only one of them should
-      // have been added as a compilation unit. So it is always the first time
-      // we compile a wrapper for this key here.
-      WasmCode*& cache_slot =
-          import_wrapper_cache_modification_scope.value()[key];
-      DCHECK_NULL(cache_slot);
-      cache_slot = code.get();
-      code->IncRef();
     }
   }
   PublishCode(base::VectorOf(unpublished_code));
