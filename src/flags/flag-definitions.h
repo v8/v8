@@ -431,6 +431,7 @@ DEFINE_NEG_IMPLICATION(enable_third_party_heap, inline_new)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_builtin_generation)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, script_streaming)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap,
                        parallel_compile_tasks_for_eager_toplevel)
@@ -782,10 +783,12 @@ DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
 DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(assert_types, concurrent_builtin_generation)
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_assert_types,
     "generate runtime type assertions to test the turboshaft type system")
 DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_builtin_generation)
 
 // Enable verification of SimplifiedLowering in debug builds.
 DEFINE_BOOL(verify_simplified_lowering, DEBUG_BOOL,
@@ -1052,6 +1055,9 @@ DEFINE_SIZE_T(
     max_shared_heap_size, 0,
     "max size of the shared heap (in Mbytes); "
     "other heap size flags (e.g. max_shared_heap_size) take precedence")
+
+DEFINE_BOOL(concurrent_builtin_generation, true,
+            "generate builtins concurrently on separate threads in mksnapshot")
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
@@ -3104,6 +3110,7 @@ DEFINE_NEG_IMPLICATION(predictable_gc_schedule, memory_reducer)
 DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(single_threaded, concurrent_builtin_generation)
 DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 DEFINE_NEG_IMPLICATION(single_threaded, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(single_threaded,

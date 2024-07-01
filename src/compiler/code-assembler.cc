@@ -7,8 +7,11 @@
 #include <ostream>
 
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/constants-table-builder.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -172,6 +175,7 @@ Handle<Code> CodeAssembler::GenerateCode(
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
 
+  // TODO(syg): Convert tests to stop using this.
   code = Pipeline::GenerateCodeForCodeStub(
              rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
              rasm->source_positions(), state->kind_, state->name_,
@@ -180,6 +184,27 @@ Handle<Code> CodeAssembler::GenerateCode(
 
   state->code_generated_ = true;
   return code;
+}
+
+// static
+void CodeAssembler::CompileCode(Isolate* isolate,
+                                std::unique_ptr<TurbofanCompilationJob> job) {
+  DCHECK(job->compilation_info()->code_kind() == CodeKind::BUILTIN ||
+         job->compilation_info()->code_kind() == CodeKind::BYTECODE_HANDLER);
+
+  CHECK_EQ(CompilationJob::SUCCEEDED, job->PrepareJob(isolate));
+
+  if (v8_flags.concurrent_builtin_generation) {
+    DCHECK(isolate->optimizing_compile_dispatcher()->IsQueueAvailable());
+    isolate->optimizing_compile_dispatcher()->QueueForOptimization(
+        job.release());
+  } else {
+    // If concurrent generation is disabled, generate on the main thread.
+    CHECK_EQ(CompilationJob::SUCCEEDED,
+             job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                             isolate->main_thread_local_isolate()));
+    CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate));
+  }
 }
 
 bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }
@@ -282,11 +307,27 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
   return SmiConstant(Smi::FromInt(value));
 }
 
+void CodeAssembler::CanonicalizeEmbeddedBuiltinsConstantIfNeeded(
+    Handle<HeapObject> object) {
+  // This must be called on the main thread so that the builtins constant
+  // indices are reproducible from run to run of mksnapshot.
+  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  RootIndex dummy_root;
+  Builtin dummy_builtin;
+  if (isolate()->IsGeneratingEmbeddedBuiltins() &&
+      !isolate()->roots_table().IsRootHandle(object, &dummy_root) &&
+      !isolate()->builtins()->IsBuiltinHandle(object, &dummy_builtin) &&
+      !IsInstructionStream(*object)) {
+    isolate()->builtins_constants_table_builder()->AddObject(object);
+  }
+}
+
 // This emits an untyped heap constant that is never a hole.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantNoHole(
     Handle<HeapObject> object) {
   // jsgraph()->HeapConstantNoHole does a CHECK that it is in fact a hole
   // value.
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantNoHole(object));
 }
 
@@ -294,18 +335,21 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstantNoHole(
 // Only use this if you really need to and cannot use *NoHole or *Hole.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantMaybeHole(
     Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantMaybeHole(object));
 }
 
 // This is used to emit an untyped heap constant that can only be Hole values.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantHole(
     Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantHole(object));
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
       factory()->InternalizeString(base::OneByteVector(str));
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
   return UncheckedCast<String>(HeapConstantNoHole(internalized_string));
 }
 
