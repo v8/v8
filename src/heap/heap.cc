@@ -4265,11 +4265,10 @@ void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.flush_liftoff_code) {
     // Flush Liftoff code and record the flushed code size.
-    auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
+    int liftoff_codesize =
+        static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
     isolate_->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
-        static_cast<int>(code_size));
-    isolate_->counters()->wasm_flushed_liftoff_metadata_size_bytes()->AddSample(
-        static_cast<int>(metadata_size));
+        liftoff_codesize);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   CompleteArrayBufferSweeping(this);

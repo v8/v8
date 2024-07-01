@@ -2225,13 +2225,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
       critical_committed_code_space_.load()) {
     // Flush Liftoff code and record the flushed code size.
     if (v8_flags.flush_liftoff_code) {
-      auto [code_size, metadata_size] =
-          wasm::GetWasmEngine()->FlushLiftoffCode();
+      int liftoff_codesize =
+          static_cast<int>(wasm::GetWasmEngine()->FlushLiftoffCode());
       isolate->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
-          static_cast<int>(code_size));
-      isolate->counters()
-          ->wasm_flushed_liftoff_metadata_size_bytes()
-          ->AddSample(static_cast<int>(metadata_size));
+          liftoff_codesize);
     }
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
@@ -2298,10 +2295,6 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
   int code_size_kb = static_cast<int>(code_size / KB);
   counters->wasm_module_code_size_kb()->AddSample(code_size_kb);
-  // Record the size of meta data.
-  int metadata_size_kb =
-      static_cast<int>(EstimateCurrentMemoryConsumption() / KB);
-  counters->wasm_module_metadata_size_kb()->AddSample(metadata_size_kb);
   // If this is a wasm module of >= 2MB, also sample the freed code size,
   // absolute and relative. Code GC does not happen on asm.js
   // modules, and small modules will never trigger GC anyway.
@@ -2435,18 +2428,15 @@ bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
 }
 }  // namespace
 
-std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
-    RemoveFilter filter) {
+size_t NativeModule::RemoveCompiledCode(RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   size_t removed_codesize = 0;
-  size_t removed_metadatasize = 0;
   for (uint32_t i = 0; i < num_functions; i++) {
     WasmCode* code = code_table_[i];
     if (code && ShouldRemoveCode(code, filter)) {
       removed_codesize += code->instructions_size();
-      removed_metadatasize += code->EstimateCurrentMemoryConsumption();
       code_table_[i] = nullptr;
       // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop to
       // zero here. It might in the {WasmCodeRefScope} destructor, though.
@@ -2463,7 +2453,7 @@ std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
       filter == RemoveFilter::kRemoveTurbofanCode) {
     compilation_state_->AllowAnotherTopTierJobForAllFunctions();
   }
-  return std::make_pair(removed_codesize, removed_metadatasize);
+  return removed_codesize;
 }
 
 size_t NativeModule::SumLiftoffCodeSizeForTesting() const {

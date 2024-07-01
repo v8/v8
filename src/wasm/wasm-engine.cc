@@ -1099,18 +1099,15 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   return module_object;
 }
 
-std::pair<size_t, size_t> WasmEngine::FlushLiftoffCode() {
+size_t WasmEngine::FlushLiftoffCode() {
   WasmCodeRefScope ref_scope;
   base::MutexGuard guard(&mutex_);
-  size_t removed_code_size = 0;
-  size_t removed_metadata_size = 0;
+  size_t codesize_liftoff = 0;
   for (auto& [native_module, info] : native_modules_) {
-    auto [code_size, metadata_size] = native_module->RemoveCompiledCode(
+    codesize_liftoff += native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveLiftoffCode);
-    removed_code_size += code_size;
-    removed_metadata_size += metadata_size;
   }
-  return {removed_code_size, removed_metadata_size};
+  return codesize_liftoff;
 }
 
 size_t WasmEngine::GetLiftoffCodeSizeForTesting() {
