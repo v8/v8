@@ -3276,7 +3276,7 @@ void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
     }
     alt_gen->expects_preload = preload->preload_is_current_;
     bool generate_full_check_inline = false;
-    if (compiler->optimize() &&
+    if (v8_flags.regexp_optimization &&
         try_to_emit_quick_check_for_alternative(i == 0) &&
         alternative.node()->EmitQuickCheck(
             compiler, trace, &new_trace, preload->preload_has_checked_bounds_,
