@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "include/cppgc/platform.h"
+#include "include/v8-sandbox.h"
 #include "src/api/api.h"
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
@@ -25,6 +26,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
 #include "src/snapshot/snapshot.h"
@@ -319,6 +321,14 @@ void ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler() {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   internal::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
 #endif
+  // TODO(sroettger): this could move to a more generic
+  // SecurityHardwareSupport::SetDefaultPermissionsForSignalHandler.
+  internal::SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler();
+}
+
+// static
+void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
+  internal::SandboxHardwareSupport::InitializeBeforeThreadCreation();
 }
 
 }  // namespace v8

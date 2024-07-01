@@ -101,6 +101,16 @@ struct CppHeapPointerTagRange {
 constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
     CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kLastTag);
 
+class SandboxHardwareSupport {
+ public:
+  /**
+   * Initialize sandbox hardware support. This needs to be called before
+   * creating any thread that might access sandbox memory since it sets up
+   * hardware permissions to the memory that will be inherited on clone.
+   */
+  V8_EXPORT static void InitializeBeforeThreadCreation();
+};
+
 namespace internal {
 
 #ifdef V8_COMPRESS_POINTERS

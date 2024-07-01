@@ -6168,6 +6168,8 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // V8_USE_PERFETTO
   }
 
+  v8::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+
   platform::tracing::TracingController* tracing_controller = tracing.get();
   if (i::v8_flags.single_threaded) {
     g_platform = v8::platform::NewSingleThreadedDefaultPlatform(

@@ -19,6 +19,7 @@
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/zapping.h"
 #include "src/logging/log.h"
+#include "src/sandbox/hardware-support.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -460,6 +461,11 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
                                std::move(chunk_info->reservation));
 
   new (chunk_info->chunk) MemoryChunk(metadata->InitialFlags(), metadata);
+
+  SandboxHardwareSupport::NotifyReadOnlyPageCreated(
+      metadata->ChunkAddress(), metadata->size(),
+      PageAllocator::Permission::kReadWrite);
+
   return metadata;
 }
 
