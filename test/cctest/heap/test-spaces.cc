@@ -175,7 +175,7 @@ TEST(MutablePageMetadata) {
     // code range for easy metadata lookup, so use the process wide code range
     // in this case.
     CodeRange* code_range =
-        CodeRange::EnsureProcessWideCodeRange(page_allocator, code_range_size);
+        IsolateGroup::current()->EnsureCodeRange(code_range_size);
     base::BoundedPageAllocator* page_allocator = code_range->page_allocator();
 #else
     // With CodeRange.

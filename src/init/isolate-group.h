@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/once.h"
 #include "src/base/page-allocator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -24,6 +25,7 @@ namespace internal {
 #ifdef V8_ENABLE_SANDBOX
 class Sandbox;
 #endif
+class CodeRange;
 
 // An IsolateGroup allows an API user to control which isolates get allocated
 // together in a shared pointer cage.
@@ -96,8 +98,25 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   }
 #endif  // V8_COMPRESS_POINTERS
 
+  CodeRange* EnsureCodeRange(size_t requested_size);
+  CodeRange* GetCodeRange() const { return code_range_.get(); }
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#ifdef USING_V8_SHARED_PRIVATE
+  static IsolateGroup* current() { return current_non_inlined(); }
+  static void set_current(IsolateGroup* group) {
+    set_current_non_inlined(group);
+  }
+#else   // !USING_V8_SHARED_PRIVATE
+  static IsolateGroup* current() { return current_; }
+  static void set_current(IsolateGroup* group) { current_ = group; }
+#endif  // !USING_V8_SHARED_PRIVATE
+#else   // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  static IsolateGroup* current() { return GetProcessWideIsolateGroup(); }
+#endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
  private:
-  friend class ::v8::base::LeakyObject<IsolateGroup>;
+  friend class base::LeakyObject<IsolateGroup>;
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   // Unless multiple pointer compression cages are enabled, all isolates in a
   // process are in the same isolate group and share process-wide resources from
@@ -105,8 +124,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* GetProcessWideIsolateGroup();
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-  IsolateGroup() {}
-  ~IsolateGroup() { DCHECK_EQ(reference_count_.load(), 0); }
+  IsolateGroup();
+  ~IsolateGroup();
   IsolateGroup(const IsolateGroup&) = delete;
   IsolateGroup& operator=(const IsolateGroup&) = delete;
 
@@ -120,6 +139,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void Initialize();
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  static IsolateGroup* current_non_inlined();
+  static void set_current_non_inlined(IsolateGroup* group);
+#endif
+
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
 
@@ -128,6 +152,13 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   VirtualMemoryCage* pointer_compression_cage_ = nullptr;
   VirtualMemoryCage reservation_;
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  thread_local static IsolateGroup* current_;
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+  base::OnceType init_code_range_ = V8_ONCE_INIT;
+  std::unique_ptr<CodeRange> code_range_;
 };
 
 }  // namespace internal

@@ -464,41 +464,5 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   return embedded_blob_code_copy;
 }
 
-namespace {
-
-CodeRange* process_wide_code_range_ = nullptr;
-
-V8_DECLARE_ONCE(init_code_range_once);
-void InitProcessWideCodeRange(v8::PageAllocator* page_allocator,
-                              size_t requested_size) {
-  CodeRange* code_range = new CodeRange();
-  if (!code_range->InitReservation(page_allocator, requested_size)) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Failed to reserve virtual memory for CodeRange");
-  }
-  process_wide_code_range_ = code_range;
-#ifdef V8_EXTERNAL_CODE_SPACE
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  ExternalCodeCompressionScheme::InitBase(
-      ExternalCodeCompressionScheme::PrepareCageBaseAddress(
-          code_range->base()));
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-}  // namespace
-
-// static
-CodeRange* CodeRange::EnsureProcessWideCodeRange(
-    v8::PageAllocator* page_allocator, size_t requested_size) {
-  base::CallOnce(&init_code_range_once, InitProcessWideCodeRange,
-                 page_allocator, requested_size);
-  return process_wide_code_range_;
-}
-
-// static
-CodeRange* CodeRange::GetProcessWideCodeRange() {
-  return process_wide_code_range_;
-}
-
 }  // namespace internal
 }  // namespace v8

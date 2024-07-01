@@ -4821,8 +4821,8 @@ void Isolate::InitializeIsShortBuiltinCallsEnabled() {
 #endif  // defined(V8_OS_ANDROID)
     // Additionally, enable if there is already a process-wide CodeRange that
     // has re-embedded builtins.
-    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
-      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+    if (COMPRESS_POINTERS_BOOL) {
+      CodeRange* code_range = isolate_group()->GetCodeRange();
       if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
         is_short_builtin_calls_enabled_ = true;
       }

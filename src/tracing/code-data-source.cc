@@ -153,7 +153,8 @@ uint64_t CodeDataSourceIncrementalState::InternIsolate(Isolate& isolate) {
     auto* v8_code_range = isolate_proto->set_code_range();
     v8_code_range->set_base_address(code_range->base());
     v8_code_range->set_size(code_range->size());
-    if (code_range == CodeRange::GetProcessWideCodeRange()) {
+    if (code_range == IsolateGroup::current()->GetCodeRange()) {
+      // FIXME(42204573): Belongs to isolate group, not process.
       v8_code_range->set_is_process_wide(true);
     }
     if (auto* embedded_builtins_start = code_range->embedded_blob_code_copy();

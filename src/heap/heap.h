@@ -851,7 +851,7 @@ class Heap final {
   const base::AddressRegion& code_region();
 
   CodeRange* code_range() {
-#if V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
     return code_range_;
 #else
     return code_range_.get();
@@ -2285,11 +2285,11 @@ class Heap final {
   std::shared_ptr<v8::TaskRunner> task_runner_;
 
   // This object controls virtual space reserved for code on the V8 heap. This
-  // is only valid for 64-bit architectures where kRequiresCodeRange.
+  // is only valid for 64-bit architectures where kPlatformRequiresCodeRange.
   //
-  // Owned by the heap when !V8_COMPRESS_POINTERS_IN_SHARED_CAGE, otherwise is
-  // process-wide.
-#if V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  // Owned by the isolate group when V8_COMPRESS_POINTERS, otherwise owned by
+  // the heap.
+#ifdef V8_COMPRESS_POINTERS
   CodeRange* code_range_ = nullptr;
 #else
   std::unique_ptr<CodeRange> code_range_;

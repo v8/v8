@@ -73,7 +73,7 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
     DCHECK_LT(offset >> kPageSizeBits, kPagesInTrustedCage);
     index = kTrustedSpaceMetadataOffset + (offset >> kPageSizeBits);
   } else {
-    CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+    CodeRange* code_range = IsolateGroup::current()->GetCodeRange();
     DCHECK(code_range->region().contains(chunk_address));
     uint32_t offset = static_cast<uint32_t>(chunk_address - code_range->base());
     DCHECK_LT(offset >> kPageSizeBits, kPagesInCodeCage);

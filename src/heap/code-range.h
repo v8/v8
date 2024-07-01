@@ -115,13 +115,6 @@ class CodeRange final : public VirtualMemoryCage {
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
 
-  V8_EXPORT_PRIVATE static CodeRange* EnsureProcessWideCodeRange(
-      v8::PageAllocator* page_allocator, size_t requested_size);
-
-  // If InitializeProcessWideCodeRangeOnce has been called, returns the
-  // initialized CodeRange. Otherwise returns a null pointer.
-  V8_EXPORT_PRIVATE static CodeRange* GetProcessWideCodeRange();
-
  private:
   static base::AddressRegion GetPreferredRegion(size_t radius_in_megabytes,
                                                 size_t allocate_page_size);
