@@ -18,6 +18,7 @@ function arr_oob_load(a, b) {
 
 %PrepareFunctionForOptimization(arr_oob_load);
 assertEquals([6, 8, 10, 12, NaN, NaN], arr_oob_load(a, b));
+assertEquals([6, 8, 10, 12, NaN, NaN], arr_oob_load(a, b));
 %OptimizeFunctionOnNextCall(arr_oob_load);
 assertEquals([6, 8, 10, 12, NaN, NaN], arr_oob_load(a, b));
 assertOptimized(arr_oob_load);
