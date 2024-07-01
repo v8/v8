@@ -2102,7 +2102,7 @@ class CompareChainNode final : public ZoneObject {
     if (IsFlagSetting()) {
       NegateFlags();
     } else {
-      requires_negation_ = true;
+      requires_negation_ = !requires_negation_;
     }
   }
   void NegateFlags() {
@@ -2201,6 +2201,8 @@ static base::Optional<CompareChainNode*> FindCompareChain(
         return nodes.back();
       }
     }
+    // Ensure we remove any valid sub-trees that now cannot be used.
+    nodes.clear();
     return base::nullopt;
   } else if (selector->valid(user) && selector->CanCover(user, node)) {
     base::Optional<FlagsCondition> user_condition =
@@ -2422,10 +2424,6 @@ static base::Optional<FlagsCondition> TryMatchConditionalCompareChainShared(
 static bool TryMatchConditionalCompareChainBranch(
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone, OpIndex node,
     FlagsContinuationT<TurboshaftAdapter>* cont) {
-  // TODO(sam.parker@arm.com): Fix and re-enable.
-  // See mjsunit/regress/wasm/regress-347961785.js.
-  if ((true)) return false;
-
   if (!cont->IsBranch()) return false;
   DCHECK(cont->condition() == kNotEqual || cont->condition() == kEqual);
 
@@ -2453,10 +2451,6 @@ static bool TryMatchConditionalCompareChainBranch(
 static bool TryMatchConditionalCompareChainSet(
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone,
     OpIndex node) {
-  // TODO(sam.parker@arm.com): Fix and re-enable.
-  // See mjsunit/regress/wasm/regress-347961785.js.
-  if ((true)) return false;
-
   // Create the cmp + ccmp ... sequence.
   CompareSequence sequence;
   auto final_cond =

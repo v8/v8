@@ -28,12 +28,23 @@ constexpr std::array kInt64CmpOpcodes = {
 #endif
 
 enum GraphShape { kBalanced, kUnbalanced };
-enum InvertPattern { kNoInvert, kInvertCompare, kInvertLogic };
+enum InvertPattern {
+  kNoInvert,
+  kInvertCompare,
+  kInvertLogic,
+  kInvertCompareAndLogic,
+  kInvertCompareDouble,
+  kInvertLogicDouble
+};
 enum BranchPattern { kNone, kDirect, kEqualZero, kNotEqualZero };
 
 constexpr GraphShape kGraphShapes[] = {kBalanced, kUnbalanced};
-constexpr InvertPattern kInvertPatterns[] = {kNoInvert, kInvertCompare,
-                                             kInvertLogic};
+constexpr InvertPattern kInvertPatterns[] = {kNoInvert,
+                                             kInvertCompare,
+                                             kInvertLogic,
+                                             kInvertCompareAndLogic,
+                                             kInvertCompareDouble,
+                                             kInvertLogicDouble};
 constexpr BranchPattern kBranchPatterns[] = {kNone, kDirect, kEqualZero,
                                              kNotEqualZero};
 
@@ -55,6 +66,10 @@ static constexpr uint64_t uint64_test_array[] = {
     0x7FF7654321FEDCBA};
 static constexpr auto uint64_test_vector = base::VectorOf(uint64_test_array);
 #endif
+
+// Given kGraphShapes and kInvertPatterns, defined above, the graphs produced by
+// the test framework, with four compares, are illustrated below. In the cases
+// where we insert a branch, this takes the final logic node as the input.
 
 // kBalanced - kNoInvert
 // a       b    c       d    a        b   c       d
@@ -80,11 +95,52 @@ static constexpr auto uint64_test_vector = base::VectorOf(uint64_test_array);
 //           |                         |
 //           ---------> logic <--------
 
+// kBalanced - kInvertCompareDouble
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//    not           |           not           |
+//     |            |            |            |
+//    not           |           not           |
+//     |            |            |            |
+//     --> logic <--             --> logic <--
+//           |                         |
+//           |                         |
+//           ---------> logic <--------
+
 // kBalanced - kInvertLogic
 // a       b    c       d    a        b   c       d
 // |       |    |       |    |        |   |       |
 // |       |    |       |    |        |   |       |
 // -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//     --> logic <--             --> logic <--
+//           |                         |
+//          not                        |
+//           ---------> logic <--------
+
+// kBalanced - kInvertLogicDouble
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//     --> logic <--             --> logic <--
+//           |                         |
+//          not                        |
+//           |                         |
+//          not                        |
+//           ---------> logic <--------
+
+// kBalanced - kInvertCompareAndLogic
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//    not           |           not           |
 //     |            |            |            |
 //     --> logic <--             --> logic <--
 //           |                         |
@@ -117,11 +173,63 @@ static constexpr auto uint64_test_vector = base::VectorOf(uint64_test_array);
 //                        |                   |
 //                         -----> logic <-----
 
+// kUnbalanced - kInvertCompareDouble
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//    not           |           not           |
+//     |            |            |            |
+//    not           |           not           |
+//     |            |            |            |
+//     --> logic <--             |            |
+//           |                   |            |
+//            --------> logic <--             |
+//                        |                   |
+//                         -----> logic <-----
+
 // kUnbalanced - kInvertLogic
 // a       b    c       d    a        b   c       d
 // |       |    |       |    |        |   |       |
 // |       |    |       |    |        |   |       |
 // -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//     --> logic <--             |            |
+//           |                   |            |
+//          not                  |            |
+//            --------> logic <--             |
+//                        |                   |
+//                       not                  |
+//                        |                   |
+//                         -----> logic <-----
+
+// kUnbalanced - kInvertLogicDouble
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//     --> logic <--             |            |
+//           |                   |            |
+//          not                  |            |
+//           |                   |            |
+//          not                  |            |
+//            --------> logic <--             |
+//                        |                   |
+//                       not                  |
+//                        |                   |
+//                       not                  |
+//                        |                   |
+//                         -----> logic <-----
+
+// kUnbalanced - kInvertCompareAndLogic
+// a       b    c       d    a        b   c       d
+// |       |    |       |    |        |   |       |
+// |       |    |       |    |        |   |       |
+// -> cmp <-    -> cmp <-    -> cmp <-    -> cmp <-
+//     |            |            |            |
+//    not           |           not           |
 //     |            |            |            |
 //     --> logic <--             |            |
 //           |                   |            |
@@ -224,6 +332,41 @@ class CombineCompares {
     return m().Word32Equal(node, m().Word32Constant(0));
   }
 
+  V<Word32> MakeNotCompare(V<Word32> node) {
+    V<Word32> inverted = MakeNot(node);
+    if (invert_pattern() == kInvertCompareDouble) {
+      return MakeNot(inverted);
+    } else {
+      return inverted;
+    }
+  }
+
+  V<Word32> MakeNotLogic(V<Word32> node) {
+    V<Word32> inverted = MakeNot(node);
+    if (invert_pattern() == kInvertLogicDouble) {
+      return MakeNot(inverted);
+    } else {
+      return inverted;
+    }
+  }
+
+  bool ShouldDoubleInvert() const {
+    return invert_pattern() == kInvertLogicDouble ||
+           invert_pattern() == kInvertCompareDouble;
+  }
+
+  bool ShouldInvertLogic() const {
+    return invert_pattern() == kInvertLogic ||
+           invert_pattern() == kInvertCompareAndLogic ||
+           invert_pattern() == kInvertLogicDouble;
+  }
+
+  bool ShouldInvertCompare() const {
+    return invert_pattern() == kInvertCompare ||
+           invert_pattern() == kInvertCompareAndLogic ||
+           invert_pattern() == kInvertCompareDouble;
+  }
+
   void BuildGraph(std::array<OpIndex, NumInputs>& inputs) {
     std::array<V<Word32>, NumCompares> compares;
 
@@ -231,10 +374,9 @@ class CombineCompares {
       OpIndex a = inputs.at((2 * i) % NumInputs);
       OpIndex b = inputs.at((2 * i + 1) % NumInputs);
       V<Word32> cmp = MakeCompare(CompareOpcode(i), a, b);
-      // When invert_pattern == kInvertCompare, invert every other compare,
-      // starting with the first.
-      if (invert_pattern() == kInvertCompare && (i % 1)) {
-        compares[i] = MakeNot(cmp);
+      // Invert every other compare, starting with the first.
+      if (ShouldInvertCompare() && (i % 1)) {
+        compares[i] = MakeNotCompare(cmp);
       } else {
         compares[i] = cmp;
       }
@@ -243,16 +385,18 @@ class CombineCompares {
     V<Word32> first_combine =
         MakeBinop(LogicOpcode(0), compares[0], compares[1]);
     if (NumLogic == 1) {
+      if (ShouldInvertLogic()) {
+        return GenerateReturn(MakeNotLogic(first_combine));
+      }
       return GenerateReturn(first_combine);
     }
 
     if (graph_shape() == kUnbalanced) {
       V<Word32> combine = first_combine;
       for (unsigned i = 1; i < NumLogic; ++i) {
-        // When invert_pattern == kInvertLogic, invert every other logic
-        // operation, beginning with the first.
-        if (invert_pattern() == kInvertLogic && (i % 1)) {
-          combine = MakeNot(combine);
+        // Invert every other logic operation, beginning with the first.
+        if (ShouldInvertLogic() && (i % 1)) {
+          combine = MakeNotLogic(combine);
         }
         combine = MakeBinop(LogicOpcode(i), compares.at(i + 1), combine);
       }
@@ -266,15 +410,15 @@ class CombineCompares {
                                          compares.at(2 * i + 1));
       }
       V<Word32> combine = first_combine;
-      // When invert_pattern == kInvertLogic, invert every other first layer
-      // logic operation, beginning with the first.
-      if (invert_pattern() == kInvertLogic) {
-        combine = MakeNot(combine);
+      // Invert every other first layer logic operation, beginning with the
+      // first.
+      if (ShouldInvertLogic()) {
+        combine = MakeNotLogic(combine);
       }
       for (unsigned i = 1; i < NumFirstLayerLogic; ++i) {
         V<Word32> logic_node = first_layer_logic.at(i);
-        if (invert_pattern() == kInvertLogic && !(i % 2)) {
-          logic_node = MakeNot(logic_node);
+        if (ShouldInvertLogic() && !(i % 2)) {
+          logic_node = MakeNotLogic(logic_node);
         }
         uint32_t logic_idx = NumFirstLayerLogic + i - 1;
         combine = MakeBinop(LogicOpcode(logic_idx), logic_node, combine);
@@ -295,6 +439,14 @@ class CombineCompares {
     }
   }
 
+  uint32_t InvertCompare(uint32_t v) const {
+    return invert_pattern() == kInvertCompareDouble ? v : !v;
+  }
+
+  uint32_t InvertLogic(uint32_t v) const {
+    return invert_pattern() == kInvertLogicDouble ? v : !v;
+  }
+
   uint32_t Expected(std::array<CompareType, NumInputs>& inputs) {
     std::array<uint32_t, NumCompares> compare_results;
     for (unsigned i = 0; i < NumCompares; ++i) {
@@ -302,10 +454,9 @@ class CombineCompares {
       CompareType cmp_rhs = inputs.at((2 * i + 1) % NumInputs);
       CompareWrapper cmpw = CompareWrapper(CompareOpcode(i));
       uint32_t cmp_res = EvalCompare(cmpw, cmp_lhs, cmp_rhs);
-      // When invert_pattern == kInvertCompare, invert every other compare,
-      // starting with the first.
-      if (invert_pattern() == kInvertCompare && (i % 1)) {
-        compare_results[i] = !cmp_res;
+      // Invert every other compare, starting with the first.
+      if (ShouldInvertCompare() && (i % 1)) {
+        compare_results[i] = InvertCompare(cmp_res);
       } else {
         compare_results[i] = cmp_res;
       }
@@ -315,16 +466,18 @@ class CombineCompares {
     uint32_t first_combine =
         logicw.eval(compare_results[0], compare_results[1]);
     if (NumLogic == 1) {
+      if (ShouldInvertLogic()) {
+        first_combine = InvertLogic(first_combine);
+      }
       return ExpectedReturn(first_combine);
     }
 
     if (graph_shape() == kUnbalanced) {
       uint32_t combine = first_combine;
       for (unsigned i = 1; i < NumLogic; ++i) {
-        // When invert_pattern == kInvertLogic, invert every other logic
-        // operation, beginning with the first.
-        if (invert_pattern() == kInvertLogic && (i % 1)) {
-          combine = !combine;
+        // Invert every other logic operation, beginning with the first.
+        if (ShouldInvertLogic() && (i % 1)) {
+          combine = InvertLogic(combine);
         }
         logicw = IntBinopWrapper<uint32_t>(LogicOpcode(i));
         combine = logicw.eval(compare_results.at(i + 1), combine);
@@ -339,15 +492,15 @@ class CombineCompares {
                                            compare_results.at(2 * i + 1));
       }
       uint32_t combine = first_combine;
-      // When invert_pattern == kInvertLogic, invert every other first layer
-      // logic operation, beginning with the first.
-      if (invert_pattern() == kInvertLogic) {
-        combine = !combine;
+      // Invert every other first layer logic operation, beginning with the
+      // first.
+      if (ShouldInvertLogic()) {
+        combine = InvertLogic(combine);
       }
       for (unsigned i = 1; i < NumFirstLayerLogic; ++i) {
         uint32_t logic_res = first_layer_logic.at(i);
-        if (invert_pattern() == kInvertLogic && !(i % 2)) {
-          logic_res = !logic_res;
+        if (ShouldInvertLogic() && !(i % 2)) {
+          logic_res = InvertLogic(logic_res);
         }
         uint32_t logic_idx = NumFirstLayerLogic + i - 1;
         logicw = IntBinopWrapper<uint32_t>(LogicOpcode(logic_idx));
@@ -422,33 +575,32 @@ void CombineCompareLogic1(
     const std::array<TurboshaftComparison, 5>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
+  constexpr GraphShape shape = kBalanced;
   for (auto cmp0 : cmp_opcodes) {
     for (auto cmp1 : cmp_opcodes) {
       for (auto logic : kLogicOpcodes) {
-        for (auto shape : kGraphShapes) {
-          for (auto invert_pattern : kInvertPatterns) {
-            for (auto branch_pattern : kBranchPatterns) {
-              RawMachineAssemblerTester<uint32_t> m(input_type(), input_type(),
-                                                    input_type(), input_type());
-              std::array logic_ops = {logic};
-              std::array compare_ops = {cmp0, cmp1};
-              Combiner gen(m, shape, invert_pattern, branch_pattern, logic_ops,
-                           compare_ops);
-              std::array inputs = {
-                  m.Parameter(0),
-                  m.Parameter(1),
-                  m.Parameter(2),
-                  m.Parameter(3),
-              };
-              gen.BuildGraph(inputs);
+        for (auto invert_pattern : kInvertPatterns) {
+          for (auto branch_pattern : kBranchPatterns) {
+            RawMachineAssemblerTester<uint32_t> m(input_type(), input_type(),
+                                                  input_type(), input_type());
+            std::array logic_ops = {logic};
+            std::array compare_ops = {cmp0, cmp1};
+            Combiner gen(m, shape, invert_pattern, branch_pattern, logic_ops,
+                         compare_ops);
+            std::array inputs = {
+                m.Parameter(0),
+                m.Parameter(1),
+                m.Parameter(2),
+                m.Parameter(3),
+            };
+            gen.BuildGraph(inputs);
 
-              for (auto a : input_vector) {
-                for (auto b : input_vector) {
-                  std::array<InputType, 4> inputs{a, b, b, a};
-                  uint32_t expected = gen.Expected(inputs);
-                  uint32_t actual = m.Call(a, b, b, a);
-                  CHECK_EQ(expected, actual);
-                }
+            for (auto a : input_vector) {
+              for (auto b : input_vector) {
+                std::array<InputType, 4> inputs{a, b, b, a};
+                uint32_t expected = gen.Expected(inputs);
+                uint32_t actual = m.Call(a, b, b, a);
+                CHECK_EQ(expected, actual);
               }
             }
           }
