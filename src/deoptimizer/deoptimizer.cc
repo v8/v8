@@ -908,25 +908,15 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // Copy the parameter stack slots.
   static_assert(CommonFrameConstants::kFixedFrameSizeAboveFp ==
                 2 * kSystemPointerSize);
-  uint32_t input_offset = input_->GetFrameSize();
   uint32_t output_offset = total_output_frame_size;
-  if (is_bottommost) {
-    for (uint32_t i = 1; i <= parameter_stack_slots; ++i) {
-      input_offset -= kSystemPointerSize;
-      intptr_t value = input_->GetFrameSlot(input_offset);
-      output_offset -= kSystemPointerSize;
-      output_frame->SetFrameSlot(output_offset, value);
-    }
-  } else {
-    // Zero out the incoming parameter slots. This will make sure that tagged
-    // values are safely ignored by the gc.
-    // Note that zero is clearly not the correct value. Still, liftoff copies
-    // all parameters into "its own" stack slots at the beginning and always
-    // uses these slots to restore parameters from the stack.
-    for (uint32_t i = 0; i < parameter_stack_slots; ++i) {
-      output_offset -= kSystemPointerSize;
-      output_frame->SetFrameSlot(output_offset, 0);
-    }
+  // Zero out the incoming parameter slots. This will make sure that tagged
+  // values are safely ignored by the gc.
+  // Note that zero is clearly not the correct value. Still, liftoff copies
+  // all parameters into "its own" stack slots at the beginning and always
+  // uses these slots to restore parameters from the stack.
+  for (uint32_t i = 0; i < parameter_stack_slots; ++i) {
+    output_offset -= kSystemPointerSize;
+    output_frame->SetFrameSlot(output_offset, 0);
   }
 
   // Store the caller PC.
