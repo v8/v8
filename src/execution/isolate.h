@@ -1340,6 +1340,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return wasm_code_look_up_cache_;
   }
   wasm::WasmOrphanedGlobalHandle* NewWasmOrphanedGlobalHandle();
+  wasm::StackPool& stack_pool() { return stack_pool_; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
@@ -2163,7 +2164,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  std::vector<wasm::StackMemory*>& wasm_stacks() { return wasm_stacks_; }
+  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
+    return wasm_stacks_;
+  }
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
   void UpdateCentralStackInfo();
@@ -2709,8 +2712,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  std::vector<wasm::StackMemory*> wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
+  wasm::StackPool stack_pool_;
 #endif
 
   // Enables the host application to provide a mechanism for recording a

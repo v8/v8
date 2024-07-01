@@ -1349,12 +1349,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   auto parent = handle(Cast<WasmContinuationObject>(
                            isolate->root(RootIndex::kActiveContinuation)),
                        isolate);
-  DirectHandle<WasmContinuationObject> target =
-      WasmContinuationObject::New(isolate, wasm::JumpBuffer::Inactive, parent);
-  auto target_stack =
-      Cast<Managed<wasm::StackMemory>>(target->stack())->get().get();
-  isolate->wasm_stacks().push_back(target_stack);
-  target_stack->set_index(isolate->wasm_stacks().size() - 1);
+  std::unique_ptr<wasm::StackMemory> target_stack =
+      isolate->stack_pool().GetOrAllocate();
+  DirectHandle<WasmContinuationObject> target = WasmContinuationObject::New(
+      isolate, target_stack.get(), wasm::JumpBuffer::Inactive, parent);
+  target_stack->set_index(isolate->wasm_stacks().size());
+  isolate->wasm_stacks().emplace_back(std::move(target_stack));
   for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
     SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
   }

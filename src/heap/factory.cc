@@ -1979,13 +1979,13 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
 }
 
 Handle<WasmContinuationObject> Factory::NewWasmContinuationObject(
-    Address jmpbuf, DirectHandle<Foreign> managed_stack,
-    DirectHandle<HeapObject> parent, AllocationType allocation) {
+    Address jmpbuf, wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
+    AllocationType allocation) {
   Tagged<Map> map = *wasm_continuation_object_map();
   auto result = Cast<WasmContinuationObject>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation, map));
   result->init_jmpbuf(isolate(), jmpbuf);
-  result->set_stack(*managed_stack);
+  result->init_stack(isolate(), reinterpret_cast<Address>(stack));
   result->set_parent(Cast<UnionOf<Undefined, WasmContinuationObject>>(*parent));
   return handle(result, isolate());
 }
