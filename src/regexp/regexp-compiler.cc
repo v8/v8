@@ -3125,11 +3125,6 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     trace = EmitGreedyLoop(compiler, trace, &alt_gens, &preload,
                            &greedy_loop_state, text_length);
   } else {
-    // TODO(erikcorry): Delete this.  We don't need this label, but it makes us
-    // match the traces produced pre-cleanup.
-    Label second_choice;
-    compiler->macro_assembler()->Bind(&second_choice);
-
     preload.eats_at_least_ = EmitOptimizedUnanchoredSearch(compiler, trace);
 
     EmitChoices(compiler, &alt_gens, 0, trace, &preload);
