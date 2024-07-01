@@ -77,7 +77,7 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   v8_flags.incremental_marking = false;
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
-  DirectHandle<JSWeakSet> weakset = AllocateJSWeakSet();
+  IndirectHandle<JSWeakSet> weakset = AllocateJSWeakSet();
   GlobalHandles* global_handles = i_isolate()->global_handles();
 
   // Keep global reference to the key.
