@@ -243,28 +243,58 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
 
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
+  std::vector<CallbackWithData>* microtasks_completed_callbacks =
+      &microtasks_completed_callbacks_;
+  if (is_running_completed_callbacks_) {
+    // Use the COW vector if we are iterating the callbacks right now.
+    microtasks_completed_callbacks = &microtasks_completed_callbacks_cow_;
+    if (microtasks_completed_callbacks->empty()) {
+      *microtasks_completed_callbacks = microtasks_completed_callbacks_;
+    }
+  }
+
   CallbackWithData callback_with_data(callback, data);
-  auto pos =
-      std::find(microtasks_completed_callbacks_.begin(),
-                microtasks_completed_callbacks_.end(), callback_with_data);
-  if (pos != microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.push_back(callback_with_data);
+  const auto pos =
+      std::find(microtasks_completed_callbacks->begin(),
+                microtasks_completed_callbacks->end(), callback_with_data);
+  if (pos != microtasks_completed_callbacks->end()) {
+    return;
+  }
+  microtasks_completed_callbacks->push_back(callback_with_data);
 }
 
 void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
+  std::vector<CallbackWithData>* microtasks_completed_callbacks =
+      &microtasks_completed_callbacks_;
+  if (is_running_completed_callbacks_) {
+    // Use the COW vector if we are iterating the callbacks right now.
+    microtasks_completed_callbacks = &microtasks_completed_callbacks_cow_;
+    if (microtasks_completed_callbacks->empty()) {
+      *microtasks_completed_callbacks = microtasks_completed_callbacks_;
+    }
+  }
+
   CallbackWithData callback_with_data(callback, data);
-  auto pos =
-      std::find(microtasks_completed_callbacks_.begin(),
-                microtasks_completed_callbacks_.end(), callback_with_data);
-  if (pos == microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.erase(pos);
+  const auto pos =
+      std::find(microtasks_completed_callbacks->begin(),
+                microtasks_completed_callbacks->end(), callback_with_data);
+  if (pos == microtasks_completed_callbacks->end()) {
+    return;
+  }
+  microtasks_completed_callbacks->erase(pos);
 }
 
-void MicrotaskQueue::OnCompleted(Isolate* isolate) const {
-  std::vector<CallbackWithData> callbacks(microtasks_completed_callbacks_);
-  for (auto& callback : callbacks) {
+void MicrotaskQueue::OnCompleted(Isolate* isolate) {
+  is_running_completed_callbacks_ = true;
+  for (auto& callback : microtasks_completed_callbacks_) {
     callback.first(reinterpret_cast<v8::Isolate*>(isolate), callback.second);
+  }
+  is_running_completed_callbacks_ = false;
+  if (V8_UNLIKELY(!microtasks_completed_callbacks_cow_.empty())) {
+    microtasks_completed_callbacks_ =
+        std::move(microtasks_completed_callbacks_cow_);
+    microtasks_completed_callbacks_cow_.clear();
   }
 }
 
