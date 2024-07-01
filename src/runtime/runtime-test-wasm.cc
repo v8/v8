@@ -653,6 +653,11 @@ RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
   return Smi::FromInt(code_size);
 }
 
+RUNTIME_FUNCTION(Runtime_EstimateCurrentMemoryConsumption) {
+  size_t result = wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption();
+  return Smi::FromInt(static_cast<int>(result));
+}
+
 RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
   int count = isolate->counters()
                   ->wasm_compiled_export_wrapper()

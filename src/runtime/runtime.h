@@ -693,6 +693,7 @@ namespace internal {
   F(DeserializeWasmModule, 2, 1)                           \
   F(DisallowWasmCodegen, 1, 1)                             \
   F(FlushWasmCode, 0, 1)                                   \
+  F(EstimateCurrentMemoryConsumption, 0, 1)                \
   F(FreezeWasmLazyCompilation, 1, 1)                       \
   F(GetWasmExceptionTagId, 2, 1)                           \
   F(GetWasmExceptionValues, 1, 1)                          \
