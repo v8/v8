@@ -504,7 +504,8 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
-  const size_t kMaxEvacuatedBytesForReduceMemory = 12 * MB;
+  const size_t kMaxEvacuatedBytesForReduceMemory =
+      (v8_flags.minor_ms ? 24 : 12) * MB;
   const int kTargetFragmentationPercentForOptimizeMemory = 20;
   const size_t kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
