@@ -121,9 +121,6 @@ specific_include_rules = {
     "+src/heap/factory-base.h",
     "+src/heap/local-factory.h",
   ],
-  "setup-builtins-internal\.cc": [
-    "+src/compiler/pipeline.h",
-  ],
   "snapshot\.cc": [
     "+src/heap/read-only-promotion.h",
   ],

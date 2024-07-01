@@ -9,7 +9,6 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
-#include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/zone/zone-containers.h"
@@ -44,7 +43,6 @@ class Graph;
 
 namespace compiler {
 
-class CodeAssemblerState;
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
@@ -75,33 +73,6 @@ class Pipeline : public AllStatic {
   NewCompilationJob(Isolate* isolate, Handle<JSFunction> function,
                     CodeKind code_kind, bool has_script,
                     BytecodeOffset osr_offset = BytecodeOffset::None());
-
-  using CodeAssemblerGenerator =
-      std::function<void(compiler::CodeAssemblerState*)>;
-  using CodeAssemblerInstaller = std::function<void(Handle<Code> code)>;
-
-  static std::unique_ptr<TurbofanCompilationJob>
-  NewCSLinkageCodeStubBuiltinCompilationJob(
-      Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
-      CodeAssemblerInstaller installer,
-      const AssemblerOptions& assembler_options,
-      CallDescriptors::Key interface_descriptor, const char* name,
-      const ProfileDataFromFile* profile_data);
-
-  static std::unique_ptr<TurbofanCompilationJob>
-  NewJSLinkageCodeStubBuiltinCompilationJob(
-      Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
-      CodeAssemblerInstaller installer,
-      const AssemblerOptions& assembler_options, int argc, const char* name,
-      const ProfileDataFromFile* profile_data);
-
-  static std::unique_ptr<TurbofanCompilationJob>
-  NewBytecodeHandlerCompilationJob(Isolate* isolate, Builtin builtin,
-                                   CodeAssemblerGenerator generator,
-                                   CodeAssemblerInstaller installer,
-                                   const AssemblerOptions& assembler_options,
-                                   const char* name,
-                                   const ProfileDataFromFile* profile_data);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Run the pipeline for the WebAssembly compilation info.

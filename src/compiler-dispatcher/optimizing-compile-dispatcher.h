@@ -91,7 +91,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void QueueForOptimization(TurbofanCompilationJob* job);
   void AwaitCompileTasks();
   void InstallOptimizedFunctions();
-  void InstallGeneratedBuiltins();
 
   inline bool IsQueueAvailable() { return input_queue_.IsAvailable(); }
 
@@ -131,7 +130,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   OptimizingCompileDispatcherQueue input_queue_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::deque<TurbofanCompilationJob*> output_queue_;
+  std::queue<TurbofanCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;

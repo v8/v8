@@ -19,7 +19,7 @@ void Pipeline::RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
                 turboshaft::RecreateSchedulePhase::phase_name());
 }
 
-[[nodiscard]] bool Pipeline::GenerateCode(
+MaybeHandle<Code> Pipeline::GenerateCode(
     Linkage* linkage, std::shared_ptr<OsrHelper> osr_helper,
     JumpOptimizationInfo* jump_optimization_info,
     const ProfileDataFromFile* profile, int initial_graph_hash) {
@@ -44,13 +44,14 @@ void Pipeline::RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
     // Perform instruction selection and register allocation.
     data()->InitializeCodegenComponent(osr_helper, jump_optimization_info);
     if (!SelectInstructions(linkage)) {
-      return false;
+      return MaybeHandle<Code>{};
     }
     AllocateRegisters(linkage->GetIncomingDescriptor());
     // Generate the final machine code.
     AssembleCode(linkage);
   }
-  return true;
+
+  return FinalizeCode();
 }
 
 void BuiltinPipeline::OptimizeBuiltin() {
