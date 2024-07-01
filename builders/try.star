@@ -144,7 +144,7 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-    execution_timeout = 7200,
+    execution_timeout = 10800,
 )
 
 try_builder(
