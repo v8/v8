@@ -527,6 +527,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractWasmArrayReferences(Tagged<WasmArray> obj, HeapEntry* entry);
   void ExtractWasmTrustedInstanceDataReferences(
       Tagged<WasmTrustedInstanceData> obj, HeapEntry* entry);
+  void ExtractWasmInstanceObjectReferences(Tagged<WasmInstanceObject> obj,
+                                           HeapEntry* entry);
+  void ExtractWasmModuleObjectReferences(Tagged<WasmModuleObject> obj,
+                                         HeapEntry* entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool IsEssentialObject(Tagged<Object> object);

@@ -1306,6 +1306,12 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
       ExtractJSGeneratorObjectReferences(entry, Cast<JSGeneratorObject>(obj));
     } else if (IsJSWeakRef(obj)) {
       ExtractJSWeakRefReferences(entry, Cast<JSWeakRef>(obj));
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (IsWasmInstanceObject(obj)) {
+      ExtractWasmInstanceObjectReferences(Cast<WasmInstanceObject>(obj), entry);
+    } else if (IsWasmModuleObject(obj)) {
+      ExtractWasmModuleObjectReferences(Cast<WasmModuleObject>(obj), entry);
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
     ExtractJSObjectReferences(entry, Cast<JSObject>(obj));
   } else if (IsString(obj)) {
@@ -1707,6 +1713,20 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
             HeapEntry::kCode);
   TagObject(script->host_defined_options(), "(host-defined options)",
             HeapEntry::kCode);
+#if V8_ENABLE_WEBASSEMBLY
+  if (script->type() == Script::Type::kWasm) {
+    // Wasm reuses some otherwise unused fields for wasm-specific information.
+    SetInternalReference(entry, "wasm_breakpoint_infos",
+                         script->wasm_breakpoint_infos(),
+                         Script::kEvalFromSharedOrWrappedArgumentsOffset);
+    SetInternalReference(entry, "wasm_managed_native_module",
+                         script->wasm_managed_native_module(),
+                         Script::kEvalFromPositionOffset);
+    SetInternalReference(entry, "wasm_weak_instance_list",
+                         script->wasm_weak_instance_list(),
+                         Script::kSharedFunctionInfosOffset);
+  }
+#endif
 }
 
 void V8HeapExplorer::ExtractAccessorInfoReferences(
@@ -2236,7 +2256,60 @@ void V8HeapExplorer::ExtractWasmTrustedInstanceDataReferences(
         entry, WasmTrustedInstanceData::kTaggedFieldNames[i],
         TaggedField<Object>::load(cage_base, trusted_data, offset), offset);
   }
+  for (size_t i = 0; i < WasmTrustedInstanceData::kProtectedFieldNames.size();
+       i++) {
+    const uint16_t offset = WasmTrustedInstanceData::kProtectedFieldOffsets[i];
+    SetInternalReference(
+        entry, WasmTrustedInstanceData::kProtectedFieldNames[i],
+        trusted_data->RawProtectedPointerField(offset).load(heap_->isolate()),
+        offset);
+  }
 }
+
+#define ASSERT_FIRST_FIELD(Class, Field) \
+  static_assert(Class::Super::kHeaderSize == Class::k##Field##Offset)
+#define ASSERT_CONSECUTIVE_FIELDS(Class, Field, NextField) \
+  static_assert(Class::k##Field##OffsetEnd + 1 == Class::k##NextField##Offset)
+#define ASSERT_LAST_FIELD(Class, Field) \
+  static_assert(Class::k##Field##OffsetEnd + 1 == Class::kHeaderSize)
+
+void V8HeapExplorer::ExtractWasmInstanceObjectReferences(
+    Tagged<WasmInstanceObject> instance_object, HeapEntry* entry) {
+  // The static assertions verify that we do not miss any fields here when we
+  // update the class definition.
+  ASSERT_FIRST_FIELD(WasmInstanceObject, TrustedData);
+  SetInternalReference(entry, "trusted_data",
+                       instance_object->trusted_data(heap_->isolate()),
+                       WasmInstanceObject::kTrustedDataOffset);
+  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, TrustedData, ModuleObject);
+  SetInternalReference(entry, "module_object", instance_object->module_object(),
+                       WasmInstanceObject::kModuleObjectOffset);
+  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, ModuleObject, SharedPart);
+  SetInternalReference(entry, "shared_part", instance_object->shared_part(),
+                       WasmInstanceObject::kSharedPartOffset);
+  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, SharedPart, ExportsObject);
+  SetInternalReference(entry, "exports", instance_object->exports_object(),
+                       WasmInstanceObject::kExportsObjectOffset);
+  ASSERT_LAST_FIELD(WasmInstanceObject, ExportsObject);
+}
+
+void V8HeapExplorer::ExtractWasmModuleObjectReferences(
+    Tagged<WasmModuleObject> module_object, HeapEntry* entry) {
+  // The static assertions verify that we do not miss any fields here when we
+  // update the class definition.
+  ASSERT_FIRST_FIELD(WasmModuleObject, ManagedNativeModule);
+  SetInternalReference(entry, "managed_native_module",
+                       module_object->managed_native_module(),
+                       WasmModuleObject::kManagedNativeModuleOffset);
+  ASSERT_CONSECUTIVE_FIELDS(WasmModuleObject, ManagedNativeModule, Script);
+  SetInternalReference(entry, "script", module_object->script(),
+                       WasmModuleObject::kScriptOffset);
+  ASSERT_LAST_FIELD(WasmModuleObject, Script);
+}
+
+#undef ASSERT_FIRST_FIELD
+#undef ASSERT_CONSECUTIVE_FIELDS
+#undef ASSERT_LAST_FIELD
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
