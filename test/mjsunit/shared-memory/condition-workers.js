@@ -10,7 +10,7 @@ if (this.Worker) {
 
 (function TestWait() {
   let workerScript =
-      `onmessage = function(msg) {
+      `onmessage = function({data:msg}) {
          let mutex = msg.mutex;
          let cv = msg.cv;
          let res = Atomics.Mutex.lock(mutex, function() {

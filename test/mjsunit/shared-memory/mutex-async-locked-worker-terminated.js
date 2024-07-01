@@ -6,7 +6,7 @@
 
 if (this.Worker) {
   (function TestAsyncLockedWorkerTerminated() {
-    let workerAsyncScript = `onmessage = function(msg) {
+    let workerAsyncScript = `onmessage = function({data:msg}) {
       let {mutex, sharedObj} = msg;
       let asyncLoop = (resolve) => {
         if (!Atomics.load(sharedObj, 'done')) {
@@ -22,7 +22,7 @@ if (this.Worker) {
       });
     };`;
 
-    let workerLockScript = `onmessage = function(msg) {
+    let workerLockScript = `onmessage = function({data:msg}) {
       let {mutex} = msg;
       Atomics.Mutex.lock(mutex, function() {
         postMessage('Lock acquired');
