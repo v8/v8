@@ -181,8 +181,7 @@ Handle<ByteArray> NativeRegExpMacroAssembler::GetOrAddRangeArray(
 
 // static
 uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
-                                                       Address raw_byte_array,
-                                                       Isolate* isolate) {
+                                                       Address raw_byte_array) {
   // Use uint32_t to avoid complexity around bool return types (which may be
   // optimized to use only the least significant byte).
   static constexpr uint32_t kTrue = 1;

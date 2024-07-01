@@ -553,12 +553,11 @@ void RegExpMacroAssemblerX64::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
   PushCallerSavedRegisters();
 
-  static const int kNumArguments = 3;
+  static const int kNumArguments = 2;
   __ PrepareCallCFunction(kNumArguments);
 
   __ Move(kCArgRegs[0], current_character());
   __ Move(kCArgRegs[1], GetOrAddRangeArray(ranges));
-  __ LoadAddress(kCArgRegs[2], ExternalReference::isolate_address(isolate()));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.

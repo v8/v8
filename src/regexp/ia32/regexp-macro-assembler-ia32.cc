@@ -535,13 +535,11 @@ void RegExpMacroAssemblerIA32::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
   PushCallerSavedRegisters();
 
-  static const int kNumArguments = 3;
+  static const int kNumArguments = 2;
   __ PrepareCallCFunction(kNumArguments, ecx);
 
   __ mov(Operand(esp, 0 * kSystemPointerSize), current_character());
   __ mov(Operand(esp, 1 * kSystemPointerSize), GetOrAddRangeArray(ranges));
-  __ mov(Operand(esp, 2 * kSystemPointerSize),
-         Immediate(ExternalReference::isolate_address(isolate())));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.

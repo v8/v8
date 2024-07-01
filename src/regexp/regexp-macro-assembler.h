@@ -216,8 +216,7 @@ class RegExpMacroAssembler {
   //
   // Called from generated code.
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
-                                          Address raw_byte_array,
-                                          Isolate* isolate);
+                                          Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
