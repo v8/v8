@@ -195,7 +195,20 @@ class GraphBuilder {
         __ HeapConstant(broker_->target_native_context().object());
   }
 
-  void PostProcessGraph(maglev::Graph* graph) {}
+  void PostProcessGraph(maglev::Graph* graph) {
+    // It can happen that some Maglev loops don't actually loop (the backedge
+    // isn't actually reachable). We can't know this when emitting the header in
+    // Turboshaft, which means that we still emit the header, but then we never
+    // come around to calling FixLoopPhis on it. So, once we've generated the
+    // whole Turboshaft graph, we go over all loop headers, and if some turn out
+    // to not be headers, we turn them into regular merge blocks (and patch
+    // their PendingLoopPhis).
+    for (Block& block : __ output_graph().blocks()) {
+      if (block.IsLoop() && block.PredecessorCount() == 1) {
+        __ output_graph().TurnLoopIntoMerge(&block);
+      }
+    }
+  }
 
   void PreProcessBasicBlock(maglev::BasicBlock* maglev_block) {
     // Note that it's important to call SetMaglevInputBlock before calling Bind,
