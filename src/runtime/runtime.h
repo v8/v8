@@ -692,7 +692,7 @@ namespace internal {
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                 \
   F(DeserializeWasmModule, 2, 1)                           \
   F(DisallowWasmCodegen, 1, 1)                             \
-  F(FlushWasmCode, 0, 1)                                   \
+  F(FlushLiftoffCode, 0, 1)                                \
   F(EstimateCurrentMemoryConsumption, 0, 1)                \
   F(FreezeWasmLazyCompilation, 1, 1)                       \
   F(GetWasmExceptionTagId, 2, 1)                           \

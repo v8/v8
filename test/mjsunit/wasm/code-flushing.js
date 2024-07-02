@@ -17,7 +17,7 @@ exports.f1(1);
 exports.f2(2);
 exports.f3(3);
 
-%FlushWasmCode();
+%FlushLiftoffCode();
 
 exports.f1(1);
 exports.f2(2);
@@ -25,7 +25,7 @@ exports.f3(3);
 
 %WasmTierUpFunction(exports.f3);
 
-%FlushWasmCode();
+%FlushLiftoffCode();
 
 exports.f1(1);
 exports.f2(2);

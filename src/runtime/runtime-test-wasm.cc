@@ -648,7 +648,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
+RUNTIME_FUNCTION(Runtime_FlushLiftoffCode) {
   auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
   return Smi::FromInt(static_cast<int>(code_size + metadata_size));
 }
