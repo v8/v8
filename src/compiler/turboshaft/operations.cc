@@ -1811,6 +1811,80 @@ void CheckExceptionOp::Validate(const Graph& graph) const {
 }
 
 namespace {
+BlockIndex index_for_bound_block(const Block* block) {
+  DCHECK_NOT_NULL(block);
+  const BlockIndex index = block->index();
+  DCHECK(index.valid());
+  return index;
+}
+}  // namespace
+
+size_t CallOp::hash_value(HashingStrategy strategy) const {
+  if (strategy == HashingStrategy::kMakeSnapshotStable) {
+    // Destructure here to cause a compilation error in case `options` is
+    // changed.
+    auto [descriptor_value, callee_effects] = options();
+    return HashWithOptions(*descriptor_value, callee_effects);
+  } else {
+    return Base::hash_value(strategy);
+  }
+}
+
+size_t CheckExceptionOp::hash_value(HashingStrategy strategy) const {
+  if (strategy == HashingStrategy::kMakeSnapshotStable) {
+    // Destructure here to cause a compilation error in case `options` is
+    // changed.
+    auto [didnt_throw_block_value, catch_block_value] = options();
+    return HashWithOptions(index_for_bound_block(didnt_throw_block_value),
+                           index_for_bound_block(catch_block_value));
+  } else {
+    return Base::hash_value(strategy);
+  }
+}
+
+size_t GotoOp::hash_value(HashingStrategy strategy) const {
+  if (strategy == HashingStrategy::kMakeSnapshotStable) {
+    // Destructure here to cause a compilation error in case `options` is
+    // changed.
+    auto [destination_value, is_backedge_value] = options();
+    return HashWithOptions(index_for_bound_block(destination_value),
+                           is_backedge_value);
+  } else {
+    return Base::hash_value(strategy);
+  }
+}
+
+size_t BranchOp::hash_value(HashingStrategy strategy) const {
+  if (strategy == HashingStrategy::kMakeSnapshotStable) {
+    // Destructure here to cause a compilation error in case `options` is
+    // changed.
+    auto [if_true_value, if_false_value, hint_value] = options();
+    return HashWithOptions(index_for_bound_block(if_true_value),
+                           index_for_bound_block(if_false_value), hint_value);
+  } else {
+    return Base::hash_value(strategy);
+  }
+}
+
+size_t SwitchOp::hash_value(HashingStrategy strategy) const {
+  if (strategy == HashingStrategy::kMakeSnapshotStable) {
+    // Destructure here to cause a compilation error in case `options` is
+    // changed.
+    auto [cases_value, default_case_value, default_hint_value] = options();
+    DCHECK_NOT_NULL(default_case_value);
+    size_t hash = HashWithOptions(index_for_bound_block(default_case_value),
+                                  default_hint_value);
+    for (const auto& c : cases_value) {
+      hash = fast_hash_combine(hash, c.value,
+                               index_for_bound_block(c.destination), c.hint);
+    }
+    return hash;
+  } else {
+    return Base::hash_value(strategy);
+  }
+}
+
+namespace {
 // Ensures basic consistency of representation mapping.
 class InputsRepFactoryCheck : InputsRepFactory {
   static_assert(*ToMaybeRepPointer(RegisterRepresentation::Word32()) ==

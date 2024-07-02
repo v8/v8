@@ -144,6 +144,9 @@
 
 #ifdef __cpp_concepts
 #define HAS_CPP_CONCEPTS 1
+#define CONCEPT(name) name
+#else
+#define CONCEPT(name) typename
 #endif
 
 #if __cplusplus >= 202002L

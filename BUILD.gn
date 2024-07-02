@@ -431,6 +431,9 @@ declare_args() {
 
   # Use sticky mark-bits for separating object generations.
   v8_enable_sticky_mark_bits = false
+
+  # Use the experimental TSA-based definition for some builtins.
+  v8_enable_experimental_tsa_builtins = false
 }
 
 # Derived defaults.
@@ -1297,6 +1300,9 @@ config("features") {
   }
   if (v8_enable_sticky_mark_bits) {
     defines += [ "V8_ENABLE_STICKY_MARK_BITS" ]
+  }
+  if (v8_enable_experimental_tsa_builtins) {
+    defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
   }
 }
 
@@ -2911,6 +2917,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
+    "src/builtins/builtins-string-tsa.cc",
     "src/builtins/builtins-temporal-gen.cc",
     "src/builtins/builtins-typed-array-gen.cc",
     "src/builtins/builtins-typed-array-gen.h",
@@ -2924,8 +2931,8 @@ v8_source_set("v8_initializers") {
     "src/codegen/code-stub-assembler-inl.h",
     "src/codegen/code-stub-assembler.cc",
     "src/codegen/code-stub-assembler.h",
-    "src/codegen/turboshaft-builtin-assembler.cc",
-    "src/codegen/turboshaft-builtin-assembler.h",
+    "src/codegen/heap-object-list.h",
+    "src/codegen/turboshaft-builtins-assembler-inl.h",
     "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
@@ -3442,6 +3449,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/state-values-utils.h",
     "src/compiler/string-builder-optimizer.h",
     "src/compiler/turbofan.h",
+    "src/compiler/turboshaft/access-builder.h",
     "src/compiler/turboshaft/analyzer-iterator.h",
     "src/compiler/turboshaft/assembler.h",
     "src/compiler/turboshaft/assert-types-reducer.h",

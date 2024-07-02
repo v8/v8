@@ -905,113 +905,17 @@ class MachineLoweringReducer : public Next {
         DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
         V<Word32> input_w32 = V<Word32>::Cast(input);
 
-        Label<Word32> single_code(this);
-        Label<String> done(this);
-
-        if (input_interpretation ==
-            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCharCode) {
-          GOTO(single_code, __ Word32BitwiseAnd(input_w32, 0xFFFF));
-        } else {
-          DCHECK_EQ(
-              input_interpretation,
-              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCodePoint);
-          // Check if the input is a single code unit.
-          GOTO_IF(LIKELY(__ Uint32LessThanOrEqual(input_w32, 0xFFFF)),
-                  single_code, input_w32);
-
-          // Generate surrogate pair string.
-
-          // Convert UTF32 to UTF16 code units and store as a 32 bit word.
-          V<Word32> lead_offset = __ Word32Constant(0xD800 - (0x10000 >> 10));
-
-          // lead = (codepoint >> 10) + LEAD_OFFSET
-          V<Word32> lead = __ Word32Add(
-              __ Word32ShiftRightLogical(input_w32, 10), lead_offset);
-
-          // trail = (codepoint & 0x3FF) + 0xDC00
-          V<Word32> trail =
-              __ Word32Add(__ Word32BitwiseAnd(input_w32, 0x3FF), 0xDC00);
-
-          // codepoint = (trail << 16) | lead
-#if V8_TARGET_BIG_ENDIAN
-          V<Word32> code =
-              __ Word32BitwiseOr(__ Word32ShiftLeft(lead, 16), trail);
-#else
-          V<Word32> code =
-              __ Word32BitwiseOr(__ Word32ShiftLeft(trail, 16), lead);
-#endif
-
-          // Allocate a new SeqTwoByteString for {code}.
-          auto string = __ template Allocate<String>(
-              __ IntPtrConstant(SeqTwoByteString::SizeFor(2)),
-              AllocationType::kYoung);
-          // Set padding to 0.
-          __ Initialize(string, __ IntPtrConstant(0),
-                        MemoryRepresentation::TaggedSigned(),
-                        WriteBarrierKind::kNoWriteBarrier,
-                        SeqTwoByteString::SizeFor(2) - kObjectAlignment);
-          __ InitializeField(
-              string, AccessBuilder::ForMap(),
-              __ HeapConstant(factory_->seq_two_byte_string_map()));
-          __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
-                             __ Word32Constant(Name::kEmptyHashField));
-          __ InitializeField(string, AccessBuilder::ForStringLength(),
-                             __ Word32Constant(2));
-          // Write the code as a single 32-bit value by adapting the elements
-          // access to SeqTwoByteString characters.
-          ElementAccess char_access =
-              AccessBuilder::ForSeqTwoByteStringCharacter();
-          char_access.machine_type = MachineType::Uint32();
-          __ InitializeNonArrayBufferElement(string, char_access,
-                                             __ IntPtrConstant(0), code);
-          GOTO(done, __ FinishInitialization(std::move(string)));
-        }
-
-        if (BIND(single_code, code)) {
-          // Check if the {code} is a one byte character.
-          IF (LIKELY(__ Uint32LessThanOrEqual(code,
-                                              String::kMaxOneByteCharCode))) {
-            // Load the isolate wide single character string table.
-            V<Object> table =
-                __ HeapConstant(factory_->single_character_string_table());
-
-            // Compute the {table} index for {code}.
-            V<WordPtr> index = __ ChangeUint32ToUintPtr(code);
-
-            // Load the string for the {code} from the single character string
-            // table.
-            V<String> entry = __ template LoadNonArrayBufferElement<String>(
-                table, AccessBuilder::ForFixedArrayElement(), index);
-
-            // Use the {entry} from the {table}.
-            GOTO(done, entry);
-          } ELSE {
-            // Allocate a new SeqTwoBytesString for {code}.
-            auto string = __ template Allocate<String>(
-                __ IntPtrConstant(SeqTwoByteString::SizeFor(1)),
-                AllocationType::kYoung);
-
-            // Set padding to 0.
-            __ Initialize(string, __ IntPtrConstant(0),
-                          MemoryRepresentation::TaggedSigned(),
-                          WriteBarrierKind::kNoWriteBarrier,
-                          SeqTwoByteString::SizeFor(1) - kObjectAlignment);
-            __ InitializeField(
-                string, AccessBuilder::ForMap(),
-                __ HeapConstant(factory_->seq_two_byte_string_map()));
-            __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
-                               __ Word32Constant(Name::kEmptyHashField));
-            __ InitializeField(string, AccessBuilder::ForStringLength(),
-                               __ Word32Constant(1));
-            __ InitializeNonArrayBufferElement(
-                string, AccessBuilder::ForSeqTwoByteStringCharacter(),
-                __ IntPtrConstant(0), code);
-            GOTO(done, __ FinishInitialization(std::move(string)));
+        switch (input_interpretation) {
+          case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCharCode:
+            return StringFromSingleCharCode(
+                __ Word32BitwiseAnd(input_w32, 0xFFFF));
+          case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+              kCodePoint: {
+            return StringFromSingleCodePoint(input_w32, UnicodeEncoding::UTF32);
           }
+          default:
+            UNREACHABLE();
         }
-
-        BIND(done, result);
-        return result;
       }
     }
 
@@ -2284,31 +2188,7 @@ class MachineLoweringReducer : public Next {
       return result;
     } else {
       DCHECK_EQ(kind, StringAtOp::Kind::kCodePoint);
-      Label<Word32> done(this);
-
-      V<Word32> first_code_unit = __ StringCharCodeAt(string, pos);
-      GOTO_IF_NOT(UNLIKELY(__ Word32Equal(
-                      __ Word32BitwiseAnd(first_code_unit, 0xFC00), 0xD800)),
-                  done, first_code_unit);
-      V<WordPtr> length =
-          __ ChangeUint32ToUintPtr(__ template LoadField<Word32>(
-              string, AccessBuilder::ForStringLength()));
-      V<WordPtr> next_index = __ WordPtrAdd(pos, 1);
-      GOTO_IF_NOT(__ IntPtrLessThan(next_index, length), done, first_code_unit);
-
-      V<Word32> second_code_unit = __ StringCharCodeAt(string, next_index);
-      GOTO_IF_NOT(
-          __ Word32Equal(__ Word32BitwiseAnd(second_code_unit, 0xFC00), 0xDC00),
-          done, first_code_unit);
-
-      const int32_t surrogate_offset = 0x10000 - (0xD800 << 10) - 0xDC00;
-      V<Word32> value =
-          __ Word32Add(__ Word32ShiftLeft(first_code_unit, 10),
-                       __ Word32Add(second_code_unit, surrogate_offset));
-      GOTO(done, value);
-
-      BIND(done, result);
-      return result;
+      return LoadSurrogatePairAt(string, {}, pos, UnicodeEncoding::UTF32);
     }
 
     UNREACHABLE();
@@ -3254,6 +3134,160 @@ class MachineLoweringReducer : public Next {
         return __ CallBuiltin_FindOrderedHashSetEntry(
             isolate_, __ NoContextConstant(), data_structure, key);
     }
+  }
+
+  // Loads a surrogate pair from {string} starting at {index} and returns the
+  // result encode in {encoding}. Note that UTF32 encoding is identical to the
+  // code point. If the string's {length} is already available, it can be
+  // passed, otherwise it will be loaded when required.
+  V<Word32> LoadSurrogatePairAt(V<String> string, OptionalV<WordPtr> length,
+                                V<WordPtr> index, UnicodeEncoding encoding) {
+    Label<Word32> done(this);
+
+    V<Word32> first_code_unit = __ StringCharCodeAt(string, index);
+    GOTO_IF_NOT(UNLIKELY(__ Word32Equal(
+                    __ Word32BitwiseAnd(first_code_unit, 0xFC00), 0xD800)),
+                done, first_code_unit);
+    if (!length.has_value()) {
+      length = __ ChangeUint32ToUintPtr(__ template LoadField<Word32>(
+          string, AccessBuilder::ForStringLength()));
+    }
+    V<WordPtr> next_index = __ WordPtrAdd(index, 1);
+    GOTO_IF_NOT(__ IntPtrLessThan(next_index, length.value()), done,
+                first_code_unit);
+
+    V<Word32> second_code_unit = __ StringCharCodeAt(string, next_index);
+    GOTO_IF_NOT(
+        __ Word32Equal(__ Word32BitwiseAnd(second_code_unit, 0xFC00), 0xDC00),
+        done, first_code_unit);
+
+    switch (encoding) {
+      case UnicodeEncoding::UTF16: {
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+        V<Word32> value = __ Word32BitwiseOr(
+            __ Word32ShiftLeft(first_code_unit, 16), second_code_unit);
+#else
+        V<Word32> value = __ Word32BitwiseOr(
+            __ Word32ShiftLeft(second_code_unit, 16), first_code_unit);
+#endif
+        GOTO(done, value);
+        break;
+      }
+      case UnicodeEncoding::UTF32: {
+        const int32_t surrogate_offset = 0x10000 - (0xD800 << 10) - 0xDC00;
+        V<Word32> value =
+            __ Word32Add(__ Word32ShiftLeft(first_code_unit, 10),
+                         __ Word32Add(second_code_unit, surrogate_offset));
+        GOTO(done, value);
+        break;
+      }
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<String> StringFromSingleCharCode(V<Word32> code) {
+    Label<String> done(this);
+
+    // Check if the {code} is a one byte character.
+    IF (LIKELY(__ Uint32LessThanOrEqual(code, String::kMaxOneByteCharCode))) {
+      // Load the isolate wide single character string table.
+      V<FixedArray> table = __ SingleCharacterStringTableConstant();
+
+      // Compute the {table} index for {code}.
+      V<WordPtr> index = __ ChangeUint32ToUintPtr(code);
+
+      // Load the string for the {code} from the single character string
+      // table.
+      V<String> entry = __ LoadElement(
+          table, AccessBuilderTS::ForFixedArrayElement<String>(), index);
+
+      // Use the {entry} from the {table}.
+      GOTO(done, entry);
+    } ELSE {
+      Uninitialized<SeqTwoByteString> string =
+          AllocateSeqTwoByteString(1, AllocationType::kYoung);
+      __ InitializeElement(
+          string, AccessBuilderTS::ForSeqTwoByteStringCharacter(), 0, code);
+      GOTO(done, __ FinishInitialization(std::move(string)));
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<String> StringFromSingleCodePoint(V<Word32> codepoint,
+                                      UnicodeEncoding encoding) {
+    Label<String> done(this);
+    // Check if the input is a single code unit.
+    GOTO_IF(LIKELY(__ Uint32LessThan(codepoint, 0x10000)), done,
+            StringFromSingleCharCode(codepoint));
+
+    V<Word32> code;
+    switch (encoding) {
+      case UnicodeEncoding::UTF16:
+        code = codepoint;
+        break;
+      case UnicodeEncoding::UTF32: {
+        // Convert UTF32 to UTF16 code units and store as a 32 bit word.
+        V<Word32> lead_offset = __ Word32Constant(0xD800 - (0x10000 >> 10));
+
+        // lead = (codepoint >> 10) + LEAD_OFFSET
+        V<Word32> lead = __ Word32Add(__ Word32ShiftRightLogical(codepoint, 10),
+                                      lead_offset);
+
+        // trail = (codepoint & 0x3FF) + 0xDC00
+        V<Word32> trail =
+            __ Word32Add(__ Word32BitwiseAnd(codepoint, 0x3FF), 0xDC00);
+
+        // codepoint = (trail << 16) | lead
+#if V8_TARGET_BIG_ENDIAN
+        code = __ Word32BitwiseOr(__ Word32ShiftLeft(lead, 16), trail);
+#else
+        code = __ Word32BitwiseOr(__ Word32ShiftLeft(trail, 16), lead);
+#endif
+        break;
+      }
+    }
+
+    Uninitialized<SeqTwoByteString> string =
+        AllocateSeqTwoByteString(2, AllocationType::kYoung);
+    // Write the code as a single 32-bit value by adapting the elements
+    // access to SeqTwoByteString characters.
+    auto access = AccessBuilderTS::ForSeqTwoByteStringCharacter();
+    access.machine_type = MachineType::Uint32();
+    __ InitializeElement(string, access, 0, code);
+    GOTO(done, __ FinishInitialization(std::move(string)));
+
+    BIND(done, result);
+    return result;
+  }
+
+  Uninitialized<SeqTwoByteString> AllocateSeqTwoByteString(
+      uint32_t length, AllocationType type) {
+    __ CodeComment("AllocateSeqTwoByteString");
+    DCHECK_GT(length, 0);
+    // Allocate a new string object.
+    Uninitialized<SeqTwoByteString> string =
+        __ template Allocate<SeqTwoByteString>(
+            SeqTwoByteString::SizeFor(length), type);
+    // Set padding to 0.
+    __ Initialize(string, __ IntPtrConstant(0),
+                  MemoryRepresentation::TaggedSigned(),
+                  WriteBarrierKind::kNoWriteBarrier,
+                  SeqTwoByteString::SizeFor(length) - kObjectAlignment);
+    // Initialize remaining fields.
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kSeqTwoByteStringMap));
+    __ InitializeField(string, AccessBuilderTS::ForMap(),
+                       __ SeqTwoByteStringMapConstant());
+    __ InitializeField(string, AccessBuilderTS::ForStringLength(), length);
+    __ InitializeField(string, AccessBuilderTS::ForNameRawHashField(),
+                       Name::kEmptyHashField);
+    // Do not finish allocation here, because the caller has to initialize
+    // characters.
+    return string;
   }
 
  private:

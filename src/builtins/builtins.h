@@ -22,8 +22,13 @@ class Callable;
 class BytecodeOffset;
 class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
+class Zone;
 namespace compiler {
 class CodeAssemblerState;
+namespace turboshaft {
+class Graph;
+class PipelineData;
+}  // namespace turboshaft
 }  // namespace compiler
 
 template <typename T>

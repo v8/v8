@@ -20,11 +20,14 @@
 #include "src/base/vector.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/heap-object-list.h"
 #include "src/codegen/reloc-info.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/code-assembler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
@@ -41,11 +44,13 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
 
@@ -111,33 +116,6 @@ class ConditionWithHint final {
 };
 
 namespace detail {
-template <typename T, typename = void>
-struct has_constexpr_type : std::false_type {};
-
-template <typename T>
-struct has_constexpr_type<T, std::void_t<typename v_traits<T>::constexpr_type>>
-    : std::true_type {};
-
-template <typename T, typename...>
-struct make_const_or_v {
-  using type = V<T>;
-};
-
-template <typename T>
-struct make_const_or_v<
-    T, typename std::enable_if_t<has_constexpr_type<T>::value>> {
-  using type = ConstOrV<T>;
-};
-
-template <typename T>
-struct make_const_or_v<
-    T, typename std::enable_if_t<!has_constexpr_type<T>::value>> {
-  using type = V<T>;
-};
-
-template <typename T>
-using make_const_or_v_t = typename make_const_or_v<T, void>::type;
-
 template <typename A, typename ConstOrValues>
 auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
   return std::apply(
@@ -171,7 +149,7 @@ class LabelBase {
  public:
   static constexpr bool is_loop = loop;
   using values_t = std::tuple<V<Ts>...>;
-  using const_or_values_t = std::tuple<detail::make_const_or_v_t<Ts>...>;
+  using const_or_values_t = std::tuple<maybe_const_or_v_t<Ts>...>;
   using recorded_values_t = std::tuple<base::SmallVector<V<Ts>, 2>...>;
 
   Block* block() { return data_.block; }
@@ -616,14 +594,16 @@ class GenericReducerBase;
 // TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE should almost never be needed: it
 // should only be used by the IR-specific base class, while other reducers
 // should simply use `TURBOSHAFT_REDUCER_BOILERPLATE`.
-#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                       \
-  using ReducerList = typename Next::ReducerList;                          \
-  Assembler<ReducerList>& Asm() {                                          \
-    return *static_cast<Assembler<ReducerList>*>(this);                    \
-  }                                                                        \
-  template <class T>                                                       \
-  using ScopedVar = turboshaft::ScopedVariable<T, Assembler<ReducerList>>; \
-  using CatchScope = CatchScopeImpl<Assembler<ReducerList>>;               \
+#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                          \
+  using ReducerList = typename Next::ReducerList;                             \
+  compiler::turboshaft::Assembler<ReducerList>& Asm() {                       \
+    return *static_cast<compiler::turboshaft::Assembler<ReducerList>*>(this); \
+  }                                                                           \
+  template <class T>                                                          \
+  using ScopedVar = compiler::turboshaft::ScopedVariable<                     \
+      T, compiler::turboshaft::Assembler<ReducerList>>;                       \
+  using CatchScope =                                                          \
+      CatchScopeImpl<compiler::turboshaft::Assembler<ReducerList>>;           \
   static constexpr auto& ReducerName() { return #Name; }
 
 // Defines a few helpers to use the Assembler and its stack in Reducers.
@@ -1966,11 +1946,24 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableConstant(ConstantOp::Kind::kTaggedIndex,
                                      uint64_t{static_cast<uint32_t>(value)});
   }
+  // TODO(nicohartmann): Maybe we should replace all uses of `HeapConstant` with
+  // `HeapConstant[No|Maybe]?Hole` version.
   template <typename T,
             typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
   V<T> HeapConstant(Handle<T> value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject,
                                      ConstantOp::Storage{value});
+  }
+  V<HeapObject> HeapConstantMaybeHole(Handle<HeapObject> value) {
+    return __ HeapConstant(value);
+  }
+  V<HeapObject> HeapConstantNoHole(Handle<HeapObject> value) {
+    CHECK(!IsAnyHole(*value));
+    return __ HeapConstant(value);
+  }
+  V<HeapObject> HeapConstantHole(Handle<HeapObject> value) {
+    DCHECK(IsAnyHole(*value));
+    return __ HeapConstant(value);
   }
   V<Code> BuiltinCode(Builtin builtin, Isolate* isolate) {
     return HeapConstant(BuiltinCodeHandle(builtin, isolate));
@@ -2474,19 +2467,24 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Rep = Any>
-  V<Rep> LoadField(V<Object> object, const FieldAccess& access) {
+  V<Rep> LoadField(V<Object> object, const compiler::FieldAccess& access) {
     DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     return LoadFieldImpl<Rep>(object, access);
   }
 
   template <typename Rep = Any>
-  V<Rep> LoadField(V<WordPtr> raw_base, const FieldAccess& access) {
+  V<Rep> LoadField(V<WordPtr> raw_base, const compiler::FieldAccess& access) {
     DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
     return LoadFieldImpl<Rep>(raw_base, access);
   }
 
+  template <typename Class, typename T>
+  V<T> LoadField(V<Class> object, const FieldAccessTS<Class, T>& field) {
+    return LoadFieldImpl<T>(object, field);
+  }
+
   template <typename Rep>
-  V<Rep> LoadFieldImpl(OpIndex object, const FieldAccess& access) {
+  V<Rep> LoadFieldImpl(OpIndex object, const compiler::FieldAccess& access) {
     MachineType machine_type = access.machine_type;
     if (machine_type.IsMapWord()) {
       machine_type = MachineType::TaggedPointer();
@@ -2551,6 +2549,16 @@ class TurboshaftAssemblerOpInterface
                    access.maybe_initializing_or_transitioning_store);
   }
 
+  template <typename Object, typename Class, typename T>
+  void InitializeField(Uninitialized<Object>& object,
+                       const FieldAccessTS<Class, T>& access,
+                       maybe_const_or_v_t<T> value) {
+    static_assert(is_subtype_v<Object, Class>);
+    StoreFieldImpl(object.object(), access, resolve(value), true);
+  }
+
+  // TODO(nicohartmann): Remove `InitializeField` once fully transitioned to
+  // `FieldAccess`.
   template <typename T>
   void InitializeField(Uninitialized<T>& object, const FieldAccess& access,
                        V<Any> value) {
@@ -2617,11 +2625,21 @@ class TurboshaftAssemblerOpInterface
           ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
   }
 
+  template <typename Class, typename T>
+  V<T> LoadElement(V<Class> object, const ElementAccessTS<Class, T>& access,
+                   V<WordPtr> index) {
+    return LoadElement<T>(object, access, index, access.is_array_buffer_load);
+  }
+
+  // TODO(nicohartmann): Remove `LoadArrayBufferElement` once fully transitioned
+  // to `ElementAccess`.
   template <typename T = Any, typename Base>
   V<T> LoadArrayBufferElement(V<Base> object, const ElementAccess& access,
                               V<WordPtr> index) {
     return LoadElement<T>(object, access, index, true);
   }
+  // TODO(nicohartmann): Remove `LoadNonArrayBufferElement` once fully
+  // transitioned to `ElementAccess`.
   template <typename T = Any, typename Base>
   V<T> LoadNonArrayBufferElement(V<Base> object, const ElementAccess& access,
                                  V<WordPtr> index) {
@@ -2645,12 +2663,24 @@ class TurboshaftAssemblerOpInterface
     return StoreElement(object, access, index, value, false);
   }
 
+  template <typename Class, typename T>
+  void InitializeElement(Uninitialized<Class>& object,
+                         const ElementAccessTS<Class, T>& access,
+                         ConstOrV<WordPtr> index, V<T> value) {
+    StoreElement(object.object(), access, index, value,
+                 access.is_array_buffer_load);
+  }
+
+  // TODO(nicohartmann): Remove `InitializeArrayBufferElement` once fully
+  // transitioned to `ElementAccess`.
   template <typename Base>
   void InitializeArrayBufferElement(Uninitialized<Base>& object,
                                     const ElementAccess& access,
                                     V<WordPtr> index, V<Any> value) {
     StoreArrayBufferElement(object.object(), access, index, value);
   }
+  // TODO(nicohartmann): Remove `InitializeNoneArrayBufferElement` once fully
+  // transitioned to `ElementAccess`.
   template <typename Base>
   void InitializeNonArrayBufferElement(Uninitialized<Base>& object,
                                        const ElementAccess& access,
@@ -3855,6 +3885,24 @@ class TurboshaftAssemblerOpInterface
   }
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
+  void Comment(const std::string& message) {
+    size_t length = message.length() + 1;
+    char* zone_buffer =
+        Asm().data()->shared_zone()->template AllocateArray<char>(length);
+    MemCopy(zone_buffer, message.c_str(), length);
+    Comment(zone_buffer);
+  }
+  using MessageWithSourceLocation = CodeAssembler::MessageWithSourceLocation;
+  template <typename... Args>
+  void CodeComment(MessageWithSourceLocation message, Args&&... args) {
+    if (!v8_flags.code_comments) return;
+    std::ostringstream s;
+    USE(s << message.message, (s << std::forward<Args>(args))...);
+    if (message.loc.FileName()) {
+      s << " - " << message.loc.ToString();
+    }
+    Comment(std::move(s).str());
+  }
 
   V<BigInt> BigIntBinop(V<BigInt> left, V<BigInt> right,
                         V<turboshaft::FrameState> frame_state,
@@ -4078,8 +4126,8 @@ class TurboshaftAssemblerOpInterface
                       OpIndex data_argument, V<Context> context,
                       base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters) {
-    return ReduceIfReachableFastApiCall(frame_state, data_argument, context, arguments,
-                                        parameters);
+    return ReduceIfReachableFastApiCall(frame_state, data_argument, context,
+                                        arguments, parameters);
   }
 
   void RuntimeAbort(AbortReason reason) {
@@ -4128,6 +4176,50 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSpeculativeNumberBinop(left, right, frame_state,
                                                    kind);
   }
+
+  V<Object> LoadRoot(RootIndex root_index) {
+    Isolate* isolate = __ data() -> isolate();
+    DCHECK_NOT_NULL(isolate);
+    if (RootsTable::IsImmortalImmovable(root_index)) {
+      Handle<Object> root = isolate->root_handle(root_index);
+      if (i::IsSmi(*root)) {
+        return __ SmiConstant(Cast<Smi>(*root));
+      } else {
+        return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
+      }
+    }
+
+    // TODO(jgruber): In theory we could generate better code for this by
+    // letting the macro assembler decide how to load from the roots list. In
+    // most cases, it would boil down to loading from a fixed kRootRegister
+    // offset.
+    OpIndex isolate_root =
+        __ ExternalConstant(ExternalReference::isolate_root(isolate));
+    int offset = IsolateData::root_slot_offset(root_index);
+    return __ LoadOffHeap(isolate_root, offset,
+                          MemoryRepresentation::AnyTagged());
+  }
+
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
+  V<RemoveTagged<                                                              \
+      decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>       \
+      name##Constant() {                                                       \
+    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();          \
+    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                    \
+                    kind == TurboshaftPipelineKind::kTSABuiltin)) {            \
+      return V<RemoveTagged<                                                   \
+          decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>:: \
+          Cast(__ LoadRoot(RootIndex::k##rootIndexName));                      \
+    } else {                                                                   \
+      Isolate* isolate = __ data() -> isolate();                               \
+      DCHECK_NOT_NULL(isolate);                                                \
+      Factory* factory = isolate->factory();                                   \
+      DCHECK_NOT_NULL(factory);                                                \
+      return __ HeapConstant(factory->rootAccessorName());                     \
+    }                                                                          \
+  }
+  HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   V<Any> GlobalGet(V<WasmTrustedInstanceData> trusted_instance_data,
@@ -4457,7 +4549,8 @@ class TurboshaftAssemblerOpInterface
   // instead of StoreElement.
   template <typename Base>
   void StoreElement(V<Base> object, const ElementAccess& access,
-                    V<WordPtr> index, V<Any> value, bool is_array_buffer) {
+                    ConstOrV<WordPtr> index, V<Any> value,
+                    bool is_array_buffer) {
     if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
@@ -4468,7 +4561,7 @@ class TurboshaftAssemblerOpInterface
     if (is_array_buffer) kind = kind.NotLoadEliminable();
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(access.machine_type);
-    Store(object, index, value, kind, rep, access.write_barrier_kind,
+    Store(object, resolve(index), value, kind, rep, access.write_barrier_kind,
           access.header_size, rep.SizeInBytesLog2());
   }
 

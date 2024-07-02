@@ -538,6 +538,17 @@ using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using CallTarget = UntaggedUnion<WordPtr, Code>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
+#ifdef HAS_CPP_CONCEPTS
+template <typename T>
+concept IsUntagged =
+    !std::is_same_v<T, Any> &&
+    v_traits<Untagged>::implicitly_constructible_from<T>::value;
+
+template <typename T>
+concept IsTagged = !std::is_same_v<T, Any> &&
+                   v_traits<Object>::implicitly_constructible_from<T>::value;
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
 using WasmStructNullable = Union<WasmStruct, WasmNull>;

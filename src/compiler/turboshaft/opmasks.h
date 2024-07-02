@@ -104,8 +104,7 @@ struct MaskBuilder {
   }
 
   static constexpr uint64_t EncodeValue(typename Fields::type... args) {
-    constexpr uint64_t base_mask =
-        EncodeBaseValue(operation_to_opcode_map<Op>::value);
+    constexpr uint64_t base_mask = EncodeBaseValue(operation_to_opcode_v<Op>);
     return (base_mask | ... | EncodeFieldValue<Fields>(args));
   }
 

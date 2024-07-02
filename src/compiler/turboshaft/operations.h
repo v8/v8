@@ -59,6 +59,14 @@ struct FrameStateData;
 class Graph;
 struct FrameStateOp;
 
+enum class HashingStrategy {
+  kDefault,
+  // This strategy requires that hashing a graph during builtin construction
+  // (mksnapshot) produces the same hash for repeated runs of mksnapshot. This
+  // requires that no pointers and external constants are used in hashes.
+  kMakeSnapshotStable,
+};
+
 // This belongs to `VariableReducer` in `variable-reducer.h`. It is defined here
 // because of cyclic header dependencies.
 struct VariableData {
@@ -342,12 +350,13 @@ constexpr std::underlying_type_t<Opcode> OpcodeIndex(Opcode x) {
   return static_cast<std::underlying_type_t<Opcode>>(x);
 }
 
-template <class Op>
-struct operation_to_opcode_map {};
-
 #define FORWARD_DECLARE(Name) struct Name##Op;
 TURBOSHAFT_OPERATION_LIST(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
+
+namespace detail {
+template <class Op>
+struct operation_to_opcode_map {};
 
 #define OPERATION_OPCODE_MAP_CASE(Name)    \
   template <>                              \
@@ -355,6 +364,13 @@ TURBOSHAFT_OPERATION_LIST(FORWARD_DECLARE)
       : std::integral_constant<Opcode, Opcode::k##Name> {};
 TURBOSHAFT_OPERATION_LIST(OPERATION_OPCODE_MAP_CASE)
 #undef OPERATION_OPCODE_MAP_CASE
+}  // namespace detail
+
+template <typename Op>
+struct operation_to_opcode
+    : detail::operation_to_opcode_map<std::remove_cvref_t<Op>> {};
+template <typename Op>
+constexpr Opcode operation_to_opcode_v = operation_to_opcode<Op>::value;
 
 template <typename Op, uint64_t Mask, uint64_t Value>
 struct OpMaskT {
@@ -807,6 +823,10 @@ struct OpEffects {
 };
 static_assert(sizeof(OpEffects) == sizeof(OpEffects::Bits));
 
+V8_INLINE size_t hash_value(OpEffects effects) {
+  return static_cast<size_t>(effects.bits());
+}
+
 inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
   return first.produces.bits() & (second.consumes.bits());
 }
@@ -1141,9 +1161,13 @@ struct OperationT : Operation {
     return derived_this().inputs() == other.derived_this().inputs() &&
            derived_this().options() == other.derived_this().options();
   }
-  size_t hash_value() const {
-    return fast_hash_combine(opcode, derived_this().inputs(),
-                             derived_this().options());
+  template <typename... Args>
+  size_t HashWithOptions(const Args&... args) const {
+    return fast_hash_combine(opcode, derived_this().inputs(), args...);
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(derived_this().options());
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const {
@@ -2604,7 +2628,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   auto options() const { return std::tuple{kind, storage}; }
 
   void PrintOptions(std::ostream& os) const;
-  size_t hash_value() const {
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
     switch (kind) {
       case Kind::kWord32:
       case Kind::kWord64:
@@ -2612,17 +2637,22 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
-        return fast_hash_combine(opcode, kind, storage.integral);
+        return HashWithOptions(storage.integral);
       case Kind::kFloat32:
-        return fast_hash_combine(opcode, kind, storage.float32);
+        return HashWithOptions(storage.float32);
       case Kind::kFloat64:
       case Kind::kNumber:
-        return fast_hash_combine(opcode, kind, storage.float64);
+        return HashWithOptions(storage.float64);
       case Kind::kExternal:
-        return fast_hash_combine(opcode, kind, storage.external.address());
+        return HashWithOptions(strategy == HashingStrategy::kMakeSnapshotStable
+                                   ? 0
+                                   : storage.external.address());
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
-        return fast_hash_combine(opcode, kind, storage.handle.address());
+        if (strategy == HashingStrategy::kMakeSnapshotStable) {
+          return HashWithOptions();
+        }
+        return HashWithOptions(storage.handle.address());
     }
   }
   bool operator==(const ConstantOp& other) const {
@@ -3588,7 +3618,8 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
     // same `negated`, regardless of their `frame_state` and `parameters`.
     return condition() == other.condition() && negated == other.negated;
   }
-  size_t hash_value() const {
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
     // To enable GVNing as described above in `EqualsForGVN`, `hash_value` has
     // to ignore the `frame_state` and the `parameters`.
     return fast_hash_combine(Opcode::kDeoptimizeIf, condition(), negated);
@@ -3785,6 +3816,20 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   }
 };
 
+template <>
+struct fast_hash<TSCallDescriptor> {
+  size_t operator()(const TSCallDescriptor& v) {
+    const CallDescriptor& d = *v.descriptor;
+    // This does not include all fields of the call descriptor, but it should be
+    // sufficient to differentiate between different calls (and collisions are
+    // not too critical).
+    return fast_hash_combine(d.kind(), d.tag(), d.ReturnCount(),
+                             d.ParameterCount(), d.GPParameterCount(),
+                             d.FPParameterCount(), d.ParameterSlotCount(),
+                             d.ReturnSlotCount(), d.flags());
+  }
+};
+
 // If {target} is a HeapObject representing a builtin, return that builtin's ID.
 base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
                                         JSHeapBroker* broker);
@@ -3880,7 +3925,8 @@ struct CallOp : OperationT<CallOp> {
   // TODO(mliedtke): Should the hash function be overwritten, so that calls (and
   // potentially tail calls) can participate in GVN? Right now this is prevented
   // by every call descriptor being a different pointer.
-  auto options() const { return std::tuple{descriptor}; }
+  auto options() const { return std::tuple{descriptor, callee_effects}; }
+  size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -3908,6 +3954,7 @@ struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
 
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
+  size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{didnt_throw_block, catch_block}; }
 };
 
@@ -4123,6 +4170,7 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
   explicit GotoOp(Block* destination, bool is_backedge)
       : Base(), is_backedge(is_backedge), destination(destination) {}
   void Validate(const Graph& graph) const {}
+  size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{destination, is_backedge}; }
 };
 
@@ -4146,6 +4194,7 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
 
   void Validate(const Graph& graph) const {
   }
+  size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{if_true, if_false, hint}; }
 };
 
@@ -4186,6 +4235,7 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
 
   void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
+  size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{cases, default_case, default_hint}; }
 };
 
@@ -5785,8 +5835,10 @@ struct TransitionAndStoreArrayElementOp
     }
   }
 
-  size_t hash_value() const {
-    return fast_hash_combine(kind, fast_map.address(), double_map.address());
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    DCHECK_EQ(strategy, HashingStrategy::kDefault);
+    return HashWithOptions(fast_map.address(), double_map.address());
   }
 
   bool operator==(const TransitionAndStoreArrayElementOp& other) const {
@@ -5914,8 +5966,10 @@ struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
   bool operator==(const CheckedClosureOp& other) const {
     return feedback_cell.address() == other.feedback_cell.address();
   }
-  size_t hash_value() const {
-    return base::hash_value(feedback_cell.address());
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    DCHECK_EQ(strategy, HashingStrategy::kDefault);
+    return HashWithOptions(feedback_cell.address());
   }
 
   auto options() const { return std::tuple{feedback_cell}; }
@@ -8552,7 +8606,7 @@ static constexpr base::Optional<OpEffects>
 #undef OPERATION_EFFECTS_CASE
 
 template <class Op>
-const Opcode OperationT<Op>::opcode = operation_to_opcode_map<Op>::value;
+const Opcode OperationT<Op>::opcode = operation_to_opcode<Op>::value;
 
 template <Opcode opcode>
 struct opcode_to_operation_map {};
@@ -8769,6 +8823,17 @@ Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
   // but in Operations, they only count for 1 input when they are valid.
   DCHECK_GE(input_count, op->input_count);
   return op;
+}
+
+template <typename F>
+auto VisitOperation(const Operation& op, F&& f) {
+  switch (op.opcode) {
+#define CASE(name)      \
+  case Opcode::k##name: \
+    return f(op.Cast<name##Op>());
+    TURBOSHAFT_OPERATION_LIST(CASE)
+#undef CASE
+  }
 }
 
 // Checking that throwing operations have the required members and options.

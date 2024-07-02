@@ -2658,8 +2658,25 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
 namespace {
 
 int HashGraphForPGO(const turboshaft::Graph* graph) {
-  // TODO(nicohartmann): Implement some kind of hashing.
-  return 42;
+  size_t hash = 0;
+  for (const turboshaft::Operation& op : graph->AllOperations()) {
+    VisitOperation(op, [&hash, &graph](const auto& derived) {
+      const auto op_hash =
+          derived.hash_value(turboshaft::HashingStrategy::kMakeSnapshotStable);
+      hash = turboshaft::fast_hash_combine(hash, op_hash);
+      // Use for tracing while developing:
+      constexpr bool kTraceHashing = false;
+      if constexpr (kTraceHashing) {
+        std::cout << "[" << std::setw(3) << graph->Index(derived)
+                  << "] Type: " << std::setw(30)
+                  << turboshaft::OpcodeName(
+                         turboshaft::operation_to_opcode_v<decltype(derived)>);
+        std::cout << " + 0x" << std::setw(20) << std::left << std::hex
+                  << op_hash << " => 0x" << hash << std::dec << std::endl;
+      }
+    });
+  }
+  return Tagged<Smi>(IntToSmi(static_cast<int>(hash))).value();
 }
 
 // Compute a hash of the given graph, in a way that should provide the same
@@ -2940,7 +2957,16 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
       CreatePipelineStatistics(Handle<Script>::null(), turboshaft_data->info(),
                                isolate, turboshaft_data->zone_stats()));
 
-  // TODO(nicohartmann): Trace initial graph (if requested).
+  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
+  OptimizedCompilationInfo* info = turboshaft_data->info();
+  if (info->trace_turbo_graph() || info->trace_turbo_json()) {
+    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
+        turboshaft_data->zone_stats(), turboshaft::kTempZoneName);
+    std::vector<char> name_buffer(strlen("TSA: ") + strlen(debug_name) + 1);
+    memcpy(name_buffer.data(), "TSA: ", 5);
+    memcpy(name_buffer.data() + 5, debug_name, strlen(debug_name));
+    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.data());
+  }
 
   // Validate pgo profile.
   const int initial_graph_hash =
@@ -2948,7 +2974,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
   profile_data =
       ValidateProfileData(profile_data, initial_graph_hash, debug_name);
 
-  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
   turboshaft_pipeline.OptimizeBuiltin();
   Linkage linkage(call_descriptor);
   return turboshaft_pipeline.GenerateCode(&linkage, {}, jump_optimization_info,
