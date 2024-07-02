@@ -68,6 +68,7 @@ class MaglevCodeGenerator final {
   Handle<DeoptimizationData> deopt_data_;
   MaybeHandle<Code> code_;
   GlobalHandleVector<Map> retained_maps_;
+  Zone* zone_;
 };
 
 }  // namespace maglev

@@ -61,6 +61,8 @@ class Graph final : public ZoneObject {
 
   void Add(BasicBlock* block) { blocks_.push_back(block); }
 
+  void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
+
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
   uint32_t max_call_stack_args() const { return max_call_stack_args_; }

@@ -713,8 +713,8 @@ class ExceptionHandlerTrampolineBuilder {
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
-  explicit MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm)
-      : masm_(masm) {}
+  MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm, Zone* zone)
+      : masm_(masm), zone_(zone) {}
 
   void PreProcessGraph(Graph* graph) {
     // TODO(victorgomes): I wonder if we want to create a struct that shares
@@ -734,6 +734,40 @@ class MaglevCodeGeneratingNodeProcessor {
     } else {
       __ Prologue(graph);
     }
+
+    // "Deferred" computation has to be done before block removal, because
+    // block removal doesn't propagate deferredness of removed blocks.
+    int deferred_count = ComputeDeferred(graph);
+
+    // If we deferred the first block, un-defer it. This can happen because we
+    // defer a block if all its successors are deferred (i.e., lead to an
+    // unconditional deopt). E.g., if we only executed exception throwing code
+    // paths, the non-exception code paths might be untaken, and thus contain
+    // unconditional deopts, so we end up deferring all non-exception code
+    // paths, including the first block.
+    if (graph->blocks()[0]->is_deferred()) {
+      graph->blocks()[0]->set_deferred(false);
+      --deferred_count;
+    }
+
+    // Reorder the blocks so that dererred blocks are at the end.
+    int non_deferred_count = graph->num_blocks() - deferred_count;
+
+    ZoneVector<BasicBlock*> new_blocks(graph->num_blocks(), zone_);
+
+    size_t ix_non_deferred = 0;
+    size_t ix_deferred = non_deferred_count;
+    for (auto block_it = graph->begin(); block_it != graph->end(); ++block_it) {
+      BasicBlock* block = *block_it;
+      if (block->is_deferred()) {
+        new_blocks[ix_deferred++] = block;
+      } else {
+        new_blocks[ix_non_deferred++] = block;
+      }
+    }
+    CHECK_EQ(ix_deferred, graph->num_blocks());
+    CHECK_EQ(ix_non_deferred, non_deferred_count);
+    graph->set_blocks(new_blocks);
 
     // Remove empty blocks.
     ZoneVector<BasicBlock*>& blocks = graph->blocks();
@@ -1001,7 +1035,75 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
+  int ComputeDeferred(Graph* graph) {
+    int deferred_count = 0;
+    // Propagate deferredness: If a block is deferred, defer all its successors,
+    // except if a successor has another predecessor which is not deferred.
+
+    // In addition, if all successors of a block are deferred, defer it too.
+
+    // Work queue is a queue of blocks which are deferred, so we'll need to
+    // check whether to defer their successors and predecessors.
+    SmallZoneVector<BasicBlock*, 32> work_queue(zone_);
+    for (auto block_it = graph->begin(); block_it != graph->end(); ++block_it) {
+      BasicBlock* block = *block_it;
+      if (block->is_deferred()) {
+        ++deferred_count;
+        work_queue.emplace_back(block);
+      }
+    }
+
+    // The algorithm below is O(N * e^2) where e is the maximum number of
+    // predecessors / successors. We check whether we should defer a block at
+    // most e times. When doing the check, we check each predecessor / successor
+    // once.
+    while (!work_queue.empty()) {
+      BasicBlock* block = work_queue.back();
+      work_queue.pop_back();
+      DCHECK(block->is_deferred());
+
+      // Check if we should defer any successor.
+      block->ForEachSuccessor([&work_queue,
+                               &deferred_count](BasicBlock* successor) {
+        if (successor->is_deferred()) {
+          return;
+        }
+        bool should_defer = true;
+        successor->ForEachPredecessor([&should_defer](BasicBlock* predecessor) {
+          if (!predecessor->is_deferred()) {
+            should_defer = false;
+          }
+        });
+        if (should_defer) {
+          ++deferred_count;
+          work_queue.emplace_back(successor);
+          successor->set_deferred(true);
+        }
+      });
+
+      // Check if we should defer any predecessor.
+      block->ForEachPredecessor([&work_queue,
+                                 &deferred_count](BasicBlock* predecessor) {
+        if (predecessor->is_deferred()) {
+          return;
+        }
+        bool should_defer = true;
+        predecessor->ForEachSuccessor([&should_defer](BasicBlock* successor) {
+          if (!successor->is_deferred()) {
+            should_defer = false;
+          }
+        });
+        if (should_defer) {
+          ++deferred_count;
+          work_queue.emplace_back(predecessor);
+          predecessor->set_deferred(true);
+        }
+      });
+    }
+    return deferred_count;
+  }
   MaglevAssembler* const masm_;
+  Zone* zone_;
 };
 
 class SafepointingNodeProcessor {
@@ -1596,7 +1698,8 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       masm_(isolate->GetMainThreadIsolateUnsafe(), &code_gen_state_),
       graph_(graph),
       deopt_literals_(isolate->heap()->heap()),
-      retained_maps_(isolate->heap()) {
+      retained_maps_(isolate->heap()),
+      zone_(compilation_info->zone()) {
   DCHECK(maglev::IsMaglevEnabled());
   DCHECK_IMPLIES(compilation_info->toplevel_is_osr(),
                  maglev::IsMaglevOsrEnabled());
@@ -1653,7 +1756,7 @@ bool MaglevCodeGenerator::EmitCode() {
   GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
                                     MaglevCodeGeneratingNodeProcessor>>
       processor(SafepointingNodeProcessor{local_isolate_},
-                MaglevCodeGeneratingNodeProcessor{masm()});
+                MaglevCodeGeneratingNodeProcessor{masm(), zone_});
   RecordInlinedFunctions();
 
   if (graph_->is_osr()) {

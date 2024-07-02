@@ -602,6 +602,7 @@ class MaglevGraphBuilder {
 
   // Called when a block is killed by an unconditional eager deopt.
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason) {
+    current_block_->set_deferred(true);
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
     FinishBlock<Deopt>({}, reason);

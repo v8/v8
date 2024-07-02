@@ -70,14 +70,13 @@ class BasicBlock {
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
   bool is_merge_block() const { return type_ == kMerge; }
-  bool is_edge_split_block() const {
-    return type_ == kEdgeSplit || type_ == kEdgeSplitWithRegisterState;
-  }
+  bool is_edge_split_block() const { return type_ == kEdgeSplit; }
 
   bool is_loop() const { return has_state() && state()->is_loop(); }
 
   MergePointRegisterState& edge_split_block_register_state() {
-    DCHECK_EQ(type_, kEdgeSplitWithRegisterState);
+    DCHECK_EQ(type_, kEdgeSplit);
+    DCHECK_NOT_NULL(edge_split_block_register_state_);
     return *edge_split_block_register_state_;
   }
 
@@ -88,7 +87,6 @@ class BasicBlock {
   void set_edge_split_block_register_state(
       MergePointRegisterState* register_state) {
     DCHECK_EQ(type_, kEdgeSplit);
-    type_ = kEdgeSplitWithRegisterState;
     edge_split_block_register_state_ = register_state;
   }
 
@@ -145,6 +143,38 @@ class BasicBlock {
 
   base::SmallVector<BasicBlock*, 2> successors() const;
 
+  template <typename Func>
+  void ForEachPredecessor(Func&& functor) const {
+    if (type_ == kEdgeSplit || type_ == kOther) {
+      BasicBlock* predecessor_block = predecessor();
+      if (predecessor_block) {
+        functor(predecessor_block);
+      }
+    } else {
+      for (int i = 0; i < predecessor_count(); i++) {
+        functor(predecessor_at(i));
+      }
+    }
+  }
+
+  template <typename Func>
+  void ForEachSuccessor(Func&& functor) const {
+    ControlNode* control = control_node();
+    if (auto node = control->TryCast<UnconditionalControlNode>()) {
+      functor(node->target());
+    } else if (auto node = control->TryCast<BranchControlNode>()) {
+      functor(node->if_true());
+      functor(node->if_false());
+    } else if (auto node = control->TryCast<Switch>()) {
+      for (int i = 0; i < node->size(); i++) {
+        functor(node->targets()[i].block_ptr());
+      }
+      if (node->has_fallthrough()) {
+        functor(node->fallthrough());
+      }
+    }
+  }
+
   Label* label() {
     // If this fails, jump threading is missing for the node. See
     // MaglevCodeGeneratingNodeProcessor::PatchJumps.
@@ -199,6 +229,9 @@ class BasicBlock {
     return current;
   }
 
+  bool is_deferred() const { return deferred_; }
+  void set_deferred(bool deferred) { deferred_ = deferred; }
+
  private:
   bool HasPhisOrRegisterMerges() const {
     if (!has_state()) {
@@ -238,7 +271,6 @@ class BasicBlock {
   enum : uint8_t {
     kMerge,
     kEdgeSplit,
-    kEdgeSplitWithRegisterState,
     kOther
   } type_;
   bool is_start_block_of_switch_case_ = false;
@@ -247,12 +279,9 @@ class BasicBlock {
   union {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* edge_split_block_register_state_;
-    // For kEdgeSplit and kOther blocks, predecessor_ contains a pointer to
-    // the (only) predecessor of the block. After register allocation, edge
-    // split blocks transition to kEdgeSplitWithRegisterState where this field
-    // is used for edge_split_block_register_state_.
-    BasicBlock* predecessor_;
   };
+  // For kEdgeSplit and kOther blocks.
+  BasicBlock* predecessor_ = nullptr;
   Label label_;
   // Hints about which nodes should be in registers or spilled when entering
   // this block. Only relevant for loop headers.
@@ -262,6 +291,7 @@ class BasicBlock {
   // phi tagging nodes that come out of this basic block.
   MaybeSnapshot snapshot_;
   BasicBlock* real_jump_target_cache_ = nullptr;
+  bool deferred_ = false;
 };
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {
