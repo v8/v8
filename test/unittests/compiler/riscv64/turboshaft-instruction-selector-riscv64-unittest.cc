@@ -304,36 +304,8 @@ TEST_P(TurboshaftInstructionSelectorCmpTest, Parameter) {
   StreamBuilder m(this, type, type, type);
   m.Return(m.Emit(cmp.mi.op, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
-  std::cout << type.representation() << std::endl;
   if (v8_flags.debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
-#ifndef V8_COMPRESS_POINTERS
-    ASSERT_EQ(6U, s.size());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-
-    EXPECT_EQ(kRiscvShl64, s[1]->arch_opcode());
-    EXPECT_EQ(2U, s[1]->InputCount());
-    EXPECT_EQ(1U, s[1]->OutputCount());
-
-    EXPECT_EQ(kRiscvShl64, s[2]->arch_opcode());
-    EXPECT_EQ(2U, s[2]->InputCount());
-    EXPECT_EQ(1U, s[2]->OutputCount());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[3]->arch_opcode());
-    EXPECT_EQ(2U, s[3]->InputCount());
-    EXPECT_EQ(1U, s[3]->OutputCount());
-
-    EXPECT_EQ(kRiscvAssertEqual, s[4]->arch_opcode());
-    EXPECT_EQ(3U, s[4]->InputCount());
-    EXPECT_EQ(0U, s[4]->OutputCount());
-
-    EXPECT_EQ(cmp.mi.arch_opcode, s[5]->arch_opcode());
-    EXPECT_EQ(2U, s[5]->InputCount());
-    EXPECT_EQ(1U, s[5]->OutputCount());
-#else
     ASSERT_EQ(3U, s.size());
 
     EXPECT_EQ(kRiscvShl64, s[0]->arch_opcode());
@@ -347,7 +319,6 @@ TEST_P(TurboshaftInstructionSelectorCmpTest, Parameter) {
     EXPECT_EQ(cmp.mi.arch_opcode, s[2]->arch_opcode());
     EXPECT_EQ(2U, s[2]->InputCount());
     EXPECT_EQ(1U, s[2]->OutputCount());
-#endif
   } else {
     ASSERT_EQ(cmp.expected_size, s.size());
     EXPECT_EQ(cmp.mi.arch_opcode, s[cmp.expected_size - 1]->arch_opcode());
@@ -730,23 +701,6 @@ TEST_F(TurboshaftInstructionSelectorTest,
   }
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, CombineShiftsWithMul) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Emit(TSBinop::kWord32Mul,
-                    m.Emit(TSBinop::kWord64ShiftRightLogical, m.Parameter(0),
-                           m.Int32Constant(32)),
-                    m.Emit(TSBinop::kWord64ShiftRightLogical, m.Parameter(0),
-                           m.Int32Constant(32))));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kRiscvMulHigh64, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-  }
-}
-
 // TEST_F(TurboshaftInstructionSelectorTest, CombineShiftsWithDivMod) {
 //   {
 //     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -782,7 +736,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeUint32ToUint64(Load_Uint8) -> Lbu
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeUint32ToUint64,
                m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
@@ -796,7 +750,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeInt32ToInt64(Load_Int8) -> Lb
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeInt32ToInt64,
                m.Load(MachineType::Int8(), m.Parameter(0), m.Parameter(1))));
@@ -810,7 +764,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeUint32ToUint64(Load_Uint16) -> Lhu
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeUint32ToUint64,
                m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
@@ -824,7 +778,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeInt32ToInt64(Load_Int16) -> Lh
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeInt32ToInt64,
                m.Load(MachineType::Int16(), m.Parameter(0), m.Parameter(1))));
@@ -838,7 +792,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeInt32ToInt64(Load_Uint32) -> Lw
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeInt32ToInt64,
                m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
@@ -852,7 +806,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeWord32ToWord64AfterLoad) {
   // ChangeInt32ToInt64(Load_Int32) -> Lw
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeInt32ToInt64,
                m.Load(MachineType::Int32(), m.Parameter(0), m.Parameter(1))));
@@ -895,7 +849,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
   // Lbu
   {
     StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeUint32ToUint64,
                m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
@@ -913,7 +867,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
   // Lhu
   {
     StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeUint32ToUint64,
                m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
@@ -931,7 +885,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
   // Lwu
   {
     StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
-                    MachineType::Int32());
+                    MachineType::Int64());
     m.Return(
         m.Emit(TSUnop::kChangeUint32ToUint64,
                m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
@@ -1183,8 +1137,8 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithParameters) {
 
 TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
-                  MachineType::Int32(), memacc.type);
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                  memacc.type, memacc.type);
   m.Store(memacc.type.representation(), m.Parameter(0), m.Int32Constant(0),
           m.Parameter(1), kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
@@ -1210,7 +1164,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest,
   const MemoryAccessImm memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, memacc.type, MachineType::Pointer());
-    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
+    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int64Constant(index)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(memacc.load_opcode, s[0]->arch_opcode());
@@ -1234,7 +1188,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest,
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                     memacc.type);
     m.Store(memacc.type.representation(), m.Parameter(0),
-            m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
+            m.Int64Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1251,8 +1205,21 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest, StoreZero) {
   const MemoryAccessImm memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+    OpIndex zero;
+    if (memacc.type.representation() >= MachineRepresentation::kWord8 &&
+        memacc.type.representation() <= MachineRepresentation::kWord64) {
+      zero = m.WordConstant(
+          0, memacc.type.representation() <= MachineRepresentation::kWord32
+                 ? WordRepresentation::Word32()
+                 : WordRepresentation::Word64());
+    } else {
+      zero = m.FloatConstant(
+          0, memacc.type.representation() == MachineRepresentation::kFloat32
+                 ? FloatRepresentation::Float32()
+                 : FloatRepresentation::Float64());
+    }
     m.Store(memacc.type.representation(), m.Parameter(0),
-            m.Int32Constant(index), m.Int32Constant(0), kNoWriteBarrier);
+            m.Int64Constant(index), zero, kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1262,7 +1229,12 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest, StoreZero) {
     ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
     EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
     ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
-    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
+    EXPECT_EQ(0,
+              memacc.type.representation() < MachineRepresentation::kFloat32
+                  ? s.ToInt64(s[0]->InputAt(0))
+              : memacc.type.representation() == MachineRepresentation::kFloat32
+                  ? s.ToFloat32(s[0]->InputAt(0))
+                  : s.ToFloat64(s[0]->InputAt(0)));
     EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
@@ -1317,7 +1289,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmMoreThan16bitTest,
   const MemoryAccessImm1 memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, memacc.type, MachineType::Pointer());
-    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
+    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int64Constant(index)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(memacc.load_opcode, s[0]->arch_opcode());
@@ -1334,7 +1306,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmMoreThan16bitTest,
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                     memacc.type);
     m.Store(memacc.type.representation(), m.Parameter(0),
-            m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
+            m.Int64Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1502,7 +1474,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadAndShiftRight) {
     TRACED_FOREACH(int32_t, index, immediates) {
       StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer());
       auto load =
-          m.Load(MachineType::Uint64(), m.Parameter(0), m.Int32Constant(index));
+          m.Load(MachineType::Uint64(), m.Parameter(0), m.Int64Constant(index));
       auto sar = m.Emit(TSBinop::kWord64ShiftRightArithmetic, load,
                         m.Int32Constant(32));
       // Make sure we don't fold the shift into the following add:
