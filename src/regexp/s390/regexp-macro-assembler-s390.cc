@@ -495,12 +495,11 @@ void RegExpMacroAssemblerS390::CheckCharacterNotInRange(
 
 void RegExpMacroAssemblerS390::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
-  static const int kNumArguments = 3;
+  static const int kNumArguments = 2;
   __ PrepareCallCFunction(kNumArguments, r0);
 
   __ mov(r2, current_character());
   __ mov(r3, Operand(GetOrAddRangeArray(ranges)));
-  __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
