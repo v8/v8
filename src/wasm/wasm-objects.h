@@ -609,7 +609,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   OBJECT_CONSTRUCTORS(WasmTrustedInstanceData, ExposedTrustedObject);
 
  private:
-  void InitDataSegmentArrays(Tagged<WasmModuleObject>);
+  void InitDataSegmentArrays(const wasm::NativeModule*);
 };
 
 // Representation of a WebAssembly.Instance JavaScript-level object.

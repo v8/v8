@@ -1266,7 +1266,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_tiering_budget_array(
         native_module->tiering_budget_array());
     trusted_data->set_break_on_entry(module_object->script()->break_on_entry());
-    trusted_data->InitDataSegmentArrays(*module_object);
+    trusted_data->InitDataSegmentArrays(native_module.get());
     trusted_data->set_memory0_start(empty_backing_store_buffer);
     trusted_data->set_memory0_size(0);
     trusted_data->set_memory_objects(*memory_objects);
@@ -1309,10 +1309,10 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 }
 
 void WasmTrustedInstanceData::InitDataSegmentArrays(
-    Tagged<WasmModuleObject> module_object) {
-  auto module = module_object->module();
-  auto wire_bytes = module_object->native_module()->wire_bytes();
-  auto num_data_segments = module->num_declared_data_segments;
+    const wasm::NativeModule* native_module) {
+  const WasmModule* module = native_module->module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  uint32_t num_data_segments = module->num_declared_data_segments;
   // The number of declared data segments will be zero if there is no DataCount
   // section. These arrays will not be allocated nor initialized in that case,
   // since they cannot be used (since the validator checks that number of
