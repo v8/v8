@@ -5518,12 +5518,11 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
     ReduceResult result;
     if (is_any_store) {
-      result = TryBuildPropertyStore(GetTaggedValue(receiver), feedback.name(),
-                                     access_info, access_mode);
+      result = TryBuildPropertyStore(receiver, feedback.name(), access_info,
+                                     access_mode);
     } else {
-      result =
-          TryBuildPropertyLoad(GetTaggedValue(receiver), lookup_start_object,
-                               feedback.name(), access_info);
+      result = TryBuildPropertyLoad(receiver, lookup_start_object,
+                                    feedback.name(), access_info);
     }
 
     switch (result.kind()) {
