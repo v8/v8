@@ -68,6 +68,8 @@ namespace internal {
 
 template <typename T>
 class Managed;
+template <typename T>
+class TrustedManaged;
 
 PropertyDetails::PropertyDetails(Tagged<Smi> smi) { value_ = smi.value(); }
 
@@ -266,6 +268,8 @@ struct CastTraits<FieldType> {
 
 template <typename T>
 struct CastTraits<Managed<T>> : public CastTraits<Foreign> {};
+template <typename T>
+struct CastTraits<TrustedManaged<T>> : public CastTraits<TrustedForeign> {};
 template <typename T>
 struct CastTraits<PodArray<T>> : public CastTraits<ByteArray> {};
 template <typename T>

@@ -4435,6 +4435,18 @@ Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   return handle(obj, isolate());
 }
 
+Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr) {
+  // Statically ensure that it is safe to allocate foreigns in paged spaces.
+  static_assert(TrustedForeign::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = *trusted_foreign_map();
+  Tagged<TrustedForeign> foreign =
+      Cast<TrustedForeign>(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kTrusted, map));
+  DisallowGarbageCollection no_gc;
+  foreign->set_foreign_address(addr);
+  return handle(foreign, isolate());
+}
+
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
                                               Handle<SharedFunctionInfo> sfi,
                                               Handle<Context> context)

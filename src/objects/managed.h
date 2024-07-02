@@ -92,7 +92,7 @@ class Managed : public Foreign {
  public:
   Managed() : Foreign() {}
   explicit Managed(Address ptr) : Foreign(ptr) {}
-  explicit V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
+  V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
       : Foreign(ptr, SkipTypeCheckTag{}) {}
 
   // For every object, add a `->` operator which returns a pointer to this
@@ -122,6 +122,47 @@ class Managed : public Foreign {
     static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
     auto destructor =
         reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
+    return reinterpret_cast<std::shared_ptr<CppType>*>(
+        destructor->shared_ptr_ptr_);
+  }
+};
+
+// {TrustedManaged<T>} is semantically equivalent to {Managed<T>}, but lives in
+// the trusted space. It is thus based on {TrustedForeign} instead of {Foreign}
+// and does not need any tagging.
+template <class CppType>
+class TrustedManaged : public TrustedForeign {
+ public:
+  TrustedManaged() : TrustedForeign() {}
+  explicit TrustedManaged(Address ptr) : TrustedForeign(ptr) {}
+  V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
+      : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
+
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  TrustedManaged* operator->() { return this; }
+  const TrustedManaged* operator->() const { return this; }
+
+  // Get a raw pointer to the C++ object.
+  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+
+  // Get a reference to the shared pointer to the C++ object.
+  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
+
+  // Create a {Managed<CppType>} from an existing {std::shared_ptr} or
+  // {std::unique_ptr} (which will implicitly convert to {std::shared_ptr}).
+  static Handle<TrustedManaged<CppType>> From(
+      Isolate* isolate, size_t estimated_size,
+      std::shared_ptr<CppType> shared_ptr);
+
+ private:
+  friend class Tagged<TrustedManaged>;
+
+  // Internally the {TrustedForeign} stores a pointer to the
+  // {std::shared_ptr<CppType>}.
+  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+    auto destructor =
+        reinterpret_cast<ManagedPtrDestructor*>(foreign_address());
     return reinterpret_cast<std::shared_ptr<CppType>*>(
         destructor->shared_ptr_ptr_);
   }

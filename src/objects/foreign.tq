@@ -6,3 +6,7 @@
 extern class Foreign extends HeapObject {
   foreign_address: ExternalPointer;
 }
+
+extern class TrustedForeign extends TrustedObject {
+  foreign_address: RawPtr;
+}

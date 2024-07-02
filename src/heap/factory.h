@@ -469,6 +469,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
+  Handle<TrustedForeign> NewTrustedForeign(Address addr);
+
   Handle<Cell> NewCell(Tagged<Smi> value);
   Handle<Cell> NewCell();
 

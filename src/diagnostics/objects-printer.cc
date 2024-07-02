@@ -2273,8 +2273,14 @@ void CodeWrapper::CodeWrapperPrint(std::ostream& os) {
 
 void Foreign::ForeignPrint(std::ostream& os) {
   PrintHeader(os, "Foreign");
-  os << "\n - foreign address : "
+  os << "\n - foreign address: "
      << reinterpret_cast<void*>(foreign_address_unchecked());
+  os << "\n";
+}
+
+void TrustedForeign::TrustedForeignPrint(std::ostream& os) {
+  PrintHeader(os, "TrustedForeign");
+  os << "\n - foreign address: " << reinterpret_cast<void*>(foreign_address());
   os << "\n";
 }
 

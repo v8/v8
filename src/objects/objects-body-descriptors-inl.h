@@ -848,20 +848,6 @@ class JSSynchronizationPrimitive::BodyDescriptor final
   }
 };
 
-class Foreign::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    v->VisitExternalPointer(obj, obj->RawExternalPointerField(
-                                     kForeignAddressOffset, kAnyForeignTag));
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
 #if V8_ENABLE_WEBASSEMBLY
 class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
