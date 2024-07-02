@@ -434,11 +434,13 @@ declare_args() {
 
   # Use the experimental TSA-based definition for some builtins.
   v8_enable_experimental_tsa_builtins = false
+
+  v8_dcheck_always_on = dcheck_always_on
 }
 
 # Derived defaults.
 if (cppgc_enable_verify_heap == "") {
-  cppgc_enable_verify_heap = v8_enable_debugging_features || dcheck_always_on
+  cppgc_enable_verify_heap = v8_enable_debugging_features || v8_dcheck_always_on
 }
 if (v8_enable_verify_heap == "") {
   v8_enable_verify_heap = v8_enable_debugging_features
@@ -453,14 +455,14 @@ if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = v8_enable_debugging_features
 }
 if (v8_enable_test_features == "") {
-  v8_enable_test_features = v8_enable_debugging_features || dcheck_always_on
+  v8_enable_test_features = v8_enable_debugging_features || v8_dcheck_always_on
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
 }
 if (v8_enable_heap_snapshot_verify == "") {
   v8_enable_heap_snapshot_verify =
-      v8_enable_debugging_features || dcheck_always_on
+      v8_enable_debugging_features || v8_dcheck_always_on
 }
 if (v8_enable_snapshot_code_comments) {
   assert(v8_code_comments == true || v8_code_comments == "",
@@ -559,7 +561,7 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
 assert(
-    v8_enable_debugging_features == true || dcheck_always_on ||
+    v8_enable_debugging_features == true || v8_dcheck_always_on ||
         !v8_enable_slow_dchecks,
     "v8_enable_slow_dchecks requires v8_enable_debugging_features or dcheck_always_on.")
 
@@ -625,7 +627,7 @@ if (v8_builtins_profiling_log_file == "default") {
   # * `v8_enable_webassembly` because it changes the set of opcodes which
   #   affects graphs hashes.
   if (v8_enable_builtins_optimization && !v8_enable_builtins_profiling &&
-      !is_debug && !dcheck_always_on && v8_enable_webassembly) {
+      !is_debug && !v8_dcheck_always_on && v8_enable_webassembly) {
     # This is about function arguments evaluation order on the machine building
     # mksnapshot, which makes node IDs not predictable for subgraphs like
     # Op1(Op2(), Op3()) and as a result different graph hashes.
@@ -1473,7 +1475,7 @@ config("toolchain") {
   # TODO(infra): Support v8_enable_prof on Windows.
   # TODO(infra): Add support for compiling with simulators.
 
-  if (v8_enable_debugging_features || dcheck_always_on) {
+  if (v8_enable_debugging_features || v8_dcheck_always_on) {
     defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
@@ -2665,7 +2667,7 @@ if (v8_verify_builtins_compatibility) {
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
-  is_DEBUG_defined = v8_enable_debugging_features || dcheck_always_on
+  is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
 
   arch = v8_target_cpu
@@ -2712,7 +2714,7 @@ action("v8_dump_build_config") {
     "concurrent_marking=$v8_enable_concurrent_marking",
     "conservative_stack_scanning=$v8_enable_conservative_stack_scanning",
     "current_cpu=\"$current_cpu\"",
-    "dcheck_always_on=$dcheck_always_on",
+    "dcheck_always_on=$v8_dcheck_always_on",
     "debug_code=$v8_enable_debug_code",
     "DEBUG_defined=$is_DEBUG_defined",
     "debugging_features=$v8_enable_debugging_features",
