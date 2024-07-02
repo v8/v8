@@ -2059,11 +2059,17 @@
 
 ##############################################################################
 # TODO(mliedtke): Support deopts on all platforms.
-['(arch != x64)', {
+['(arch != x64 and arch != arm64)', {
   # --wasm-deopt implementation experimental and not ported to most
   # architectures, yet.
   'wasm/deopt/*': [SKIP],
 }],
+['arch == arm64', {
+  # TODO(mliedtke): Not quite working, yet.
+  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
+}],
+
+
 
 ##############################################################################
 # Skip failing tests in google3

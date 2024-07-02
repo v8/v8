@@ -593,8 +593,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
     // pointers as well as the incoming parameter stack slots are going to be
     // copied into the outgoing FrameDescription which will "push" them back
     // onto the stack. (This is consistent with how JS handles this.)
-    const int parameter_slots = code->first_tagged_parameter_slot() +
-                                code->num_tagged_parameter_slots();
+    int parameter_slots = code->first_tagged_parameter_slot() +
+                          code->num_tagged_parameter_slots();
+    // For arm64, the stack pointer has to be 16-byte-aligned, so additional
+    // padding might be required.
+    parameter_slots += ArgumentPaddingSlots(parameter_slots);
     unsigned input_frame_size = fp_to_sp_delta +
                                 parameter_slots * kSystemPointerSize +
                                 CommonFrameConstants::kFixedFrameSizeAboveFp;
@@ -893,9 +896,12 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     PrintF(file, "%s", outstream.str().c_str());
   }
 
-  const uint32_t parameter_stack_slots =
-      wasm_code->first_tagged_parameter_slot() +
-      wasm_code->num_tagged_parameter_slots();
+  uint32_t parameter_stack_slots = wasm_code->first_tagged_parameter_slot() +
+                                   wasm_code->num_tagged_parameter_slots();
+
+  // For arm64, the stack pointer has to be 16-byte-aligned, so additional
+  // padding might be required.
+  parameter_stack_slots += ArgumentPaddingSlots(parameter_stack_slots);
 
   // Allocate and populate the FrameDescription describing the output frame.
   const uint32_t output_frame_size = liftoff_description->total_frame_size;
@@ -917,6 +923,37 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   for (uint32_t i = 0; i < parameter_stack_slots; ++i) {
     output_offset -= kSystemPointerSize;
     output_frame->SetFrameSlot(output_offset, 0);
+  }
+
+  // Calculate top and update previous caller's pc.
+  Address top = is_bottommost ? caller_frame_top_ - total_output_frame_size
+                              : output_[frame_index - 1]->GetTop() -
+                                    total_output_frame_size;
+  output_frame->SetTop(top);
+  Address pc = wasm_code->instruction_start() + liftoff_description->pc_offset;
+  // Note: Differently to JS, all PCs, including intermediate ones need to be
+  // signed.
+  if (is_topmost) {
+    Address signed_pc = PointerAuthentication::SignAndCheckPC(
+        isolate(), pc, output_frame->GetTop());
+    output_frame->SetPc(signed_pc);
+  } else {
+    // For signing the PC we need to know the stack pointer ("top" address)
+    // which needs to take into account the arguments of the callee (the frame
+    // "above" the current frame).
+    // Therefore, we delay signing the PC to the next frame which knows how many
+    // parameter stack slots there are.
+    output_frame->SetPc(pc, true);
+  }
+  // Sign the previous frame's PC.
+  if (!is_bottommost) {
+    FrameDescription* previous_frame = output_[frame_index - 1];
+    Address pc = previous_frame->GetPc();
+    Address context =
+        previous_frame->GetTop() - parameter_stack_slots * kSystemPointerSize;
+    Address signed_pc =
+        PointerAuthentication::SignAndCheckPC(isolate(), pc, context);
+    previous_frame->SetPc(signed_pc);
   }
 
   // Store the caller PC.
@@ -1076,17 +1113,11 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     output_frame->SetFrameSlot(feedback_offset, feedback_vector.ptr());
   }
 
-  output_frame->SetPc(wasm_code->instruction_start() +
-                      liftoff_description->pc_offset);
   // Instead of a builtin continuation for wasm the deopt builtin will
   // call a c function to destroy the Deoptimizer object and then directly
   // return to the liftoff code.
   output_frame->SetContinuation(0);
 
-  Address top = is_bottommost ? caller_frame_top_ - total_output_frame_size
-                              : output_[frame_index - 1]->GetTop() -
-                                    total_output_frame_size;
-  output_frame->SetTop(top);
   const intptr_t fp_value = top + output_frame_size;
   output_frame->SetFp(fp_value);
   Register fp_reg = JavaScriptFrame::fp_register();
@@ -1096,6 +1127,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   output_frame->SetRegister(kPtrComprCageBaseRegister.code(),
                             isolate()->cage_base());
 #endif
+
   return output_frame;
 }
 
@@ -1205,6 +1237,8 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   wasm_trusted_instance->tiering_budget_array()[declared_func_index] =
       v8_flags.wasm_tiering_budget;
 
+  // TODO(mliedtke): Add a metric for deopts per function to measure "worst
+  // case" deopt counts.
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
 
