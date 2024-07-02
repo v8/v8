@@ -4447,10 +4447,11 @@ TEST(HeapSnapshotWithWasmInstance) {
   const v8::HeapGraphNode* trusted_instance_data_node = GetProperty(
       isolate, instance_node, v8::HeapGraphEdge::kInternal, "trusted_data");
   CHECK_NOT_NULL(trusted_instance_data_node);
-  CheckProperties(isolate, trusted_instance_data_node,
-                  {"dispatch_table0", "dispatch_table_for_imports",
-                   "dispatch_tables", "instance_object", "map",
-                   "memory_bases_and_sizes", "native_context", "shared_part"});
+  CheckProperties(
+      isolate, trusted_instance_data_node,
+      {"dispatch_table0", "dispatch_table_for_imports", "dispatch_tables",
+       "instance_object", "managed_native_module", "map",
+       "memory_bases_and_sizes", "native_context", "shared_part"});
 
   // "module_object" should be the same as the global "module".
   const v8::HeapGraphNode* module_node =

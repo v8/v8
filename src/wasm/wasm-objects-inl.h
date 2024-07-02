@@ -185,11 +185,9 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
                     kMemory0StartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
                     kMemory0SizeOffset)
-// Sandbox-safe alternative to going through the chain
-// instance_object()->module_object()->native_module(), i.e. doesn't rely on
-// potentially-corrupted heap objects.
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, native_module, wasm::NativeModule*,
-                    kNativeModuleOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, managed_native_module,
+                            TrustedManaged<wasm::NativeModule>,
+                            kProtectedManagedNativeModuleOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
                     Address*, kNewAllocationLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_top_address,
@@ -292,6 +290,10 @@ bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
   Tagged<Object> maybe_table = dispatch_tables()->get(table_index);
   DCHECK(maybe_table == Smi::zero() || IsWasmDispatchTable(maybe_table));
   return maybe_table != Smi::zero();
+}
+
+wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
+  return managed_native_module()->get().get();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {

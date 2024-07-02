@@ -61,8 +61,10 @@ enum class SharedFlag : uint8_t;
 
 enum class WasmTableFlag : uint8_t { kTable32, kTable64 };
 
-template <class CppType>
+template <typename CppType>
 class Managed;
+template <typename CppType>
+class TrustedManaged;
 
 #include "torque-generated/src/wasm/wasm-objects-tq.inc"
 
@@ -390,7 +392,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(memory0_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
-  DECL_PRIMITIVE_ACCESSORS(native_module, wasm::NativeModule*)
+  DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
+                                   TrustedManaged<wasm::NativeModule>)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
@@ -415,6 +418,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   inline uint8_t* memory_base(int memory_index) const;
   inline size_t memory_size(int memory_index) const;
 
+  inline wasm::NativeModule* native_module() const;
+
   inline Tagged<WasmModuleObject> module_object() const;
   inline const wasm::WasmModule* module() const;
 
@@ -438,7 +443,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
-  V(kNativeModuleOffset, kSystemPointerSize)                              \
   V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
@@ -464,6 +468,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kFeedbackVectorsOffset, kTaggedSize)                                  \
   V(kWellKnownImportsOffset, kTaggedSize)                                 \
+  V(kProtectedManagedNativeModuleOffset, kTaggedSize)                     \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
@@ -503,12 +508,13 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kDataSegmentStartsOffset, "data_segment_starts")                          \
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
-#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                     \
-  V(kProtectedSharedPartOffset, "shared_part")                     \
-  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes") \
-  V(kProtectedDispatchTable0Offset, "dispatch_table0")             \
-  V(kProtectedDispatchTablesOffset, "dispatch_tables")             \
-  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports")
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                             \
+  V(kProtectedSharedPartOffset, "shared_part")                             \
+  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")         \
+  V(kProtectedDispatchTable0Offset, "dispatch_table0")                     \
+  V(kProtectedDispatchTablesOffset, "dispatch_tables")                     \
+  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports") \
+  V(kProtectedManagedNativeModuleOffset, "managed_native_module")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
 #define WASM_INSTANCE_FIELD_NAME(_, name) name,
@@ -517,9 +523,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
   static constexpr std::array<const char*, 16> kTaggedFieldNames = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
-  static constexpr std::array<uint16_t, 5> kProtectedFieldOffsets = {
+  static constexpr std::array<uint16_t, 6> kProtectedFieldOffsets = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 5> kProtectedFieldNames = {
+  static constexpr std::array<const char*, 6> kProtectedFieldNames = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
 
 #undef WASM_INSTANCE_FIELD_OFFSET
@@ -1266,7 +1272,6 @@ class WasmContinuationObject
       WithExternalPointer<kJmpbufOffset, kWasmContinuationJmpbufTag>>;
 
  private:
-
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
 };
 
