@@ -2484,11 +2484,18 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
 TextNode* TextNode::CreateForSurrogatePair(
     Zone* zone, CharacterRange lead, ZoneList<CharacterRange>* trail_ranges,
     bool read_backward, RegExpNode* on_success) {
-  ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
-  elms->Add(
-      TextElement::ClassRanges(zone->New<RegExpClassRanges>(zone, lead_ranges)),
-      zone);
+  if (lead.from() == lead.to()) {
+    ZoneList<base::uc16> lead_surrogate(1, zone);
+    lead_surrogate.Add(lead.from(), zone);
+    RegExpAtom* atom = zone->New<RegExpAtom>(lead_surrogate.ToConstVector());
+    elms->Add(TextElement::Atom(atom), zone);
+  } else {
+    ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
+    elms->Add(TextElement::ClassRanges(
+                  zone->New<RegExpClassRanges>(zone, lead_ranges)),
+              zone);
+  }
   elms->Add(TextElement::ClassRanges(
                 zone->New<RegExpClassRanges>(zone, trail_ranges)),
             zone);
