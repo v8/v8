@@ -56,16 +56,23 @@ namespace internal {
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
   /* Newer histogram, in KiB (0..100MB). */                                    \
   HR(wasm_module_code_size_kb, V8.WasmModuleCodeSizeKiB, 0, 1024 * 100, 101)   \
+  /* Meta data size per module, collected on GC. */                            \
+  HR(wasm_module_metadata_size_kb, V8.WasmModuleMetadataSizeKiB, 0,            \
+     1024 * 100, 101)                                                          \
   /* Percent of freed code size per module, collected on GC. */                \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \
   /* Number of code GCs triggered per native module, collected on code GC. */  \
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
-  /* The amount of Liftoff code flushed on emergency GCs for allocations and   \
-   * on memory pressure. */                                                    \
+  /* The amount of executable Liftoff code flushed on emergency GCs for */     \
+  /* allocations and on memory pressure. */                                    \
   HR(wasm_flushed_liftoff_code_size_bytes, V8.WasmFlushedLiftoffCodeSizeBytes, \
      0, GB, 101)                                                               \
+  /* The size of flushed Liftoff meta data on emergency GCs for allocations */ \
+  /* and on memory pressure. */                                                \
+  HR(wasm_flushed_liftoff_metadata_size_bytes,                                 \
+     V8.WasmFlushedLiftoffMetadataSizeBytes, 0, GB, 101)                       \
   /* Number of code spaces reserved per wasm module. */                        \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
   /* Number of deopts triggered in webassembly code. */                        \
