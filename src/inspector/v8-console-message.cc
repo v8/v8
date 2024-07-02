@@ -616,10 +616,6 @@ int V8ConsoleMessageStorage::count(int contextId, const String16& id) {
   return ++m_data[contextId].m_count[id];
 }
 
-void V8ConsoleMessageStorage::time(int contextId, const String16& id) {
-  m_time[contextId][id] = m_inspector->client()->currentTimeMS();
-}
-
 bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
   std::map<String16, int>& count_map = m_data[contextId].m_count;
   if (count_map.find(id) == count_map.end()) return false;
@@ -628,25 +624,29 @@ bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
   return true;
 }
 
-double V8ConsoleMessageStorage::timeLog(int contextId, const String16& id) {
+bool V8ConsoleMessageStorage::time(int contextId, const String16& id) {
   std::map<String16, double>& time = m_time[contextId];
-  auto it = time.find(id);
-  if (it == time.end()) return 0.0;
+  return time.try_emplace(id, m_inspector->client()->currentTimeMS()).second;
+}
+
+std::optional<double> V8ConsoleMessageStorage::timeLog(
+    int contextId, const String16& id) const {
+  auto time_it = m_time.find(contextId);
+  if (time_it == m_time.end()) return std::nullopt;
+  auto it = time_it->second.find(id);
+  if (it == time_it->second.end()) return std::nullopt;
   return m_inspector->client()->currentTimeMS() - it->second;
 }
 
-double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
-  std::map<String16, double>& time = m_time[contextId];
-  auto it = time.find(id);
-  if (it == time.end()) return 0.0;
-  double elapsed = m_inspector->client()->currentTimeMS() - it->second;
-  time.erase(it);
-  return elapsed;
-}
-
-bool V8ConsoleMessageStorage::hasTimer(int contextId, const String16& id) {
-  const std::map<String16, double>& time = m_time[contextId];
-  return time.find(id) != time.end();
+std::optional<double> V8ConsoleMessageStorage::timeEnd(int contextId,
+                                                       const String16& id) {
+  auto time_it = m_time.find(contextId);
+  if (time_it == m_time.end()) return std::nullopt;
+  auto it = time_it->second.find(id);
+  if (it == time_it->second.end()) return std::nullopt;
+  double result = m_inspector->client()->currentTimeMS() - it->second;
+  time_it->second.erase(it);
+  return result;
 }
 
 void V8ConsoleMessageStorage::contextDestroyed(int contextId) {

@@ -394,74 +394,56 @@ void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
                    TRACE_STR_COPY(title.utf8().c_str()));
 }
 
-static void timeFunction(const v8::debug::ConsoleCallArguments& info,
-                         const v8::debug::ConsoleContext& consoleContext,
-                         bool timelinePrefix, V8InspectorImpl* inspector) {
-  ConsoleHelper helper(info, consoleContext, inspector);
+void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
+                     const v8::debug::ConsoleContext& consoleContext) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
+  ConsoleHelper helper(info, consoleContext, m_inspector);
   String16 protocolTitle = helper.firstArgToString("default", false);
-  if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
-  const String16& timerId =
-      protocolTitle + "@" +
-      consoleContextToString(inspector->isolate(), consoleContext);
-  if (helper.consoleMessageStorage()->hasTimer(helper.contextId(), timerId)) {
+  if (!helper.consoleMessageStorage()->time(helper.contextId(),
+                                            protocolTitle)) {
     helper.reportCallWithArgument(
         ConsoleAPIType::kWarning,
         "Timer '" + protocolTitle + "' already exists");
     return;
   }
-  inspector->client()->consoleTime(toStringView(protocolTitle));
-  helper.consoleMessageStorage()->time(helper.contextId(), timerId);
-}
-
-static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
-                            const v8::debug::ConsoleContext& consoleContext,
-                            bool timeLog, V8InspectorImpl* inspector) {
-  ConsoleHelper helper(info, consoleContext, inspector);
-  String16 protocolTitle = helper.firstArgToString("default", false);
-  const String16& timerId =
-      protocolTitle + "@" +
-      consoleContextToString(inspector->isolate(), consoleContext);
-  if (!helper.consoleMessageStorage()->hasTimer(helper.contextId(), timerId)) {
-    helper.reportCallWithArgument(
-        ConsoleAPIType::kWarning,
-        "Timer '" + protocolTitle + "' does not exist");
-    return;
-  }
-  inspector->client()->consoleTimeEnd(toStringView(protocolTitle));
-  String16 title = protocolTitle + "@" +
-                   consoleContextToString(inspector->isolate(), consoleContext);
-  double elapsed;
-  if (timeLog) {
-    elapsed =
-        helper.consoleMessageStorage()->timeLog(helper.contextId(), title);
-  } else {
-    elapsed =
-        helper.consoleMessageStorage()->timeEnd(helper.contextId(), title);
-  }
-  String16 message =
-      protocolTitle + ": " + String16::fromDouble(elapsed) + " ms";
-  if (timeLog)
-    helper.reportCallAndReplaceFirstArgument(ConsoleAPIType::kLog, message);
-  else
-    helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
-}
-
-void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
-                     const v8::debug::ConsoleContext& consoleContext) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
-  timeFunction(info, consoleContext, false, m_inspector);
+  m_inspector->client()->consoleTime(toStringView(protocolTitle));
 }
 
 void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeLog");
-  timeEndFunction(info, consoleContext, true, m_inspector);
+  ConsoleHelper helper(info, consoleContext, m_inspector);
+  String16 protocolTitle = helper.firstArgToString("default", false);
+  std::optional<double> elapsed = helper.consoleMessageStorage()->timeLog(
+      helper.contextId(), protocolTitle);
+  if (!elapsed.has_value()) {
+    helper.reportCallWithArgument(
+        ConsoleAPIType::kWarning,
+        "Timer '" + protocolTitle + "' does not exist");
+    return;
+  }
+  String16 message =
+      protocolTitle + ": " + String16::fromDouble(elapsed.value()) + " ms";
+  helper.reportCallAndReplaceFirstArgument(ConsoleAPIType::kLog, message);
 }
 
 void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeEnd");
-  timeEndFunction(info, consoleContext, false, m_inspector);
+  ConsoleHelper helper(info, consoleContext, m_inspector);
+  String16 protocolTitle = helper.firstArgToString("default", false);
+  std::optional<double> elapsed = helper.consoleMessageStorage()->timeEnd(
+      helper.contextId(), protocolTitle);
+  if (!elapsed.has_value()) {
+    helper.reportCallWithArgument(
+        ConsoleAPIType::kWarning,
+        "Timer '" + protocolTitle + "' does not exist");
+    return;
+  }
+  m_inspector->client()->consoleTimeEnd(toStringView(protocolTitle));
+  String16 message =
+      protocolTitle + ": " + String16::fromDouble(elapsed.value()) + " ms";
+  helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
 }
 
 void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
