@@ -1282,6 +1282,7 @@
   'd8/d8-os': [SKIP],
   'd8/d8-worker-shutdown': [SKIP],
   'd8/d8-worker-shutdown-gc': [SKIP],
+  'd8/d8-worker-onmessage-ping-pong': [SKIP],
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
