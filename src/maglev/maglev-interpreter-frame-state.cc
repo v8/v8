@@ -442,10 +442,10 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
              value->Is<BuiltinStringPrototypeCharCodeOrCodePointAt>()) {
     static_assert(String::kMaxLength <= kSmiMaxValue,
                   "String length must fit into a Smi");
-    tagged = Node::New<UnsafeSmiTag>(builder->zone(), {value});
+    tagged = Node::New<UnsafeSmiTagInt32>(builder->zone(), {value});
   } else if (NodeTypeIsSmi(node_type)) {
     // For known Smis, we can tag without a check.
-    tagged = Node::New<UnsafeSmiTag>(builder->zone(), {value});
+    tagged = Node::New<UnsafeSmiTagInt32>(builder->zone(), {value});
   } else {
     tagged = Node::New<Int32ToNumber>(builder->zone(), {value});
   }
@@ -464,7 +464,7 @@ ValueNode* FromUint32ToTagged(const MaglevGraphBuilder* builder,
 
   ValueNode* tagged;
   if (NodeTypeIsSmi(node_type)) {
-    tagged = Node::New<UnsafeSmiTag>(builder->zone(), {value});
+    tagged = Node::New<UnsafeSmiTagUint32>(builder->zone(), {value});
   } else {
     tagged = Node::New<Uint32ToNumber>(builder->zone(), {value});
   }

@@ -618,33 +618,10 @@ void CheckValueInputIs(const NodeBase* node, int i, Opcode expected,
   }
 }
 
-void CheckValueInputIsWord32(const NodeBase* node, int i,
-                             MaglevGraphLabeller* graph_labeller) {
-  ValueNode* input = node->input(i).node();
-  DCHECK(!input->Is<Identity>());
-  ValueRepresentation got = input->properties().value_representation();
-  if (got != ValueRepresentation::kInt32 &&
-      got != ValueRepresentation::kUint32) {
-    std::ostringstream str;
-    str << "Type representation error: node ";
-    if (graph_labeller) {
-      str << "#" << graph_labeller->NodeId(node) << " : ";
-    }
-    str << node->opcode() << " (input @" << i << " = " << input->opcode()
-        << ") type " << got << " is not Word32 (Int32 or Uint32)";
-    FATAL("%s", str.str().c_str());
-  }
-}
-
 void GeneratorStore::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
   }
-}
-
-void UnsafeSmiTag::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
-  DCHECK_EQ(input_count(), 1);
-  CheckValueInputIsWord32(this, 0, graph_labeller);
 }
 
 void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
@@ -1562,23 +1539,22 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   __ SmiTagUint32AndJumpIfFail(reg, fail);
 }
 
-void UnsafeSmiTag::SetValueLocationConstraints() {
+void UnsafeSmiTagInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  Register reg = ToRegister(input());
-  switch (input().node()->properties().value_representation()) {
-    case ValueRepresentation::kInt32:
-      __ UncheckedSmiTagInt32(reg);
-      break;
-    case ValueRepresentation::kUint32:
-      __ UncheckedSmiTagUint32(reg);
-      break;
-    default:
-      UNREACHABLE();
-  }
+void UnsafeSmiTagInt32::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  __ UncheckedSmiTagInt32(ToRegister(input()));
+}
+
+void UnsafeSmiTagUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeSmiTagUint32::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  __ UncheckedSmiTagUint32(ToRegister(input()));
 }
 
 void CheckedSmiIncrement::SetValueLocationConstraints() {

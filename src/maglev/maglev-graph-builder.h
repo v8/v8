@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <map>
 #include <type_traits>
+#include <utility>
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
@@ -211,7 +212,7 @@ class MaglevGraphBuilder {
     // Don't use the AddNewNode helper for the function entry stack check, so
     // that we can set a custom deopt frame on it.
     FunctionEntryStackCheck* function_entry_stack_check =
-        NodeBase::New<FunctionEntryStackCheck>(zone(), {});
+        NodeBase::New<FunctionEntryStackCheck>(zone(), 0);
     new (function_entry_stack_check->lazy_deopt_info()) LazyDeoptInfo(
         zone(), GetDeoptFrameForEntryStackCheck(),
         interpreter::Register::invalid_value(), 0, compiler::FeedbackSource());
@@ -910,8 +911,9 @@ class MaglevGraphBuilder {
         known_node_aspects().available_expressions.erase(exists);
       }
     }
-    NodeT* node =
-        NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
+    NodeT* node = NodeBase::New<NodeT>(zone(), inputs.size(),
+                                       std::forward<Args>(args)...);
+    SetNodeInputs(node, inputs);
     DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
     uint32_t epoch = Node::needs_epoch_check(op)
                          ? known_node_aspects().effect_epoch()
@@ -943,8 +945,10 @@ class MaglevGraphBuilder {
         }
       }
     }
-    NodeT* node =
-        NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
+    static_assert(IsFixedInputNode<NodeT>());
+    NodeT* node = NodeBase::New<NodeT>(zone(), inputs.size(),
+                                       std::forward<Args>(args)...);
+    SetNodeInputs(node, inputs);
     return AttachExtraInfoAndAddToGraph(node);
   }
 
@@ -1106,7 +1110,15 @@ class MaglevGraphBuilder {
           },
           kBuiltin, GetContext());
     } else {
-      return AddNewNode<CallBuiltin>(inputs, kBuiltin);
+      return AddNewNode<CallBuiltin>(
+          inputs.size(),
+          [&](CallBuiltin* call_builtin) {
+            int arg_index = 0;
+            for (auto* input : inputs) {
+              call_builtin->set_arg(arg_index++, input);
+            }
+          },
+          kBuiltin);
     }
   }
 
@@ -1676,11 +1688,43 @@ class MaglevGraphBuilder {
     PrintVirtualObjects();
   }
 
+  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected) {
+    ValueRepresentation repr = input->properties().value_representation();
+    if (repr == expected) return input;
+    switch (expected) {
+      case ValueRepresentation::kTagged:
+        return GetTaggedValue(input);
+      case ValueRepresentation::kInt32:
+        return GetInt32(input);
+      case ValueRepresentation::kFloat64:
+      case ValueRepresentation::kHoleyFloat64:
+        return GetFloat64(input);
+      case ValueRepresentation::kUint32:
+      case ValueRepresentation::kIntPtr:
+        // These conversion should be explicitly done beforehand.
+        UNREACHABLE();
+    }
+  }
+
+  template <typename NodeT>
+  void SetNodeInputs(NodeT* node, std::initializer_list<ValueNode*> inputs) {
+    // Nodes with zero input count don't have kInputTypes defined.
+    if constexpr (NodeT::kInputCount > 0) {
+      int i = 0;
+      for (ValueNode* input : inputs) {
+        DCHECK_NOT_NULL(input);
+        node->set_input(i, ConvertInputTo(input, NodeT::kInputTypes[i]));
+        i++;
+      }
+    }
+  }
+
   template <typename ControlNodeT, typename... Args>
   BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
     ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
-        zone(), control_inputs, std::forward<Args>(args)...);
+        zone(), control_inputs.size(), std::forward<Args>(args)...);
+    SetNodeInputs(control_node, control_inputs);
     AttachEagerDeoptInfo(control_node);
     AttachDeoptCheckpoint(control_node);
     static_assert(!ControlNodeT::kProperties.can_lazy_deopt());

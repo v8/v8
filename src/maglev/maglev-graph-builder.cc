@@ -1449,13 +1449,13 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
   switch (representation) {
     case ValueRepresentation::kInt32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
     }
@@ -1506,13 +1506,13 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   switch (representation) {
     case ValueRepresentation::kInt32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
       }
       return alternative.set_tagged(AddNewNode<CheckedSmiTagInt32>({value}));
     }
     case ValueRepresentation::kUint32: {
       if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
       }
       return alternative.set_tagged(AddNewNode<CheckedSmiTagUint32>({value}));
     }
@@ -3464,7 +3464,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedSmiTagInt32:
     case Opcode::kCheckedSmiTagUint32:
     case Opcode::kCheckedSmiTagFloat64:
-    case Opcode::kUnsafeSmiTag:
+    case Opcode::kUnsafeSmiTagInt32:
+    case Opcode::kUnsafeSmiTagUint32:
     case Opcode::kSmiConstant:
       return NodeType::kSmi;
     case Opcode::kInt32ToNumber:

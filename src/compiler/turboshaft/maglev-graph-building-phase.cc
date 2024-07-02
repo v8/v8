@@ -2726,7 +2726,12 @@ class GraphBuilder {
             node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::UnsafeSmiTag* node,
+  maglev::ProcessResult Process(maglev::UnsafeSmiTagInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ TagSmi(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeSmiTagUint32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ TagSmi(Map(node->input())));
     return maglev::ProcessResult::kContinue;

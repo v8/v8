@@ -217,7 +217,8 @@ class MergePointInterpreterFrameState;
   V(CheckedSmiSizedInt32)                           \
   V(CheckedSmiTagInt32)                             \
   V(CheckedSmiTagUint32)                            \
-  V(UnsafeSmiTag)                                   \
+  V(UnsafeSmiTagInt32)                              \
+  V(UnsafeSmiTagUint32)                             \
   V(CheckedSmiUntag)                                \
   V(UnsafeSmiUntag)                                 \
   V(CheckedInternalizedString)                      \
@@ -1673,6 +1674,7 @@ class NodeBase : public ZoneObject {
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, std::initializer_list<ValueNode*> inputs,
                       Args&&... args) {
+    static_assert(Derived::kProperties.is_conversion());
     Derived* node =
         Allocate<Derived>(zone, inputs.size(), std::forward<Args>(args)...);
 
@@ -1704,6 +1706,8 @@ class NodeBase : public ZoneObject {
   void set_properties(OpProperties properties) {
     bitfield_ = OpPropertiesField::update(bitfield_, properties);
   }
+
+  inline void set_input(int index, ValueNode* node);
 
   template <class T>
   constexpr bool Is() const;
@@ -1919,7 +1923,6 @@ class NodeBase : public ZoneObject {
   }
 
   inline void initialize_input_null(int index);
-  inline void set_input(int index, ValueNode* node);
 
   // For nodes that don't have data past the input, allow trimming the input
   // count. This is used by Phis to reduce inputs when merging in dead control
@@ -2506,9 +2509,9 @@ struct YouNeedToDefineAnInputTypesArrayInYourDerivedClass {};
 // properties), and known numbers of inputs.
 template <size_t InputCount, typename Base, typename Derived>
 class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
+ public:
   static constexpr size_t kInputCount = InputCount;
 
- public:
   // Shadowing for static knowledge.
   constexpr bool has_inputs() const { return input_count() > 0; }
   constexpr uint16_t input_count() const { return kInputCount; }
@@ -2553,6 +2556,12 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
     DCHECK_EQ(this->NodeBase::input_count(), kInputCount);
   }
 };
+
+template <class T, class = void>
+struct IsFixedInputNode : public std::false_type {};
+template <class T>
+struct IsFixedInputNode<T, std::void_t<decltype(T::kInputCount)>>
+    : public std::true_type {};
 
 template <class Derived>
 using NodeT = NodeTMixin<Node, Derived>;
@@ -3207,17 +3216,41 @@ class CheckedSmiTagUint32
 };
 
 // Input must guarantee to fit in a Smi.
-class UnsafeSmiTag : public FixedInputValueNodeT<1, UnsafeSmiTag> {
-  using Base = FixedInputValueNodeT<1, UnsafeSmiTag>;
+class UnsafeSmiTagInt32 : public FixedInputValueNodeT<1, UnsafeSmiTagInt32> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiTagInt32>;
 
  public:
-  explicit UnsafeSmiTag(uint64_t bitfield) : Base(bitfield) {}
+  explicit UnsafeSmiTagInt32(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
   Input& input() { return Node::input(0); }
 
-  void VerifyInputs(MaglevGraphLabeller*) const;
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    // No tagged inputs.
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+// Input must guarantee to fit in a Smi.
+class UnsafeSmiTagUint32 : public FixedInputValueNodeT<1, UnsafeSmiTagUint32> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiTagUint32>;
+
+ public:
+  explicit UnsafeSmiTagUint32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input& input() { return Node::input(0); }
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
@@ -8460,6 +8493,9 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   explicit CallWithArrayLike(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& function() { return input(kFunctionIndex); }
   Input& receiver() { return input(kReceiverIndex); }
