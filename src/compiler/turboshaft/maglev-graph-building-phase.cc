@@ -340,7 +340,11 @@ class GraphBuilder {
   //     {block}.
   void StartExceptionBlock(maglev::BasicBlock* maglev_catch_handler) {
     Block* turboshaft_catch_handler = Map(maglev_catch_handler);
-    DCHECK_GT(turboshaft_catch_handler->PredecessorCount(), 0);
+    if (turboshaft_catch_handler->PredecessorCount() == 0) {
+      // Some Assembler optimizations made this catch handler not be actually
+      // reachable.
+      return;
+    }
     if (turboshaft_catch_handler->PredecessorCount() == 1) {
       StartSinglePredecessorExceptionBlock(maglev_catch_handler,
                                            turboshaft_catch_handler);
