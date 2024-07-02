@@ -4,54 +4,52 @@
 
 #include "src/common/assert-scope.h"
 
-#include "src/base/enum-set.h"
+#include "src/base/bit-field.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-// All asserts are allowed by default except for one, and the cleared bit is not
-// set.
-constexpr PerThreadAsserts kInitialValue = ~PerThreadAsserts{
-    HANDLE_DEREFERENCE_ALL_THREADS_ASSERT, CLEARED_ASSERT_MARKER};
+// All asserts are allowed by default except for one.
+constexpr uint32_t kInitialValue =
+    ~(1 << HANDLE_DEREFERENCE_ALL_THREADS_ASSERT);
+
+template <PerThreadAssertType kType>
+using PerThreadDataBit = base::BitField<bool, kType, 1>;
 
 // Thread-local storage for assert data.
-thread_local PerThreadAsserts current_per_thread_assert_data(kInitialValue);
+thread_local uint32_t current_per_thread_assert_data(kInitialValue);
 
 }  // namespace
 
-template <bool kAllow, PerThreadAssertType... kTypes>
-PerThreadAssertScope<kAllow, kTypes...>::PerThreadAssertScope()
+template <PerThreadAssertType kType, bool kAllow>
+PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
     : old_data_(current_per_thread_assert_data) {
-  static_assert(((kTypes != CLEARED_ASSERT_MARKER) && ...),
-                "PerThreadAssertScope types should not include the "
-                "CLEARED_ASSERT_MARKER");
-  DCHECK(!old_data_.contains(CLEARED_ASSERT_MARKER));
-  if (kAllow) {
-    current_per_thread_assert_data = old_data_ | PerThreadAsserts({kTypes...});
-  } else {
-    current_per_thread_assert_data = old_data_ - PerThreadAsserts({kTypes...});
-  }
+  current_per_thread_assert_data =
+      PerThreadDataBit<kType>::update(old_data_.value(), kAllow);
 }
 
-template <bool kAllow, PerThreadAssertType... kTypes>
-PerThreadAssertScope<kAllow, kTypes...>::~PerThreadAssertScope() {
+template <PerThreadAssertType kType, bool kAllow>
+PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
+  if (!old_data_.has_value()) return;
   Release();
 }
 
-template <bool kAllow, PerThreadAssertType... kTypes>
-void PerThreadAssertScope<kAllow, kTypes...>::Release() {
-  if (old_data_.contains(CLEARED_ASSERT_MARKER)) return;
-  current_per_thread_assert_data = old_data_;
-  old_data_.Add(CLEARED_ASSERT_MARKER);
+template <PerThreadAssertType kType, bool kAllow>
+void PerThreadAssertScope<kType, kAllow>::Release() {
+  current_per_thread_assert_data = old_data_.value();
+  old_data_.reset();
 }
 
 // static
-template <bool kAllow, PerThreadAssertType... kTypes>
-bool PerThreadAssertScope<kAllow, kTypes...>::IsAllowed() {
-  return current_per_thread_assert_data.contains_all({kTypes...});
+template <PerThreadAssertType kType, bool kAllow>
+bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
+  return PerThreadDataBit<kType>::decode(current_per_thread_assert_data);
 }
 
 #define PER_ISOLATE_ASSERT_SCOPE_DEFINITION(ScopeType, field, enable)      \
@@ -95,33 +93,23 @@ PER_ISOLATE_CHECK_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE_DEFINITION, false)
 // -----------------------------------------------------------------------------
 // Instantiations.
 
-template class PerThreadAssertScope<false, HEAP_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<true, HEAP_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<false, SAFEPOINTS_ASSERT>;
-template class PerThreadAssertScope<true, SAFEPOINTS_ASSERT>;
-template class PerThreadAssertScope<false, HANDLE_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<true, HANDLE_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<false, HANDLE_DEREFERENCE_ASSERT>;
-template class PerThreadAssertScope<true, HANDLE_DEREFERENCE_ASSERT>;
-template class PerThreadAssertScope<true,
-                                    HANDLE_DEREFERENCE_ALL_THREADS_ASSERT>;
-template class PerThreadAssertScope<false, CODE_DEPENDENCY_CHANGE_ASSERT>;
-template class PerThreadAssertScope<true, CODE_DEPENDENCY_CHANGE_ASSERT>;
-template class PerThreadAssertScope<false, CODE_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<true, CODE_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<false, GC_MOLE>;
-template class PerThreadAssertScope<false, POSITION_INFO_SLOW_ASSERT>;
-template class PerThreadAssertScope<true, POSITION_INFO_SLOW_ASSERT>;
-template class PerThreadAssertScope<false, SAFEPOINTS_ASSERT,
-                                    HEAP_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<true, SAFEPOINTS_ASSERT,
-                                    HEAP_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<
-    false, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
-    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
-template class PerThreadAssertScope<
-    true, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
-    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
+template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
+template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
+template class PerThreadAssertScope<SAFEPOINTS_ASSERT, false>;
+template class PerThreadAssertScope<SAFEPOINTS_ASSERT, true>;
+template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
+template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
+template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
+template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
+template class PerThreadAssertScope<HANDLE_DEREFERENCE_ALL_THREADS_ASSERT,
+                                    true>;
+template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
+template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
+template class PerThreadAssertScope<GC_MOLE, false>;
+template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, false>;
+template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

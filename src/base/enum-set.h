@@ -35,9 +35,6 @@ class EnumSet {
   constexpr bool contains(E element) const {
     return (bits_ & Mask(element)) != 0;
   }
-  constexpr bool contains_all(EnumSet set) const {
-    return (bits_ & set.bits_) == set.bits_;
-  }
   constexpr bool contains_any(EnumSet set) const {
     return (bits_ & set.bits_) != 0;
   }
@@ -54,8 +51,6 @@ class EnumSet {
   constexpr void RemoveAll() { bits_ = 0; }
   constexpr void Intersect(EnumSet set) { bits_ &= set.bits_; }
   constexpr T ToIntegral() const { return bits_; }
-
-  constexpr EnumSet operator~() const { return EnumSet(~bits_); }
 
   constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }
   constexpr bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
