@@ -101,7 +101,7 @@ void OptimizingCompileDispatcher::CompileNext(TurbofanCompilationJob* job,
     // Use a mutex to make sure that functions marked for install
     // are always also queued.
     base::MutexGuard access_output_queue_(&output_queue_mutex_);
-    output_queue_.push_back(job);
+    output_queue_.push(job);
   }
 
   if (finalize()) isolate_->stack_guard()->RequestInstallCode();
@@ -114,7 +114,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
       base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
-      output_queue_.pop_front();
+      output_queue_.pop();
     }
 
     Compiler::DisposeTurbofanCompilationJob(isolate_, job.get(),
@@ -186,7 +186,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
-      output_queue_.pop_front();
+      output_queue_.pop();
     }
     OptimizedCompilationInfo* info = job->compilation_info();
     DirectHandle<JSFunction> function(*info->closure(), isolate_);
@@ -205,35 +205,6 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
     }
 
     Compiler::FinalizeTurbofanCompilationJob(job.get(), isolate_);
-  }
-}
-
-void OptimizingCompileDispatcher::InstallGeneratedBuiltins() {
-  // Builtin generation needs to be deterministic, meaning heap allocations
-  // must happen in a deterministic order. To ensure determinism with
-  // concurrent compilation, finalize all builtins at the end in ascending
-  // order of their BuiltinId.
-
-  CHECK(isolate_->IsGeneratingEmbeddedBuiltins());
-  CHECK_EQ(0, input_queue_.Length());
-
-  HandleScope handle_scope(isolate_);
-  base::MutexGuard access_output_queue_(&output_queue_mutex_);
-
-  std::sort(output_queue_.begin(), output_queue_.end(),
-            [](const TurbofanCompilationJob* job1,
-               const TurbofanCompilationJob* job2) {
-              Builtin builtin1 = job1->compilation_info()->builtin();
-              Builtin builtin2 = job2->compilation_info()->builtin();
-              DCHECK(Builtins::IsBuiltinId(builtin1));
-              DCHECK(Builtins::IsBuiltinId(builtin2));
-              return Builtins::ToInt(builtin1) < Builtins::ToInt(builtin2);
-            });
-
-  while (!output_queue_.empty()) {
-    std::unique_ptr<TurbofanCompilationJob> job(output_queue_.front());
-    output_queue_.pop_front();
-    CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate_));
   }
 }
 
@@ -275,14 +246,9 @@ void OptimizingCompileDispatcher::Prioritize(
 
 OptimizingCompileDispatcher::OptimizingCompileDispatcher(Isolate* isolate)
     : isolate_(isolate),
-      input_queue_((v8_flags.concurrent_builtin_generation &&
-                    isolate->IsGeneratingEmbeddedBuiltins())
-                       ? Builtins::kBuiltinCount
-                       : v8_flags.concurrent_recompilation_queue_length),
+      input_queue_(v8_flags.concurrent_recompilation_queue_length),
       recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
-  if (v8_flags.concurrent_recompilation ||
-      (v8_flags.concurrent_builtin_generation &&
-       isolate->IsGeneratingEmbeddedBuiltins())) {
+  if (v8_flags.concurrent_recompilation) {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         kTaskPriority, std::make_unique<CompileTask>(isolate, this));
   }
