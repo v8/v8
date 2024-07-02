@@ -142,6 +142,17 @@ class BlockOriginTrackingReducer : public Next {
     name = _maybe_frame_state.value();                                      \
   }
 
+// Turboshaft's MachineOptimizationReducer will sometimes detect that the
+// condition for a DeoptimizeIf is always true, and replace it with an
+// unconditional Deoptimize. When this happens, the assembler doesn't emit
+// anything until the next reachable block is bound, which can lead to some
+// Variable or OpIndex being Invalid, which can break some assumptions. To avoid
+// this, the RETURN_IF_UNREACHABLE macro can be used to early-return.
+#define RETURN_IF_UNREACHABLE()                 \
+  if (__ generating_unreachable_operations()) { \
+    return maglev::ProcessResult::kContinue;    \
+  }
+
 class GraphBuilder {
  public:
   using AssemblerT =
@@ -1857,6 +1868,7 @@ class GraphBuilder {
         __ Uint32LessThan(length, JSArray::kInitialMaxFastElementArray),
         frame_state, DeoptimizeReason::kGreaterThanMaxFastElementArray,
         node->eager_deopt_info()->feedback_to_update());
+    RETURN_IF_UNREACHABLE();
 
     SetMap(node,
            __ NewArray(__ ChangeUint32ToUintPtr(length),
@@ -3132,6 +3144,7 @@ class GraphBuilder {
       __ DeoptimizeIfNot(__ Uint64LessThanOrEqual(
                              result, std::numeric_limits<uint32_t>::max()),
                          frame_state, DeoptimizeReason::kNotInt32, feedback);
+      RETURN_IF_UNREACHABLE();
     }
     SetMap(node, Is64() ? __ TruncateWord64ToWord32(result) : result);
     return maglev::ProcessResult::kContinue;
@@ -3338,6 +3351,7 @@ class GraphBuilder {
       result = Float64ToUint8Clamped(
           __ LoadField<Float64>(value, AccessBuilder::ForHeapNumberValue()));
     }
+    RETURN_IF_UNREACHABLE();
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
