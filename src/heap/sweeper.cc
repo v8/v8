@@ -390,9 +390,11 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
     const FreeSpaceTreatmentMode free_space_treatment_mode =
         heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
                                  : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
+    DCHECK_IMPLIES(identity == NEW_SPACE,
+                   !sweeper_->minor_sweeping_state_.should_reduce_memory());
     sweeper_->RawSweep(
         page, free_space_treatment_mode, sweeping_mode,
-        v8_flags.minor_ms
+        identity == NEW_SPACE
             ? false
             : sweeper_->major_sweeping_state_.should_reduce_memory());
     sweeper_->AddSweptPage(page, identity);
@@ -908,7 +910,13 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   }
   freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->FreeDuringSweep(
       free_start, size);
+#if !V8_OS_WIN
+  // Discarding memory on Windows does not decommit the memory and does not
+  // contribute to reduce the memory footprint. On the other hand, these calls
+  // become expensive the more memory is allocated in the system and can result
+  // in hangs. Thus, it is better to not discard on Windows.
   if (should_reduce_memory) page->DiscardUnusedMemory(free_start, size);
+#endif  // !V8_OS_WIN
 
   if (v8_flags.sticky_mark_bits) {
     // Clear the bitmap, since fillers or slack may still be marked from black
