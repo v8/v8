@@ -161,7 +161,7 @@ void SetWasmCalleeTag(WritableRelocInfo* rinfo, uint32_t tag) {
   if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
     rinfo->set_target_external_reference(addr, SKIP_ICACHE_FLUSH);
   } else if (rinfo->rmode() == RelocInfo::WASM_STUB_CALL) {
-    rinfo->set_wasm_stub_call_address(addr, SKIP_ICACHE_FLUSH);
+    rinfo->set_wasm_stub_call_address(addr);
   } else {
     rinfo->set_target_address(addr, SKIP_ICACHE_FLUSH);
   }
@@ -879,14 +879,14 @@ void NativeModuleDeserializer::CopyAndRelocate(
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target =
             native_module_->GetNearCallTargetForFunction(tag, unit.jump_tables);
-        iter.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_wasm_call_address(target);
         break;
       }
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = native_module_->GetJumpTableEntryForBuiltin(
             static_cast<Builtin>(tag), unit.jump_tables);
-        iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_wasm_stub_call_address(target);
         break;
       }
       case RelocInfo::EXTERNAL_REFERENCE: {

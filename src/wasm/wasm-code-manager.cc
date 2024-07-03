@@ -1012,7 +1012,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
                   static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables_ref);
-        it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
+        it.rinfo()->set_wasm_stub_call_address(entry);
       } else {
         it.rinfo()->apply(delta);
       }
@@ -1171,14 +1171,14 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       if (RelocInfo::IsWasmCall(mode)) {
         uint32_t call_tag = it.rinfo()->wasm_call_tag();
         Address target = GetNearCallTargetForFunction(call_tag, jump_tables);
-        it.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
+        it.rinfo()->set_wasm_call_address(target);
       } else if (RelocInfo::IsWasmStubCall(mode)) {
         uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
         DCHECK_LT(stub_call_tag,
                   static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables);
-        it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
+        it.rinfo()->set_wasm_stub_call_address(entry);
       } else {
         it.rinfo()->apply(delta);
       }

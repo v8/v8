@@ -421,10 +421,8 @@ class WritableRelocInfo : public RelocInfo {
   // Do not forget to flush the icache afterwards!
   V8_INLINE void apply(intptr_t delta);
 
-  void set_wasm_call_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void set_wasm_stub_call_address(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_wasm_call_address(Address);
+  void set_wasm_stub_call_address(Address);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,

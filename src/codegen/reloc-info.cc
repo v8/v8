@@ -256,11 +256,10 @@ Address RelocInfo::wasm_call_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void WritableRelocInfo::set_wasm_call_address(
-    Address address, ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_wasm_call_address(Address address) {
   DCHECK_EQ(rmode_, WASM_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
+                                   SKIP_ICACHE_FLUSH);
 }
 
 Address RelocInfo::wasm_stub_call_address() const {
@@ -268,11 +267,10 @@ Address RelocInfo::wasm_stub_call_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void WritableRelocInfo::set_wasm_stub_call_address(
-    Address address, ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_wasm_stub_call_address(Address address) {
   DCHECK_EQ(rmode_, WASM_STUB_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
+                                   SKIP_ICACHE_FLUSH);
 }
 
 void WritableRelocInfo::set_target_address(Address target,
