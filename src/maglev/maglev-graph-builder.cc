@@ -759,6 +759,9 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   pseudo_frame_.CopyFrom(*compilation_unit_, *label->merge_state_);
   MoveKnownNodeAspectsToParent();
 
+  CHECK_EQ(label->merge_state_->predecessors_so_far(),
+           label->predecessor_count_);
+
   builder_->ProcessMergePointPredecessors(*label->merge_state_, label->ref_);
   builder_->StartNewBlock(nullptr, label->merge_state_, label->ref_);
 }
