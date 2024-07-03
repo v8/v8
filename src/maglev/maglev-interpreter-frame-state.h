@@ -880,13 +880,13 @@ class MergePointInterpreterFrameState {
   int predecessors_so_far() const { return predecessors_so_far_; }
 
   BasicBlock* predecessor_at(int i) const {
-    // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
-    DCHECK_LT(i, predecessor_count_);
+    DCHECK_LE(predecessors_so_far_, predecessor_count_);
+    DCHECK_LT(i, predecessors_so_far_);
     return predecessors_[i];
   }
   void set_predecessor_at(int i, BasicBlock* val) {
-    // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
-    DCHECK_LT(i, predecessor_count_);
+    DCHECK_LE(predecessors_so_far_, predecessor_count_);
+    DCHECK_LT(i, predecessors_so_far_);
     predecessors_[i] = val;
   }
 
