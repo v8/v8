@@ -4142,9 +4142,14 @@ class GraphBuilder {
                             interpreter::Register owner, Variable var) {
             DCHECK_NE(owner, interpreter::Register::virtual_accumulator());
 
-            maglev::ValueNode* const maglev_value =
+            const maglev::ValueNode* maglev_value =
                 compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
+
+            if (const maglev::VirtualObject* vobj =
+                    maglev_value->TryCast<maglev::VirtualObject>()) {
+              maglev_value = vobj->allocation();
+            }
 
             V<Any> ts_value = builder_.Map(maglev_value);
             __ SetVariable(var, ts_value);
