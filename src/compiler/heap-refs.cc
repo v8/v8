@@ -1076,24 +1076,33 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
                                    kUnserializedReadOnlyHeapObject);
   }
 
-#define CREATE_DATA(Name)                                                      \
-  if (i::Is##Name(*object)) {                                                  \
-    entry = refs_->LookupOrInsert(object.address());                           \
-    object_data = zone()->New<ref_traits<Name>::data_type>(                    \
-        this, &entry->value, Cast<Name>(object),                               \
-        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));          \
-    /* We use different classes for object types and static_cast the           \
-     * object_data after a Is##Name() check (check out the As##Name()          \
-     * functions). We chose the class here based on in-sandbox data and before \
-     * serializing the map. Ensure that the serialized map fits the object     \
-     * type. See also crbug.com/326700497 for more details. */                 \
-    SBXCHECK(object_data->Is##Name());                                         \
-    /* NOLINTNEXTLINE(readability/braces) */                                   \
+  InstanceType instance_type =
+      Cast<HeapObject>(*object)->map()->instance_type();
+#define CREATE_DATA(Name)                                             \
+  if (i::InstanceTypeChecker::Is##Name(instance_type)) {              \
+    entry = refs_->LookupOrInsert(object.address());                  \
+    object_data = zone()->New<ref_traits<Name>::data_type>(           \
+        this, &entry->value, Cast<Name>(object),                      \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
+    /* NOLINTNEXTLINE(readability/braces) */                          \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
   {
     UNREACHABLE();
+  }
+
+  // Ensure that the original instance type matches the one of the serialized
+  // object (if the object was serialized). In particular, this is important
+  // for Maps: in GetMapInstanceType we have special handling for maps and will
+  // report MAP_TYPE for objects whose map pointer points back to itself. With
+  // heap corruption, a non-map object can be made to point to itself though,
+  // in which case we may later treat a non-MapData object as a MapData object.
+  // See also crbug.com/326700497 for more details.
+  if (!object_data->should_access_heap()) {
+    SBXCHECK_EQ(
+        instance_type,
+        static_cast<HeapObjectData*>(object_data)->GetMapInstanceType());
   }
 
   // At this point the entry pointer is not guaranteed to be valid as
