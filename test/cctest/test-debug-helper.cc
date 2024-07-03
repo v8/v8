@@ -121,6 +121,17 @@ class StringResource : public v8::String::ExternalStringResource {
 
 }  // namespace
 
+class TestDebugHelper {
+ public:
+  static Address MetadataTableAddress() {
+#ifdef V8_ENABLE_SANDBOX
+    return MemoryChunk::MetadataTableAddress();
+#else
+    return 0;
+#endif
+  }
+};
+
 TEST(GetObjectProperties) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -129,7 +140,7 @@ TEST(GetObjectProperties) {
   v8::HandleScope scope(isolate);
   LocalContext context;
   // Claim we don't know anything about the heap layout.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0};
 
   v8::Local<v8::Value> v = CompileRun("42");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
@@ -326,8 +337,9 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
-#ifndef V8_ENABLE_SANDBOX
   // GetObjectProperties can read cacheable external strings.
+  heap_addresses.metadata_pointer_table =
+      TestDebugHelper::MetadataTableAddress();
   StringResource* string_resource = new StringResource(true);
   auto cachable_external_string =
       v8::String::NewExternalTwoByte(isolate, string_resource);
@@ -338,7 +350,6 @@ TEST(GetObjectProperties) {
             d::PropertyKind::kArrayOfKnownSize, string_resource->length());
   CHECK_EQ(props->properties[5]->address,
            reinterpret_cast<uintptr_t>(string_resource->data()));
-#endif
 
   // GetObjectProperties cannot read uncacheable external strings.
   auto external_string =
@@ -513,7 +524,7 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
 
   // Verify with the definition of SmallOrderedHashSet in
   // src\objects\ordered-hash-table.tq.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0};
   d::ObjectPropertiesResultPtr props =
       d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);

@@ -27,6 +27,7 @@ class CodeStubAssembler;
 class ExternalReference;
 template <typename T>
 class Tagged;
+class TestDebugHelper;
 
 enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
 
@@ -398,6 +399,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   friend class MacroAssembler;
   // For access to the MetadataTableAddress;
   friend class ExternalReference;
+  friend class TestDebugHelper;
 
 #endif  // V8_ENABLE_SANDBOX
 
