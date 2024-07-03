@@ -156,7 +156,7 @@ uint32_t CallDescriptor::GetTaggedParameterSlots() const {
         first_offset =
             std::min(first_offset, static_cast<uint32_t>(slot_offset));
       } else {
-        ++untagged_count;
+        untagged_count += operand.GetSizeInPointers();
       }
     }
   }
