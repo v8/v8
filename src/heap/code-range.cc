@@ -137,11 +137,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   }
 
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
-  // TODO(v8:11880): Use base_alignment here once ChromeOS issue is fixed.
-  Address the_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
-  the_hint = RoundDown(the_hint, base_alignment);
-
   constexpr size_t kRadiusInMB =
       kMaxPCRelativeCodeRangeInMB > 1024 ? kMaxPCRelativeCodeRangeInMB : 4096;
   auto preferred_region = GetPreferredRegion(kRadiusInMB, kPageSize);
@@ -195,10 +190,17 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     }
   }
   if (!IsReserved()) {
+    // TODO(v8:11880): Use base_alignment here once ChromeOS issue is fixed.
+    Address the_hint = GetCodeRangeAddressHint()->GetAddressHint(
+        requested, allocate_page_size);
+    the_hint = RoundDown(the_hint, base_alignment);
     // Last resort, use whatever region we get.
     params.base_alignment = base_alignment;
     params.requested_start_hint = the_hint;
-    if (!VirtualMemoryCage::InitReservation(params)) return false;
+    if (!VirtualMemoryCage::InitReservation(params)) {
+      params.requested_start_hint = kNullAddress;
+      if (!VirtualMemoryCage::InitReservation(params)) return false;
+    };
     TRACE("=== Fallback attempt, hint=%p: [%p, %p)\n",
           reinterpret_cast<void*>(params.requested_start_hint),
           reinterpret_cast<void*>(region().begin()),
