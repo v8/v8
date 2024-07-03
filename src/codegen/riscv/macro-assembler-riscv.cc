@@ -6107,8 +6107,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
          frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
 
-  using ER = ExternalReference;
-
   // Set up the frame structure on the stack.
   static_assert(2 * kSystemPointerSize ==
                 ExitFrameConstants::kCallerSPDisplacement);
@@ -6119,19 +6117,21 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
   // [fp + 1 (==kCallerPCOffset)] - saved old ra
   // [fp + 0 (==kCallerFPOffset)] - saved old fp
-  // [fp - 1 frame_type Smi
+  // [fp - 1 StackFrame::EXIT Smi
   // [fp - 2 (==kSPOffset)] - sp of the called function
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
+
+  using ER = ExternalReference;
 
   // Save registers and reserve room for saved entry sp.
   addi(sp, sp,
        -2 * kSystemPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
   StoreWord(ra, MemOperand(sp, 3 * kSystemPointerSize));
   StoreWord(fp, MemOperand(sp, 2 * kSystemPointerSize));
+
   li(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
   StoreWord(scratch, MemOperand(sp, 1 * kSystemPointerSize));
-
   // Set up new frame pointer.
   addi(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
 
@@ -6148,8 +6148,9 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
 
-  // Reserve place for the return address, stack space and align the frame
-  // preparing for calling the runtime function.
+  // Reserve place for the return address, stack space and an optional slot
+  // (used by DirectCEntry to hold the return value if a struct is
+  // returned) and align the frame preparing for calling the runtime function.
   DCHECK_GE(stack_space, 0);
   SubWord(sp, sp, Operand((stack_space + 1) * kSystemPointerSize));
   if (frame_alignment > 0) {
@@ -6167,16 +6168,20 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   using ER = ExternalReference;
+  // Clear top frame.
   // Restore current context from top and clear it in debug mode.
   ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
   LoadWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    UseScratchRegisterScope temp(this);
-    Register scratch2 = temp.Acquire();
-    li(scratch2, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kInvalidContext));
     StoreWord(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
+
+  // Clear the top frame.
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  StoreWord(zero_reg, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
 
   // Pop the arguments, restore registers, and return.
   Mv(sp, fp);  // Respect ABI stack constraint.
@@ -7086,6 +7091,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
     __ LoadWord(argc_reg, *argc_operand);
   }
+
   __ LeaveExitFrame(scratch);
 
   {
