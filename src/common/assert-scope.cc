@@ -129,5 +129,10 @@ template class PerThreadAssertScope<
     true, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
     HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
 
+static_assert(Internals::kDisallowGarbageCollectionAlign ==
+              alignof(DisallowGarbageCollectionInRelease));
+static_assert(Internals::kDisallowGarbageCollectionSize ==
+              sizeof(DisallowGarbageCollectionInRelease));
+
 }  // namespace internal
 }  // namespace v8

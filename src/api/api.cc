@@ -38,6 +38,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/base/vector.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compilation-cache.h"
@@ -10775,6 +10776,45 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
 }
 
 String::Value::~Value() { i::DeleteArray(str_); }
+
+String::ValueView::ValueView(v8::Isolate* v8_isolate,
+                             v8::Local<v8::String> str) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::HandleScope scope(i_isolate);
+  i::Handle<i::String> i_str = Utils::OpenHandle(*str);
+  i::Handle<i::String> i_flat_str = i::String::Flatten(i_isolate, i_str);
+
+  flat_str_ = Utils::ToLocal(i_flat_str);
+
+  i::DisallowGarbageCollectionInRelease* no_gc =
+      new (no_gc_debug_scope_) i::DisallowGarbageCollectionInRelease();
+  i::String::FlatContent flat_content = i_flat_str->GetFlatContent(*no_gc);
+  DCHECK(flat_content.IsFlat());
+  is_one_byte_ = flat_content.IsOneByte();
+  length_ = flat_content.length();
+  if (is_one_byte_) {
+    data8_ = flat_content.ToOneByteVector().data();
+  } else {
+    data16_ = flat_content.ToUC16Vector().data();
+  }
+}
+
+String::ValueView::~ValueView() {
+  using i::DisallowGarbageCollectionInRelease;
+  DisallowGarbageCollectionInRelease* no_gc =
+      reinterpret_cast<DisallowGarbageCollectionInRelease*>(no_gc_debug_scope_);
+  no_gc->~DisallowGarbageCollectionInRelease();
+}
+
+void String::ValueView::CheckOneByte(bool is_one_byte) const {
+  if (is_one_byte) {
+    Utils::ApiCheck(is_one_byte_, "v8::String::ValueView::data8",
+                    "Called the one-byte accessor on a two-byte string view.");
+  } else {
+    Utils::ApiCheck(!is_one_byte_, "v8::String::ValueView::data16",
+                    "Called the two-byte accessor on a one-byte string view.");
+  }
+}
 
 #define DEFINE_ERROR(NAME, name)                                              \
   Local<Value> Exception::NAME(v8::Local<v8::String> raw_message,             \

@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_ALLOCATOR_INL_H_
 
 #include "src/base/logging.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
@@ -74,6 +75,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   DCHECK(!heap_->IsInGC());
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  CHECK(AllowHeapAllocationInRelease::IsAllowed());
   DCHECK(local_heap_->IsRunning());
 #if DEBUG
   local_heap_->VerifyCurrent();

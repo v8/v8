@@ -919,6 +919,10 @@ class Internals {
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
+  // Assert scopes
+  static const int kDisallowGarbageCollectionAlign = alignof(uint32_t);
+  static const int kDisallowGarbageCollectionSize = sizeof(uint32_t);
+
 #if V8_STATIC_ROOTS_BOOL
 
 // These constants are copied from static-roots.h and guarded by static asserts.

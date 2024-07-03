@@ -197,6 +197,10 @@ using DisallowHeapAllocation =
 using AllowHeapAllocation =
     PerThreadAssertScopeDebugOnly<true, HEAP_ALLOCATION_ASSERT>;
 
+// Like AllowHeapAllocation, but enabled in release builds.
+using AllowHeapAllocationInRelease =
+    PerThreadAssertScope<true, HEAP_ALLOCATION_ASSERT>;
+
 // Scope to document where we do not expect any handle dereferences.
 using DisallowHandleDereference =
     PerThreadAssertScopeDebugOnly<false, HANDLE_DEREFERENCE_ASSERT>;
@@ -232,6 +236,10 @@ using DisallowGarbageCollection =
     PerThreadAssertScopeDebugOnly<false, SAFEPOINTS_ASSERT,
                                   HEAP_ALLOCATION_ASSERT>;
 
+// Like DisallowGarbageCollection, but enabled in release builds.
+using DisallowGarbageCollectionInRelease =
+    PerThreadAssertScope<false, SAFEPOINTS_ASSERT, HEAP_ALLOCATION_ASSERT>;
+
 // Scope to skip gc mole verification in places where we do tricky raw
 // work.
 using DisableGCMole = PerThreadAssertScopeDebugOnly<false, GC_MOLE>;
@@ -257,6 +265,10 @@ using AllowPositionInfoSlow =
 using AllowGarbageCollection =
     PerThreadAssertScopeDebugOnly<true, SAFEPOINTS_ASSERT,
                                   HEAP_ALLOCATION_ASSERT>;
+
+// Like AllowGarbageCollection, but enabled in release builds.
+using AllowGarbageCollectionInRelease =
+    PerThreadAssertScope<true, SAFEPOINTS_ASSERT, HEAP_ALLOCATION_ASSERT>;
 
 // Scope to document where we do not expect any access to the heap.
 using DisallowHeapAccess = PerThreadAssertScopeDebugOnly<

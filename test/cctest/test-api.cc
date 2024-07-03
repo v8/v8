@@ -9007,8 +9007,9 @@ THREADED_TEST(Utf16MissingTrailing) {
   delete[] buffer;
 }
 
+START_ALLOW_USE_DEPRECATED()
 
-THREADED_TEST(Utf16Trailing3Byte) {
+THREADED_TEST(Utf16Trailing3Byte_Value) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -9035,6 +9036,35 @@ THREADED_TEST(Utf16Trailing3Byte) {
   delete[] buffer;
 }
 
+END_ALLOW_USE_DEPRECATED()
+
+THREADED_TEST(Utf16Trailing3Byte_ValueView) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Make sure it will go past the buffer, so it will call `WriteUtf16Slow`
+  int size = 1024 * 63;
+  uint8_t* buffer = new uint8_t[size];
+  for (int i = 0; i < size; i += 3) {
+    buffer[i] = 0xE2;
+    buffer[i + 1] = 0x80;
+    buffer[i + 2] = 0xA6;
+  }
+
+  // Now invoke the decoder without last 3 bytes
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(isolate, reinterpret_cast<char*>(buffer),
+                              v8::NewStringType::kNormal, size)
+          .ToLocalChecked();
+
+  v8::String::ValueView value(isolate, str);
+  CHECK(!value.is_one_byte());
+  CHECK_EQ(value.length(), size / 3);
+  CHECK_EQ(value.data16()[value.length() - 1], 0x2026);
+
+  delete[] buffer;
+}
 
 THREADED_TEST(ToArrayIndex) {
   LocalContext context;
