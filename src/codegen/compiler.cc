@@ -4252,8 +4252,10 @@ std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
         "sourceMapUrl",
         i::Cast<i::String>(script->GetNameOrSourceURL())->ToCString().get());
   }
-  value->SetString("url",
-                   i::Cast<i::String>(script->name())->ToCString().get());
+  if (IsString(script->name())) {
+    value->SetString("url",
+                     i::Cast<i::String>(script->name())->ToCString().get());
+  }
   value->SetString("hash",
                    i::Script::GetScriptHash(isolate, script,
                                             /* forceForInspector: */ false)
