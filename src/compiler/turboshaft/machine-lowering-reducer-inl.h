@@ -3290,25 +3290,6 @@ class MachineLoweringReducer : public Next {
     return string;
   }
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  V<Object> REDUCE(GetContinuationPreservedEmbedderData)() {
-    return __ Load(
-        __ ExternalConstant(
-            ExternalReference::continuation_preserved_embedder_data(isolate_)),
-        LoadOp::Kind::RawAligned(), MemoryRepresentation::TaggedPointer());
-  }
-
-  V<None> REDUCE(SetContinuationPreservedEmbedderData)(V<Object> data) {
-    __ Store(
-        __ ExternalConstant(
-            ExternalReference::continuation_preserved_embedder_data(isolate_)),
-        data, StoreOp::Kind::RawAligned(),
-        MemoryRepresentation::TaggedPointer(),
-        WriteBarrierKind::kNoWriteBarrier);
-    return V<None>::Invalid();
-  }
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
  private:
   V<Word32> BuildUint32Mod(V<Word32> left, V<Word32> right) {
     Label<Word32> done(this);
