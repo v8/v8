@@ -2458,12 +2458,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 
-  // Now set the call_target or code object for calls from Wasm.
-  if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
-    Address call_target =
-        Cast<WasmExportedFunction>(*callable)->GetWasmCallTarget();
-    internal_function->set_call_target(call_target);
-  } else if (!wasm::IsJSCompatibleSignature(sig)) {
+  if (!wasm::IsJSCompatibleSignature(sig)) {
     internal_function->set_call_target(
         Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate));
   } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
