@@ -496,6 +496,19 @@ int InterpretedDeoptFrame::ComputeReturnOffset(
   }
 }
 
+const InterpretedDeoptFrame& LazyDeoptInfo::GetFrameForExceptionHandler(
+    const ExceptionHandlerInfo* handler_info) {
+  const DeoptFrame* target_frame = &top_frame();
+  for (int i = 0;; i++) {
+    while (target_frame->type() != DeoptFrame::FrameType::kInterpretedFrame) {
+      target_frame = target_frame->parent();
+    }
+    if (i == handler_info->depth) break;
+    target_frame = target_frame->parent();
+  }
+  return target_frame->as_interpreted();
+}
+
 void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                      bool skip_targets) const {
   switch (opcode()) {

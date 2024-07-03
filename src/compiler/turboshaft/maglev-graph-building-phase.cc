@@ -4108,13 +4108,14 @@ class GraphBuilder {
         : builder_(*builder) {
       DCHECK_EQ(__ current_catch_block(), nullptr);
       if (!throwing_node->properties().can_throw()) return;
-      const maglev::ExceptionHandlerInfo* info =
+      const maglev::ExceptionHandlerInfo* handler_info =
           throwing_node->exception_handler_info();
-      if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) {
+      if (!handler_info->HasExceptionHandler() ||
+          handler_info->ShouldLazyDeopt()) {
         return;
       }
 
-      catch_block_ = info->catch_block.block_ptr();
+      catch_block_ = handler_info->catch_block.block_ptr();
 
       __ set_current_catch_block(builder_.Map(catch_block_));
 
@@ -4126,31 +4127,21 @@ class GraphBuilder {
         return;
       }
 
-      maglev::LazyDeoptInfo* deopt_info = throwing_node->lazy_deopt_info();
-      const maglev::InterpretedDeoptFrame* lazy_frame = nullptr;
-      switch (deopt_info->top_frame().type()) {
-        case maglev::DeoptFrame::FrameType::kInterpretedFrame:
-          lazy_frame = &deopt_info->top_frame().as_interpreted();
-          break;
-        case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
-          UNREACHABLE();
-        case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
-          lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
-          break;
-      }
-      DCHECK_NOT_NULL(lazy_frame);
-      const maglev::MaglevCompilationUnit& maglev_unit = lazy_frame->unit();
-      const maglev::CompactInterpreterFrameState* frame =
-          lazy_frame->frame_state();
+      const maglev::InterpretedDeoptFrame& interpreted_frame =
+          throwing_node->lazy_deopt_info()->GetFrameForExceptionHandler(
+              handler_info);
+      const maglev::CompactInterpreterFrameState* compact_frame =
+          interpreted_frame.frame_state();
+      const maglev::MaglevCompilationUnit& maglev_unit =
+          interpreted_frame.unit();
 
       builder_.IterCatchHandlerPhis(
-          catch_block_, [this, frame, maglev_unit](interpreter::Register owner,
-                                                   Variable var) {
+          catch_block_, [this, compact_frame, maglev_unit](
+                            interpreter::Register owner, Variable var) {
             DCHECK_NE(owner, interpreter::Register::virtual_accumulator());
 
             maglev::ValueNode* const maglev_value =
-                frame->GetValueOf(owner, maglev_unit);
+                compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
 
             V<Any> ts_value = builder_.Map(maglev_value);

@@ -562,15 +562,8 @@ class ExceptionHandlerTrampolineBuilder {
     // values are tagged and b) the stack walk treats unknown stack slots as
     // tagged.
 
-    const DeoptFrame* target_frame = &deopt_info->top_frame();
-    for (int i = 0;; i++) {
-      while (target_frame->type() != DeoptFrame::FrameType::kInterpretedFrame) {
-        target_frame = target_frame->parent();
-      }
-      if (i == handler_info->depth) break;
-      target_frame = target_frame->parent();
-    }
-    const InterpretedDeoptFrame& lazy_frame = target_frame->as_interpreted();
+    const InterpretedDeoptFrame& lazy_frame =
+        deopt_info->GetFrameForExceptionHandler(handler_info);
 
     // TODO(v8:7700): Handle inlining.
     ParallelMoveResolver<Register, COMPRESS_POINTERS_BOOL> direct_moves(masm_);
