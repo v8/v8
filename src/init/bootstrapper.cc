@@ -5426,7 +5426,7 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
   SimpleInstallFunction(isolate_, console, "timeStamp",
                         Builtin::kConsoleTimeStamp, 0, false, NONE);
   SimpleInstallFunction(isolate_, console, "context", Builtin::kConsoleContext,
-                        1, true, NONE);
+                        1, false, NONE);
   InstallToStringTag(isolate_, console, "console");
 }
 

@@ -492,8 +492,6 @@
 #define NOT_IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(V, _) \
   V(_, array_buffer_wasm_memory_symbol)                   \
   V(_, call_site_info_symbol)                             \
-  V(_, console_context_id_symbol)                         \
-  V(_, console_context_name_symbol)                       \
   V(_, class_fields_symbol)                               \
   V(_, class_positions_symbol)                            \
   V(_, error_end_pos_symbol)                              \
