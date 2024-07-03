@@ -5537,6 +5537,13 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     return IncrementalMarkingLimit::kNoLimit;
   }
 
+#if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"), "OldGenerationConsumedBytes",
+      OldGenerationConsumedBytes() + AllocatedExternalMemorySinceMarkCompact());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "GlobalConsumedBytes",
+                GlobalConsumedBytes());
+#endif
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
   size_t global_memory_available = GlobalMemoryAvailable();
 

@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate-inl.h"
 #include "src/heap/spaces.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -161,14 +162,14 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
         "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
         Trait::kName, current_size / KB, result / KB, factor);
   }
+#if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), Trait::kName, result);
+#endif
   return result;
 }
 
 template class V8_EXPORT_PRIVATE MemoryController<V8HeapTrait>;
 template class V8_EXPORT_PRIVATE MemoryController<GlobalMemoryTrait>;
-
-const char* V8HeapTrait::kName = "HeapController";
-const char* GlobalMemoryTrait::kName = "GlobalMemoryController";
 
 }  // namespace internal
 }  // namespace v8
