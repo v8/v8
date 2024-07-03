@@ -27,8 +27,7 @@ namespace internal {
   V(Count, count)              \
   V(CountReset, countReset)    \
   V(Profile, profile)          \
-  V(ProfileEnd, profileEnd)    \
-  V(TimeLog, timeLog)
+  V(ProfileEnd, profileEnd)
 
 #define CONSOLE_METHOD_WITH_FORMATTER_LIST(V) \
   V(Debug, debug, 1)                          \
@@ -215,8 +214,14 @@ BUILTIN(ConsoleTimeEnd) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+BUILTIN(ConsoleTimeLog) {
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kLog);
+  ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeLog);
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 BUILTIN(ConsoleTimeStamp) {
-  LogTimerEvent(isolate, args, v8::LogEventStatus::kStamp);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -286,6 +291,8 @@ BUILTIN(ConsoleContext) {
 #undef CONSOLE_BUILTIN_SETUP
   InstallContextFunction(isolate, context, "time", Builtin::kConsoleTime, id,
                          args.at(1));
+  InstallContextFunction(isolate, context, "timeLog", Builtin::kConsoleTimeLog,
+                         id, args.at(1));
   InstallContextFunction(isolate, context, "timeEnd", Builtin::kConsoleTimeEnd,
                          id, args.at(1));
   InstallContextFunction(isolate, context, "timeStamp",

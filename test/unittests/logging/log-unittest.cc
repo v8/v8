@@ -1110,11 +1110,11 @@ TEST_F(LogTimerTest, ConsoleTimeEvents) {
     const char* source_text =
         "console.time();"
         "console.timeEnd();"
-        "console.timeStamp();"
+        "console.timeLog();"
         "console.time('timerEvent1');"
         "console.timeEnd('timerEvent1');"
-        "console.timeStamp('timerEvent2');"
-        "console.timeStamp('timerEvent3');";
+        "console.timeLog('timerEvent2');"
+        "console.timeLog('timerEvent3');";
     RunJS(source_text);
 
     logger.StopLogging();

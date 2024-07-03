@@ -231,7 +231,7 @@ using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
-enum LogEventStatus : int { kStart = 0, kEnd = 1, kStamp = 2 };
+enum LogEventStatus : int { kStart = 0, kEnd = 1, kLog = 2 };
 using LogEventCallback = void (*)(const char* name,
                                   int /* LogEventStatus */ status);
 

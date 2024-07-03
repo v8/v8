@@ -1310,7 +1310,7 @@ void V8FileLogger::TimerEvent(v8::LogEventStatus se, const char* name) {
     case kEnd:
       msg << "timer-event-end";
       break;
-    case kStamp:
+    case kLog:
       msg << "timer-event";
   }
   msg << kNext << name << kNext << Time();
