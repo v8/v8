@@ -458,29 +458,31 @@ class GraphBuilder {
     __ Goto(turboshaft_catch_handler);
   }
 
-  void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* block) {
-    DCHECK(block->is_loop());
-    DCHECK(MapContains(loop_single_edge_predecessors_, block));
-    Block* loop_pred = loop_single_edge_predecessors_[block];
+  void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* maglev_loop_header) {
+    DCHECK(maglev_loop_header->is_loop());
+    DCHECK(MapContains(loop_single_edge_predecessors_, maglev_loop_header));
+    Block* loop_pred = loop_single_edge_predecessors_[maglev_loop_header];
     __ Bind(loop_pred);
 
-    // Now we need to emit Phis (one per loop phi in {block}, which should
-    // contain the same input except for the backedge).
-    loop_phis_first_input_.clear();
-    loop_phis_first_input_index_ = 0;
-    for (maglev::Phi* phi : *block->phis()) {
-      base::SmallVector<OpIndex, 16> inputs;
-      constexpr int kSkipBackedge = 1;
-      for (int i = 0; i < phi->input_count() - kSkipBackedge; i++) {
-        inputs.push_back(Map(phi->input(i)));
+    if (maglev_loop_header->has_phi()) {
+      // Now we need to emit Phis (one per loop phi in {block}, which should
+      // contain the same input except for the backedge).
+      loop_phis_first_input_.clear();
+      loop_phis_first_input_index_ = 0;
+      for (maglev::Phi* phi : *maglev_loop_header->phis()) {
+        base::SmallVector<OpIndex, 16> inputs;
+        constexpr int kSkipBackedge = 1;
+        for (int i = 0; i < phi->input_count() - kSkipBackedge; i++) {
+          inputs.push_back(Map(phi->input(i)));
+        }
+        loop_phis_first_input_.push_back(
+            __ Phi(base::VectorOf(inputs),
+                   RegisterRepresentationFor(phi->value_representation())));
       }
-      loop_phis_first_input_.push_back(
-          __ Phi(base::VectorOf(inputs),
-                 RegisterRepresentationFor(phi->value_representation())));
     }
 
     // Actually jumping to the loop.
-    __ Goto(Map(block));
+    __ Goto(Map(maglev_loop_header));
   }
 
   maglev::ProcessResult Process(maglev::Constant* node,
