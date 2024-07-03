@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <tuple>
 
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
@@ -124,9 +125,12 @@ class V8ConsoleMessageStorage {
   bool shouldReportDeprecationMessage(int contextId, const String16& method);
   int count(int contextId, const String16& id);
   bool countReset(int contextId, const String16& id);
-  bool time(int contextId, const String16& id);
-  std::optional<double> timeLog(int contextId, const String16& id) const;
-  std::optional<double> timeEnd(int contextId, const String16& id);
+
+  bool time(int contextId, int consoleContextId, const String16& label);
+  std::optional<double> timeLog(int contextId, int consoleContextId,
+                                const String16& label);
+  std::optional<double> timeEnd(int contextId, int consoleContextId,
+                                const String16& label);
 
  private:
   V8InspectorImpl* m_inspector;
@@ -134,14 +138,18 @@ class V8ConsoleMessageStorage {
   int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
 
+  // Timers are keyed by their `console.context()` ID and their
+  // label.
+  typedef std::pair<int, String16> TimerKey;
+
   struct PerContextData {
     std::set<String16> m_reportedDeprecationMessages;
     // Corresponds to https://console.spec.whatwg.org/#count-map
     std::map<String16, int> m_count;
+    // Corresponds to https://console.spec.whatwg.org/#timer-table
+    std::map<TimerKey, double> m_timers;
   };
   std::map<int, PerContextData> m_data;
-  // Corresponds to https://console.spec.whatwg.org/#timer-table
-  std::map<int, std::map<String16, double>> m_time;
 };
 
 }  // namespace v8_inspector

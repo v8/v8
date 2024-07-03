@@ -536,10 +536,7 @@ V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
                                                  int contextGroupId)
     : m_inspector(inspector), m_contextGroupId(contextGroupId) {}
 
-V8ConsoleMessageStorage::~V8ConsoleMessageStorage() {
-  clear();
-  m_time.clear();
-}
+V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
 
 namespace {
 
@@ -599,7 +596,10 @@ void V8ConsoleMessageStorage::clear() {
                               [](V8InspectorSessionImpl* session) {
                                 session->releaseObjectGroup("console");
                               });
-  m_data.clear();
+  for (auto& data : m_data) {
+    data.second.m_count.clear();
+    data.second.m_reportedDeprecationMessages.clear();
+  }
 }
 
 bool V8ConsoleMessageStorage::shouldReportDeprecationMessage(
@@ -624,28 +624,32 @@ bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
   return true;
 }
 
-bool V8ConsoleMessageStorage::time(int contextId, const String16& id) {
-  std::map<String16, double>& time = m_time[contextId];
-  return time.try_emplace(id, m_inspector->client()->currentTimeMS()).second;
+bool V8ConsoleMessageStorage::time(int contextId, int consoleContextId,
+                                   const String16& label) {
+  return m_data[contextId]
+      .m_timers
+      .try_emplace(TimerKey{consoleContextId, label},
+                   m_inspector->client()->currentTimeMS())
+      .second;
 }
 
-std::optional<double> V8ConsoleMessageStorage::timeLog(
-    int contextId, const String16& id) const {
-  auto time_it = m_time.find(contextId);
-  if (time_it == m_time.end()) return std::nullopt;
-  auto it = time_it->second.find(id);
-  if (it == time_it->second.end()) return std::nullopt;
+std::optional<double> V8ConsoleMessageStorage::timeLog(int contextId,
+                                                       int consoleContextId,
+                                                       const String16& label) {
+  auto& timers = m_data[contextId].m_timers;
+  auto it = timers.find(std::make_pair(consoleContextId, label));
+  if (it == timers.end()) return std::nullopt;
   return m_inspector->client()->currentTimeMS() - it->second;
 }
 
 std::optional<double> V8ConsoleMessageStorage::timeEnd(int contextId,
-                                                       const String16& id) {
-  auto time_it = m_time.find(contextId);
-  if (time_it == m_time.end()) return std::nullopt;
-  auto it = time_it->second.find(id);
-  if (it == time_it->second.end()) return std::nullopt;
+                                                       int consoleContextId,
+                                                       const String16& label) {
+  auto& timers = m_data[contextId].m_timers;
+  auto it = timers.find(std::make_pair(consoleContextId, label));
+  if (it == timers.end()) return std::nullopt;
   double result = m_inspector->client()->currentTimeMS() - it->second;
-  time_it->second.erase(it);
+  timers.erase(it);
   return result;
 }
 
@@ -658,10 +662,6 @@ void V8ConsoleMessageStorage::contextDestroyed(int contextId) {
   {
     auto it = m_data.find(contextId);
     if (it != m_data.end()) m_data.erase(contextId);
-  }
-  {
-    auto it = m_time.find(contextId);
-    if (it != m_time.end()) m_time.erase(contextId);
   }
 }
 
