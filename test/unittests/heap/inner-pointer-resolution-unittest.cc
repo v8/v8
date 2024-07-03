@@ -18,9 +18,11 @@ template <typename TMixin>
 class WithInnerPointerResolutionMixin : public TMixin {
  public:
   Address ResolveInnerPointer(Address maybe_inner_ptr) {
+    // This can only resolve inner pointers in the regular cage.
+    PtrComprCageBase cage_base{this->isolate()};
     return ConservativeStackVisitor::ForTesting(
                this->isolate(), GarbageCollector::MARK_COMPACTOR)
-        .FindBasePtr(maybe_inner_ptr);
+        .FindBasePtr(maybe_inner_ptr, cage_base);
   }
 };
 

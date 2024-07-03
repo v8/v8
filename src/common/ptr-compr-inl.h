@@ -231,6 +231,23 @@ Address ExternalCodeCompressionScheme::DecompressTagged(
   return result;
 }
 
+// static
+template <typename ProcessPointerCallback>
+void ExternalCodeCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
+  // If pointer compression is enabled, we may have random compressed pointers
+  // on the stack that may be used for subsequent operations.
+  // Extract, decompress and trace both halfwords.
+  Address decompressed_low = ExternalCodeCompressionScheme::DecompressTagged(
+      cage_base, static_cast<Tagged_t>(raw_value));
+  callback(decompressed_low);
+  Address decompressed_high = ExternalCodeCompressionScheme::DecompressTagged(
+      cage_base,
+      static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
+  callback(decompressed_high);
+}
+
 #endif  // V8_EXTERNAL_CODE_SPACE
 
 //

@@ -142,6 +142,15 @@ class ExternalCodeCompressionScheme {
   V8_INLINE static void InitBase(Address base);
   V8_INLINE static Address base();
 
+  // Given a 64bit raw value, found on the stack, calls the callback function
+  // with all possible pointers that may be "contained" in compressed form in
+  // this value, either as complete compressed pointers or as intermediate
+  // (half-computed) results.
+  template <typename ProcessPointerCallback>
+  V8_INLINE static void ProcessIntermediatePointers(
+      PtrComprCageBase cage_base, Address raw_value,
+      ProcessPointerCallback callback);
+
  private:
   // These non-inlined accessors to base_ field are used in component builds
   // where cross-component access to thread local variables is not allowed.
