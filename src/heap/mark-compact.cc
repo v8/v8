@@ -3635,9 +3635,10 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
-      DCHECK(!InReadOnlySpace(value));
-      DCHECK(!IsMap(value));
-      if (non_atomic_marking_state_->IsMarked(value)) {
+      // Values in RO space have already been filtered, but a non-RO value may
+      // have been overwritten by a RO value since marking.
+      if (non_atomic_marking_state_->IsMarked(value) ||
+          InReadOnlySpace(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
@@ -3661,14 +3662,15 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
-      DCHECK(!InReadOnlySpace(value));
-      DCHECK(IsMap(value));
-      if (non_atomic_marking_state_->IsMarked(value)) {
+      // Values in RO space have already been filtered, but a non-RO value may
+      // have been overwritten by a RO value since marking.
+      if (non_atomic_marking_state_->IsMarked(value) ||
+          InReadOnlySpace(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
-        // The map is non-live.
-        if (V8_LIKELY(!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
+        if (V8_LIKELY(!IsMap(value) ||
+                      !SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
                                            location))) {
           location.store(cleared_weak_ref);
         }
