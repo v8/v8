@@ -143,28 +143,33 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
 
 MemOperand MacroAssembler::ExternalReferenceAsOperand(
     ExternalReference reference, Register scratch) {
-  if (root_array_available_ && options().enable_root_relative_access) {
-    int64_t offset =
-        RootRegisterOffsetForExternalReference(isolate(), reference);
-    if (is_int32(offset)) {
-      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+  if (root_array_available()) {
+    if (reference.IsIsolateFieldId()) {
+      return MemOperand(kRootRegister, reference.offset_from_root_register());
     }
-  }
-  if (root_array_available_ && options().isolate_independent_code) {
-    if (IsAddressableThroughRootRegister(isolate(), reference)) {
-      // Some external references can be efficiently loaded as an offset from
-      // kRootRegister.
+    if (options().enable_root_relative_access) {
       intptr_t offset =
           RootRegisterOffsetForExternalReference(isolate(), reference);
-      CHECK(is_int32(offset));
-      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
-    } else {
-      // Otherwise, do a memory load from the external reference table.
-      LoadU64(scratch,
-              MemOperand(kRootRegister,
-                         RootRegisterOffsetForExternalReferenceTableEntry(
-                             isolate(), reference)));
-      return MemOperand(scratch, 0);
+      if (is_int32(offset)) {
+        return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+      }
+    }
+    if (options().isolate_independent_code) {
+      if (IsAddressableThroughRootRegister(isolate(), reference)) {
+        // Some external references can be efficiently loaded as an offset from
+        // kRootRegister.
+        intptr_t offset =
+            RootRegisterOffsetForExternalReference(isolate(), reference);
+        CHECK(is_int32(offset));
+        return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+      } else {
+        // Otherwise, do a memory load from the external reference table.
+        LoadU64(scratch,
+                MemOperand(kRootRegister,
+                           RootRegisterOffsetForExternalReferenceTableEntry(
+                               isolate(), reference)));
+        return MemOperand(scratch, 0);
+      }
     }
   }
   Move(scratch, reference);
@@ -438,13 +443,21 @@ void MacroAssembler::Move(Register dst, Handle<HeapObject> value,
 }
 
 void MacroAssembler::Move(Register dst, ExternalReference reference) {
-  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
-  // non-isolate-independent code. In many cases it might be cheaper than
-  // embedding the relocatable value.
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(dst, reference);
-    return;
+  if (root_array_available()) {
+    if (reference.IsIsolateFieldId()) {
+      AddS64(dst, kRootRegister,
+             Operand(reference.offset_from_root_register()));
+      return;
+    }
+    if (options().isolate_independent_code) {
+      IndirectLoadExternalReference(dst, reference);
+      return;
+    }
   }
+
+  // External references should not get created with IDs if
+  // `!root_array_available()`.
+  CHECK(!reference.IsIsolateFieldId());
   mov(dst, Operand(reference));
 }
 
@@ -5918,7 +5931,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     Register saved_result = prev_limit_reg;
     __ mr(saved_result, return_value);
     __ PrepareCallCFunction(1, scratch);
-    __ Move(kCArgRegs[0], ER::isolate_address(isolate));
+    __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
     __ mr(return_value, saved_result);
     __ b(&leave_exit_frame);

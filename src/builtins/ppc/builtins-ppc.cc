@@ -3532,7 +3532,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Call C built-in.
-  __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
+  __ Move(isolate_reg, ExternalReference::isolate_address());
   __ StoreReturnAddressAndCall(target_fun);
 
   // If return value is on the stack, pop it to registers.
@@ -3597,7 +3597,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, 0, r3);
     __ li(kCArgRegs[0], Operand::Zero());
     __ li(kCArgRegs[1], Operand::Zero());
-    __ Move(kCArgRegs[2], ExternalReference::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[2], ExternalReference::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
                      SetIsolateDataSlots::kNo);
   }
@@ -3844,7 +3844,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ StoreU64(holder, MemOperand(sp, FCA::kHolderIndex * kSystemPointerSize));
 
   // kIsolate.
-  __ Move(scratch, ER::isolate_address(masm->isolate()));
+  __ Move(scratch, ER::isolate_address());
   __ StoreU64(scratch, MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
   // kContext
@@ -3964,7 +3964,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Move(smi_zero, Smi::zero());
   __ Push(scratch, smi_zero);  // kReturnValueIndex, kHolderV2Index
-  __ Move(scratch, ER::isolate_address(masm->isolate()));
+  __ Move(scratch, ER::isolate_address());
   __ Push(scratch, holder);  // kIsolateIndex, kHolderIndex
 
   __ LoadTaggedField(name_arg,
@@ -4102,7 +4102,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ li(r4, Operand(static_cast<int>(deopt_kind)));
   // r5: code address or 0 already loaded.
   // r6: Fp-to-sp delta already loaded.
-  __ Move(r7, ExternalReference::isolate_address(isolate));
+  __ Move(r7, ExternalReference::isolate_address());
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm);
