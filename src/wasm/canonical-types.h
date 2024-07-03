@@ -147,7 +147,7 @@ class TypeCanonicalizer {
     CanonicalType type;
   };
 
-  void AddPredefinedArrayType(uint32_t index, ValueType element_type);
+  void AddPredefinedArrayTypes();
 
   int FindCanonicalGroup(const CanonicalGroup&) const;
   int FindCanonicalGroup(const CanonicalSingletonGroup&) const;

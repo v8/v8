@@ -9,18 +9,13 @@
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-engine.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 TypeCanonicalizer* GetTypeCanonicalizer() {
   return GetWasmEngine()->type_canonicalizer();
 }
 
-TypeCanonicalizer::TypeCanonicalizer() {
-  AddPredefinedArrayType(kPredefinedArrayI8Index, kWasmI8);
-  AddPredefinedArrayType(kPredefinedArrayI16Index, kWasmI16);
-}
+TypeCanonicalizer::TypeCanonicalizer() { AddPredefinedArrayTypes(); }
 
 // For convenience, limit canonicalized type indices to Smi range.
 // We could squeeze out a few more bits if necessary by passing them
@@ -176,20 +171,23 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
   return canonical_index;
 }
 
-void TypeCanonicalizer::AddPredefinedArrayType(uint32_t index,
-                                               ValueType element_type) {
-  DCHECK_EQ(index, canonical_singleton_groups_.size());
-  CanonicalSingletonGroup group;
-  static constexpr bool kMutable = true;
-  // TODO(jkummerow): Decide whether this should be final or nonfinal.
-  static constexpr bool kFinal = true;
-  static constexpr bool kShared = false;  // TODO(14616): Fix this.
-  ArrayType* type = zone_.New<ArrayType>(element_type, kMutable);
-  group.type.type_def = TypeDefinition(type, kNoSuperType, kFinal, kShared);
-  group.type.is_relative_supertype = false;
-  canonical_singleton_groups_.emplace(group, index);
-  canonical_supertypes_.emplace_back(kNoSuperType);
-  DCHECK_LE(canonical_supertypes_.size(), kMaxCanonicalTypes);
+void TypeCanonicalizer::AddPredefinedArrayTypes() {
+  static constexpr std::pair<uint32_t, ValueType> kPredefinedArrayTypes[] = {
+      {kPredefinedArrayI8Index, kWasmI8}, {kPredefinedArrayI16Index, kWasmI16}};
+  for (auto [index, element_type] : kPredefinedArrayTypes) {
+    DCHECK_EQ(index, canonical_singleton_groups_.size());
+    CanonicalSingletonGroup group;
+    static constexpr bool kMutable = true;
+    // TODO(jkummerow): Decide whether this should be final or nonfinal.
+    static constexpr bool kFinal = true;
+    static constexpr bool kShared = false;  // TODO(14616): Fix this.
+    ArrayType* type = zone_.New<ArrayType>(element_type, kMutable);
+    group.type.type_def = TypeDefinition(type, kNoSuperType, kFinal, kShared);
+    group.type.is_relative_supertype = false;
+    canonical_singleton_groups_.emplace(group, index);
+    canonical_supertypes_.emplace_back(kNoSuperType);
+    DCHECK_LE(canonical_supertypes_.size(), kMaxCanonicalTypes);
+  }
 }
 
 ValueType TypeCanonicalizer::CanonicalizeValueType(
@@ -234,6 +232,7 @@ void TypeCanonicalizer::EmptyStorageForTesting() {
   canonical_groups_.clear();
   canonical_singleton_groups_.clear();
   zone_.Reset();
+  AddPredefinedArrayTypes();
 }
 
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
@@ -326,6 +325,4 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   return result;
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
