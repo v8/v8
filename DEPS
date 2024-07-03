@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:22.20240627.2.1',
+  'fuchsia_version': 'version:22.20240703.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '229704c27a3ca7284d4b6507824b06be0e3d63ae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd096e88ee3a813530d7cd4c437b95f0e8ecec294',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '819c7ae6e82b4db22e139ea1775fcfdb4a680ab8',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ca091f0d16788912df7efa1884207fed84c30239',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9578d67d34653d7ebd308226207830af7a457bc3',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e5b130d5dc3058457ea0658a55ae6bb968f75f0e',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '48659aac13221a8cb4b552a9646e392bd49163ab',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8f49d6467fd4369cb12c1dd927fde3aaa85d7dd4',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
