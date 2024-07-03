@@ -3954,6 +3954,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Mov(dst.W(),
                Immediate(src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
       }
+    } else if (src.type() == Constant::kExternalReference) {
+      __ Mov(dst, src.ToExternalReference());
     } else {
       __ Mov(dst, g.ToImmediate(source));
     }

@@ -121,7 +121,7 @@ class Immediate {
     rmode_ = rmode;
   }
   inline explicit Immediate(const ExternalReference& ext)
-      : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
+      : Immediate(ext.raw(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
       : Immediate(handle.address(), RelocInfo::FULL_EMBEDDED_OBJECT) {}
   inline explicit Immediate(Tagged<Smi> value)

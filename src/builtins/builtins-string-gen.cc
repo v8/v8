@@ -58,7 +58,7 @@ TNode<IntPtrT> StringBuiltinsAssembler::CallSearchStringRaw(
   const TNode<ExternalReference> function_addr = ExternalConstant(
       ExternalReference::search_string_raw<SubjectChar, PatternChar>());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
 
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_intptr = MachineType::IntPtr();

@@ -4031,7 +4031,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
     TNode<IntPtrT> x = m.SmiUntag(m.Parameter<Smi>(1));
     TNode<WordT> y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
     TNode<ExternalReference> isolate_ptr =
-        m.ExternalConstant(ExternalReference::isolate_address(isolate));
+        m.ExternalConstant(ExternalReference::isolate_address());
     m.CallCFunctionWithCallerSavedRegisters(
         m.ExternalConstant(
             ExternalReference::smi_lexicographic_compare_function()),

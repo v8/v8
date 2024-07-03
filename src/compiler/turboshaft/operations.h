@@ -2646,7 +2646,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kExternal:
         return HashWithOptions(strategy == HashingStrategy::kMakeSnapshotStable
                                    ? 0
-                                   : storage.external.address());
+                                   : storage.external.raw());
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
         if (strategy == HashingStrategy::kMakeSnapshotStable) {
@@ -2685,7 +2685,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         return base::bit_cast<uint64_t>(storage.float64) ==
                base::bit_cast<uint64_t>(other.storage.float64);
       case Kind::kExternal:
-        return storage.external.address() == other.storage.external.address();
+        return storage.external.raw() == other.storage.external.raw();
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
         return storage.handle.address() == other.storage.handle.address();

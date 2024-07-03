@@ -362,7 +362,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
                                  kNoWriteBarrier),
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, isolate)),
-             __ ExternalConstant(ExternalReference::isolate_address(isolate_)));
+             __ ExternalConstant(ExternalReference::isolate_address()));
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 

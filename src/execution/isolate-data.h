@@ -111,6 +111,18 @@ class Isolate;
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
+constexpr uint8_t kNumIsolateFieldIds = 0
+#define PLUS_1(a, b, c) +1
+    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(PLUS_1);
+#undef PLUS_1
+
+enum class IsolateFieldId : uint8_t {
+  kUnknown = 0,
+#define FIELD(name, comment, camel) k##camel,
+  EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(FIELD)
+#undef FIELD
+};
+
 // This class contains a collection of data accessible from both C++ runtime
 // and compiled code (including builtins, interpreter bytecode handlers and
 // optimized code). The compiled code accesses the isolate data fields
@@ -237,6 +249,15 @@ class IsolateData final {
   THREAD_LOCAL_TOP_MEMBER_OFFSET(is_on_central_stack_flag)
   THREAD_LOCAL_TOP_MEMBER_OFFSET(context)
 #undef THREAD_LOCAL_TOP_MEMBER_OFFSET
+
+  static constexpr intptr_t GetOffset(IsolateFieldId id) {
+    switch (id) {
+      case IsolateFieldId::kUnknown:
+        UNREACHABLE();
+      case IsolateFieldId::kIsolateAddress:
+        return -kIsolateRootBias;
+    }
+  }
 
  private:
   // Static layout definition.

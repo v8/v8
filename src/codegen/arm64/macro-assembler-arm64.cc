@@ -373,6 +373,19 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
   }
 }
 
+void MacroAssembler::Mov(const Register& rd, ExternalReference reference) {
+  if (root_array_available_) {
+    if (reference.IsIsolateFieldId()) {
+      Add(rd, kRootRegister, Operand(reference.offset_from_root_register()));
+      return;
+    }
+  }
+  // External references should not get created with IDs if
+  // `!root_array_available()`.
+  CHECK(!reference.IsIsolateFieldId());
+  Mov(rd, Operand(reference));
+}
+
 void MacroAssembler::Mov(const Register& rd, const Operand& operand,
                          DiscardMoveMode discard_mode) {
   DCHECK(allow_macro_instructions());
@@ -4668,7 +4681,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Save the return value in a callee-save register.
     Register saved_result = prev_limit_reg;
     __ Mov(saved_result, x0);
-    __ Mov(kCArgRegs[0], ER::isolate_address(isolate));
+    __ Mov(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
     __ Mov(kCArgRegs[0], saved_result);
     __ B(&leave_exit_frame);

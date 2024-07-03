@@ -1202,7 +1202,7 @@ class V8_EXPORT_PRIVATE Constant final {
       : type_(kFloat64), value_(base::bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
       : type_(kExternalReference),
-        value_(base::bit_cast<intptr_t>(ref.address())) {}
+        value_(base::bit_cast<intptr_t>(ref.raw())) {}
   explicit Constant(Handle<HeapObject> obj, bool is_compressed = false)
       : type_(is_compressed ? kCompressedHeapObject : kHeapObject),
         value_(base::bit_cast<intptr_t>(obj)) {}

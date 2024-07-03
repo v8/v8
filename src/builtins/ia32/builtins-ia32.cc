@@ -3348,7 +3348,7 @@ void SwitchStacks(MacroAssembler* masm, Register finished_continuation,
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(1, eax);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
-            Immediate(ER::isolate_address(masm->isolate())));
+            Immediate(ER::isolate_address()));
     __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
   }
   if (keep3 != no_reg) {
@@ -4105,7 +4105,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, int edi_slot_index) {
     __ PrepareCallCFunction(2, ecx);
 
     __ Move(Operand(esp, 0 * kSystemPointerSize),
-            Immediate(ER::isolate_address(masm->isolate())));
+            Immediate(ER::isolate_address()));
     __ mov(Operand(esp, 1 * kSystemPointerSize), kOldSPRegister);
 
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
@@ -4154,7 +4154,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
     __ PrepareCallCFunction(1, ecx);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
-            Immediate(ER::isolate_address(masm->isolate())));
+            Immediate(ER::isolate_address()));
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
                      SetIsolateDataSlots::kNo);
 
@@ -4247,7 +4247,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Call C function.
   __ mov(Operand(esp, 0 * kSystemPointerSize), eax);            // argc.
   __ mov(Operand(esp, 1 * kSystemPointerSize), kArgvRegister);  // argv.
-  __ Move(ecx, Immediate(ER::isolate_address(masm->isolate())));
+  __ Move(ecx, Immediate(ER::isolate_address()));
   __ mov(Operand(esp, 2 * kSystemPointerSize), ecx);
   __ call(kRuntimeCallFunctionRegister);
 
@@ -4310,7 +4310,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, eax);
     __ mov(Operand(esp, 0 * kSystemPointerSize), Immediate(0));  // argc.
     __ mov(Operand(esp, 1 * kSystemPointerSize), Immediate(0));  // argv.
-    __ Move(esi, Immediate(ER::isolate_address(masm->isolate())));
+    __ Move(esi, Immediate(ER::isolate_address()));
     __ mov(Operand(esp, 2 * kSystemPointerSize), esi);
     __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
@@ -4529,7 +4529,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(kContextRegister);                // kContext
 
-  __ Push(Immediate(ER::isolate_address(masm->isolate())));
+  // TODO(ishell): Consider using LoadAddress+push approach here.
+  __ Push(Immediate(ER::isolate_address()));
   __ Push(holder);
 
   Register scratch = ReassignRegister(holder);
@@ -4647,7 +4648,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ push(FieldOperand(callback, AccessorInfo::kDataOffset));
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(Smi::zero());                     // kHolderV2
-  __ Push(Immediate(ER::isolate_address(masm->isolate())));
+  Register isolate_reg = ReassignRegister(receiver);
+  __ LoadAddress(isolate_reg, ER::isolate_address());
+  __ push(isolate_reg);
   __ push(holder);
   __ Push(Smi::FromInt(kDontThrow));  // should_throw_on_error -> kDontThrow
 
@@ -4662,7 +4665,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static constexpr int kApiArg0Offset = 0 * kSystemPointerSize;
   static constexpr int kApiArg1Offset = 1 * kSystemPointerSize;
 
-  Register api_function_address = ReassignRegister(receiver);
+  Register api_function_address = ReassignRegister(isolate_reg);
   __ RecordComment("Load function_address");
   __ mov(api_function_address,
          FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
@@ -5157,7 +5160,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
          ecx);  // InstructionStream address or 0.
   __ mov(Operand(esp, 3 * kSystemPointerSize), edx);  // Fp-to-sp delta.
   __ Move(Operand(esp, 4 * kSystemPointerSize),
-          Immediate(ExternalReference::isolate_address(masm->isolate())));
+          Immediate(ExternalReference::isolate_address()));
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);

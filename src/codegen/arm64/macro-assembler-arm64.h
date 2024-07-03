@@ -228,6 +228,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Mov(const Register& rd, const Operand& operand,
            DiscardMoveMode discard_mode = kDontDiscardForSameWReg);
   void Mov(const Register& rd, uint64_t imm);
+  void Mov(const Register& rd, ExternalReference reference);
   void Mov(const VRegister& vd, int vd_index, const VRegister& vn,
            int vn_index) {
     DCHECK(allow_macro_instructions());

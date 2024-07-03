@@ -120,20 +120,23 @@ void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
 
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  if (root_array_available_ && options().enable_root_relative_access) {
-    intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
-    if (is_int32(delta)) {
-      leaq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
+  if (root_array_available()) {
+    if (source.IsIsolateFieldId()) {
+      leaq(destination,
+           Operand(kRootRegister, source.offset_from_root_register()));
       return;
     }
-  }
-  // Safe code.
-  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
-  // non-isolate-independent code. In many cases it might be cheaper than
-  // embedding the relocatable value.
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(destination, source);
-    return;
+    if (options().enable_root_relative_access) {
+      intptr_t delta =
+          RootRegisterOffsetForExternalReference(isolate(), source);
+      if (is_int32(delta)) {
+        leaq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
+        return;
+      }
+    } else if (options().isolate_independent_code) {
+      IndirectLoadExternalReference(destination, source);
+      return;
+    }
   }
   Move(destination, source);
 }
@@ -2499,10 +2502,18 @@ void MacroAssembler::Move(Register dst, ExternalReference ext) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
   // non-isolate-independent code. In many cases it might be cheaper than
   // embedding the relocatable value.
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(dst, ext);
-    return;
+  if (root_array_available()) {
+    if (ext.IsIsolateFieldId()) {
+      leaq(dst, Operand(kRootRegister, ext.offset_from_root_register()));
+      return;
+    } else if (options().isolate_independent_code) {
+      IndirectLoadExternalReference(dst, ext);
+      return;
+    }
   }
+  // External references should not get created with IDs if
+  // `!root_array_available()`.
+  CHECK(!ext.IsIsolateFieldId());
   movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
@@ -4471,7 +4482,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Save the return value in a callee-save register.
     Register saved_result = prev_limit_reg;
     __ movq(saved_result, return_value);
-    __ LoadAddress(kCArgRegs[0], ER::isolate_address(isolate));
+    __ LoadAddress(kCArgRegs[0], ER::isolate_address());
     __ Call(ER::delete_handle_scope_extensions());
     __ movq(return_value, saved_result);
     __ jmp(&leave_exit_frame);

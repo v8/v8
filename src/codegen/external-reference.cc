@@ -207,6 +207,25 @@ constexpr struct alignas(16) {
 
 // Implementation of ExternalReference
 
+bool ExternalReference::IsIsolateFieldId() const {
+  return (raw_ > 0 && raw_ <= static_cast<Address>(kNumIsolateFieldIds));
+}
+
+Address ExternalReference::address() const {
+  // If this CHECK triggers, then an ExternalReference gets created with an
+  // IsolateFieldId where the root register is not available, and therefore
+  // IsolateFieldIds cannot be used, or ExternalReferences with IsolateFieldIds
+  // don't get supported yet and support should be added.
+  CHECK(!IsIsolateFieldId());
+  return raw_;
+}
+
+int32_t ExternalReference::offset_from_root_register() const {
+  CHECK(IsIsolateFieldId());
+  return static_cast<int32_t>(
+      IsolateData::GetOffset(static_cast<IsolateFieldId>(raw_)));
+}
+
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
   switch (result_size) {
     case 1:
@@ -251,6 +270,10 @@ ExternalReference ExternalReference::Create(Address address, Type type) {
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
+}
+
+ExternalReference ExternalReference::isolate_address() {
+  return ExternalReference(IsolateFieldId::kIsolateAddress);
 }
 
 ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
@@ -1423,6 +1446,9 @@ template ExternalReference
 ExternalReference::search_string_raw<const base::uc16, const base::uc16>();
 
 ExternalReference ExternalReference::FromRawAddress(Address address) {
+  if (address <= static_cast<Address>(kNumIsolateFieldIds)) {
+    return ExternalReference(static_cast<IsolateFieldId>(address));
+  }
   return ExternalReference(address);
 }
 
@@ -1773,7 +1799,7 @@ FUNCTION_REFERENCE(
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
-  return lhs.address() == rhs.address();
+  return lhs.raw() == rhs.raw();
 }
 
 bool operator!=(ExternalReference lhs, ExternalReference rhs) {
@@ -1784,15 +1810,36 @@ size_t hash_value(ExternalReference reference) {
   if (v8_flags.predictable) {
     // Avoid ASLR non-determinism in predictable mode. For this, just take the
     // lowest 12 bit corresponding to a 4K page size.
-    return base::hash<Address>()(reference.address() & 0xfff);
+    return base::hash<Address>()(reference.raw() & 0xfff);
   }
-  return base::hash<Address>()(reference.address());
+  return base::hash<Address>()(reference.raw());
 }
 
+namespace {
+static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
+  switch (id) {
+#define CASE(id, name, camel)    \
+  case IsolateFieldId::k##camel: \
+    return name;
+    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
+#undef CASE
+    default:
+      return "unknown";
+  }
+}
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
-  os << reinterpret_cast<const void*>(reference.address());
-  const Runtime::Function* fn = Runtime::FunctionForEntry(reference.address());
-  if (fn) os << "<" << fn->name << ".entry>";
+  os << reinterpret_cast<const void*>(reference.raw());
+  if (reference.IsIsolateFieldId()) {
+    os << "<"
+       << GetNameOfIsolateFieldId(static_cast<IsolateFieldId>(reference.raw()))
+       << ">";
+  } else {
+    const Runtime::Function* fn =
+        Runtime::FunctionForEntry(reference.address());
+    if (fn) os << "<" << fn->name << ".entry>";
+  }
   return os;
 }
 

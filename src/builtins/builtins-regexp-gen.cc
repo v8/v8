@@ -410,7 +410,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   // External constants.
   TNode<ExternalReference> isolate_address =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
 

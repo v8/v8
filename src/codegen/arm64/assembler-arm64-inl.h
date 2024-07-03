@@ -219,7 +219,7 @@ struct ImmediateInitializer<ExternalReference> {
     return RelocInfo::EXTERNAL_REFERENCE;
   }
   static inline int64_t immediate_for(ExternalReference t) {
-    return static_cast<int64_t>(t.address());
+    return static_cast<int64_t>(t.raw());
   }
 };
 

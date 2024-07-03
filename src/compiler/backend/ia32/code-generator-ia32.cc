@@ -4429,6 +4429,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         Register dst = g.ToRegister(destination);
         if (src.type() == Constant::kHeapObject) {
           __ Move(dst, src.ToHeapObject());
+        } else if (src.type() == Constant::kExternalReference) {
+          __ Move(dst, Immediate(src.ToExternalReference()));
         } else {
           __ Move(dst, g.ToImmediate(source));
         }

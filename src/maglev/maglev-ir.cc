@@ -5430,7 +5430,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   // kNewTarget, kTarget, kReturnValue, kContext
   __ Push(scratch, i::Cast<HeapObject>(function_template_info_.object()),
           scratch, kContextRegister);
-  __ Move(scratch, ER::isolate_address(masm->isolate()));
+  __ Move(scratch, ER::isolate_address());
   // kIsolate, kHolder
   if (api_holder_.has_value()) {
     __ Push(scratch, api_holder_.value().object());

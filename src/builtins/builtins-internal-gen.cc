@@ -85,7 +85,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   TNode<ExternalReference> f =
       ExternalConstant(ExternalReference::debug_break_at_entry_function());
   TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
   TNode<IntPtrT> result = UncheckedCast<IntPtrT>(
@@ -577,7 +577,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     TNode<ExternalReference> function = ExternalConstant(
         ExternalReference::ephemeron_key_write_barrier_function());
     TNode<ExternalReference> isolate_constant =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     // In this method we limit the allocatable registers so we have to use
     // UncheckedParameter. Parameter does not work because the checked cast
     // needs more registers.

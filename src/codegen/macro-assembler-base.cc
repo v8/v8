@@ -103,6 +103,7 @@ int32_t MacroAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
 // static
 intptr_t MacroAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
+  CHECK(!reference.IsIsolateFieldId());
   return static_cast<intptr_t>(reference.address() - isolate->isolate_root());
 }
 

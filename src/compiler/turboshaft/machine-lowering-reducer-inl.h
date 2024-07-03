@@ -2921,7 +2921,7 @@ class MachineLoweringReducer : public Next {
       OpIndex try_string_to_index_or_lookup_existing = __ ExternalConstant(
           ExternalReference::try_string_to_index_or_lookup_existing());
       OpIndex isolate_ptr =
-          __ ExternalConstant(ExternalReference::isolate_address(isolate_));
+          __ ExternalConstant(ExternalReference::isolate_address());
       V<String> value_internalized = V<String>::Cast(__ Call(
           try_string_to_index_or_lookup_existing, {isolate_ptr, value},
           TSCallDescriptor::Create(Linkage::GetSimplifiedCDescriptor(

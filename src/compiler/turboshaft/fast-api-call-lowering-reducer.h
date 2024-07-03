@@ -93,7 +93,7 @@ class FastApiCallLoweringReducer : public Next {
         // isolate
         __ StoreOffHeap(
             stack_slot,
-            __ ExternalConstant(ExternalReference::isolate_address(isolate_)),
+            __ ExternalConstant(ExternalReference::isolate_address()),
             MemoryRepresentation::UintPtr(),
             offsetof(v8::FastApiCallbackOptions, isolate));
         // fallback = 0
@@ -589,7 +589,7 @@ class FastApiCallLoweringReducer : public Next {
 
 #ifdef V8_ENABLE_SANDBOX
     OpIndex isolate_ptr =
-        __ ExternalConstant(ExternalReference::isolate_address(isolate_));
+        __ ExternalConstant(ExternalReference::isolate_address());
     MachineSignature::Builder builder(__ graph_zone(), 1, 2);
     builder.AddReturn(MachineType::Uint32());
     builder.AddParam(MachineType::Pointer());

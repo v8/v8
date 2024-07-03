@@ -626,7 +626,7 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
     case Constant::kFloat64:
       return os << constant.ToFloat64().value();
     case Constant::kExternalReference:
-      return os << constant.ToExternalReference().address();
+      return os << constant.ToExternalReference();
     case Constant::kHeapObject:  // Fall through.
     case Constant::kCompressedHeapObject:
       return os << Brief(*constant.ToHeapObject());

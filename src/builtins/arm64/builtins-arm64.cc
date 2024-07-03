@@ -3508,7 +3508,7 @@ void SwitchStacks(MacroAssembler* masm, Register finished_continuation,
     __ CallCFunction(ER::wasm_return_switch(), 2);
   } else {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Mov(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Mov(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
   }
   if (keep3 != NoReg) {
@@ -4453,7 +4453,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   DCHECK(!AreAliased(central_stack_sp, argc_input, argv_input, target_input));
   {
     __ Push(argc_input, target_input, argv_input, padreg);
-    __ Mov(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Mov(kCArgRegs[0], ER::isolate_address());
     __ Mov(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
                      SetIsolateDataSlots::kNo);
@@ -4485,7 +4485,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
   {
     __ Push(kReturnRegister0, kReturnRegister1);
-    __ Mov(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Mov(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
                      SetIsolateDataSlots::kNo);
     __ Pop(kReturnRegister1, kReturnRegister0);
@@ -4616,7 +4616,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Prepare AAPCS64 arguments to pass to the builtin.
   static_assert(argc_input == x0);  // Already in the right spot.
   static_assert(argv == x1);        // Already in the right spot.
-  __ Mov(x2, ER::isolate_address(masm->isolate()));
+  __ Mov(x2, ER::isolate_address());
 
   __ StoreReturnAddressAndCall(target);
 
@@ -4661,7 +4661,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Mov(x0, 0);  // argc.
     __ Mov(x1, 0);  // argv.
-    __ Mov(x2, ER::isolate_address(masm->isolate()));
+    __ Mov(x2, ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
                      SetIsolateDataSlots::kNo);
   }
@@ -4867,7 +4867,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ Str(holder, MemOperand(sp, FCA::kHolderIndex * kSystemPointerSize));
 
   // kIsolate.
-  __ Mov(scratch, ER::isolate_address(masm->isolate()));
+  __ Mov(scratch, ER::isolate_address());
   __ Str(scratch, MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
   // kContext.
@@ -4984,7 +4984,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadTaggedField(scratch,
                      FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
-  __ Mov(scratch2, ER::isolate_address(masm->isolate()));
+  __ Mov(scratch2, ER::isolate_address());
   Register holderV2 = xzr;
   __ Push(receiver, scratch,  // kThisIndex, kDataIndex
           undef, holderV2,    // kReturnValueIndex, kHolderV2Index
@@ -5198,7 +5198,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Following arguments are already loaded:
   //  - x2: code object address
   //  - x3: fp-to-sp delta
-  __ Mov(x4, ExternalReference::isolate_address(isolate));
+  __ Mov(x4, ExternalReference::isolate_address());
 
   {
     // Call Deoptimizer::New().

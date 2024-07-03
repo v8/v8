@@ -19,9 +19,13 @@ class Isolate;
 class PageMetadata;
 class SCTableReference;
 class StatsCounter;
+enum class IsolateFieldId : uint8_t;
 
 //------------------------------------------------------------------------------
 // External references
+
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V) \
+  V(isolate_address, "isolate address", IsolateAddress)
 
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(V)                                \
   V(isolate_address, "isolate")                                                \
@@ -513,7 +517,7 @@ class ExternalReference {
   static V8_EXPORT_PRIVATE ExternalReference
   address_of_pending_message(LocalIsolate* local_isolate);
 
-  ExternalReference() : address_(kNullAddress) {}
+  ExternalReference() : raw_(kNullAddress) {}
   static ExternalReference Create(const SCTableReference& table_ref);
   static ExternalReference Create(StatsCounter* counter);
   static V8_EXPORT_PRIVATE ExternalReference Create(ApiFunction* ptr,
@@ -543,6 +547,11 @@ class ExternalReference {
   EXTERNAL_REFERENCE_LIST(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
 
+#define DECL_EXTERNAL_REFERENCE(name, desc, camel) \
+  V8_EXPORT_PRIVATE static ExternalReference name();
+  EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(DECL_EXTERNAL_REFERENCE)
+#undef DECL_EXTERNAL_REFERENCE
+
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
   static V8_EXPORT_PRIVATE ExternalReference name(Isolate* isolate);
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(DECL_EXTERNAL_REFERENCE)
@@ -558,7 +567,16 @@ class ExternalReference {
 
   static ExternalReference invoke_function_callback(CallApiCallbackMode mode);
 
-  Address address() const { return address_; }
+  bool IsIsolateFieldId() const;
+
+  Address raw() const { return raw_; }
+
+  // Returns the raw value of the ExternalReference as an address. Can only be
+  // used when the ExternalReference stores an absolute address and not an
+  // IsolateFieldId.
+  V8_EXPORT_PRIVATE Address address() const;
+
+  int32_t offset_from_root_register() const;
 
   // Creates a redirection trampoline for given C function and signature for
   // simulated builds.
@@ -572,12 +590,19 @@ class ExternalReference {
   static Address UnwrapRedirection(Address redirection_trampoline);
 
  private:
-  explicit ExternalReference(Address address) : address_(address) {}
+  explicit ExternalReference(Address address) : raw_(address) {
+    CHECK(!IsIsolateFieldId());
+  }
 
   explicit ExternalReference(void* address)
-      : address_(reinterpret_cast<Address>(address)) {}
+      : raw_(reinterpret_cast<Address>(address)) {
+    CHECK(!IsIsolateFieldId());
+  }
 
-  Address address_;
+  explicit ExternalReference(IsolateFieldId id)
+      : raw_(static_cast<Address>(id)) {}
+
+  Address raw_;
 };
 ASSERT_TRIVIALLY_COPYABLE(ExternalReference);
 

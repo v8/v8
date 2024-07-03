@@ -52,7 +52,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(
     }
 
     TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     TNode<Smi> field_index_smi = SmiConstant(field_index);
     TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::get_date_field_function());

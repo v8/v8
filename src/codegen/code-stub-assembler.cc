@@ -1282,7 +1282,7 @@ TNode<Smi> CodeStubAssembler::SmiLexicographicCompare(TNode<Smi> x,
   TNode<ExternalReference> smi_lexicographic_compare =
       ExternalConstant(ExternalReference::smi_lexicographic_compare_function());
   TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   return CAST(CallCFunction(smi_lexicographic_compare, MachineType::AnyTagged(),
                             std::make_pair(MachineType::Pointer(), isolate_ptr),
                             std::make_pair(MachineType::AnyTagged(), x),
@@ -1294,7 +1294,7 @@ TNode<Object> CodeStubAssembler::GetCoverageInfo(
   TNode<ExternalReference> f =
       ExternalConstant(ExternalReference::debug_get_coverage_info_function());
   TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   return CAST(CallCFunction(f, MachineType::AnyTagged(),
                             std::make_pair(MachineType::Pointer(), isolate_ptr),
                             std::make_pair(MachineType::TaggedPointer(), sfi)));
@@ -2436,7 +2436,7 @@ TNode<Uint32T> CodeStubAssembler::LoadNameRawHash(TNode<Name> name) {
     TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::raw_hash_from_forward_table());
     const TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     TNode<Uint32T> result = UncheckedCast<Uint32T>(CallCFunction(
         function, MachineType::Uint32(),
         std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -9253,7 +9253,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
             TNode<ExternalReference> function = ExternalConstant(
                 ExternalReference::raw_hash_from_forward_table());
             const TNode<ExternalReference> isolate_ptr =
-                ExternalConstant(ExternalReference::isolate_address(isolate()));
+                ExternalConstant(ExternalReference::isolate_address());
             TNode<Uint32T> result = UncheckedCast<Uint32T>(CallCFunction(
                 function, MachineType::Uint32(),
                 std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -9275,7 +9275,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
             TNode<ExternalReference> function = ExternalConstant(
                 ExternalReference::string_from_forward_table());
             const TNode<ExternalReference> isolate_ptr =
-                ExternalConstant(ExternalReference::isolate_address(isolate()));
+                ExternalConstant(ExternalReference::isolate_address());
             TNode<Object> result = CAST(CallCFunction(
                 function, MachineType::AnyTagged(),
                 std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -9381,7 +9381,7 @@ void CodeStubAssembler::TryInternalizeString(
   TNode<ExternalReference> function = ExternalConstant(
       ExternalReference::try_string_to_index_or_lookup_existing());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   TNode<Object> result =
       CAST(CallCFunction(function, MachineType::AnyTagged(),
                          std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -9819,8 +9819,7 @@ void CodeStubAssembler::NameDictionaryLookupWithForwardIndex(
     func_ref = mode == kFindInsertionIndex ? ref0 : ref1;
   }
   const TNode<ER> function = ExternalConstant(func_ref);
-  const TNode<ER> isolate_ptr =
-      ExternalConstant(ER::isolate_address(isolate()));
+  const TNode<ER> isolate_ptr = ExternalConstant(ER::isolate_address());
   TNode<IntPtrT> entry = UncheckedCast<IntPtrT>(
       CallCFunction(function, MachineType::IntPtr(),
                     std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -9857,7 +9856,7 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   const TNode<ExternalReference> function_addr =
       ExternalConstant(ExternalReference::compute_integer_hash());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
 
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_uint32 = MachineType::Uint32();
@@ -16226,7 +16225,7 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
     const TNode<ExternalReference> byte_length_function =
         ExternalConstant(ExternalReference::gsab_byte_length());
     TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     TNode<UintPtrT> buffer_byte_length = UncheckedCast<UintPtrT>(
         CallCFunction(byte_length_function, MachineType::UintPtr(),
                       std::make_pair(MachineType::Pointer(), isolate_ptr),
@@ -17247,7 +17246,7 @@ TNode<Smi> CodeStubAssembler::RefillMathRandom(
   const TNode<ExternalReference> refill_math_random =
       ExternalConstant(ExternalReference::refill_math_random());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
   MachineType type_tagged = MachineType::AnyTagged();
   MachineType type_ptr = MachineType::Pointer();
 
@@ -17271,7 +17270,7 @@ void CodeStubAssembler::RemoveFinalizationRegistryCellFromUnregisterTokenMap(
       ExternalReference::
           js_finalization_registry_remove_cell_from_unregister_token_map());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
 
   CallCFunction(remove_cell, MachineType::Pointer(),
                 std::make_pair(MachineType::Pointer(), isolate_ptr),

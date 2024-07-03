@@ -3282,7 +3282,7 @@ void SwitchStacks(MacroAssembler* masm, Register finished_continuation,
     __ CallCFunction(ER::wasm_return_switch(), 2);
   } else {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Move(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
   }
@@ -4025,7 +4025,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::MANUAL);
     __ pushq(argc_input);
 
-    __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], ER::isolate_address());
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ PrepareCallCFunction(2);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
@@ -4070,7 +4070,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
     __ pushq(kReturnRegister0);
     __ pushq(kReturnRegister1);
 
-    __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], ER::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
                      SetIsolateDataSlots::kNo);
@@ -4182,7 +4182,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     // Return result in single register (rax), or a register pair (rax, rdx).
     __ movq(kCArgRegs[0], rax);            // argc.
     __ movq(kCArgRegs[1], kArgvRegister);  // argv.
-    __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[2], ER::isolate_address());
   } else {
 #ifdef V8_TARGET_OS_WIN
     DCHECK_LE(result_size, 2);
@@ -4191,7 +4191,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     // Pass a pointer to the Arguments object as the second argument.
     __ movq(kCArgRegs[1], rax);            // argc.
     __ movq(kCArgRegs[2], kArgvRegister);  // argv.
-    __ Move(kCArgRegs[3], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[3], ER::isolate_address());
 #else
     UNREACHABLE();
 #endif  // V8_TARGET_OS_WIN
@@ -4266,7 +4266,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Move(kCArgRegs[0], 0);  // argc.
     __ Move(kCArgRegs[1], 0);  // argv.
-    __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[2], ER::isolate_address());
     __ PrepareCallCFunction(3);
     __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
@@ -4476,7 +4476,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ Push(func_templ);        // kTarget
   __ Push(kScratchRegister);  // kReturnValue
   __ Push(kContextRegister);  // kContext
-  __ PushAddress(ER::isolate_address(masm->isolate()));
+  __ PushAddress(ER::isolate_address());
   __ Push(holder);
 
   if (mode == CallApiCallbackMode::kGeneric) {
@@ -4587,7 +4587,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // return value
   __ Push(Smi::zero());       // holderV2 value
-  __ PushAddress(ER::isolate_address(masm->isolate()));
+  __ PushAddress(ER::isolate_address());
   __ Push(holder);
   __ Push(Smi::FromInt(kDontThrow));  // should_throw_on_error -> kDontThrow
 
@@ -4710,11 +4710,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // has created space for this). On linux pass the arguments in r8.
 #ifdef V8_TARGET_OS_WIN
   Register arg5 = r15;
-  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
+  __ LoadAddress(arg5, ExternalReference::isolate_address());
   __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
   // r8 is kCArgRegs[4] on Linux.
-  __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
+  __ LoadAddress(r8, ExternalReference::isolate_address());
 #endif
 
   {
@@ -4773,7 +4773,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ pushq(rax);
   __ PrepareCallCFunction(2);
   __ movq(kCArgRegs[0], rax);
-  __ LoadAddress(kCArgRegs[1], ExternalReference::isolate_address(isolate));
+  __ LoadAddress(kCArgRegs[1], ExternalReference::isolate_address());
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
