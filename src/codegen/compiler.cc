@@ -3960,6 +3960,11 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 template <typename IsolateT>
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, IsolateT* isolate) {
+  // If we're parallel compiling functions, we might already have attached a SFI
+  // to this literal.
+  if (!literal->shared_function_info().is_null()) {
+    return literal->shared_function_info();
+  }
   // Precondition: code has been parsed and scopes have been analyzed.
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
