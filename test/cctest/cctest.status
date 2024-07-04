@@ -221,7 +221,7 @@
 ##############################################################################
 ['variant == stress_concurrent_allocation', {
   # https://crbug.com/42204548
-  'test-mark-compact/MarkCompactCollector': [PASS, ['tsan', SKIP]],
+  'test-mark-compact/MarkCompactCollector': [PASS, SKIP],
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
