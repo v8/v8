@@ -2411,10 +2411,6 @@ class Heap final {
 
   std::atomic<double> load_start_time_ms_{0};
   bool update_allocation_limits_after_loading_ = false;
-  // Full GC may trigger during loading due to overshooting allocation limits.
-  // In such cases we may want to update the limits again once loading is
-  // actually finished.
-  bool is_full_gc_during_loading_ = false;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

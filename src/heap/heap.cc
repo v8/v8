@@ -2000,11 +2000,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    is_full_gc_during_loading_ = update_allocation_limits_after_loading_;
-    RecomputeLimitsAfterLoadingIfNeeded();
-    DCHECK(!update_allocation_limits_after_loading_);
-  }
+  RecomputeLimitsAfterLoadingIfNeeded();
 
   // Now that sweeping is completed, we can start the next full GC cycle.
   tracer()->StartCycle(collector, gc_reason, nullptr,
@@ -2427,11 +2423,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   ResumeConcurrentThreadsInClients(std::move(paused_clients));
 
   RecomputeLimits(collector, atomic_pause_end_time);
-  if (is_full_gc_during_loading_ && ShouldOptimizeForLoadTime()) {
-    DCHECK_EQ(collector, GarbageCollector::MARK_COMPACTOR);
-    DCHECK(!update_allocation_limits_after_loading_);
+  if (ShouldOptimizeForLoadTime()) {
     update_allocation_limits_after_loading_ = true;
-    is_full_gc_during_loading_ = false;
   }
 
   // After every full GC the old generation allocation limit should be
