@@ -680,8 +680,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
     }
   } else if (const turboshaft::TaggedBitcastOp* bitcast =
                  op.TryCast<turboshaft::Opmask::kTaggedBitcastSmi>()) {
-    const turboshaft::Operation& input =
-        g->turboshaft_graph()->Get(bitcast->input());
+    const turboshaft::Operation& input = g->Get(bitcast->input());
     if (const turboshaft::ConstantOp* cst =
             input.TryCast<turboshaft::Opmask::kWord32Constant>()) {
       if constexpr (Is64()) {
@@ -689,6 +688,8 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       } else {
         return g->UseImmediate(cst->word32());
       }
+    } else if (Is64() && input.Is<turboshaft::Opmask::kWord64Constant>()) {
+      return g->UseImmediate64(input.Cast<turboshaft::ConstantOp>().word64());
     }
   }
 
@@ -760,6 +761,10 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         } else {
           return g->UseImmediate(value);
         }
+      } else if (Is64() &&
+                 input->InputAt(0)->opcode() == IrOpcode::kInt64Constant) {
+        int64_t value = OpParameter<int64_t>(input->InputAt(0)->op());
+        return g->UseImmediate64(value);
       }
     }
       [[fallthrough]];

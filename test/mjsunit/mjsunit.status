@@ -2063,6 +2063,7 @@
   # --wasm-deopt implementation experimental and not ported to most
   # architectures, yet.
   'wasm/deopt/*': [SKIP],
+  'regress/wasm/regress-350779988': [SKIP],
 }],
 ['arch == arm64', {
   # TODO(mliedtke): Not quite working, yet.
