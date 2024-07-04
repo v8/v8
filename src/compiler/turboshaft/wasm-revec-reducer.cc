@@ -976,9 +976,9 @@ void WasmRevecAnalyzer::Run() {
     for (auto pair : store_seeds_) {
       PrintF("{\n");
       PrintF("#%u ", pair.first.id());
-      Print(graph_.Get(pair.first));
+      graph_.Get(pair.first).Print();
       PrintF("#%u ", pair.second.id());
-      Print(graph_.Get(pair.second));
+      graph_.Get(pair.second).Print();
       PrintF("}\n");
     }
 

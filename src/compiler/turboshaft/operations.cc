@@ -38,7 +38,7 @@ std::ostream& operator<<(std::ostream& os, AbortReason reason) {
 
 namespace v8::internal::compiler::turboshaft {
 
-void Print(const Operation& op) { std::cout << op << "\n"; }
+void Operation::Print() const { std::cout << *this << "\n"; }
 
 Zone* get_zone(Graph* graph) { return graph->graph_zone(); }
 

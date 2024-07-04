@@ -979,6 +979,8 @@ struct alignas(OpIndex) Operation {
   // Returns true if {this} is the only operation using {value}.
   bool IsOnlyUserOf(const Operation& value, const Graph& graph) const;
 
+  void Print() const;
+
  protected:
   // Operation objects store their inputs behind the object. Therefore, they can
   // only be constructed as part of a Graph.
@@ -1020,7 +1022,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 inline std::ostream& operator<<(std::ostream& os, const Operation& op) {
   return os << OperationPrintStyle{op};
 }
-V8_EXPORT_PRIVATE void Print(const Operation& op);
 
 V8_EXPORT_PRIVATE Zone* get_zone(Graph* graph);
 
