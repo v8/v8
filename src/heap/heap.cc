@@ -2427,8 +2427,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   ResumeConcurrentThreadsInClients(std::move(paused_clients));
 
   RecomputeLimits(collector, atomic_pause_end_time);
-  if ((collector == GarbageCollector::MARK_COMPACTOR) &&
-      is_full_gc_during_loading_ && ShouldOptimizeForLoadTime()) {
+  if (is_full_gc_during_loading_ && ShouldOptimizeForLoadTime()) {
+    DCHECK_EQ(collector, GarbageCollector::MARK_COMPACTOR);
     DCHECK(!update_allocation_limits_after_loading_);
     update_allocation_limits_after_loading_ = true;
     is_full_gc_during_loading_ = false;
