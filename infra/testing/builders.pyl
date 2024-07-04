@@ -2673,6 +2673,40 @@
       },
     ],
   },
+  # PGO
+  'v8_linux_pgo_rel' : {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
+  'v8_linux64_pgo_rel' : {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
+  'v8_win_pgo_rel' : {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-10-19045',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
+  'v8_win64_pgo_rel' : {
+    'swarming_dimensions' : {
+      'os': 'Windows-10-19045',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
   # Try perf bots
   'v8_android_arm_perf_try': {
     'tests': [

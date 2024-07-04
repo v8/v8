@@ -356,6 +356,12 @@
       'v8_numfuzz_compile_rel': 'release_x64',
       'v8_numfuzz_compile_dbg': 'debug_x64',
       'v8_numfuzz_tsan_compile_rel': 'release_x64_tsan',
+
+      # PGO
+      'v8_linux_pgo_compile_rel' : 'builtins_profiling_x86',
+      'v8_linux64_pgo_compile_rel' : 'builtins_profiling_x64',
+      'v8_win_pgo_compile_rel' : 'builtins_profiling_x86',
+      'v8_win64_pgo_compile_rel' : 'builtins_profiling_x64',
     },
   },
 
