@@ -2509,8 +2509,8 @@ void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
     Ext(at, scratch, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
     Branch(USE_DELAY_SLOT, &done, hs, at,
            Operand(HeapNumber::kExponentBias + HeapNumber::kMantissaBits));
-    // Canonicalize the result.
-    sub_d(dst, src, kDoubleRegZero);
+    mov_d(dst, src);
+
     round(this, dst, src);
     dmfc1(at, dst);
     Branch(USE_DELAY_SLOT, &done, ne, at, Operand(zero_reg));
@@ -2573,8 +2573,8 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
     Ext(at, scratch, kFloat32MantissaBits, kFloat32ExponentBits);
     Branch(USE_DELAY_SLOT, &done, hs, at,
            Operand(kFloat32ExponentBias + kFloat32MantissaBits));
-    // Canonicalize the result.
-    sub_s(dst, src, kDoubleRegZero);
+    mov_s(dst, src);
+
     round(this, dst, src);
     mfc1(at, dst);
     Branch(USE_DELAY_SLOT, &done, ne, at, Operand(zero_reg));
