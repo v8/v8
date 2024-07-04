@@ -1006,8 +1006,6 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           }
           output_frame->SetRegister(liftoff_iter->reg().gp().code(), reg_value);
         } else if (liftoff_iter->is_fp_reg()) {
-          // TODO(mliedtke): These cases don't cover the cases where a double
-          // might be a word64 in Turboshaft due to optimizations etc.
           Simd128 simd_value;
           switch (value.kind()) {
             case TranslatedValue::Kind::kDouble: {
