@@ -3532,7 +3532,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Call C built-in.
-  __ Move(isolate_reg, ExternalReference::isolate_address());
+  __ Move(isolate_reg, ER::isolate_address());
   __ StoreReturnAddressAndCall(target_fun);
 
   // If return value is on the stack, pop it to registers.
@@ -3597,7 +3597,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, 0, r3);
     __ li(kCArgRegs[0], Operand::Zero());
     __ li(kCArgRegs[1], Operand::Zero());
-    __ Move(kCArgRegs[2], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
                      SetIsolateDataSlots::kNo);
   }

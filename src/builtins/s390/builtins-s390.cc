@@ -3501,7 +3501,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(r8, r2);
   }
   // Call C built-in.
-  __ Move(isolate_reg, ExternalReference::isolate_address());
+  __ Move(isolate_reg, ER::isolate_address());
 
 #if V8_OS_ZOS
   // Shuffle input arguments to match XPLINK ABI
@@ -3603,7 +3603,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, 0, r2);
     __ mov(kCArgRegs[0], Operand::Zero());
     __ mov(kCArgRegs[1], Operand::Zero());
-    __ Move(kCArgRegs[2], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
                      SetIsolateDataSlots::kNo);
   }
