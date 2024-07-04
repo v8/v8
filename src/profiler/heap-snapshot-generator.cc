@@ -873,7 +873,6 @@ struct ManagedName {
         if (i == kManagedNameLength - 1) return '\0';
         return kTagName[i - prefix.size() + 1];
       });
-  static constexpr const char* str = str_arr.data();
 
   // Ignore "kFirstManagedResourceTag".
   static constexpr bool ignore_me = kTagName == "kFirstManagedResourceTag";
@@ -881,7 +880,8 @@ struct ManagedName {
 
 // A little inline test:
 constexpr const char kTagNameForTesting[] = "kFooTag";
-static_assert(std::string_view{ManagedName<kTagNameForTesting>::str} ==
+static_assert(std::string_view{
+                  ManagedName<kTagNameForTesting>::str_arr.data()} ==
               std::string_view{"system / Managed<Foo>"});
 }  // namespace
 
@@ -995,12 +995,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
                         "system / Managed<wasm::NativeModule>", size);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
-#define MANAGED_TAG(name, ...)                                                 \
-  if (tag == name) {                                                           \
-    static constexpr const char kTagName[] = #name;                            \
-    if constexpr (!ManagedName<kTagName>::ignore_me) {                         \
-      return AddEntry(object, HeapEntry::kHidden, ManagedName<kTagName>::str); \
-    }                                                                          \
+#define MANAGED_TAG(name, ...)                                \
+  if (tag == name) {                                          \
+    static constexpr const char kTagName[] = #name;           \
+    if constexpr (!ManagedName<kTagName>::ignore_me) {        \
+      return AddEntry(object, HeapEntry::kHidden,             \
+                      ManagedName<kTagName>::str_arr.data()); \
+    }                                                         \
   }
       PER_ISOLATE_EXTERNAL_POINTER_TAGS(MANAGED_TAG)
 #undef MANAGED_TAG
