@@ -3129,7 +3129,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // a0 = argc, a1 = argv, a2 = isolate, s1 = target_fun
   DCHECK_EQ(kCArgRegs[0], argc_input);
   DCHECK_EQ(kCArgRegs[1], argv);
-  __ li(kCArgRegs[2], ExternalReference::isolate_address(masm->isolate()));
+  __ li(kCArgRegs[2], ER::isolate_address());
 
   __ StoreReturnAddressAndCall(target_fun);
 
@@ -3187,7 +3187,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, 0, a0);
     __ mov(kCArgRegs[0], zero_reg);
     __ mov(kCArgRegs[1], zero_reg);
-    __ li(kCArgRegs[2], ER::isolate_address(masm->isolate()));
+    __ li(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
                      SetIsolateDataSlots::kNo);
   }
@@ -3370,7 +3370,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ St_d(holder, MemOperand(sp, FCA::kHolderIndex * kSystemPointerSize));
 
   // kIsolate.
-  __ li(scratch, ER::isolate_address(masm->isolate()));
+  __ li(scratch, ER::isolate_address());
   __ St_d(scratch, MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
   // kContext.
@@ -3488,7 +3488,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadTaggedField(scratch,
                      FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
-  __ li(scratch2, ER::isolate_address(masm->isolate()));
+  __ li(scratch2, ER::isolate_address());
   Register holderV2 = zero_reg;
   __ Push(receiver, scratch,  // kThisIndex, kDataIndex
           undef, holderV2);   // kReturnValueIndex, kHolderV2Index
@@ -3633,7 +3633,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ li(a1, Operand(static_cast<int>(deopt_kind)));
   // a2: code address or 0 already loaded.
   // a3: already has fp-to-sp delta.
-  __ li(a4, ExternalReference::isolate_address(isolate));
+  __ li(a4, ExternalReference::isolate_address());
 
   // Call Deoptimizer::New().
   {

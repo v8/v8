@@ -1550,15 +1550,23 @@ void MacroAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
-void MacroAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
-  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
-  // non-isolate-independent code. In many cases it might be cheaper than
-  // embedding the relocatable value.
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(dst, value);
-    return;
+void MacroAssembler::li(Register dst, ExternalReference reference,
+                        LiFlags mode) {
+  if (root_array_available()) {
+    if (reference.IsIsolateFieldId()) {
+      Daddu(dst, kRootRegister, Operand(reference.offset_from_root_register()));
+      return;
+    }
+    if (options().isolate_independent_code) {
+      IndirectLoadExternalReference(dst, reference);
+      return;
+    }
   }
-  li(dst, Operand(value), mode);
+
+  // External references should not get created with IDs if
+  // `!root_array_available()`.
+  CHECK(!reference.IsIsolateFieldId());
+  li(dst, Operand(reference), mode);
 }
 
 static inline int InstrCountForLiLower32Bit(int64_t value) {
@@ -4230,28 +4238,33 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
 
 MemOperand MacroAssembler::ExternalReferenceAsOperand(
     ExternalReference reference, Register scratch) {
-  if (root_array_available_ && options().enable_root_relative_access) {
-    int64_t offset =
-        RootRegisterOffsetForExternalReference(isolate(), reference);
-    if (is_int32(offset)) {
-      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+  if (root_array_available()) {
+    if (reference.IsIsolateFieldId()) {
+      return MemOperand(kRootRegister, reference.offset_from_root_register());
     }
-  }
-  if (root_array_available_ && options().isolate_independent_code) {
-    if (IsAddressableThroughRootRegister(isolate(), reference)) {
-      // Some external references can be efficiently loaded as an offset from
-      // kRootRegister.
-      intptr_t offset =
+    if (options().enable_root_relative_access) {
+      int64_t offset =
           RootRegisterOffsetForExternalReference(isolate(), reference);
-      CHECK(is_int32(offset));
-      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
-    } else {
-      // Otherwise, do a memory load from the external reference table.
-      DCHECK(scratch.is_valid());
-      Ld(scratch, MemOperand(kRootRegister,
-                             RootRegisterOffsetForExternalReferenceTableEntry(
-                                 isolate(), reference)));
-      return MemOperand(scratch, 0);
+      if (is_int32(offset)) {
+        return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+      }
+    }
+    if (root_array_available_ && options().isolate_independent_code) {
+      if (IsAddressableThroughRootRegister(isolate(), reference)) {
+        // Some external references can be efficiently loaded as an offset from
+        // kRootRegister.
+        intptr_t offset =
+            RootRegisterOffsetForExternalReference(isolate(), reference);
+        CHECK(is_int32(offset));
+        return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+      } else {
+        // Otherwise, do a memory load from the external reference table.
+        DCHECK(scratch.is_valid());
+        Ld(scratch, MemOperand(kRootRegister,
+                               RootRegisterOffsetForExternalReferenceTableEntry(
+                                   isolate(), reference)));
+        return MemOperand(scratch, 0);
+      }
     }
   }
   DCHECK(scratch.is_valid());
@@ -6560,7 +6573,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ mov(saved_result, v0);
     __ mov(kCArgRegs[0], v0);
     __ PrepareCallCFunction(1, prev_level_reg);
-    __ li(kCArgRegs[0], ER::isolate_address(isolate));
+    __ li(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
     __ mov(v0, saved_result);
     __ jmp(&leave_exit_frame);
