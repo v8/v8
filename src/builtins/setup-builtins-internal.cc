@@ -223,8 +223,7 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerCS(
                                 builtin);
 
   PipelineData data(&zone_stats, TurboshaftPipelineKind::kTSABuiltin, isolate,
-                    &info, kNoSourcePosition,
-                    BuiltinAssemblerOptions(isolate, builtin));
+                    &info, BuiltinAssemblerOptions(isolate, builtin));
   data.InitializeGraphComponent(nullptr);
   ZoneWithName<kTempZoneName> temp_zone(&zone_stats, kTempZoneName);
   generator(&data, isolate, data.graph(), temp_zone);

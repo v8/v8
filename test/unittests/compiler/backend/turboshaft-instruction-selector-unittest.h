@@ -122,7 +122,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
   void SetUp() override {
     pipeline_data_ = std::make_unique<PipelineData>(
-        &zone_stats_, TurboshaftPipelineKind::kJS, nullptr, nullptr);
+        &zone_stats_, TurboshaftPipelineKind::kJS, isolate_, nullptr,
+        AssemblerOptions::Default(isolate_));
     pipeline_data_->InitializeGraphComponent(nullptr);
   }
   void TearDown() override { pipeline_data_.reset(); }

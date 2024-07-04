@@ -38,8 +38,7 @@ class DataHolder {
                                                   zone, CodeKind::FOR_TESTING)),
         zone_stats_(isolate->allocator()),
         ts_pipeline_data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kJS,
-                          isolate, info_, kNoSourcePosition,
-                          AssemblerOptions::Default(isolate)),
+                          isolate, info_, AssemblerOptions::Default(isolate)),
         descriptor_(Linkage::GetSimplifiedCDescriptor(
             zone, CSignature::New(zone, return_type, p...),
             CallDescriptor::kInitializeRootRegister)) {

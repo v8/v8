@@ -179,11 +179,11 @@ class V8_EXPORT_PRIVATE PipelineData {
   using RegisterComponent = detail::RegisterComponent;
 
  public:
-  explicit PipelineData(
-      ZoneStats* zone_stats, TurboshaftPipelineKind pipeline_kind,
-      Isolate* isolate, OptimizedCompilationInfo* info,
-      int start_source_position = kNoSourcePosition,
-      const AssemblerOptions& assembler_options = AssemblerOptions{})
+  explicit PipelineData(ZoneStats* zone_stats,
+                        TurboshaftPipelineKind pipeline_kind, Isolate* isolate,
+                        OptimizedCompilationInfo* info,
+                        const AssemblerOptions& assembler_options,
+                        int start_source_position = kNoSourcePosition)
       : zone_stats_(zone_stats),
         pipeline_kind_(pipeline_kind),
         isolate_(isolate),

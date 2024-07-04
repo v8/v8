@@ -587,7 +587,8 @@ PipelineCompilationJob::PipelineCompilationJob(
       data_(&zone_stats_, isolate, compilation_info(),
             pipeline_statistics_.get()),
       turboshaft_data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kJS,
-                       isolate, compilation_info()),
+                       isolate, compilation_info(),
+                       AssemblerOptions::Default(isolate)),
       pipeline_(&data_),
       linkage_(nullptr) {
   turboshaft_data_.set_pipeline_statistics(pipeline_statistics_.get());
@@ -2177,7 +2178,7 @@ class WasmTurboshaftWrapperCompilationJob final
             wrapper_info_.code_kind == CodeKind::JS_TO_WASM_FUNCTION
                 ? turboshaft::TurboshaftPipelineKind::kJSToWasm
                 : turboshaft::TurboshaftPipelineKind::kWasm,
-            isolate, &info_, kNoSourcePosition, options),
+            isolate, &info_, options),
         data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, options,
               nullptr),
@@ -2870,7 +2871,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
     turboshaft::PipelineData turboshaft_data(
         data.zone_stats(), turboshaft::TurboshaftPipelineKind::kCSA,
-        data.isolate(), data.info(), data.start_source_position(), options);
+        data.isolate(), data.info(), options, data.start_source_position());
 
     turboshaft::BuiltinPipeline turboshaft_pipeline(&turboshaft_data);
     Linkage linkage(call_descriptor);
@@ -3121,7 +3122,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
   {
     turboshaft::PipelineData turboshaft_data(
         &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
-        kNoSourcePosition, options);
+        options);
     turboshaft_data.SetIsWasm(module, sig, false);
     AccountingAllocator allocator;
     turboshaft_data.InitializeGraphComponent(source_positions);
@@ -3492,7 +3493,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   turboshaft::PipelineData turboshaft_data(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, info,
-      kNoSourcePosition, options);
+      options);
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
   turboshaft_data.SetIsWasm(env->module, compilation_data.func_body.sig,
                             compilation_data.func_body.is_shared);
@@ -3686,7 +3687,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   TFPipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
   turboshaft::PipelineData turboshaft_data(
-      &zone_stats, turboshaft::TurboshaftPipelineKind::kJS, isolate, info);
+      &zone_stats, turboshaft::TurboshaftPipelineKind::kJS, isolate, info,
+      AssemblerOptions::Default(isolate));
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   PipelineImpl pipeline(&data);
