@@ -69,7 +69,15 @@ IsolateGroup* IsolateGroup::GetProcessWideIsolateGroup() {
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 IsolateGroup::IsolateGroup() {}
-IsolateGroup::~IsolateGroup() { DCHECK_EQ(reference_count_.load(), 0); }
+IsolateGroup::~IsolateGroup() {
+  DCHECK_EQ(reference_count_.load(), 0);
+  // If pointer compression is enabled but the external code space is disabled,
+  // the pointer cage's page allocator is used for the CodeRange, whose
+  // destructor calls it via VirtualMemory::Free.  Therefore we explicitly clear
+  // the code range here while we know the reservation still has a valid page
+  // allocator.
+  code_range_.reset();
+}
 
 #ifdef V8_ENABLE_SANDBOX
 void IsolateGroup::Initialize(Sandbox* sandbox) {
@@ -195,13 +203,14 @@ void IsolateGroup::ReleaseGlobal() {
   IsolateGroup *group = GetProcessWideIsolateGroup();
   CHECK_EQ(group->reference_count_.load(), 1);
   group->page_allocator_ = nullptr;
+  group->code_range_.reset();
+  group->init_code_range_ = base::ONCE_STATE_UNINITIALIZED;
 #ifdef V8_COMPRESS_POINTERS
   group->trusted_pointer_compression_cage_ = nullptr;
   group->pointer_compression_cage_ = nullptr;
   DCHECK(group->reservation_.IsReserved());
   group->reservation_.Free();
 #endif  // V8_COMPRESS_POINTERS
-  group->code_range_.reset();
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 }
 
