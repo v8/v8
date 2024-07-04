@@ -1410,16 +1410,36 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   }
 
   const WasmModule* module = trusted_instance_data->module();
-  Handle<ExposedTrustedObject> ref =
-      function_index >= static_cast<int>(module->num_imported_functions)
-          ? trusted_instance_data
-          : handle(ExposedTrustedObject::cast(
-                       trusted_instance_data->dispatch_table_for_imports()->ref(
-                           function_index)),
-                   isolate);
+  bool is_import =
+      function_index < static_cast<int>(module->num_imported_functions);
+  uint32_t sig_index = module->functions[function_index].sig_index;
+  const wasm::FunctionSig* sig = module->signature(sig_index);
+  DirectHandle<ExposedTrustedObject> ref =
+      is_import
+          ? direct_handle(
+                ExposedTrustedObject::cast(
+                    trusted_instance_data->dispatch_table_for_imports()->ref(
+                        function_index)),
+                isolate)
+          : trusted_instance_data;
 
-  bool setup_new_ref_with_generic_wrapper =
-      v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref);
+  bool setup_new_ref_with_generic_wrapper = false;
+  if (v8_flags.wasm_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
+    // Only set up the generic wrapper if it is compatible with the import call
+    // kind, which we compute below.
+    auto wafr = DirectHandle<WasmApiFunctionRef>::cast(ref);
+    const wasm::WellKnownImportsList& preknown_imports =
+        module->type_feedback.well_known_imports;
+    uint32_t canonical_type_index =
+        module->isorecursive_canonical_type_ids[sig_index];
+    auto callable =
+        handle<JSReceiver>(JSReceiver::cast(wafr->callable()), isolate);
+    wasm::WasmImportData resolved(
+        handle(*trusted_instance_data, isolate), function_index, callable, sig,
+        canonical_type_index, preknown_imports.get(function_index));
+    setup_new_ref_with_generic_wrapper =
+        UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend());
+  }
 
   if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
@@ -1429,7 +1449,6 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
         handle(wafr->instance(), isolate), handle(wafr->sig(), isolate));
   }
 
-  int sig_index = module->functions[function_index].sig_index;
   // TODO(14034): Create funcref RTTs lazily?
   Handle<Map> rtt = handle(
       Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
