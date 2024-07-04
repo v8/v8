@@ -1082,10 +1082,6 @@ size_t AddOperandToStateValueDescriptor(
       values->PushDuplicate(id);
       return 0;
     }
-    case FrameStateData::Instr::kArgumentsLength:
-      it->ConsumeArgumentsLength();
-      values->PushArgumentsLength();
-      return 0;
     case FrameStateData::Instr::kArgumentsElements: {
       CreateArgumentsType type;
       it->ConsumeArgumentsElements(&type);
@@ -1095,6 +1091,14 @@ size_t AddOperandToStateValueDescriptor(
       deduplicator->InsertDummyForArgumentsElements();
       return 0;
     }
+    case FrameStateData::Instr::kArgumentsLength:
+      it->ConsumeArgumentsLength();
+      values->PushArgumentsLength();
+      return 0;
+    case FrameStateData::Instr::kRestLength:
+      it->ConsumeRestLength();
+      values->PushRestLength();
+      return 0;
   }
   UNREACHABLE();
 }

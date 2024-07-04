@@ -1343,6 +1343,8 @@ std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
       return os << "ArgumentsElements";
     case StateValueKind::kArgumentsLength:
       return os << "ArgumentsLength";
+    case StateValueKind::kRestLength:
+      return os << "RestLength";
     case StateValueKind::kPlain:
       return os << "Plain";
     case StateValueKind::kOptimizedOut:

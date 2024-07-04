@@ -730,6 +730,11 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
         os << "ArgumentsLength";
         break;
       }
+      case FrameStateData::Instr::kRestLength: {
+        it.ConsumeRestLength();
+        os << "RestLength";
+        break;
+      }
     }
   }
   os << ']';
@@ -777,6 +782,10 @@ void FrameStateOp::Validate(const Graph& graph) const {
       }
       case FrameStateData::Instr::kArgumentsLength: {
         it.ConsumeArgumentsLength();
+        break;
+      }
+      case FrameStateData::Instr::kRestLength: {
+        it.ConsumeRestLength();
         break;
       }
     }

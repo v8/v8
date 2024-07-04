@@ -1167,6 +1167,8 @@ void CodeGenerator::TranslateStateValueDescriptor(
     translations_.ArgumentsElements(desc->arguments_type());
   } else if (desc->IsArgumentsLength()) {
     translations_.ArgumentsLength();
+  } else if (desc->IsRestLength()) {
+    translations_.RestLength();
   } else if (desc->IsDuplicate()) {
     translations_.DuplicateObject(static_cast<int>(desc->id()));
   } else if (desc->IsPlain()) {

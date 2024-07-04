@@ -22,6 +22,7 @@ struct FrameStateData {
     kDematerializedObjectReference,  // 1 Operand: id
     kArgumentsElements,              // 1 Operand: type
     kArgumentsLength,
+    kRestLength
   };
 
   class Builder {
@@ -60,6 +61,8 @@ struct FrameStateData {
     void AddArgumentsLength() {
       instructions_.push_back(Instr::kArgumentsLength);
     }
+
+    void AddRestLength() { instructions_.push_back(Instr::kRestLength); }
 
     const FrameStateData* AllocateFrameStateData(
         const FrameStateInfo& frame_state_info, Zone* zone) {
@@ -129,6 +132,10 @@ struct FrameStateData {
     }
     void ConsumeArgumentsLength() {
       DCHECK_EQ(instructions[0], Instr::kArgumentsLength);
+      instructions += 1;
+    }
+    void ConsumeRestLength() {
+      DCHECK_EQ(instructions[0], Instr::kRestLength);
       instructions += 1;
     }
   };
