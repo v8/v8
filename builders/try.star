@@ -16,7 +16,6 @@ presubmit_builder(
 
 try_builder(
     name = "v8_android_arm_compile_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -26,7 +25,6 @@ try_builder(
 
 try_builder(
     name = "v8_android_arm64_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
@@ -35,7 +33,6 @@ try_builder(
 
 try_builder(
     name = "v8_android_arm64_d8_compile_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["d8"], "target_platform": "android", "target_arch": "arm"},
@@ -44,7 +41,6 @@ try_builder(
 
 try_builder(
     name = "v8_full_presubmit",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     executable = "recipe:v8/presubmit",
@@ -53,7 +49,6 @@ try_builder(
 
 try_builder(
     name = "v8_ios_simulator",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
     execution_timeout = 3600,
@@ -69,7 +64,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_bazel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/bazel",
@@ -79,7 +73,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_coverage_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {
@@ -93,7 +86,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_coverage_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {
@@ -106,7 +98,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_native_arm64_no_pointer_compression_compile_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
@@ -115,7 +106,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_verify_builtins_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["verify_all_builtins_hashes"]},
@@ -124,7 +114,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_verify_deterministic_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
@@ -133,7 +122,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_gcc_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 5400,
@@ -141,7 +129,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_jammy_gcc_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     execution_timeout = 10800,
@@ -149,7 +136,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_gcc_light_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
@@ -159,7 +145,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_header_includes_dbg",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -169,7 +154,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_no_wasm_compile_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -178,7 +162,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_arm64_no_wasm_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
@@ -187,7 +170,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_asan_centipede_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
@@ -197,7 +179,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_asan_centipede_compile_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
@@ -207,7 +188,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_asan_sandbox_testing_compile_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
@@ -216,7 +196,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_shared_compile_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -225,7 +204,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_arm_lite_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -234,7 +212,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_blink_rel",
-    bucket = "try",
     cq_properties = CQ.EXP_5_PERCENT,
     executable = "recipe:chromium_trybot",
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -246,7 +223,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_chromium_gn_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     executable = "recipe:chromium_trybot",
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -259,7 +235,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_mips64el_compile_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
@@ -267,7 +242,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_noi18n_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -276,7 +250,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_shared_compile_rel",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
@@ -284,7 +257,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_torque_compare",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
@@ -293,7 +265,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux_vtunejit",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
@@ -302,7 +273,6 @@ try_builder(
 
 try_builder(
     name = "v8_test_tools",
-    bucket = "try",
     cq_properties = CQ.on_files("tools/clusterfuzz/js_fuzzer/.+"),
     executable = "recipe:v8/test_tools",
     dimensions = {"host_class": "docker", "os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -310,7 +280,6 @@ try_builder(
 
 try_builder(
     name = "v8_win_arm64_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
@@ -319,7 +288,6 @@ try_builder(
 
 try_builder(
     name = "v8_win_msvc_light_compile_dbg",
-    bucket = "try",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
@@ -329,7 +297,6 @@ try_builder(
 
 try_builder(
     name = "v8_win64_msvc_light_compile_rel",
-    bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
@@ -354,7 +321,46 @@ try_builder(
 
 try_builder(
     name = "v8_mega_cq_launcher",
-    bucket = "try",
     executable = "recipe:v8/mega_cq_launcher",
     execution_timeout = 16200,
+)
+
+try_builder(
+    name = "v8_linux_pgo_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/compilator",
+    properties = {"default_targets": ["d8_pgo"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    dimensions = {"os": "Ubuntu-22.04"},
+)
+
+try_builder(
+    name = "v8_linux64_pgo_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/compilator",
+    properties = {"default_targets": ["d8_pgo"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    dimensions = {"os": "Ubuntu-22.04"},
+)
+
+try_builder(
+    name = "v8_win_pgo_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/compilator",
+    properties = {"default_targets": ["d8_pgo"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    dimensions = {"os": "Windows-10"},
+)
+
+try_builder(
+    name = "v8_win64_pgo_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/compilator",
+    properties = {"default_targets": ["d8_pgo"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    dimensions = {"os": "Windows-10"},
 )
