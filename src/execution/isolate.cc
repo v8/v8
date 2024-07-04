@@ -1671,7 +1671,8 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
         AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
     Tagged<Object> fun_obj = access_check_info->callback();
-    callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
+    callback = v8::ToCData<v8::AccessCheckCallback, kApiAccessCheckCallbackTag>(
+        fun_obj);
     data = handle(access_check_info->data(), this);
   }
 

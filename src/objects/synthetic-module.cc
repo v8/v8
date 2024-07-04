@@ -104,7 +104,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
 
   v8::Module::SyntheticModuleEvaluationSteps evaluation_steps =
       FUNCTION_CAST<v8::Module::SyntheticModuleEvaluationSteps>(
-          module->evaluation_steps()->foreign_address<kGenericForeignTag>());
+          module->evaluation_steps()->foreign_address<kSyntheticModuleTag>());
   v8::Local<v8::Value> result;
   if (!evaluation_steps(Utils::ToLocal(isolate->native_context()),
                         Utils::ToLocal(Cast<Module>(module)))

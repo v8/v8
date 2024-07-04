@@ -3269,7 +3269,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   DirectHandle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
   DirectHandle<Foreign> evaluation_steps_foreign =
-      NewForeign<kGenericForeignTag>(
+      NewForeign<kSyntheticModuleTag>(
           reinterpret_cast<Address>(evaluation_steps));
 
   Tagged<SyntheticModule> module =

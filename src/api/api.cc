@@ -1384,10 +1384,10 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
   return Local<Signature>::Cast(receiver);
 }
 
-#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)      \
+#define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata, tag) \
   do {                                                        \
     i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> foreign = \
-        FromCData(i_isolate, cdata);                          \
+        FromCData<tag>(i_isolate, cdata);                     \
     (obj)->setter(*foreign);                                  \
   } while (false)
 
@@ -1419,12 +1419,13 @@ void FunctionTemplate::SetCallHandler(
     int function_count = static_cast<int>(c_function_overloads.size());
     for (int i = 0; i < function_count; i++) {
       const CFunction& c_function = c_function_overloads.data()[i];
-      i::DirectHandle<i::Object> address =
-          FromCData(i_isolate, c_function.GetAddress());
+      i::DirectHandle<i::Object> address = FromCData<internal::kCFunctionTag>(
+          i_isolate, c_function.GetAddress());
       function_overloads->set(
           i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i, *address);
       i::DirectHandle<i::Object> signature =
-          FromCData(i_isolate, c_function.GetTypeInfo());
+          FromCData<internal::kCFunctionInfoTag>(i_isolate,
+                                                 c_function.GetTypeInfo());
       function_overloads->set(
           i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1,
           *signature);
@@ -1626,32 +1627,59 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
 }
 
 namespace {
-template <typename Getter, typename Setter, typename Query, typename Descriptor,
-          typename Deleter, typename Enumerator, typename Definer>
+enum class PropertyType { kNamed, kIndexed };
+template <PropertyType property_type, typename Getter, typename Setter,
+          typename Query, typename Descriptor, typename Deleter,
+          typename Enumerator, typename Definer>
 i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
+  // TODO(saelo): instead of an in-sandbox struct with a lot of external
+  // pointers (with different tags), consider creating an object in trusted
+  // space instead. That way, only a single reference going out of the sandbox
+  // would be required.
   auto obj = i::Cast<i::InterceptorInfo>(i_isolate->factory()->NewStruct(
       i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
   obj->set_flags(0);
 
-  if (getter != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter);
-  if (setter != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter);
-  if (query != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_query, query);
+#define CALLBACK_TAG(NAME)                             \
+  property_type == PropertyType::kNamed                \
+      ? internal::kApiNamedProperty##NAME##CallbackTag \
+      : internal::kApiIndexedProperty##NAME##CallbackTag;
+
+  if (getter != nullptr) {
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Getter);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter, tag);
+  }
+  if (setter != nullptr) {
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Setter);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter, tag);
+  }
+  if (query != nullptr) {
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Query);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_query, query, tag);
+  }
   if (descriptor != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_descriptor, descriptor);
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Descriptor);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_descriptor, descriptor, tag);
   }
   if (remover != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_deleter, remover);
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Deleter);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_deleter, remover, tag);
   }
   if (enumerator != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_enumerator, enumerator);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_enumerator, enumerator,
+                      internal::kApiIndexedPropertyEnumeratorCallbackTag);
   }
   if (definer != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer);
+    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Definer);
+    SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer, tag);
   }
+
+#undef CALLBACK_TAG
+
   obj->set_can_intercept_symbols(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
   obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
@@ -1671,9 +1699,9 @@ i::Handle<i::InterceptorInfo> CreateNamedInterceptorInfo(
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
-  auto interceptor =
-      CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
-                            remover, enumerator, definer, data, flags);
+  auto interceptor = CreateInterceptorInfo<PropertyType::kNamed>(
+      i_isolate, getter, setter, query, descriptor, remover, enumerator,
+      definer, data, flags);
   interceptor->set_is_named(true);
   return interceptor;
 }
@@ -1685,9 +1713,9 @@ i::Handle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
-  auto interceptor =
-      CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
-                            remover, enumerator, definer, data, flags);
+  auto interceptor = CreateInterceptorInfo<PropertyType::kIndexed>(
+      i_isolate, getter, setter, query, descriptor, remover, enumerator,
+      definer, data, flags);
   interceptor->set_is_named(false);
   return interceptor;
 }
@@ -1739,7 +1767,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
       i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   auto info = i::Cast<i::AccessCheckInfo>(struct_info);
 
-  SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback);
+  SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
+                    internal::kApiAccessCheckCallbackTag);
   info->set_named_interceptor(i::Smi::zero());
   info->set_indexed_interceptor(i::Smi::zero());
 
@@ -1768,7 +1797,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
       i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   auto info = i::Cast<i::AccessCheckInfo>(struct_info);
 
-  SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback);
+  SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
+                    internal::kApiAccessCheckCallbackTag);
   auto named_interceptor = CreateNamedInterceptorInfo(
       i_isolate, named_handler.getter, named_handler.setter,
       named_handler.query, named_handler.descriptor, named_handler.deleter,
@@ -7226,7 +7256,7 @@ void Context::SetAbortScriptExecution(
         i::ReadOnlyRoots(i_isolate).undefined_value());
   } else {
     SET_FIELD_WRAPPED(i_isolate, context, set_script_execution_callback,
-                      callback);
+                      callback, internal::kApiAbortScriptExecutionCallbackTag);
   }
 }
 
@@ -10589,7 +10619,7 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   i::DirectHandle<i::FixedArray> listener =
       i_isolate->factory()->NewFixedArray(3);
   i::DirectHandle<i::Foreign> foreign =
-      i_isolate->factory()->NewForeign<internal::kGenericForeignTag>(
+      i_isolate->factory()->NewForeign<internal::kMessageListenerTag>(
           FUNCTION_ADDR(that));
   listener->set(0, *foreign);
   listener->set(1, data.IsEmpty()
@@ -10614,7 +10644,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
     i::Tagged<i::FixedArray> listener =
         i::Cast<i::FixedArray>(listeners->get(i));
     i::Tagged<i::Foreign> callback_obj = i::Cast<i::Foreign>(listener->get(0));
-    if (callback_obj->foreign_address<internal::kGenericForeignTag>() ==
+    if (callback_obj->foreign_address<internal::kMessageListenerTag>() ==
         FUNCTION_ADDR(that)) {
       listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
     }

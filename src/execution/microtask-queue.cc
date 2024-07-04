@@ -93,9 +93,9 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   HandleScope scope(isolate);
   DirectHandle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
-      isolate->factory()->NewForeign<kGenericForeignTag>(
+      isolate->factory()->NewForeign<kMicrotaskCallbackTag>(
           reinterpret_cast<Address>(callback)),
-      isolate->factory()->NewForeign<kGenericForeignTag>(
+      isolate->factory()->NewForeign<kMicrotaskCallbackDataTag>(
           reinterpret_cast<Address>(data)));
   EnqueueMicrotask(*microtask);
 }

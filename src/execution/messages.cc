@@ -180,7 +180,7 @@ void MessageHandler::ReportMessageNoExceptions(
         continue;
       }
       v8::MessageCallback callback = FUNCTION_CAST<v8::MessageCallback>(
-          callback_obj->foreign_address<kGenericForeignTag>());
+          callback_obj->foreign_address<kMessageListenerTag>());
       DirectHandle<Object> callback_data(listener->get(1), isolate);
       {
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);

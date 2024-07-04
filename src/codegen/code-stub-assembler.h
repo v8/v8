@@ -1085,9 +1085,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         object, IntPtrConstant(offset - kHeapObjectTag)));
   }
 
-  TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
+  TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object,
+                                              ExternalPointerTag tag) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
-                                         kGenericForeignTag);
+                                         tag);
   }
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(

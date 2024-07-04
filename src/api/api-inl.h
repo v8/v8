@@ -17,39 +17,37 @@
 
 namespace v8 {
 
-template <typename T>
+template <typename T, internal::ExternalPointerTag tag>
 inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Cast<v8::internal::Foreign>(obj)
-          ->foreign_address<internal::kGenericForeignTag>());
+      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>());
 }
 
-template <>
+template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
     v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Cast<v8::internal::Foreign>(obj)
-      ->foreign_address<internal::kGenericForeignTag>();
+  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>();
 }
 
-template <typename T>
+template <internal::ExternalPointerTag tag, typename T>
 inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
-  return isolate->factory()->NewForeign<internal::kGenericForeignTag>(
+  return isolate->factory()->NewForeign<tag>(
       reinterpret_cast<v8::internal::Address>(obj));
 }
 
-template <>
+template <internal::ExternalPointerTag tag>
 inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
     return handle(v8::internal::Smi::zero(), isolate);
   }
-  return isolate->factory()->NewForeign<internal::kGenericForeignTag>(obj);
+  return isolate->factory()->NewForeign<tag>(obj);
 }
 
 template <class From, class To>

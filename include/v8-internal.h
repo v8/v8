@@ -541,50 +541,73 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   V(kExternalStringResourceTag,                 TAG(1)) \
   V(kExternalStringResourceDataTag,             TAG(2)) \
   V(kLastSharedTag,                             TAG(2))
+  // Leave some space in the tag range here for future shared tags.
 
 // External pointers using these tags are kept in a per-Isolate external
 // pointer table and can only be accessed when this Isolate is active.
 #define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V)             \
-  V(kNativeContextMicrotaskQueueTag,            TAG(10)) \
-  V(kEmbedderDataSlotPayloadTag,                TAG(11)) \
+  V(kNativeContextMicrotaskQueueTag,            TAG(5)) \
+  V(kEmbedderDataSlotPayloadTag,                TAG(6)) \
 /* This tag essentially stands for a `void*` pointer in the V8 API, and */ \
 /* it is the Embedder's responsibility to ensure type safety (against */   \
 /* substitution) and lifetime validity of these objects. */                \
-  V(kExternalObjectValueTag,                    TAG(12)) \
-  V(kFunctionTemplateInfoCallbackTag,           TAG(13)) \
-  V(kAccessorInfoGetterTag,                     TAG(14)) \
-  V(kAccessorInfoSetterTag,                     TAG(15)) \
-  V(kWasmInternalFunctionCallTargetTag,         TAG(16)) \
-  V(kWasmTypeInfoNativeTypeTag,                 TAG(17)) \
-  V(kWasmExportedFunctionDataSignatureTag,      TAG(18)) \
-  V(kWasmContinuationJmpbufTag,                 TAG(19)) \
-  V(kWasmStackMemoryTag,                        TAG(20)) \
-  V(kWasmIndirectFunctionTargetTag,             TAG(21)) \
+  V(kExternalObjectValueTag,                    TAG(7)) \
+  V(kFunctionTemplateInfoCallbackTag,           TAG(8)) \
+  V(kAccessorInfoGetterTag,                     TAG(9)) \
+  V(kAccessorInfoSetterTag,                     TAG(10)) \
+  V(kWasmInternalFunctionCallTargetTag,         TAG(11)) \
+  V(kWasmTypeInfoNativeTypeTag,                 TAG(12)) \
+  V(kWasmExportedFunctionDataSignatureTag,      TAG(13)) \
+  V(kWasmContinuationJmpbufTag,                 TAG(14)) \
+  V(kWasmStackMemoryTag,                        TAG(15)) \
+  V(kWasmIndirectFunctionTargetTag,             TAG(16)) \
   /* Foreigns */ \
-  V(kGenericForeignTag,                         TAG(30)) \
+  V(kGenericForeignTag,                         TAG(20)) \
+  V(kApiNamedPropertyQueryCallbackTag,          TAG(21)) \
+  V(kApiNamedPropertyGetterCallbackTag,         TAG(22)) \
+  V(kApiNamedPropertySetterCallbackTag,         TAG(23)) \
+  V(kApiNamedPropertyDescriptorCallbackTag,     TAG(24)) \
+  V(kApiNamedPropertyDefinerCallbackTag,        TAG(25)) \
+  V(kApiNamedPropertyDeleterCallbackTag,        TAG(26)) \
+  V(kApiIndexedPropertyQueryCallbackTag,        TAG(27)) \
+  V(kApiIndexedPropertyGetterCallbackTag,       TAG(28)) \
+  V(kApiIndexedPropertySetterCallbackTag,       TAG(29)) \
+  V(kApiIndexedPropertyDescriptorCallbackTag,   TAG(30)) \
+  V(kApiIndexedPropertyDefinerCallbackTag,      TAG(31)) \
+  V(kApiIndexedPropertyDeleterCallbackTag,      TAG(32)) \
+  V(kApiIndexedPropertyEnumeratorCallbackTag,   TAG(33)) \
+  V(kApiAccessCheckCallbackTag,                 TAG(34)) \
+  V(kApiAbortScriptExecutionCallbackTag,        TAG(35)) \
+  V(kSyntheticModuleTag,                        TAG(36)) \
+  V(kMicrotaskCallbackTag,                      TAG(37)) \
+  V(kMicrotaskCallbackDataTag,                  TAG(38)) \
+  V(kCFunctionTag,                              TAG(39)) \
+  V(kCFunctionInfoTag,                          TAG(40)) \
+  V(kMessageListenerTag,                        TAG(41)) \
+  V(kWaiterQueueForeignTag,                     TAG(42)) \
   /* Managed */ \
-  V(kFirstManagedResourceTag,                   TAG(40)) \
-  V(kGenericManagedTag,                         TAG(40)) \
-  V(kWasmWasmStreamingTag,                      TAG(41)) \
-  V(kWasmFuncDataTag,                           TAG(42)) \
-  V(kWasmManagedDataTag,                        TAG(43)) \
-  V(kWasmNativeModuleTag,                       TAG(44)) \
-  V(kIcuBreakIteratorTag,                       TAG(45)) \
-  V(kIcuUnicodeStringTag,                       TAG(46)) \
-  V(kIcuListFormatterTag,                       TAG(47)) \
-  V(kIcuLocaleTag,                              TAG(48)) \
-  V(kIcuSimpleDateFormatTag,                    TAG(49)) \
-  V(kIcuDateIntervalFormatTag,                  TAG(50)) \
-  V(kIcuRelativeDateTimeFormatterTag,           TAG(51)) \
-  V(kIcuLocalizedNumberFormatterTag,            TAG(52)) \
-  V(kIcuPluralRulesTag,                         TAG(53)) \
-  V(kIcuCollatorTag,                            TAG(54)) \
-  V(kDisplayNamesInternalTag,                   TAG(55)) \
+  V(kFirstManagedResourceTag,                   TAG(50)) \
+  V(kGenericManagedTag,                         TAG(50)) \
+  V(kWasmWasmStreamingTag,                      TAG(51)) \
+  V(kWasmFuncDataTag,                           TAG(52)) \
+  V(kWasmManagedDataTag,                        TAG(53)) \
+  V(kWasmNativeModuleTag,                       TAG(54)) \
+  V(kIcuBreakIteratorTag,                       TAG(55)) \
+  V(kIcuUnicodeStringTag,                       TAG(56)) \
+  V(kIcuListFormatterTag,                       TAG(57)) \
+  V(kIcuLocaleTag,                              TAG(58)) \
+  V(kIcuSimpleDateFormatTag,                    TAG(59)) \
+  V(kIcuDateIntervalFormatTag,                  TAG(60)) \
+  V(kIcuRelativeDateTimeFormatterTag,           TAG(61)) \
+  V(kIcuLocalizedNumberFormatterTag,            TAG(62)) \
+  V(kIcuPluralRulesTag,                         TAG(63)) \
+  V(kIcuCollatorTag,                            TAG(64)) \
+  V(kDisplayNamesInternalTag,                   TAG(65)) \
   /* External resources whose lifetime is tied to */     \
   /* their entry in the external pointer table but */    \
   /* which are not referenced via a Managed */           \
-  V(kArrayBufferExtensionTag,                   TAG(57)) \
-  V(kLastManagedResourceTag,                    TAG(57)) \
+  V(kArrayBufferExtensionTag,                   TAG(66)) \
+  V(kLastManagedResourceTag,                    TAG(66)) \
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \

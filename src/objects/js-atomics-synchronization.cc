@@ -840,11 +840,11 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     waiter_node = LockAsyncWaiterQueueNode::NewLockedAsyncWaiterStoredInIsolate(
         requester, mutex);
   }
-  // Use a kGenericForeignTag because using a kWaiterQueueNodeTag will cause
-  // the pointer to be stored in the shared external pointer table, which is not
-  // necessary since this object is only visible in this thread.
+  // Don't use kWaiterQueueNodeTag here as that will cause the pointer to be
+  // stored in the shared external pointer table, which is not necessary since
+  // this object is only visible in this thread.
   DirectHandle<Foreign> wrapper =
-      requester->factory()->NewForeign<kGenericForeignTag>(
+      requester->factory()->NewForeign<kWaiterQueueForeignTag>(
           reinterpret_cast<Address>(waiter_node));
   handlers_context->set(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot,
                         *wrapper);
@@ -945,7 +945,7 @@ void JSAtomicsMutex::UnlockAsyncLockedMutex(
     Isolate* requester, DirectHandle<Foreign> async_locked_waiter_wrapper) {
   LockAsyncWaiterQueueNode* waiter_node =
       reinterpret_cast<LockAsyncWaiterQueueNode*>(
-          async_locked_waiter_wrapper->foreign_address<kGenericForeignTag>(
+          async_locked_waiter_wrapper->foreign_address<kWaiterQueueForeignTag>(
               IsolateForSandbox(requester)));
   LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter_node);
   Unlock(requester);
