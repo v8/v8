@@ -12,6 +12,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters.h"
@@ -8511,6 +8512,21 @@ class LiftoffCompiler {
   }
 
   void EmitDeoptPoint(FullDecoder* decoder) {
+#ifdef DEBUG
+    // Liftoff may only use "allocatable registers" as defined by the
+    // RegisterConfiguration. (The deoptimizer will not handle non-allocatable
+    // registers).
+    const RegisterConfiguration* config = RegisterConfiguration::Default();
+    DCHECK_LE(kLiftoffAssemblerFpCacheRegs.Count(),
+              config->num_allocatable_simd128_registers());
+    for (DoubleRegister reg : kLiftoffAssemblerFpCacheRegs) {
+      const int* end = config->allocatable_simd128_codes() +
+                       config->num_allocatable_simd128_registers();
+      DCHECK(std::find(config->allocatable_simd128_codes(), end, reg.code()) !=
+             end);
+    }
+#endif
+
     LiftoffAssembler::CacheState initial_state(zone_);
     initial_state.Split(*__ cache_state());
     // TODO(mliedtke): The deopt point should be in out-of-line-code.

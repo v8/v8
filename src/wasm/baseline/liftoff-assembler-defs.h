@@ -95,10 +95,11 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {
     x0,  x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9,  x10, x11,
     x12, x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27};
 
-// d15: fp_zero, d30-d31: macro-assembler scratch V Registers.
+// d15: fp_zero, d28-d31: not allocatable registers, d30-d31: macro-assembler
+// scratch V Registers.
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
-    d0,  d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9,  d10, d11, d12, d13, d14,
-    d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29};
+    d0,  d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9,  d10, d11, d12, d13,
+    d14, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27};
 
 // For the "WasmLiftoffFrameSetup" builtin.
 constexpr Register kLiftoffFrameSetupFunctionReg = x8;

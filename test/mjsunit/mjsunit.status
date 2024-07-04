@@ -2065,12 +2065,6 @@
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
 }],
-['arch == arm64', {
-  # TODO(mliedtke): Not quite working, yet.
-  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
-}],
-
-
 
 ##############################################################################
 # Skip failing tests in google3
