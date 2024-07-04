@@ -84,8 +84,12 @@ void MarkingVerifierBase::Run(StackState stack_state,
 #endif  // !defined(THREAD_SANITIZER)
   if (expected_marked_bytes && verifier_found_marked_bytes_are_exact_) {
     CHECK_EQ(expected_marked_bytes.value(), verifier_found_marked_bytes_);
-    CHECK_EQ(expected_marked_bytes.value(),
-             verifier_found_marked_bytes_in_pages_);
+    // Minor GCs use sticky markbits and as such cannot expect that the marked
+    // bytes on pages match the marked bytes accumulated by the marker.
+    if (collection_type_ != CollectionType::kMinor) {
+      CHECK_EQ(expected_marked_bytes.value(),
+               verifier_found_marked_bytes_in_pages_);
+    }
   }
 }
 

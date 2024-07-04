@@ -395,15 +395,19 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
     live_bytes += size;
   }
 
-  if (start_of_gap != page->PayloadStart() &&
-      start_of_gap != page->PayloadEnd()) {
+  const bool is_empty = live_bytes == 0;
+  CHECK_EQ(is_empty, page->marked_bytes() == 0);
+  CHECK_IMPLIES(is_empty, start_of_gap == page->PayloadStart());
+
+  // Empty pages are not added to the free list directly here. The free list is
+  // either added later on or the page is destroyed.
+  if (!is_empty && start_of_gap != page->PayloadEnd()) {
     builder.AddFreeListEntry(
         start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap));
     DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(start_of_gap));
   }
   page->SetAllocatedBytesAtLastGC(live_bytes);
-
-  const bool is_empty = (start_of_gap == page->PayloadStart());
+  page->ResetMarkedBytes(sticky_bits == StickyBits::kDisabled ? 0 : live_bytes);
   return builder.GetResult(is_empty);
 }
 
@@ -567,10 +571,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     }
   }
 
-  void SweepPage(BasePage& page) {
-    page.ResetMarkedBytes();
-    Traverse(page);
-  }
+  void SweepPage(BasePage& page) { Traverse(page); }
 
   // Returns true if out of work. This implies that sweeping is done only if
   // `sweeping_mode` is kAll.
@@ -605,7 +606,6 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   bool SweepSpaceWithDeadline(SpaceState* state, v8::base::TimeTicks deadline) {
     DeadlineChecker deadline_check(deadline);
     while (auto page = state->unswept_pages.Pop()) {
-      page.value()->ResetMarkedBytes();
       Traverse(**page);
       if (deadline_check.Check()) return false;
     }
@@ -641,6 +641,9 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header, sticky_bits_);
+      if (sticky_bits_ == StickyBits::kDisabled) {
+        page.ResetMarkedBytes();
+      }
       page.space().AddPage(&page);
     } else {
       header->Finalize();
@@ -681,7 +684,6 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
     for (SpaceState& state : *prioritized_states_) {
       while (auto page = state.unswept_pages.Pop()) {
-        page.value()->ResetMarkedBytes();
         Traverse(**page);
         if (delegate->ShouldYield()) return;
       }
@@ -716,6 +718,9 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
     HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header, sticky_bits_);
+      if (sticky_bits_ == StickyBits::kDisabled) {
+        page.ResetMarkedBytes();
+      }
       page.space().AddPage(&page);
       return true;
     }
