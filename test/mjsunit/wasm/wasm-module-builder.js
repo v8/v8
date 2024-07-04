@@ -525,10 +525,6 @@ let kExprRefCast = 0x16;
 let kExprRefCastNull = 0x17;
 let kExprBrOnCast = 0x18;
 let kExprBrOnCastFail = 0x19;
-// TODO(mliedtke): Drop by 07/2024 or later.
-// (Just keeping it temporarily for bisection.)
-let kExprBrOnCastGeneric = kExprBrOnCast;
-let kExprBrOnCastFailGeneric = kExprBrOnCastFail;
 let kExprAnyConvertExtern = 0x1a;
 let kExprExternConvertAny = 0x1b;
 let kExprRefI31 = 0x1c;

@@ -46,7 +46,6 @@ enum class DeoptimizationLiteralKind {
 
   // These kinds are used by wasm only (as unoptimized JS doesn't have these
   // types).
-  // TODO(mliedtke): Add support for S128 / SIMD.
   kWasmI31Ref,
   kWasmInt32,
   kWasmFloat32,
