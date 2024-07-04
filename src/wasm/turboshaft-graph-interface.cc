@@ -2588,7 +2588,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
         __ Goto(case_blocks[0]);
 
-        bool use_deopt_slowpath = deopts_enabled_;
+        bool use_deopt_slowpath = v8_flags.wasm_deopt;
         for (size_t i = 0; i < feedback_cases.size(); i++) {
           __ Bind(case_blocks[i]);
           InliningTree* tree = feedback_cases[i];
@@ -2652,20 +2652,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               use_deopt_slowpath = false;
             }
           }
-          bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
-          if (emit_deopt) {
+          if (use_deopt_slowpath && is_last_feedback_case) {
             const FunctionSig* sig =
                 decoder->module_->functions[inlined_index].sig;
             V<FrameState> frame_state =
                 CreateFrameState(decoder, sig, &index, args);
-            if (frame_state.valid()) {
-              DeoptIfNot(decoder, __ WordPtrEqual(target, inlined_target),
-                         frame_state);
-            } else {
-              emit_deopt = false;
-            }
-          }
-          if (!emit_deopt) {
+            DeoptIfNot(decoder, __ WordPtrEqual(target, inlined_target),
+                       frame_state);
+          } else {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
                 is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -2893,7 +2887,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
       __ Goto(case_blocks[0]);
 
-      bool use_deopt_slowpath = deopts_enabled_;
+      bool use_deopt_slowpath = v8_flags.wasm_deopt;
       for (size_t i = 0; i < feedback_cases.size(); i++) {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
@@ -2931,18 +2925,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             use_deopt_slowpath = false;
           }
         }
-        bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
-        if (emit_deopt) {
+        if (use_deopt_slowpath && is_last_feedback_case) {
           V<FrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
-          if (frame_state.valid()) {
-            DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
-                       frame_state);
-          } else {
-            emit_deopt = false;
-          }
-        }
-        if (!emit_deopt) {
+          DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
+                     frame_state);
+        } else {
           TSBlock* inline_block = __ NewBlock();
           BranchHint hint =
               is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -5717,15 +5705,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
 
-    if (builder.Inputs().size() >=
-        std::numeric_limits<decltype(Operation::input_count)>::max()) {
-      // If there are too many inputs, we cannot create a valid FrameState.
-      // For simplicity reasons disable deopts completely for the rest of the
-      // function. (Note that this is an exceptional case that should not be
-      // relevant for any real-world application.)
-      deopts_enabled_ = false;
-      return OpIndex::Invalid();
-    }
+    // TODO(mliedtke): If there are too many inputs, we cannot create a
+    // FrameState. In this case we probably shouldn't emit a deopt node in the
+    // first place, probably much earlier than thousands of inputs.
+    CHECK_LT(builder.Inputs().size(),
+             std::numeric_limits<decltype(Operation::input_count)>::max());
 
     return __ FrameState(
         builder.Inputs(), builder.inlined(),
@@ -5734,7 +5718,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
                   V<FrameState> frame_state) {
-    CHECK(deopts_enabled_);
+    CHECK(v8_flags.wasm_deopt);
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
                        compiler::FeedbackSource());
@@ -7972,7 +7956,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     OptionalV<FrameState> frame_state;
-    if (deopts_enabled_) {
+    if (v8_flags.wasm_deopt) {
       frame_state = is_tail_call
                         ? parent_frame_state_
                         : CreateFrameState(decoder, sig, /*funcref*/ nullptr,
@@ -8250,7 +8234,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   SourcePosition parent_position_;
   bool is_inlined_tail_call_ = false;
 
-  bool deopts_enabled_ = v8_flags.wasm_deopt;
   OptionalV<FrameState> parent_frame_state_;
 };
 

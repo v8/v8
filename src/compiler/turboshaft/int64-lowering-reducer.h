@@ -805,6 +805,8 @@ class Int64LoweringReducer : public Next {
       }
     }
 
+    // TODO(mliedtke): Use sig_.contains(MachineRepresentation::kWord64), once
+    // it's merged.
     returns_i64_ = std::any_of(sig_->returns().begin(), sig_->returns().end(),
                                [](const MachineRepresentation rep) {
                                  return rep == MachineRepresentation::kWord64;
