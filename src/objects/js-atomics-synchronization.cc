@@ -26,14 +26,14 @@ namespace {
 // Set fulfill/reject handlers for a JSPromise object.
 MaybeHandle<JSReceiver> PerformPromiseThen(
     Isolate* isolate, Handle<JSReceiver> promise,
-    Handle<JSFunction> fulfill_handler,
-    MaybeHandle<JSFunction> reject_handler = MaybeHandle<JSFunction>()) {
-  Handle<Object> reject_handler_handle = isolate->factory()->undefined_value();
-  MaybeLocal<Promise> local_then_promise;
-  if (!reject_handler.is_null()) {
-    reject_handler_handle = reject_handler.ToHandleChecked();
+    Handle<Object> fulfill_handler,
+    MaybeHandle<JSFunction> maybe_reject_handler = MaybeHandle<JSFunction>()) {
+  DCHECK(IsCallable(*fulfill_handler));
+  Handle<Object> reject_handler = isolate->factory()->undefined_value();
+  if (!maybe_reject_handler.is_null()) {
+    reject_handler = maybe_reject_handler.ToHandleChecked();
   }
-  Handle<Object> argv[] = {fulfill_handler, reject_handler_handle};
+  Handle<Object> argv[] = {fulfill_handler, reject_handler};
 
   Handle<Object> then_result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -818,8 +818,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   Handle<JSReceiver> waiting_for_callback_promise;
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, waiting_for_callback_promise,
-      PerformPromiseThen(requester, internal_locked_promise,
-                         Cast<JSFunction>(callback)));
+      PerformPromiseThen(requester, internal_locked_promise, callback));
   Handle<JSPromise> unlocked_promise = requester->factory()->NewJSPromise();
   // Set the async unlock handlers here so we can throw without any additional
   // cleanup if the inner `promise_then` call fails. Keep a reference to
