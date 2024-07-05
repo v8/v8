@@ -3215,7 +3215,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, 0, a0);
     __ Move(a0, zero_reg);
     __ Move(a1, zero_reg);
-    __ li(a2, ER::isolate_address(masm->isolate()));
+    __ li(a2, ER::isolate_address());
     __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
@@ -4370,7 +4370,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ StoreWord(holder, MemOperand(sp, FCA::kHolderIndex * kSystemPointerSize));
 
   // kIsolate.
-  __ li(scratch, ER::isolate_address(masm->isolate()));
+  __ li(scratch, ER::isolate_address());
   __ StoreWord(scratch,
                MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
 
@@ -4484,7 +4484,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
                MemOperand(sp, (PCA::kReturnValueIndex)*kSystemPointerSize));
   __ StoreWord(zero_reg,
                MemOperand(sp, (PCA::kHolderV2Index)*kSystemPointerSize));
-  __ li(scratch, ER::isolate_address(masm->isolate()));
+  __ li(scratch, ER::isolate_address());
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kIsolateIndex)*kSystemPointerSize));
   __ StoreWord(holder, MemOperand(sp, (PCA::kHolderIndex)*kSystemPointerSize));
@@ -4631,7 +4631,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ li(a1, Operand(static_cast<int64_t>(deopt_kind)));
   // a2: code object address
   // a3: fp-to-sp delta
-  __ li(a4, ExternalReference::isolate_address(isolate));
+  __ li(a4, ExternalReference::isolate_address());
 
   // Call Deoptimizer::New().
   {
