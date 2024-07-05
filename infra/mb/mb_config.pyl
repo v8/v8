@@ -220,6 +220,7 @@
       'V8 Arm - builder': 'release_arm',
       'V8 Arm - debug builder': 'debug_arm',
       'V8 Android Arm - builder': 'release_android_arm',
+      'V8 Android Arm - verify deterministic - debug': 'debug_android_arm_verify_deterministic',
       'V8 Linux - arm - sim - builder': 'release_simulate_arm_gcmole',
       'V8 Linux - arm - sim - debug builder': 'debug_simulate_arm',
       'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
@@ -246,6 +247,7 @@
     },
     'tryserver.v8': {
       'v8_android_arm_compile_rel': 'release_android_arm',
+      'v8_android_arm_verify_deterministic_dbg': 'debug_android_arm_verify_deterministic',
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_android_arm64_n5x_compile_rel': 'release_android_arm64',
       'v8_android_arm64_d8_compile_rel': 'release_android_arm64',
@@ -504,6 +506,8 @@
       'release_bot', 'simulate_s390x'],
 
     # Debug configs for arm.
+    'debug_android_arm_verify_deterministic': [
+      'debug_bot', 'arm', 'android', 'minimal_symbols', 'v8_verify_deterministic'],
     'debug_android_arm64': [
       'debug_bot', 'arm64', 'android', 'minimal_symbols'],
     'debug_arm': [
