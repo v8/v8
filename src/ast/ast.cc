@@ -303,7 +303,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       kind_(kind),
       is_static_(is_static),
       is_private_(is_private),
-      private_or_computed_name_var_(nullptr) {}
+      private_or_computed_name_proxy_(nullptr) {}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||

@@ -239,7 +239,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    const AstRawString* raw_name);
 
   FunctionLiteral* ParseClassForMemberInitialization(
-      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
       FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
       int initializer_end_pos, const AstRawString* class_name);
 
@@ -324,10 +323,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              FunctionLiteral* function, VariableMode mode,
                              VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
-  Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
-  Variable* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
-                                      IsStaticFlag is_static_flag,
-                                      const AstRawString* name);
+  VariableProxy* CreateSyntheticContextVariable(
+      const AstRawString* synthetic_name);
+  VariableProxy* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
+                                           IsStaticFlag is_static_flag,
+                                           const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(const AstRawString* class_name,
                                              DeclarationScope* scope,
                                              int function_literal_id,
@@ -364,9 +364,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
   void AddClassStaticBlock(Block* block, ClassInfo* class_info);
+  FunctionLiteral* CreateStaticElementsInitializer(const AstRawString* name,
+                                                   ClassInfo* class_info);
+  FunctionLiteral* CreateInstanceMembersInitializer(const AstRawString* name,
+                                                    ClassInfo* class_info);
   Expression* RewriteClassLiteral(ClassScope* block_scope,
                                   const AstRawString* name,
-                                  ClassInfo* class_info, int pos, int end_pos);
+                                  ClassInfo* class_info, int pos);
   Statement* DeclareNative(const AstRawString* name, int pos);
 
   Block* IgnoreCompletion(Statement* statement);

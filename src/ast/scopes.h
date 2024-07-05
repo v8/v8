@@ -412,9 +412,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return num_heap_slots() > 0;
   }
 
-#ifdef DEBUG
-  bool IsReparsedMemberInitializerScope() const;
-#endif
   // Use Scope::ForEach for depth first traversal of scopes.
   // Before:
   // void Scope::VisitRecursively() {
@@ -555,7 +552,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope* GetOuterScopeWithContext();
 
   bool HasThisReference() const;
-
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
@@ -575,6 +571,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
+
+  void MarkReparsingForClassInitializer() {
+    reparsing_for_class_initializer_ = true;
+  }
 #endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
@@ -776,6 +776,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).
   bool already_resolved_;
+  bool reparsing_for_class_initializer_;
   // True if this scope may contain objects from a temp zone that needs to be
   // fixed up.
   bool needs_migration_;
@@ -879,6 +880,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
 
   bool uses_super_property() const { return uses_super_property_; }
+
+  void TakeUnresolvedReferencesFromParent();
 
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
@@ -1415,6 +1418,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // local variables of this scope.
   Variable* DeclarePrivateName(const AstRawString* name, VariableMode mode,
                                IsStaticFlag is_static_flag, bool* was_added);
+  Variable* RedeclareSyntheticContextVariable(const AstRawString* name);
+
+  bool is_reparsed() const { return !scope_info_.is_null(); }
 
   // Try resolving all unresolved private names found in the current scope.
   // Called from DeclarationScope::AllocateVariables() when reparsing a
@@ -1488,18 +1494,6 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  // Finalize the reparsed class scope, called when reparsing the
-  // class scope for the initializer member function.
-  // If the reparsed scope declares any variable that needs allocation
-  // fixup using the scope info, needs_allocation_fixup is true.
-  void FinalizeReparsedClassScope(Isolate* isolate,
-                                  MaybeHandle<ScopeInfo> maybe_class_scope_info,
-                                  AstValueFactory* ast_value_factory,
-                                  bool needs_allocation_fixup);
-#ifdef DEBUG
-  bool is_reparsed_class_scope() const { return is_reparsed_class_scope_; }
-#endif
-
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1540,15 +1534,12 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* class_variable_ = nullptr;
   // These are only maintained when the scope is parsed, not when the
   // scope is deserialized.
-  bool has_static_private_methods_ = false;
-  bool has_explicit_static_private_methods_access_ = false;
-  bool is_anonymous_class_ = false;
+  bool has_static_private_methods_ : 1 = false;
+  bool has_explicit_static_private_methods_access_ : 1 = false;
+  bool is_anonymous_class_ : 1 = false;
   // This is only maintained during reparsing, restored from the
   // preparsed data.
-  bool should_save_class_variable_index_ = false;
-#ifdef DEBUG
-  bool is_reparsed_class_scope_ = false;
-#endif
+  bool should_save_class_variable_index_ : 1 = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

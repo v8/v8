@@ -2467,25 +2467,25 @@ class ClassLiteralProperty final : public LiteralProperty {
 
   bool is_private() const { return is_private_; }
 
-  void set_computed_name_var(Variable* var) {
+  void set_computed_name_proxy(VariableProxy* proxy) {
     DCHECK_EQ(FIELD, kind());
     DCHECK(!is_private());
-    private_or_computed_name_var_ = var;
+    private_or_computed_name_proxy_ = proxy;
   }
 
   Variable* computed_name_var() const {
     DCHECK_EQ(FIELD, kind());
     DCHECK(!is_private());
-    return private_or_computed_name_var_;
+    return private_or_computed_name_proxy_->var();
   }
 
-  void set_private_name_var(Variable* var) {
+  void set_private_name_proxy(VariableProxy* proxy) {
     DCHECK(is_private());
-    private_or_computed_name_var_ = var;
+    private_or_computed_name_proxy_ = proxy;
   }
   Variable* private_name_var() const {
     DCHECK(is_private());
-    return private_or_computed_name_var_;
+    return private_or_computed_name_proxy_->var();
   }
 
  private:
@@ -2498,7 +2498,7 @@ class ClassLiteralProperty final : public LiteralProperty {
   Kind kind_;
   bool is_static_;
   bool is_private_;
-  Variable* private_or_computed_name_var_;
+  VariableProxy* private_or_computed_name_proxy_;
 };
 
 class ClassLiteralStaticElement final : public ZoneObject {

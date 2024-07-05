@@ -545,15 +545,6 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 
-#ifdef DEBUG
-bool Scope::IsReparsedMemberInitializerScope() const {
-  return is_declaration_scope() &&
-         IsClassMembersInitializerFunction(
-             AsDeclarationScope()->function_kind()) &&
-         outer_scope()->AsClassScope()->is_reparsed_class_scope();
-}
-#endif
-
 DeclarationScope* Scope::AsDeclarationScope() {
   // Here and below: if an attacker corrupts the in-sandox SFI::unique_id or
   // fields of a Script object, we can get confused about which type of scope
@@ -692,6 +683,12 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
+void DeclarationScope::TakeUnresolvedReferencesFromParent() {
+  DCHECK(outer_scope_->reparsing_for_class_initializer_);
+  unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
+                            outer_scope_->unresolved_list_.begin());
+}
+
 bool DeclarationScope::Analyze(ParseInfo* info) {
   RCS_SCOPE(info->runtime_call_stats(),
             RuntimeCallCounterId::kCompileScopeAnalysis,
@@ -717,7 +714,6 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 4) a class member initializer function scope
   // 3) 4 function/eval in a scope that was already resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
-         scope->IsReparsedMemberInitializerScope() ||
          scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
@@ -1239,7 +1235,10 @@ Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
-  DCHECK(!already_resolved_);
+  // The scope is only allowed to already be resolved if we're reparsing a class
+  // initializer. Class initializers will manually resolve these references
+  // separate from regular variable resolution.
+  DCHECK_IMPLIES(already_resolved_, reparsing_for_class_initializer_);
   DCHECK(!proxy->is_resolved());
   unresolved_list_.Add(proxy);
 }
@@ -2791,44 +2790,6 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
     default:
       return false;
   }
-}
-
-void ClassScope::FinalizeReparsedClassScope(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-    AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
-  // Set this bit so that DeclarationScope::Analyze recognizes
-  // the reparsed instance member initializer scope.
-#ifdef DEBUG
-  is_reparsed_class_scope_ = true;
-#endif
-
-  if (!needs_allocation_fixup) {
-    return;
-  }
-
-  // Restore variable allocation results for context-allocated variables in
-  // the class scope from ScopeInfo, so that we don't need to run
-  // resolution and allocation on these variables again when generating
-  // code for the initializer function.
-  DCHECK(!maybe_class_scope_info.is_null());
-  Handle<ScopeInfo> scope_info = maybe_class_scope_info.ToHandleChecked();
-  DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
-  DCHECK_EQ(scope_info->EndPosition(), end_position_);
-
-  int context_header_length = scope_info->ContextHeaderLength();
-  DisallowGarbageCollection no_gc;
-  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
-    int slot_index = context_header_length + it->index();
-    DCHECK_LT(slot_index, scope_info->ContextLength());
-
-    const AstRawString* string = ast_value_factory->GetString(
-        it->name(), SharedStringAccessGuardIfNeeded(isolate));
-    Variable* var = string->IsPrivateName() ? LookupLocalPrivateName(string)
-                                            : LookupLocal(string);
-    DCHECK_NOT_NULL(var);
-    var->AllocateTo(VariableLocation::CONTEXT, slot_index);
-  }
-  scope_info_ = scope_info;
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,

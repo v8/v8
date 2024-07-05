@@ -612,21 +612,25 @@ class ParserBase {
       return instance_members_scope != nullptr;
     }
 
-    DeclarationScope* EnsureStaticElementsScope(ParserBase* parser) {
+    DeclarationScope* EnsureStaticElementsScope(ParserBase* parser,
+                                                int beg_pos) {
       if (!has_static_elements()) {
         static_elements_scope = parser->NewFunctionScope(
             FunctionKind::kClassStaticInitializerFunction);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
+        static_elements_scope->set_start_position(beg_pos);
         static_elements_function_id = parser->GetNextFunctionLiteralId();
       }
       return static_elements_scope;
     }
 
-    DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser) {
+    DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser,
+                                                 int beg_pos) {
       if (!has_instance_members()) {
         instance_members_scope = parser->NewFunctionScope(
             FunctionKind::kClassMembersInitializerFunction);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
+        instance_members_scope->set_start_position(beg_pos);
         instance_members_function_id = parser->GetNextFunctionLiteralId();
       }
       return instance_members_scope;
@@ -1322,9 +1326,8 @@ class ParserBase {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
-  ExpressionT ParseClassLiteralBody(ClassScope* class_scope,
-                                    ClassInfo& class_info, IdentifierT name,
-                                    int class_token_pos);
+  void ParseClassLiteralBody(ClassInfo& class_info, IdentifierT name,
+                             int class_token_pos, Token::Value end_token);
 
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
   ExpressionT ParseSuperExpression();
@@ -2507,7 +2510,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   DCHECK_EQ(prop_info->position, PropertyPosition::kClassLiteral);
 
   Token::Value name_token = peek();
-  int property_beg_pos = scanner()->peek_location().beg_pos;
+  int property_beg_pos = peek_position();
   int name_token_position = property_beg_pos;
   ExpressionT name_expression;
   if (name_token == Token::kStatic) {
@@ -2659,16 +2662,19 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     ClassInfo* class_info, int beg_pos, bool is_static) {
   FunctionParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
-      is_static ? class_info->EnsureStaticElementsScope(this)
-                : class_info->EnsureInstanceMembersScope(this);
+      is_static ? class_info->EnsureStaticElementsScope(this, beg_pos)
+                : class_info->EnsureInstanceMembersScope(this, beg_pos);
 
   if (Check(Token::kAssign)) {
     FunctionState initializer_state(&function_state_, &scope_,
                                     initializer_scope);
 
     AcceptINScope scope(this, true);
-    return ParseAssignmentExpression();
+    auto result = ParseAssignmentExpression();
+    initializer_scope->set_end_position(end_position());
+    return result;
   }
+  initializer_scope->set_end_position(end_position());
   return factory()->NewUndefinedLiteral(kNoSourcePosition);
 }
 
@@ -2678,7 +2684,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   Consume(Token::kStatic);
 
   DeclarationScope* initializer_scope =
-      class_info->EnsureStaticElementsScope(this);
+      class_info->EnsureStaticElementsScope(this, position());
 
   FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
   FunctionParsingScope body_parsing_scope(impl());
@@ -2690,6 +2696,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   DeclarationScope* static_block_var_scope = NewVarblockScope();
   BlockT static_block = ParseBlock(nullptr, static_block_var_scope);
   CheckConflictingVarDeclarations(static_block_var_scope);
+  initializer_scope->set_end_position(end_position());
   return static_block;
 }
 
@@ -5039,98 +5046,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     class_info.extends = ParseLeftHandSideExpression();
     scope.ValidateExpression();
   }
-  return ParseClassLiteralBody(class_scope, class_info, name, class_token_pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteralBody(
-    ClassScope* class_scope, ClassInfo& class_info, IdentifierT name,
-    int class_token_pos) {
-  bool has_extends = !impl()->IsNull(class_info.extends);
 
   Expect(Token::kLeftBrace);
-  int start_pos = position();
 
-  while (peek() != Token::kRightBrace) {
-    if (Check(Token::kSemicolon)) continue;
-
-    // Either we're parsing a `static { }` initialization block or a property.
-    if (peek() == Token::kStatic && PeekAhead() == Token::kLeftBrace) {
-      BlockT static_block = ParseClassStaticBlock(&class_info);
-      impl()->AddClassStaticBlock(static_block, &class_info);
-      continue;
-    }
-
-    FuncNameInferrerState fni_state(&fni_);
-    // If we haven't seen the constructor yet, it potentially is the next
-    // property.
-    bool is_constructor = !class_info.has_seen_constructor;
-    ParsePropertyInfo prop_info(this);
-    prop_info.position = PropertyPosition::kClassLiteral;
-
-    ClassLiteralPropertyT property =
-        ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
-
-    if (has_error()) return impl()->FailureExpression();
-
-    ClassLiteralProperty::Kind property_kind =
-        ClassPropertyKindFor(prop_info.kind);
-    if (!class_info.has_static_computed_names && prop_info.is_static &&
-        prop_info.is_computed_name) {
-      class_info.has_static_computed_names = true;
-    }
-    is_constructor &= class_info.has_seen_constructor;
-
-    bool is_field = property_kind == ClassLiteralProperty::FIELD;
-
-    if (V8_UNLIKELY(prop_info.is_private)) {
-      DCHECK(!is_constructor);
-      class_info.requires_brand |= (!is_field && !prop_info.is_static);
-      if (prop_info.is_static) {
-        class_info.has_static_private_methods_or_accessors |=
-            property_kind == ClassLiteralProperty::METHOD ||
-            property_kind == ClassLiteralProperty::GETTER ||
-            property_kind == ClassLiteralProperty::SETTER;
-      }
-      impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
-                                        property_kind, prop_info.is_static,
-                                        &class_info);
-      impl()->InferFunctionName();
-      continue;
-    }
-
-    if (V8_UNLIKELY(is_field)) {
-      DCHECK(!prop_info.is_private);
-      if (prop_info.is_computed_name) {
-        class_info.computed_field_count++;
-      }
-      impl()->DeclarePublicClassField(class_scope, property,
-                                      prop_info.is_static,
-                                      prop_info.is_computed_name, &class_info);
-      impl()->InferFunctionName();
-      continue;
-    }
-
-    impl()->DeclarePublicClassMethod(name, property, is_constructor,
-                                     &class_info);
-    impl()->InferFunctionName();
-  }
-
-  Expect(Token::kRightBrace);
-  int end_pos = end_position();
-  class_scope->set_end_position(end_pos);
-  if (class_info.has_static_elements()) {
-    // Use the positions of the class body for the static initializer
-    // function so that we can reparse it later.
-    class_info.static_elements_scope->set_start_position(start_pos);
-    class_info.static_elements_scope->set_end_position(end_pos);
-  }
-  if (class_info.has_instance_members()) {
-    // Use the positions of the class body for the instance initializer
-    // function so that we can reparse it later.
-    class_info.instance_members_scope->set_start_position(start_pos);
-    class_info.instance_members_scope->set_end_position(end_pos);
-  }
+  ParseClassLiteralBody(class_info, name, class_token_pos, Token::kRightBrace);
 
   VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
   if (unresolvable != nullptr) {
@@ -5165,7 +5084,89 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteralBody(
   }
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,
-                                     class_token_pos, end_pos);
+                                     class_token_pos);
+}
+
+template <typename Impl>
+void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
+                                             IdentifierT name,
+                                             int class_token_pos,
+                                             Token::Value end_token) {
+  bool has_extends = !impl()->IsNull(class_info.extends);
+
+  while (peek() != end_token) {
+    if (Check(Token::kSemicolon)) continue;
+
+    // Either we're parsing a `static { }` initialization block or a property.
+    if (peek() == Token::kStatic && PeekAhead() == Token::kLeftBrace) {
+      BlockT static_block = ParseClassStaticBlock(&class_info);
+      impl()->AddClassStaticBlock(static_block, &class_info);
+      continue;
+    }
+
+    FuncNameInferrerState fni_state(&fni_);
+    // If we haven't seen the constructor yet, it potentially is the next
+    // property.
+    bool is_constructor = !class_info.has_seen_constructor;
+    ParsePropertyInfo prop_info(this);
+    prop_info.position = PropertyPosition::kClassLiteral;
+
+    ClassLiteralPropertyT property =
+        ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
+
+    if (has_error()) return;
+
+    ClassLiteralProperty::Kind property_kind =
+        ClassPropertyKindFor(prop_info.kind);
+    if (!class_info.has_static_computed_names && prop_info.is_static &&
+        prop_info.is_computed_name) {
+      class_info.has_static_computed_names = true;
+    }
+    is_constructor &= class_info.has_seen_constructor;
+
+    bool is_field = property_kind == ClassLiteralProperty::FIELD;
+
+    if (V8_UNLIKELY(prop_info.is_private)) {
+      DCHECK(!is_constructor);
+      class_info.requires_brand |= (!is_field && !prop_info.is_static);
+      if (prop_info.is_static) {
+        class_info.has_static_private_methods_or_accessors |=
+            property_kind == ClassLiteralProperty::METHOD ||
+            property_kind == ClassLiteralProperty::GETTER ||
+            property_kind == ClassLiteralProperty::SETTER;
+      }
+      impl()->DeclarePrivateClassMember(scope()->AsClassScope(), prop_info.name,
+                                        property, property_kind,
+                                        prop_info.is_static, &class_info);
+      impl()->InferFunctionName();
+      continue;
+    }
+
+    if (V8_UNLIKELY(is_field)) {
+      DCHECK(!prop_info.is_private);
+      // If we're reparsing, we might not have a class scope. We only need a
+      // class scope if we have a computed name though, and in that case we're
+      // certain that the current scope must be a class scope.
+      ClassScope* class_scope = nullptr;
+      if (prop_info.is_computed_name) {
+        class_info.computed_field_count++;
+        class_scope = scope()->AsClassScope();
+      }
+
+      impl()->DeclarePublicClassField(class_scope, property,
+                                      prop_info.is_static,
+                                      prop_info.is_computed_name, &class_info);
+      impl()->InferFunctionName();
+      continue;
+    }
+
+    impl()->DeclarePublicClassMethod(name, property, is_constructor,
+                                     &class_info);
+    impl()->InferFunctionName();
+  }
+
+  Expect(end_token);
+  scope()->set_end_position(end_position());
 }
 
 template <typename Impl>
