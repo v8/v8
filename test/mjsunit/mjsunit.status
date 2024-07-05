@@ -2148,6 +2148,14 @@
 }], # variant == always_sparkplug
 
 ##############################################################################
+['variant == stress_regexp_jit', {
+  # Tests that rely on specific tier-up behaviour
+  'regexp-fallback': [SKIP],
+  'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
+}], # variant == stress_regexp_jit
+
+##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
 ['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {

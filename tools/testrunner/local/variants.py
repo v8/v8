@@ -12,6 +12,7 @@ ALL_VARIANT_FLAGS = {
     # Alias of exhaustive variants, but triggering new test framework features.
     "infra_staging": [[]],
     "interpreted_regexp": [["--regexp-interpret-all"]],
+    "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
     "jitless": [["--jitless"]],
     "sparkplug": [["--sparkplug"]],
@@ -158,6 +159,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],
+    "interpreted_regexp": ["--regexp-tier-up"],
+    "stress_regexp_jit": ["--regexp-interpret-all"],
     "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
     "assert_types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
