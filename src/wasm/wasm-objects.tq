@@ -17,7 +17,6 @@ extern class WasmInstanceObject extends JSObject {
       IndirectPointer<WasmTrustedInstanceData>;
   @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData;
   module_object: WasmModuleObject;
-  shared_part: WasmInstanceObject;
   exports_object: JSObject;
 }
 
@@ -60,7 +59,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmApiFunctionRef>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
-  // The function index if ref is a WasmInstanceObject, -1 otherwise.
+  // The function index if ref is a WasmTrustedInstanceData, -1 otherwise.
   function_index: Smi;
   // The call target, stored as raw pointer in this trusted object.
   call_target: RawPtr;

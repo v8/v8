@@ -285,8 +285,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           ? Handle<HeapObject>{isolate_->factory()->null_value()}
           : Handle<HeapObject>{isolate_->factory()->wasm_null()});
 
-  WasmTableObject::AddUse(isolate_, table_obj, trusted_instance_data_,
-                          table_index);
+  WasmTableObject::AddUse(isolate_, table_obj, instance_object_, table_index);
 
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
@@ -438,7 +437,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
-      WasmTrustedInstanceData::New(isolate_, module_object);
+      WasmTrustedInstanceData::New(isolate_, module_object, false);
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(trusted_data->has_instance_object());
   Handle<WasmInstanceObject> instance_object =
       handle(trusted_data->instance_object(), isolate_);
   trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());

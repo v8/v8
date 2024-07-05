@@ -2579,6 +2579,8 @@ Handle<Script> FrameSummary::WasmFrameSummary::script() const {
 
 Handle<WasmInstanceObject> FrameSummary::WasmFrameSummary::wasm_instance()
     const {
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(instance_data_->has_instance_object());
   return handle(instance_data_->instance_object(), isolate());
 }
 
@@ -2604,6 +2606,8 @@ FrameSummary::WasmInlinedFrameSummary::WasmInlinedFrameSummary(
 
 Handle<WasmInstanceObject>
 FrameSummary::WasmInlinedFrameSummary::wasm_instance() const {
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(instance_data_->has_instance_object());
   return handle(instance_data_->instance_object(), isolate());
 }
 
@@ -3127,6 +3131,8 @@ wasm::WasmCode* WasmFrame::wasm_code() const {
 }
 
 Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(trusted_instance_data()->has_instance_object());
   return trusted_instance_data()->instance_object();
 }
 
@@ -3291,6 +3297,8 @@ Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   const int offset = WasmFrameConstants::kWasmInstanceOffset;
   Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
   Tagged<WasmApiFunctionRef> func_ref = Cast<WasmApiFunctionRef>(func_ref_obj);
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(func_ref->instance_data()->has_instance_object());
   return func_ref->instance_data()->instance_object();
 }
 

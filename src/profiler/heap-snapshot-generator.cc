@@ -2282,10 +2282,7 @@ void V8HeapExplorer::ExtractWasmInstanceObjectReferences(
   ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, TrustedData, ModuleObject);
   SetInternalReference(entry, "module_object", instance_object->module_object(),
                        WasmInstanceObject::kModuleObjectOffset);
-  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, ModuleObject, SharedPart);
-  SetInternalReference(entry, "shared_part", instance_object->shared_part(),
-                       WasmInstanceObject::kSharedPartOffset);
-  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, SharedPart, ExportsObject);
+  ASSERT_CONSECUTIVE_FIELDS(WasmInstanceObject, ModuleObject, ExportsObject);
   SetInternalReference(entry, "exports", instance_object->exports_object(),
                        WasmInstanceObject::kExportsObjectOffset);
   ASSERT_LAST_FIELD(WasmInstanceObject, ExportsObject);

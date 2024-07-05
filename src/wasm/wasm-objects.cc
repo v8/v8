@@ -184,22 +184,22 @@ Handle<WasmTableObject> WasmTableObject::New(
   return table_obj;
 }
 
-void WasmTableObject::AddUse(
-    Isolate* isolate, DirectHandle<WasmTableObject> table_obj,
-    Handle<WasmTrustedInstanceData> trusted_instance_data, int table_index) {
+void WasmTableObject::AddUse(Isolate* isolate,
+                             DirectHandle<WasmTableObject> table_obj,
+                             Handle<WasmInstanceObject> instance_object,
+                             int table_index) {
   DirectHandle<FixedArray> old_uses(table_obj->uses(), isolate);
   int old_length = old_uses->length();
   DCHECK_EQ(0, old_length % TableUses::kNumElements);
 
-  if (trusted_instance_data.is_null()) return;
+  if (instance_object.is_null()) return;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
   // Grow the uses table and add a new entry at the end.
   DirectHandle<FixedArray> new_uses = isolate->factory()->CopyFixedArrayAndGrow(
       old_uses, TableUses::kNumElements);
 
-  new_uses->set(old_length + TableUses::kInstanceOffset,
-                trusted_instance_data->instance_object());
+  new_uses->set(old_length + TableUses::kInstanceOffset, *instance_object);
   new_uses->set(old_length + TableUses::kIndexOffset,
                 Smi::FromInt(table_index));
 
@@ -248,10 +248,18 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
     int table_index = Cast<Smi>(uses->get(i + TableUses::kIndexOffset)).value();
 
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data{
+    DirectHandle<WasmTrustedInstanceData> non_shared_trusted_instance_data{
         Cast<WasmInstanceObject>(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate};
+
+    bool is_shared =
+        non_shared_trusted_instance_data->module()->tables[table_index].shared;
+
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data =
+        is_shared
+            ? handle(non_shared_trusted_instance_data->shared_part(), isolate)
+            : non_shared_trusted_instance_data;
 
     DCHECK_EQ(old_size,
               trusted_instance_data->dispatch_table(table_index)->length());
@@ -505,11 +513,15 @@ void WasmTableObject::UpdateDispatchTables(
       }
       call_ref = new_ref;
     }
-    Tagged<WasmTrustedInstanceData> instance_data =
+    Tagged<WasmTrustedInstanceData> non_shared_instance_data =
         instance_object->trusted_data(isolate);
-    SBXCHECK(FunctionSigMatchesTable(canonical_sig_id, instance_data->module(),
-                                     table_index));
-    instance_data->dispatch_table(table_index)
+    bool is_shared = instance_object->module()->tables[table_index].shared;
+    Tagged<WasmTrustedInstanceData> target_instance_data =
+        is_shared ? non_shared_instance_data->shared_part()
+                  : non_shared_instance_data;
+    SBXCHECK(FunctionSigMatchesTable(
+        canonical_sig_id, target_instance_data->module(), table_index));
+    target_instance_data->dispatch_table(table_index)
         ->Set(entry_index, *call_ref, call_target, canonical_sig_id);
   }
 }
@@ -590,8 +602,13 @@ void WasmTableObject::ClearDispatchTables(int index) {
     int table_index = Cast<Smi>(uses->get(i + TableUses::kIndexOffset)).value();
     Tagged<WasmInstanceObject> target_instance_object =
         Cast<WasmInstanceObject>(uses->get(i + TableUses::kInstanceOffset));
-    Tagged<WasmTrustedInstanceData> target_instance_data =
+    Tagged<WasmTrustedInstanceData> non_shared_instance_data =
         target_instance_object->trusted_data(isolate);
+    bool is_shared =
+        target_instance_object->module()->tables[table_index].shared;
+    Tagged<WasmTrustedInstanceData> target_instance_data =
+        is_shared ? non_shared_instance_data->shared_part()
+                  : non_shared_instance_data;
     target_instance_data->dispatch_table(table_index)->Clear(index);
   }
 }
@@ -606,6 +623,8 @@ void WasmTableObject::SetFunctionTablePlaceholder(
   // Allocate directly in old space as the tuples are typically long-lived, and
   // we create many of them, which would result in lots of GC when initializing
   // large tables.
+  // TODO(42204563): Avoid crashing if the instance object is not available.
+  CHECK(trusted_instance_data->has_instance_object());
   DirectHandle<Tuple2> tuple = isolate->factory()->NewTuple2(
       handle(trusted_instance_data->instance_object(), isolate),
       handle(Smi::FromInt(func_index), isolate), AllocationType::kOld);
@@ -1165,7 +1184,8 @@ void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
 }
 
 Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
-    Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
+    Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
+    bool shared) {
   // Read the link to the {std::shared_ptr<NativeModule>} once from the
   // `module_object` and use it to initialize the fields of the
   // `WasmTrustedInstanceData`. It will then be stored in a `TrustedManaged` in
@@ -1283,21 +1303,24 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<JSObject> exports_object =
       isolate->factory()->NewJSObjectWithNullProto();
 
-  // Allocate the WasmInstanceObject (JS wrapper).
-  Handle<JSFunction> instance_cons(
-      isolate->native_context()->wasm_instance_constructor(), isolate);
-  Handle<WasmInstanceObject> instance_object = Cast<WasmInstanceObject>(
-      isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
-  instance_object->set_trusted_data(*trusted_data);
-  instance_object->set_module_object(*module_object);
-  // TODO(14616): Good enough?
-  instance_object->set_shared_part(*instance_object);
-  instance_object->set_exports_object(*exports_object);
-  trusted_data->set_instance_object(*instance_object);
+  Handle<WasmInstanceObject> instance_object;
+
+  if (!shared) {
+    // Allocate the WasmInstanceObject (JS wrapper).
+    Handle<JSFunction> instance_cons(
+        isolate->native_context()->wasm_instance_constructor(), isolate);
+    instance_object = Cast<WasmInstanceObject>(
+        isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
+    instance_object->set_trusted_data(*trusted_data);
+    instance_object->set_module_object(*module_object);
+    instance_object->set_exports_object(*exports_object);
+    trusted_data->set_instance_object(*instance_object);
+  }
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
-  if (module_object->script()->type() == Script::Type::kWasm) {
+  if (module_object->script()->type() == Script::Type::kWasm &&
+      !instance_object.is_null()) {
     Handle<WeakArrayList> weak_instance_list(
         module_object->script()->wasm_weak_instance_list(), isolate);
     weak_instance_list = WeakArrayList::Append(
@@ -2351,7 +2374,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   DCHECK_EQ(is_asm_js_module, IsConstructor(*js_function));
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(JSParameterCount(arity));
-  shared->set_script(instance_data->module_object()->script(), kReleaseStore);
+  if (instance_data->has_instance_object()) {
+    shared->set_script(instance_data->module_object()->script(), kReleaseStore);
+  } else {
+    shared->set_script(*isolate->factory()->undefined_value(), kReleaseStore);
+  }
   function_data->internal()->set_external(*js_function);
   return Cast<WasmExportedFunction>(js_function);
 }

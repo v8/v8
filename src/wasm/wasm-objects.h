@@ -216,7 +216,7 @@ class WasmTableObject
   // allocate a new dispatch table).
   V8_EXPORT_PRIVATE static void AddUse(
       Isolate* isolate, DirectHandle<WasmTableObject> table,
-      Handle<WasmTrustedInstanceData> instance_object, int table_index);
+      Handle<WasmInstanceObject> instance_object, int table_index);
 
   bool is_in_bounds(uint32_t entry_index);
 
@@ -371,7 +371,7 @@ class WasmGlobalObject
 // This object lives in trusted space and is never modified from user space.
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
  public:
-  DECL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
+  DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
   DECL_ACCESSORS(native_context, Tagged<Context>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
   DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, Tagged<JSArrayBuffer>)
@@ -546,7 +546,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   void SetRawMemory(int memory_index, uint8_t* mem_start, size_t mem_size);
 
   static Handle<WasmTrustedInstanceData> New(Isolate*,
-                                             DirectHandle<WasmModuleObject>);
+                                             DirectHandle<WasmModuleObject>,
+                                             bool shared);
 
   Address GetCallTarget(uint32_t func_index);
 

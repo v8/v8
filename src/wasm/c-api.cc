@@ -1788,6 +1788,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       DCHECK(IsWasmInstanceObject(*object_ref));
     }
   } else {
+    // TODO(42204563): Avoid crashing if the instance object is not available.
+    CHECK(instance_data->has_instance_object());
     object_ref = handle(instance_data->instance_object(), isolate);
   }
 

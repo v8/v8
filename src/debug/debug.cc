@@ -1134,6 +1134,8 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
     Tagged<WasmExportedFunctionData> function_data =
         shared->wasm_exported_function_data();
     int func_index = function_data->function_index();
+    // TODO(42204563): Avoid crashing if the instance object is not available.
+    CHECK(function_data->instance_data()->has_instance_object());
     Tagged<WasmModuleObject> module_obj =
         function_data->instance_data()->instance_object()->module_object();
     Handle<Script> script(module_obj->script(), isolate_);

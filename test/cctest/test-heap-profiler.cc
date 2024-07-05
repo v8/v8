@@ -4439,9 +4439,9 @@ TEST(HeapSnapshotWithWasmInstance) {
   const v8::HeapGraphNode* instance_node =
       GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "instance");
   CHECK_NOT_NULL(instance_node);
-  CheckProperties(isolate, instance_node,
-                  {"__proto__", "exports", "map", "module_object",
-                   "shared_part", "trusted_data"});
+  CheckProperties(
+      isolate, instance_node,
+      {"__proto__", "exports", "map", "module_object", "trusted_data"});
 
   // Check the properties of the WasmTrustedInstanceData.
   const v8::HeapGraphNode* trusted_instance_data_node = GetProperty(

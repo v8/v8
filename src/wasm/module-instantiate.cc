@@ -1070,16 +1070,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmTrustedInstanceData> trusted_data =
-      WasmTrustedInstanceData::New(isolate_, module_object_);
+      WasmTrustedInstanceData::New(isolate_, module_object_, false);
   Handle<WasmInstanceObject> instance_object{trusted_data->instance_object(),
                                              isolate_};
   bool shared = module_object_->module()->has_shared_part;
-  Handle<WasmTrustedInstanceData> shared_trusted_data =
-      shared ? WasmTrustedInstanceData::New(isolate_, module_object_)
-             : Handle<WasmTrustedInstanceData>();
+  Handle<WasmTrustedInstanceData> shared_trusted_data;
   if (shared) {
+    shared_trusted_data =
+        WasmTrustedInstanceData::New(isolate_, module_object_, true);
     trusted_data->set_shared_part(*shared_trusted_data);
-    instance_object->set_shared_part(shared_trusted_data->instance_object());
   }
 
   //--------------------------------------------------------------------------
@@ -1402,7 +1401,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                        ->get(table_index)),
                isolate_);
     WasmTableObject::AddUse(isolate_, table_object,
-                            table.shared ? shared_trusted_data : trusted_data,
+                            handle(trusted_data->instance_object(), isolate_),
                             table_index);
   }
 
@@ -2014,6 +2013,8 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
       auto orig_ref = Cast<WasmApiFunctionRef>(ref);
       Handle<WasmApiFunctionRef> new_ref =
           isolate_->factory()->NewWasmApiFunctionRef(orig_ref);
+      // TODO(42204563): Avoid crashing if the instance object is not available.
+      CHECK(trusted_instance_data->has_instance_object());
       WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
           isolate_, new_ref,
           direct_handle(trusted_instance_data->instance_object(), isolate_), i);
