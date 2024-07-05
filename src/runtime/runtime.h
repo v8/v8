@@ -715,6 +715,7 @@ namespace internal {
   F(SetWasmInstantiateControls, 0, 1)                      \
   F(WasmCompiledExportWrappersCount, 0, 1)                 \
   F(WasmDeoptsExecutedCount, 0, 1)                         \
+  F(WasmDeoptsExecutedForFunction, 1, 1)                   \
   F(WasmEnterDebugging, 0, 1)                              \
   IF_NO_OFFICIAL_BUILD(F, WasmGenerateRandomModule, -1, 1) \
   F(WasmGetNumberOfInstances, 1, 1)                        \

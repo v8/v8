@@ -657,7 +657,7 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 }
 
 size_t WasmModule::EstimateStoredSize() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 824);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 864);
   return sizeof(WasmModule) +                            // --
          signature_zone.allocation_size_for_tracing() +  // --
          ContentSize(types) +                            // --
@@ -711,7 +711,7 @@ size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 168);
+  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 208);
   UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
   base::SharedMutexGuard<base::kShared> lock(&mutex);
@@ -720,6 +720,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
     result += ContentSize(feedback.feedback_vector);
     result += feedback.call_targets.size() * sizeof(uint32_t);
   }
+  result += ContentSize(deopt_count_for_function);
   // The size of {well_known_imports} can only be estimated at the WasmModule
   // level.
   if (v8_flags.trace_wasm_offheap_memory) {
@@ -729,7 +730,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 824);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 864);
   size_t result = EstimateStoredSize();
 
   result += type_feedback.EstimateCurrentMemoryConsumption();

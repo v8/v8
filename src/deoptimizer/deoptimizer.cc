@@ -1227,6 +1227,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
         iter->second.needs_reprocessing_after_deopt = true;
       }
     }
+    // Reset tierup priority. This is important as the tierup trigger will only
+    // be taken into account if the tierup_priority is a power of two (to
+    // prevent a hot function being enqueued too many times into the compilation
+    // queue.)
+    feedback.feedback_for_function[code->index()].tierup_priority = 0;
+    // Add sample for how many times this function was deopted.
+    isolate()->counters()->wasm_deopts_per_function()->AddSample(
+        ++feedback.deopt_count_for_function[code->index()]);
   }
 
   // Reset tiering budget of the function that triggered the deopt.
@@ -1235,8 +1243,6 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   wasm_trusted_instance->tiering_budget_array()[declared_func_index] =
       v8_flags.wasm_tiering_budget;
 
-  // TODO(mliedtke): Add a metric for deopts per function to measure "worst
-  // case" deopt counts.
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
 

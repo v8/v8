@@ -671,6 +671,25 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedCount) {
   return Smi::FromInt(count);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
+  Handle<Object> arg = args.at(0);
+  if (IsSmi(*arg) || !IsJSFunction(*arg) ||
+      !WasmExportedFunction::IsWasmExportedFunction(*arg)) {
+    return Smi::FromInt(-1);
+  }
+  auto wasm_func = Cast<WasmExportedFunction>(arg);
+  const wasm::WasmModule* module =
+      wasm_func->instance_data()->native_module()->module();
+  uint32_t func_index = wasm_func->function_index();
+  const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback.mutex);
+  auto entry = feedback.deopt_count_for_function.find(func_index);
+  if (entry == feedback.deopt_count_for_function.end()) {
+    return Smi::FromInt(0);
+  }
+  return Smi::FromInt(entry->second);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmSwitchToTheCentralStackCount) {
   int count = isolate->wasm_switch_to_the_central_stack_counter();
   return Smi::FromInt(count);

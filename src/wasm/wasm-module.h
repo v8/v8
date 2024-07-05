@@ -606,9 +606,10 @@ struct FunctionTypeFeedback {
 
 struct TypeFeedbackStorage {
   std::unordered_map<uint32_t, FunctionTypeFeedback> feedback_for_function;
-  // Accesses to {feedback_for_function} are guarded by this mutex.
-  // Multiple reads are allowed (shared lock), but only exclusive writes.
-  // Currently known users of the mutex are:
+  std::unordered_map<uint32_t, uint32_t> deopt_count_for_function;
+  // Accesses to {feedback_for_function} and {deopt_count_for_function} are
+  // guarded by this mutex. Multiple reads are allowed (shared lock), but only
+  // exclusive writes. Currently known users of the mutex are:
   // - LiftoffCompiler: writes {call_targets}.
   // - TransitiveTypeFeedbackProcessor: reads {call_targets},
   //   writes {feedback_vector}, reads {feedback_vector.size()}.
@@ -618,6 +619,7 @@ struct TypeFeedbackStorage {
   // - PGO ProfileGenerator: reads everything.
   // - PGO deserializer: writes everything, currently not locked, relies on
   //   being called before multi-threading enters the picture.
+  // - Deoptimizer: sets needs_reprocessing_after_deopt.
   mutable base::SharedMutex mutex;
 
   WellKnownImportsList well_known_imports;

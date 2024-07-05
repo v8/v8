@@ -77,6 +77,7 @@ namespace internal {
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
   /* Number of deopts triggered in webassembly code. */                        \
   HR(wasm_deopts_executed, V8.WasmDeoptsExecutedCount, 0, 10000, 51)           \
+  HR(wasm_deopts_per_function, V8.WasmDeoptsPerFunction, 0, 500, 21)           \
   /* Number of live modules per isolate. */                                    \
   HR(wasm_modules_per_isolate, V8.WasmModulesPerIsolate, 1, 1024, 30)          \
   /* Number of live modules per engine (i.e. whole process). */                \
