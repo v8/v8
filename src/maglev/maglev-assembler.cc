@@ -577,6 +577,34 @@ void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
                          done, Label::kNear);
 }
 
+void MaglevAssembler::TryMigrateInstance(Register object,
+                                         RegisterSnapshot& register_snapshot,
+                                         Label* fail) {
+  Register return_val = Register::no_reg();
+  {
+    SaveRegisterStateForCall save_register_state(this, register_snapshot);
+
+    Push(object);
+    Move(kContextRegister, native_context().object());
+    CallRuntime(Runtime::kTryMigrateInstance);
+    save_register_state.DefineSafepoint();
+
+    // Make sure the return value is preserved across the live register
+    // restoring pop all.
+    return_val = kReturnRegister0;
+    MaglevAssembler::ScratchRegisterScope temps(this);
+    Register scratch = temps.GetDefaultScratchRegister();
+    if (register_snapshot.live_registers.has(return_val)) {
+      DCHECK(!register_snapshot.live_registers.has(scratch));
+      Move(scratch, return_val);
+      return_val = scratch;
+    }
+  }
+
+  // On failure, the returned value is Smi zero.
+  CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, fail);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

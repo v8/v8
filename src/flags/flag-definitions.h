@@ -674,6 +674,10 @@ DEFINE_BOOL(maglev_stats_nvp, false,
 DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")
 
+DEFINE_BOOL(maglev_skip_migration_check_for_polymorphic_access, false,
+            "skip generating a migration check when some maps of polymorpic "
+            "property access are migration targets")
+
 #ifdef V8_ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif

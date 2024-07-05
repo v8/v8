@@ -206,6 +206,7 @@ class ExceptionHandlerInfo;
   V(LoadNamedGeneric)                               \
   V(LoadNamedFromSuperGeneric)                      \
   V(MaybeGrowFastElements)                          \
+  V(MigrateMapIfNeeded)                             \
   V(SetNamedGeneric)                                \
   V(DefineNamedOwnGeneric)                          \
   V(StoreInArrayLiteralGeneric)                     \
@@ -5990,6 +5991,34 @@ class CheckMapsWithMigration
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
+};
+
+class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
+  using Base = FixedInputValueNodeT<2, MigrateMapIfNeeded>;
+
+ public:
+  explicit MigrateMapIfNeeded(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::DeferredCall() |
+      OpProperties::CanAllocate() | OpProperties::CanWrite() |
+      OpProperties::CanRead();
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  static constexpr int kMapIndex = 0;
+  static constexpr int kObjectIndex = 1;
+
+  Input& object_input() { return input(kObjectIndex); }
+  Input& map_input() { return input(kMapIndex); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
 };
 
 class CheckCacheIndicesNotCleared

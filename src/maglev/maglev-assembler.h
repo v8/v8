@@ -651,6 +651,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void GenerateCheckConstTrackingLetCellFooter(Register context, Register data,
                                                int index, Label* done);
 
+  void TryMigrateInstance(Register object, RegisterSnapshot& register_snapshot,
+                          Label* fail);
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }

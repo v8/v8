@@ -5457,13 +5457,13 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   const int access_info_count = static_cast<int>(access_infos.size());
   int number_map_index = -1;
 
+  bool needs_migration = false;
   for (int i = 0; i < access_info_count; i++) {
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
     DCHECK(!access_info.IsInvalid());
-    // TODO(victorgomes): Support map migration.
     for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
       if (map.is_migration_target()) {
-        return ReduceResult::Fail();
+        needs_migration = true;
       }
       if (map.IsHeapNumberMap()) {
         GetOrCreateInfoFor(lookup_start_object);
@@ -5494,6 +5494,15 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   }
   ValueNode* lookup_start_object_map =
       BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
+
+  if (needs_migration &&
+      !v8_flags.maglev_skip_migration_check_for_polymorphic_access) {
+    // TODO(marja, v8:7700): Try migrating only if all comparisons failed.
+    // TODO(marja, v8:7700): Investigate making polymoprhic map comparison (with
+    // migration) a control node (like switch).
+    lookup_start_object_map = AddNewNode<MigrateMapIfNeeded>(
+        {lookup_start_object_map, lookup_start_object});
+  }
 
   for (int i = 0; i < access_info_count; i++) {
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
