@@ -12,6 +12,7 @@
 #include <utility>  // For move
 #include <vector>
 
+#include "include/v8-array-buffer.h"
 #include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-date.h"
@@ -79,6 +80,7 @@
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/contexts.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -8936,14 +8938,28 @@ size_t v8::ArrayBuffer::MaxByteLength() const {
   return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
-Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* v8_isolate,
-                                        size_t byte_length) {
+namespace {
+i::InitializedFlag GetInitializedFlag(
+    BackingStoreInitializationMode initialization_mode) {
+  switch (initialization_mode) {
+    case BackingStoreInitializationMode::kUninitialized:
+      return i::InitializedFlag::kUninitialized;
+    case BackingStoreInitializationMode::kZeroInitialized:
+      return i::InitializedFlag::kZeroInitialized;
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(
+    Isolate* v8_isolate, size_t byte_length,
+    BackingStoreInitializationMode initialization_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::MaybeHandle<i::JSArrayBuffer> result =
       i_isolate->factory()->NewJSArrayBufferAndBackingStore(
-          byte_length, i::InitializedFlag::kZeroInitialized);
+          byte_length, GetInitializedFlag(initialization_mode));
 
   i::Handle<i::JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) {
@@ -8973,7 +8989,8 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
 }
 
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
-    Isolate* v8_isolate, size_t byte_length) {
+    Isolate* v8_isolate, size_t byte_length,
+    BackingStoreInitializationMode initialization_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, ArrayBuffer, NewBackingStore);
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
@@ -8981,7 +8998,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length,
                                 i::SharedFlag::kNotShared,
-                                i::InitializedFlag::kZeroInitialized);
+                                GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     i::V8::FatalProcessOutOfMemory(i_isolate,
                                    "v8::ArrayBuffer::NewBackingStore");
@@ -9243,15 +9260,16 @@ size_t v8::SharedArrayBuffer::MaxByteLength() const {
   return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
-Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
-                                                    size_t byte_length) {
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
+    Isolate* v8_isolate, size_t byte_length,
+    BackingStoreInitializationMode initialization_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
-                                i::InitializedFlag::kZeroInitialized);
+                                GetInitializedFlag(initialization_mode));
 
   if (!backing_store) {
     // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
@@ -9281,7 +9299,8 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
 }
 
 std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
-    Isolate* v8_isolate, size_t byte_length) {
+    Isolate* v8_isolate, size_t byte_length,
+    BackingStoreInitializationMode initialization_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, SharedArrayBuffer, NewBackingStore);
   Utils::ApiCheck(
@@ -9291,7 +9310,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
-                                i::InitializedFlag::kZeroInitialized);
+                                GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     i::V8::FatalProcessOutOfMemory(i_isolate,
                                    "v8::SharedArrayBuffer::NewBackingStore");

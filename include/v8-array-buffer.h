@@ -23,6 +23,7 @@ class SharedArrayBuffer;
 #endif
 
 enum class ArrayBufferCreationMode { kInternalized, kExternalized };
+enum class BackingStoreInitializationMode { kZeroInitialized, kUninitialized };
 
 /**
  * A wrapper around the backing store (i.e. the raw memory) of an array buffer.
@@ -217,12 +218,15 @@ class V8_EXPORT ArrayBuffer : public Object {
   size_t MaxByteLength() const;
 
   /**
-   * Create a new ArrayBuffer. Allocate |byte_length| bytes.
-   * Allocated memory will be owned by a created ArrayBuffer and
-   * will be deallocated when it is garbage-collected,
+   * Create a new ArrayBuffer. Allocate |byte_length| bytes, which are either
+   * zero-initialized or uninitialized. Allocated memory will be owned by a
+   * created ArrayBuffer and will be deallocated when it is garbage-collected,
    * unless the object is externalized.
    */
-  static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
+  static Local<ArrayBuffer> New(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
 
   /**
    * Create a new ArrayBuffer with an existing backing store.
@@ -241,15 +245,18 @@ class V8_EXPORT ArrayBuffer : public Object {
 
   /**
    * Returns a new standalone BackingStore that is allocated using the array
-   * buffer allocator of the isolate. The result can be later passed to
+   * buffer allocator of the isolate. The allocation can either be zero
+   * intialized, or uninitialized. The result can be later passed to
    * ArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
    * given isolate and re-try the allocation. If GCs do not help, then the
    * function will crash with an out-of-memory error.
    */
-  static std::unique_ptr<BackingStore> NewBackingStore(Isolate* isolate,
-                                                       size_t byte_length);
+  static std::unique_ptr<BackingStore> NewBackingStore(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
   /**
    * Returns a new standalone BackingStore that takes over the ownership of
    * the given buffer. The destructor of the BackingStore invokes the given
@@ -446,12 +453,15 @@ class V8_EXPORT SharedArrayBuffer : public Object {
   size_t MaxByteLength() const;
 
   /**
-   * Create a new SharedArrayBuffer. Allocate |byte_length| bytes.
-   * Allocated memory will be owned by a created SharedArrayBuffer and
-   * will be deallocated when it is garbage-collected,
-   * unless the object is externalized.
+   * Create a new SharedArrayBuffer. Allocate |byte_length| bytes, which are
+   * either zero-initialized or uninitialized. Allocated memory will be owned by
+   * a created SharedArrayBuffer and will be deallocated when it is
+   * garbage-collected, unless the object is externalized.
    */
-  static Local<SharedArrayBuffer> New(Isolate* isolate, size_t byte_length);
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
 
   /**
    * Create a new SharedArrayBuffer with an existing backing store.
@@ -470,15 +480,18 @@ class V8_EXPORT SharedArrayBuffer : public Object {
 
   /**
    * Returns a new standalone BackingStore that is allocated using the array
-   * buffer allocator of the isolate. The result can be later passed to
+   * buffer allocator of the isolate. The allocation can either be zero
+   * intialized, or uninitialized. The result can be later passed to
    * SharedArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
    * given isolate and re-try the allocation. If GCs do not help, then the
    * function will crash with an out-of-memory error.
    */
-  static std::unique_ptr<BackingStore> NewBackingStore(Isolate* isolate,
-                                                       size_t byte_length);
+  static std::unique_ptr<BackingStore> NewBackingStore(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
   /**
    * Returns a new standalone BackingStore that takes over the ownership of
    * the given buffer. The destructor of the BackingStore invokes the given
