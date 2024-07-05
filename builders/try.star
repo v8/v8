@@ -24,6 +24,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_android_arm_verify_deterministic_dbg",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"target_platform": "android", "target_arch": "arm", "default_targets": ["verify_deterministic_mksnapshot"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+try_builder(
     name = "v8_android_arm64_compile_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

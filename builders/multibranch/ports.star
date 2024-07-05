@@ -44,6 +44,14 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
+    multibranch_builder(
+        name = "V8 Android Arm - verify deterministic - debug",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "default_targets": ["verify_deterministic_mksnapshot"]},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "12.8",
+        barrier = BARRIER.NONE,
+    ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim",
         triggered_by_gitiles = True,
