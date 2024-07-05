@@ -356,9 +356,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size,
                       WasmInitExpr init);
-  uint32_t AddMemory(uint32_t min_size);
-  uint32_t AddMemory(uint32_t min_size, uint32_t max_size);
-  uint32_t AddMemory64(uintptr_t min_size, uintptr_t max_size);
+  uint32_t AddMemory(uint32_t min_pages);
+  uint32_t AddMemory(uint32_t min_pages, uint32_t max_pages);
+  uint32_t AddMemory64(uint32_t min_pages, uint32_t max_pages);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -490,9 +490,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmMemory {
-    uintptr_t min_size;
-    uintptr_t max_size = 0;
-    bool has_max_size = false;
+    uint32_t min_pages;
+    uint32_t max_pages = 0;
+    bool has_max_pages = false;
     bool is_shared = false;
     bool is_memory64 = false;
   };

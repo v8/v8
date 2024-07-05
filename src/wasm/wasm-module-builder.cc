@@ -567,22 +567,22 @@ uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size) {
-  memories_.push_back({.min_size = min_size});
+uint32_t WasmModuleBuilder::AddMemory(uint32_t min_pages) {
+  memories_.push_back({.min_pages = min_pages});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size, uint32_t max_size) {
+uint32_t WasmModuleBuilder::AddMemory(uint32_t min_pages, uint32_t max_pages) {
   memories_.push_back(
-      {.min_size = min_size, .max_size = max_size, .has_max_size = true});
+      {.min_pages = min_pages, .max_pages = max_pages, .has_max_pages = true});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddMemory64(uintptr_t min_size,
-                                        uintptr_t max_size) {
-  memories_.push_back({.min_size = min_size,
-                       .max_size = max_size,
-                       .has_max_size = true,
+uint32_t WasmModuleBuilder::AddMemory64(uint32_t min_pages,
+                                        uint32_t max_pages) {
+  memories_.push_back({.min_pages = min_pages,
+                       .max_pages = max_pages,
+                       .has_max_pages = true,
                        .is_memory64 = true});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
@@ -798,19 +798,14 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmMemory& memory : memories_) {
       uint8_t limits_byte = (memory.is_memory64 ? 4 : 0) |
                             (memory.is_shared ? 2 : 0) |
-                            (memory.has_max_size ? 1 : 0);
+                            (memory.has_max_pages ? 1 : 0);
       buffer->write_u8(limits_byte);
-      auto WriteValToBuffer = [&](uintptr_t val) {
-        if (memory.is_memory64) {
-          buffer->write_u64v(val);
-        } else {
-          DCHECK_EQ(val, static_cast<uint32_t>(val));
-          buffer->write_u32v(static_cast<uint32_t>(val));
-        }
+      auto WriteValToBuffer = [&](uint32_t val) {
+        memory.is_memory64 ? buffer->write_u64v(val) : buffer->write_u32v(val);
       };
-      WriteValToBuffer(memory.min_size);
-      if (memory.has_max_size) {
-        WriteValToBuffer(memory.max_size);
+      WriteValToBuffer(memory.min_pages);
+      if (memory.has_max_pages) {
+        WriteValToBuffer(memory.max_pages);
       }
     }
     FixupSection(buffer, start);
