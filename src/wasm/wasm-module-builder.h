@@ -353,6 +353,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
                     WasmInitExpr init);
+  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size);
+  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size,
+                      WasmInitExpr init);
   uint32_t AddMemory(uint32_t min_size);
   uint32_t AddMemory(uint32_t min_size, uint32_t max_size);
   uint32_t AddMemory64(uintptr_t min_size, uintptr_t max_size);
@@ -479,17 +482,19 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmTable {
     ValueType type;
     uint32_t min_size;
-    uint32_t max_size;
-    bool has_maximum;
-    base::Optional<WasmInitExpr> init;
+    uint32_t max_size = 0;
+    bool has_maximum = false;
+    bool is_shared = false;
+    bool is_table64 = false;
+    base::Optional<WasmInitExpr> init = {};
   };
 
   struct WasmMemory {
     uintptr_t min_size;
-    uintptr_t max_size;
-    bool has_max_size;
-    bool is_shared;
-    bool is_memory64;
+    uintptr_t max_size = 0;
+    bool has_max_size = false;
+    bool is_shared = false;
+    bool is_memory64 = false;
   };
 
   struct WasmDataSegment {
