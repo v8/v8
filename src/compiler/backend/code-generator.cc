@@ -4,6 +4,7 @@
 
 #include "src/compiler/backend/code-generator.h"
 
+#include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -1445,7 +1446,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           literal = DeoptimizationLiteral(Float64(constant.ToFloat64()));
           break;
         case MachineRepresentation::kTagged: {
-          DCHECK(!PointerCompressionIsEnabled() || constant.FitsInInt32());
+          DCHECK(!PointerCompressionIsEnabled() ||
+                 base::IsInRange(constant.ToInt64(), 0u, UINT32_MAX));
           Tagged<Smi> smi(static_cast<Address>(constant.ToInt64()));
           DCHECK(IsSmi(smi));
           literal = DeoptimizationLiteral(smi);
