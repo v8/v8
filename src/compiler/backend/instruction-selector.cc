@@ -3237,9 +3237,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
     case IrOpcode::kInt64Constant:
     case IrOpcode::kTaggedIndexConstant:
     case IrOpcode::kExternalConstant:
-    case IrOpcode::kRelocatableInt32Constant:
     case IrOpcode::kRelocatableInt64Constant:
       return VisitConstant(node);
+    case IrOpcode::kRelocatableInt32Constant:
+      return MarkAsWord32(node), VisitConstant(node);
     case IrOpcode::kFloat32Constant:
       return MarkAsFloat32(node), VisitConstant(node);
     case IrOpcode::kFloat64Constant:
