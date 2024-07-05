@@ -188,6 +188,9 @@ int FuzzIt(base::Vector<const uint8_t> data) {
                                   v8_flags.wasm_inlining_max_size * 5);
   FlagScope<size_t> inlining_factor(&v8_flags.wasm_inlining_factor,
                                     v8_flags.wasm_inlining_factor * 5);
+  // Force new instruction selection.
+  FlagScope<bool> new_isel(
+      &v8_flags.turboshaft_wasm_instruction_selection_staged, true);
 
   EnableExperimentalWasmFeatures(isolate);
 
