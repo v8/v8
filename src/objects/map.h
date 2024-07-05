@@ -62,6 +62,7 @@ enum InstanceType : uint16_t;
   V(JSApiObject)                     \
   V(JSArrayBuffer)                   \
   V(JSDataViewOrRabGsabDataView)     \
+  V(JSDate)                          \
   V(JSExternalObject)                \
   V(JSFinalizationRegistry)          \
   V(JSFunction)                      \

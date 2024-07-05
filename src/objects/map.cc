@@ -254,7 +254,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DISPOSABLE_STACK_TYPE:
-    case JS_DATE_TYPE:
     case JS_ERROR_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ITERATOR_FILTER_HELPER_TYPE:
@@ -335,6 +334,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
+
+    case JS_DATE_TYPE:
+      return kVisitJSDate;
 
     case JS_WEAK_REF_TYPE:
       return kVisitJSWeakRef;

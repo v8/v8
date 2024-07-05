@@ -332,6 +332,22 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSDate::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
+                    JSDate::kValueOffset, v);
+    IterateJSObjectBodyImpl(map, obj, JSDate::kStartOfStrongFieldsOffset,
+                            object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
+
 class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1337,7 +1353,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_DATE_TYPE:
     case JS_DISPOSABLE_STACK_TYPE:
     case JS_ERROR_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
@@ -1409,6 +1424,9 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return CALL_APPLY(JSObject);
+
+    case JS_DATE_TYPE:
+      return CALL_APPLY(JSDate);
 
     case JS_API_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:

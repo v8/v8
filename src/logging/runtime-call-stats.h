@@ -150,7 +150,6 @@ class RuntimeCallTimer final {
   V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
   V(Date_New)                                              \
-  V(Date_NumberValue)                                      \
   V(Date_Parse)                                            \
   V(Debug_Call)                                            \
   V(debug_GetPrivateMembers)                               \

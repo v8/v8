@@ -82,6 +82,7 @@ namespace internal {
 #define TYPED_VISITOR_WITH_SLACK_ID_LIST(V) \
   V(JSArrayBuffer)                          \
   V(JSDataViewOrRabGsabDataView)            \
+  V(JSDate)                                 \
   V(JSExternalObject)                       \
   V(JSFinalizationRegistry)                 \
   V(JSFunction)                             \

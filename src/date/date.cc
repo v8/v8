@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/date/date.h"
-#include "src/date/dateparser-inl.h"
+
+#include <limits>
 
 #include "src/base/overflowing-math.h"
+#include "src/date/dateparser-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -63,14 +65,6 @@ void DateCache::ResetDateCache(
   tz_cache_->Clear(time_zone_detection);
   tz_name_ = nullptr;
   dst_tz_name_ = nullptr;
-}
-
-// ECMA 262 - ES#sec-timeclip TimeClip (time)
-double DateCache::TimeClip(double time) {
-  if (-kMaxTimeInMs <= time && time <= kMaxTimeInMs) {
-    return DoubleToInteger(time);
-  }
-  return std::numeric_limits<double>::quiet_NaN();
 }
 
 void DateCache::ClearSegment(DST* segment) {
@@ -636,7 +630,10 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   } else {
     date -= out[DateParser::UTC_OFFSET] * 1000.0;
   }
-  return DateCache::TimeClip(date);
+  if (!DateCache::TryTimeClip(&date)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return date;
 }
 
 }  // namespace internal

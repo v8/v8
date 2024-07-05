@@ -147,7 +147,7 @@ extern class JSDate extends JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
 
   // The time value.
-  value: NumberOrUndefined;
+  value: float64;
 
   // Cached values:
   year: Undefined|Smi|NaN;

@@ -665,12 +665,17 @@ double Object::NumberValue(Tagged<Smi> obj) {
 
 // static
 bool Object::SameNumberValue(double value1, double value2) {
-  // SameNumberValue(NaN, NaN) is true.
-  if (value1 != value2) {
-    return std::isnan(value1) && std::isnan(value2);
+  // Compare values bitwise, to cover -0 being different from 0 -- we'd need to
+  // look at sign bits anyway if we'd done a double comparison, so we may as
+  // well compare bitwise immediately.
+  uint64_t value1_bits = base::bit_cast<uint64_t>(value1);
+  uint64_t value2_bits = base::bit_cast<uint64_t>(value2);
+  if (value1_bits == value2_bits) {
+    return true;
   }
-  // SameNumberValue(0.0, -0.0) is false.
-  return (std::signbit(value1) == std::signbit(value2));
+  // SameNumberValue(NaN, NaN) is true even for NaNs with different bit
+  // representations.
+  return std::isnan(value1) && std::isnan(value2);
 }
 
 // static

@@ -580,8 +580,8 @@ FieldAccess AccessBuilder::ForJSDateValue() {
                         MaybeHandle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kJSDateValueType,
-                        MachineType::AnyTagged(),
-                        kFullWriteBarrier,
+                        MachineType::Float64(),
+                        kNoWriteBarrier,
                         "JSDateValue"};
   return access;
 }
@@ -589,7 +589,7 @@ FieldAccess AccessBuilder::ForJSDateValue() {
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
   FieldAccess access = {
-      kTaggedBase,         JSDate::kValueOffset + index * kTaggedSize,
+      kTaggedBase,         JSDate::kYearOffset + index * kTaggedSize,
       MaybeHandle<Name>(), OptionalMapRef(),
       Type::Number(),      MachineType::AnyTagged(),
       kFullWriteBarrier,   "JSDateField"};

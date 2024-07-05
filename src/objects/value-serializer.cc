@@ -845,7 +845,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
 
 void ValueSerializer::WriteJSDate(Tagged<JSDate> date) {
   WriteTag(SerializationTag::kDate);
-  WriteDouble(Object::NumberValue(date->value()));
+  WriteDouble(date->value());
 }
 
 Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(

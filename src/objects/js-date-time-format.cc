@@ -1201,9 +1201,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     x = Object::NumberValue(*x_obj);
   }
   // 6. Set x to TimeClip(x).
-  x = DateCache::TimeClip(x);
   // 7. If x is NaN, throw a RangeError exception.
-  if (std::isnan(x)) {
+  if (!DateCache::TryTimeClip(&x)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
         Nothing<DateTimeValueRecord>());
@@ -1440,13 +1439,12 @@ icu::UnicodeString CallICUFormat(const icu::SimpleDateFormat& date_format,
 MaybeHandle<String> FormatDateTime(Isolate* isolate,
                                    const icu::SimpleDateFormat& date_format,
                                    double x) {
-  double date_value = DateCache::TimeClip(x);
-  if (std::isnan(date_value)) {
+  if (!DateCache::TryTimeClip(&x)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
   icu::UnicodeString result;
-  date_format.format(date_value, result);
+  date_format.format(x, result);
 
   // Revert ICU 72 change that introduced U+202F instead of U+0020
   // to separate time from AM/PM. See https://crbug.com/1414292.
@@ -1548,7 +1546,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  factory->Date_string()));
   }
-  double const x = Object::NumberValue(Cast<JSDate>(date)->value());
+  double const x = Cast<JSDate>(date)->value();
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
     return factory->Invalid_Date_string();
@@ -2797,8 +2795,8 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x));
   }
 
-  double date_value = DateCache::TimeClip(Object::NumberValue(*x));
-  if (std::isnan(date_value)) {
+  double date_value = Object::NumberValue(*x);
+  if (!DateCache::TryTimeClip(&date_value)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
   return FormatMillisecondsToArray(
@@ -3007,15 +3005,13 @@ base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format, double x,
     double y, const char* method_name) {
   // 1. Let x be TimeClip(x).
-  x = DateCache::TimeClip(x);
   // 2. If x is NaN, throw a RangeError exception.
-  if (std::isnan(x)) {
+  if (!DateCache::TryTimeClip(&x)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
   // 3. Let y be TimeClip(y).
-  y = DateCache::TimeClip(y);
   // 4. If y is NaN, throw a RangeError exception.
-  if (std::isnan(y)) {
+  if (!DateCache::TryTimeClip(&y)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 

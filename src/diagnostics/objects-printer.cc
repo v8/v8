@@ -1762,7 +1762,7 @@ static const char* const weekdays[] = {"???", "Sun", "Mon", "Tue",
 
 void JSDate::JSDatePrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDate");
-  os << "\n - value: " << Brief(value());
+  os << "\n - value: " << value();
   if (!IsSmi(year())) {
     os << "\n - time = NaN\n";
   } else {

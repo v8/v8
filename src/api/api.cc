@@ -7953,18 +7953,16 @@ MaybeLocal<Value> v8::Date::Parse(Local<Context> context, Local<String> value) {
 double v8::Date::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::Cast<i::JSDate>(obj);
-  API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
-  return i::Object::NumberValue(i::Cast<i::Number>(jsdate->value()));
+  return jsdate->value();
 }
 
 v8::Local<v8::String> v8::Date::ToISOString() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::Cast<i::JSDate>(obj);
   i::Isolate* i_isolate = jsdate->GetIsolate();
-  API_RCS_SCOPE(i_isolate, Date, NumberValue);
-  i::DateBuffer buffer = i::ToDateString(
-      i::Object::NumberValue(i::Cast<i::Number>(jsdate->value())),
-      i_isolate->date_cache(), i::ToDateStringMode::kISODateAndTime);
+  i::DateBuffer buffer =
+      i::ToDateString(jsdate->value(), i_isolate->date_cache(),
+                      i::ToDateStringMode::kISODateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -7975,10 +7973,9 @@ v8::Local<v8::String> v8::Date::ToUTCString() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::Cast<i::JSDate>(obj);
   i::Isolate* i_isolate = jsdate->GetIsolate();
-  API_RCS_SCOPE(i_isolate, Date, NumberValue);
-  i::DateBuffer buffer = i::ToDateString(
-      i::Object::NumberValue(i::Cast<i::Number>(jsdate->value())),
-      i_isolate->date_cache(), i::ToDateStringMode::kUTCDateAndTime);
+  i::DateBuffer buffer =
+      i::ToDateString(jsdate->value(), i_isolate->date_cache(),
+                      i::ToDateStringMode::kUTCDateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();

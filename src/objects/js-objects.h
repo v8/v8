@@ -1211,9 +1211,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static Address GetField(Isolate* isolate, Address raw_date,
                           Address smi_index);
 
-  static Handle<Object> SetValue(DirectHandle<JSDate> date, double v);
-
-  void SetValue(Tagged<Number> value, bool is_value_nan);
+  void SetValue(double v);
+  void SetNanValue();
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
@@ -1222,7 +1221,6 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   // The order is important. It must be kept in sync with date macros
   // in macros.py.
   enum FieldIndex {
-    kDateValue,
     kYear,
     kMonth,
     kDay,
@@ -1247,6 +1245,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
     kTimeInDayUTC,
     kTimezoneOffset
   };
+
+  class BodyDescriptor;
 
  private:
   Tagged<Object> DoGetField(Isolate* isolate, FieldIndex index);
