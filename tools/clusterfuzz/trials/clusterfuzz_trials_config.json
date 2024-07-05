@@ -40,6 +40,7 @@
     {"app_args": "--stress-marking=100", "app_name": "d8", "probability": 0.05},
     {"app_args": "--stress-scavenge=100", "app_name": "d8", "probability": 0.05},
     {"app_args": "--turboshaft", "app_name": "d8", "probability": 0.2},
+    {"app_args": "--turboshaft-from-maglev", "app_name": "d8", "probability": 0.1},
     {"app_args": "--turbo-instruction-scheduling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--turbo-stress-instruction-scheduling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-wasm-code-gc", "app_name": "d8", "probability": 0.1},
