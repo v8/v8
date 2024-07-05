@@ -578,9 +578,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   bool SweepWithDeadline(v8::base::TimeDelta max_duration,
                          MutatorThreadSweepingMode sweeping_mode) {
     DCHECK(platform_);
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
     for (SpaceState& state : *states_) {
-      const auto deadline = v8::base::TimeTicks::Now() + max_duration;
-
       // First, prioritize finalization of pages that were swept concurrently.
       SweepFinalizer finalizer(platform_, free_memory_handling_,
                                SweepFinalizer::EmptyPageHandling::kDestroy);
