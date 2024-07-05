@@ -3455,7 +3455,12 @@ class GraphBuilder {
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
                                 const maglev::ProcessingState& state) {
-    UNIMPLEMENTED();
+    // TODO(dmercadier): remove this bailout. It's currently useful so that we
+    // can run any program without crashing, and it allows to differential-fuzz
+    // more easily. Long-term, we never want to bailout during graph building
+    // (at least, not because some translation is unimplemented).
+    *bailout_ = BailoutReason::kGraphBuildingFailed;
+    return maglev::ProcessResult::kAbort;
   }
 
   AssemblerT& Asm() { return assembler_; }
