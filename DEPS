@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '46e04959f43766fe95800660f393bf4994ce008b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f0d4b73cd3781fb8d7eab036e84364323d6e7306',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9cac81256beb5d4d36c8801afeae38fea34b8486',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a092d8b8e397e936359cd3f85be69e322b4cc83b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e190315d543b3c48dbc5de79b89c4bd351d51c08',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '812e1c5aa6c94c2e747bc9145ca386f4d23a9410',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -300,9 +300,9 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '450ae0d29766e87ea12148e8c6c3352053f78e15',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '002bae033a25e7cdfcdb4a4273b22111312b4c81',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e5b130d5dc3058457ea0658a55ae6bb968f75f0e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '6c31d19e578c988a5d898f96dcb1f946bfcf9365',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8f49d6467fd4369cb12c1dd927fde3aaa85d7dd4',
   'third_party/llvm-build/Release+Asserts': {
