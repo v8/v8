@@ -1817,7 +1817,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    ExtractBitRange(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);
+    if (base::bits::IsPowerOfTwo(Field::kMask + 1)) {
+      ExtractBitRange(dst, src, Field::kShift + Field::kSize - 1,
+                      Field::kShift);
+    } else {
+      int shift = Field::kShift;
+      int mask = Field::kMask >> Field::kShift;
+      if (shift != 0) {
+        ShiftLeftU64(dst, src, Operand(shift));
+        AndP(dst, Operand(mask));
+      } else {
+        AndP(dst, src, Operand(mask));
+      }
+    }
   }
 
   template <typename Field>
