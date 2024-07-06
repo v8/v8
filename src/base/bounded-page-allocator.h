@@ -57,7 +57,16 @@ enum class PageFreeingMode {
 // The implementation is thread-safe.
 class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
  public:
+  enum class AllocationStatus {
+    kSuccess,
+    kFailedToCommit,
+    kRanOutOfReservation,
+    kHintedAddressTakenOrNotFound,
+  };
+
   using Address = uintptr_t;
+
+  static const char* AllocationStatusToString(AllocationStatus);
 
   BoundedPageAllocator(v8::PageAllocator* page_allocator, Address start,
                        size_t size, size_t allocate_page_size,
@@ -110,7 +119,9 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
 
   bool DecommitPages(void* address, size_t size) override;
 
-  bool ran_out_of_reservation() const { return ran_out_of_reservation_; }
+  AllocationStatus get_last_allocation_status() const {
+    return allocation_status_;
+  }
 
  private:
   v8::base::Mutex mutex_;
@@ -120,7 +131,7 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   v8::base::RegionAllocator region_allocator_;
   const PageInitializationMode page_initialization_mode_;
   const PageFreeingMode page_freeing_mode_;
-  bool ran_out_of_reservation_ = false;
+  AllocationStatus allocation_status_ = AllocationStatus::kSuccess;
 };
 
 }  // namespace base

@@ -157,11 +157,12 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
                                       stats_collector_, size, gcinfo);
       if (!result) {
 #if defined(CPPGC_CAGED_HEAP)
+        const auto last_alloc_status =
+            CagedHeap::Instance().page_allocator().get_last_allocation_status();
         const std::string suffix =
-            CagedHeap::Instance().page_allocator().ran_out_of_reservation()
-                ? "Ran out of cage reservation."
-                : "";
-        oom_handler_("Oilpan: Large allocation." + suffix);
+            v8::base::BoundedPageAllocator::AllocationStatusToString(
+                last_alloc_status);
+        oom_handler_("Oilpan: Large allocation. " + suffix);
 #else
         oom_handler_("Oilpan: Large allocation.");
 #endif
@@ -185,11 +186,12 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     garbage_collector_.CollectGarbage(config);
     if (!TryRefillLinearAllocationBuffer(space, request_size)) {
 #if defined(CPPGC_CAGED_HEAP)
+      const auto last_alloc_status =
+          CagedHeap::Instance().page_allocator().get_last_allocation_status();
       const std::string suffix =
-          CagedHeap::Instance().page_allocator().ran_out_of_reservation()
-              ? "Ran out of cage reservation."
-              : "";
-      oom_handler_("Oilpan: Normal allocation." + suffix);
+          v8::base::BoundedPageAllocator::AllocationStatusToString(
+              last_alloc_status);
+      oom_handler_("Oilpan: Normal allocation. " + suffix);
 #else
       oom_handler_("Oilpan: Normal allocation.");
 #endif
