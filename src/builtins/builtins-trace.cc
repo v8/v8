@@ -104,6 +104,10 @@ const uint8_t* GetCategoryGroupEnabled(Isolate* isolate,
 BUILTIN(IsTraceCategoryEnabled) {
   HandleScope scope(isolate);
   Handle<Object> category = args.atOrUndefined(isolate, 1);
+  if (v8_flags.fuzzing) {
+    // Category handling has many CHECKs we don't want to hit.
+    return ReadOnlyRoots(isolate).false_value();
+  }
   if (!IsString(*category)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
@@ -129,6 +133,15 @@ BUILTIN(Trace) {
   DirectHandle<Object> id_arg = args.atOrUndefined(isolate, 4);
   Handle<Object> data_arg = args.atOrUndefined(isolate, 5);
 
+  if (v8_flags.fuzzing) {
+    // Category handling has many CHECKs we don't want to hit.
+    return ReadOnlyRoots(isolate).false_value();
+  }
+
+  if (!IsString(*category)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
+  }
   // Exit early if the category group is not enabled.
 #if defined(V8_USE_PERFETTO)
   MaybeUtf8 category_str(isolate, Cast<String>(category));
@@ -147,10 +160,6 @@ BUILTIN(Trace) {
   }
   char phase = static_cast<char>(
       DoubleToInt32(Object::NumberValue(Cast<Number>(*phase_arg))));
-  if (!IsString(*category)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
-  }
   if (!IsString(*name_arg)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventNameError));
