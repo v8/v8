@@ -52,7 +52,6 @@ EXTRA_FLAGS = [
     (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
     (0.2, '--turboshaft'),
-    (0.1, '--turboshaft-from-maglev'),
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--stress-wasm-memory-moving'),
