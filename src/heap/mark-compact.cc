@@ -2909,6 +2909,16 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
 
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
+    // ClearFullMapTransitions must be called before weak references are
+    // cleared.
+    ClearFullMapTransitions();
+    // Weaken recorded strong DescriptorArray objects. This phase can
+    // potentially move everywhere after `ClearFullMapTransitions()`.
+    WeakenStrongDescriptorArrays();
+  }
+
   // Start a parallel job for clearing trivial weak references. The job cannot
   // be started before the following methods have finished, as they may mark
   // more objects and create a data race:
@@ -2928,27 +2938,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
     clear_trivial_weakrefs_job_handle->NotifyConcurrencyIncrease();
   }
-
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
-    // ClearFullMapTransitions must be called before weak references are
-    // cleared.
-    ClearFullMapTransitions();
-    // Weaken recorded strong DescriptorArray objects. This phase can
-    // potentially move everywhere after `ClearFullMapTransitions()`.
-    WeakenStrongDescriptorArrays();
-  }
-
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_WEAKNESS_HANDLING);
-    ClearNonTrivialWeakReferences();
-    ClearWeakCollections();
-    ClearJSWeakRefs();
-  }
-
-  PROFILE(heap_->isolate(), WeakCodeClearEvent());
-
-  MarkDependentCodeForDeoptimization();
 
 #ifdef V8_COMPRESS_POINTERS
   {
@@ -2988,6 +2977,17 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                                             isolate->counters());
   }
 #endif  // V8_ENABLE_SANDBOX
+
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_WEAKNESS_HANDLING);
+    ClearNonTrivialWeakReferences();
+    ClearWeakCollections();
+    ClearJSWeakRefs();
+  }
+
+  PROFILE(heap_->isolate(), WeakCodeClearEvent());
+
+  MarkDependentCodeForDeoptimization();
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
