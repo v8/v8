@@ -284,7 +284,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Add Logical (Register - Immediate)
   void AddU32(Register dst, const Operand& imm);
   void AddU64(Register dst, const Operand& imm);
+  void AddU64(Register dst, int imm) { AddU64(dst, Operand(imm)); }
   void AddU64(Register dst, Register src1, Register src2);
+  void AddU64(Register dst, Register src) { algr(dst, src); }
 
   // Add Logical (Register - Mem)
   void AddU32(Register dst, const MemOperand& opnd);
