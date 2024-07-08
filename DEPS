@@ -80,7 +80,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.2',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:98713f62d1efa5181177bc506b0941e439f7d6cb',
+  'siso_version': 'git_revision:2771ced2186c49911899699f831f96ceea4812f6',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:c9c95dda5f310610a3fc574af44faeed298b3938',
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '812e1c5aa6c94c2e747bc9145ca386f4d23a9410',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1ec7890183244734c718c90e322ecf7e5588341d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '68e57e619c1a59a6ba7e3ad48ad4eee9c0c5b08e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '303336503ee5018769a2681538289058dbd28947',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '210eabb02a077da81a41a63cf9c297e8f778e1b0',
   'tools/luci-go': {
       'packages': [
         {
