@@ -1191,12 +1191,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputOperand(1), kScratchReg);
       break;
     case kRiscvDiv32: {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Div32(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       // Set ouput to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
     case kRiscvDivU32: {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Divu32(i.OutputRegister(), i.InputOrZeroRegister(0),
                 i.InputOperand(1));
       // Set ouput to zero if divisor == 0
@@ -1214,12 +1216,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mul64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvDiv64: {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Div64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       // Set ouput to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
     case kRiscvDivU64: {
+      DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Divu64(i.OutputRegister(), i.InputOrZeroRegister(0),
                 i.InputOperand(1));
       // Set ouput to zero if divisor == 0

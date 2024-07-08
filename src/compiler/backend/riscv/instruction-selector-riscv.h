@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -207,11 +208,13 @@ static void VisitRRIR(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-              typename Adapter::node_t node) {
+              typename Adapter::node_t node,
+              typename OperandGeneratorT<Adapter>::RegisterUseKind kind =
+                  OperandGeneratorT<Adapter>::RegisterUseKind::kUseRegister) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
+                 g.UseRegister(selector->input_at(node, 1), kind));
 }
 
 void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,

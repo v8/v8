@@ -630,12 +630,14 @@ void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Div(node_t node) {
-  VisitRRR(this, kRiscvDiv32, node);
+  VisitRRR(this, kRiscvDiv32, node,
+           OperandGenerator::RegisterUseKind::kUseUniqueRegister);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32Div(node_t node) {
-  VisitRRR(this, kRiscvDivU32, node);
+  VisitRRR(this, kRiscvDivU32, node,
+           OperandGenerator::RegisterUseKind::kUseUniqueRegister);
 }
 
 template <typename Adapter>
