@@ -136,15 +136,6 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                           Int32Constant(0));
   }
 
-  TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
-    TNode<IntPtrT> header = MemoryChunkFromAddress(object);
-    TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), header,
-             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
-    return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
-                        IntPtrConstant(0));
-  }
-
   TNode<BoolT> IsUnmarked(TNode<IntPtrT> object) {
     TNode<IntPtrT> cell;
     TNode<IntPtrT> mask;

@@ -5241,103 +5241,26 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     BIND(&if_result_map);
     Comment("CloneObjectIC_if_result_map");
 
-    // Next to the trivial case above the IC supports only JSObjects.
-    // TODO(olivf): To support JSObjects other than JS_OBJECT_TYPE we need to
-    // initialize the the in-object properties below in
-    // `AllocateJSObjectFromMap`.
-    CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(source_map),
-                                       JS_OBJECT_TYPE));
-    CSA_DCHECK(this, IsStrong(TNode<MaybeObject>(result_map.value())));
-    CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(result_map.value()),
-                                       JS_OBJECT_TYPE));
-
-    TVARIABLE(HeapObject, var_properties, EmptyFixedArrayConstant());
-    TVARIABLE(FixedArray, var_elements, EmptyFixedArrayConstant());
-
-    // The IC fast case should only be taken if the result map a compatible
-    // elements kind with the source object.
-    TNode<FixedArrayBase> source_elements = LoadElements(CAST(source));
-
-    auto flag = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
-    var_elements = CAST(CloneFixedArray(source_elements, flag));
-
-    Label allocate_object(this);
-    // Copy the PropertyArray backing store. The source PropertyArray must be
-    // either an Smi, or a PropertyArray.
-    // FIXME: Make a CSA macro for this
-    TNode<Object> source_properties =
-        LoadObjectField(CAST(source), JSObject::kPropertiesOrHashOffset);
-    {
-      GotoIf(TaggedIsSmi(source_properties), &allocate_object);
-      GotoIf(IsEmptyFixedArray(source_properties), &allocate_object);
-
-      // This IC requires that the source object has fast properties.
-      TNode<PropertyArray> source_property_array = CAST(source_properties);
-
-      TNode<IntPtrT> length = LoadPropertyArrayLength(source_property_array);
-      GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &allocate_object);
-
-      TNode<PropertyArray> property_array = AllocatePropertyArray(length);
-      FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length);
-      CopyPropertyArrayValues(source_property_array, property_array, length,
-                              SKIP_WRITE_BARRIER, DestroySource::kNo);
-      var_properties = property_array;
-    }
-
-    Goto(&allocate_object);
-    BIND(&allocate_object);
-
-    // Both maps need to be in the same slack tracking state or the unused
-    // fields will be wrongly initialized.
-    static_assert(Map::kNoSlackTracking == 0);
-    CSA_DCHECK(this,
-               Word32Equal(IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                               LoadMapBitField3(source_map)),
-                           IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                               LoadMapBitField3(result_map.value()))));
-    TNode<JSObject> object = UncheckedCast<JSObject>(AllocateJSObjectFromMap(
-        result_map.value(), var_properties.value(), var_elements.value(),
-        AllocationFlag::kNone,
-        SlackTrackingMode::kDontInitializeInObjectProperties));
-
-    // Lastly, clone any in-object properties.
     TNode<IntPtrT> source_start =
         LoadMapInobjectPropertiesStartInWords(source_map);
-    TNode<IntPtrT> result_start =
-        LoadMapInobjectPropertiesStartInWords(result_map.value());
-    TNode<IntPtrT> result_size = LoadMapInstanceSizeInWords(result_map.value());
-    TNode<IntPtrT> field_offset_difference =
-        TimesTaggedSize(IntPtrSub(result_start, source_start));
-#ifdef DEBUG
     TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
-    CSA_DCHECK(this, IntPtrGreaterThanOrEqual(
-                         IntPtrSub(source_size, field_offset_difference),
-                         result_size));
-#endif
 
-    // Just copy the fields as raw data (pretending that there are no mutable
-    // HeapNumbers). This doesn't need write barriers.
-    BuildFastLoop<IntPtrT>(
-        result_start, result_size,
-        [=](TNode<IntPtrT> field_index) {
-          TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
-          TNode<TaggedT> field =
-              LoadObjectField<TaggedT>(CAST(source), field_offset);
-          TNode<IntPtrT> result_offset =
-              IntPtrSub(field_offset, field_offset_difference);
-          StoreObjectFieldNoWriteBarrier(object, result_offset, field);
-        },
-        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
-
-    // We need to go through the {object} again here and properly clone them. We
-    // use a second loop here to ensure that the GC (and heap verifier) always
-    // sees properly initialized objects, i.e. never hits undefined values in
-    // double fields.
-    TNode<IntPtrT> start_offset = TimesTaggedSize(result_start);
-    TNode<IntPtrT> end_offset =
-        IntPtrAdd(TimesTaggedSize(result_size), field_offset_difference);
-    ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
-        object, start_offset, end_offset);
+    TNode<Object> object = FastCloneJSObject(
+        CAST(source), source_start, source_size, false, result_map.value(),
+        [&](TNode<Map> map, TNode<HeapObject> properties,
+            TNode<FixedArray> elements) {
+          // Both maps need to be in the same slack tracking state or the unused
+          // fields will be wrongly initialized.
+          static_assert(Map::kNoSlackTracking == 0);
+          CSA_DCHECK(this, Word32Equal(
+                               IsSetWord32<Map::Bits3::ConstructionCounterBits>(
+                                   LoadMapBitField3(source_map)),
+                               IsSetWord32<Map::Bits3::ConstructionCounterBits>(
+                                   LoadMapBitField3(result_map.value()))));
+          return UncheckedCast<JSObject>(AllocateJSObjectFromMap(
+              map, properties, elements, AllocationFlag::kNone,
+              SlackTrackingMode::kDontInitializeInObjectProperties));
+        });
 
     Return(object);
   }

@@ -767,7 +767,8 @@ namespace internal {
   F(CloneObjectIC_Slow, 2, 1)                \
   F(CloneObjectIC_Miss, 4, 1)                \
   F(KeyedHasIC_Miss, 4, 1)                   \
-  F(HasElementWithInterceptor, 2, 1)
+  F(HasElementWithInterceptor, 2, 1)         \
+  F(ObjectAssignTryFastcase, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
   FOR_EACH_INTRINSIC_ARRAY(F, I)                    \

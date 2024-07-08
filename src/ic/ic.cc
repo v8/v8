@@ -3695,6 +3695,77 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   return *value;
 }
 
+// Returns one of:
+// * A map to be used with FastCloneJSObject
+// * Undefined if fast cloning is not possible
+// * True if assignment must be skipped (i.e., the runtime already did it)
+RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  auto source = Cast<HeapObject>(args.at(0));
+  auto target = Cast<JSReceiver>(args.at(1));
+  DCHECK(IsJSObject(*source));
+  DCHECK(IsJSObject(*target));
+  Handle<Map> source_map = handle(source->map(), isolate);
+
+#ifdef DEBUG
+  Handle<Map> target_map = handle(target->map(), isolate);
+  DCHECK_EQ(target_map->NumberOfOwnDescriptors(), 0);
+  DCHECK(!source_map->is_dictionary_map());
+  DCHECK(!target_map->is_dictionary_map());
+  DCHECK(!source_map->is_deprecated());
+  DCHECK(!target_map->is_deprecated());
+  DCHECK(target_map->is_extensible());
+  DCHECK(!IsUndefined(*source, isolate) && !IsNull(*source, isolate));
+  // We could also clone other empty objects, however then we could not share
+  // `SetCloneTargetMap` with the clone IC.
+  DCHECK_EQ(*target_map, *isolate->factory()->ObjectLiteralMapFromCache(
+                             isolate->native_context(), 0));
+#endif  // DEBUG
+
+  ReadOnlyRoots roots(isolate);
+  {
+    std::optional<Tagged<Map>> maybe_clone_target =
+        GetCloneTargetMap(isolate, source_map);
+    if (V8_LIKELY(maybe_clone_target)) {
+      if (maybe_clone_target->is_null()) {
+        return roots.undefined_value();
+      } else if (!(*maybe_clone_target)->is_deprecated()) {
+        return *maybe_clone_target;
+      }
+    }
+  }
+
+  FastCloneObjectMode clone_mode =
+      GetCloneModeForMap(source_map, false, isolate);
+  switch (clone_mode) {
+    case FastCloneObjectMode::kIdenticalMap:
+    case FastCloneObjectMode::kDifferentMap: {
+      USE(JSReceiver::SetOrCopyDataProperties(
+          isolate, target, source,
+          PropertiesEnumerationMode::kEnumerationOrder));
+      Handle<Map> clone_target_map = handle(target->map(), isolate);
+      if (CanFastCloneObjectWithDifferentMaps(source_map, clone_target_map,
+                                              false, isolate)) {
+        if (CanCacheCloneTargetMapTransition(source_map, clone_target_map,
+                                             false, isolate)) {
+          SetCloneTargetMap(isolate, source_map, clone_target_map);
+        }
+        // We already did the copying here. Thus, returning true to cause the
+        // CSA builtin to skip assigning anything.
+        return roots.true_value();
+      }
+      [[fallthrough]];
+    }
+    case FastCloneObjectMode::kNotSupported:
+      SetCloneTargetMapUnsupported(isolate, source_map);
+      return roots.undefined_value();
+    case FastCloneObjectMode::kEmptyObject:
+      DCHECK(false);
+      return roots.undefined_value();
+  }
+}
+
 /**
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.

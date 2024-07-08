@@ -7,6 +7,7 @@
 
 #include <functional>
 
+#include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/common/globals.h"
@@ -83,6 +84,112 @@ TNode<Object> CodeStubAssembler::CallFunction(TNode<Context> context,
                                               TArgs... args) {
   return CallFunction(context, callable, ConvertReceiverMode::kAny, receiver,
                       args...);
+}
+
+template <typename Function>
+TNode<Object> CodeStubAssembler::FastCloneJSObject(
+    TNode<HeapObject> object, TNode<IntPtrT> inobject_properties_start,
+    TNode<IntPtrT> inobject_properties_size, bool target_has_same_offsets,
+    TNode<Map> target_map, const Function& materialize_target) {
+  Label done_copy_properties(this), done_copy_elements(this);
+
+  // Next to the trivial case above the IC supports only JSObjects.
+  // TODO(olivf): To support JSObjects other than JS_OBJECT_TYPE we need to
+  // initialize the the in-object properties below in
+  // `AllocateJSObjectFromMap`.
+  CSA_DCHECK(this, InstanceTypeEqual(LoadInstanceType(object), JS_OBJECT_TYPE));
+  CSA_DCHECK(this, IsStrong(TNode<MaybeObject>(target_map)));
+  CSA_DCHECK(
+      this, InstanceTypeEqual(LoadMapInstanceType(target_map), JS_OBJECT_TYPE));
+
+  TVARIABLE(HeapObject, var_properties, EmptyFixedArrayConstant());
+  TVARIABLE(FixedArray, var_elements, EmptyFixedArrayConstant());
+
+  // Copy the PropertyArray backing store. The source PropertyArray
+  // must be either an Smi, or a PropertyArray.
+  TNode<Object> source_properties =
+      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  {
+    GotoIf(TaggedIsSmi(source_properties), &done_copy_properties);
+    GotoIf(IsEmptyFixedArray(source_properties), &done_copy_properties);
+
+    // This fastcase requires that the source object has fast properties.
+    TNode<PropertyArray> source_property_array = CAST(source_properties);
+
+    TNode<IntPtrT> length = LoadPropertyArrayLength(source_property_array);
+    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &done_copy_properties);
+
+    TNode<PropertyArray> property_array = AllocatePropertyArray(length);
+    FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length);
+    CopyPropertyArrayValues(source_property_array, property_array, length,
+                            SKIP_WRITE_BARRIER, DestroySource::kNo);
+    var_properties = property_array;
+  }
+
+  Goto(&done_copy_properties);
+  BIND(&done_copy_properties);
+
+  TNode<FixedArrayBase> source_elements = LoadElements(CAST(object));
+  GotoIf(TaggedEqual(source_elements, EmptyFixedArrayConstant()),
+         &done_copy_elements);
+  var_elements = CAST(CloneFixedArray(
+      source_elements, ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW));
+
+  Goto(&done_copy_elements);
+  BIND(&done_copy_elements);
+
+  TNode<JSReceiver> target = materialize_target(
+      target_map, var_properties.value(), var_elements.value());
+
+  // Lastly, clone any in-object properties.
+  TNode<IntPtrT> field_offset_difference;
+  if (target_has_same_offsets) {
+#ifdef DEBUG
+    TNode<IntPtrT> target_inobject_properties_start =
+        LoadMapInobjectPropertiesStartInWords(target_map);
+    CSA_DCHECK(this, IntPtrEqual(inobject_properties_start,
+                                 target_inobject_properties_start));
+    field_offset_difference = IntPtrConstant(0);
+#endif
+  } else {
+    TNode<IntPtrT> target_inobject_properties_start =
+        LoadMapInobjectPropertiesStartInWords(target_map);
+    field_offset_difference = TimesTaggedSize(
+        IntPtrSub(target_inobject_properties_start, inobject_properties_start));
+  }
+#ifdef DEBUG
+  TNode<IntPtrT> target_inobject_properties_size =
+      LoadMapInstanceSizeInWords(target_map);
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(IntPtrSub(inobject_properties_size,
+                                                      field_offset_difference),
+                                            target_inobject_properties_size));
+#endif
+
+  // Just copy the fields as raw data (pretending that there are no
+  // mutable HeapNumbers). This doesn't need write barriers.
+  BuildFastLoop<IntPtrT>(
+      inobject_properties_start, inobject_properties_size,
+      [=](TNode<IntPtrT> field_index) {
+        TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
+        TNode<TaggedT> field = LoadObjectField<TaggedT>(object, field_offset);
+        TNode<IntPtrT> result_offset =
+            target_has_same_offsets
+                ? field_offset
+                : IntPtrSub(field_offset, field_offset_difference);
+        StoreObjectFieldNoWriteBarrier(target, result_offset, field);
+      },
+      1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+
+  // We need to go through the {object} again here and properly clone
+  // them. We use a second loop here to ensure that the GC (and heap
+  // verifier) always sees properly initialized objects, i.e. never
+  // hits undefined values in double fields.
+  TNode<IntPtrT> start_offset = TimesTaggedSize(inobject_properties_start);
+  TNode<IntPtrT> end_offset = TimesTaggedSize(inobject_properties_size);
+  ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
+      target, start_offset, end_offset);
+
+  return target;
 }
 
 }  // namespace internal

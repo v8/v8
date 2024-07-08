@@ -2183,6 +2183,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags flags = AllocationFlag::kNone,
       base::Optional<TNode<Map>> fixed_array_map = base::nullopt);
 
+  template <typename Function>
+  TNode<Object> FastCloneJSObject(TNode<HeapObject> source,
+                                  TNode<IntPtrT> inobject_properties_start,
+                                  TNode<IntPtrT> inobject_properties_size,
+                                  bool target_has_same_offsets,
+                                  TNode<Map> target_map,
+                                  const Function& materialize_target);
+
   TNode<NativeContext> GetCreationContextFromMap(TNode<Map> map,
                                                  Label* if_bailout);
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
@@ -4552,6 +4560,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask);
+
+  TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
+    TNode<IntPtrT> header = MemoryChunkFromAddress(object);
+    TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), header,
+             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+    return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
+                        IntPtrConstant(0));
+  }
 
  private:
   friend class CodeStubArguments;
