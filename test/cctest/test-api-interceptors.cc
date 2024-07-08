@@ -5420,12 +5420,12 @@ THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
   CHECK(v8_num(42)->Equals(context.local(), result).FromJust());
 }
 
-
-static void NamedPropertyEnumeratorException(
+namespace {
+void NamedPropertyEnumeratorException(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   info.GetIsolate()->ThrowException(v8_num(43));
 }
-
+}  // namespace
 
 THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -5466,6 +5466,525 @@ THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
       "result");
   CHECK(!result->IsArray());
   CHECK(v8_num(43)->Equals(context.local(), result).FromJust());
+}
+
+namespace {
+
+struct PreprocessExceptionTestConfig {
+  bool query_should_throw : 1 = false;
+  bool getter_should_throw : 1 = false;
+  bool descriptor_should_throw : 1 = false;
+};
+
+template <typename T>
+PreprocessExceptionTestConfig* GetPETConfig(
+    const v8::PropertyCallbackInfo<T>& info) {
+  return reinterpret_cast<PreprocessExceptionTestConfig*>(
+      v8::External::Cast(*info.Data())->Value());
+}
+
+const char* ToString(v8::ExceptionContext kind) {
+  switch (kind) {
+    case v8::ExceptionContext::kUnknown:
+      return "Unknown";
+    case v8::ExceptionContext::kConstructor:
+      return "Constructor";
+    case v8::ExceptionContext::kOperation:
+      return "Operation";
+    case v8::ExceptionContext::kAttributeGet:
+      return "AttributeGet";
+    case v8::ExceptionContext::kAttributeSet:
+      return "AttributeSet";
+    case v8::ExceptionContext::kIndexedQuery:
+      return "IndexedQuery";
+    case v8::ExceptionContext::kIndexedGetter:
+      return "IndexedGetter";
+    case v8::ExceptionContext::kIndexedDescriptor:
+      return "IndexedDescriptor";
+    case v8::ExceptionContext::kIndexedSetter:
+      return "IndexedSetter";
+    case v8::ExceptionContext::kIndexedDefiner:
+      return "IndexedDefiner";
+    case v8::ExceptionContext::kIndexedDeleter:
+      return "IndexedDeleter";
+    case v8::ExceptionContext::kNamedQuery:
+      return "NamedQuery";
+    case v8::ExceptionContext::kNamedGetter:
+      return "NamedGetter";
+    case v8::ExceptionContext::kNamedDescriptor:
+      return "NamedDescriptor";
+    case v8::ExceptionContext::kNamedSetter:
+      return "NamedSetter";
+    case v8::ExceptionContext::kNamedDefiner:
+      return "NamedDefiner";
+    case v8::ExceptionContext::kNamedDeleter:
+      return "NamedDeleter";
+    case v8::ExceptionContext::kNamedEnumerator:
+      return "NamedEnumerator";
+  }
+  UNREACHABLE();
+}
+
+void PreprocessExceptionTestCallback(v8::ExceptionPropagationMessage info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> exception = info.GetException();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::String> message_key = v8_str("message");
+
+  v8::Local<v8::String> message_value = exception->Get(context, message_key)
+                                            .ToLocalChecked()
+                                            ->ToString(context)
+                                            .ToLocalChecked();
+  String::Utf8Value interface_name(isolate, info.GetInterfaceName());
+  String::Utf8Value property_name(isolate, info.GetPropertyName());
+  String::Utf8Value message(isolate, message_value);
+
+  v8::base::ScopedVector<char> buf(256);
+  v8::base::SNPrintF(buf, "%s:%s:%s: %s", *interface_name, *property_name,
+                     ToString(info.GetExceptionContext()), *message);
+
+  std::ignore =
+      exception->CreateDataProperty(context, message_key, v8_str(buf.data()));
+}
+
+void CheckMessage(v8::TryCatch& try_catch, const char* expected_message) {
+  CHECK(try_catch.HasCaught());
+  v8::Local<v8::String> message_key = v8_str("message");
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  Local<v8::Value> result = try_catch.Exception()
+                                .As<v8::Object>()
+                                ->Get(context, message_key)
+                                .ToLocalChecked();
+  CHECK(result->IsString());
+  String::Utf8Value message(isolate, result.As<String>());
+
+  // Compare as std::string in order to see a readable message on failure.
+  CHECK_EQ(std::string(*message), std::string(expected_message));
+  try_catch.Reset();
+}
+
+// Named interceptor callbacks.
+
+v8::Intercepted PETNamedQuery(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  if (GetPETConfig(info)->query_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Named query failed."));
+  } else {
+    info.GetReturnValue().Set(v8::None);
+  }
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETNamedGetter(Local<Name> name,
+                               const v8::PropertyCallbackInfo<Value>& info) {
+  if (GetPETConfig(info)->getter_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Named getter failed."));
+  } else {
+    info.GetReturnValue().Set(153);
+  }
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETNamedSetter(Local<Name> name, Local<Value> value,
+                               const v8::PropertyCallbackInfo<void>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Named setter failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETNamedDeleter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Named deleter failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETNamedDefiner(Local<Name> name,
+                                const v8::PropertyDescriptor& desc,
+                                const v8::PropertyCallbackInfo<void>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Named definer failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETNamedDescriptor(
+    Local<Name> property, const v8::PropertyCallbackInfo<Value>& info) {
+  if (GetPETConfig(info)->descriptor_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Named descriptor failed."));
+  } else {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::Local<v8::Object> descriptor = v8::Object::New(isolate);
+    v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+    v8::Local<v8::Boolean> true_value = v8::Boolean::New(isolate, true);
+
+    std::ignore = descriptor->Set(ctx, v8_str("value"), property);
+    std::ignore = descriptor->Set(ctx, v8_str("writable"), true_value);
+    std::ignore = descriptor->Set(ctx, v8_str("enumerable"), true_value);
+    std::ignore = descriptor->Set(ctx, v8_str("configurable"), true_value);
+
+    info.GetReturnValue().Set(descriptor);
+  }
+  return v8::Intercepted::kYes;
+}
+
+// Indexed interceptor callbacks.
+
+v8::Intercepted PETIndexedQuery(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  if (GetPETConfig(info)->query_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Indexed query failed."));
+  } else {
+    info.GetReturnValue().Set(v8::None);
+  }
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETIndexedGetter(uint32_t index,
+                                 const v8::PropertyCallbackInfo<Value>& info) {
+  if (GetPETConfig(info)->getter_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Indexed getter failed."));
+  } else {
+    info.GetReturnValue().Set(153);
+  }
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETIndexedSetter(uint32_t index, Local<Value> value,
+                                 const v8::PropertyCallbackInfo<void>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Indexed setter failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETIndexedDeleter(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Indexed deleter failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETIndexedDefiner(uint32_t index,
+                                  const v8::PropertyDescriptor& desc,
+                                  const v8::PropertyCallbackInfo<void>& info) {
+  info.GetIsolate()->ThrowError(v8_str("Indexed definer failed."));
+  return v8::Intercepted::kYes;
+}
+v8::Intercepted PETIndexedDescriptor(
+    uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
+  if (GetPETConfig(info)->descriptor_should_throw) {
+    info.GetIsolate()->ThrowError(v8_str("Indexed descriptor failed."));
+  } else {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::Local<v8::Object> descriptor = v8::Object::New(isolate);
+    v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+    v8::Local<v8::Boolean> true_value = v8::Boolean::New(isolate, true);
+
+    std::ignore = descriptor->Set(ctx, v8_str("value"), v8_uint(index));
+    std::ignore = descriptor->Set(ctx, v8_str("writable"), true_value);
+    std::ignore = descriptor->Set(ctx, v8_str("enumerable"), true_value);
+    std::ignore = descriptor->Set(ctx, v8_str("configurable"), true_value);
+
+    info.GetReturnValue().Set(descriptor);
+  }
+  return v8::Intercepted::kYes;
+}
+
+}  // namespace
+
+void TestPreprocessExceptionFromInterceptors(
+    v8::Isolate* isolate, PreprocessExceptionTestConfig& config,
+    Local<Context> ctx, v8::Local<v8::Object> obj,
+    bool is_descriptor_callback_available) {
+  v8::TryCatch try_catch(isolate);
+
+  config.query_should_throw = true;
+  config.getter_should_throw = true;
+  config.descriptor_should_throw = true;
+
+  const char* expected;
+  //
+  // Check query callbacks.
+  //
+  {
+    expected = "MyClass:foo:NamedQuery: Named query failed.";
+    std::ignore = obj->GetPropertyAttributes(ctx, v8_str("foo"));
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->HasOwnProperty(ctx, v8_str("foo"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.hasOwn(obj, 'foo');");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:1:IndexedQuery: Indexed query failed.";
+    std::ignore = obj->GetPropertyAttributes(ctx, v8_uint(1));
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->HasOwnProperty(ctx, v8_str("1"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.hasOwn(obj, 1);");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967294:IndexedQuery: Indexed query failed.";
+    std::ignore = obj->GetPropertyAttributes(ctx, v8_uint(0xfffffffe));
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->HasOwnProperty(ctx, v8_str("4294967294"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.hasOwn(obj, 0xfffffffe);");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967295:NamedQuery: Named query failed.";
+    std::ignore = obj->GetPropertyAttributes(ctx, v8_uint(0xffffffff));
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->HasOwnProperty(ctx, v8_str("4294967295"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.hasOwn(obj, 0xffffffff);");
+    CheckMessage(try_catch, expected);
+  }
+
+  //
+  // Check getter callbacks.
+  //
+  {
+    expected = "MyClass:foo:NamedGetter: Named getter failed.";
+    std::ignore = obj->Get(ctx, v8_str("foo"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj.foo");
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj['foo']");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:1:IndexedGetter: Indexed getter failed.";
+    std::ignore = obj->Get(ctx, v8_uint(1));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[1]");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967294:IndexedGetter: Indexed getter failed.";
+    std::ignore = obj->Get(ctx, v8_uint(0xfffffffe));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[0xfffffffe]");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967295:NamedGetter: Named getter failed.";
+    std::ignore = obj->Get(ctx, v8_uint(0xffffffff));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[0xffffffff]");
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[4294967295]");
+    CheckMessage(try_catch, expected);
+  }
+
+  //
+  // Check setter callbacks.
+  //
+  {
+    v8::Local<v8::Value> value = v8_str("value");
+
+    expected = "MyClass:foo:NamedSetter: Named setter failed.";
+    std::ignore = obj->Set(ctx, v8_str("foo"), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj.foo = 42;");
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj['foo'] = 42;");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:1:IndexedSetter: Indexed setter failed.";
+    std::ignore = obj->Set(ctx, v8_uint(1), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[1] = 42;");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967294:IndexedSetter: Indexed setter failed.";
+    std::ignore = obj->Set(ctx, v8_uint(0xfffffffe), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[0xfffffffe] = 42;");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967295:NamedSetter: Named setter failed.";
+    std::ignore = obj->Set(ctx, v8_uint(0xffffffff), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("obj[0xffffffff] = 42;");
+    CheckMessage(try_catch, expected);
+  }
+
+  //
+  // Check deleter callbacks.
+  //
+  {
+    expected = "MyClass:foo:NamedDeleter: Named deleter failed.";
+    std::ignore = obj->Delete(ctx, v8_str("foo"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("delete obj.foo;");
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("delete obj['foo'];");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:1:IndexedDeleter: Indexed deleter failed.";
+    std::ignore = obj->Delete(ctx, v8_str("1"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("delete obj[1];");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967294:IndexedDeleter: Indexed deleter failed.";
+    std::ignore = obj->Delete(ctx, v8_str("4294967294"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("delete obj[0xfffffffe];");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967295:NamedDeleter: Named deleter failed.";
+    std::ignore = obj->Delete(ctx, v8_str("4294967295"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("delete obj[0xffffffff];");
+    CheckMessage(try_catch, expected);
+  }
+
+  //
+  // Check descriptor callbacks.
+  //
+  {
+    expected = is_descriptor_callback_available
+                   ? "MyClass:foo:NamedDescriptor: Named descriptor failed."
+                   : "MyClass:foo:NamedQuery: Named query failed.";
+    std::ignore = obj->GetOwnPropertyDescriptor(ctx, v8_str("foo"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.getOwnPropertyDescriptor(obj, 'foo');");
+    CheckMessage(try_catch, expected);
+
+    expected = is_descriptor_callback_available
+                   ? "MyClass:1:IndexedDescriptor: Indexed descriptor failed."
+                   : "MyClass:1:IndexedQuery: Indexed query failed.";
+    std::ignore = obj->GetOwnPropertyDescriptor(ctx, v8_str("1"));
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.getOwnPropertyDescriptor(obj, 1);");
+    CheckMessage(try_catch, expected);
+
+    expected =
+        is_descriptor_callback_available
+            ? "MyClass:4294967294:IndexedDescriptor: Indexed descriptor failed."
+            : "MyClass:4294967294:IndexedQuery: Indexed query failed.";
+    std::ignore = obj->GetOwnPropertyDescriptor(ctx, v8_str("4294967294"));
+    CheckMessage(try_catch, expected);
+    std::ignore =
+        CompileRun("Object.getOwnPropertyDescriptor(obj, 0xfffffffe);");
+    CheckMessage(try_catch, expected);
+
+    expected =
+        is_descriptor_callback_available
+            ? "MyClass:4294967295:NamedDescriptor: Named descriptor failed."
+            : "MyClass:4294967295:NamedQuery: Named query failed.";
+    std::ignore = obj->GetOwnPropertyDescriptor(ctx, v8_str("4294967295"));
+    CheckMessage(try_catch, expected);
+    std::ignore =
+        CompileRun("Object.getOwnPropertyDescriptor(obj, 0xffffffff);");
+    CheckMessage(try_catch, expected);
+  }
+
+  //
+  // Check definer callbacks.
+  //
+  config.query_should_throw = false;
+  config.getter_should_throw = false;
+  config.descriptor_should_throw = false;
+  {
+    v8::Local<v8::Value> value = v8_str("value");
+    v8::PropertyDescriptor descriptor(value);
+
+    expected = "MyClass:foo:NamedDefiner: Named definer failed.";
+    std::ignore = obj->DefineOwnProperty(ctx, v8_str("foo"), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->DefineProperty(ctx, v8_str("foo"), descriptor);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.defineProperty(obj, 'foo', {});");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:1:IndexedDefiner: Indexed definer failed.";
+    std::ignore = obj->DefineOwnProperty(ctx, v8_str("1"), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->DefineProperty(ctx, v8_str("1"), descriptor);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.defineProperty(obj, 1, {});");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967294:IndexedDefiner: Indexed definer failed.";
+    std::ignore = obj->DefineOwnProperty(ctx, v8_str("4294967294"), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->DefineProperty(ctx, v8_str("4294967294"), descriptor);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.defineProperty(obj, 0xfffffffe, {});");
+    CheckMessage(try_catch, expected);
+
+    expected = "MyClass:4294967295:NamedDefiner: Named definer failed.";
+    std::ignore = obj->DefineOwnProperty(ctx, v8_str("4294967295"), value);
+    CheckMessage(try_catch, expected);
+    std::ignore = obj->DefineProperty(ctx, v8_str("4294967295"), descriptor);
+    CheckMessage(try_catch, expected);
+    std::ignore = CompileRun("Object.defineProperty(obj, 0xffffffff, {});");
+    CheckMessage(try_catch, expected);
+  }
+}
+
+// Can't use THREADED_TEST because this test requires setting an exception
+// preprocessing callback which might be observable in other tests.
+TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
+  i::v8_flags.experimental_report_exceptions_from_callbacks = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> ctor = v8::FunctionTemplate::New(isolate);
+  ctor->SetClassName(v8_str("MyClass"));
+  v8::Local<v8::ObjectTemplate> obj_template = ctor->InstanceTemplate();
+
+  isolate->SetExceptionPropagationCallback(PreprocessExceptionTestCallback);
+
+  PreprocessExceptionTestConfig config;
+
+  obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      PETNamedGetter, PETNamedSetter, PETNamedQuery, PETNamedDeleter,
+      nullptr,  // enumerator
+      PETNamedDefiner,
+      nullptr,  // descriptor
+      v8::External::New(isolate, &config)));
+  obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
+      nullptr,  // enumerator
+      PETIndexedDefiner,
+      nullptr,  // descriptor
+      v8::External::New(isolate, &config)));
+
+  LocalContext env;
+  Local<Context> ctx = env.local();
+  v8::Local<v8::Object> obj = obj_template->NewInstance(ctx).ToLocalChecked();
+
+  v8::Local<v8::Object> global = ctx->Global();
+  global->Set(ctx, v8_str("obj"), obj).FromJust();
+
+  constexpr bool is_descriptor_callback_available = false;
+  TestPreprocessExceptionFromInterceptors(isolate, config, ctx, obj,
+                                          is_descriptor_callback_available);
+}
+
+// Can't use THREADED_TEST because this test requires setting an exception
+// preprocessing callback which might be observable in other tests.
+TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
+  i::v8_flags.experimental_report_exceptions_from_callbacks = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> ctor = v8::FunctionTemplate::New(isolate);
+  ctor->SetClassName(v8_str("MyClass"));
+  v8::Local<v8::ObjectTemplate> obj_template = ctor->InstanceTemplate();
+
+  isolate->SetExceptionPropagationCallback(PreprocessExceptionTestCallback);
+
+  PreprocessExceptionTestConfig config;
+
+  obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      PETNamedGetter, PETNamedSetter, PETNamedQuery, PETNamedDeleter,
+      nullptr,  // enumerator
+      PETNamedDefiner, PETNamedDescriptor,
+      v8::External::New(isolate, &config)));
+  obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
+      nullptr,  // enumerator
+      PETIndexedDefiner, PETIndexedDescriptor,
+      v8::External::New(isolate, &config)));
+
+  LocalContext env;
+  Local<Context> ctx = env.local();
+  v8::Local<v8::Object> obj = obj_template->NewInstance(ctx).ToLocalChecked();
+
+  v8::Local<v8::Object> global = ctx->Global();
+  global->Set(ctx, v8_str("obj"), obj).FromJust();
+
+  constexpr bool is_descriptor_callback_available = true;
+  TestPreprocessExceptionFromInterceptors(isolate, config, ctx, obj,
+                                          is_descriptor_callback_available);
 }
 
 namespace {

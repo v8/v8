@@ -2218,7 +2218,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
-  void ReportExceptionFunctionCallback(Handle<FunctionTemplateInfo> function,
+  void ReportExceptionFunctionCallback(Handle<JSReceiver> receiver,
+                                       Handle<FunctionTemplateInfo> function,
                                        v8::ExceptionContext callback_kind);
   void ReportExceptionPropertyCallback(Handle<JSReceiver> holder,
                                        Handle<Name> name,

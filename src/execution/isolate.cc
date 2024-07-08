@@ -4566,9 +4566,10 @@ void Isolate::NotifyExceptionPropagationCallback() {
             reinterpret_cast<const v8::FunctionCallbackInfo<v8::Value>*>(
                 ext_callback_scope->callback_info());
 
+        Handle<JSReceiver> receiver = Utils::OpenHandle(*callback_info->This());
         Handle<FunctionTemplateInfo> function_template_info(
             GetTargetFunctionTemplateInfo(*callback_info), this);
-        ReportExceptionFunctionCallback(function_template_info, kind);
+        ReportExceptionFunctionCallback(receiver, function_template_info, kind);
         return;
       }
       case v8::ExceptionContext::kAttributeGet:
@@ -4598,11 +4599,12 @@ void Isolate::NotifyExceptionPropagationCallback() {
         Handle<Object> holder = Utils::OpenHandle(*callback_info->Holder());
         Handle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
-        // TODO(ishell, 328104148): support propagation of index values for
-        // real instead of passing "yearMonthFromFields".
-        Handle<Name> name = IsSmi(*maybe_name)
-                                ? factory()->yearMonthFromFields_string()
-                                : Cast<Name>(maybe_name);
+        Handle<Name> name =
+            IsSmi(*maybe_name)
+                ? factory()->SizeToString(
+                      PropertyCallbackArguments::GetPropertyIndex(
+                          *callback_info))
+                : Cast<Name>(maybe_name);
         DCHECK(IsJSReceiver(*holder));
 
         // Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
@@ -4633,13 +4635,16 @@ void Isolate::NotifyExceptionPropagationCallback() {
   switch (frame_type) {
     case StackFrame::API_CALLBACK_EXIT: {
       ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
+      Handle<JSReceiver> receiver =
+          handle(Cast<JSReceiver>(frame->receiver()), this);
       Handle<FunctionTemplateInfo> function_template_info =
           frame->GetFunctionTemplateInfo();
 
       v8::ExceptionContext callback_kind =
           frame->IsConstructor() ? v8::ExceptionContext::kConstructor
                                  : v8::ExceptionContext::kOperation;
-      ReportExceptionFunctionCallback(function_template_info, callback_kind);
+      ReportExceptionFunctionCallback(receiver, function_template_info,
+                                      callback_kind);
       return;
     }
     case StackFrame::API_ACCESSOR_EXIT: {
@@ -4675,23 +4680,69 @@ void Isolate::NotifyExceptionPropagationCallback() {
 }
 
 void Isolate::ReportExceptionFunctionCallback(
-    Handle<FunctionTemplateInfo> function, v8::ExceptionContext callback_kind) {
-  DCHECK(callback_kind == v8::ExceptionContext::kConstructor ||
-         callback_kind == v8::ExceptionContext::kOperation);
+    Handle<JSReceiver> receiver, Handle<FunctionTemplateInfo> function,
+    v8::ExceptionContext exception_context) {
+  DCHECK(exception_context == v8::ExceptionContext::kConstructor ||
+         exception_context == v8::ExceptionContext::kOperation);
   DCHECK_NOT_NULL(exception_propagation_callback_);
-  // PrintF("=== ReportExceptionFunctionCallback: \n");
-  // Print(exception());
-  // Print(*function);
+
+  // Ignore exceptions that we can't extend.
+  if (!IsJSReceiver(this->exception())) return;
+  Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
+
+  Handle<Object> maybe_message(pending_message(), this);
+
+  Handle<String> property_name =
+      IsUndefined(function->class_name(), this)
+          ? factory()->empty_string()
+          : Handle<String>(Cast<String>(function->class_name()), this);
+  Handle<String> interface_name =
+      JSReceiver::GetConstructorName(this, receiver);
+
+  {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
+    // Ignore any exceptions thrown inside the callback and rethrow the
+    // original exception/message.
+    TryCatch try_catch(v8_isolate);
+
+    exception_propagation_callback_(v8::ExceptionPropagationMessage(
+        v8_isolate, v8::Utils::ToLocal(exception),
+        v8::Utils::ToLocal(interface_name), v8::Utils::ToLocal(property_name),
+        exception_context));
+
+    try_catch.Reset();
+  }
+  ReThrow(*exception, *maybe_message);
 }
 
 void Isolate::ReportExceptionPropertyCallback(
     Handle<JSReceiver> holder, Handle<Name> name,
-    v8::ExceptionContext callback_kind) {
+    v8::ExceptionContext exception_context) {
   DCHECK_NOT_NULL(exception_propagation_callback_);
-  // PrintF("=== ReportExceptionPropertyCallback: \n");
-  // Print(exception());
-  // Print(*name);
-  // Print(*holder);
+
+  if (!IsJSReceiver(this->exception())) return;
+  Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
+
+  Handle<Object> maybe_message(pending_message(), this);
+
+  Handle<String> property_name;
+  std::ignore = Name::ToFunctionName(this, name).ToHandle(&property_name);
+  Handle<String> interface_name = JSReceiver::GetConstructorName(this, holder);
+
+  {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
+    // Ignore any exceptions thrown inside the callback and rethrow the
+    // original exception/message.
+    TryCatch try_catch(v8_isolate);
+
+    exception_propagation_callback_(v8::ExceptionPropagationMessage(
+        v8_isolate, v8::Utils::ToLocal(exception),
+        v8::Utils::ToLocal(interface_name), v8::Utils::ToLocal(property_name),
+        exception_context));
+
+    try_catch.Reset();
+  }
+  ReThrow(*exception, *maybe_message);
 }
 
 void Isolate::SetExceptionPropagationCallback(

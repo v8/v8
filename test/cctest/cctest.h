@@ -393,6 +393,10 @@ static inline v8::Local<v8::Integer> v8_int(int32_t x) {
   return v8::Integer::New(v8::Isolate::GetCurrent(), x);
 }
 
+static inline v8::Local<v8::Integer> v8_uint(uint32_t x) {
+  return v8::Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), x);
+}
+
 static inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {
   return v8::BigInt::New(v8::Isolate::GetCurrent(), x);
 }
