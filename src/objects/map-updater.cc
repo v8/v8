@@ -1238,8 +1238,12 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
               return;
             }
             sidestep_transition.insert(target);
+            if (current != target) {
+              backlog.push(target->FindFieldOwner(isolate, descriptor));
+            }
+          } else {
+            backlog.push(target);
           }
-          backlog.push(target);
         },
         [&](Tagged<Map> target) {
           if (v8_flags.move_prototype_transitions_first) {
