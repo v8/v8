@@ -3460,7 +3460,8 @@ TEST(ReleaseOverReservedPages) {
   heap::InvokeMajorGC(heap);
   CHECK_GE(overall_page_count, old_space->CountTotalPages());
   heap::InvokeMajorGC(heap);
-  CHECK_GE(overall_page_count, old_space->CountTotalPages() * 2);
+  CHECK_GE(number_of_test_pages,
+           (old_space->CountTotalPages() - initial_page_count) * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
   // OS so that other processes can seize the memory.  If we get a failure here
@@ -6728,7 +6729,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGCRunningJS) {
   if (!v8_flags.detect_ineffective_gcs_near_heap_limit) return;
   if (v8_flags.stress_incremental_marking) return;
 
-  v8_flags.max_old_space_size = 5;
+  v8_flags.max_old_space_size = 10;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
