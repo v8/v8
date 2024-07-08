@@ -3603,8 +3603,9 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           if (maybe_target->is_null()) {
             unsupported = true;
           } else if (!(*maybe_target)->is_deprecated()) {
-            UpdateNexus(handle(*maybe_target, isolate));
-            return *maybe_target;
+            Handle<Map> target = handle(*maybe_target, isolate);
+            UpdateNexus(target);
+            return *target;
           }
         }
       }
