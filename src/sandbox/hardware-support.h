@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class SandboxHardwareSupport {
+class V8_EXPORT_PRIVATE SandboxHardwareSupport {
  public:
   // Allocates a pkey that will be used to optionally block sandbox access. This
   // function should be called once before any threads are created so that new

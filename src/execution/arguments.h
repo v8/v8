@@ -10,6 +10,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/allocation.h"
 

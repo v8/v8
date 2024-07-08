@@ -8,6 +8,7 @@
 #include "src/base/functional.h"
 #include "src/base/iterator.h"
 #include "src/codegen/machine-type.h"
+#include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
