@@ -3292,19 +3292,30 @@ class MachineLoweringReducer : public Next {
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   V<Object> REDUCE(GetContinuationPreservedEmbedderData)() {
+#if V8_COMPRESS_POINTERS && V8_TARGET_BIG_ENDIAN
+    constexpr int offset = 4;
+#else
+    constexpr int offset = 0;
+#endif
     return __ Load(
         __ ExternalConstant(
             ExternalReference::continuation_preserved_embedder_data(isolate_)),
-        LoadOp::Kind::RawAligned(), MemoryRepresentation::TaggedPointer());
+        LoadOp::Kind::RawAligned(), MemoryRepresentation::TaggedPointer(),
+        offset);
   }
 
   V<None> REDUCE(SetContinuationPreservedEmbedderData)(V<Object> data) {
+#if V8_COMPRESS_POINTERS && V8_TARGET_BIG_ENDIAN
+    constexpr int offset = 4;
+#else
+    constexpr int offset = 0;
+#endif
     __ Store(
         __ ExternalConstant(
             ExternalReference::continuation_preserved_embedder_data(isolate_)),
         data, StoreOp::Kind::RawAligned(),
         MemoryRepresentation::TaggedPointer(),
-        WriteBarrierKind::kNoWriteBarrier);
+        WriteBarrierKind::kNoWriteBarrier, offset);
     return V<None>::Invalid();
   }
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
