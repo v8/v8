@@ -1066,7 +1066,7 @@ FieldAccess AccessBuilder::ForCellValue() {
 FieldAccess AccessBuilder::ForScopeInfoFlags() {
   FieldAccess access = {kTaggedBase,         ScopeInfo::kFlagsOffset,
                         MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::SignedSmall(), MachineType::TaggedSigned(),
+                        Type::Unsigned32(),  MachineType::Uint32(),
                         kNoWriteBarrier,     "ScopeInfoFlags"};
   return access;
 }

@@ -55,7 +55,7 @@ extern enum IsStaticFlag extends uint32 { kNotStatic, kStatic }
 extern enum MaybeAssignedFlag extends uint32 { kNotAssigned, kMaybeAssigned }
 
 // Properties of scopes.
-bitfield struct ScopeFlags extends uint31 {
+bitfield struct ScopeFlags extends uint32 {
   scope_type: ScopeType: 4 bit;
   sloppy_eval_can_extend_vars: bool: 1 bit;
   language_mode: LanguageMode: 1 bit;
@@ -112,7 +112,10 @@ const kMaxInlinedLocalNamesSize:
 
 @generateBodyDescriptor
 extern class ScopeInfo extends HeapObject {
-  const flags: SmiTagged<ScopeFlags>;
+  const flags: ScopeFlags;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   // The number of parameters. For non-function scopes this is 0.
   parameter_count: Smi;

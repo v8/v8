@@ -3259,15 +3259,15 @@ TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
 
 TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
     TNode<ScopeInfo> scope_info) {
-  TNode<Int32T> value =
-      LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+  TNode<Uint32T> value =
+      LoadObjectField<Uint32T>(scope_info, ScopeInfo::kFlagsOffset);
   return IsSetWord32<ScopeInfo::HasContextExtensionSlotBit>(value);
 }
 
 TNode<BoolT> CodeStubAssembler::LoadScopeInfoClassScopeHasPrivateBrand(
     TNode<ScopeInfo> scope_info) {
-  TNode<Int32T> value =
-      LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+  TNode<Uint32T> value =
+      LoadObjectField<Uint32T>(scope_info, ScopeInfo::kFlagsOffset);
   return IsSetWord32<ScopeInfo::ClassScopeHasPrivateBrandBit>(value);
 }
 
@@ -13739,8 +13739,8 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
     // ScriptContext - however, it's unrelated to the sloppy eval variable
     // extension. We should never iterate through a ScriptContext here.
     auto scope_info = LoadScopeInfo(cur_context.value());
-    TNode<Int32T> flags =
-        LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+    TNode<Uint32T> flags =
+        LoadObjectField<Uint32T>(scope_info, ScopeInfo::kFlagsOffset);
     auto scope_type = DecodeWord32<ScopeInfo::ScopeTypeBits>(flags);
     CSA_DCHECK(this, Word32NotEqual(scope_type,
                                     Int32Constant(ScopeType::SCRIPT_SCOPE)));

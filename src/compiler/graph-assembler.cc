@@ -479,6 +479,13 @@ Node* JSGraphAssembler::Assert(Node* cond, const char* condition_string,
       cond, effect(), control()));
 }
 
+void JSGraphAssembler::Assert(TNode<Word32T> cond, const char* condition_string,
+                              const char* file, int line) {
+  AddNode(graph()->NewNode(
+      common()->Assert(BranchSemantics::kMachine, condition_string, file, line),
+      cond, effect(), control()));
+}
+
 TNode<Boolean> JSGraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));

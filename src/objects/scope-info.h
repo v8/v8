@@ -279,21 +279,15 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);
 
-#define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
-  V(Flags)                                   \
-  V(ParameterCount)                          \
-  V(ContextLocalCount)
-
-#define FIELD_ACCESSORS(name)       \
-  inline int name() const;
-  FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
-#undef FIELD_ACCESSORS
+  inline uint32_t Flags() const;
+  inline int ParameterCount() const;
+  inline int ContextLocalCount() const;
 
   enum Fields {
-#define DECL_INDEX(name) k##name,
-    FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
-#undef DECL_INDEX
-        kPositionInfoStart,
+    kFlags,
+    kParameterCount,
+    kContextLocalCount,
+    kPositionInfoStart,
     kPositionInfoEnd,
     kVariablePartIndex
   };

@@ -25,7 +25,9 @@ namespace internal {
 bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        bool is_live_edit_compare) const {
   if (length() != other->length()) return false;
+  if (Flags() != other->Flags()) return false;
   for (int index = 0; index < length(); ++index) {
+    if (index == kFlags) continue;
     if (is_live_edit_compare && index >= kPositionInfoStart &&
         index <= kPositionInfoEnd) {
       continue;
@@ -174,10 +176,10 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   }
 
 // Make sure the Fields enum agrees with Torque-generated offsets.
-#define ASSERT_MATCHED_FIELD(name) \
-  static_assert(OffsetOfElementAt(k##name) == k##name##Offset);
-  FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
-#undef ASSERT_MATCHED_FIELD
+  static_assert(OffsetOfElementAt(kFlags) == kFlagsOffset);
+  static_assert(OffsetOfElementAt(kParameterCount) == kParameterCountOffset);
+  static_assert(OffsetOfElementAt(kContextLocalCount) ==
+                kContextLocalCountOffset);
 
   const int local_names_container_size =
       has_inlined_local_names ? context_local_count : 1;
@@ -225,7 +227,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     }
 
     // Encode the flags.
-    int flags =
+    uint32_t flags =
         ScopeTypeBits::encode(scope->scope_type()) |
         SloppyEvalCanExtendVarsBit::encode(sloppy_eval_can_extend_vars) |
         LanguageModeBit::encode(scope->language_mode()) |
@@ -432,7 +434,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
-  int flags =
+  uint32_t flags =
       ScopeTypeBits::encode(WITH_SCOPE) |
       SloppyEvalCanExtendVarsBit::encode(false) |
       LanguageModeBit::encode(LanguageMode::kSloppy) |
@@ -516,7 +518,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   DisallowGarbageCollection _nogc;
   // Encode the flags.
   DCHECK_IMPLIES(is_shadow_realm || is_script, !is_empty_function);
-  int flags =
+  uint32_t flags =
       ScopeTypeBits::encode(
           is_empty_function
               ? FUNCTION_SCOPE
