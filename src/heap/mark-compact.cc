@@ -3637,8 +3637,8 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
       DCHECK(!IsCell(value));
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
-      if (non_atomic_marking_state_->IsMarked(value) ||
-          InReadOnlySpace(value)) {
+      if (InReadOnlySpace(value) ||
+          non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
@@ -3664,8 +3664,8 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
       DCHECK(!IsCell(value));
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
-      if (non_atomic_marking_state_->IsMarked(value) ||
-          InReadOnlySpace(value)) {
+      if (InReadOnlySpace(value) ||
+          non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
