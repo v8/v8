@@ -110,6 +110,14 @@
       },
     ],
   },
+  'v8_linux_full_dbg': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
+    ],
+  },
   'v8_linux_gc_stress_dbg': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
