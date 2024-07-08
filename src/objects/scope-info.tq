@@ -10,11 +10,12 @@ extern enum ScopeType extends uint32 {
   // in a way that it gets the first scope type in line, see
   // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
   // bit, so it doesn't matter what scope type it gets.
+  SCRIPT_SCOPE,
+  REPL_MODE_SCOPE,
   CLASS_SCOPE,
   EVAL_SCOPE,
   FUNCTION_SCOPE,
   MODULE_SCOPE,
-  SCRIPT_SCOPE,
   CATCH_SCOPE,
   BLOCK_SCOPE,
   WITH_SCOPE,
@@ -78,7 +79,6 @@ bitfield struct ScopeFlags extends uint31 {
   force_context_allocation: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
   has_context_extension_slot: bool: 1 bit;
-  is_repl_mode_scope: bool: 1 bit;
   has_locals_block_list: bool: 1 bit;
   is_empty: bool: 1 bit;
 }

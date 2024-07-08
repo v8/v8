@@ -94,14 +94,15 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Zone* zone)
-    : outer_scope_(nullptr), variables_(zone), scope_type_(SCRIPT_SCOPE) {
+Scope::Scope(Zone* zone, ScopeType scope_type)
+    : outer_scope_(nullptr), variables_(zone), scope_type_(scope_type) {
+  DCHECK(is_script_scope());
   SetDefaults();
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     : outer_scope_(outer_scope), variables_(zone), scope_type_(scope_type) {
-  DCHECK_NE(SCRIPT_SCOPE, scope_type);
+  DCHECK(!is_script_scope());
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
   private_name_lookup_skips_outer_class_ =
@@ -139,14 +140,13 @@ Variable* Scope::DeclareStaticHomeObjectVariable(
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory,
                                    REPLMode repl_mode)
-    : Scope(zone),
+    : Scope(zone, repl_mode == REPLMode::kYes ? REPL_MODE_SCOPE : SCRIPT_SCOPE),
       function_kind_(repl_mode == REPLMode::kYes
                          ? FunctionKind::kAsyncFunction
                          : FunctionKind::kNormalFunction),
       params_(4, zone) {
-  DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
+  DCHECK(is_script_scope());
   SetDefaults();
-  is_repl_mode_scope_ = repl_mode == REPLMode::kYes;
   receiver_ = DeclareDynamicGlobal(ast_value_factory->this_string(),
                                    THIS_VARIABLE, this);
 }
@@ -157,7 +157,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
     : Scope(zone, outer_scope, scope_type),
       function_kind_(function_kind),
       params_(4, zone) {
-  DCHECK_NE(scope_type, SCRIPT_SCOPE);
+  DCHECK(!is_script_scope());
   SetDefaults();
 }
 
@@ -271,7 +271,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     : Scope(zone, scope_type, ast_value_factory, scope_info),
       function_kind_(scope_info->function_kind()),
       params_(0, zone) {
-  DCHECK_NE(scope_type, SCRIPT_SCOPE);
+  DCHECK(!is_script_scope());
   SetDefaults();
   if (scope_info->SloppyEvalCanExtendVars()) {
     DCHECK(!is_eval_scope());
@@ -365,7 +365,6 @@ void Scope::SetDefaults() {
   private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
-  is_repl_mode_scope_ = false;
 
   deserialized_scope_uses_external_cache_ = false;
 
@@ -437,14 +436,13 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                        handle(scope_info, isolate));
       }
 
-    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info->is_script_scope()) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      if (scope_info->IsReplModeScope()) script_scope->set_is_repl_mode_scope();
       DCHECK(!scope_info->HasOuterScopeInfo());
       break;
     } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
@@ -1794,6 +1792,8 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
       if (IsArrowFunction(function_kind)) return "arrow";
       return "function";
     case MODULE_SCOPE: return "module";
+    case REPL_MODE_SCOPE:
+      return "repl";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";

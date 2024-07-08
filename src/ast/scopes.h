@@ -349,7 +349,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_eval_scope() const { return scope_type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return scope_type_ == FUNCTION_SCOPE; }
   bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
-  bool is_script_scope() const { return scope_type_ == SCRIPT_SCOPE; }
+  bool is_script_scope() const {
+    return scope_type_ == SCRIPT_SCOPE || scope_type_ == REPL_MODE_SCOPE;
+  }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
   bool is_block_scope() const {
     return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;
@@ -396,7 +398,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool ForceContextForLanguageMode() const {
     // For function scopes we need not force a context since the language mode
     // can be obtained from the closure. Script scopes always have a context.
-    if (scope_type_ == FUNCTION_SCOPE || scope_type_ == SCRIPT_SCOPE) {
+    if (scope_type_ == FUNCTION_SCOPE || is_script_scope()) {
       return false;
     }
     DCHECK_NOT_NULL(outer_scope_);
@@ -484,6 +486,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
       case MODULE_SCOPE:
       case WITH_SCOPE:  // DebugEvaluateContext as well
       case SCRIPT_SCOPE:  // Side data for const tracking let.
+      case REPL_MODE_SCOPE:
         return true;
       default:
         DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,
@@ -582,11 +585,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
   bool IsSkippableFunctionScope();
-  void set_is_repl_mode_scope() { is_repl_mode_scope_ = true; }
-  bool is_repl_mode_scope() const {
-    DCHECK_IMPLIES(is_repl_mode_scope_, is_script_scope());
-    return is_repl_mode_scope_;
-  }
+  bool is_repl_mode_scope() const { return scope_type_ == REPL_MODE_SCOPE; }
   void set_deserialized_scope_uses_external_cache() {
     deserialized_scope_uses_external_cache_ = true;
   }
@@ -637,7 +636,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void ForceDynamicLookup(VariableProxy* proxy);
 
  protected:
-  explicit Scope(Zone* zone);
+  Scope(Zone* zone, ScopeType scope_type);
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);

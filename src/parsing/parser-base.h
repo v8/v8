@@ -825,6 +825,7 @@ class ParserBase {
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);
     DCHECK_NE(SCRIPT_SCOPE, scope_type);
+    DCHECK_NE(REPL_MODE_SCOPE, scope_type);
     DCHECK_NE(MODULE_SCOPE, scope_type);
     DCHECK_NOT_NULL(parent);
     return zone()->template New<Scope>(zone(), parent, scope_type);
@@ -1127,7 +1128,7 @@ class ParserBase {
     // Unless the current scope's ScopeType is ScriptScope, the current position
     // is directly or indirectly within one of the productions listed above
     // since they open a new scope.
-    return scope()->scope_type() != SCRIPT_SCOPE;
+    return !scope()->is_script_scope();
   }
   bool IfNextUsingKeyword(Token::Value token_after_using) {
     // If the token after `using` is `of` or `in`, `using` is an identifier
@@ -1864,6 +1865,7 @@ bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
       case SHADOW_REALM_SCOPE:
         return false;
       // Top-level scopes.
+      case REPL_MODE_SCOPE:
       case SCRIPT_SCOPE:
       case MODULE_SCOPE:
         return true;
@@ -5997,6 +5999,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
 
   switch (GetDeclarationScope()->scope_type()) {
     case SCRIPT_SCOPE:
+    case REPL_MODE_SCOPE:
     case EVAL_SCOPE:
     case MODULE_SCOPE:
       impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);

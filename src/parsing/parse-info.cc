@@ -57,7 +57,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 #if V8_ENABLE_WEBASSEMBLY
   flags.set_is_asm_wasm_broken(shared->is_asm_wasm_broken());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  flags.set_is_repl_mode(shared->is_repl_mode());
+  flags.set_is_repl_mode(script->is_repl_mode());
 
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());

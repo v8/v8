@@ -13744,6 +13744,8 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
     auto scope_type = DecodeWord32<ScopeInfo::ScopeTypeBits>(flags);
     CSA_DCHECK(this, Word32NotEqual(scope_type,
                                     Int32Constant(ScopeType::SCRIPT_SCOPE)));
+    CSA_DCHECK(this, Word32NotEqual(scope_type,
+                                    Int32Constant(ScopeType::REPL_MODE_SCOPE)));
 #endif
 
     // Check if context has an extension slot.

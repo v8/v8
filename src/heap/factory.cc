@@ -1300,7 +1300,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
 
 Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
                                           DirectHandle<ScopeInfo> scope_info) {
-  DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
+  DCHECK(scope_info->is_script_scope());
   int variadic_part_length = scope_info->ContextLength();
 
   Handle<FixedArray> side_data;

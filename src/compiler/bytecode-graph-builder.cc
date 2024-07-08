@@ -1834,6 +1834,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     // ScriptContext - however, it's unrelated to the sloppy eval variable
     // extension. We should never iterate through a ScriptContext here.
     DCHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
+    DCHECK_NE(scope_info.scope_type(), ScopeType::REPL_MODE_SCOPE);
 
     if (scope_info.HasContextExtensionSlot()) {
       slow_environment = CheckContextExtensionAtDepth(slow_environment, d);

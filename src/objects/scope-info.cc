@@ -246,7 +246,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
-        IsReplModeScopeBit::encode(scope->is_repl_mode_scope()) |
         HasLocalsBlockListBit::encode(false);
     scope_info->set_flags(flags);
 
@@ -449,7 +448,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      HasLocalsBlockListBit::encode(false);
   scope_info->set_flags(flags);
 
   scope_info->set_parameter_count(0);
@@ -541,7 +540,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context ||
                                          has_const_tracking_let_side_data) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -685,7 +684,8 @@ ScopeType ScopeInfo::scope_type() const {
 }
 
 bool ScopeInfo::is_script_scope() const {
-  return !this->IsEmpty() && scope_type() == SCRIPT_SCOPE;
+  return !this->IsEmpty() &&
+         (scope_type() == SCRIPT_SCOPE || scope_type() == REPL_MODE_SCOPE);
 }
 
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
@@ -804,7 +804,7 @@ bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
 }
 
 bool ScopeInfo::IsReplModeScope() const {
-  return IsReplModeScopeBit::decode(Flags());
+  return scope_type() == REPL_MODE_SCOPE;
 }
 
 bool ScopeInfo::HasLocalsBlockList() const {
