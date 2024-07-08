@@ -2065,19 +2065,12 @@
 
 ##############################################################################
 # TODO(mliedtke): Support deopts on all platforms.
-['(arch != x64 and arch != arm64 and arch != ia32)', {
+['(arch != x64 and arch != arm64)', {
   # --wasm-deopt implementation experimental and not ported to most
   # architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
 }],
-['(arch == ia32)', {
-  # ia32 wasm deopt support is work in progress.
-  'wasm/deopt/deopt-value-types': [SKIP],             # int64 lowering missing
-  'wasm/deopt/deopt-many-params-tagged': [SKIP],      # int64 lowering missing
-  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP], # unknown reason
-}],
-
 
 ##############################################################################
 # Skip failing tests in google3

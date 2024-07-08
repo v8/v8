@@ -18,8 +18,7 @@ namespace wasm {
 constexpr RegList kLiftoffAssemblerGpCacheRegs = {eax, ecx, edx, esi, edi};
 
 // Omit xmm7, which is the kScratchDoubleReg.
-// Omit xmm0, which is not an allocatable register (see register-ia32.h).
-constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm1, xmm2, xmm3,
+constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
                                                         xmm4, xmm5, xmm6};
 
 // For the "WasmLiftoffFrameSetup" builtin.
