@@ -2000,12 +2000,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    is_full_gc_during_loading_ = update_allocation_limits_after_loading_;
-    RecomputeLimitsAfterLoadingIfNeeded();
-    DCHECK(!update_allocation_limits_after_loading_);
-  }
-
   // Now that sweeping is completed, we can start the next full GC cycle.
   tracer()->StartCycle(collector, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
@@ -2014,6 +2008,12 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   current_gc_callback_flags_ = gc_callback_flags;
 
   incremental_marking()->Start(collector, gc_reason);
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    is_full_gc_during_loading_ = update_allocation_limits_after_loading_;
+    RecomputeLimitsAfterLoadingIfNeeded();
+    DCHECK(!update_allocation_limits_after_loading_);
+  }
 
   if (isolate()->is_shared_space_isolate()) {
     for (Isolate* client : paused_clients) {
