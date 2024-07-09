@@ -228,7 +228,7 @@ in_category(
         priority = 35,
         use_remoteexec = RECLIENT.DEFAULT,
         triggered_by = ["v8-trigger"],
-        notify_owners = ["paolosev@microsoft.com"],
+        notify_owners = ["choongwoo.han@microsoft.com", "emromero@microsoft.com", "paolosev@microsoft.com"],
     ),
 )
 
