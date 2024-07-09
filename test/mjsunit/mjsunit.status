@@ -2037,7 +2037,7 @@
 }],  # arch != x64 or gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
-['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64) or (simulator_run and conservative_stack_scanning))', {
+['(arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64) or (simulator_run and conservative_stack_scanning)', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-new-api': [SKIP],
@@ -2065,20 +2065,17 @@
 
 ##############################################################################
 # TODO(mliedtke): Support deopts on all platforms.
-['(arch != x64 and arch != arm64 and arch != ia32)', {
+['arch != x64 and arch != arm64 and arch != ia32', {
   # --wasm-deopt implementation experimental and not ported to most
   # architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
 }],
-['(arch == ia32)', {
+['arch == ia32', {
   # ia32 wasm deopt support is work in progress.
   # deopt-nan failing in full debug:
   # https://ci.chromium.org/ui/p/v8/builders/ci/V8%20Linux%20-%20full%20debug/31790/overview
   'wasm/deopt/deopt-nan': [SKIP],
-  'wasm/deopt/deopt-value-types': [SKIP],             # int64 lowering missing
-  'wasm/deopt/deopt-many-params-tagged': [SKIP],      # int64 lowering missing
-  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP], # unknown reason
 }],
 
 

@@ -35,6 +35,8 @@ class LiftoffVarState {
   bool is_stack() const { return loc_ == kStack; }
   bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
   bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
+  bool is_gp_reg_pair() const { return loc_ == kRegister && reg_.is_gp_pair(); }
+  bool is_fp_reg_pair() const { return loc_ == kRegister && reg_.is_fp_pair(); }
   bool is_reg() const { return loc_ == kRegister; }
   bool is_const() const { return loc_ == kIntConst; }
 

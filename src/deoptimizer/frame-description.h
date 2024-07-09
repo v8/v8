@@ -128,9 +128,17 @@ class FrameDescription {
 
   // Same as SetFrameSlot but also supports the offset to be unaligned (4 Byte
   // aligned) as liftoff doesn't align frame slots if they aren't references.
-  void SetLiftoffFrameSlot64(unsigned offset, intptr_t value) {
+  void SetLiftoffFrameSlot64(unsigned offset, int64_t value) {
     base::WriteUnalignedValue(
         reinterpret_cast<char*>(GetFrameSlotPointer(offset)), value);
+  }
+
+  void SetLiftoffFrameSlotPointer(unsigned offset, intptr_t value) {
+    if constexpr (Is64()) {
+      SetLiftoffFrameSlot64(offset, value);
+    } else {
+      SetLiftoffFrameSlot32(offset, value);
+    }
   }
 
   void SetCallerPc(unsigned offset, intptr_t value);

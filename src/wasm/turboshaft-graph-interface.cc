@@ -5717,8 +5717,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
 
-    if (builder.Inputs().size() >=
-        std::numeric_limits<decltype(Operation::input_count)>::max()) {
+    size_t max_input_count =
+        std::numeric_limits<decltype(Operation::input_count)>::max();
+    // Int64 lowering might double the input count.
+    if (!Is64()) max_input_count /= 2;
+    if (builder.Inputs().size() >= max_input_count) {
       // If there are too many inputs, we cannot create a valid FrameState.
       // For simplicity reasons disable deopts completely for the rest of the
       // function. (Note that this is an exceptional case that should not be

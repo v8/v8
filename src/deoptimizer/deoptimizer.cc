@@ -981,11 +981,22 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
 
   DCHECK_GE(translated_state_.frames().size(), 1);
   auto liftoff_iter = liftoff_description->var_state.begin();
-  DCHECK_EQ(liftoff_description->var_state.size(), frame.GetValueCount());
+  if constexpr (Is64()) {
+    // On 32 bit platforms int64s are represented as 2 values on Turbofan.
+    // Liftoff on the other hand treats them as 1 value (a register pair).
+    DCHECK_EQ(liftoff_description->var_state.size(), frame.GetValueCount());
+  }
+
+  bool int64_lowering_is_low = true;
 
   for (const TranslatedValue& value : frame) {
+    bool skip_increase_liftoff_iter = false;
     switch (liftoff_iter->loc()) {
       case wasm::LiftoffVarState::kIntConst:
+        if (!Is64() && liftoff_iter->kind() == wasm::ValueKind::kI64) {
+          if (int64_lowering_is_low) skip_increase_liftoff_iter = true;
+          int64_lowering_is_low = !int64_lowering_is_low;
+        }
         break;  // Nothing to be done for constants in liftoff frame.
       case wasm::LiftoffVarState::kRegister:
         if (liftoff_iter->is_gp_reg()) {
@@ -1026,9 +1037,29 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           }
           output_frame->SetSimd128Register(liftoff_iter->reg().fp().code(),
                                            simd_value);
+        } else if (!Is64() && liftoff_iter->is_gp_reg_pair()) {
+          intptr_t reg_value = kZapValue;
+          switch (value.kind()) {
+            case TranslatedValue::Kind::kInt32:
+              // Ensure that the upper half is zeroed out.
+              reg_value = static_cast<uint32_t>(value.int32_value());
+              break;
+            case TranslatedValue::Kind::kTagged:
+              reg_value = value.raw_literal().ptr();
+              break;
+            default:
+              UNREACHABLE();
+          }
+          int8_t reg = int64_lowering_is_low
+                           ? liftoff_iter->reg().low_gp().code()
+                           : liftoff_iter->reg().high_gp().code();
+          output_frame->SetRegister(reg, reg_value);
+          if (int64_lowering_is_low) skip_increase_liftoff_iter = true;
+          int64_lowering_is_low = !int64_lowering_is_low;
+        } else if (!Is64() && liftoff_iter->is_fp_reg_pair()) {
+          UNIMPLEMENTED();  // TODO(mliedtke): Needed for arm32.
         } else {
-          // Register pairs, floating point registers and potentially others.
-          UNIMPLEMENTED();
+          UNREACHABLE();
         }
         break;
       case wasm::LiftoffVarState::kStack:
@@ -1046,10 +1077,27 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
                 value.float_value().get_bits());
             break;
           case wasm::ValueKind::kI64:
-            DCHECK(value.kind() == TranslatedValue::Kind::kInt64 ||
-                   value.kind() == TranslatedValue::Kind::kUint64);
-            output_frame->SetLiftoffFrameSlot64(
-                base_offset - liftoff_iter->offset(), value.int64_value_);
+            if constexpr (Is64()) {
+              DCHECK(value.kind() == TranslatedValue::Kind::kInt64 ||
+                     value.kind() == TranslatedValue::Kind::kUint64);
+              output_frame->SetLiftoffFrameSlot64(
+                  base_offset - liftoff_iter->offset(), value.int64_value_);
+            } else {
+              DCHECK(value.kind() == TranslatedValue::Kind::kInt32 ||
+                     value.kind() == TranslatedValue::Kind::kUint32);
+              // TODO(bigendian): Either the offsets or the default for
+              // int64_lowering_is_low might have to be swapped.
+              if (int64_lowering_is_low) {
+                skip_increase_liftoff_iter = true;
+                output_frame->SetLiftoffFrameSlot32(
+                    base_offset - liftoff_iter->offset(), value.int32_value_);
+              } else {
+                output_frame->SetLiftoffFrameSlot32(
+                    base_offset - liftoff_iter->offset() + 4,
+                    value.int32_value_);
+              }
+              int64_lowering_is_low = !int64_lowering_is_low;
+            }
             break;
           case wasm::ValueKind::kS128: {
             int64x2 values = value.simd128_value_.to_i64x2();
@@ -1068,7 +1116,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           case wasm::ValueKind::kRef:
           case wasm::ValueKind::kRefNull:
             DCHECK_EQ(value.kind(), TranslatedValue::Kind::kTagged);
-            output_frame->SetLiftoffFrameSlot64(
+            output_frame->SetLiftoffFrameSlotPointer(
                 base_offset - liftoff_iter->offset(), value.raw_literal_.ptr());
             break;
           default:
@@ -1076,7 +1124,10 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
         }
         break;
     }
-    ++liftoff_iter;
+    DCHECK_IMPLIES(skip_increase_liftoff_iter, !Is64());
+    if (!skip_increase_liftoff_iter) {
+      ++liftoff_iter;
+    }
   }
 
   // Store frame kind.

@@ -503,11 +503,75 @@ class Int64LoweringReducer : public Next {
         low_replaced, high, Simd128ReplaceLaneOp::Kind::kI32x4, 2 * lane + 1);
   }
 
+  V<turboshaft::FrameState> REDUCE(FrameState)(
+      base::Vector<const OpIndex> inputs, bool inlined,
+      const FrameStateData* data) {
+    bool has_int64_input = false;
+
+    for (MachineType type : data->machine_types) {
+      if (RegisterRepresentation::FromMachineType(type) ==
+          RegisterRepresentation::Word64()) {
+        has_int64_input = true;
+        break;
+      }
+    }
+    if (!has_int64_input) {
+      return Next::ReduceFrameState(inputs, inlined, data);
+    }
+    FrameStateData::Builder builder;
+    if (inlined) {
+      builder.AddParentFrameState(V<turboshaft::FrameState>(inputs[0]));
+    }
+    const FrameStateFunctionInfo* function_info =
+        data->frame_state_info.function_info();
+    uint16_t lowered_parameter_count = function_info->parameter_count();
+    int lowered_local_count = function_info->local_count();
+
+    for (size_t i = inlined; i < inputs.size(); ++i) {
+      // In case of inlining the parent FrameState is an additional input,
+      // however, it doesn't have an entry in the machine_types vector, so that
+      // index has to be adapted.
+      size_t machine_type_index = i - inlined;
+      if (RegisterRepresentation::FromMachineType(
+              data->machine_types[machine_type_index]) ==
+          RegisterRepresentation::Word64()) {
+        auto [low, high] = Unpack(V<Word64>::Cast(inputs[i]));
+        builder.AddInput(MachineType::Int32(), low);
+        builder.AddInput(MachineType::Int32(), high);
+        if (i < inlined + function_info->parameter_count()) {
+          ++lowered_parameter_count;
+        } else {
+          ++lowered_local_count;
+        }
+      } else {
+        // Just copy over the existing input.
+        builder.AddInput(data->machine_types[machine_type_index], inputs[i]);
+      }
+    }
+    Zone* zone = Asm().data()->shared_zone();
+    auto* function_info_lowered = zone->New<compiler::FrameStateFunctionInfo>(
+        compiler::FrameStateType::kLiftoffFunction, lowered_parameter_count,
+        function_info->max_arguments(), lowered_local_count,
+        function_info->shared_info(), function_info->wasm_liftoff_frame_size(),
+        function_info->wasm_function_index());
+    const FrameStateInfo& frame_state_info = data->frame_state_info;
+    auto* frame_state_info_lowered = zone->New<compiler::FrameStateInfo>(
+        frame_state_info.bailout_id(), frame_state_info.state_combine(),
+        function_info_lowered);
+
+    return Next::ReduceFrameState(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(*frame_state_info_lowered, zone));
+  }
+
  private:
   bool CheckPairOrPairOp(OpIndex input) {
 #ifdef DEBUG
     if (const TupleOp* tuple = matcher_.TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
+      RegisterRepresentation word32 = RegisterRepresentation::Word32();
+      DCHECK(ValidOpInputRep(__ output_graph(), tuple->input(0), word32));
+      DCHECK(ValidOpInputRep(__ output_graph(), tuple->input(1), word32));
     } else if (const DidntThrowOp* didnt_throw =
                    matcher_.TryCast<DidntThrowOp>(input)) {
       // If it's a call, it must be a call that returns exactly one i64.
