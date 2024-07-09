@@ -3719,8 +3719,10 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   } else if (key == roots.elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
-  } else if (key == roots.object_clone_transition_symbol()) {
-    os << "(clone object dependency transition)";
+  } else if (key == roots.clone_object_ic_transition_symbol()) {
+    os << "(clone object ic dependency transition)";
+  } else if (key == roots.object_assign_clone_transition_symbol()) {
+    os << "(object assign clone cache transition)";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
@@ -3819,8 +3821,10 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
-        } else if (key == roots.object_clone_transition_symbol()) {
-          os << "clone object dependency";
+        } else if (key == roots.clone_object_ic_transition_symbol()) {
+          os << "clone object ic dependency";
+        } else if (key == roots.object_assign_clone_transition_symbol()) {
+          os << "object assign clone cache";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);

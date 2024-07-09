@@ -291,7 +291,8 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
 // static
 bool TransitionsAccessor::IsSpecialSidestepTransition(ReadOnlyRoots roots,
                                                       Tagged<Name> name) {
-  return name == roots.object_clone_transition_symbol();
+  return name == roots.object_assign_clone_transition_symbol() ||
+         name == roots.clone_object_ic_transition_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(

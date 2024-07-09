@@ -3495,12 +3495,12 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
 namespace {
 
 std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
-                                             DirectHandle<Map> source_map) {
+                                             DirectHandle<Map> source_map,
+                                             Handle<Symbol> name) {
   if (!v8_flags.clone_object_sidestep_transitions) return {};
   ReadOnlyRoots roots(isolate);
   auto maybe_target =
-      TransitionsAccessor(isolate, *source_map)
-          .SearchSpecial(roots.object_clone_transition_symbol());
+      TransitionsAccessor(isolate, *source_map).SearchSpecial(*name);
 #ifdef DEBUG
   FastCloneObjectMode clone_mode =
       GetCloneModeForMap(source_map, false, isolate);
@@ -3533,42 +3533,39 @@ std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
 }
 
 void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
-                       DirectHandle<Map> new_target_map) {
+                       DirectHandle<Map> new_target_map, Handle<Symbol> name) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
   DCHECK(CanCacheCloneTargetMapTransition(source_map, new_target_map, false,
                                           isolate));
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
 #ifdef DEBUG
-  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map, name);
   DCHECK(!cur || (*cur)->is_deprecated());
 #endif  // DEBUG
   DCHECK(IsSmiOrObjectElementsKind(new_target_map->elements_kind()));
-  TransitionsAccessor::Insert(
-      isolate, source_map,
-      ReadOnlyRoots(isolate).object_clone_transition_symbol_handle(),
-      new_target_map, TransitionKindFlag::SPECIAL_TRANSITION);
+  TransitionsAccessor::Insert(isolate, source_map, name, new_target_map,
+                              TransitionKindFlag::SPECIAL_TRANSITION);
 #ifdef DEBUG
-  cur = GetCloneTargetMap(isolate, source_map);
+  cur = GetCloneTargetMap(isolate, source_map, name);
   DCHECK(cur);
   DCHECK_EQ(*cur, *new_target_map);
 #endif  // DEBUG
 }
 
-void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map) {
+void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map,
+                                  Handle<Symbol> name) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
   DCHECK(CanCacheCloneTargetMapTransition(source_map, {}, false, isolate));
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
 #ifdef DEBUG
-  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map, name);
   DCHECK(!cur || (*cur)->is_deprecated());
 #endif  // DEBUG
-  TransitionsAccessor::InsertNoneSentinel(
-      isolate, source_map,
-      ReadOnlyRoots(isolate).object_clone_transition_symbol_handle());
+  TransitionsAccessor::InsertNoneSentinel(isolate, source_map, name);
 #ifdef DEBUG
-  cur = GetCloneTargetMap(isolate, source_map);
+  cur = GetCloneTargetMap(isolate, source_map, name);
   DCHECK(cur && cur->is_null());
 #endif  // DEBUG
 }
@@ -3599,7 +3596,9 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
       ReadOnlyRoots roots(isolate);
       bool unsupported = false;
       if (!null_proto_literal) {
-        if (auto maybe_target = GetCloneTargetMap(isolate, source_map)) {
+        if (auto maybe_target = GetCloneTargetMap(
+                isolate, source_map,
+                roots.clone_object_ic_transition_symbol_handle())) {
           if (maybe_target->is_null()) {
             unsupported = true;
           } else if (!(*maybe_target)->is_deprecated()) {
@@ -3618,7 +3617,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
         UpdateNexus(target_map);
         if (CanCacheCloneTargetMapTransition(source_map, target_map,
                                              null_proto_literal, isolate)) {
-          SetCloneTargetMap(isolate, source_map, target_map);
+          SetCloneTargetMap(isolate, source_map, target_map,
+                            roots.clone_object_ic_transition_symbol_handle());
         }
       };
       switch (clone_mode) {
@@ -3649,7 +3649,9 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           } else {
             if (CanCacheCloneTargetMapTransition(source_map, {},
                                                  null_proto_literal, isolate)) {
-              SetCloneTargetMapUnsupported(isolate, source_map);
+              SetCloneTargetMapUnsupported(
+                  isolate, source_map,
+                  roots.clone_object_ic_transition_symbol_handle());
             }
             if (nexus) {
               nexus->ConfigureMegamorphic();
@@ -3695,6 +3697,26 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   return *value;
 }
 
+namespace {
+
+bool MaybeCanCloneObjectForObjectAssign(Handle<Map> source_map,
+                                        Isolate* isolate) {
+  FastCloneObjectMode clone_mode =
+      GetCloneModeForMap(source_map, false, isolate);
+  switch (clone_mode) {
+    case FastCloneObjectMode::kIdenticalMap:
+    case FastCloneObjectMode::kDifferentMap:
+      return true;
+    case FastCloneObjectMode::kNotSupported:
+      return false;
+    case FastCloneObjectMode::kEmptyObject:
+      // Cannot happen since we should only be called with JSObjects.
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
 // Returns one of:
 // * A map to be used with FastCloneJSObject
 // * Undefined if fast cloning is not possible
@@ -3726,7 +3748,8 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
   ReadOnlyRoots roots(isolate);
   {
     std::optional<Tagged<Map>> maybe_clone_target =
-        GetCloneTargetMap(isolate, source_map);
+        GetCloneTargetMap(isolate, source_map,
+                          roots.object_assign_clone_transition_symbol_handle());
     if (V8_LIKELY(maybe_clone_target)) {
       if (maybe_clone_target->is_null()) {
         return roots.undefined_value();
@@ -3736,34 +3759,37 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
     }
   }
 
-  FastCloneObjectMode clone_mode =
-      GetCloneModeForMap(source_map, false, isolate);
-  switch (clone_mode) {
-    case FastCloneObjectMode::kIdenticalMap:
-    case FastCloneObjectMode::kDifferentMap: {
-      USE(JSReceiver::SetOrCopyDataProperties(
-          isolate, target, source,
-          PropertiesEnumerationMode::kEnumerationOrder));
-      Handle<Map> clone_target_map = handle(target->map(), isolate);
-      if (CanFastCloneObjectWithDifferentMaps(source_map, clone_target_map,
-                                              false, isolate)) {
-        if (CanCacheCloneTargetMapTransition(source_map, clone_target_map,
-                                             false, isolate)) {
-          SetCloneTargetMap(isolate, source_map, clone_target_map);
-        }
-        // We already did the copying here. Thus, returning true to cause the
-        // CSA builtin to skip assigning anything.
-        return roots.true_value();
-      }
-      [[fallthrough]];
+  auto UpdateCache = [&](Handle<Map> clone_target_map) {
+    if (CanCacheCloneTargetMapTransition(source_map, clone_target_map, false,
+                                         isolate)) {
+      SetCloneTargetMap(isolate, source_map, clone_target_map,
+                        roots.object_assign_clone_transition_symbol_handle());
     }
-    case FastCloneObjectMode::kNotSupported:
-      SetCloneTargetMapUnsupported(isolate, source_map);
-      return roots.undefined_value();
-    case FastCloneObjectMode::kEmptyObject:
-      DCHECK(false);
-      return roots.undefined_value();
+  };
+  auto UpdateCacheNotClonable = [&]() {
+    SetCloneTargetMapUnsupported(
+        isolate, source_map,
+        roots.object_assign_clone_transition_symbol_handle());
+  };
+
+  if (MaybeCanCloneObjectForObjectAssign(source_map, isolate)) {
+    Maybe<bool> res = JSReceiver::SetOrCopyDataProperties(
+        isolate, target, source, PropertiesEnumerationMode::kEnumerationOrder);
+    DCHECK(res.IsJust());
+    USE(res);
+    Handle<Map> clone_target_map = handle(target->map(), isolate);
+    if (CanFastCloneObjectWithDifferentMaps(source_map, clone_target_map, false,
+                                            isolate)) {
+      UpdateCache(clone_target_map);
+    } else {
+      UpdateCacheNotClonable();
+    }
+    // We already did the copying here. Thus, returning true to cause the
+    // CSA builtin to skip assigning anything.
+    return roots.true_value();
   }
+  UpdateCacheNotClonable();
+  return roots.undefined_value();
 }
 
 /**
