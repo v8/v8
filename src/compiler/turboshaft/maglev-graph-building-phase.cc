@@ -2815,12 +2815,19 @@ class GraphBuilder {
   PROCESS_INT32_BITWISE_BINOP(Xor)
 #undef PROCESS_INT32_BITWISE_BINOP
 
-#define PROCESS_INT32_SHIFT(MaglevName, TurboshaftName)                 \
-  maglev::ProcessResult Process(maglev::Int32##MaglevName* node,        \
-                                const maglev::ProcessingState& state) { \
-    SetMap(node, __ Word32##TurboshaftName(Map(node->left_input()),     \
-                                           Map(node->right_input())));  \
-    return maglev::ProcessResult::kContinue;                            \
+#define PROCESS_INT32_SHIFT(MaglevName, TurboshaftName)                        \
+  maglev::ProcessResult Process(maglev::Int32##MaglevName* node,               \
+                                const maglev::ProcessingState& state) {        \
+    V<Word32> right = Map(node->right_input());                                \
+    if (!SupportedOperations::word32_shift_is_safe()) {                        \
+      /* JavaScript spec says that the right-hand side of a shift should be    \
+       * taken modulo 32. Some architectures do this automatically, some       \
+       * don't. For those that don't, which do this modulo 32 with a `& 0x1f`. \
+       */                                                                      \
+      right = __ Word32BitwiseAnd(right, 0x1f);                                \
+    }                                                                          \
+    SetMap(node, __ Word32##TurboshaftName(Map(node->left_input()), right));   \
+    return maglev::ProcessResult::kContinue;                                   \
   }
   PROCESS_INT32_SHIFT(ShiftLeft, ShiftLeft)
   PROCESS_INT32_SHIFT(ShiftRight, ShiftRightArithmetic)
