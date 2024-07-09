@@ -246,8 +246,8 @@ class MaglevGraphBuilder {
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
   void InitializeRegister(interpreter::Register reg, ValueNode* value);
-  ValueNode* GetArgument(int i);
-  ValueNode* GetInlinedArgument(int i);
+  ValueNode* GetTaggedArgument(int i);
+  ValueNode* GetInlinedTaggedArgument(int i);
   void BuildRegisterFrameInitialization(ValueNode* context = nullptr,
                                         ValueNode* closure = nullptr,
                                         ValueNode* new_target = nullptr);
@@ -1188,7 +1188,7 @@ class MaglevGraphBuilder {
         [&](CallRuntime* call_runtime) {
           int arg_index = 0;
           for (auto* input : inputs) {
-            call_runtime->set_arg(arg_index++, GetTaggedValue(input));
+            call_runtime->set_arg(arg_index++, input);
           }
         },
         function_id, GetContext());
@@ -1409,15 +1409,25 @@ class MaglevGraphBuilder {
                                       hint);
   }
 
-  ValueNode* GetAccumulator() {
+  ValueNode* GetRawAccumulator() {
     return current_interpreter_frame_.get(
         interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorTagged(UseReprHintRecording record_use_repr_hint =
+                                      UseReprHintRecording::kRecord) {
+    return GetTaggedValue(interpreter::Register::virtual_accumulator(),
+                          record_use_repr_hint);
   }
 
   ReduceResult GetAccumulatorSmi(UseReprHintRecording record_use_repr_hint =
                                      UseReprHintRecording::kRecord) {
     return GetSmiValue(interpreter::Register::virtual_accumulator(),
                        record_use_repr_hint);
+  }
+
+  ValueNode* GetAccumulatorInt32() {
+    return GetInt32(interpreter::Register::virtual_accumulator());
   }
 
   ValueNode* GetAccumulatorTruncatedInt32ForToNumber(ToNumberHint hint) {
@@ -1428,6 +1438,15 @@ class MaglevGraphBuilder {
   ValueNode* GetAccumulatorUint8ClampedForToNumber(ToNumberHint hint) {
     return GetUint8ClampedForToNumber(
         interpreter::Register::virtual_accumulator(), hint);
+  }
+
+  ValueNode* GetAccumulatorFloat64() {
+    return GetFloat64(interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorFloat64ForToNumber(ToNumberHint hint) {
+    return GetFloat64ForToNumber(interpreter::Register::virtual_accumulator(),
+                                 hint);
   }
 
   ValueNode* GetAccumulatorHoleyFloat64ForToNumber(ToNumberHint hint) {
@@ -1469,9 +1488,27 @@ class MaglevGraphBuilder {
            current_interpreter_frame_.accumulator();
   }
 
-  ValueNode* LoadRegister(int operand_index) {
+  ValueNode* LoadRegisterRaw(int operand_index) {
     return current_interpreter_frame_.get(
         iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterTagged(int operand_index) {
+    return GetTaggedValue(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterInt32(int operand_index) {
+    return GetInt32(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterFloat64(int operand_index) {
+    return GetFloat64(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterFloat64ForToNumber(int operand_index,
+                                            ToNumberHint hint) {
+    return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
+                                 hint);
   }
 
   ValueNode* LoadRegisterHoleyFloat64ForToNumber(int operand_index,
@@ -1660,13 +1697,12 @@ class MaglevGraphBuilder {
     PrintVirtualObjects();
   }
 
-  template <UseReprHintRecording hint>
   ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected) {
     ValueRepresentation repr = input->properties().value_representation();
     if (repr == expected) return input;
     switch (expected) {
       case ValueRepresentation::kTagged:
-        return GetTaggedValue(input, hint);
+        return GetTaggedValue(input);
       case ValueRepresentation::kInt32:
         return GetInt32(input);
       case ValueRepresentation::kFloat64:
@@ -1680,27 +1716,13 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT>
-  static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
-    // We do not record a Tagged use on Return, since they are never on the hot
-    // path, and will lead to a maximum of one additional Tagging operation in
-    // the worst case. This allows loop accumulator to be untagged even if they
-    // are later returned.
-    if constexpr (std::is_same_v<NodeT, Return>) {
-      return UseReprHintRecording::kDoNotRecord;
-    } else {
-      return UseReprHintRecording::kRecord;
-    }
-  }
-
-  template <typename NodeT>
   void SetNodeInputs(NodeT* node, std::initializer_list<ValueNode*> inputs) {
     // Nodes with zero input count don't have kInputTypes defined.
     if constexpr (NodeT::kInputCount > 0) {
-      constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
       int i = 0;
       for (ValueNode* input : inputs) {
         DCHECK_NOT_NULL(input);
-        node->set_input(i, ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+        node->set_input(i, ConvertInputTo(input, NodeT::kInputTypes[i]));
         i++;
       }
     }
@@ -1758,13 +1780,15 @@ class MaglevGraphBuilder {
     }
   }
 
-  ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
+  ValueNode* GetTaggedOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
       return GetRootConstant(RootIndex::kUndefinedValue);
     }
-    return maybe_value;
+    return GetTaggedValue(maybe_value);
   }
 
+  ValueNode* GetRawConvertReceiver(compiler::SharedFunctionInfoRef shared,
+                                   const CallArguments& args);
   ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
 
