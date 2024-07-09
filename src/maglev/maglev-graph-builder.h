@@ -416,9 +416,9 @@ class MaglevGraphBuilder {
     void MergeIntoLabel(Label* label, BasicBlock* predecessor);
 
    private:
-    class BorrowParentKnownNodeAspects;
-    void TakeKnownNodeAspectsFromParent();
-    void MoveKnownNodeAspectsToParent();
+    class BorrowParentKnownNodeAspectsAndVOs;
+    void TakeKnownNodeAspectsAndVOsFromParent();
+    void MoveKnownNodeAspectsAndVOsToParent();
 
     MaglevGraphBuilder* builder_;
     MaglevCompilationUnit* compilation_unit_;
@@ -488,6 +488,7 @@ class MaglevGraphBuilder {
                                    BasicBlock* predecessor) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== New empty block ==" << std::endl;
+      PrintVirtualObjects();
     }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr, zone());
@@ -677,13 +678,9 @@ class MaglevGraphBuilder {
 
   void PrintVirtualObjects() {
     if (!v8_flags.trace_maglev_graph_building) return;
-    std::cout << "VOs (Interpreter Frame State): ";
-    for (const VirtualObject* vo :
-         current_interpreter_frame_.virtual_objects()) {
-      std::cout << PrintNodeLabel(compilation_unit()->graph_labeller(), vo)
-                << "; ";
-    }
-    std::cout << std::endl;
+    current_interpreter_frame_.virtual_objects().Print(
+        std::cout, "* VOs (Interpreter Frame State): ",
+        compilation_unit()->graph_labeller());
   }
 
   void VisitSingleBytecode() {
@@ -717,9 +714,11 @@ class MaglevGraphBuilder {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
-        std::cout << "== New block (" << detail << ") at "
+        std::cout << "== New block (" << detail << " @" << merge_state
+                  << ") at "
                   << compilation_unit()->shared_function_info().object()
                   << "==" << std::endl;
+        PrintVirtualObjects();
       }
 
       if (V8_UNLIKELY(merge_state->is_exception_handler())) {
@@ -788,10 +787,7 @@ class MaglevGraphBuilder {
         }
         int handler = table.GetRangeHandler(next_handler_table_index_);
         catch_block_stack_.push({end, handler});
-        // Merge VOs into catch block state.
         DCHECK_NOT_NULL(merge_states_[handler]);
-        merge_states_[handler]->set_virtual_objects(
-            current_interpreter_frame_.virtual_objects());
         next_handler_table_index_++;
       }
     }
@@ -1694,7 +1690,6 @@ class MaglevGraphBuilder {
       current_block_->set_predecessor(predecessor);
     }
     refs_to_block.Bind(current_block_);
-    PrintVirtualObjects();
   }
 
   ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected) {
@@ -1773,6 +1768,7 @@ class MaglevGraphBuilder {
         std::cout << "== New block (single fallthrough) at "
                   << *compilation_unit_->shared_function_info().object()
                   << "==" << std::endl;
+        PrintVirtualObjects();
       }
       StartNewBlock(next_block_offset, predecessor);
     } else {

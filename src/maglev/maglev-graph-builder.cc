@@ -490,14 +490,16 @@ class MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
   BasicBlock* loop_header_;
 };
 
-class MaglevGraphBuilder::MaglevSubGraphBuilder::BorrowParentKnownNodeAspects {
+class MaglevGraphBuilder::MaglevSubGraphBuilder::
+    BorrowParentKnownNodeAspectsAndVOs {
  public:
-  explicit BorrowParentKnownNodeAspects(MaglevSubGraphBuilder* sub_builder)
+  explicit BorrowParentKnownNodeAspectsAndVOs(
+      MaglevSubGraphBuilder* sub_builder)
       : sub_builder_(sub_builder) {
-    sub_builder_->TakeKnownNodeAspectsFromParent();
+    sub_builder_->TakeKnownNodeAspectsAndVOsFromParent();
   }
-  ~BorrowParentKnownNodeAspects() {
-    sub_builder_->MoveKnownNodeAspectsToParent();
+  ~BorrowParentKnownNodeAspectsAndVOs() {
+    sub_builder_->MoveKnownNodeAspectsAndVOsToParent();
   }
 
  private:
@@ -642,7 +644,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
           loop_info);
 
   {
-    BorrowParentKnownNodeAspects borrow(this);
+    BorrowParentKnownNodeAspectsAndVOs borrow(this);
     loop_state->Merge(builder_, *compilation_unit_, pseudo_frame_,
                       loop_predecessor);
   }
@@ -650,7 +652,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // Start a new basic block for the loop.
   DCHECK_NULL(pseudo_frame_.known_node_aspects());
   pseudo_frame_.CopyFrom(*compilation_unit_, *loop_state);
-  MoveKnownNodeAspectsToParent();
+  MoveKnownNodeAspectsAndVOsToParent();
 
   builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
   builder_->StartNewBlock(nullptr, loop_state, loop_header_ref);
@@ -731,7 +733,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
   BasicBlock* block =
       builder_->FinishBlock<JumpLoop>({}, loop_label->loop_header_);
   {
-    BorrowParentKnownNodeAspects borrow(this);
+    BorrowParentKnownNodeAspectsAndVOs borrow(this);
     loop_label->merge_state_->MergeLoop(builder_, *compilation_unit_,
                                         pseudo_frame_, block);
   }
@@ -757,7 +759,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
 
   DCHECK_NULL(pseudo_frame_.known_node_aspects());
   pseudo_frame_.CopyFrom(*compilation_unit_, *label->merge_state_);
-  MoveKnownNodeAspectsToParent();
+  MoveKnownNodeAspectsAndVOsToParent();
 
   CHECK_EQ(label->merge_state_->predecessors_so_far(),
            label->predecessor_count_);
@@ -844,22 +846,29 @@ ReduceResult MaglevGraphBuilder::SelectReduction(FCond cond, FTrue if_true,
 // to the parent. This is so that the parent graph builder can update its own
 // known node aspects without having to worry about this pseudo frame.
 void MaglevGraphBuilder::MaglevSubGraphBuilder::
-    TakeKnownNodeAspectsFromParent() {
+    TakeKnownNodeAspectsAndVOsFromParent() {
   DCHECK_NULL(pseudo_frame_.known_node_aspects());
+  DCHECK(pseudo_frame_.virtual_objects().is_empty());
   pseudo_frame_.set_known_node_aspects(
       builder_->current_interpreter_frame_.known_node_aspects());
+  pseudo_frame_.set_virtual_objects(
+      builder_->current_interpreter_frame_.virtual_objects());
 }
 
-void MaglevGraphBuilder::MaglevSubGraphBuilder::MoveKnownNodeAspectsToParent() {
+void MaglevGraphBuilder::MaglevSubGraphBuilder::
+    MoveKnownNodeAspectsAndVOsToParent() {
   DCHECK_NOT_NULL(pseudo_frame_.known_node_aspects());
   builder_->current_interpreter_frame_.set_known_node_aspects(
       pseudo_frame_.known_node_aspects());
   pseudo_frame_.clear_known_node_aspects();
+  builder_->current_interpreter_frame_.set_virtual_objects(
+      pseudo_frame_.virtual_objects());
+  pseudo_frame_.set_virtual_objects(VirtualObject::List());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     Label* label, BasicBlock* predecessor) {
-  BorrowParentKnownNodeAspects borrow(this);
+  BorrowParentKnownNodeAspectsAndVOs borrow(this);
 
   if (label->merge_state_ == nullptr) {
     // If there's no merge state, allocate a new one.
@@ -11563,7 +11572,6 @@ void MaglevGraphBuilder::VisitJumpIfToBooleanFalseConstant() {
 
 void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
                                              int target) {
-  PrintVirtualObjects();
   if (merge_states_[target] == nullptr) {
     DCHECK(!bytecode_analysis().IsLoopHeader(target) ||
            loop_headers_to_peel_.Contains(target));

@@ -5140,6 +5140,8 @@ class VirtualObject::List {
     head_ = object;
   }
 
+  bool is_empty() const { return head_ == nullptr; }
+
   VirtualObject* FindAllocatedWith(InlinedAllocation* allocation) const {
     VirtualObject* result = nullptr;
     for (VirtualObject* vo : *this) {
@@ -5151,6 +5153,9 @@ class VirtualObject::List {
     CHECK_NOT_NULL(result);
     return result;
   }
+
+  void Print(std::ostream& os, const char* prefix,
+             MaglevGraphLabeller* labeller) const;
 
   Iterator begin() const { return Iterator(head_); }
   Iterator end() const { return Iterator(nullptr); }

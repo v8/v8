@@ -894,6 +894,15 @@ class MergePointInterpreterFrameState {
     frame_state_.set_virtual_objects(vos);
   }
 
+  void PrintVirtualObjects(const MaglevCompilationUnit& info,
+                           VirtualObject::List from_ifs) {
+    if (!v8_flags.trace_maglev_graph_building) return;
+    from_ifs.Print(std::cout,
+                   "* VOs (Interpreter Frame State): ", info.graph_labeller());
+    frame_state_.virtual_objects().Print(
+        std::cout, "* VOs (Merge Frame State): ", info.graph_labeller());
+  }
+
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;
   }
@@ -1045,6 +1054,11 @@ class MergePointInterpreterFrameState {
 
 void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
                                      MergePointInterpreterFrameState& state) {
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "- Copying frame state from merge @" << &state << std::endl;
+    state.PrintVirtualObjects(info, virtual_objects());
+  }
+
   state.frame_state().ForEachValue(
       info, [&](ValueNode* value, interpreter::Register reg) {
         // Patch the allocation back.

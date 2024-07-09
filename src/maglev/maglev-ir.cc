@@ -360,6 +360,17 @@ size_t VirtualObject::InputLocationSizeNeeded() const {
   return size;
 }
 
+void VirtualObject::List::Print(std::ostream& os, const char* prefix,
+                                MaglevGraphLabeller* labeller) const {
+  CHECK_NOT_NULL(labeller);
+  os << prefix;
+  for (const VirtualObject* vo : *this) {
+    labeller->PrintNodeLabel(os, vo);
+    os << "; ";
+  }
+  os << std::endl;
+}
+
 size_t ValueNode::GetInputLocationsArraySize() const {
   // We allocate the space needed for the Virtual Object plus one location
   // used if the allocation escapes.

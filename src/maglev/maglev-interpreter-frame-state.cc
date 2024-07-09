@@ -202,22 +202,6 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
                     frame_state_.size(info))) {}
 
 namespace {
-void PrintVirtualObjects(const MaglevCompilationUnit& compilation_unit,
-                         const VirtualObject::List& from_ifs,
-                         const VirtualObject::List& from_mfs) {
-  if (!v8_flags.trace_maglev_graph_building) return;
-  std::cout << "VOs (Interpreter Frame State): ";
-  for (const VirtualObject* vo : from_ifs) {
-    std::cout << PrintNodeLabel(compilation_unit.graph_labeller(), vo) << "; ";
-  }
-  std::cout << std::endl;
-  std::cout << "VOs (Merge Frame State): ";
-  for (const VirtualObject* vo : from_mfs) {
-    std::cout << PrintNodeLabel(compilation_unit.graph_labeller(), vo) << "; ";
-  }
-  std::cout << std::endl;
-}
-
 void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
                       ValueNode* current_value, ValueNode* unmerged_value,
                       interpreter::Register reg, KnownNodeAspects* kna) {
@@ -296,8 +280,7 @@ void MergePointInterpreterFrameState::Merge(
   }
 
   // TODO(victorgomes): Merge virtual objects.
-  PrintVirtualObjects(compilation_unit, unmerged.virtual_objects(),
-                      frame_state_.virtual_objects());
+  PrintVirtualObjects(compilation_unit, unmerged.virtual_objects());
 
   int i = 0;
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
@@ -379,7 +362,8 @@ void MergePointInterpreterFrameState::MergeThrow(
       builder->current_interpreter_frame();
 
   if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "Merging into exception handler..." << std::endl;
+    std::cout << "- Merging into exception handler @" << this << std::endl;
+    PrintVirtualObjects(*handler_unit, virtual_objects);
   }
 
   if (known_node_aspects_ == nullptr) {
