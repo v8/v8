@@ -149,21 +149,14 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
         LoadMapInobjectPropertiesStartInWords(target_map);
     CSA_DCHECK(this, IntPtrEqual(inobject_properties_start,
                                  target_inobject_properties_start));
-    field_offset_difference = IntPtrConstant(0);
 #endif
+    field_offset_difference = IntPtrConstant(0);
   } else {
     TNode<IntPtrT> target_inobject_properties_start =
         LoadMapInobjectPropertiesStartInWords(target_map);
     field_offset_difference = TimesTaggedSize(
         IntPtrSub(target_inobject_properties_start, inobject_properties_start));
   }
-#ifdef DEBUG
-  TNode<IntPtrT> target_inobject_properties_size =
-      LoadMapInstanceSizeInWords(target_map);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(IntPtrSub(inobject_properties_size,
-                                                      field_offset_difference),
-                                            target_inobject_properties_size));
-#endif
 
   // Just copy the fields as raw data (pretending that there are no
   // mutable HeapNumbers). This doesn't need write barriers.
@@ -180,12 +173,19 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
       },
       1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 
+  TNode<IntPtrT> target_inobject_properties_size =
+      LoadMapInstanceSizeInWords(target_map);
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(IntPtrSub(inobject_properties_size,
+                                                      field_offset_difference),
+                                            target_inobject_properties_size));
+
   // We need to go through the {object} again here and properly clone
   // them. We use a second loop here to ensure that the GC (and heap
   // verifier) always sees properly initialized objects, i.e. never
   // hits undefined values in double fields.
-  TNode<IntPtrT> start_offset = TimesTaggedSize(inobject_properties_start);
-  TNode<IntPtrT> end_offset = TimesTaggedSize(inobject_properties_size);
+  TNode<IntPtrT> start_offset = IntPtrSub(
+      TimesTaggedSize(inobject_properties_start), field_offset_difference);
+  TNode<IntPtrT> end_offset = TimesTaggedSize(target_inobject_properties_size);
   ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
       target, start_offset, end_offset);
 
