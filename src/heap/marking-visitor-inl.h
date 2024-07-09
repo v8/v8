@@ -78,6 +78,15 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }
 
+// static
+template <typename ConcreteVisitor>
+V8_INLINE constexpr bool
+MarkingVisitorBase<ConcreteVisitor>::IsTrivialWeakReferenceValue(
+    Tagged<HeapObject> host, Tagged<HeapObject> heap_object) {
+  return !IsMap(heap_object) ||
+         !(IsMap(host) || IsTransitionArray(host) || IsDescriptorArray(host));
+}
+
 // class template arguments
 template <typename ConcreteVisitor>
 // method template arguments
@@ -103,13 +112,12 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     // closure.
     // Distinguish trivial cases (non involving custom weakness) from
     // non-trivial ones. The latter are maps in host objects of type Map,
-    // TransitionArray and DescriptorArray. However, as the check is
-    // expensive, we consider all maps to be non-trivial.
-    if (IsMap(heap_object)) {
-      local_weak_objects_->weak_references_non_trivial_local.Push(
+    // TransitionArray and DescriptorArray.
+    if (V8_LIKELY(IsTrivialWeakReferenceValue(host, heap_object))) {
+      local_weak_objects_->weak_references_trivial_local.Push(
           HeapObjectAndSlot{host, slot});
     } else {
-      local_weak_objects_->weak_references_trivial_local.Push(
+      local_weak_objects_->weak_references_non_trivial_local.Push(
           HeapObjectAndSlot{host, slot});
     }
   }

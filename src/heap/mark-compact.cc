@@ -3642,6 +3642,8 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
+        DCHECK(MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
+                                                               value));
         // The value of the weak reference is non-live.
         // This is a non-atomic store, which is fine as long as we only have a
         // single clearing job.
