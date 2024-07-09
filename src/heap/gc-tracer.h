@@ -554,6 +554,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The end of the last mark-compact GC. Is set to isolate/heap setup time
   // before the first one.
   base::TimeTicks previous_mark_compact_end_time_;
+  base::TimeDelta total_duration_since_last_mark_compact_;
 
   BytesAndDurationBuffer recorded_minor_gcs_total_;
   BytesAndDurationBuffer recorded_compactions_;

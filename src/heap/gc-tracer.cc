@@ -1194,11 +1194,11 @@ void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
 
 void GCTracer::RecordMutatorUtilization(base::TimeTicks mark_compact_end_time,
                                         base::TimeDelta mark_compact_duration) {
-  const base::TimeDelta total_duration =
+  total_duration_since_last_mark_compact_ =
       mark_compact_end_time - previous_mark_compact_end_time_;
-  DCHECK_GE(total_duration, base::TimeDelta());
+  DCHECK_GE(total_duration_since_last_mark_compact_, base::TimeDelta());
   const base::TimeDelta mutator_duration =
-      total_duration - mark_compact_duration;
+      total_duration_since_last_mark_compact_ - mark_compact_duration;
   DCHECK_GE(mutator_duration, base::TimeDelta());
   if (average_mark_compact_duration_ == 0 && average_mutator_duration_ == 0) {
     // This is the first event with mutator and mark-compact durations.
@@ -1212,9 +1212,10 @@ void GCTracer::RecordMutatorUtilization(base::TimeTicks mark_compact_end_time,
         (average_mutator_duration_ + mutator_duration.InMillisecondsF()) / 2;
   }
   current_mark_compact_mutator_utilization_ =
-      !total_duration.IsZero() ? mutator_duration.InMillisecondsF() /
-                                     total_duration.InMillisecondsF()
-                               : 0;
+      !total_duration_since_last_mark_compact_.IsZero()
+          ? mutator_duration.InMillisecondsF() /
+                total_duration_since_last_mark_compact_.InMillisecondsF()
+          : 0;
   previous_mark_compact_end_time_ = mark_compact_end_time;
 }
 
@@ -1578,6 +1579,18 @@ void GCTracer::ReportFullCycleToRecorder() {
     DCHECK_NE(-1, cppgc_event.main_thread_efficiency_in_bytes_per_us);
     event.main_thread_efficiency_cpp_in_bytes_per_us =
         cppgc_event.main_thread_efficiency_in_bytes_per_us;
+
+    if (total_duration_since_last_mark_compact_.IsZero()) {
+      event.collection_weight_cpp_in_percent = 0;
+      event.main_thread_collection_weight_cpp_in_percent = 0;
+    } else {
+      event.collection_weight_cpp_in_percent =
+          event.total_cpp.total_wall_clock_duration_in_us /
+          total_duration_since_last_mark_compact_.InMicroseconds();
+      event.main_thread_collection_weight_cpp_in_percent =
+          event.main_thread_cpp.total_wall_clock_duration_in_us /
+          total_duration_since_last_mark_compact_.InMicroseconds();
+    }
   }
 
   // Unified heap statistics:
@@ -1658,12 +1671,53 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.main_thread_incremental.sweep_wall_clock_duration_in_us =
       incremental_sweeping.InMicroseconds();
 
-  // TODO(chromium:1154636): Populate the following:
-  // - event.objects
-  // - event.memory
-  // - event.collection_rate_in_percent
-  // - event.efficiency_in_bytes_per_us
-  // - event.main_thread_efficiency_in_bytes_per_us
+  // Objects:
+  event.objects.bytes_before = current_.start_object_size;
+  event.objects.bytes_after = current_.end_object_size;
+  event.objects.bytes_freed =
+      current_.end_object_size - current_.start_object_size;
+  // Memory:
+  event.memory.bytes_before = current_.start_memory_size;
+  event.memory.bytes_after = current_.end_memory_size;
+  event.memory.bytes_freed =
+      current_.end_memory_size - current_.start_memory_size;
+  // Collection Rate:
+  if (event.objects.bytes_before == 0) {
+    event.collection_rate_in_percent = 0;
+  } else {
+    event.collection_rate_in_percent =
+        static_cast<double>(event.objects.bytes_after) /
+        event.objects.bytes_before;
+  }
+  // Efficiency:
+  if (event.objects.bytes_freed == 0) {
+    event.efficiency_in_bytes_per_us = 0;
+    event.main_thread_efficiency_in_bytes_per_us = 0;
+  } else {
+    // Here, event.main_thread or even event.total can be
+    // zero if the clock resolution is not small enough and the entire GC was
+    // very short, so the timed value was zero. This appears to happen on
+    // Windows, see crbug.com/1338256 and crbug.com/1339180. In this case, we
+    // are only here if the number of freed bytes is nonzero and the division
+    // below produces an infinite value.
+    event.efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.bytes_freed) /
+        event.total.total_wall_clock_duration_in_us;
+    event.main_thread_efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.bytes_freed) /
+        event.main_thread.total_wall_clock_duration_in_us;
+  }
+  if (total_duration_since_last_mark_compact_.IsZero()) {
+    event.collection_weight_in_percent = 0;
+    event.main_thread_collection_weight_in_percent = 0;
+  } else {
+    event.collection_weight_in_percent =
+        event.total.total_wall_clock_duration_in_us /
+        total_duration_since_last_mark_compact_.InMicroseconds();
+    event.main_thread_collection_weight_in_percent =
+        event.main_thread.total_wall_clock_duration_in_us /
+        total_duration_since_last_mark_compact_.InMicroseconds();
+  }
 
   recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
 }
