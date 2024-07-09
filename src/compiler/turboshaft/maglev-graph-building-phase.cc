@@ -2784,7 +2784,8 @@ class GraphBuilder {
     // emits mutliplications by -1 for this, so using this as well here.
     SetMap(node, __ Word32SignedMulDeoptOnOverflow(
                      Map(node->value_input()), -1, frame_state,
-                     node->eager_deopt_info()->feedback_to_update()));
+                     node->eager_deopt_info()->feedback_to_update(),
+                     CheckForMinusZeroMode::kCheckForMinusZero));
     return maglev::ProcessResult::kContinue;
   }
 
