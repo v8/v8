@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
+  'reclient_version': 're_client_version:0.150.0.c8b9fcfa-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e926bf8620a6e9aaea313576395e9dbbe155cd49',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b7fc49975cca8094b082e8966aafe3c8506d90b2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2054b2e6d5951659f522f23e73c728398703d5a5',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e73bcd11d10df067da2068d4aab16d95aa65e990',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1ec7890183244734c718c90e322ecf7e5588341d',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '9b20ae86421fd3ecf0bb99467f9a4b92d20ce824',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9e9fc992803c0c95402c190fb0bd15b787966855',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '01e29c8b5d6064389f3d3a3ff5c4272e049103b9',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
