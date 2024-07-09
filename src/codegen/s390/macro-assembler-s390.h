@@ -552,8 +552,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                   DoubleRegister scratch);
   void DivFloat64(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
-  void LoadF32AsF64(DoubleRegister dst, const MemOperand& opnd,
-                    DoubleRegister scratch);
+  void LoadF32AsF64(DoubleRegister dst, const MemOperand& opnd);
 
   // Load On Condition
   void LoadOnConditionP(Condition cond, Register dst, Register src);

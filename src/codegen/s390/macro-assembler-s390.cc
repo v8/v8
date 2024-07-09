@@ -4756,13 +4756,12 @@ void MacroAssembler::DivFloat64(DoubleRegister dst, const MemOperand& opnd,
   }
 }
 
-void MacroAssembler::LoadF32AsF64(DoubleRegister dst, const MemOperand& opnd,
-                                  DoubleRegister scratch) {
+void MacroAssembler::LoadF32AsF64(DoubleRegister dst, const MemOperand& opnd) {
   if (is_uint12(opnd.offset())) {
     ldeb(dst, opnd);
   } else {
-    ley(scratch, opnd);
-    ldebr(dst, scratch);
+    ley(dst, opnd);
+    ldebr(dst, dst);
   }
 }
 
