@@ -793,7 +793,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       // targets and fast api calls are not possible.
       return false;
     }
-    return fast_api_targets_[index].compare_exchange_weak(
+    return fast_api_targets_[index].compare_exchange_strong(
         old_val, target, std::memory_order_relaxed);
   }
 
