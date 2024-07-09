@@ -4194,7 +4194,12 @@ class LiftoffCompiler {
     DCHECK(lane_width == 8 || lane_width == 32 || lane_width == 64);
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
     if (!CpuFeatures::IsSupported(AVX)) {
+#if defined(V8_TARGET_ARCH_IA32)
+      // On ia32 xmm0 is not a cached register.
+      LiftoffRegister mask = LiftoffRegister::from_uncached(xmm0);
+#else
       LiftoffRegister mask(xmm0);
+#endif
       __ PopToFixedRegister(mask);
       LiftoffRegister src2 = __ PopToModifiableRegister(LiftoffRegList{mask});
       LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src2, mask});

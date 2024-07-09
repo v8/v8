@@ -168,6 +168,16 @@ class LiftoffRegister {
     DCHECK_EQ(reg, fp());
   }
 
+#if defined(V8_TARGET_ARCH_IA32)
+  // IA32 needs a fixed xmm0 register as a LiftoffRegister, however, xmm0 is not
+  // an allocatable double register (see register-ia32.h). This constructor
+  // allows bypassing the DCHECK that the LiftoffRegister has to be allocatable.
+  static LiftoffRegister from_uncached(DoubleRegister reg) {
+    DCHECK(!kLiftoffAssemblerFpCacheRegs.has(reg));
+    return LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code());
+  }
+#endif
+
   static LiftoffRegister from_liftoff_code(int code) {
     LiftoffRegister reg{static_cast<storage_t>(code)};
     // Check that the code is correct by round-tripping through the

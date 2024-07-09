@@ -5267,7 +5267,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Push pc and continuation from the last output frame.
   __ push(Operand(esi, FrameDescription::pc_offset()));
-  __ push(Operand(esi, FrameDescription::continuation_offset()));
+  __ mov(eax, Operand(esi, FrameDescription::continuation_offset()));
+  // Skip pushing the continuation if it is zero. This is used as a marker for
+  // wasm deopts that do not use a builtin call to finish the deopt.
+  Label push_registers;
+  __ test(eax, eax);
+  __ j(zero, &push_registers);
+  __ push(eax);
+  __ bind(&push_registers);
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
