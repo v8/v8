@@ -18,6 +18,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
@@ -34,6 +35,19 @@
 
 namespace v8 {
 namespace internal {
+
+template <VisitorId visitor_id>
+constexpr bool SupportsRightTrim() {
+  switch (visitor_id) {
+    case kVisitFixedArray:
+    case kVisitFixedDoubleArray:
+    case kVisitWeakFixedArray:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
 
 template <VisitorId visitor_id>
 inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
@@ -273,8 +287,17 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWithBodyDescriptor(
   // If you see the following DCHECK fail, then the size computation of
   // BodyDescriptor doesn't match the size return via obj.Size(). This is
   // problematic as the GC requires those sizes to match for accounting reasons.
-  // The fix likely involves adding a padding field in the object defintions.
-  DCHECK_EQ(object->SizeFromMap(map), TBodyDescriptor::SizeOf(map, object));
+  // The fix likely involves adding a padding field in the object definitions.
+  //
+  // We can only perform this check for types that do not support right trimming
+  // when running concurrently. `RefineAllocatedBytesAfterSweeping()` ensures
+  // that we only see sizes that get smaller during marking.
+#ifdef DEBUG
+  if (!SupportsRightTrim<visitor_id>() ||
+      !ConcreteVisitor::EnableConcurrentVisitation()) {
+    DCHECK_EQ(object->SizeFromMap(map), TBodyDescriptor::SizeOf(map, object));
+  }
+#endif  // DEBUG
   DCHECK(!map->IsInobjectSlackTrackingInProgress());
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
