@@ -291,9 +291,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Call a JS function which is known to be a property of a JS object. The
   // JSFunction or Callable to be called should be in |callable|. The arguments
-  // should be in |args|, with the receiver in |args[0]|. The call type of the
-  // expression is in |call_type|. Type feedback is recorded in the
-  // |feedback_slot| in the type feedback vector.
+  // should be in |args|, with the receiver in |args[0]|. Type feedback is
+  // recorded in the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& CallProperty(Register callable, RegisterList args,
                                      int feedback_slot);
 
