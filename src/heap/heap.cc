@@ -2430,7 +2430,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
       is_full_gc_during_loading_) {
     if (ShouldOptimizeForLoadTime()) {
-      DCHECK(!update_allocation_limits_after_loading_);
       update_allocation_limits_after_loading_ = true;
     }
     is_full_gc_during_loading_ = false;
