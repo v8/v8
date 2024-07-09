@@ -3228,8 +3228,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "race",
                                  Builtin::kPromiseRace, 1, true);
 
-    InstallFunctionWithBuiltinId(isolate_, promise_fun, "resolve",
-                                 Builtin::kPromiseResolveTrampoline, 1, true);
+    DirectHandle<JSFunction> promise_resolve = InstallFunctionWithBuiltinId(
+        isolate_, promise_fun, "resolve", Builtin::kPromiseResolveTrampoline, 1,
+        true);
+    native_context()->set_promise_resolve(*promise_resolve);
 
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "reject",
                                  Builtin::kPromiseReject, 1, true);
@@ -5820,40 +5822,38 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
                Builtin::kSuppressedErrorConstructor, 3);
 
   // -- D i s p o s a b l e S t a c k
-  Handle<JSObject> disposable_stack_prototype =
-      factory->NewJSObject(isolate()->object_function(), AllocationType::kOld);
-
-  native_context()->set_initial_disposable_stack_prototype(
-      *disposable_stack_prototype);
-
   DirectHandle<Map> js_disposable_stack_map =
       factory->NewContextfulMapForCurrentContext(
-          JS_DISPOSABLE_STACK_TYPE, JSDisposableStack::kHeaderSize);
-  Map::SetPrototype(isolate(), js_disposable_stack_map,
-                    disposable_stack_prototype);
+          JS_DISPOSABLE_STACK_BASE_TYPE, JSDisposableStackBase::kHeaderSize);
   js_disposable_stack_map->SetConstructor(native_context()->object_function());
   native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
   LOG(isolate(), MapDetails(*js_disposable_stack_map));
 
-  DirectHandle<JSFunction> disposable_stack_function =
-      InstallFunction(isolate(), global, "DisposableStack", JS_OBJECT_TYPE,
-                      JSObject::kHeaderSize, 0, disposable_stack_prototype,
-                      Builtin::kDisposableStackConstructor);
+  Handle<JSObject> sync_disposable_stack_prototype =
+      factory->NewJSObject(isolate()->object_function(), AllocationType::kOld);
+
+  Handle<JSFunction> disposable_stack_function = InstallFunction(
+      isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
+      JSSyncDisposableStack::kHeaderSize, 0, sync_disposable_stack_prototype,
+      Builtin::kDisposableStackConstructor);
+  InstallWithIntrinsicDefaultProto(isolate(), disposable_stack_function,
+                                   Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
   disposable_stack_function->shared()->DontAdaptArguments();
   disposable_stack_function->shared()->set_length(0);
-  SimpleInstallFunction(isolate(), disposable_stack_prototype, "use",
+  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
                         Builtin::kDisposableStackPrototypeUse, 1, true);
-  SimpleInstallFunction(isolate(), disposable_stack_prototype, "dispose",
+  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "dispose",
                         Builtin::kDisposableStackPrototypeDispose, 0, true);
-  SimpleInstallFunction(isolate(), disposable_stack_prototype, "adopt",
+  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
                         Builtin::kDisposableStackPrototypeAdopt, 2, true);
-  SimpleInstallFunction(isolate(), disposable_stack_prototype, "defer",
+  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
                         Builtin::kDisposableStackPrototypeDefer, 1, true);
-  SimpleInstallFunction(isolate(), disposable_stack_prototype, "move",
+  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "move",
                         Builtin::kDisposableStackPrototypeMove, 0, true);
 
-  InstallToStringTag(isolate(), disposable_stack_prototype, "DisposableStack");
-  SimpleInstallGetter(isolate(), disposable_stack_prototype,
+  InstallToStringTag(isolate(), sync_disposable_stack_prototype,
+                     "DisposableStack");
+  SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
                       factory->InternalizeUtf8String("disposed"),
                       Builtin::kDisposableStackPrototypeGetDisposed, true);
 }

@@ -3210,11 +3210,27 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   return Cast<JSGeneratorObject>(NewJSObjectFromMap(map));
 }
 
-Handle<JSDisposableStack> Factory::NewJSDisposableStack() {
+Handle<JSDisposableStackBase> Factory::NewJSDisposableStackBase() {
   DirectHandle<NativeContext> native_context = isolate()->native_context();
   DirectHandle<Map> map(native_context->js_disposable_stack_map(), isolate());
-  Handle<JSDisposableStack> disposable_stack(
-      Cast<JSDisposableStack>(NewJSObjectFromMap(map)));
+  Handle<JSDisposableStackBase> disposable_stack(
+      Cast<JSDisposableStackBase>(NewJSObjectFromMap(map)));
+  disposable_stack->set_status(0);
+  return disposable_stack;
+}
+
+Handle<JSSyncDisposableStack> Factory::NewJSSyncDisposableStack(
+    DirectHandle<Map> map) {
+  Handle<JSSyncDisposableStack> disposable_stack(
+      Cast<JSSyncDisposableStack>(NewJSObjectFromMap(map)));
+  disposable_stack->set_status(0);
+  return disposable_stack;
+}
+
+Handle<JSAsyncDisposableStack> Factory::NewJSAsyncDisposableStack(
+    DirectHandle<Map> map) {
+  Handle<JSAsyncDisposableStack> disposable_stack(
+      Cast<JSAsyncDisposableStack>(NewJSObjectFromMap(map)));
   disposable_stack->set_status(0);
   return disposable_stack;
 }

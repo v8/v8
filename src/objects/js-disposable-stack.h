@@ -7,6 +7,8 @@
 
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/contexts.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"
 
@@ -28,30 +30,76 @@ enum class DisposableStackState { kDisposed, kPending };
 // kValueIsArgument as DisposeMethodCallType.
 enum class DisposeMethodCallType { kValueIsReceiver = 0, kValueIsArgument = 1 };
 
-class JSDisposableStack
-    : public TorqueGeneratedJSDisposableStack<JSDisposableStack, JSObject> {
+// Valid hints for a DisposableStack.
+// https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposableresource-records
+enum class DisposeMethodHint { kSyncDispose = 0, kAsyncDispose = 1 };
+
+// Types of disposable resources in a DisposableStack.
+enum class DisposableStackResourcesType { kAllSync, kAtLeastOneAsync };
+
+using DisposeCallTypeBit =
+    base::BitField<DisposeMethodCallType, 0, 1, uint32_t>;
+using DisposeHintBit = DisposeCallTypeBit::Next<DisposeMethodHint, 1>;
+
+class JSDisposableStackBase
+    : public TorqueGeneratedJSDisposableStackBase<JSDisposableStackBase,
+                                                  JSObject> {
  public:
-  DECL_PRINTER(JSDisposableStack)
-  DECL_VERIFIER(JSDisposableStack)
+  DECL_PRINTER(JSDisposableStackBase)
+  DECL_VERIFIER(JSDisposableStackBase)
 
   DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
   inline DisposableStackState state() const;
   inline void set_state(DisposableStackState value);
   DECL_INT_ACCESSORS(length)
 
-  static void Initialize(Isolate* isolate,
-                         DirectHandle<JSDisposableStack> stack);
-  static void Add(Isolate* isolate,
-                  DirectHandle<JSDisposableStack> disposable_stack,
-                  DirectHandle<Object> value, DirectHandle<Object> method,
-                  DisposeMethodCallType type);
-  static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
-      Isolate* isolate, Handle<Object> value);
-  static Maybe<bool> DisposeResources(
-      Isolate* isolate, DirectHandle<JSDisposableStack> disposable_stack,
-      MaybeHandle<Object> maybe_error);
+  enum class AsyncDisposableStackContextSlots {
+    kStack = Context::MIN_CONTEXT_SLOTS,
+    kError,
+    kLength,
+  };
 
-  TQ_OBJECT_CONSTRUCTORS(JSDisposableStack)
+  enum class AsyncDisposeFromSyncDisposeContextSlots {
+    kMethod = Context::MIN_CONTEXT_SLOTS,
+    kLength,
+  };
+
+  static void InitializeJSDisposableStackBase(
+      Isolate* isolate, DirectHandle<JSDisposableStackBase> stack);
+  static void Add(Isolate* isolate,
+                  DirectHandle<JSDisposableStackBase> disposable_stack,
+                  DirectHandle<Object> value, DirectHandle<Object> method,
+                  DisposeMethodCallType type, DisposeMethodHint hint);
+  static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
+      Isolate* isolate, Handle<Object> value, DisposeMethodHint hint);
+  static MaybeHandle<Object> DisposeResources(
+      Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
+      MaybeHandle<Object> maybe_error,
+      DisposableStackResourcesType resources_type);
+  static Handle<JSReceiver> DisposeResourcesAwaitPoint(
+      Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
+      int length, MaybeHandle<Object> result, MaybeHandle<Object> maybe_error);
+
+  TQ_OBJECT_CONSTRUCTORS(JSDisposableStackBase)
+};
+
+class JSSyncDisposableStack
+    : public TorqueGeneratedJSSyncDisposableStack<JSSyncDisposableStack,
+                                                  JSDisposableStackBase> {
+ public:
+  DECL_VERIFIER(JSSyncDisposableStack)
+
+  TQ_OBJECT_CONSTRUCTORS(JSSyncDisposableStack)
+};
+
+class JSAsyncDisposableStack
+    : public TorqueGeneratedJSAsyncDisposableStack<JSAsyncDisposableStack,
+                                                   JSDisposableStackBase> {
+ public:
+  DECL_PRINTER(JSAsyncDisposableStack)
+  DECL_VERIFIER(JSAsyncDisposableStack)
+
+  TQ_OBJECT_CONSTRUCTORS(JSAsyncDisposableStack)
 };
 
 }  // namespace internal

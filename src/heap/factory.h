@@ -51,7 +51,9 @@ class FunctionTemplateInfo;
 class Isolate;
 class JSArrayBufferView;
 class JSDataView;
-class JSDisposableStack;
+class JSDisposableStackBase;
+class JSSyncDisposableStack;
+class JSAsyncDisposableStack;
 class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
@@ -718,7 +720,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<NativeContext> creation_context,
       DirectHandle<Object> target);
 
-  Handle<JSDisposableStack> NewJSDisposableStack();
+  Handle<JSDisposableStackBase> NewJSDisposableStackBase();
+  Handle<JSSyncDisposableStack> NewJSSyncDisposableStack(DirectHandle<Map> map);
+  Handle<JSAsyncDisposableStack> NewJSAsyncDisposableStack(
+      DirectHandle<Map> map);
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(

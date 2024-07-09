@@ -2495,8 +2495,12 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSPrimitiveWrapper::kHeaderSize;
     case JS_DATE_TYPE:
       return JSDate::kHeaderSize;
-    case JS_DISPOSABLE_STACK_TYPE:
-      return JSDisposableStack::kHeaderSize;
+    case JS_DISPOSABLE_STACK_BASE_TYPE:
+      return JSDisposableStackBase::kHeaderSize;
+    case JS_ASYNC_DISPOSABLE_STACK_TYPE:
+      return JSAsyncDisposableStack::kHeaderSize;
+    case JS_SYNC_DISPOSABLE_STACK_TYPE:
+      return JSSyncDisposableStack::kHeaderSize;
     case JS_ARRAY_TYPE:
       return JSArray::kHeaderSize;
     case JS_ARRAY_BUFFER_TYPE:

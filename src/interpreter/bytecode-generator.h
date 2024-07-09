@@ -447,7 +447,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        HandlerTable::CatchPrediction catch_prediction,
                        TryFinallyStatement* stmt_for_coverage = nullptr);
   template <typename WrappedFunc>
-  void BuildDisposeScope(WrappedFunc wrapped_func);
+  void BuildDisposeScope(WrappedFunc wrapped_func, bool has_await_using);
 
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);

@@ -35,6 +35,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
+#include "src/objects/js-disposable-stack.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/trusted-object.h"
@@ -1653,11 +1654,21 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
 }
 
-void JSDisposableStack::JSDisposableStackVerify(Isolate* isolate) {
-  CHECK(IsJSDisposableStack(*this));
+void JSDisposableStackBase::JSDisposableStackBaseVerify(Isolate* isolate) {
+  CHECK(IsJSDisposableStackBase(*this));
   JSObjectVerify(isolate);
   CHECK_EQ(length() % 3, 0);
   CHECK_GE(stack()->capacity(), length());
+}
+
+void JSSyncDisposableStack::JSSyncDisposableStackVerify(Isolate* isolate) {
+  CHECK(IsJSSyncDisposableStack(*this));
+  JSDisposableStackBase::JSDisposableStackBaseVerify(isolate);
+}
+
+void JSAsyncDisposableStack::JSAsyncDisposableStackVerify(Isolate* isolate) {
+  CHECK(IsJSAsyncDisposableStack(*this));
+  JSDisposableStackBase::JSDisposableStackBaseVerify(isolate);
 }
 
 void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {

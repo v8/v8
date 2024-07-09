@@ -1892,10 +1892,17 @@ std::ostream& operator<<(std::ostream& os, DisposableStackState state) {
   UNREACHABLE();
 }
 
-void JSDisposableStack::JSDisposableStackPrint(std::ostream& os) {
+void JSDisposableStackBase::JSDisposableStackBasePrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDisposableStack");
   os << "\n - stack: " << Brief(stack());
-  os << "\n - status (including state and length): " << status();
+  os << "\n - length: " << length();
+  os << "\n - state: " << state();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSAsyncDisposableStack");
+  os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
   JSObjectPrintBody(os, *this);

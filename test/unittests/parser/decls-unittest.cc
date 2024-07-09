@@ -1100,6 +1100,32 @@ TEST_F(DeclsTest, TestAwaitUsing) {
         "async function f() {for(await using {x} = {x:5}; x < 10 ; i++) {\n "
         "console.log(x);}} \n f();",
         EXPECT_ERROR);
+    context.Check(
+        "class staticBlockClass { \n "
+        " static { \n "
+        "   await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n "
+        " } \n "
+        "} ",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() { \n "
+        " class staticBlockClass { \n "
+        " static { \n "
+        "   await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n "
+        " } \n "
+        " } } \n "
+        " f(); ",
+        EXPECT_ERROR);
   }
 }
 

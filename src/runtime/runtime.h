@@ -299,6 +299,7 @@ namespace internal {
   F(StringToNumber, 1, 1)
 
 #define FOR_EACH_INTRINSIC_OBJECT(F, I)                                \
+  F(AddAsyncDisposableValue, 2, 1)                                     \
   F(AddDictionaryProperty, 3, 1)                                       \
   F(AddDisposableValue, 2, 1)                                          \
   F(AddPrivateBrand, 4, 1)                                             \
@@ -314,7 +315,7 @@ namespace internal {
   F(DefineGetterPropertyUnchecked, 4, 1)                               \
   F(DefineSetterPropertyUnchecked, 4, 1)                               \
   F(DeleteProperty, 3, 1)                                              \
-  F(DisposeDisposableStack, 3, 1)                                      \
+  F(DisposeDisposableStack, 4, 1)                                      \
   F(GetDerivedMap, 2, 1)                                               \
   F(GetFunctionName, 1, 1)                                             \
   F(GetOwnPropertyDescriptorObject, 2, 1)                              \

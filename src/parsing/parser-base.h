@@ -22,6 +22,7 @@
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/tagged-impl.h"
 #include "src/parsing/expression-scope.h"
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/parse-info.h"
@@ -1120,15 +1121,15 @@ class ParserBase {
            IsAwaitAsIdentifierDisallowed(function_state_->kind());
   }
   bool is_using_allowed() const {
-    // UsingDeclaration is a Syntax Error if the goal symbol is Script and
-    // UsingDeclaration is not contained, either directly or indirectly, within
-    // a Block, CaseBlock, ForStatement, ForInOfStatement, FunctionBody,
-    // GeneratorBody, AsyncGeneratorBody, AsyncFunctionBody,
-    // ClassStaticBlockBody, or ClassBody.
-    // Unless the current scope's ScopeType is ScriptScope, the current position
-    // is directly or indirectly within one of the productions listed above
-    // since they open a new scope.
-    return !scope()->is_script_scope();
+    // UsingDeclaration and AwaitUsingDeclaration are Syntax Errors if the goal
+    // symbol is Script. UsingDeclaration and AwaitUsingDeclaration are not
+    // contained, either directly or indirectly, within a Block, CaseBlock,
+    // ForStatement, ForInOfStatement, FunctionBody, GeneratorBody,
+    // AsyncGeneratorBody, AsyncFunctionBody, ClassStaticBlockBody, or
+    // ClassBody. Unless the current scope's ScopeType is ScriptScope, the
+    // current position is directly or indirectly within one of the productions
+    // listed above since they open a new scope.
+    return scope()->scope_type() != SCRIPT_SCOPE;
   }
   bool IfNextUsingKeyword(Token::Value token_after_using) {
     // If the token after `using` is `of` or `in`, `using` is an identifier
@@ -1150,6 +1151,17 @@ class ParserBase {
     return ((peek() == Token::kUsing && IfNextUsingKeyword(PeekAhead())) ||
             (peek() == Token::kAwait && PeekAhead() == Token::kUsing &&
              IfNextUsingKeyword(PeekAheadAhead())));
+  }
+  FunctionState* AddOneSuspendPointIfBlockContainsAwaitUsing(
+      Scope* scope, FunctionState* function_state) {
+    if (scope->has_await_using_declaration()) {
+      // Since, we handle async disposal of resources by promise chaining, just
+      // one suspend point is needed at the end of the block that contains at
+      // least one `await using`. This suspend point will be placed in the
+      // `finally` block of rewritten block.
+      function_state->AddSuspend();
+    }
+    return function_state;
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
@@ -5183,6 +5195,8 @@ void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope,
   impl()->RewriteAsyncFunctionBody(
       body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
   scope->set_end_position(end_position());
+  function_state_ =
+      AddOneSuspendPointIfBlockContainsAwaitUsing(scope, function_state_);
 }
 
 template <typename Impl>
@@ -5501,6 +5515,8 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
+  function_state_ =
+      AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
 }
 
 template <typename Impl>
@@ -5714,6 +5730,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
     impl()->RecordBlockSourceRange(body, end_pos);
     body->set_scope(scope()->FinalizeBlockScope());
+    function_state_ =
+        AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
   }
 
   body->InitializeStatements(statements, zone());
@@ -6211,6 +6229,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     scope()->set_end_position(end_pos);
     impl()->RecordSwitchStatementSourceRange(switch_statement, end_pos);
     Scope* switch_scope = scope()->FinalizeBlockScope();
+    function_state_ =
+        AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
     if (switch_scope != nullptr) {
       return impl()->RewriteSwitchStatement(switch_statement, switch_scope);
     }

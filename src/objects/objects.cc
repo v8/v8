@@ -6184,8 +6184,8 @@ Handle<JSArray> JSWeakCollection::GetEntries(
   return isolate->factory()->NewJSArrayWithElements(entries);
 }
 
-void JSDisposableStack::Initialize(
-    Isolate* isolate, DirectHandle<JSDisposableStack> disposable_stack) {
+void JSDisposableStackBase::InitializeJSDisposableStackBase(
+    Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack) {
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(0);
   disposable_stack->set_stack(*array);
   disposable_stack->set_length(0);

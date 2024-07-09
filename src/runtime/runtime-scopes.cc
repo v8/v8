@@ -244,57 +244,87 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  DirectHandle<JSDisposableStack> disposable_stack =
-      isolate->factory()->NewJSDisposableStack();
-  JSDisposableStack::Initialize(isolate, disposable_stack);
+  Handle<JSDisposableStackBase> disposable_stack =
+      isolate->factory()->NewJSDisposableStackBase();
+  JSDisposableStackBase::InitializeJSDisposableStackBase(isolate,
+                                                         disposable_stack);
   return *disposable_stack;
 }
 
-RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  DirectHandle<JSDisposableStack> stack = args.at<JSDisposableStack>(0);
-  Handle<Object> value = args.at<Object>(1);
-
+Tagged<Object> AddToDisposableStack(Isolate* isolate,
+                                    DirectHandle<JSDisposableStackBase> stack,
+                                    Handle<Object> value,
+                                    DisposeMethodCallType type,
+                                    DisposeMethodHint hint) {
   // a. If V is either null or undefined and hint is sync-dispose, return
   // unused.
   if (IsNullOrUndefined(*value)) {
     return *value;
   }
 
-  Handle<Object> dispose_method;
+  Handle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, dispose_method,
-      JSDisposableStack::CheckValueAndGetDisposeMethod(isolate, value));
+      isolate, method,
+      JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
+                                                           hint));
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
-  JSDisposableStack::Add(isolate, stack, value, dispose_method,
-                         DisposeMethodCallType::kValueIsReceiver);
-
+  JSDisposableStackBase::Add(isolate, stack, value, method, type, hint);
   return *value;
+}
+
+RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
+  Handle<Object> value = args.at<Object>(1);
+
+  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
+  // hint, [[DisposeMethod]]: method }.
+  return AddToDisposableStack(isolate, stack, value,
+                              DisposeMethodCallType::kValueIsReceiver,
+                              DisposeMethodHint::kSyncDispose);
+}
+
+RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
+  Handle<Object> value = args.at<Object>(1);
+
+  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
+  // hint, [[DisposeMethod]]: method }.
+  return AddToDisposableStack(isolate, stack, value,
+                              DisposeMethodCallType::kValueIsReceiver,
+                              DisposeMethodHint::kAsyncDispose);
 }
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
 
-  DirectHandle<JSDisposableStack> disposable_stack =
-      args.at<JSDisposableStack>(0);
+  DirectHandle<JSDisposableStackBase> disposable_stack =
+      args.at<JSDisposableStackBase>(0);
   DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
+  DirectHandle<Smi> has_await_using = args.at<Smi>(3);
 
-  MAYBE_RETURN(
-      JSDisposableStack::DisposeResources(
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSDisposableStackBase::DisposeResources(
           isolate, disposable_stack,
           (*continuation_token !=
            Smi::FromInt(static_cast<int>(
                interpreter::TryFinallyContinuationToken::kRethrowToken)))
               ? MaybeHandle<Object>()
-              : continuation_error),
-      ReadOnlyRoots(isolate).exception());
-  return ReadOnlyRoots(isolate).undefined_value();
+              : continuation_error,
+          static_cast<DisposableStackResourcesType>(
+              Smi::ToInt(*has_await_using))));
+  return *result;
 }
 
 namespace {

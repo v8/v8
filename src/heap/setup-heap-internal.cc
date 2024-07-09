@@ -1586,6 +1586,21 @@ void Heap::CreateInitialMutableObjects() {
     set_atomics_condition_acquire_lock_sfi(*info);
   }
 
+  // Async Disposable Stack
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAsyncDisposableStackOnFulfilled, 0);
+    set_async_disposable_stack_on_fulfilled_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAsyncDisposableStackOnRejected, 0);
+    set_async_disposable_stack_on_rejected_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate_,
+                                    Builtin::kAsyncDisposeFromSyncDispose, 0);
+    set_async_dispose_from_sync_dispose_shared_fun(*info);
+  }
+
   // Trusted roots:
   // TODO(saelo): these would ideally be read-only and shared, but we currently
   // don't have a trusted RO space.
