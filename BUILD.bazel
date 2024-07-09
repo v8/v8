@@ -420,6 +420,7 @@ v8_config(
         "V8_CONCURRENT_MARKING",
         "V8_ENABLE_SPARKPLUG",
         "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
+        "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
     ] + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",
