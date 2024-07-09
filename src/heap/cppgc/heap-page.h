@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
 
   HeapBase& heap() const;
 
-  BaseSpace& space() const { return space_; }
+  BaseSpace& space() const { return *space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
@@ -126,6 +126,8 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   void ResetSlotSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+  void ChangeOwner(BaseSpace&);
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase&, BaseSpace&, PageType);
@@ -137,7 +139,7 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   };
   void AllocateSlotSet();
 
-  BaseSpace& space_;
+  BaseSpace* space_;
   PageType type_;
   bool contains_young_objects_ = false;
 #if defined(CPPGC_YOUNG_GENERATION)

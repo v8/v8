@@ -148,7 +148,7 @@ void BasePage::ResetSlotSet() { slot_set_.reset(); }
 
 BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
     : BasePageHandle(heap),
-      space_(space),
+      space_(&space),
       type_(type)
 #if defined(CPPGC_YOUNG_GENERATION)
       ,
@@ -157,7 +157,12 @@ BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
 {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
-  DCHECK_EQ(&heap.raw_heap(), space_.raw_heap());
+  DCHECK_EQ(&heap.raw_heap(), space_->raw_heap());
+}
+
+void BasePage::ChangeOwner(BaseSpace& space) {
+  DCHECK_EQ(space_->raw_heap(), space.raw_heap());
+  space_ = &space;
 }
 
 // static
