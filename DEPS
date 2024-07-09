@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.150.0.c8b9fcfa-gomaip',
+  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b7fc49975cca8094b082e8966aafe3c8506d90b2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '931dc79bc5a009afbb02c915c608f6ecbb94f901',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e73bcd11d10df067da2068d4aab16d95aa65e990',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1bdde8167e76bf20a3435c15b60280e9bd09e28b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -300,7 +300,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '604bb086b1ac1105c692bb5fe0b49fc96b095777',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '37df66525c3b783d06d1ee555ad1a34132b95f58',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
