@@ -113,7 +113,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let funcRefT = builder.addType(makeSig([kWasmF64], [kWasmI64]));
   let mem = builder.addMemory(1, 1);
   builder.addActiveDataSegment(
-    mem.index, [kExprI32Const, 0], [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f]);
+    mem.index, [kExprI32Const, 0],
+    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f]);
 
   builder.addFunction("justOne", funcRefT)
     .addBody([kExprI64Const, 1])

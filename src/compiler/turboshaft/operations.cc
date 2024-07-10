@@ -528,9 +528,19 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kFloat64:
       os << "float64: " << float64();
+      if (std::isnan(float64())) {
+        // Do not use float64() here as it may alter the bit representation.
+        os << " (0x" << std::hex << base::bit_cast<uint64_t>(storage.float64)
+           << std::dec << ')';
+      }
       break;
     case Kind::kFloat32:
       os << "float32: " << float32();
+      if (std::isnan(float32())) {
+        // Do not use float32() here as it may alter the bit representation.
+        os << " (0x" << std::hex << base::bit_cast<uint32_t>(storage.float32)
+           << std::dec << ')';
+      }
       break;
     case Kind::kExternal:
       os << "external: " << external_reference();

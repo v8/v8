@@ -2071,13 +2071,6 @@
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
 }],
-['arch == ia32', {
-  # ia32 wasm deopt support is work in progress.
-  # deopt-nan failing in full debug:
-  # https://ci.chromium.org/ui/p/v8/builders/ci/V8%20Linux%20-%20full%20debug/31790/overview
-  'wasm/deopt/deopt-nan': [SKIP],
-}],
-
 
 ##############################################################################
 # Skip failing tests in google3

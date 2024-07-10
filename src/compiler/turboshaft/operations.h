@@ -2598,9 +2598,21 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return storage.float32;
   }
 
+  internal::Float32 float32_preserve_nan() const {
+    DCHECK_EQ(kind, Kind::kFloat32);
+    return internal::Float32::FromBits(
+        base::bit_cast<uint32_t>(storage.float32));
+  }
+
   double float64() const {
     DCHECK_EQ(kind, Kind::kFloat64);
     return storage.float64;
+  }
+
+  internal::Float64 float64_preserve_nan() const {
+    DCHECK_EQ(kind, Kind::kFloat64);
+    return internal::Float64::FromBits(
+        base::bit_cast<uint64_t>(storage.float64));
   }
 
   int32_t tagged_index() const {
