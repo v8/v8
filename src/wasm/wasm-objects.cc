@@ -1689,22 +1689,21 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     int table_index, int entry_index,
     DirectHandle<WasmJSFunction> js_function) {
-  // Deserialize the signature encapsulated with the {WasmJSFunction}.
-  // Note that {SignatureMap::Find} may return {-1} if the signature is
-  // not found; it will simply never match any check.
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
+  Tagged<WasmJSFunctionData> function_data =
+      js_function->shared()->wasm_js_function_data();
   // Get the function's canonical signature index. Note that the function's
   // signature may not be present in the importing module.
-  uint32_t canonical_sig_index =
-      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+  uint32_t canonical_sig_index = function_data->canonical_sig_index();
+  const wasm::FunctionSig* sig =
+      wasm::GetWasmEngine()->type_canonicalizer()->LookupSignature(
+          canonical_sig_index);
 
-  // Compile a wrapper for the target callable.
-  Handle<JSReceiver> callable(js_function->GetCallable(), isolate);
-  wasm::Suspend suspend = js_function->GetSuspend();
+  Handle<JSReceiver> callable(function_data->GetCallable(), isolate);
+  wasm::Suspend suspend = function_data->GetSuspend();
   wasm::WasmCodeRefScope code_ref_scope;
 
   const wasm::WasmModule* module = trusted_instance_data->module();
+  SBXCHECK(FunctionSigMatchesTable(canonical_sig_index, module, table_index));
   auto module_canonical_ids = module->isorecursive_canonical_type_ids;
   // TODO(manoskouk): Consider adding a set of canonical indices to the module
   // to avoid this linear search.
@@ -2479,9 +2478,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 #endif
 
   DirectHandle<WasmJSFunctionData> function_data =
-      factory->NewWasmJSFunctionData(callable, serialized_sig,
-                                     js_to_js_wrapper_code, rtt, suspend,
-                                     wasm::kNoPromise, signature_hash);
+      factory->NewWasmJSFunctionData(canonical_type_index, callable,
+                                     serialized_sig, js_to_js_wrapper_code, rtt,
+                                     suspend, wasm::kNoPromise, signature_hash);
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 
@@ -2542,38 +2541,31 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   return Cast<WasmJSFunction>(js_function);
 }
 
-Tagged<JSReceiver> WasmJSFunction::GetCallable() const {
+Tagged<JSReceiver> WasmJSFunctionData::GetCallable() const {
   return Cast<JSReceiver>(
-      Cast<WasmApiFunctionRef>(
-          shared()->wasm_js_function_data()->internal()->ref())
-          ->callable());
+      Cast<WasmApiFunctionRef>(internal()->ref())->callable());
 }
 
-wasm::Suspend WasmJSFunction::GetSuspend() const {
+wasm::Suspend WasmJSFunctionData::GetSuspend() const {
   return static_cast<wasm::Suspend>(
-      Cast<WasmApiFunctionRef>(
-          shared()->wasm_js_function_data()->internal()->ref())
-          ->suspend());
+      Cast<WasmApiFunctionRef>(internal()->ref())->suspend());
 }
 
-const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) const {
-  Tagged<WasmJSFunctionData> function_data = shared()->wasm_js_function_data();
-  return wasm::SerializedSignatureHelper::DeserializeSignature(
-      zone, function_data->serialized_signature());
+const wasm::FunctionSig* WasmJSFunctionData::GetSignature() const {
+  return wasm::GetWasmEngine()->type_canonicalizer()->LookupSignature(
+      canonical_sig_index());
 }
 
-bool WasmJSFunction::MatchesSignature(
+bool WasmJSFunctionData::MatchesSignature(
     uint32_t other_canonical_sig_index) const {
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  const wasm::FunctionSig* sig = GetSignature(&zone);
 #if DEBUG
   // TODO(14034): Change this if indexed types are allowed.
+  const wasm::FunctionSig* sig = GetSignature();
   for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
 #endif
   // TODO(14034): Check for subtyping instead if WebAssembly.Function can define
   // signature supertype.
-  return wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig) ==
+  return static_cast<uint32_t>(canonical_sig_index()) ==
          other_canonical_sig_index;
 }
 
@@ -2791,7 +2783,10 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         }
         return handle(Cast<WasmExternalFunction>(*value)->func_ref(), isolate);
       } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-        if (!Cast<WasmJSFunction>(*value)->MatchesSignature(canonical_index)) {
+        if (!Cast<WasmJSFunction>(*value)
+                 ->shared()
+                 ->wasm_js_function_data()
+                 ->MatchesSignature(canonical_index)) {
           *error_message =
               "assigned WebAssembly.Function has to be a subtype of the "
               "expected type";

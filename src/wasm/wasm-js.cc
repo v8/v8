@@ -2400,7 +2400,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       // Check that the rest of the signature matches.
       auto wasm_js_function = i::Cast<i::WasmJSFunction>(*callable);
       const i::wasm::FunctionSig* inner_sig =
-          wasm_js_function->GetSignature(&zone);
+          wasm_js_function->shared()->wasm_js_function_data()->GetSignature();
       if (!IsSuspendingSignature(inner_sig, sig)) {
         thrower.TypeError("Incompatible signature for suspending function");
         return;
@@ -2508,7 +2508,10 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
       sig = builder.Build();
     }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
-    sig = i::Cast<i::WasmJSFunction>(fun)->GetSignature(&zone);
+    sig = i::Cast<i::WasmJSFunction>(fun)
+              ->shared()
+              ->wasm_js_function_data()
+              ->GetSignature();
   } else {
     thrower.TypeError("Receiver must be a WebAssembly.Function");
     return;

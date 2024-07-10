@@ -719,13 +719,14 @@ ImportCallKind WasmImportData::ComputeKind(
     callable_ = handle(entry.callable(), isolate);
   }
   if (WasmJSFunction::IsWasmJSFunction(*callable_)) {
-    auto js_function = Cast<WasmJSFunction>(callable_);
-    suspend_ = js_function->GetSuspend();
-    if (!js_function->MatchesSignature(expected_canonical_type_index)) {
+    Tagged<WasmJSFunctionData> js_function_data =
+        Cast<WasmJSFunction>(callable_)->shared()->wasm_js_function_data();
+    suspend_ = js_function_data->GetSuspend();
+    if (!js_function_data->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
     }
     // Resolve the short-cut to the underlying callable and continue.
-    callable_ = handle(js_function->GetCallable(), isolate);
+    callable_ = handle(js_function_data->GetCallable(), isolate);
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
     auto capi_function = Cast<WasmCapiFunction>(callable_);
