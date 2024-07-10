@@ -59,6 +59,10 @@ class InliningTree : public ZoneObject {
            int64_t{wire_byte_size_} * size_factor;
   }
 
+  // TODO(dlehmann,manoskouk): We are running into this limit, e.g., for the
+  // "argon2-wasm" benchmark.
+  // IIUC, this limit is in place because of the encoding of inlining IDs in
+  // a 6-bit bitfield in Turboshaft IR, which we should revisit.
   static constexpr int kMaxInlinedCount = 60;
 
   // Recursively expand the tree by expanding this node and children nodes etc.
@@ -210,7 +214,13 @@ void InliningTree::FullyExpand(const size_t initial_wire_byte_size) {
     }
     top->Inline();
     inlined_count++;
-    inlined_wire_byte_count += top->wire_byte_size_;
+    // For tiny functions, inlining may actually decrease generated code size
+    // because we have one less call and don't need to push arguments, etc.
+    // Subtract a little bit from the code size increase, such that inlining
+    // these tiny functions doesn't use up any of the budget.
+    constexpr int kOneLessCall = 6;  // Guesstimated savings per call.
+    inlined_wire_byte_count += std::max(top->wire_byte_size_ - kOneLessCall, 0);
+
     if (top->feedback_found()) {
       if (top->depth_ < kMaxInliningNestingDepth) {
         if (v8_flags.trace_wasm_inlining) PrintF("queueing callees]\n");
@@ -245,6 +255,9 @@ bool InliningTree::SmallEnoughToInline(size_t initial_wire_byte_size,
     return false;
   }
   // For tiny functions, let's be a bit more generous.
+  // TODO(dlehmann): Since we don't use up budget (i.e., increase
+  // `inlined_wire_byte_count` see above) for very tiny functions, we might be
+  // able to remove/simplify this code in the future.
   if (wire_byte_size_ < 12) {
     if (inlined_wire_byte_count > 100) {
       inlined_wire_byte_count -= 100;
