@@ -826,7 +826,7 @@ class Graph {
   uint32_t op_id_count() const {
     return (operations_.size() + (kSlotsPerId - 1)) / kSlotsPerId;
   }
-  uint32_t number_of_operations() const {
+  uint32_t NumberOfOperationsForDebugging() const {
     uint32_t number_of_operations = 0;
     for ([[maybe_unused]] auto& op : AllOperations()) {
       ++number_of_operations;

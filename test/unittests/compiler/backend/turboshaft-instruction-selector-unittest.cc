@@ -34,7 +34,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
     StdoutStream{} << "=== Graph before instruction selection ===" << std::endl
                    << output_graph();
   }
-  size_t const node_count = output_graph().number_of_operations();
+  size_t const node_count = output_graph().NumberOfOperationsForDebugging();
   EXPECT_NE(0u, node_count);
   Linkage linkage(call_descriptor());
 

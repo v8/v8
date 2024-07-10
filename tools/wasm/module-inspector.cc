@@ -809,10 +809,13 @@ class FormatConverter {
     DCHECK_EQ(status_, kModuleReady);
     const WasmModule* m = module();
     uint32_t num_functions = static_cast<uint32_t>(m->functions.size());
+    double small_function_percentage =
+        module_->num_small_functions * 100.0 / module_->num_declared_functions;
     out_ << "There are " << num_functions << " functions ("
          << m->num_imported_functions << " imported, "
-         << m->num_declared_functions
-         << " locally defined); the following have names:\n";
+         << m->num_declared_functions << " locally defined; "
+         << small_function_percentage
+         << "% of them \"small\"); the following have names:\n";
     for (uint32_t i = 0; i < num_functions; i++) {
       StringBuilder sb;
       names()->PrintFunctionName(sb, i);
