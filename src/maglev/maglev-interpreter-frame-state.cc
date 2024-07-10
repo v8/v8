@@ -827,26 +827,9 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     return ReplaceInlinedAllocationWithVirtualObject(unmerged);
   }
 
-  Phi* result = merged->TryCast<Phi>();
-  if (result != nullptr && result->merge_state() == this) {
-    // It's possible that merged == unmerged at this point since loop-phis are
-    // not dropped if they are only assigned to themselves in the loop.
-    DCHECK_EQ(result->owner(), owner);
-    // Don't set inputs on exception phis.
-    DCHECK_EQ(result->is_exception_phi(), is_exception_handler());
-    if (is_exception_handler()) {
-      return result;
-    }
-
-    NodeType unmerged_type =
-        GetNodeType(builder->broker(), builder->local_isolate(),
-                    unmerged_aspects, unmerged);
-    unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
-                            predecessors_[predecessors_so_far_]);
-    result->set_input(predecessors_so_far_, unmerged);
-
+  auto UpdateLoopPhiType = [&](Phi* result, NodeType unmerged_type) {
+    DCHECK(result->is_loop_phi());
     if (predecessors_so_far_ == 0) {
-      DCHECK(result->is_loop_phi());
       // For loop Phis, `type` is always Unknown until the backedge has been
       // bound, so there is no point in updating it here.
       result->set_post_loop_type(unmerged_type);
@@ -862,9 +845,35 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
                              : unmerged_type);
       }
     } else {
-      result->merge_type(unmerged_type);
+      if (optimistic_loop_phis) {
+        result->merge_type(unmerged_type);
+      }
       result->merge_post_loop_type(unmerged_type);
     }
+  };
+
+  Phi* result = merged->TryCast<Phi>();
+  if (result != nullptr && result->merge_state() == this) {
+    // It's possible that merged == unmerged at this point since loop-phis are
+    // not dropped if they are only assigned to themselves in the loop.
+    DCHECK_EQ(result->owner(), owner);
+    // Don't set inputs on exception phis.
+    DCHECK_EQ(result->is_exception_phi(), is_exception_handler());
+    if (is_exception_handler()) {
+      return result;
+    }
+
+    NodeType unmerged_type =
+        GetNodeType(builder->broker(), builder->local_isolate(),
+                    unmerged_aspects, unmerged);
+    if (result->is_loop_phi()) {
+      UpdateLoopPhiType(result, unmerged_type);
+    } else {
+      result->merge_type(unmerged_type);
+    }
+    unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
+                            predecessors_[predecessors_so_far_]);
+    result->set_input(predecessors_so_far_, unmerged);
 
     return result;
   }
@@ -975,7 +984,12 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
 
-  result->set_type(IntersectType(type, unmerged_type));
+  if (result->is_loop_phi()) {
+    DCHECK(result->is_unmerged_loop_phi());
+    UpdateLoopPhiType(result, type);
+  } else {
+    result->set_type(IntersectType(type, unmerged_type));
+  }
 
   phis_.Add(result);
   return result;
@@ -1040,6 +1054,10 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
     // not dropped if they are only assigned to themselves in the loop.
     DCHECK_EQ(result->owner(), owner);
     result->reduce_input_count(num);
+    if (predecessors_so_far_ == predecessor_count_ - 1 &&
+        predecessor_count_ > 1 && result->is_loop_phi()) {
+      result->promote_post_loop_type();
+    }
   }
 }
 }  // namespace maglev

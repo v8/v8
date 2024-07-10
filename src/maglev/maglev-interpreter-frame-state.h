@@ -821,13 +821,13 @@ class MergePointInterpreterFrameState {
                  unsigned num = 1) {
     DCHECK_GE(predecessor_count_, num);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-    predecessor_count_ -= num;
-    DCHECK_LE(predecessors_so_far_, predecessor_count_);
 
     frame_state_.ForEachValue(compilation_unit,
                               [&](ValueNode* value, interpreter::Register reg) {
                                 ReducePhiPredecessorCount(reg, value, num);
                               });
+    predecessor_count_ -= num;
+    DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
 
   // Merges a dead loop framestate (e.g. one where the block containing the

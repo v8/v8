@@ -117,6 +117,11 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
+bool Phi::is_unmerged_loop_phi() const {
+  DCHECK(is_loop_phi());
+  return merge_state()->is_unmerged_loop();
+}
+
 void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
                             int current_offset) {
   if (is_loop_phi() && merge_state()->HasLoopInfo() &&
@@ -140,8 +145,8 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
 }
 
 void Phi::SetUseRequires31BitValue() {
-  if (uses_require_31_bit_value_) return;
-  uses_require_31_bit_value_ = true;
+  if (uses_require_31_bit_value()) return;
+  set_uses_require_31_bit_value();
   auto inputs =
       is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
   for (int i = 0; i < inputs; ++i) {

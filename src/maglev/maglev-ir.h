@@ -8001,54 +8001,69 @@ class Phi : public ValueNodeT<Phi> {
   }
 
   void merge_post_loop_type(NodeType type) {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
     post_loop_type_ = IntersectType(post_loop_type_, type);
   }
   void set_post_loop_type(NodeType type) {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
+    DCHECK(is_unmerged_loop_phi());
     post_loop_type_ = type;
   }
   void promote_post_loop_type() {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
+    DCHECK(is_unmerged_loop_phi());
+    DCHECK(NodeTypeIs(post_loop_type_, type_));
     type_ = post_loop_type_;
   }
 
   void merge_type(NodeType type) {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
     type_ = IntersectType(type_, type);
   }
   void set_type(NodeType type) {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
     type_ = type;
   }
   NodeType type() const {
-    DCHECK(!has_key_);
+    DCHECK(!has_key());
     return type_;
   }
 
   using Key = compiler::turboshaft::SnapshotTable<ValueNode*>::Key;
-  bool has_key() const { return has_key_; }
   Key key() const {
-    DCHECK(has_key_);
+    DCHECK(has_key());
     return key_;
   }
   void set_key(Key key) {
-    has_key_ = true;
+    set_bitfield(bitfield() | HasKeyFlag::encode(true));
     key_ = key;
   }
+
+  // True if the {key_} field has been initialized.
+  bool has_key() const { return HasKeyFlag::decode(bitfield()); }
 
   // Remembers if a use is unsafely untagged. If that happens we must ensure to
   // stay within the smi range, even when untagging.
   void SetUseRequires31BitValue();
-  bool uses_require_31_bit_value() { return uses_require_31_bit_value_; }
+  bool uses_require_31_bit_value() const {
+    return Requires31BitValueFlag::decode(bitfield());
+  }
+  void set_uses_require_31_bit_value() {
+    set_bitfield(bitfield() | Requires31BitValueFlag::encode(true));
+  }
+
+  // Check if a phi has cleared the loop.
+  bool is_unmerged_loop_phi() const;
 
  private:
   Phi** next() { return &next_; }
 
+  using HasKeyFlag = NextBitField<bool, 1>;
+  using Requires31BitValueFlag = HasKeyFlag::Next<bool, 1>;
+  using LoopPhiAfterLoopFlag = Requires31BitValueFlag::Next<bool, 1>;
+
   const interpreter::Register owner_;
-  // True if the {key_} field has been initialized.
-  bool has_key_ = false;
-  bool uses_require_31_bit_value_ = false;
+
   UseRepresentationSet uses_repr_hint_ = {};
   UseRepresentationSet same_loop_uses_repr_hint_ = {};
 
