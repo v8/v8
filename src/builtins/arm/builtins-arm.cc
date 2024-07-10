@@ -4766,12 +4766,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // r1: Deoptimizer::input_ (FrameDescription*).
   // r2: The last output FrameDescription pointer (FrameDescription*).
 
-  // Restore double registers from the input frame description.
+  // Restore double registers from the output frame description.
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register src_location = r6;
-    __ add(src_location, r1, Operand(kSimd128RegsOffset));
+    __ add(src_location, r2, Operand(kSimd128RegsOffset));
     __ RestoreFPRegsFromHeap(src_location, scratch);
   }
 

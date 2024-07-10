@@ -2071,16 +2071,6 @@
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
 }],
-['arch == arm', {
-  # Arm wasm deopt support is work in progress.
-  ## Missing deoptimizer support for fp-pair Liftoff registers.
-  'wasm/deopt/deopt-value-types': [SKIP],
-  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
-  ## Unknown reason, failing with wrong value.
-  'wasm/deopt/deopt-nan': [SKIP],
-}],
-
-
 
 ##############################################################################
 # Skip failing tests in google3

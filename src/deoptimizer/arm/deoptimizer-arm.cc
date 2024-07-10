@@ -33,6 +33,13 @@ Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
   return base::ReadUnalignedValue<Float64>(start + offset);
 }
 
+void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
+  V8_ASSUME(2 * n < arraysize(simd128_registers_));
+  const Address start = reinterpret_cast<Address>(simd128_registers_);
+  const size_t offset = n * sizeof(Float64);
+  base::WriteUnalignedValue(start + offset, value);
+}
+
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }

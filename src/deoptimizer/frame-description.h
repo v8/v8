@@ -34,6 +34,8 @@ class RegisterValues {
   Float32 GetFloatRegister(unsigned n) const;
   Float64 GetDoubleRegister(unsigned n) const;
 
+  void SetDoubleRegister(unsigned n, Float64 value);
+
   Simd128 GetSimd128Register(unsigned n) const {
     V8_ASSUME(n < arraysize(simd128_registers_));
     return simd128_registers_[n];
@@ -43,19 +45,6 @@ class RegisterValues {
     V8_ASSUME(n < arraysize(registers_));
     registers_[n] = value;
   }
-
-#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
-  void SetDoubleRegister(unsigned n, Float64 value) {
-    V8_ASSUME(n < arraysize(double_registers_));
-    double_registers_[n] = value;
-  }
-#else
-  void SetDoubleRegister(unsigned n, Float64 value) {
-    V8_ASSUME(n < arraysize(simd128_registers_));
-    base::WriteUnalignedValue(reinterpret_cast<Address>(simd128_registers_ + n),
-                              value);
-  }
-#endif
 
   void SetSimd128Register(unsigned n, Simd128 value) {
     V8_ASSUME(n < arraysize(simd128_registers_));
