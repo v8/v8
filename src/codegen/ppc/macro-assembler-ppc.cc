@@ -461,6 +461,10 @@ void MacroAssembler::Move(Register dst, ExternalReference reference) {
   mov(dst, Operand(reference));
 }
 
+void MacroAssembler::LoadIsolateField(Register dst, IsolateFieldId id) {
+  Move(dst, ExternalReference::Create(id));
+}
+
 void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   DCHECK(cond == al);
   if (dst != src) {
@@ -2610,8 +2614,11 @@ void MacroAssembler::Abort(AbortReason reason) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     mov(r3, Operand(static_cast<int>(reason)));
-    PrepareCallCFunction(1, r4);
-    CallCFunction(ExternalReference::abort_with_reason(), 1);
+    PrepareCallCFunction(1, 0, r4);
+    Move(r4, ExternalReference::abort_with_reason());
+    // Use Call directly to avoid any unneeded overhead. The function won't
+    // return anyway.
+    Call(r4);
     return;
   }
 
@@ -2927,26 +2934,11 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Register scratch = r8;
     Push(scratch);
     mflr(scratch);
-    // See x64 code for reasoning about how to address the isolate data fields.
-    if (root_array_available()) {
-      StoreU64(pc_scratch,
-               MemOperand(kRootRegister,
-                          IsolateData::fast_c_call_caller_pc_offset()));
-      StoreU64(fp, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      Register addr_scratch = r7;
-      Push(addr_scratch);
-
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      StoreU64(pc_scratch, MemOperand(addr_scratch));
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreU64(fp, MemOperand(addr_scratch));
-      Pop(addr_scratch);
-    }
+    CHECK(root_array_available());
+    StoreU64(pc_scratch,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
+    StoreU64(fp,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
     mtlr(scratch);
     Pop(scratch);
   }
@@ -2983,19 +2975,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Register zero_scratch = r0;
     mov(zero_scratch, Operand::Zero());
 
-    if (root_array_available()) {
-      StoreU64(zero_scratch,
-               MemOperand(kRootRegister,
-                          IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      Register addr_scratch = r7;
-      Push(addr_scratch);
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreU64(zero_scratch, MemOperand(addr_scratch));
-      Pop(addr_scratch);
-    }
+    StoreU64(zero_scratch,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
   // Remove frame bought in PrepareCallCFunction
@@ -5826,8 +5807,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ lbz(scratch, __ ExternalReferenceAsOperand(
-                        ER::execution_mode_address(isolate), no_reg));
+    __ lbz(scratch,
+           __ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode));
     __ cmpi(scratch, Operand::Zero());
     __ bne(&profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
@@ -5910,7 +5891,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Additional parameter is the address of the actual callback function.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          ER::api_callback_thunk_argument_address(isolate), no_reg);
+          IsolateFieldId::kApiCallbackThunkArgument);
       __ StoreU64(thunk_arg, thunk_arg_mem_op);
     }
     __ Move(scratch, thunk_ref);

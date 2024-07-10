@@ -641,6 +641,10 @@ void MacroAssembler::Move(Register dst, ExternalReference reference) {
   mov(dst, Operand(reference));
 }
 
+void MacroAssembler::LoadIsolateField(Register dst, IsolateFieldId id) {
+  Move(dst, ExternalReference::Create(id));
+}
+
 void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   if (dst != src) {
     if (cond == al) {
@@ -2644,26 +2648,11 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     // even without an ExitFrame which normally exists between JS and C frames.
     // See x64 code for reasoning about how to address the isolate data fields.
     larl(r0, &get_pc);
-    if (root_array_available()) {
-      StoreU64(r0, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_pc_offset()));
-      StoreU64(fp, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-#if V8_OS_ZOS
-      // Use r4 as a scratch register on z/OS because r1 represents the 1st arg
-      Register addr_scratch = r4;
-#else
-      Register addr_scratch = r1;
-#endif
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      StoreU64(r0, MemOperand(addr_scratch));
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreU64(fp, MemOperand(addr_scratch));
-    }
+    CHECK(root_array_available());
+    StoreU64(r0,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
+    StoreU64(fp,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
 #if V8_OS_ZOS
@@ -2723,17 +2712,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Register zero_scratch = r0;
     lghi(zero_scratch, Operand::Zero());
 
-    if (root_array_available()) {
-      StoreU64(zero_scratch,
-               MemOperand(kRootRegister,
-                          IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      Register addr_scratch = r1;
-      Move(addr_scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreU64(zero_scratch, MemOperand(addr_scratch));
-    }
+    StoreU64(zero_scratch,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
   int stack_passed_arguments =
@@ -6785,8 +6765,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ LoadU8(scratch, __ ExternalReferenceAsOperand(
-                           ER::execution_mode_address(isolate), no_reg));
+    __ LoadU8(scratch,
+              __ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode));
     __ CmpS64(scratch, Operand::Zero());
     __ bne(&profiler_or_side_effects_check_enabled, Label::kNear);
 #ifdef V8_RUNTIME_CALL_STATS
@@ -6872,7 +6852,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Additional parameter is the address of the actual callback function.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          ER::api_callback_thunk_argument_address(isolate), no_reg);
+          IsolateFieldId::kApiCallbackThunkArgument);
       __ StoreU64(thunk_arg, thunk_arg_mem_op);
     }
     __ Move(scratch, thunk_ref);

@@ -956,14 +956,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreU64(r0, MemOperand(ip));
   __ push(r3);
 
-  __ Move(ip,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(ip, IsolateFieldId::kFastCCallCallerFP);
   __ LoadU64(r3, MemOperand(ip));
   __ StoreU64(r0, MemOperand(ip));
   __ push(r3);
 
-  __ Move(ip,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(ip, IsolateFieldId::kFastCCallCallerPC);
   __ LoadU64(r3, MemOperand(ip));
   __ StoreU64(r0, MemOperand(ip));
   __ push(r3);
@@ -1050,13 +1048,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Restore the top frame descriptors from the stack.
   __ pop(r6);
-  __ Move(scratch,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerPC);
   __ StoreU64(r6, MemOperand(scratch));
 
   __ pop(r6);
-  __ Move(scratch,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerFP);
   __ StoreU64(r6, MemOperand(scratch));
 
   __ pop(r6);
@@ -4140,7 +4136,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register zero = r7;
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ li(zero, Operand(0));
     __ stb(zero, MemOperand(is_iterable));
   }
@@ -4246,7 +4242,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register one = r7;
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ li(one, Operand(1));
     __ stb(one, MemOperand(is_iterable));
   }

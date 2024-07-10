@@ -894,14 +894,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreU64(r0, MemOperand(ip));
   __ push(r9);
 
-  __ Move(ip,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(ip, IsolateFieldId::kFastCCallCallerFP);
   __ LoadU64(r9, MemOperand(ip));
   __ StoreU64(r0, MemOperand(ip));
   __ push(r9);
 
-  __ Move(ip,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(ip, IsolateFieldId::kFastCCallCallerPC);
   __ LoadU64(r9, MemOperand(ip));
   __ StoreU64(r0, MemOperand(ip));
   __ push(r9);
@@ -992,13 +990,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Restore the top frame descriptors from the stack.
   __ pop(r5);
-  __ Move(scrach,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(scrach, IsolateFieldId::kFastCCallCallerPC);
   __ StoreU64(r5, MemOperand(scrach));
 
   __ pop(r5);
-  __ Move(scrach,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(scrach, IsolateFieldId::kFastCCallCallerFP);
   __ StoreU64(r5, MemOperand(scrach));
 
   __ pop(r5);
@@ -4116,7 +4112,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register zero = r6;
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ lhi(zero, Operand(0));
     __ StoreU8(zero, MemOperand(is_iterable));
   }
@@ -4217,7 +4213,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register one = r6;
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ lhi(one, Operand(1));
     __ StoreU8(one, MemOperand(is_iterable));
   }
