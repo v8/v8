@@ -1065,14 +1065,10 @@
   'intl402/DateTimeFormat/timezone-case-insensitive': [FAIL],
   'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14159
+  # https://github.com/tc39/test262/pull/4141
   'intl402/Locale/constructor-options-firstDayOfWeek-invalid': [FAIL],
-  'intl402/Locale/constructor-options-firstDayOfWeek-valid': [FAIL],
-  'intl402/Locale/prototype/firstDayOfWeek/name': [FAIL],
-  'intl402/Locale/prototype/firstDayOfWeek/prop-desc': [FAIL],
   'intl402/Locale/prototype/firstDayOfWeek/valid-id': [FAIL],
   'intl402/Locale/prototype/firstDayOfWeek/valid-options': [FAIL],
-  'intl402/Locale/prototype/getWeekInfo/firstDay-by-option': [FAIL],
 
   # https://issues.chromium.org/u/0/issues/42204365
   'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-source-source-text-module': [FAIL],

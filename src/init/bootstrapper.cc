@@ -3941,6 +3941,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kLocalePrototypeCaseFirst, true);
       SimpleInstallGetter(isolate(), prototype, factory->collation_string(),
                           Builtin::kLocalePrototypeCollation, true);
+      SimpleInstallGetter(isolate(), prototype,
+                          factory->firstDayOfWeek_string(),
+                          Builtin::kLocalePrototypeFirstDayOfWeek, true);
       SimpleInstallGetter(isolate(), prototype, factory->hourCycle_string(),
                           Builtin::kLocalePrototypeHourCycle, true);
       SimpleInstallGetter(isolate(), prototype, factory->numeric_string(),

@@ -43,6 +43,10 @@ struct OptionData {
   const std::vector<const char*>* possible_values;
   bool is_bool_value;
 };
+struct ValueAndType {
+  const char* value;
+  const char* type;
+};
 
 // Inserts tags from options into locale string.
 Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
@@ -55,9 +59,10 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   const std::vector<const char*> case_first_values = {"upper", "lower",
                                                       "false"};
   const std::vector<const char*> empty_values = {};
-  const std::array<OptionData, 6> kOptionToUnicodeTagMap = {
+  const std::array<OptionData, 7> kOptionToUnicodeTagMap = {
       {{"calendar", "ca", &empty_values, false},
        {"collation", "co", &empty_values, false},
+       {"firstDayOfWeek", "fw", &empty_values, false},
        {"hourCycle", "hc", &hour_cycle_values, false},
        {"caseFirst", "kf", &case_first_values, false},
        {"numeric", "kn", &empty_values, true},
@@ -82,18 +87,35 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     // this spec compliant.
     if (!maybe_found.FromJust()) continue;
 
-    if (option_to_bcp47.is_bool_value) {
+    const char* type = value_str.get();
+    if (strcmp(option_to_bcp47.key, "fw") == 0) {
+      const std::array<ValueAndType, 8> kFirstDayValuesAndTypes = {
+          {{"0", "sun"},
+           {"1", "mon"},
+           {"2", "tue"},
+           {"3", "wed"},
+           {"4", "thu"},
+           {"5", "fri"},
+           {"6", "sat"},
+           {"7", "sun"}}};
+      for (const auto& value_to_type : kFirstDayValuesAndTypes) {
+        if (std::strcmp(type, value_to_type.value) == 0) {
+          type = value_to_type.type;
+          break;
+        }
+      }
+    } else if (option_to_bcp47.is_bool_value) {
       value_str = value_bool ? isolate->factory()->true_string()->ToCString()
                              : isolate->factory()->false_string()->ToCString();
+      type = value_str.get();
     }
-    DCHECK_NOT_NULL(value_str.get());
+    DCHECK_NOT_NULL(type);
 
     // Overwrite existing, or insert new key-value to the locale string.
-    if (!uloc_toLegacyType(uloc_toLegacyKey(option_to_bcp47.key),
-                           value_str.get())) {
+    if (!uloc_toLegacyType(uloc_toLegacyKey(option_to_bcp47.key), type)) {
       return Just(false);
     }
-    builder->setUnicodeLocaleKeyword(option_to_bcp47.key, value_str.get());
+    builder->setUnicodeLocaleKeyword(option_to_bcp47.key, type);
   }
   return Just(true);
 }
@@ -803,6 +825,10 @@ Handle<Object> JSLocale::Collation(Isolate* isolate,
   return UnicodeKeywordValue(isolate, locale, "co");
 }
 
+Handle<Object> JSLocale::FirstDayOfWeek(Isolate* isolate,
+                                        DirectHandle<JSLocale> locale) {
+  return UnicodeKeywordValue(isolate, locale, "fw");
+}
 Handle<Object> JSLocale::HourCycle(Isolate* isolate,
                                    DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "hc");

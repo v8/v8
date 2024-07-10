@@ -42,6 +42,7 @@
   V(_, fallback_string, "fallback")                                 \
   V(_, first_string, "first")                                       \
   V(_, firstDay_string, "firstDay")                                 \
+  V(_, firstDayOfWeek_string, "firstDayOfWeek")                     \
   V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \

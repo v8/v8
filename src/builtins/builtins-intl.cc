@@ -922,6 +922,13 @@ BUILTIN(LocalePrototypeCollation) {
   return *JSLocale::Collation(isolate, locale);
 }
 
+BUILTIN(LocalePrototypeFirstDayOfWeek) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.firstDayOfWeek");
+
+  return *JSLocale::FirstDayOfWeek(isolate, locale);
+}
+
 BUILTIN(LocalePrototypeHourCycle) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.hourCycle");
