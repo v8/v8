@@ -646,9 +646,13 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     int table_count = trusted_data->dispatch_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
-      if (!trusted_data->has_dispatch_table(table_index)) continue;
+      bool table_is_shared = module->tables[table_index].shared;
+      Handle<WasmTrustedInstanceData> maybe_shared_data =
+          table_is_shared ? handle(trusted_data->shared_part(), isolate)
+                          : trusted_data;
+      if (!maybe_shared_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
-          trusted_data->dispatch_table(table_index);
+          maybe_shared_data->dispatch_table(table_index);
       if (entry_index < table->length() && table->ref(entry_index) == *ref) {
         canonical_sig_index = table->sig(entry_index);
         break;
