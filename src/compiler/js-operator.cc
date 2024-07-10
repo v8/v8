@@ -760,6 +760,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(CreatePromise, Operator::kEliminatable, 0, 1)                        \
   V(CreateTypedArray, Operator::kNoProperties, 5, 1)                     \
   V(CreateObject, Operator::kNoProperties, 1, 1)                         \
+  V(CreateStringWrapper, Operator::kEliminatable, 1, 1)                  \
   V(ObjectIsArray, Operator::kNoProperties, 1, 1)                        \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                  \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \

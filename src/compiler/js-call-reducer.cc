@@ -21,6 +21,7 @@
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
@@ -5467,6 +5468,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         }
         case Builtin::kPromiseConstructor:
           return ReducePromiseConstructor(node);
+        case Builtin::kStringConstructor:
+          return ReduceStringConstructor(node, function);
         case Builtin::kTypedArrayConstructor:
           return ReduceTypedArrayConstructor(node, function.shared(broker()));
         default:
@@ -7216,6 +7219,51 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceStringConstructor(Node* node,
+                                                 JSFunctionRef constructor) {
+  JSConstructNode n(node);
+  if (n.target() != n.new_target()) return NoChange();
+
+  DCHECK_EQ(constructor, native_context().string_function(broker_));
+  DCHECK(constructor.initial_map(broker_).IsJSPrimitiveWrapperMap());
+
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  Node* primitive_value;
+  if (n.ArgumentCount() == 0) {
+    primitive_value = jsgraph()->EmptyStringConstant();
+  } else {
+    // Insert a construct stub frame into the chain of frame states. This will
+    // reconstruct the proper frame when deoptimizing within the constructor.
+    frame_state = CreateConstructInvokeStubFrameState(
+        node, frame_state, constructor.shared(broker_), context, common(),
+        graph());
+
+    // This continuation just returns the newly created String. We pass the_hole
+    // as the receiver, just like the builtin construct stub does in this case.
+    Node* const receiver = jsgraph()->TheHoleConstant();
+    Node* continuation_frame_state =
+        CreateGenericLazyDeoptContinuationFrameState(
+            jsgraph(), constructor.shared(broker_), n.target(), context,
+            receiver, frame_state);
+
+    primitive_value = effect = control =
+        graph()->NewNode(javascript()->ToString(), n.Argument(0), context,
+                         continuation_frame_state, effect, control);
+  }
+
+  RelaxControls(node, control);
+  node->ReplaceInput(0, primitive_value);
+  node->ReplaceInput(1, context);
+  node->ReplaceInput(2, effect);
+  node->TrimInputCount(3);
+  NodeProperties::ChangeOp(node, javascript()->CreateStringWrapper());
+  return Changed(node);
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {

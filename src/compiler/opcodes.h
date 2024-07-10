@@ -173,6 +173,7 @@
   V(JSCreateLiteralObject)       \
   V(JSCreateLiteralRegExp)       \
   V(JSCreateObject)              \
+  V(JSCreateStringWrapper)       \
   V(JSCreatePromise)             \
   V(JSCreateStringIterator)      \
   V(JSCreateTypedArray)          \
