@@ -708,7 +708,6 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     TRACE_GC_ARG1(heap_->tracer(),
                   GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL,
                   "UseBackgroundThreads", UseBackgroundThreadsInCycle());
-    local_marking_worklists()->Publish();
     if (v8_flags.parallel_marking) {
       heap_->concurrent_marking()->RescheduleJobIfNeeded(
           GarbageCollector::MINOR_MARK_SWEEPER, TaskPriority::kUserBlocking);

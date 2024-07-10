@@ -575,8 +575,13 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
   DCHECK(!heap_->IsTearingDown());
   DCHECK(IsStopped());
 
+  DCHECK_NE(garbage_collector, GarbageCollector::SCAVENGER);
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
       !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+  if (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER &&
+      !heap_->minor_mark_sweep_collector()->UseBackgroundThreadsInCycle()) {
     return;
   }
 
@@ -599,6 +604,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
       }));
   garbage_collector_ = garbage_collector;
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+    heap_->mark_compact_collector()->local_marking_worklists()->Publish();
     marking_worklists_ = heap_->mark_compact_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMajor>(
         this, heap_->mark_compact_collector()->epoch(),
@@ -611,6 +617,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
   } else {
     DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
     minor_marking_state_ = std::make_unique<MinorMarkingState>();
+    heap_->minor_mark_sweep_collector()->local_marking_worklists()->Publish();
     marking_worklists_ =
         heap_->minor_mark_sweep_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMinor>(this);
@@ -660,6 +667,11 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
   } else {
     DCHECK(garbage_collector_.has_value());
     DCHECK_EQ(garbage_collector, garbage_collector_.value());
+    if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+      heap_->mark_compact_collector()->local_marking_worklists()->Publish();
+    } else {
+      heap_->minor_mark_sweep_collector()->local_marking_worklists()->Publish();
+    }
     if (!IsWorkLeft()) return;
     if (priority != TaskPriority::kUserVisible)
       job_handle_->UpdatePriority(priority);

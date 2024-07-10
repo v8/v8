@@ -658,6 +658,7 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
             : allowed_overshoot - optional_time_to_current_task.value();
     completion_task_timeout_ = now + delta;
   }
+  DCHECK_IMPLIES(!delaying, completion_task_timeout_ <= now);
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Completion: %s GC via stack guard, "

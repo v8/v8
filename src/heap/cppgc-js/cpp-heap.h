@@ -211,7 +211,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
     // For unified heap, CppHeap shouldn't finalize independently (i.e.
-    // finalization is not needed) thus this method is left empty.
+    // finalization is not needed). We only mark marking has done so that V8
+    // can observe that Oilpan is finished.
+    marking_done_ = true;
   }
 
   void ReportBufferedAllocationSizeIfPossible();

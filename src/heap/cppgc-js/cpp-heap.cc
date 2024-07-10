@@ -1009,10 +1009,13 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
             heap->main_thread_local_heap(),
             heap->GCFlagsForIncrementalMarking(),
             kGCCallbackScheduleIdleGarbageCollection);
-        if (heap->incremental_marking()->IsMajorMarking() &&
-            heap->AllocationLimitOvershotByLargeMargin()) {
-          heap->FinalizeIncrementalMarkingAtomically(
-              i::GarbageCollectionReason::kExternalFinalize);
+        if (heap->incremental_marking()->IsMajorMarking()) {
+          if (heap->AllocationLimitOvershotByLargeMargin()) {
+            heap->FinalizeIncrementalMarkingAtomically(
+                i::GarbageCollectionReason::kExternalFinalize);
+          } else {
+            heap->incremental_marking()->AdvanceOnAllocation();
+          }
         }
         allocated_size_limit_for_check_ =
             allocated_size_ + kIncrementalMarkingCheckInterval;
