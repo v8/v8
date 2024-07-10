@@ -8517,10 +8517,12 @@ class LiftoffCompiler {
   }
 
   void EmitDeoptPoint(FullDecoder* decoder) {
-#ifdef DEBUG
+#if defined(DEBUG) and !defined(V8_TARGET_ARCH_ARM)
     // Liftoff may only use "allocatable registers" as defined by the
     // RegisterConfiguration. (The deoptimizer will not handle non-allocatable
     // registers).
+    // Note that this DCHECK is skipped for arm 32 bit as its deoptimizer
+    // decides to handle all available double / simd registers.
     const RegisterConfiguration* config = RegisterConfiguration::Default();
     DCHECK_LE(kLiftoffAssemblerFpCacheRegs.Count(),
               config->num_allocatable_simd128_registers());
