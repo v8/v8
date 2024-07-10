@@ -854,7 +854,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithParameters) {
 TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
-                  MachineType::Int32(), memacc.type);
+                  memacc.type, memacc.type);
   m.Store(memacc.type.representation(), m.Parameter(0), m.Int32Constant(0),
           m.Parameter(1), kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
@@ -921,8 +921,21 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest, StoreZero) {
   const MemoryAccessImm memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+    OpIndex zero;
+    if (memacc.type.representation() >= MachineRepresentation::kWord8 &&
+        memacc.type.representation() <= MachineRepresentation::kWord64) {
+      zero = m.WordConstant(
+          0, memacc.type.representation() <= MachineRepresentation::kWord32
+                 ? WordRepresentation::Word32()
+                 : WordRepresentation::Word64());
+    } else {
+      zero = m.FloatConstant(
+          0, memacc.type.representation() == MachineRepresentation::kFloat32
+                 ? FloatRepresentation::Float32()
+                 : FloatRepresentation::Float64());
+    }
     m.Store(memacc.type.representation(), m.Parameter(0),
-            m.Int32Constant(index), m.Int32Constant(0), kNoWriteBarrier);
+            m.Int32Constant(index), zero, kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -932,7 +945,12 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessImmTest, StoreZero) {
     ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
     EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
     ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
-    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
+    EXPECT_EQ(0,
+              memacc.type.representation() < MachineRepresentation::kFloat32
+                  ? s.ToInt64(s[0]->InputAt(0))
+              : memacc.type.representation() == MachineRepresentation::kFloat32
+                  ? s.ToFloat32(s[0]->InputAt(0))
+                  : s.ToFloat64(s[0]->InputAt(0)));
     EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
