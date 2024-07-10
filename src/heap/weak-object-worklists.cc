@@ -136,6 +136,12 @@ void WeakObjects::UpdateWeakReferencesNonTrivial(
 }
 
 // static
+void WeakObjects::UpdateWeakReferencesNonTrivialUnmarked(
+    WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
+  UpdateWeakReferencesHelper(weak_references);
+}
+
+// static
 void WeakObjects::UpdateWeakObjectsInCode(
     WeakObjectWorklist<HeapObjectAndCode>& weak_objects_in_code) {
   weak_objects_in_code.Update(

@@ -282,7 +282,8 @@ class MarkCompactCollector final {
   // Special handling for clearing map slots.
   // Returns true if the slot was cleared.
   bool SpecialClearMapSlot(Tagged<HeapObject> host, Tagged<Map> dead_target,
-                           MaybeObjectSlot& location);
+                           HeapObjectSlot slot);
+
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.
@@ -325,15 +326,24 @@ class MarkCompactCollector final {
   // The linked list of all encountered weak maps is destroyed.
   void ClearWeakCollections();
 
-  // Goes through the list of encountered weak references and clears those with
+  // Goes through the list of encountered trivial weak references and clears
+  // those with dead values. This is performed in a parallel job. In short, a
+  // weak reference is considered trivial if its value does not require special
+  // weakness clearing.
+  void ClearTrivialWeakReferences();
+  class ClearTrivialWeakRefJobItem;
+
+  // Goes through the list of encountered non-trivial weak references and
+  // filters out those whose values are still alive. This is performed in a
+  // parallel job.
+  void FilterNonTrivialWeakReferences();
+  class FilterNonTrivialWeakRefJobItem;
+
+  // Goes through the list of encountered non-trivial weak references with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
-  // transition. Trivial weak references, involving no custom weakness clearing,
-  // can be cleared via a parallel job.
-  void ClearTrivialWeakReferences();
+  // transition.
   void ClearNonTrivialWeakReferences();
-
-  class ClearTrivialWeakRefJobItem;
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.

@@ -71,6 +71,8 @@ class TransitionArray;
      Optimize this by adding a different storage for old space. */            \
   F(HeapObjectAndSlot, weak_references_trivial, WeakReferencesTrivial)        \
   F(HeapObjectAndSlot, weak_references_non_trivial, WeakReferencesNonTrivial) \
+  F(HeapObjectAndSlot, weak_references_non_trivial_unmarked,                  \
+    WeakReferencesNonTrivialUnmarked)                                         \
   F(HeapObjectAndCode, weak_objects_in_code, WeakObjectsInCode)               \
   F(Tagged<JSWeakRef>, js_weak_refs, JSWeakRefs)                              \
   F(Tagged<WeakCell>, weak_cells, WeakCells)                                  \
