@@ -321,6 +321,10 @@ TNode<ExternalReference> CodeAssembler::ExternalConstant(
       raw_assembler()->ExternalConstant(address));
 }
 
+TNode<ExternalReference> CodeAssembler::IsolateField(IsolateFieldId id) {
+  return ExternalConstant(ExternalReference::Create(id));
+}
+
 TNode<Float32T> CodeAssembler::Float32Constant(double value) {
   return UncheckedCast<Float32T>(jsgraph()->Float32Constant(value));
 }

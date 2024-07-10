@@ -1103,14 +1103,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static const int kBMMaxShift = 250;        // See StringSearchBase.
 
   // Accessors.
-#define GLOBAL_ACCESSOR(type, name, initialvalue)                \
-  inline type name() const {                                     \
-    DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_); \
-    return name##_;                                              \
-  }                                                              \
-  inline void set_##name(type value) {                           \
-    DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_); \
-    name##_ = value;                                             \
+#define GLOBAL_ACCESSOR(type, name, initialvalue)                 \
+  inline type name() const {                                      \
+    DCHECK_EQ(OFFSET_OF(Isolate, name##_), name##_debug_offset_); \
+    return name##_;                                               \
+  }                                                               \
+  inline void set_##name(type value) {                            \
+    DCHECK_EQ(OFFSET_OF(Isolate, name##_), name##_debug_offset_); \
+    name##_ = value;                                              \
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR

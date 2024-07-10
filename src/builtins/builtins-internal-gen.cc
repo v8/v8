@@ -130,8 +130,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> UsesSharedHeap() {
-    TNode<ExternalReference> uses_shared_heap_addr = ExternalConstant(
-        ExternalReference::uses_shared_heap_flag_address(this->isolate()));
+    TNode<ExternalReference> uses_shared_heap_addr =
+        IsolateField(IsolateFieldId::kUsesSharedHeapFlag);
     return Word32NotEqual(Load<Uint8T>(uses_shared_heap_addr),
                           Int32Constant(0));
   }

@@ -258,6 +258,11 @@ ExternalReference ExternalReference::Create(Runtime::FunctionId id) {
 }
 
 // static
+ExternalReference ExternalReference::Create(IsolateFieldId id) {
+  return ExternalReference(id);
+}
+
+// static
 ExternalReference ExternalReference::Create(const Runtime::Function* f) {
   return ExternalReference(
       Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size)));
@@ -274,10 +279,6 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 
 ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
-}
-
-ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
-  return ExternalReference(isolate->builtin_table());
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
@@ -684,12 +685,6 @@ ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->is_shared_space_isolate_flag_address());
-}
-
-ExternalReference ExternalReference::uses_shared_heap_flag_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->uses_shared_heap_flag_address());
 }
 
 ExternalReference ExternalReference::new_space_allocation_top_address(
@@ -1504,48 +1499,8 @@ ExternalReference ExternalReference::debug_suspended_generator_address(
   return ExternalReference(isolate->debug()->suspended_generator_address());
 }
 
-ExternalReference ExternalReference::fast_c_call_caller_fp_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->fast_c_call_caller_fp_address());
-}
-
 ExternalReference ExternalReference::context_address(Isolate* isolate) {
   return ExternalReference(isolate->context_address());
-}
-
-ExternalReference ExternalReference::fast_c_call_caller_pc_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->fast_c_call_caller_pc_address());
-}
-
-ExternalReference ExternalReference::fast_api_call_target_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->fast_api_call_target_address());
-}
-
-ExternalReference ExternalReference::api_callback_thunk_argument_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->api_callback_thunk_argument_address());
-}
-
-ExternalReference ExternalReference::continuation_preserved_embedder_data(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->continuation_preserved_embedder_data_address());
-}
-
-ExternalReference ExternalReference::stack_is_iterable_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->isolate_data()->stack_is_iterable_address());
-}
-
-ExternalReference ExternalReference::execution_mode_address(Isolate* isolate) {
-  return ExternalReference(isolate->isolate_data()->execution_mode_address());
 }
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,
@@ -1822,6 +1777,11 @@ static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   case IsolateFieldId::k##camel: \
     return name;
     EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
+#undef CASE
+#define CASE(camel, size, name)  \
+  case IsolateFieldId::k##camel: \
+    return #name;
+    ISOLATE_DATA_FIELDS(CASE)
 #undef CASE
     default:
       return "unknown";

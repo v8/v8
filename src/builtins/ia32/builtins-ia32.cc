@@ -351,21 +351,19 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
   __ push(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
-  ExternalReference fast_c_call_fp =
-      ExternalReference::fast_c_call_caller_fp_address(masm->isolate());
-  __ push(__ ExternalReferenceAsOperand(fast_c_call_fp, edi));
+  __ push(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
 
-  ExternalReference fast_c_call_pc =
-      ExternalReference::fast_c_call_caller_pc_address(masm->isolate());
-  __ push(__ ExternalReferenceAsOperand(fast_c_call_pc, edi));
+  __ push(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
 
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
   // If the c_entry_fp is not already zero and we don't clear it, the
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
   __ mov(__ ExternalReferenceAsOperand(c_entry_fp, edi), Immediate(0));
-  __ mov(__ ExternalReferenceAsOperand(fast_c_call_fp, edi), Immediate(0));
-  __ mov(__ ExternalReferenceAsOperand(fast_c_call_pc, edi), Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
+         Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC),
+         Immediate(0));
 
   // Store the context address in the previously-reserved slot.
   ExternalReference context_address = ExternalReference::Create(
@@ -424,8 +422,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
-  __ pop(__ ExternalReferenceAsOperand(fast_c_call_pc, edi));
-  __ pop(__ ExternalReferenceAsOperand(fast_c_call_fp, edi));
+  __ pop(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
+  __ pop(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // Restore callee-saved registers (C calling conventions).
@@ -5194,8 +5192,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
   // walk the stack without the return address.
-  __ mov_b(__ ExternalReferenceAsOperand(
-               ExternalReference::stack_is_iterable_address(isolate), edx),
+  __ mov_b(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
            Immediate(0));
 
   // Remove the return address and the xmm registers.
@@ -5283,8 +5280,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ push(Operand(esi, offset));
   }
 
-  __ mov_b(__ ExternalReferenceAsOperand(
-               ExternalReference::stack_is_iterable_address(isolate), edx),
+  __ mov_b(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
            Immediate(1));
 
   // Restore the registers from the stack.

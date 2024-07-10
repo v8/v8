@@ -382,10 +382,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
 
-  ExternalReference fast_c_call_fp =
-      ExternalReference::fast_c_call_caller_fp_address(masm->isolate());
-  ExternalReference fast_c_call_pc =
-      ExternalReference::fast_c_call_caller_pc_address(masm->isolate());
   {
     // Keep this static_assert to preserve a link between the offset constant
     // and the code location it refers to.
@@ -408,9 +404,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Move(c_entry_fp_operand, 0);
 
     Operand fast_c_call_fp_operand =
-        masm->ExternalReferenceAsOperand(fast_c_call_fp);
+        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP);
     Operand fast_c_call_pc_operand =
-        masm->ExternalReferenceAsOperand(fast_c_call_pc);
+        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC);
     __ Push(fast_c_call_fp_operand);
     __ Move(fast_c_call_fp_operand, 0);
 
@@ -480,11 +476,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Restore the top frame descriptor from the stack.
   {
     Operand fast_c_call_pc_operand =
-        masm->ExternalReferenceAsOperand(fast_c_call_pc);
+        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC);
     __ Pop(fast_c_call_pc_operand);
 
     Operand fast_c_call_fp_operand =
-        masm->ExternalReferenceAsOperand(fast_c_call_fp);
+        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP);
     __ Pop(fast_c_call_fp_operand);
 
     Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
@@ -4743,8 +4739,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
   // walk the stack without the return address.
-  __ movb(__ ExternalReferenceAsOperand(
-              ExternalReference::stack_is_iterable_address(isolate)),
+  __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
           Immediate(0));
 
   // Remove the return address from the stack.
@@ -4843,8 +4838,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ popq(r);
   }
 
-  __ movb(__ ExternalReferenceAsOperand(
-              ExternalReference::stack_is_iterable_address(isolate)),
+  __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
           Immediate(1));
 
   // Return to the continuation point.

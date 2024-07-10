@@ -621,8 +621,8 @@ class FastApiCallLoweringReducer : public Next {
                        V<FrameState> frame_state, V<Context> context,
                        base::Vector<const OpIndex> arguments) {
     // CPU profiler support.
-    OpIndex target_address = __ ExternalConstant(
-        ExternalReference::fast_api_call_target_address(isolate_));
+    OpIndex target_address =
+        __ IsolateField(IsolateFieldId::kFastApiCallTarget);
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::UintPtr());
 

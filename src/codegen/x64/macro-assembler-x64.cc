@@ -143,27 +143,32 @@ void MacroAssembler::LoadAddress(Register destination,
 
 Operand MacroAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
-  if (root_array_available_ && options().enable_root_relative_access) {
-    int64_t delta =
-        RootRegisterOffsetForExternalReference(isolate(), reference);
-    if (is_int32(delta)) {
-      return Operand(kRootRegister, static_cast<int32_t>(delta));
+  if (root_array_available()) {
+    if (reference.IsIsolateFieldId()) {
+      return Operand(kRootRegister, reference.offset_from_root_register());
     }
-  }
-  if (root_array_available_ && options().isolate_independent_code) {
-    if (IsAddressableThroughRootRegister(isolate(), reference)) {
-      // Some external references can be efficiently loaded as an offset from
-      // kRootRegister.
-      intptr_t offset =
+    if (options().enable_root_relative_access) {
+      int64_t delta =
           RootRegisterOffsetForExternalReference(isolate(), reference);
-      CHECK(is_int32(offset));
-      return Operand(kRootRegister, static_cast<int32_t>(offset));
-    } else {
-      // Otherwise, do a memory load from the external reference table.
-      movq(scratch, Operand(kRootRegister,
-                            RootRegisterOffsetForExternalReferenceTableEntry(
-                                isolate(), reference)));
-      return Operand(scratch, 0);
+      if (is_int32(delta)) {
+        return Operand(kRootRegister, static_cast<int32_t>(delta));
+      }
+    }
+    if (options().isolate_independent_code) {
+      if (IsAddressableThroughRootRegister(isolate(), reference)) {
+        // Some external references can be efficiently loaded as an offset from
+        // kRootRegister.
+        intptr_t offset =
+            RootRegisterOffsetForExternalReference(isolate(), reference);
+        CHECK(is_int32(offset));
+        return Operand(kRootRegister, static_cast<int32_t>(offset));
+      } else {
+        // Otherwise, do a memory load from the external reference table.
+        movq(scratch, Operand(kRootRegister,
+                              RootRegisterOffsetForExternalReferenceTableEntry(
+                                  isolate(), reference)));
+        return Operand(scratch, 0);
+      }
     }
   }
   Move(scratch, reference);
@@ -4137,43 +4142,10 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
     DCHECK(!AreAliased(kScratchRegister, function));
     leaq(kScratchRegister, Operand(&get_pc, 0));
 
-    // Addressing the following external references is tricky because we need
-    // this to work in three situations:
-    // 1. In wasm compilation, the isolate is nullptr and thus no
-    //    ExternalReference can be created, but we can construct the address
-    //    directly using the root register and a static offset.
-    // 2. In normal JIT (and builtin) compilation, the external reference is
-    //    usually addressed through the root register, so we can use the direct
-    //    offset directly in most cases.
-    // 3. In regexp compilation, the external reference is embedded into the
-    // reloc
-    //    info.
-    // The solution here is to use root register offsets wherever possible in
-    // which case we can construct it directly. When falling back to external
-    // references we need to ensure that the scratch register does not get
-    // accidentally overwritten. If we run into more such cases in the future,
-    // we should implement a more general solution.
-    if (root_array_available()) {
-      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()),
-           kScratchRegister);
-      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
-           rbp);
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      // Use alternative scratch register in order not to overwrite
-      // kScratchRegister.
-      Register scratch = r12;
-      pushq(scratch);
-
-      movq(ExternalReferenceAsOperand(
-               ExternalReference::fast_c_call_caller_pc_address(isolate()),
-               scratch),
-           kScratchRegister);
-      movq(ExternalReferenceAsOperand(
-               ExternalReference::fast_c_call_caller_fp_address(isolate())),
-           rbp);
-      popq(scratch);
-    }
+    CHECK(root_array_available());
+    movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC),
+         kScratchRegister);
+    movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP), rbp);
   }
 
   call(function);
@@ -4183,15 +4155,8 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
-    if (root_array_available()) {
-      movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
-           Immediate(0));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      movq(ExternalReferenceAsOperand(
-               ExternalReference::fast_c_call_caller_fp_address(isolate())),
-           Immediate(0));
-    }
+    movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
+         Immediate(0));
   }
 
   DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
@@ -4393,8 +4358,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ cmpb(__ ExternalReferenceAsOperand(ER::execution_mode_address(isolate),
-                                          no_reg),
+    __ cmpb(__ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode),
             Immediate(0));
     __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
@@ -4465,7 +4429,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Additional parameter is the address of the actual callback function.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          ER::api_callback_thunk_argument_address(isolate), no_reg);
+          IsolateFieldId::kApiCallbackThunkArgument);
       __ movq(thunk_arg_mem_op, thunk_arg);
     }
     __ Call(thunk_ref);

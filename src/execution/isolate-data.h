@@ -37,89 +37,84 @@ class Isolate;
     fast_c_call_alignment_padding)
 #endif  // V8_HOST_ARCH_64_BIT
 
-// IsolateData fields, defined as: V(Offset, Size, Name)
+// IsolateData fields, defined as: V(CamelName, Size, hacker_name)
 #define ISOLATE_DATA_FIELDS(V)                                                 \
   /* Misc. fields. */                                                          \
-  V(kCageBaseOffset, kSystemPointerSize, cage_base)                            \
-  V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                  \
-  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                               \
-  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                    \
-  V(kIsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)       \
-  V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                    \
-  V(kExecutionModeOffset, kUInt8Size, execution_mode)                          \
-  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                     \
-  V(kErrorMessageParam, kUInt8Size, error_message_param)                       \
-  V(kTablesAlignmentPaddingOffset, 1, tables_alignment_padding)                \
+  V(CageBase, kSystemPointerSize, cage_base)                                   \
+  V(StackGuard, StackGuard::kSizeInBytes, stack_guard)                         \
+  V(IsMarkingFlag, kUInt8Size, is_marking_flag)                                \
+  V(IsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                     \
+  V(IsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)        \
+  V(UsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                     \
+  V(ExecutionMode, kUInt8Size, execution_mode)                                 \
+  V(StackIsIterable, kUInt8Size, stack_is_iterable)                            \
+  V(ErrorMessageParam, kUInt8Size, error_message_param)                        \
+  V(TablesAlignmentPadding, 1, tables_alignment_padding)                       \
   /* Tier 0 tables (small but fast access). */                                 \
-  V(kBuiltinTier0EntryTableOffset,                                             \
-    Builtins::kBuiltinTier0Count* kSystemPointerSize,                          \
+  V(BuiltinTier0EntryTable, Builtins::kBuiltinTier0Count* kSystemPointerSize,  \
     builtin_tier0_entry_table)                                                 \
-  V(kBuiltinsTier0TableOffset,                                                 \
-    Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)     \
+  V(BuiltinsTier0Table, Builtins::kBuiltinTier0Count* kSystemPointerSize,      \
+    builtin_tier0_table)                                                       \
   /* Misc. fields. */                                                          \
-  V(kNewAllocationInfoOffset, LinearAllocationArea::kSize,                     \
-    new_allocation_info)                                                       \
-  V(kOldAllocationInfoOffset, LinearAllocationArea::kSize,                     \
-    old_allocation_info)                                                       \
+  V(NewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)       \
+  V(OldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)       \
   ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
-  V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)       \
-  V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)       \
-  V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)        \
-  V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)          \
-  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)     \
-  V(kHandleScopeDataOffset, HandleScopeData::kSizeInBytes, handle_scope_data)  \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize,  \
+  V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \
+  V(FastCCallCallerPC, kSystemPointerSize, fast_c_call_caller_pc)              \
+  V(FastApiCallTarget, kSystemPointerSize, fast_api_call_target)               \
+  V(LongTaskStatsCounter, kSizetSize, long_task_stats_counter)                 \
+  V(ThreadLocalTop, ThreadLocalTop::kSizeInBytes, thread_local_top)            \
+  V(HandleScopeData, HandleScopeData::kSizeInBytes, handle_scope_data)         \
+  V(EmbedderData, Internals::kNumIsolateDataSlots* kSystemPointerSize,         \
     embedder_data)                                                             \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
   ISOLATE_DATA_FIELDS_SANDBOX(V)                                               \
-  V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                       \
-    api_callback_thunk_argument)                                               \
-  V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,              \
+  V(ApiCallbackThunkArgument, kSystemPointerSize, api_callback_thunk_argument) \
+  V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \
   /* Full tables (arbitrary size, potentially slower access). */               \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,          \
-    roots_table)                                                               \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes,       \
+  V(RootsTable, RootsTable::kEntriesCount* kSystemPointerSize, roots_table)    \
+  V(ExternalReferenceTable, ExternalReferenceTable::kSizeInBytes,              \
     external_reference_table)                                                  \
-  V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,     \
+  V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
-  V(kBuiltinTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,          \
-    builtin_table)
+  V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)
 
 #ifdef V8_COMPRESS_POINTERS
-#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)            \
-  V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
-    external_pointer_table)                                   \
-  V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
-    shared_external_pointer_table)                            \
-  V(kCppHeapPointerTableOffset, CppHeapPointerTable::kSize,   \
-    cpp_heap_pointer_table)
+#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                             \
+  V(ExternalPointerTable, ExternalPointerTable::kSize, external_pointer_table) \
+  V(SharedExternalPointerTable, kSystemPointerSize,                            \
+    shared_external_pointer_table)                                             \
+  V(CppHeapPointerTable, CppHeapPointerTable::kSize, cpp_heap_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-#define ISOLATE_DATA_FIELDS_SANDBOX(V)                             \
-  V(kTrustedCageBaseOffset, kSystemPointerSize, trusted_cage_base) \
-  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize,        \
-    trusted_pointer_table)                                         \
-  V(kExternalBufferTableOffset, ExternalBufferTable::kSize,        \
-    external_buffer_table)                                         \
-  V(kSharedExternalBufferTableOffset, kSystemPointerSize,          \
-    shared_external_buffer_table)
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                                      \
+  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                 \
+  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table) \
+  V(ExternalBufferTable, ExternalBufferTable::kSize, external_buffer_table) \
+  V(SharedExternalBufferTable, kSystemPointerSize, shared_external_buffer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V) \
+  V(isolate_address, "isolate address", IsolateAddress)
+
 constexpr uint8_t kNumIsolateFieldIds = 0
-#define PLUS_1(a, b, c) +1
-    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(PLUS_1);
+#define PLUS_1(...) +1
+    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(PLUS_1) ISOLATE_DATA_FIELDS(PLUS_1);
 #undef PLUS_1
 
 enum class IsolateFieldId : uint8_t {
   kUnknown = 0,
 #define FIELD(name, comment, camel) k##camel,
   EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(FIELD)
+#undef FIELD
+#define FIELD(camel, ...) k##camel,
+      ISOLATE_DATA_FIELDS(FIELD)
 #undef FIELD
 };
 
@@ -154,8 +149,10 @@ class IsolateData final {
 
   // Root-register-relative offsets.
 
-#define V(Offset, Size, Name) \
-  static constexpr int Name##_offset() { return Offset - kIsolateRootBias; }
+#define V(CamelName, Size, hacker_name)             \
+  static constexpr int hacker_name##_offset() {     \
+    return k##CamelName##Offset - kIsolateRootBias; \
+  }
   ISOLATE_DATA_FIELDS(V)
 #undef V
 
@@ -256,6 +253,13 @@ class IsolateData final {
         UNREACHABLE();
       case IsolateFieldId::kIsolateAddress:
         return -kIsolateRootBias;
+#define CASE(camel, size, name)  \
+  case IsolateFieldId::k##camel: \
+    return IsolateData::name##_offset();
+        ISOLATE_DATA_FIELDS(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -270,12 +274,12 @@ class IsolateData final {
 #define FIELDS(V)                                                      \
   ISOLATE_DATA_FIELDS(V)                                               \
   /* This padding aligns IsolateData size by 8 bytes. */               \
-  V(kPaddingOffset,                                                    \
+  V(Padding,                                                           \
     8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset) \
   /* Total size. */                                                    \
-  V(kSize, 0)
+  V(Size, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(0, FIELDS)
 #undef FIELDS
 
   const Address cage_base_ = kNullAddress;
@@ -419,17 +423,14 @@ void IsolateData::AssertPredictableLayout() {
   static_assert(std::is_standard_layout<ExternalReferenceTable>::value);
   static_assert(std::is_standard_layout<IsolateData>::value);
   static_assert(std::is_standard_layout<LinearAllocationArea>::value);
-#define V(Offset, Size, Name)                                          \
+#define V(PureName, Size, Name)                                        \
   static_assert(                                                       \
       std::is_standard_layout<decltype(IsolateData::Name##_)>::value); \
-  static_assert(offsetof(IsolateData, Name##_) == Offset);
+  static_assert(offsetof(IsolateData, Name##_) == k##PureName##Offset);
   ISOLATE_DATA_FIELDS(V)
 #undef V
-  static_assert(sizeof(IsolateData) == IsolateData::kSize);
+  static_assert(sizeof(IsolateData) == IsolateData::kSizeOffset);
 }
-
-#undef ISOLATE_DATA_FIELDS_POINTER_COMPRESSION
-#undef ISOLATE_DATA_FIELDS
 
 }  // namespace internal
 }  // namespace v8

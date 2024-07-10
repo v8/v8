@@ -242,6 +242,16 @@ inline T RoundingAverageUnsigned(T a, T b) {
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
   };
 
+#define DEFINE_ONE_FIELD_OFFSET_PURE_NAME(CamelName, Size, ...) \
+  k##CamelName##Offset,                                         \
+      k##CamelName##OffsetEnd = k##CamelName##Offset + (Size)-1,
+
+#define DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(StartOffset, LIST_MACRO) \
+  enum {                                                                      \
+    LIST_MACRO##_StartOffset = StartOffset - 1,                               \
+    LIST_MACRO(DEFINE_ONE_FIELD_OFFSET_PURE_NAME)                             \
+  };
+
 // Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
 #define FIELD_SIZE(Name) (Name##End + 1 - Name)
 

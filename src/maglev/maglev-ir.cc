@@ -6009,10 +6009,8 @@ void GetContinuationPreservedEmbedderData::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register result = ToRegister(this->result());
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.GetDefaultScratchRegister();
   MemOperand reference = __ ExternalReferenceAsOperand(
-      ExternalReference::continuation_preserved_embedder_data(masm->isolate()),
-      scratch);
+      IsolateFieldId::kContinuationPreservedEmbedderData);
   __ Move(result, reference);
 }
 
@@ -6024,10 +6022,8 @@ void SetContinuationPreservedEmbedderData::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register data = ToRegister(data_input());
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.GetDefaultScratchRegister();
   MemOperand reference = __ ExternalReferenceAsOperand(
-      ExternalReference::continuation_preserved_embedder_data(masm->isolate()),
-      scratch);
+      IsolateFieldId::kContinuationPreservedEmbedderData);
   __ Move(reference, data);
 }
 

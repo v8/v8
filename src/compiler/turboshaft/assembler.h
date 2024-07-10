@@ -1974,6 +1974,9 @@ class TurboshaftAssemblerOpInterface
   OpIndex ExternalConstant(ExternalReference value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kExternal, value);
   }
+  OpIndex IsolateField(IsolateFieldId id) {
+    return ExternalConstant(ExternalReference::Create(id));
+  }
   V<WordPtr> RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
     DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
     return ReduceIfReachableConstant(

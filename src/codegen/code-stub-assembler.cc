@@ -7116,15 +7116,15 @@ TNode<BoolT> CodeStubAssembler::IsExecutionTerminating() {
 }
 
 TNode<Object> CodeStubAssembler::GetContinuationPreservedEmbedderData() {
-  TNode<ExternalReference> continuation_data = ExternalConstant(
-      ExternalReference::continuation_preserved_embedder_data(isolate()));
+  TNode<ExternalReference> continuation_data =
+      IsolateField(IsolateFieldId::kContinuationPreservedEmbedderData);
   return LoadFullTagged(continuation_data);
 }
 
 void CodeStubAssembler::SetContinuationPreservedEmbedderData(
     TNode<Object> value) {
-  TNode<ExternalReference> continuation_data = ExternalConstant(
-      ExternalReference::continuation_preserved_embedder_data(isolate()));
+  TNode<ExternalReference> continuation_data =
+      IsolateField(IsolateFieldId::kContinuationPreservedEmbedderData);
   StoreFullTaggedNoWriteBarrier(continuation_data, value);
 }
 
@@ -16726,8 +16726,7 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  TNode<ExternalReference> table =
-      ExternalConstant(ExternalReference::builtins_table(isolate()));
+  TNode<ExternalReference> table = IsolateField(IsolateFieldId::kBuiltinTable);
 
   return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }

@@ -313,6 +313,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // that is guaranteed not to be clobbered.
   Operand ExternalReferenceAsOperand(ExternalReference reference,
                                      Register scratch);
+  Operand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
   Operand ExternalReferenceAddressAsOperand(ExternalReference reference);
   Operand HeapObjectAsOperand(Handle<HeapObject> object);
 

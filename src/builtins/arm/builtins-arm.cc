@@ -554,13 +554,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ ldr(r7, MemOperand(r4));
   __ str(r9, MemOperand(r4));
 
-  __ Move(r4,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(r4, IsolateFieldId::kFastCCallCallerFP);
   __ ldr(r6, MemOperand(r4));
   __ str(r9, MemOperand(r4));
 
-  __ Move(r4,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(r4, IsolateFieldId::kFastCCallCallerPC);
   __ ldr(r5, MemOperand(r4));
   __ str(r9, MemOperand(r4));
 
@@ -648,12 +646,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Restore the top frame descriptors from the stack.
   __ ldm(ia_w, sp, {r3, r4, r5});
-  __ Move(scratch,
-          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerFP);
   __ str(r4, MemOperand(scratch));
 
-  __ Move(scratch,
-          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerPC);
   __ str(r3, MemOperand(scratch));
 
   __ Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
@@ -4693,7 +4689,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register zero = r4;
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ mov(zero, Operand(0));
     __ strb(zero, MemOperand(is_iterable));
   }
@@ -4796,7 +4792,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     Register is_iterable = temps.Acquire();
     Register one = r4;
     __ push(one);  // Save the value from the output FrameDescription.
-    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ mov(one, Operand(1));
     __ strb(one, MemOperand(is_iterable));
     __ pop(one);  // Restore the value from the output FrameDescription.

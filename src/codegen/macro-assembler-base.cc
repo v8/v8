@@ -103,7 +103,9 @@ int32_t MacroAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
 // static
 intptr_t MacroAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
-  CHECK(!reference.IsIsolateFieldId());
+  if (reference.IsIsolateFieldId()) {
+    return reference.offset_from_root_register();
+  }
   return static_cast<intptr_t>(reference.address() - isolate->isolate_root());
 }
 
@@ -123,6 +125,8 @@ int32_t MacroAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
 // static
 bool MacroAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
+  if (reference.IsIsolateFieldId()) return true;
+
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);
 }

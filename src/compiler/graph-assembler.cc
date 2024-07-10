@@ -119,6 +119,10 @@ Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return AddClonedNode(mcgraph()->ExternalConstant(ref));
 }
 
+Node* GraphAssembler::IsolateField(IsolateFieldId id) {
+  return ExternalConstant(ExternalReference::Create(id));
+}
+
 Node* GraphAssembler::Parameter(int index) {
   return AddNode(
       graph()->NewNode(common()->Parameter(index), graph()->start()));

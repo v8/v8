@@ -332,6 +332,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* UniqueIntPtrConstant(intptr_t value);
   Node* Float64Constant(double value);
   Node* ExternalConstant(ExternalReference ref);
+  Node* IsolateField(IsolateFieldId id);
 
   Node* Projection(int index, Node* value, Node* ctrl = nullptr);
 

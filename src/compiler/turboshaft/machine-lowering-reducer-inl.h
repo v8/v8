@@ -3298,8 +3298,7 @@ class MachineLoweringReducer : public Next {
     constexpr int offset = 0;
 #endif
     return __ Load(
-        __ ExternalConstant(
-            ExternalReference::continuation_preserved_embedder_data(isolate_)),
+        __ IsolateField(IsolateFieldId::kContinuationPreservedEmbedderData),
         LoadOp::Kind::RawAligned(), MemoryRepresentation::TaggedPointer(),
         offset);
   }
@@ -3311,8 +3310,7 @@ class MachineLoweringReducer : public Next {
     constexpr int offset = 0;
 #endif
     __ Store(
-        __ ExternalConstant(
-            ExternalReference::continuation_preserved_embedder_data(isolate_)),
+        __ IsolateField(IsolateFieldId::kContinuationPreservedEmbedderData),
         data, StoreOp::Kind::RawAligned(),
         MemoryRepresentation::TaggedPointer(),
         WriteBarrierKind::kNoWriteBarrier, offset);

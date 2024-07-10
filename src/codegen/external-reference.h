@@ -24,12 +24,8 @@ enum class IsolateFieldId : uint8_t;
 //------------------------------------------------------------------------------
 // External references
 
-#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V) \
-  V(isolate_address, "isolate address", IsolateAddress)
-
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(V)                                \
   V(isolate_address, "isolate")                                                \
-  V(builtins_table, "builtins_table")                                          \
   V(handle_scope_implementer_address,                                          \
     "Isolate::handle_scope_implementer_address")                               \
   V(address_of_interpreter_entry_trampoline_instruction_start,                 \
@@ -50,7 +46,6 @@ enum class IsolateFieldId : uint8_t;
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
   V(is_shared_space_isolate_flag_address,                                      \
     "is_shared_space_isolate_flag_address")                                    \
-  V(uses_shared_heap_flag_address, "uses_shared_heap_flag_address")            \
   V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
   V(new_space_allocation_limit_address,                                        \
     "Heap::NewSpaceAllocationLimitAddress()")                                  \
@@ -70,20 +65,9 @@ enum class IsolateFieldId : uint8_t;
     "Debug::hook_on_function_call_address()")                                  \
   V(runtime_function_table_address,                                            \
     "Runtime::runtime_function_table_address()")                               \
-  V(execution_mode_address, "IsolateData::execution_mode")                     \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(context_address, "Isolate::context_address()")                             \
-  V(fast_c_call_caller_fp_address,                                             \
-    "IsolateData::fast_c_call_caller_fp_address")                              \
-  V(fast_c_call_caller_pc_address,                                             \
-    "IsolateData::fast_c_call_caller_pc_address")                              \
-  V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \
-  V(api_callback_thunk_argument_address,                                       \
-    "IsolateData::api_callback_thunk_argument_address")                        \
-  V(continuation_preserved_embedder_data,                                      \
-    "IsolateData::continuation_preserved_embedder_data")                       \
-  V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
   V(address_of_regexp_stack_limit_address,                                     \
     "RegExpStack::limit_address_address()")                                    \
   V(address_of_regexp_stack_memory_top_address,                                \
@@ -534,6 +518,7 @@ class ExternalReference {
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static ExternalReference Create(Runtime::FunctionId id);
+  static ExternalReference Create(IsolateFieldId id);
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);
 
@@ -547,15 +532,12 @@ class ExternalReference {
   EXTERNAL_REFERENCE_LIST(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
 
-#define DECL_EXTERNAL_REFERENCE(name, desc, camel) \
-  V8_EXPORT_PRIVATE static ExternalReference name();
-  EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(DECL_EXTERNAL_REFERENCE)
-#undef DECL_EXTERNAL_REFERENCE
-
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
   static V8_EXPORT_PRIVATE ExternalReference name(Isolate* isolate);
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
+
+  V8_EXPORT_PRIVATE static ExternalReference isolate_address();
 
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);

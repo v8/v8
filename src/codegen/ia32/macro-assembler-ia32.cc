@@ -1956,22 +1956,14 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
     if (function == ecx) scratch = edx;
     LoadLabelAddress(pc_scratch, &get_pc);
 
-    // See x64 code for reasoning about how to address the isolate data fields.
-    DCHECK_IMPLIES(!root_array_available(), isolate() != nullptr);
-    mov(root_array_available()
-            ? Operand(kRootRegister,
-                      IsolateData::fast_c_call_caller_pc_offset())
-            : ExternalReferenceAsOperand(
-                  ExternalReference::fast_c_call_caller_pc_address(isolate()),
-                  scratch),
+    // The root array is always available in production code. Only in one unit
+    // test it is not available. The following code is not needed in the unit
+    // test though, so we don't provide code here for the case where the root
+    // array is not available.
+    CHECK(root_array_available());
+    mov(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC),
         pc_scratch);
-    mov(root_array_available()
-            ? Operand(kRootRegister,
-                      IsolateData::fast_c_call_caller_fp_offset())
-            : ExternalReferenceAsOperand(
-                  ExternalReference::fast_c_call_caller_fp_address(isolate()),
-                  scratch),
-        ebp);
+    mov(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP), ebp);
   }
 
   call(function);
@@ -1981,13 +1973,7 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
-    Register scratch = ecx;
-    mov(root_array_available()
-            ? Operand(kRootRegister,
-                      IsolateData::fast_c_call_caller_fp_offset())
-            : ExternalReferenceAsOperand(
-                  ExternalReference::fast_c_call_caller_fp_address(isolate()),
-                  scratch),
+    mov(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
         Immediate(0));
   }
 
@@ -2287,8 +2273,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ cmpb(__ ExternalReferenceAsOperand(ER::execution_mode_address(isolate),
-                                          no_reg),
+    __ cmpb(__ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode),
             Immediate(0));
     __ j(not_zero, &profiler_or_side_effects_check_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
@@ -2359,7 +2344,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Additional parameter is the address of the actual callback function.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          ER::api_callback_thunk_argument_address(isolate), no_reg);
+          IsolateFieldId::kApiCallbackThunkArgument);
       __ mov(thunk_arg_mem_op, thunk_arg);
     }
     __ Move(scratch, Immediate(thunk_ref));
