@@ -3510,14 +3510,25 @@ std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
         case FastCloneObjectMode::kNotSupported:
         case FastCloneObjectMode::kDifferentMap:
           break;
-        default:
-          UNREACHABLE();
+        case FastCloneObjectMode::kEmptyObject:
+        case FastCloneObjectMode::kIdenticalMap:
+          DCHECK_EQ(
+              *name,
+              ReadOnlyRoots(isolate).object_assign_clone_transition_symbol());
+          break;
       }
     } else {
       switch (clone_mode) {
         case FastCloneObjectMode::kIdenticalMap:
-          DCHECK_EQ(*source_map, *maybe_target);
-          break;
+          if (*name ==
+              ReadOnlyRoots(isolate).clone_object_ic_transition_symbol()) {
+            DCHECK_EQ(*source_map, *maybe_target);
+            break;
+          }
+          DCHECK_EQ(
+              *name,
+              ReadOnlyRoots(isolate).object_assign_clone_transition_symbol());
+          [[fallthrough]];
         case FastCloneObjectMode::kDifferentMap:
           if ((*maybe_target)->is_deprecated()) break;
           DCHECK(CanFastCloneObjectWithDifferentMaps(
