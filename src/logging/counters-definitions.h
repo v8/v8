@@ -104,6 +104,8 @@ namespace internal {
      kMaxTrustedPointers, 101)                                                 \
   HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \
      kMaxCppHeapPointers, 101)                                                 \
+  HR(js_dispatch_table_entries_count, V8.JSDispatchTableEntriesCount, 0,       \
+     kMaxJSDispatchEntries, 101)                                               \
   /* Outcome of external pointer table compaction: kSuccess, */                \
   /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
   /* ExternalPointerTable::TableCompactionOutcome enum for more details. */    \

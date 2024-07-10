@@ -4334,6 +4334,8 @@ void Isolate::Deinit() {
   trusted_pointer_table().TearDown();
 
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
+  GetProcessWideJSDispatchTable()->TearDownSpace(
+      heap()->js_dispatch_table_space());
 
   external_buffer_table().TearDownSpace(heap()->external_buffer_space());
   external_buffer_table().TearDown();
@@ -5378,6 +5380,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(
       heap()->code_pointer_space());
+  GetProcessWideJSDispatchTable()->InitializeSpace(
+      heap()->js_dispatch_table_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_external_buffer_table_ = new ExternalBufferTable();
     shared_external_buffer_space_ = new ExternalBufferTable::Space();

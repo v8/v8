@@ -25,6 +25,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -288,6 +289,16 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
   concrete_visitor()->MarkPointerTableEntry(host, slot);
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
+    Tagged<HeapObject> host, JSDispatchHandle handle) {
+#ifdef V8_ENABLE_SANDBOX
+  JSDispatchTable* table = GetProcessWideJSDispatchTable();
+  JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
+  table->Mark(space, handle);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 // ===========================================================================

@@ -129,6 +129,8 @@ class ReferenceSummarizerMarkingVisitor
                             ExternalPointerSlot slot) override {}
   void VisitCppHeapPointer(Tagged<HeapObject> host,
                            CppHeapPointerSlot slot) override {}
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override {}
 
  private:
   ReferenceSummarizerMarkingState* marking_state_;

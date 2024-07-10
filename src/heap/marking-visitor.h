@@ -142,6 +142,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                      IndirectPointerSlot slot) final;
 
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
+
   V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
                                        ProtectedPointerSlot slot) final {
     VisitStrongPointerImpl(host, slot);

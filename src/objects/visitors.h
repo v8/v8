@@ -203,6 +203,9 @@ class ObjectVisitor {
   virtual void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                              IndirectPointerSlot slot) {}
 
+  virtual void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                         JSDispatchHandle handle) {}
+
   virtual void VisitMapPointer(Tagged<HeapObject> host) { UNREACHABLE(); }
 };
 
