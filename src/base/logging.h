@@ -7,8 +7,10 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "src/base/abort-mode.h"
 #include "src/base/base-export.h"
@@ -200,6 +202,18 @@ auto GetUnderlyingEnumTypeForPrinting(T val) {
                          uint16_t> >;
   return static_cast<int_t>(static_cast<underlying_t>(val));
 }
+
+template <typename T, typename Enable = void>
+struct is_forward_iterable : public std::false_type {};
+template <typename T>
+struct is_forward_iterable<
+    T, std::enable_if_t<std::is_convertible_v<
+           typename std::iterator_traits<
+               decltype(std::declval<T>().begin())>::iterator_category,
+           std::forward_iterator_tag>>> : public std::true_type {};
+
+static_assert(is_forward_iterable<const std::vector<int>&>::value);
+
 }  // namespace detail
 
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
@@ -259,10 +273,33 @@ PrintCheckOperand(T val) {
 // Define default PrintCheckOperand<T> for non-printable types.
 template <typename T>
 typename std::enable_if<!has_output_operator<T, CheckMessageStream>::value &&
-                            !std::is_enum<T>::value,
+                            !std::is_enum<T>::value &&
+                            !detail::is_forward_iterable<T>::value,
                         std::string>::type
 PrintCheckOperand(T val) {
   return "<unprintable>";
+}
+
+// Define PrintCheckOperand<T> for forward iterable containers without an output
+// operator.
+template <typename T>
+typename std::enable_if<detail::is_forward_iterable<T>::value &&
+                            !has_output_operator<T, CheckMessageStream>::value,
+                        std::string>::type
+PrintCheckOperand(T container) {
+  CheckMessageStream oss;
+  oss << "{";
+  bool first = true;
+  for (const auto& val : container) {
+    if (!first) {
+      oss << ",";
+    } else {
+      first = false;
+    }
+    oss << PrintCheckOperand(val);
+  }
+  oss << "}";
+  return oss.str();
 }
 
 // Define specializations for character types, defined in logging.cc.
