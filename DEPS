@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
+  'reclient_version': 're_client_version:0.150.0.c8b9fcfa-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '931dc79bc5a009afbb02c915c608f6ecbb94f901',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '55c8722b0ce264398f808d265ce9d164f32b371f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1bdde8167e76bf20a3435c15b60280e9bd09e28b',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9b20ae86421fd3ecf0bb99467f9a4b92d20ce824',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b73579b7b004fc44c13a4092ca42bf2db0090430',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '01e29c8b5d6064389f3d3a3ff5c4272e049103b9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6b6a0ff40bd169cee357f028b18a64758954af7e',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -280,7 +280,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '32eb84a95951fa3a0148fb3e6a1a02f830ded136',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '34ad51b3dc4f922d8ab622491dd44fc2c39afee9',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '3ef16ef8b30f52a8f1ff677faa1730e76835aa40',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
@@ -304,7 +304,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8f49d6467fd4369cb12c1dd927fde3aaa85d7dd4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd09db732ff68f40fd3581306c650b17ea1955b4e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '68e57e619c1a59a6ba7e3ad48ad4eee9c0c5b08e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '210eabb02a077da81a41a63cf9c297e8f778e1b0',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8eb5d3af470ab7c161c613d920e73d03018a6d2c',
   'tools/luci-go': {
       'packages': [
         {
