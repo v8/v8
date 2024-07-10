@@ -68,5 +68,3 @@ setField(t1_entries, 8, t0_entry);
 let instance1 = builder.instantiate({'import': {'table': table1}});
 
 instance1.exports.boom(BigInt(Sandbox.targetPage) - 0x7n, 42n);
-
-assertUnreachable("Process should have been killed.");

@@ -2089,8 +2089,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
   if (WasmJSFunction::IsWasmJSFunction(*this)) {
     Tagged<WasmJSFunction> function = Cast<WasmJSFunction>(*this);
-    os << "\n - Wasm wrapper around: "
-       << Brief(function->shared()->wasm_js_function_data()->GetCallable());
+    os << "\n - Wasm wrapper around: " << Brief(function->GetCallable());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   shared()->PrintSourceCode(os);
@@ -2649,7 +2648,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - canonical_sig_index: " << canonical_sig_index();
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }
 

@@ -1741,7 +1741,7 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    uint32_t canonical_sig_index, DirectHandle<JSReceiver> callable,
+    DirectHandle<JSReceiver> callable,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
@@ -1762,7 +1762,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(static_cast<int>(canonical_sig_index));
+  result->set_serialized_signature(*serialized_sig);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   return handle(result, isolate());

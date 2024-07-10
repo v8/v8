@@ -128,7 +128,7 @@ extern operator '.instance_data' macro
         WasmExportedFunctionData): WasmTrustedInstanceData;
 
 extern class WasmJSFunctionData extends WasmFunctionData {
-  canonical_sig_index: Smi;
+  serialized_signature: PodArrayOfWasmValueType;
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {

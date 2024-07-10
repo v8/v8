@@ -831,6 +831,13 @@ class WasmJSFunction : public JSFunction {
                                     Handle<JSReceiver> callable,
                                     wasm::Suspend suspend);
 
+  Tagged<JSReceiver> GetCallable() const;
+  wasm::Suspend GetSuspend() const;
+  // Deserializes the signature of this function using the provided zone. Note
+  // that lifetime of the signature is hence directly coupled to the zone.
+  const wasm::FunctionSig* GetSignature(Zone* zone) const;
+  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
+
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
 };
 
@@ -999,11 +1006,6 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  Tagged<JSReceiver> GetCallable() const;
-  wasm::Suspend GetSuspend() const;
-  const wasm::FunctionSig* GetSignature() const;
-  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
-
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
