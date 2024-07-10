@@ -6519,7 +6519,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
       return ReduceResult::DoneWithAbort();
     }
 
-    ProcessMergePoint(inline_exit_offset());
+    ProcessMergePoint(inline_exit_offset(), /*preserve_kna*/ false);
     StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
   }
 
@@ -11409,21 +11409,53 @@ void MaglevGraphBuilder::VisitCreateRestParameter() {
 }
 
 void MaglevGraphBuilder::PeelLoop() {
-  DCHECK(!in_peeled_iteration_);
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));
-  in_peeled_iteration_ = true;
+  DCHECK(!in_peeled_iteration());
+  peeled_iteration_count_ = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
   any_peeled_loop_ = true;
   allow_loop_peeling_ = false;
-  VirtualObject::List virtual_objects_backup =
-      current_interpreter_frame_.virtual_objects();
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  * Begin loop peeling...." << std::endl;
+  }
+
+  while (in_peeled_iteration()) {
+    BuildLoopForPeeling();
+  }
+  // Emit the actual (not peeled) loop if needed.
+  if (loop_header == iterator_.current_offset()) {
+    BuildLoopForPeeling();
+  }
+  allow_loop_peeling_ = true;
+}
+
+void MaglevGraphBuilder::BuildLoopForPeeling() {
+  int loop_header = iterator_.current_offset();
+  DCHECK(loop_headers_to_peel_.Contains(loop_header));
+
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
     VisitSingleBytecode();
     iterator_.Advance();
   }
-  VisitSingleBytecode();
-  in_peeled_iteration_ = false;
+
+  VisitSingleBytecode();  // VisitJumpLoop
+
+  // In case the peeled iteration was mergeable (see TryMergeLoop) or the
+  // JumpLoop was dead, we are done.
+  if (!current_block_) {
+    decremented_predecessor_offsets_.clear();
+    KillPeeledLoopTargets(peeled_iteration_count_);
+    peeled_iteration_count_ = 0;
+    return;
+  }
+
+  if (!in_peeled_iteration()) {
+    return;
+  }
+
+  peeled_iteration_count_--;
 
   // After processing the peeled iteration and reaching the `JumpLoop`, we
   // re-process the loop body. For this, we need to reset the graph building
@@ -11464,22 +11496,26 @@ void MaglevGraphBuilder::PeelLoop() {
     new (&jump_targets_[offset]) BasicBlockRef();
   }
 
-  if (current_block_) {
-    // After resetting, the new loop header always has exactly 2 predecessors:
-    // the two copies of `JumpLoop`.
-    merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
-        current_interpreter_frame_, *compilation_unit_, loop_header, 2,
-        GetInLivenessFor(loop_header),
-        &bytecode_analysis_.GetLoopInfoFor(loop_header),
-        /* has_been_peeled */ true);
+  DCHECK(current_block_);
+  // After resetting, the actual loop header always has exactly 2
+  // predecessors: the two copies of `JumpLoop`.
+  merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
+      current_interpreter_frame_, *compilation_unit_, loop_header, 2,
+      GetInLivenessFor(loop_header),
+      &bytecode_analysis_.GetLoopInfoFor(loop_header),
+      /* has_been_peeled */ true);
 
-    BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[loop_header]);
-    MergeIntoFrameState(block, loop_header);
-    merge_states_[loop_header]->set_virtual_objects(virtual_objects_backup);
-  } else {
-    merge_states_[loop_header] = nullptr;
-    predecessors_[loop_header] = 0;
-  }
+  BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[loop_header]);
+  // If we ever want more peelings, we should ensure that only the last one
+  // creates a loop header.
+  DCHECK_LE(peeled_iteration_count_, 1);
+  DCHECK_IMPLIES(in_peeled_iteration(),
+                 v8_flags.maglev_optimistic_peeled_loops);
+  merge_states_[loop_header]->InitializeLoop(this, *compilation_unit_,
+                                             current_interpreter_frame_, block,
+                                             in_peeled_iteration());
+
+  DCHECK_NE(iterator_.current_offset(), loop_header);
   iterator_.SetOffset(loop_header);
 }
 
@@ -11517,23 +11553,32 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     AddNewNode<HandleNoHeapWritesInterrupt>({});
   }
 
-  if (in_peeled_iteration_) {
-    // We have reached the end of the peeled iteration.
-    return;
-  }
-
   if (ShouldEmitOsrInterruptBudgetChecks()) {
     AddNewNode<TryOnStackReplacement>(
         {GetClosure()}, loop_offset, feedback_slot,
         BytecodeOffset(iterator_.current_offset()), compilation_unit_);
   }
-  BasicBlock* block =
-      FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
-  merge_states_[target]->MergeLoop(this, current_interpreter_frame_, block);
-  block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
-  if (loop_headers_to_peel_.Contains(target)) {
-    allow_loop_peeling_ = true;
+  bool is_peeled_loop = loop_headers_to_peel_.Contains(target);
+  auto FinishLoopBlock = [&]() {
+    return FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
+  };
+  if (is_peeled_loop && in_peeled_iteration()) {
+    if (in_optimistic_peeling_iteration()) {
+      // Let's see if we can finish this loop without peeling it.
+      if (!merge_states_[target]->TryMergeLoop(this, current_interpreter_frame_,
+                                               FinishLoopBlock)) {
+        merge_states_[target]->MergeDeadLoop(*compilation_unit());
+      }
+    }
+  } else {
+    BasicBlock* block = FinishLoopBlock();
+    merge_states_[target]->MergeLoop(this, current_interpreter_frame_, block);
+    block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
+    if (is_peeled_loop) {
+      DCHECK(!in_peeled_iteration());
+      allow_loop_peeling_ = true;
+    }
   }
 }
 void MaglevGraphBuilder::VisitJump() {
@@ -11596,7 +11641,7 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
   // If there is no merge state yet, don't create one, but just reduce the
   // number of possible predecessors to zero.
   predecessors_[target]--;
-  if (V8_UNLIKELY(in_peeled_iteration_)) {
+  if (V8_UNLIKELY(in_peeled_iteration())) {
     decremented_predecessor_offsets_.push_back(target);
   }
   if (merge_states_[target]) {
@@ -11622,7 +11667,7 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
   // If there is no merge state yet, don't create one, but just reduce the
   // number of possible predecessors to zero.
   predecessors_[target]--;
-  if (V8_UNLIKELY(in_peeled_iteration_)) {
+  if (V8_UNLIKELY(in_peeled_iteration())) {
     decremented_predecessor_offsets_.push_back(target);
   }
   if (merge_states_[target]->is_unreachable_loop()) {
@@ -12188,7 +12233,7 @@ void MaglevGraphBuilder::VisitForInStep() {
   ValueNode* index = GetInt32(index_reg);
   StoreRegister(index_reg,
                 AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
-  if (!in_peeled_iteration_) {
+  if (!in_peeled_iteration()) {
     // With loop peeling, only the `ForInStep` in the non-peeled loop body marks
     // the end of for-in.
     current_for_in_state = ForInState();

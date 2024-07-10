@@ -254,6 +254,7 @@ class MaglevGraphBuilder {
   void BuildMergeStates();
   BasicBlock* EndPrologue();
   void PeelLoop();
+  void BuildLoopForPeeling();
 
   void OsrAnalyzePrequel();
 
@@ -270,6 +271,9 @@ class MaglevGraphBuilder {
       if (V8_UNLIKELY(
               loop_headers_to_peel_.Contains(iterator_.current_offset()))) {
         PeelLoop();
+        DCHECK_EQ(iterator_.current_bytecode(),
+                  interpreter::Bytecode::kJumpLoop);
+        continue;
       }
       VisitSingleBytecode();
     }
@@ -530,10 +534,11 @@ class MaglevGraphBuilder {
     }
   }
 
-  void ProcessMergePoint(int offset) {
+  void ProcessMergePoint(int offset, bool preserve_known_node_aspects) {
     // First copy the merge state to be the current state.
     MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
-    current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
+    current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state,
+                                        preserve_known_node_aspects, zone());
 
     ProcessMergePointPredecessors(merge_state, jump_targets_[offset]);
   }
@@ -620,6 +625,36 @@ class MaglevGraphBuilder {
     return ReduceResult::DoneWithAbort();
   }
 
+  void KillPeeledLoopTargets(int peelings) {
+    DCHECK_EQ(iterator_.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+    int target = iterator_.GetJumpTargetOffset();
+    // Since we ended up not peeling we must kill all the doubly accounted
+    // jumps out of the loop.
+    interpreter::BytecodeArrayIterator iterator(bytecode().object());
+    for (iterator.SetOffset(target);
+         iterator.current_offset() < iterator_.current_offset();
+         iterator.Advance()) {
+      interpreter::Bytecode bc = iterator.current_bytecode();
+      DCHECK_NE(bc, interpreter::Bytecode::kJumpLoop);
+      int kill = -1;
+      if (interpreter::Bytecodes::IsJump(bc) &&
+          iterator.GetJumpTargetOffset() > iterator_.current_offset()) {
+        kill = iterator.GetJumpTargetOffset();
+      } else if (is_inline() && interpreter::Bytecodes::Returns(bc)) {
+        kill = inline_exit_offset();
+      }
+      if (kill != -1) {
+        if (!merge_states_[kill]) {
+          predecessors_[kill] -= peelings;
+        } else {
+          for (int i = 0; i < peelings; ++i) {
+            merge_states_[kill]->MergeDead(*compilation_unit_);
+          }
+        }
+      }
+    }
+  }
+
   void MarkBytecodeDead() {
     DCHECK_NULL(current_block_);
     if (v8_flags.trace_maglev_graph_building) {
@@ -643,7 +678,7 @@ class MaglevGraphBuilder {
     } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
       // JumpLoop merges into its loop header, which has to be treated
       // specially by the merge.
-      if (!in_peeled_iteration_) {
+      if (!in_peeled_iteration() || in_optimistic_peeling_iteration()) {
         MergeDeadLoopIntoFrameState(iterator_.GetJumpTargetOffset());
       }
     } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
@@ -696,7 +731,10 @@ class MaglevGraphBuilder {
 
     MergePointInterpreterFrameState* merge_state = merge_states_[offset];
     if (V8_UNLIKELY(merge_state != nullptr)) {
+      bool preserve_known_node_aspects = in_optimistic_peeling_iteration() &&
+                                         loop_headers_to_peel_.Contains(offset);
       if (current_block_ != nullptr) {
+        DCHECK(!preserve_known_node_aspects);
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
@@ -708,7 +746,8 @@ class MaglevGraphBuilder {
         } else {
           predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
         }
-        merge_state->Merge(this, current_interpreter_frame_, predecessor);
+        merge_state->Merge(this, *compilation_unit_, current_interpreter_frame_,
+                           predecessor);
       }
       if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
@@ -740,7 +779,7 @@ class MaglevGraphBuilder {
         MarkBytecodeDead();
         return;
       } else {
-        ProcessMergePoint(offset);
+        ProcessMergePoint(offset, preserve_known_node_aspects);
       }
 
       // We pass nullptr for the `predecessor` argument of StartNewBlock because
@@ -2530,6 +2569,7 @@ class MaglevGraphBuilder {
     MemsetUint32(predecessors_, 0, entrypoint_);
     MemsetUint32(predecessors_ + entrypoint_, 1, array_length - entrypoint_);
 
+    const int max_peelings = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
     // We count jumps from peeled loops to outside of the loop twice.
     bool is_loop_peeling_iteration = false;
     base::Optional<int> peeled_loop_end;
@@ -2543,9 +2583,10 @@ class MaglevGraphBuilder {
             bytecode_analysis().GetLoopInfoFor(iterator.current_offset());
         // Generators use irreducible control flow, which makes loop peeling too
         // complicated.
+        int size = loop_info.loop_end() - loop_info.loop_start();
         if (loop_info.innermost() && !loop_info.resumable() &&
-            (loop_info.loop_end() - loop_info.loop_start()) <
-                v8_flags.maglev_loop_peeling_max_size) {
+            iterator.next_offset() < loop_info.loop_end() &&
+            size < v8_flags.maglev_loop_peeling_max_size) {
           DCHECK(!is_loop_peeling_iteration);
           is_loop_peeling_iteration = true;
           loop_headers_to_peel_.Add(iterator.current_offset());
@@ -2575,7 +2616,7 @@ class MaglevGraphBuilder {
             iterator.GetJumpTargetOffset() >= *peeled_loop_end) {
           // Jumps from within the peeled loop to outside need to be counted
           // twice, once for the peeled and once for the regular loop body.
-          predecessors_[iterator.GetJumpTargetOffset()]++;
+          predecessors_[iterator.GetJumpTargetOffset()] += max_peelings;
         }
         if (!interpreter::Bytecodes::IsConditionalJump(bytecode)) {
           predecessors_[iterator.next_offset()]--;
@@ -2591,7 +2632,7 @@ class MaglevGraphBuilder {
         if (is_inline() && interpreter::Bytecodes::Returns(bytecode)) {
           predecessors_[array_length - 1]++;
           if (is_loop_peeling_iteration) {
-            predecessors_[array_length - 1]++;
+            predecessors_[array_length - 1] += max_peelings;
           }
         }
       }
@@ -2668,9 +2709,23 @@ class MaglevGraphBuilder {
   SourcePositionTableIterator source_position_iterator_;
   uint32_t* predecessors_;
 
-  bool in_peeled_iteration_ = false;
+  int peeled_iteration_count_ = 0;
   bool any_peeled_loop_ = false;
   bool allow_loop_peeling_;
+
+  bool in_peeled_iteration() {
+    DCHECK_GE(peeled_iteration_count_, 0);
+    return peeled_iteration_count_ > 0;
+  }
+
+  // When loop SPeeling is enabled then the second-last peeling iteration
+  // is the optimistic iteration. At the end we try to compile the JumpLoop and
+  // only proceed with the fallback iteration 0, if the loop state is
+  // incompatible with the loop end state.
+  bool in_optimistic_peeling_iteration() {
+    return v8_flags.maglev_optimistic_peeled_loops &&
+           peeled_iteration_count_ == 1;
+  }
 
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the

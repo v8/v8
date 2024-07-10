@@ -575,6 +575,9 @@ DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, true,
             "enable loop peeling in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_optimistic_peeled_loops, false,
+            "enable speculation on loop state using peeling as fallback in the "
+            "maglev optimizing compiler")
 DEFINE_INT(maglev_loop_peeling_max_size, 150,
            "max loop size for loop peeling in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_deopt_data_on_background, true,
@@ -587,6 +590,7 @@ DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
 DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_optimistic_peeled_loops)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
@@ -642,6 +646,8 @@ DEFINE_BOOL(maglev_print_feedback, true,
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
+DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
+DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
 DEFINE_BOOL(trace_maglev_inlining_verbose, false,
             "trace maglev inlining (verbose)")
