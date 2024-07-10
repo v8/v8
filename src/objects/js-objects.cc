@@ -1386,7 +1386,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
   LookupIterator it(isolate, object, key, LookupIterator::OWN);
 
   // Deal with access checks first.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     if (!it.HasAccess()) {
       RETURN_ON_EXCEPTION_VALUE(
           isolate, isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>()),
@@ -1409,7 +1409,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
   it.Restart();
 
   // Skip over the access check after restarting -- we've already checked it.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     DCHECK(it.HasAccess());
     it.Next();
   }
@@ -1434,7 +1434,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
           // Proceed lookup.
           break;
       }
-      // We need to restart the lookup in case the accessor ran with side
+      // We need to restart the lookup in case the interceptor ran with side
       // effects.
       it.Restart();
     }

@@ -6541,3 +6541,70 @@ TEST(Regress609134Interceptor) {
       "var a = 42;"
       "for (var i = 0; i<3; i++) { a.foo; }");
 }
+
+namespace {
+
+v8::Intercepted Regress42204611_Getter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
+      info.Data().As<v8::External>()->Value());
+
+  calls->push_back("getter");
+  return v8::Intercepted::kNo;
+}
+v8::Intercepted Regress42204611_Setter(
+    Local<Name> name, Local<Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
+      info.Data().As<v8::External>()->Value());
+
+  calls->push_back("setter");
+  return v8::Intercepted::kNo;
+}
+v8::Intercepted Regress42204611_Definer(
+    Local<Name> name, const v8::PropertyDescriptor& descriptor,
+    const v8::PropertyCallbackInfo<void>& info) {
+  std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
+      info.Data().As<v8::External>()->Value());
+
+  calls->push_back("definer");
+  return v8::Intercepted::kNo;
+}
+
+}  // namespace
+
+// Regression test for crbug.com/42204611
+THREADED_TEST(Regress42204611) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  std::vector<std::string> calls;
+  Local<v8::External> calls_ext = v8::External::New(CcTest::isolate(), &calls);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      Regress42204611_Getter, Regress42204611_Setter, nullptr, nullptr, nullptr,
+      Regress42204611_Definer, calls_ext,
+      static_cast<v8::PropertyHandlerFlags>(
+          static_cast<int>(v8::PropertyHandlerFlags::kNonMasking) |
+          static_cast<int>(v8::PropertyHandlerFlags::kHasNoSideEffect))));
+
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  {
+    v8::Context::Scope scope(ctx);
+    CompileRun(
+        "Object.defineProperty(globalThis, 'key', {"
+        "  value: 9, enumerable: true, configurable: true, writable: true"
+        "})");
+  }
+
+  // We should intercept:
+  //   1. The getter when getting the current property attributes,
+  //   2. The definer when trying to intercept the define itself,
+  //   3. The setter when applying the property descriptor.
+  CHECK_EQ(calls, std::vector<std::string>({"getter", "definer", "setter"}));
+}
