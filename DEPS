@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.150.0.c8b9fcfa-gomaip',
+  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:22.20240703.0.1',
+  'fuchsia_version': 'version:22.20240710.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '55c8722b0ce264398f808d265ce9d164f32b371f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '217aeaf2b0ddc9e935d0557589bd3fa876fdbf76',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1bdde8167e76bf20a3435c15b60280e9bd09e28b',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5377f3c95f97fafc9b0f1a4b2c1eae4a7f293f58',
   'buildtools/linux64': {
     'packages': [
       {
@@ -300,7 +300,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '37df66525c3b783d06d1ee555ad1a34132b95f58',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6aa2802a07f8e58a528b342c18c7c18d23f0277b',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
