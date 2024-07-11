@@ -2826,10 +2826,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
-  // Overwrite the return address on the stack and "return" to the OSR entry
+  // Drop the return address on the stack and jump to the OSR entry
   // point of the function.
-  __ movq(Operand(rsp, 0), entry_address);
-  __ ret(0);
+  __ Drop(1);
+  __ jmp(entry_address);
 }
 
 enum class OsrSourceTier {
