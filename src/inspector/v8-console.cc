@@ -128,14 +128,14 @@ class ConsoleHelper {
     return m_info[0]->BooleanValue(m_context->GetIsolate());
   }
 
-  String16 firstArgToString(const String16& defaultValue,
-                            bool allowUndefined = true) {
-    if (m_info.Length() < 1 || (!allowUndefined && m_info[0]->IsUndefined())) {
-      return defaultValue;
+  String16 firstArgToString() {
+    if (m_info.Length() < 1 || m_info[0]->IsUndefined()) {
+      return "default";
     }
     v8::Local<v8::String> titleValue;
-    if (!m_info[0]->ToString(m_context).ToLocal(&titleValue))
-      return defaultValue;
+    if (!m_info[0]->ToString(m_context).ToLocal(&titleValue)) {
+      return "default";
+    }
     return toProtocolString(m_context->GetIsolate(), titleValue);
   }
 
@@ -316,7 +316,7 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::Count");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16("default"), false);
+  String16 title = helper.firstArgToString();
   String16 identifier = identifierFromTitleOrStackTrace(
       title, helper, consoleContext, m_inspector);
 
@@ -336,7 +336,7 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::CountReset");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16("default"), false);
+  String16 title = helper.firstArgToString();
   String16 identifier = identifierFromTitleOrStackTrace(
       title, helper, consoleContext, m_inspector);
 
@@ -371,7 +371,7 @@ void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::Profile");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16());
+  String16 title = helper.firstArgToString();
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
     session->profilerAgent()->consoleProfile(title);
   });
@@ -385,7 +385,7 @@ void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::ProfileEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16());
+  String16 title = helper.firstArgToString();
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
     session->profilerAgent()->consoleProfileEnd(title);
   });
@@ -398,7 +398,7 @@ void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 protocolTitle = helper.firstArgToString("default", false);
+  String16 protocolTitle = helper.firstArgToString();
   if (!helper.consoleMessageStorage()->time(
           helper.contextId(), consoleContext.id(), protocolTitle)) {
     helper.reportCallWithArgument(
@@ -413,7 +413,7 @@ void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeLog");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 protocolTitle = helper.firstArgToString("default", false);
+  String16 protocolTitle = helper.firstArgToString();
   std::optional<double> elapsed = helper.consoleMessageStorage()->timeLog(
       helper.contextId(), consoleContext.id(), protocolTitle);
   if (!elapsed.has_value()) {
@@ -431,7 +431,7 @@ void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 protocolTitle = helper.firstArgToString("default", false);
+  String16 protocolTitle = helper.firstArgToString();
   std::optional<double> elapsed = helper.consoleMessageStorage()->timeEnd(
       helper.contextId(), consoleContext.id(), protocolTitle);
   if (!elapsed.has_value()) {
@@ -451,7 +451,7 @@ void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16());
+  String16 title = helper.firstArgToString();
   m_inspector->client()->consoleTimeStamp(toStringView(title));
 }
 

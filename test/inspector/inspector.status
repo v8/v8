@@ -112,7 +112,6 @@
   'cpu-profiler/console-profile-wasm': [SKIP],
   'cpu-profiler/record-cpu-profile': [SKIP],
   'cpu-profiler/console-profile-asm-js': [SKIP],
-  'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
 }],  # 'system == zos'
 
 ##############################################################################
@@ -248,7 +247,6 @@
   'console/scoped-variables': [SKIP],
   'cpu-profiler/console-profile': [SKIP],
   'cpu-profiler/console-profile-asm-js': [SKIP],
-  'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
