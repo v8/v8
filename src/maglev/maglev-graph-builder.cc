@@ -5832,50 +5832,33 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       {context, receiver, lookup_start_object}, name, feedback_source));
 }
 
-bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
-    ValueNode* object, const compiler::FeedbackSource& feedback_source,
-    const compiler::ProcessedFeedback& processed_feedback) {
+void MaglevGraphBuilder::VisitGetKeyedProperty() {
+  // GetKeyedProperty <object> <slot>
+  ValueNode* object = LoadRegister(0);
+  // TODO(leszeks): We don't need to tag the key if it's an Int32 and a simple
+  // monomorphic element load.
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+
   if (current_for_in_state.index != nullptr &&
       current_for_in_state.enum_cache_indices != nullptr &&
+      current_for_in_state.receiver == object &&
       current_for_in_state.key == current_interpreter_frame_.accumulator()) {
-    bool speculating_receiver_map_matches = false;
-    if (current_for_in_state.receiver != object) {
-      // When the feedback is uninitialized, it is either a keyed load which
-      // always hits the enum cache, or a keyed load that had never been
-      // reached. In either case, we can check the map of the receiver and use
-      // the enum cache if the map match the {cache_type}.
-      if (processed_feedback.kind() !=
-          compiler::ProcessedFeedback::kInsufficient) {
-        return false;
-      }
-      BuildCheckHeapObject(object);
-      speculating_receiver_map_matches = true;
-    }
-
-    if (current_for_in_state.receiver_needs_map_check ||
-        speculating_receiver_map_matches) {
+    if (current_for_in_state.receiver_needs_map_check) {
       auto* receiver_map = BuildLoadTaggedField(object, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>(
           {receiver_map, current_for_in_state.cache_type});
-      if (current_for_in_state.receiver == object) {
-        current_for_in_state.receiver_needs_map_check = false;
-      }
+      current_for_in_state.receiver_needs_map_check = false;
     }
     // TODO(leszeks): Cache the field index per iteration.
     auto* field_index = AddNewNode<LoadFixedArrayElement>(
         {current_for_in_state.enum_cache_indices, current_for_in_state.index});
     SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
-    return true;
-  }
-  return false;
-}
-
-void MaglevGraphBuilder::BuildGetKeyedProperty(
-    ValueNode* object, const compiler::FeedbackSource& feedback_source,
-    const compiler::ProcessedFeedback& processed_feedback) {
-  if (TryBuildGetKeyedPropertyWithEnumeratedKey(object, feedback_source,
-                                                processed_feedback)) {
     return;
   }
 
@@ -5924,32 +5907,9 @@ void MaglevGraphBuilder::BuildGetKeyedProperty(
   SetAccumulator(build_generic_access());
 }
 
-void MaglevGraphBuilder::VisitGetKeyedProperty() {
-  // GetKeyedProperty <object> <slot>
-  ValueNode* object = LoadRegister(0);
-  // TODO(leszeks): We don't need to tag the key if it's an Int32 and a simple
-  // monomorphic element load.
-  FeedbackSlot slot = GetSlotOperand(1);
-  compiler::FeedbackSource feedback_source{feedback(), slot};
-
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
-
-  BuildGetKeyedProperty(object, feedback_source, processed_feedback);
-}
-
 void MaglevGraphBuilder::VisitGetEnumeratedKeyedProperty() {
-  // GetEnumeratedKeyedProperty <object> <enum_index> <cache_type> <slot>
-  ValueNode* object = LoadRegister(0);
-  FeedbackSlot slot = GetSlotOperand(3);
-  compiler::FeedbackSource feedback_source{feedback(), slot};
-
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
-
-  BuildGetKeyedProperty(object, feedback_source, processed_feedback);
+  // TODO(v8:14245): Implement this bytecode in Maglev/Turbofan.
+  UNREACHABLE();
 }
 
 void MaglevGraphBuilder::VisitLdaModuleVariable() {
