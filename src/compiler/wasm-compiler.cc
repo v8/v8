@@ -3359,7 +3359,7 @@ Node* WasmGraphBuilder::MemStart(uint32_t mem_index) {
   DCHECK_NOT_NULL(instance_cache_);
   V8_ASSUME(cached_memory_index_ == kNoCachedMemoryIndex ||
             cached_memory_index_ >= 0);
-  if (mem_index == static_cast<uint8_t>(cached_memory_index_)) {
+  if (mem_index == static_cast<uint32_t>(cached_memory_index_)) {
     return instance_cache_->mem_start;
   }
   return LoadMemStart(mem_index);
@@ -3369,7 +3369,7 @@ Node* WasmGraphBuilder::MemSize(uint32_t mem_index) {
   DCHECK_NOT_NULL(instance_cache_);
   V8_ASSUME(cached_memory_index_ == kNoCachedMemoryIndex ||
             cached_memory_index_ >= 0);
-  if (mem_index == static_cast<uint8_t>(cached_memory_index_)) {
+  if (mem_index == static_cast<uint32_t>(cached_memory_index_)) {
     return instance_cache_->mem_size;
   }
 
