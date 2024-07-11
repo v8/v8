@@ -708,10 +708,14 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   // corrupt the contents of other Wasm memories or ArrayBuffers, but having
   // this CHECK in release mode is nice as an additional layer of defense.
   CHECK_IMPLIES(use_trap_handler, backing_store->has_guard_regions());
+  // We checked this before, but a malicious worker thread with an in-sandbox
+  // corruption primitive could have modified it since then.
+  size_t byte_length = buffer->byte_length();
+  SBXCHECK_GE(byte_length, memory.min_memory_size);
 
   trusted_instance_data->SetRawMemory(
       memory_index, reinterpret_cast<uint8_t*>(buffer->backing_store()),
-      buffer->byte_length());
+      byte_length);
 }
 
 }  // namespace
