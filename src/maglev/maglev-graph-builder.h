@@ -894,8 +894,8 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> inputs,
-                                   Args&&... args) {
+  NodeT* AddNewNodeOrGetEquivalentWithConvertedInputs(
+      std::initializer_list<ValueNode*> inputs, Args&&... args) {
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
     DCHECK(v8_flags.maglev_cse);
@@ -957,7 +957,11 @@ class MaglevGraphBuilder {
     }
     NodeT* node = NodeBase::New<NodeT>(zone(), inputs.size(),
                                        std::forward<Args>(args)...);
-    SetNodeInputs(node, inputs);
+    int i = 0;
+    for (ValueNode* input : inputs) {
+      DCHECK_NOT_NULL(input);
+      node->set_input(i++, input);
+    }
     DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
     uint32_t epoch = Node::needs_epoch_check(op)
                          ? known_node_aspects().effect_epoch()
@@ -968,28 +972,82 @@ class MaglevGraphBuilder {
     return AttachExtraInfoAndAddToGraph(node);
   }
 
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input, Args&&... args) {
+    static_assert(NodeT::kInputCount == 1);
+    constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
+    ValueNode* conv_input = ConvertInputTo<hint>(input, NodeT::kInputTypes[0]);
+    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
+        {conv_input}, std::forward<Args>(args)...);
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input0, ValueNode* input1,
+                                   Args&&... args) {
+    static_assert(NodeT::kInputCount == 2);
+    ValueNode* conv_input0 = ConvertInputTo(input0, NodeT::kInputTypes[0]);
+    ValueNode* conv_input1 = ConvertInputTo(input1, NodeT::kInputTypes[1]);
+    if constexpr (IsCommutativeNode(Node::opcode_of<NodeT>)) {
+      if (conv_input0 > conv_input1) {
+        std::swap(conv_input0, conv_input1);
+      }
+    }
+    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
+        {conv_input0, conv_input1}, std::forward<Args>(args)...);
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input0, ValueNode* input1,
+                                   ValueNode* input2, Args&&... args) {
+    static_assert(NodeT::kInputCount == 3);
+    ValueNode* conv_input0 = ConvertInputTo(input0, NodeT::kInputTypes[0]);
+    ValueNode* conv_input1 = ConvertInputTo(input1, NodeT::kInputTypes[1]);
+    ValueNode* conv_input2 = ConvertInputTo(input2, NodeT::kInputTypes[2]);
+    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
+        {conv_input0, conv_input1, conv_input2}, std::forward<Args>(args)...);
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeParticipatingInCSE(std::initializer_list<ValueNode*> inputs,
+                                      Args&&... args) {
+    // We want to convert the inputs to the correct representation before
+    // hashing them for CSE check. Since we cannot modify std::initializer_list
+    // and there is a small upper bound in the input count for nodes
+    // participating in CSE, we use input-count-specific
+    // AddNewNodeOrGetEquivalent functions.
+    DCHECK(v8_flags.maglev_cse);
+    static_assert(IsFixedInputNode<NodeT>());
+    static_assert(Node::participate_in_cse(Node::opcode_of<NodeT>));
+    static_assert(NodeT::kInputCount <= 3);
+    if constexpr (NodeT::kInputCount == 0) {
+      return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
+          {}, std::forward<Args>(args)...);
+    } else if constexpr (NodeT::kInputCount == 1) {
+      DCHECK_EQ(inputs.size(), 1);
+      return AddNewNodeOrGetEquivalent<NodeT>(*inputs.begin(),
+                                              std::forward<Args>(args)...);
+    } else if constexpr (NodeT::kInputCount == 2) {
+      DCHECK_EQ(inputs.size(), 2);
+      return AddNewNodeOrGetEquivalent<NodeT>(
+          *inputs.begin(), *(inputs.begin() + 1), std::forward<Args>(args)...);
+    } else {
+      DCHECK_EQ(inputs.size(), 3);
+      return AddNewNodeOrGetEquivalent<NodeT>(
+          *inputs.begin(), *(inputs.begin() + 1), *(inputs.begin() + 2),
+          std::forward<Args>(args)...);
+    }
+  }
+
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
-    constexpr Opcode op = Node::opcode_of<NodeT>;
-    if constexpr (Node::participate_in_cse(op)) {
+    static_assert(IsFixedInputNode<NodeT>());
+    if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>)) {
       if (v8_flags.maglev_cse) {
-        if constexpr (IsCommutativeNode(op)) {
-          DCHECK_EQ(inputs.size(), 2);
-          ValueNode* a = *inputs.begin();
-          ValueNode* b = *(inputs.begin() + 1);
-          if (a > b) {
-            std::swap(a, b);
-          }
-          return AddNewNodeOrGetEquivalent<NodeT>({a, b},
-                                                  std::forward<Args>(args)...);
-        } else {
-          return AddNewNodeOrGetEquivalent<NodeT>(inputs,
-                                                  std::forward<Args>(args)...);
-        }
+        return AddNewNodeParticipatingInCSE<NodeT>(inputs,
+                                                   std::forward<Args>(args)...);
       }
     }
-    static_assert(IsFixedInputNode<NodeT>());
     NodeT* node = NodeBase::New<NodeT>(zone(), inputs.size(),
                                        std::forward<Args>(args)...);
     SetNodeInputs(node, inputs);
@@ -1702,7 +1760,7 @@ class MaglevGraphBuilder {
     refs_to_block.Bind(current_block_);
   }
 
-  template <UseReprHintRecording hint>
+  template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
   ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected) {
     ValueRepresentation repr = input->properties().value_representation();
     if (repr == expected) return input;
