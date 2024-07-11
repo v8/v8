@@ -2023,9 +2023,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
     size_t param_count = sig->parameter_count();
+    DCHECK_LE(sig->return_count(), 1);
     // All normal parameters + the options as additional parameter at the end.
-    MachineSignature::Builder builder(decoder->zone(), 1, param_count);
-    builder.AddReturn(sig->GetReturn().machine_type());
+    MachineSignature::Builder builder(decoder->zone(), sig->return_count(),
+                                      param_count + 1);
+    if (sig->return_count()) {
+      builder.AddReturn(sig->GetReturn().machine_type());
+    }
     // The first parameter is the receiver. Because of the fake handle on the
     // stack the type is `Pointer`.
     builder.AddParam(MachineType::Pointer());
@@ -2033,8 +2037,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (size_t i = 1; i < sig->parameter_count(); ++i) {
       builder.AddParam(sig->GetParam(i).machine_type());
     }
+    // Options object.
+    builder.AddParam(MachineType::Pointer());
 
-    base::SmallVector<OpIndex, 16> inputs(param_count);
+    base::SmallVector<OpIndex, 16> inputs(param_count + 1);
 
     inputs[0] = receiver_handle;
 
@@ -2045,6 +2051,25 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         inputs[i] = args[i].op;
       }
     }
+
+    OpIndex options_object;
+    {
+      const int kAlign = alignof(v8::FastApiCallbackOptions);
+      const int kSize = sizeof(v8::FastApiCallbackOptions);
+
+      options_object = __ StackSlot(kSize, kAlign);
+
+      static_assert(
+          sizeof(v8::FastApiCallbackOptions::isolate) == sizeof(intptr_t),
+          "We expected 'isolate' to be pointer sized, but it is not.");
+      __ Store(options_object,
+               __ ExternalConstant(ExternalReference::isolate_address()),
+               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+               compiler::kNoWriteBarrier,
+               offsetof(v8::FastApiCallbackOptions, isolate));
+    }
+
+    inputs[param_count] = options_object;
 
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),

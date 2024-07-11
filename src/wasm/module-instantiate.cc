@@ -303,11 +303,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                        "the receiver has to be a reference");
         continue;
       }
-      if (info->HasOptions()) {
-        log_imported_function_mismatch(c_func_id,
-                                       "options parameter is not supported");
-        continue;
-      }
     }
 
     int param_offset =

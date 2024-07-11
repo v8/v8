@@ -1608,7 +1608,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         if (HasImmediateInput(instr, index)) {
-          __ mov(operand, i.InputImmediate(index));
+          __ Move(operand, i.InputImmediate(index));
         } else {
           __ mov(operand, i.InputRegister(index));
         }

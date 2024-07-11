@@ -498,7 +498,7 @@
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
-  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
 
   'maglev/extras-cped': [SKIP],
   'turboshaft/extras-cped': [SKIP],
@@ -607,7 +607,7 @@
   'regress/regress-1320641': [SKIP],
 
   # Float parameters are not supported in the fast api on these platforms
-  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
@@ -1348,7 +1348,7 @@
 ['arch in [ppc64, s390x]', {
 
   # Float parameters are not supported in the fast api
-  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
 
 }],  # arch in [ppc64, s390x]'
 
@@ -2201,7 +2201,7 @@
   'compiler/fast-api-calls-throw': [FAIL],
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
-  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).

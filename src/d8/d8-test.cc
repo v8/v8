@@ -903,8 +903,10 @@ class FastCApiObject {
   }
 
   static bool IsFastCApiObjectFastCallback(v8::Local<v8::Object> receiver,
-                                           v8::Local<v8::Value> arg) {
+                                           v8::Local<v8::Value> arg,
+                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(false);
 
     self->fast_call_count_++;
 
@@ -914,11 +916,7 @@ class FastCApiObject {
     Local<Object> object = arg.As<Object>();
     if (!IsValidApiObject(object)) return false;
 
-    internal::Isolate* i_isolate =
-        internal::IsolateFromNeverReadOnlySpaceObject(
-            internal::ValueHelper::ValueAsAddress(*object));
-    CHECK_NOT_NULL(i_isolate);
-    Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+    Isolate* isolate = options.isolate;
     HandleScope handle_scope(isolate);
     return PerIsolateData::Get(isolate)
         ->GetTestApiObjectCtor()

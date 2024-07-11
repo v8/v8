@@ -1587,20 +1587,23 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 }
 
 void MacroAssembler::Push(Immediate value) {
-  if (root_array_available() && options().isolate_independent_code) {
-    if (value.is_embedded_object()) {
-      Push(HeapObjectAsOperand(value.embedded_object()));
-      return;
-    }
+  if (root_array_available()) {
     if (value.is_external_reference()) {
       ExternalReference reference = value.external_reference();
-      push(kRootRegister);
       if (reference.IsIsolateFieldId()) {
+        push(kRootRegister);
         add(Operand(esp, 0), Immediate(reference.offset_from_root_register()));
         return;
       }
-      add(Operand(esp, 0), Immediate(RootRegisterOffsetForExternalReference(
-                               isolate(), reference)));
+      if (options().isolate_independent_code) {
+        push(kRootRegister);
+        add(Operand(esp, 0), Immediate(RootRegisterOffsetForExternalReference(
+                                 isolate(), reference)));
+        return;
+      }
+    }
+    if (value.is_embedded_object()) {
+      Push(HeapObjectAsOperand(value.embedded_object()));
       return;
     }
   }
@@ -1629,19 +1632,33 @@ void MacroAssembler::Move(Register dst, const Immediate& src) {
   }
 }
 
+namespace {
+bool ShouldUsePushPopForMove(bool root_array_available,
+                             bool isolate_independent_code,
+                             const Immediate& src) {
+  if (root_array_available) {
+    if (src.is_external_reference() &&
+        src.external_reference().IsIsolateFieldId()) {
+      return true;
+    }
+    if (isolate_independent_code) {
+      if (src.is_external_reference()) return true;
+      if (src.is_embedded_object()) return true;
+      if (src.is_heap_number_request()) return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
 void MacroAssembler::Move(Operand dst, const Immediate& src) {
   // Since there's no scratch register available, take a detour through the
   // stack.
-  if (root_array_available() && options().isolate_independent_code) {
-    if (src.is_embedded_object() || src.is_external_reference() ||
-        src.is_heap_number_request()) {
-      Push(src);
-      pop(dst);
-      return;
-    }
-  }
-
-  if (src.is_embedded_object()) {
+  if (ShouldUsePushPopForMove(root_array_available(),
+                              options().isolate_independent_code, src)) {
+    Push(src);
+    pop(dst);
+  } else if (src.is_embedded_object()) {
     mov(dst, src.embedded_object());
   } else {
     mov(dst, src);
