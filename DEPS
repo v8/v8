@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
+  'reclient_version': 're_client_version:0.150.0.c8b9fcfa-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '217aeaf2b0ddc9e935d0557589bd3fa876fdbf76',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7af1ca392d96629fb10c1724155df82b1991f229',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5377f3c95f97fafc9b0f1a4b2c1eae4a7f293f58',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '97a840969127f011403e5e5164ded10aa7de209d',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b73579b7b004fc44c13a4092ca42bf2db0090430',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7534569f99827c0ed4df818254ba7daca4606bca',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6b6a0ff40bd169cee357f028b18a64758954af7e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8ebbd5189d8a9df51ee3dad42dc04651620424bb',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -458,7 +458,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '68e57e619c1a59a6ba7e3ad48ad4eee9c0c5b08e',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2469fdd73f192383d2d94288da0ff5b9a3869f5',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8eb5d3af470ab7c161c613d920e73d03018a6d2c',
   'tools/luci-go': {
