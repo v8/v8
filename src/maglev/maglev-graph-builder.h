@@ -1830,6 +1830,7 @@ class MaglevGraphBuilder {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #define MAGLEV_REDUCED_BUILTIN(V)              \
+  V(ArrayConstructor)                          \
   V(ArrayForEach)                              \
   V(ArrayIsArray)                              \
   V(ArrayIteratorPrototypeNext)                \
@@ -1961,6 +1962,7 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  ValueNode* BuildElementsArray(int length);
   ValueNode* BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ValueNode* BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
@@ -1977,14 +1979,23 @@ class MaglevGraphBuilder {
       const CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
           compiler::FeedbackSource());
-  ValueNode* BuildElementsArray(int length);
-  ReduceResult ReduceArrayConstructor(
+
+  ReduceResult TryReduceConstructArrayConstructor(
       compiler::JSFunctionRef array_function, CallArguments& args,
-      compiler::AllocationSiteRef allocation_site);
-  ReduceResult ReduceConstruct(compiler::HeapObjectRef feedback_target,
-                               ValueNode* target, ValueNode* new_target,
-                               CallArguments& args,
-                               compiler::FeedbackSource& feedback_source);
+      compiler::OptionalAllocationSiteRef maybe_allocation_site = {});
+  ReduceResult TryReduceConstructBuiltin(
+      compiler::JSFunctionRef builtin,
+      compiler::SharedFunctionInfoRef shared_function_info,
+      CallArguments& args);
+  ReduceResult TryReduceConstructGeneric(
+      compiler::JSFunctionRef function,
+      compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
+      ValueNode* new_target, CallArguments& args,
+      compiler::FeedbackSource& feedback_source);
+  ReduceResult TryReduceConstruct(compiler::HeapObjectRef feedback_target,
+                                  ValueNode* target, ValueNode* new_target,
+                                  CallArguments& args,
+                                  compiler::FeedbackSource& feedback_source);
   void BuildConstruct(ValueNode* target, ValueNode* new_target,
                       CallArguments& args,
                       compiler::FeedbackSource& feedback_source);
