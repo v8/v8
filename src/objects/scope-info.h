@@ -138,6 +138,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
+  int UniqueIdInScript() const;
+
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
   // Return true if the local names are inlined in the scope info object.
@@ -246,6 +248,13 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // REPL mode scopes allow re-declaraction of let and const variables. They
   // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
+
+  // 1 bit of information that, paired with a bit from the script, allows us to
+  // identify whether the scope info still belongs to the script, or already to
+  // a parent. Once a scope info belongs to a parent, the bit may match up again
+  // with the bit of this script once we reach the parent of a parent (in case
+  // of nested eval).
+  bool EvalState() const;
 
 #ifdef DEBUG
   // For LiveEdit we ignore:

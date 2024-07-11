@@ -326,14 +326,16 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   // The source code used in these tests.
   static constexpr char kSourceCode[] = R"(
     // Looks like an IIFE but isn't, to get eagerly parsed:
-    var eager = (function () {
-      // Actual IIFE, also eagerly parsed:
-      return (function iife() {
-        return 42;
-      })();
-    });
-    // Lazily parsed:
-    var lazy = function () { return eager(); };
+    { let captured = 10;
+      var eager = (function () {
+        // Actual IIFE, also eagerly parsed:
+        return (function iife() {
+          return captured, 42;
+        })();
+      });
+      // Lazily parsed:
+      var lazy = function () { return eager(); };
+    }
   )";
 
   // Objects from the Script's object graph whose lifetimes and connectedness

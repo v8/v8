@@ -801,7 +801,10 @@ class ParserBase {
   }
 
   DeclarationScope* NewEvalScope(Scope* parent) const {
-    return zone()->template New<DeclarationScope>(zone(), parent, EVAL_SCOPE);
+    DeclarationScope* result =
+        zone()->template New<DeclarationScope>(zone(), parent, EVAL_SCOPE);
+    result->set_eval_state();
+    return result;
   }
 
   ClassScope* NewClassScope(Scope* parent, bool is_anonymous) const {
@@ -4655,7 +4658,7 @@ void ParserBase<Impl>::ParseFunctionBody(
     if (has_error()) return;
 
     inner_scope = NewVarblockScope();
-    inner_scope->set_start_position(scanner()->location().beg_pos);
+    inner_scope->set_start_position(end_position());
   }
 
   StatementListT inner_body(pointer_buffer());
@@ -6072,7 +6075,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, with_scope);
-    with_scope->set_start_position(scanner()->peek_location().beg_pos);
+    with_scope->set_start_position(end_position());
     body = ParseStatement(labels, nullptr);
     with_scope->set_end_position(end_position());
   }
@@ -6274,7 +6277,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
 
       if (has_binding) {
         catch_info.scope = NewScope(CATCH_SCOPE);
-        catch_info.scope->set_start_position(scanner()->location().beg_pos);
+        catch_info.scope->set_start_position(position());
 
         {
           BlockState catch_block_state(&scope_, catch_info.scope);
@@ -6284,7 +6287,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
           // as part of destructuring the catch parameter.
           {
             BlockState catch_variable_block_state(zone(), &scope_);
-            scope()->set_start_position(position());
+            scope()->set_start_position(peek_position());
 
             if (peek_any_identifier()) {
               IdentifierT identifier = ParseNonRestrictedIdentifier();
@@ -6401,6 +6404,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // Create an inner block scope which will be the parent scope of scopes
     // possibly created by ParseVariableDeclarations.
     Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
+    inner_block_scope->set_start_position(end_position());
     {
       BlockState inner_state(&scope_, inner_block_scope);
       ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
@@ -6426,7 +6430,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // above was parsed there. We'll finalize the unnecessary outer block scope
     // after parsing the rest of the loop.
     StatementT result = impl()->NullStatement();
-    inner_block_scope->set_start_position(scope()->start_position());
     {
       BlockState inner_state(&scope_, inner_block_scope);
       StatementT init =
@@ -6446,7 +6449,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
                               &for_info.bound_names);
     DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
-    for_info.position = scanner()->location().beg_pos;
+    for_info.position = position();
 
     if (CheckInOrOf(&for_info.mode)) {
       return ParseForEachStatementWithDeclarations(stmt_pos, &for_info, labels,
@@ -6552,10 +6555,6 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   }
 
   Expect(Token::kRightParen);
-
-  if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
-    inner_block_scope->set_start_position(position());
-  }
 
   ExpressionT each_variable = impl()->NullExpression();
   BlockT body_block = impl()->NullBlock();
@@ -6735,7 +6734,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   Expect(Token::kFor);
   Expect(Token::kAwait);
   Expect(Token::kLeftParen);
-  scope()->set_start_position(scanner()->location().beg_pos);
+  scope()->set_start_position(position());
   scope()->set_is_hidden();
 
   auto loop = factory()->NewForOfStatement(stmt_pos, IteratorType::kAsync);
@@ -6749,6 +6748,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   bool has_declarations = false;
   Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
+  inner_block_scope->set_start_position(peek_position());
 
   bool starts_with_let = peek() == Token::kLet;
   if (peek() == Token::kVar || peek() == Token::kConst ||
@@ -6765,7 +6765,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
                                 &for_info.bound_names);
     }
-    for_info.position = scanner()->location().beg_pos;
+    for_info.position = position();
 
     // Only a single declaration is allowed in for-await-of loops
     if (for_info.parsing_result.declarations.size() != 1) {
@@ -6820,7 +6820,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, inner_block_scope);
-    scope()->set_start_position(scanner()->location().beg_pos);
 
     SourceRange body_range;
     {
