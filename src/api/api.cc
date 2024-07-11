@@ -10414,12 +10414,17 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
 
 void Isolate::IsolateInForegroundNotification() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return i_isolate->IsolateInForegroundNotification();
+  return i_isolate->SetPriority(Priority::kUserBlocking);
 }
 
 void Isolate::IsolateInBackgroundNotification() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return i_isolate->IsolateInBackgroundNotification();
+  return i_isolate->SetPriority(Priority::kBestEffort);
+}
+
+void Isolate::SetPriority(Priority priority) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  return i_isolate->SetPriority(priority);
 }
 
 void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {

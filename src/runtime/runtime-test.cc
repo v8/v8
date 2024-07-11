@@ -2154,19 +2154,27 @@ RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
       Cast<EphemeronHashTable>(collection->table())->NumberOfElements());
 }
 
-RUNTIME_FUNCTION(Runtime_NotifyIsolateForeground) {
+RUNTIME_FUNCTION(Runtime_SetPriorityBestEffort) {
   if (args.length() != 0) {
     return CrashUnlessFuzzing(isolate);
   }
-  isolate->IsolateInForegroundNotification();
+  isolate->SetPriority(v8::Isolate::Priority::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_NotifyIsolateBackground) {
+RUNTIME_FUNCTION(Runtime_SetPriorityUserVisible) {
   if (args.length() != 0) {
     return CrashUnlessFuzzing(isolate);
   }
-  isolate->IsolateInBackgroundNotification();
+  isolate->SetPriority(v8::Isolate::Priority::kUserVisible);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetPriorityUserBlocking) {
+  if (args.length() != 0) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  isolate->SetPriority(v8::Isolate::Priority::kUserBlocking);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

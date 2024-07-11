@@ -564,6 +564,21 @@ class V8_EXPORT Isolate {
                   kMessageWarning,
   };
 
+  // The different priorities that an isolate can have.
+  enum class Priority {
+    // The isolate does not relate to content that is currently important
+    // to the user. Lowest priority.
+    kBestEffort,
+
+    // The isolate contributes to content that is visible to the user, like a
+    // visible iframe that's not interacted directly with. High priority.
+    kUserVisible,
+
+    // The isolate contributes to content that is of the utmost importance to
+    // the user, like visible content in the focused window. Highest priority.
+    kUserBlocking,
+  };
+
   using UseCounterCallback = void (*)(Isolate* isolate,
                                       UseCounterFeature feature);
 
@@ -1381,13 +1396,21 @@ class V8_EXPORT Isolate {
    * Optional notification that the isolate switched to the foreground.
    * V8 uses these notifications to guide heuristics.
    */
+  V8_DEPRECATE_SOON("Use SetPriority(Priority::kUserBlocking) instead")
   void IsolateInForegroundNotification();
 
   /**
    * Optional notification that the isolate switched to the background.
    * V8 uses these notifications to guide heuristics.
    */
+  V8_DEPRECATE_SOON("Use SetPriority(Priority::kBestEffort) instead")
   void IsolateInBackgroundNotification();
+
+  /**
+   * Optional notification that the isolate changed `priority`.
+   * V8 uses the priority value to guide heuristics.
+   */
+  void SetPriority(Priority priority);
 
   /**
    * Optional notification to tell V8 the current performance requirements

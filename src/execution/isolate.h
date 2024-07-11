@@ -1953,11 +1953,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void UpdateLoadStartTime();
 
-  void IsolateInForegroundNotification();
+  void SetPriority(v8::Isolate::Priority priority);
 
-  void IsolateInBackgroundNotification();
-
-  bool is_backgrounded() { return is_backgrounded_; }
+  v8::Isolate::Priority priority() { return priority_; }
+  bool is_backgrounded() {
+    return priority_ == v8::Isolate::Priority::kBestEffort;
+  }
 
   // When efficiency mode is enabled we can favor single core throughput without
   // latency requirements. Any decision based on this flag must be quickly
@@ -2479,9 +2480,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if short builtin calls optimization is enabled.
   bool is_short_builtin_calls_enabled_ = false;
 
-  // True if the isolate is in background. This flag is used
-  // to prioritize between memory usage and latency.
-  std::atomic<bool> is_backgrounded_ = false;
+  // The isolate current's priority. This flag is used to prioritize
+  // between memory usage and latency.
+  std::atomic<v8::Isolate::Priority> priority_ =
+      v8::Isolate::Priority::kUserBlocking;
 
   // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.

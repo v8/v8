@@ -216,8 +216,9 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kSimulateNewspaceFull:
     case Runtime::kWaitForBackgroundOptimization:
     case Runtime::kSetBatterySaverMode:
-    case Runtime::kNotifyIsolateForeground:
-    case Runtime::kNotifyIsolateBackground:
+    case Runtime::kSetPriorityBestEffort:
+    case Runtime::kSetPriorityUserVisible:
+    case Runtime::kSetPriorityUserBlocking:
     case Runtime::kIsEfficiencyModeEnabled:
 #if V8_ENABLE_WEBASSEMBLY && !defined(OFFICIAL_BUILD)
     case Runtime::kWasmGenerateRandomModule:

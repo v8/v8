@@ -6807,12 +6807,12 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   }
 }
 
-void Isolate::IsolateInBackgroundNotification() {
-  is_backgrounded_ = true;
-  heap()->ActivateMemoryReducerIfNeeded();
+void Isolate::SetPriority(v8::Isolate::Priority priority) {
+  priority_ = priority;
+  if (priority_ == v8::Isolate::Priority::kBestEffort) {
+    heap()->ActivateMemoryReducerIfNeeded();
+  }
 }
-
-void Isolate::IsolateInForegroundNotification() { is_backgrounded_ = false; }
 
 void Isolate::PrintWithTimestamp(const char* format, ...) {
   base::OS::Print("[%d:%p] %8.0f ms: ", base::OS::GetCurrentProcessId(),
