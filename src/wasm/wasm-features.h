@@ -10,9 +10,11 @@
 #define V8_WASM_WASM_FEATURES_H_
 
 #include <iosfwd>
+#include <string>
 
-// The feature flags are declared in their own header.
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
+// The feature flags are declared in their own header.
 #include "src/wasm/wasm-feature-flags.h"
 
 // Features that are always enabled and do not have a flag.
@@ -126,16 +128,67 @@ inline std::ostream& operator<<(std::ostream& os, WasmDetectedFeature feature) {
 
 enum class CompileTimeImport {
   kJsString,
+  kStringConstants,
   kTextEncoder,
   kTextDecoder,
-  kStringConstants,
 };
 
 inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {
   return os << static_cast<int>(imp);
 }
 
-using CompileTimeImports = base::EnumSet<CompileTimeImport, int>;
+using CompileTimeImportFlags = base::EnumSet<CompileTimeImport, int>;
+
+class CompileTimeImports {
+ public:
+  CompileTimeImports() = default;
+
+  CompileTimeImports(const CompileTimeImports& other) V8_NOEXCEPT = default;
+  CompileTimeImports& operator=(const CompileTimeImports& other)
+      V8_NOEXCEPT = default;
+  CompileTimeImports(CompileTimeImports&& other) V8_NOEXCEPT {
+    *this = std::move(other);
+  }
+  CompileTimeImports& operator=(CompileTimeImports&& other) V8_NOEXCEPT {
+    bits_ = other.bits_;
+    constants_module_ = std::move(other.constants_module_);
+    return *this;
+  }
+  static CompileTimeImports FromSerialized(
+      CompileTimeImportFlags::StorageType flags,
+      base::Vector<const char> constants_module) {
+    CompileTimeImports result;
+    result.bits_ = CompileTimeImportFlags::FromIntegral(flags);
+    result.constants_module_.assign(constants_module.begin(),
+                                    constants_module.end());
+    return result;
+  }
+
+  bool empty() const { return bits_.empty(); }
+  bool has_string_constants(base::Vector<const uint8_t> name) const {
+    return bits_.contains(CompileTimeImport::kStringConstants) &&
+           constants_module_.size() == name.size() &&
+           std::equal(name.begin(), name.end(), constants_module_.begin());
+  }
+  bool contains(CompileTimeImport imp) const { return bits_.contains(imp); }
+
+  int compare(const CompileTimeImports& other) const {
+    if (bits_.ToIntegral() < other.bits_.ToIntegral()) return -1;
+    if (bits_.ToIntegral() > other.bits_.ToIntegral()) return 1;
+    return constants_module_.compare(other.constants_module_);
+  }
+
+  void Add(CompileTimeImport imp) { bits_.Add(imp); }
+
+  std::string& constants_module() { return constants_module_; }
+  const std::string& constants_module() const { return constants_module_; }
+
+  CompileTimeImportFlags flags() const { return bits_; }
+
+ private:
+  CompileTimeImportFlags bits_;
+  std::string constants_module_;
+};
 
 }  // namespace v8::internal::wasm
 

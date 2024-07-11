@@ -623,7 +623,6 @@ struct TypeFeedbackStorage {
   mutable base::SharedMutex mutex;
 
   WellKnownImportsList well_known_imports;
-  bool has_magic_string_constants{false};
 
   size_t EstimateCurrentMemoryConsumption() const;
 };

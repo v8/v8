@@ -64,7 +64,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
 
 V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
     const WasmModule* module, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports imports);
+    const CompileTimeImports& imports);
 
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
@@ -248,7 +248,7 @@ class AsyncCompileJob {
   Isolate* const isolate_;
   const char* const api_method_name_;
   const WasmEnabledFeatures enabled_features_;
-  const CompileTimeImports compile_imports_;
+  CompileTimeImports compile_imports_;
   const DynamicTiering dynamic_tiering_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its

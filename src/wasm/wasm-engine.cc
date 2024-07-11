@@ -311,7 +311,7 @@ std::vector<std::shared_ptr<NativeModule>>* native_modules_kept_alive_for_pgo;
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports compile_imports) {
+    const CompileTimeImports& compile_imports) {
   if (!v8_flags.wasm_native_module_cache_enabled) return nullptr;
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
@@ -336,7 +336,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     }
     if (it->second.has_value()) {
       if (auto shared_native_module = it->second.value().lock()) {
-        DCHECK_EQ(shared_native_module->compile_imports(), compile_imports);
+        DCHECK_EQ(
+            shared_native_module->compile_imports().compare(compile_imports),
+            0);
         DCHECK_EQ(shared_native_module->wire_bytes(), wire_bytes);
         return shared_native_module;
       }
@@ -348,7 +350,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 }
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, compile_imports, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
@@ -363,7 +365,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
 }
 
 void NativeModuleCache::StreamingCompilationFailed(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, compile_imports, {}};
   map_.erase(key);
@@ -379,7 +381,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
   DCHECK(!wire_bytes.empty());
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
-  CompileTimeImports compile_imports = native_module->compile_imports();
+  const CompileTimeImports& compile_imports = native_module->compile_imports();
   map_.erase(Key{prefix_hash, compile_imports, {}});
   const Key key{prefix_hash, compile_imports, wire_bytes};
   auto it = map_.find(key);
@@ -720,8 +722,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, enabled, compile_imports, thrower, std::move(module), bytes,
-      compilation_id, context_id, pgo_info.get());
+      isolate, enabled, std::move(compile_imports), thrower, std::move(module),
+      bytes, compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -812,12 +814,12 @@ void WasmEngine::AsyncCompile(
       std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
       memcpy(copy.get(), bytes.start(), bytes.length());
       ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
-      module_object =
-          SyncCompile(isolate, enabled, compile_imports, &thrower, bytes_copy);
+      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
+                                  &thrower, bytes_copy);
     } else {
       // The wire bytes are not shared, OK to use them directly.
-      module_object =
-          SyncCompile(isolate, enabled, compile_imports, &thrower, bytes);
+      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
+                                  &thrower, bytes);
     }
     if (thrower.error()) {
       resolver->OnCompilationFailed(thrower.Reify());
@@ -830,7 +832,7 @@ void WasmEngine::AsyncCompile(
 
   if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        StartStreamingCompilation(isolate, enabled, compile_imports,
+        StartStreamingCompilation(isolate, enabled, std::move(compile_imports),
                                   handle(isolate->context(), isolate),
                                   api_method_name_for_errors,
                                   std::move(resolver));
@@ -864,7 +866,7 @@ void WasmEngine::AsyncCompile(
       base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, compile_imports, std::move(copy),
+      isolate, enabled, std::move(compile_imports), std::move(copy),
       isolate->native_context(), api_method_name_for_errors,
       std::move(resolver), compilation_id);
   job->Start();
@@ -880,12 +882,12 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
                compilation_id);
   if (v8_flags.wasm_async_compilation) {
     AsyncCompileJob* job = CreateAsyncCompileJob(
-        isolate, enabled, compile_imports, {}, context, api_method_name,
-        std::move(resolver), compilation_id);
+        isolate, enabled, std::move(compile_imports), {}, context,
+        api_method_name, std::move(resolver), compilation_id);
     return job->CreateStreamingDecoder();
   }
   return StreamingDecoder::CreateSyncStreamingDecoder(
-      isolate, enabled, compile_imports, context, api_method_name,
+      isolate, enabled, std::move(compile_imports), context, api_method_name,
       std::move(resolver));
 }
 
@@ -1164,7 +1166,7 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
   DirectHandle<NativeContext> incumbent_context =
       isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
-      isolate, enabled, compile_imports, std::move(bytes), context,
+      isolate, enabled, std::move(compile_imports), std::move(bytes), context,
       incumbent_context, api_method_name, std::move(resolver), compilation_id);
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
@@ -1473,9 +1475,9 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::shared_ptr<NativeModule> native_module =
-      GetWasmCodeManager()->NewNativeModule(isolate, enabled, compile_imports,
-                                            code_size_estimate,
-                                            std::move(module));
+      GetWasmCodeManager()->NewNativeModule(
+          isolate, enabled, std::move(compile_imports), code_size_estimate,
+          std::move(module));
   base::MutexGuard lock(&mutex_);
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
     if (!native_modules_kept_alive_for_pgo) {
@@ -1517,7 +1519,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports compile_imports, Isolate* isolate) {
+    const CompileTimeImports& compile_imports, Isolate* isolate) {
   TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
@@ -1584,7 +1586,7 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
   if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash,
                                                             compile_imports)) {
@@ -1598,7 +1600,7 @@ bool WasmEngine::GetStreamingCompilationOwnership(
 }
 
 void WasmEngine::StreamingCompilationFailed(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   native_module_cache_.StreamingCompilationFailed(prefix_hash, compile_imports);
 }
 

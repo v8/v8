@@ -469,9 +469,10 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
 
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
   // JSArrayBuffer backing store doesn't get relocated.
+  wasm::CompileTimeImports compile_imports{};
   MaybeHandle<WasmModuleObject> maybe_module_object =
       wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec,
-                                    wasm::CompileTimeImports{}, {});
+                                    compile_imports, {});
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();

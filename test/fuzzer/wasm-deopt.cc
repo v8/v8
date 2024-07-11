@@ -75,8 +75,7 @@ std::ostream& operator<<(std::ostream& out, const ExecutionResult& result) {
 
 std::vector<ExecutionResult> PerformReferenceRun(
     const std::vector<std::string>& callees, ModuleWireBytes wire_bytes,
-    CompileTimeImports compile_imports, WasmEnabledFeatures enabled_features,
-    bool valid, Isolate* isolate) {
+    WasmEnabledFeatures enabled_features, bool valid, Isolate* isolate) {
   std::vector<ExecutionResult> results;
   FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
   ErrorThrower thrower(isolate, "WasmFuzzerSyncCompileReference");
@@ -207,11 +206,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
-  CompileTimeImports compile_imports = CompileTimeImports(
-      {CompileTimeImport::kJsString, CompileTimeImport::kTextEncoder,
-       CompileTimeImport::kTextDecoder});
-  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
-                                             compile_imports, wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -219,14 +215,15 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
+      wire_bytes);
   if (!valid) {
     FATAL("Generated module should validate, but got: %s\n",
           thrower.error_msg());
   }
 
   std::vector<ExecutionResult> reference_results = PerformReferenceRun(
-      callees, wire_bytes, compile_imports, enabled_features, valid, i_isolate);
+      callees, wire_bytes, enabled_features, valid, i_isolate);
 
   if (reference_results.empty()) {
     // If the first run already included non-determinism, there isn't any value

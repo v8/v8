@@ -340,7 +340,9 @@ size_t NativeModuleSerializer::Measure() const {
   // Add the size of the tiering budget.
   size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
   // Add the size of the compile-time imports.
-  size += sizeof(typename CompileTimeImports::StorageType);
+  size += sizeof(typename CompileTimeImportFlags::StorageType) +
+          native_module_->compile_imports().constants_module().size() +
+          sizeof(uint32_t);  // For the length of the name.
 
   return size;
 }
@@ -350,7 +352,11 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.
 
-  writer->Write(native_module_->compile_imports().ToIntegral());
+  const CompileTimeImports& compile_imports = native_module_->compile_imports();
+  const std::string& constants_module = compile_imports.constants_module();
+  writer->Write(compile_imports.flags().ToIntegral());
+  writer->Write(static_cast<uint32_t>(constants_module.size()));
+  writer->WriteVector(base::VectorOf(constants_module));
   writer->Write(total_code_size);
 
   // We do not ship lazy validation, so in most cases all functions will be
@@ -711,7 +717,9 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 #endif
 
   ReadHeader(reader);
-  if (compile_imports_ != native_module_->compile_imports()) return false;
+  if (compile_imports_.compare(native_module_->compile_imports()) != 0) {
+    return false;
+  }
 
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
@@ -769,8 +777,13 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 }
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
-  auto compile_imports = reader->Read<CompileTimeImports::StorageType>();
-  compile_imports_ = CompileTimeImports::FromIntegral(compile_imports);
+  auto compile_imports_flags =
+      reader->Read<CompileTimeImportFlags::StorageType>();
+  uint32_t constants_module_size = reader->Read<uint32_t>();
+  base::Vector<const char> constants_module_data =
+      reader->ReadVector<char>(constants_module_size);
+  compile_imports_ = CompileTimeImports::FromSerialized(compile_imports_flags,
+                                                        constants_module_data);
 
   remaining_code_size_ = reader->Read<size_t>();
   all_functions_validated_ = reader->Read<bool>();
@@ -953,7 +966,8 @@ bool IsSupportedVersion(base::Vector<const uint8_t> header,
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
-    CompileTimeImports compile_imports, base::Vector<const char> source_url) {
+    const CompileTimeImports& compile_imports,
+    base::Vector<const char> source_url) {
   WasmEnabledFeatures enabled_features =
       WasmEnabledFeatures::FromIsolate(isolate);
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};

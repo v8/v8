@@ -111,7 +111,8 @@ class WasmSerializationTest {
   }
 
   v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }
-  CompileTimeImports compile_imports() { return compile_imports_; }
+
+  CompileTimeImports MakeCompileTimeImports() { return CompileTimeImports{}; }
 
  private:
   Zone* zone() { return &zone_; }
@@ -143,7 +144,7 @@ class WasmSerializationTest {
           WasmEnabledFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
           GetWasmEngine()->SyncCompile(
-              serialization_isolate, enabled_features, compile_imports_,
+              serialization_isolate, enabled_features, MakeCompileTimeImports(),
               &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
@@ -419,11 +420,12 @@ TEST(SerializeTieringBudget) {
   test.CollectGarbage();
   HandleScope scope(isolate);
   Handle<WasmModuleObject> module_object;
+  CompileTimeImports compile_imports = test.MakeCompileTimeImports();
   CHECK(
       DeserializeNativeModule(
           isolate,
           base::VectorOf(serialized_bytes.buffer.get(), serialized_bytes.size),
-          base::VectorOf(test.wire_bytes()), test.compile_imports(), {})
+          base::VectorOf(test.wire_bytes()), compile_imports, {})
           .ToHandle(&module_object));
 
   auto* native_module = module_object->native_module();

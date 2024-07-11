@@ -70,6 +70,12 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
 class NativeModuleCache {
  public:
   struct Key {
+    Key(size_t prefix_hash, CompileTimeImports compile_imports,
+        const base::Vector<const uint8_t>& bytes)
+        : prefix_hash(prefix_hash),
+          compile_imports(std::move(compile_imports)),
+          bytes(bytes) {}
+
     // Store the prefix hash as part of the key for faster lookup, and to
     // quickly check existing prefixes for streaming compilation.
     size_t prefix_hash;
@@ -77,8 +83,8 @@ class NativeModuleCache {
     base::Vector<const uint8_t> bytes;
 
     bool operator==(const Key& other) const {
-      bool eq =
-          bytes == other.bytes && compile_imports == other.compile_imports;
+      bool eq = bytes == other.bytes &&
+                compile_imports.compare(other.compile_imports) == 0;
       DCHECK_IMPLIES(eq, prefix_hash == other.prefix_hash);
       return eq;
     }
@@ -89,12 +95,11 @@ class NativeModuleCache {
                        bytes != other.bytes);
         return prefix_hash < other.prefix_hash;
       }
-      if (compile_imports != other.compile_imports) {
-        return compile_imports.ToIntegral() <
-               other.compile_imports.ToIntegral();
-      }
       if (bytes.size() != other.bytes.size()) {
         return bytes.size() < other.bytes.size();
+      }
+      if (int cmp = compile_imports.compare(other.compile_imports)) {
+        return cmp < 0;
       }
       // Fast path when the base pointers are the same.
       // Also handles the {nullptr} case which would be UB for memcmp.
@@ -110,11 +115,11 @@ class NativeModuleCache {
 
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-      CompileTimeImports compile_imports);
-  bool GetStreamingCompilationOwnership(size_t prefix_hash,
-                                        CompileTimeImports compile_imports);
+      const CompileTimeImports& compile_imports);
+  bool GetStreamingCompilationOwnership(
+      size_t prefix_hash, const CompileTimeImports& compile_imports);
   void StreamingCompilationFailed(size_t prefix_hash,
-                                  CompileTimeImports compile_imports);
+                                  const CompileTimeImports& compile_imports);
   std::shared_ptr<NativeModule> Update(
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
@@ -315,7 +320,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // NativeModule later.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-      CompileTimeImports compile_imports, Isolate* isolate);
+      const CompileTimeImports& compile_imports, Isolate* isolate);
 
   // Replace the temporary {nullopt} with the new native module, or
   // erase it if any error occurred. Wake up blocked threads waiting for this
@@ -338,13 +343,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // prepared a module with the same prefix hash. The caller should wait until
   // the stream is finished and call {MaybeGetNativeModule} to either get the
   // module from the cache or get ownership for the compilation of these bytes.
-  bool GetStreamingCompilationOwnership(size_t prefix_hash,
-                                        CompileTimeImports compile_imports);
+  bool GetStreamingCompilationOwnership(
+      size_t prefix_hash, const CompileTimeImports& compile_imports);
 
   // Remove the prefix hash from the cache when compilation failed. If
   // compilation succeeded, {UpdateNativeModuleCache} should be called instead.
   void StreamingCompilationFailed(size_t prefix_hash,
-                                  CompileTimeImports compile_imports);
+                                  const CompileTimeImports& compile_imports);
 
   void FreeNativeModule(NativeModule*);
   void ClearWeakScriptHandle(Isolate* isolate,

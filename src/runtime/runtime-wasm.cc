@@ -1706,6 +1706,27 @@ Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
 }
 }  // namespace
 
+// Used for storing the name of a string-constants imports module off the heap.
+// Defined here to be able to make use of the helper functions above.
+void ToUtf8Lossy(Isolate* isolate, Handle<String> string, std::string& out) {
+  int utf8_length = MeasureWtf8(isolate, string);
+  DisallowGarbageCollection no_gc;
+  out.resize(utf8_length);
+  String::FlatContent content = string->GetFlatContent(no_gc);
+  DCHECK(content.IsFlat());
+  static constexpr unibrow::Utf8Variant variant =
+      unibrow::Utf8Variant::kLossyUtf8;
+  MessageTemplate* error_cant_happen = nullptr;
+  MessageTemplate oob_cant_happen = MessageTemplate::kInvalid;
+  if (content.IsOneByte()) {
+    EncodeWtf8({out.data(), out.size()}, 0, content.ToOneByteVector(), variant,
+               error_cant_happen, oob_cant_happen);
+  } else {
+    EncodeWtf8({out.data(), out.size()}, 0, content.ToUC16Vector(), variant,
+               error_cant_happen, oob_cant_happen);
+  }
+}
+
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());

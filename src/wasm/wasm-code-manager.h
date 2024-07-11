@@ -705,7 +705,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   WasmEnabledFeatures enabled_features() const { return enabled_features_; }
-  CompileTimeImports compile_imports() const { return compile_imports_; }
+  const CompileTimeImports& compile_imports() const { return compile_imports_; }
 
   // Returns the builtin that corresponds to the given address (which
   // must be a far jump table slot). Returns {kNoBuiltinId} on failure.

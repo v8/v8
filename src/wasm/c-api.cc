@@ -1164,8 +1164,8 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
   i::wasm::WasmEnabledFeatures features =
       i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   i::wasm::CompileTimeImports imports;
-  return i::wasm::GetWasmEngine()->SyncValidate(isolate, features, imports,
-                                                bytes);
+  return i::wasm::GetWasmEngine()->SyncValidate(isolate, features,
+                                                std::move(imports), bytes);
 }
 
 auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
@@ -1182,7 +1182,7 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
   if (!i::wasm::GetWasmEngine()
-           ->SyncCompile(isolate, features, imports, &thrower, bytes)
+           ->SyncCompile(isolate, features, std::move(imports), &thrower, bytes)
            .ToHandle(&module)) {
     thrower.Reset();  // The API provides no way to expose the error.
     return nullptr;
@@ -1281,11 +1281,12 @@ auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
   i::Handle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
     size_t data_size = static_cast<size_t>(binary_size);
+    i::wasm::CompileTimeImports compile_imports{};
     if (!i::wasm::DeserializeNativeModule(
              isolate,
              {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
              {reinterpret_cast<const uint8_t*>(ptr), data_size},
-             i::wasm::CompileTimeImports{}, {})
+             compile_imports, {})
              .ToHandle(&module_obj)) {
       // We were given a serialized module, but failed to deserialize. Report
       // this as an error.

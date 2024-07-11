@@ -22,6 +22,8 @@ constexpr int kDefaultMaxFuzzerExecutedInstructions = 16'000;
 constexpr int kDefaultMaxFuzzerExecutedInstructions = 1'000'000;
 #endif
 
+CompileTimeImports CompileTimeImportsForFuzzing();
+
 // First creates a reference module fully compiled with Liftoff, with
 // instrumentation to stop after a given number of steps and to record any
 // nondeterminism while executing. If execution finishes within {max_steps},

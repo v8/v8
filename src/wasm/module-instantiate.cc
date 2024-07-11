@@ -1770,19 +1770,22 @@ Handle<JSFunction> CreateFunctionForCompileTimeImport(Isolate* isolate,
 }
 
 void InstanceBuilder::SanitizeImports() {
-  base::Vector<const uint8_t> wire_bytes =
-      module_object_->native_module()->wire_bytes();
+  NativeModule* native_module = module_object_->native_module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   const WellKnownImportsList& well_known_imports =
       module_->type_feedback.well_known_imports;
+  const std::string& magic_string_constants =
+      native_module->compile_imports().constants_module();
   const bool has_magic_string_constants =
-      module_->type_feedback.has_magic_string_constants;
+      native_module->compile_imports().contains(
+          CompileTimeImport::kStringConstants);
   for (uint32_t index = 0; index < module_->import_table.size(); ++index) {
     const WasmImport& import = module_->import_table[index];
 
     if (import.kind == kExternalGlobal && has_magic_string_constants &&
-        import.module_name.length() == 1 &&
-        wire_bytes[import.module_name.offset()] ==
-            kMagicStringConstantsModuleName) {
+        import.module_name.length() == magic_string_constants.size() &&
+        std::equal(magic_string_constants.begin(), magic_string_constants.end(),
+                   wire_bytes.begin() + import.module_name.offset())) {
       Handle<String> value = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
           isolate_, wire_bytes, import.field_name, kNoInternalize);
       sanitized_imports_.push_back(value);

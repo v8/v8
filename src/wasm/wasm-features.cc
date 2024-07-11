@@ -7,6 +7,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

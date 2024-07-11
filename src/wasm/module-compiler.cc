@@ -1688,7 +1688,7 @@ uint32_t ImportStartOffset(base::Vector<const uint8_t> wire_bytes,
 // them on the {module}'s {well_known_imports} list.
 WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
                                        base::Vector<const uint8_t> wire_bytes,
-                                       CompileTimeImports imports) {
+                                       const CompileTimeImports& imports) {
   DCHECK_EQ(module->origin, kWasmOrigin);
   if (imports.empty()) return {};
 
@@ -1721,12 +1721,11 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
 
     // When magic string imports are requested, check that imports with the
     // string constant module name are globals of the right type.
-    if (imports.contains(CompileTimeImport::kStringConstants) &&
-        import.module_name.length() == 1 &&
-        wire_bytes[import.module_name.offset()] ==
-            kMagicStringConstantsModuleName) {
+    if (imports.has_string_constants(wire_bytes.SubVector(
+            import.module_name.offset(), import.module_name.end_offset()))) {
       if (import.kind != kExternalGlobal ||
-          module->globals[import.index].type != kRefExtern ||
+          !module->globals[import.index].type.is_reference_to(
+              HeapType::kExtern) ||
           module->globals[import.index].mutability != false) {
         TruncatedUserString<> name(
             wire_bytes.data() + import.field_name.offset(),
@@ -1734,7 +1733,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         return WasmError(
             ImportStartOffset(wire_bytes, import.module_name.offset()),
             "String constant import #%zu \"%.*s\" must be an immutable global "
-            "of type (ref extern)",
+            "subtyping externref",
             i, name.length(), name.start());
       }
     }
@@ -1853,9 +1852,6 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   if (module->num_imported_functions != 0) {
     module->type_feedback.well_known_imports.Initialize(
         base::VectorOf(statuses));
-  }
-  if (imports.contains(CompileTimeImport::kStringConstants)) {
-    module->type_feedback.has_magic_string_constants = true;
   }
   return {};
 }
@@ -2450,8 +2446,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           module.get(), include_liftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module = engine->NewNativeModule(
-      isolate, enabled_features, compile_imports, module, code_size_estimate);
+  native_module = engine->NewNativeModule(isolate, enabled_features,
+                                          std::move(compile_imports), module,
+                                          code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->compilation_state()->set_compilation_id(compilation_id);
 
@@ -2488,7 +2485,7 @@ AsyncCompileJob::AsyncCompileJob(
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled_features),
-      compile_imports_(compile_imports),
+      compile_imports_(std::move(compile_imports)),
       dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes)),
@@ -2726,8 +2723,8 @@ void AsyncCompileJob::CreateNativeModule(
   // information needed at instantiation time.
 
   native_module_ = GetWasmEngine()->NewNativeModule(
-      isolate_, enabled_features_, compile_imports_, std::move(module),
-      code_size_estimate);
+      isolate_, enabled_features_, std::move(compile_imports_),
+      std::move(module), code_size_estimate);
   native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
 }

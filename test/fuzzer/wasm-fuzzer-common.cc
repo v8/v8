@@ -34,11 +34,6 @@
 namespace v8::internal::wasm::fuzzing {
 
 namespace {
-constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
-  return CompileTimeImports({CompileTimeImport::kJsString,
-                             CompileTimeImport::kTextEncoder,
-                             CompileTimeImport::kTextDecoder});
-}
 
 void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
                                               int32_t* max_steps,
@@ -73,6 +68,14 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
 
 }  // namespace
 
+CompileTimeImports CompileTimeImportsForFuzzing() {
+  CompileTimeImports result;
+  result.Add(CompileTimeImport::kJsString);
+  result.Add(CompileTimeImport::kTextDecoder);
+  result.Add(CompileTimeImport::kTextEncoder);
+  return result;
+}
+
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
 Handle<WasmModuleObject> CompileReferenceModule(
@@ -88,8 +91,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
-  WasmError imports_error = ValidateAndSetBuiltinImports(
-      module.get(), wire_bytes, CompileTimeImportsForFuzzing());
+  CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
+  WasmError imports_error =
+      ValidateAndSetBuiltinImports(module.get(), wire_bytes, compile_imports);
   CHECK(!imports_error.has_error());  // The module was compiled before.
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
@@ -373,10 +377,9 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
-  CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
 
-  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
-                                             compile_imports, wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -400,7 +403,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
+      wire_bytes);
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {
