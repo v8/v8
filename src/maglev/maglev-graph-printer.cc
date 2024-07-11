@@ -760,9 +760,10 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       UNREACHABLE();
   }
   if (phi->input_count() == 0) {
-    os_ << "ₑ " << phi->owner().ToString();
+    os_ << "ₑ " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
   } else {
-    os_ << " " << phi->owner().ToString() << " (";
+    os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
+        << " (";
     // Manually walk Phi inputs to print just the node labels, without
     // input locations (which are shown in the predecessor block's gap
     // moves).
@@ -935,8 +936,8 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
           case ValueRepresentation::kIntPtr:
             UNREACHABLE();
         }
-        os_ << " " << phi->owner().ToString() << " " << phi->result().operand()
-            << "\n";
+        os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
+            << " " << phi->result().operand() << "\n";
       }
 #ifdef V8_ENABLE_MAGLEV
       if (target->state()->register_state().is_initialized()) {

@@ -279,6 +279,9 @@ class MaglevGraphBuilder {
     }
   }
 
+  VirtualObject* CreateVirtualObjectForMerge(compiler::MapRef map,
+                                             uint32_t slot_count);
+
   SmiConstant* GetSmiConstant(int constant) const {
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->smi().find(constant);
@@ -352,7 +355,7 @@ class MaglevGraphBuilder {
   const InterpreterFrameState& current_interpreter_frame() const {
     return current_interpreter_frame_;
   }
-  const MaglevGraphBuilder* parent() const { return parent_; }
+  MaglevGraphBuilder* parent() const { return parent_; }
   const DeoptFrameScope* current_deopt_scope() const {
     return current_deopt_scope_;
   }
@@ -1081,7 +1084,7 @@ class MaglevGraphBuilder {
           DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
           return;
         }
-        const MaglevGraphBuilder* builder = this;
+        MaglevGraphBuilder* builder = this;
         int depth = 0;
         if (catch_block_stack_.size() == 0) {
           for (; depth < parent_catch_deopt_frame_distance_; depth++) {
@@ -2072,9 +2075,12 @@ class MaglevGraphBuilder {
   ValueNode* BuildTestUndetectable(ValueNode* value);
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
+  bool CanTrackObjectChanges(ValueNode* object, int offset);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
                                        ValueNode* value, int offset);
+  void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
+                                            int offset);
   ValueNode* BuildLoadTaggedField(ValueNode* object, int offset);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
                              StoreTaggedMode store_mode);
@@ -2124,6 +2130,7 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
 
+  ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
                                     NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
@@ -2240,6 +2247,7 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
+  VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
   VirtualObject* CreateVirtualObject(compiler::MapRef map,
                                      uint32_t slot_count_including_map);
   VirtualObject* CreateHeapNumber(Float64 value);
@@ -2697,7 +2705,7 @@ class MaglevGraphBuilder {
     return bytecode().length();
   }
 
-  int NewObjectId() { return graph_->NewObjectId(); }
+  uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;

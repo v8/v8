@@ -4970,22 +4970,28 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     kFixedDoubleArray,
   };
 
-  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map,
+  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t slot_count, ValueNode** slots)
       : Base(bitfield),
         map_(map),
+        id_(id),
         type_(kDefault),
         slots_({slot_count, slots}) {}
 
-  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map,
+  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          Float64 number)
-      : Base(bitfield), map_(map), type_(kHeapNumber), number_(number) {}
+      : Base(bitfield),
+        map_(map),
+        id_(id),
+        type_(kHeapNumber),
+        number_(number) {}
 
-  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map,
+  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t length,
                          compiler::FixedDoubleArrayRef elements)
       : Base(bitfield),
         map_(map),
+        id_(id),
         type_(kFixedDoubleArray),
         double_array_({length, elements}) {}
 
@@ -4997,6 +5003,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   compiler::MapRef map() const { return map_; }
   Type type() const { return type_; }
+  uint32_t id() const { return id_; }
 
   size_t size() const {
     switch (type_) {
@@ -5093,6 +5100,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   };
 
   compiler::MapRef map_;
+  const int id_;
   Type type_;  // We need to cache the type. We cannot do map comparison in some
                // parts of the pipeline, because we would need to derefernece a
                // handle.
@@ -5133,6 +5141,10 @@ class VirtualObject::List {
     VirtualObject* entry_;
   };
 
+  bool operator==(const VirtualObject::List& other) const {
+    return head_ == other.head_;
+  }
+
   void Add(VirtualObject* object) {
     DCHECK_NOT_NULL(object);
     DCHECK_NULL(object->next_);
@@ -5156,6 +5168,27 @@ class VirtualObject::List {
 
   void Print(std::ostream& os, const char* prefix,
              MaglevGraphLabeller* labeller) const;
+
+  // It iterates both list in reverse other of ids until a common point.
+  template <typename Function>
+  static VirtualObject* WalkUntilCommon(const VirtualObject::List& list1,
+                                        const VirtualObject::List& list2,
+                                        Function&& f) {
+    VirtualObject* vo1 = list1.head_;
+    VirtualObject* vo2 = list2.head_;
+    while (vo1 != nullptr && vo2 != nullptr && vo1 != vo2) {
+      DCHECK_NE(vo1->id(), vo2->id());
+      if (vo1->id() > vo2->id()) {
+        f(vo1, list1);
+        vo1 = vo1->next_;
+      } else {
+        f(vo2, list2);
+        vo2 = vo2->next_;
+      }
+    }
+    if (vo1 == vo2) return vo1;
+    return nullptr;
+  }
 
   Iterator begin() const { return Iterator(head_); }
   Iterator end() const { return Iterator(nullptr); }
@@ -5237,6 +5270,11 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   }
   bool HasBeenAnalysed() const {
     return escape_analysis_result_ != EscapeAnalysisResult::kUnknown;
+  }
+
+  void UpdateObject(VirtualObject* object) {
+    DCHECK_EQ(this, object->allocation());
+    object_ = object;
   }
 
  private:

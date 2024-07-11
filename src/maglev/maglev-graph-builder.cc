@@ -3473,6 +3473,8 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   ValueNode* value = GetAccumulator();
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   uint32_t flags = GetFlag8Operand(1);
+  // TODO(victorgomes): StaLookupSlotFunction will escape the current GetContext
+  // if contexts VOs are allowed to be modified.
   SetAccumulator(
       BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}).value());
 }
@@ -4116,22 +4118,78 @@ void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
   BuildStoreTaggedField(object, value, offset, StoreTaggedMode::kInitializing);
 }
 
+bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
+                                               int offset) {
+  DCHECK(!receiver->Is<VirtualObject>());
+  if (!v8_flags.maglev_track_object_changes) return false;
+  if (offset == HeapObject::kMapOffset) return false;
+  // We don't support loop phis inside VirtualObjects, so any access inside a
+  // loop should escape the object.
+  if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) != -1) {
+    return false;
+  }
+  if (InlinedAllocation* alloc = receiver->TryCast<InlinedAllocation>()) {
+    if (alloc->IsEscaping()) return false;
+    // TODO(victorgomes): Support modifying contexts. Currently
+    // StaLookupSlotFunction can implicitly modify the active context.
+    if (alloc->object()->map().IsContextMap()) return false;
+    return true;
+  }
+  return false;
+}
+
 ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                     int offset) {
-  // TODO(victorgomes): Load from VOs instead.
+  if (CanTrackObjectChanges(object, offset)) {
+    InlinedAllocation* allocation = object->TryCast<InlinedAllocation>();
+    VirtualObject* vobj = allocation->object();
+    // If it hasn't be snapshotted yet, it is the latest created version of this
+    // object, we don't need to search for it.
+    if (vobj->IsSnapshot()) {
+      vobj = current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+          allocation);
+    }
+    ValueNode* value = vobj->get(offset);
+    TRACE("  * Reusing value in virtual object "
+          << PrintNodeLabel(graph_labeller(), vobj) << "[" << offset
+          << "]: " << PrintNode(graph_labeller(), value));
+    return value;
+  }
   return AddNewNode<LoadTaggedField>({object}, offset);
+}
+
+void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
+                                                              ValueNode* value,
+                                                              int offset) {
+  if (!CanTrackObjectChanges(object, offset)) return;
+  // This avoids loop in the object graph.
+  if (value->Is<InlinedAllocation>()) return;
+  InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
+  // TODO(victorgomes): Technically if it is not sealed, we could avoid copying
+  // the object here. This does not currently work, since we need to seal
+  // objects on branches.
+  VirtualObject* vobject = DeepCopyVirtualObject(
+      current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+          allocation));
+  vobject->set(offset, value);
+  AddNonEscapingUses(allocation, 1);
+  TRACE("  * Setting value in virtual object "
+        << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
+        << "]: " << PrintNode(graph_labeller(), value));
 }
 
 void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
                                                ValueNode* value, int offset,
                                                StoreTaggedMode store_mode) {
-  // TODO(victorgomes): Update VOs.
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
                  !value->properties().is_conversion());
+  if (store_mode != StoreTaggedMode::kInitializing) {
+    TryBuildStoreTaggedFieldToAllocation(object, value, offset);
+  }
   if (CanElideWriteBarrier(object, value)) {
     AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                                store_mode);
@@ -4144,7 +4202,6 @@ void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
 void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
     ValueNode* object, ValueNode* value, int offset,
     StoreTaggedMode store_mode) {
-  // TODO(victorgomes): Update VOs.
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4152,6 +4209,9 @@ void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
                  !value->properties().is_conversion());
   DCHECK(CanElideWriteBarrier(object, value));
+  if (store_mode != StoreTaggedMode::kInitializing) {
+    TryBuildStoreTaggedFieldToAllocation(object, value, offset);
+  }
   AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                              store_mode);
 }
@@ -4358,6 +4418,14 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
     }
   }
   return value;
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
+    ValueNode* fixed_array) {
+  ValueNode* length =
+      BuildLoadTaggedField(fixed_array, FixedArray::kLengthOffset);
+  EnsureType(length, NodeType::kSmi);
+  return length;
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
@@ -5027,13 +5095,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
 
   ValueNode* elements_array = BuildLoadElements(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
-  ValueNode* length;
-  if (is_jsarray) {
-    length = GetInt32(BuildLoadJSArrayLength(object));
-  } else {
-    length = AddNewNode<UnsafeSmiUntag>(
-        {BuildLoadTaggedField(elements_array, FixedArray::kLengthOffset)});
-  }
+  ValueNode* length = is_jsarray ? GetInt32(BuildLoadJSArrayLength(object))
+                                 : BuildLoadFixedArrayLength(elements_array);
 
   auto emit_load = [&] {
     ValueNode* result;
@@ -5124,14 +5187,13 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     if (is_jsarray) {
       length = GetInt32(BuildLoadJSArrayLength(object));
     } else {
-      length = elements_array_length = AddNewNode<UnsafeSmiUntag>(
-          {BuildLoadTaggedField(elements_array, FixedArray::kLengthOffset)});
+      length = elements_array_length =
+          BuildLoadFixedArrayLength(elements_array);
     }
     index = GetInt32ElementIndex(index_object);
     if (keyed_mode.store_mode() == KeyedAccessStoreMode::kGrowAndHandleCOW) {
       if (elements_array_length == nullptr) {
-        elements_array_length = AddNewNode<UnsafeSmiUntag>(
-            {BuildLoadTaggedField(elements_array, FixedArray::kLengthOffset)});
+        elements_array_length = BuildLoadFixedArrayLength(elements_array);
       }
 
       // Validate the {index} depending on holeyness:
@@ -7176,11 +7238,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   // Add 1 to index
   ValueNode* next_index =
       AddNewNode<Int32AddWithOverflow>({int32_index, GetInt32Constant(1)});
-  ValueNode* smi_next_index = AddNewNode<CheckedSmiTagInt32>({next_index});
+  EnsureType(next_index, NodeType::kSmi);
   // Update [[NextIndex]]
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, smi_next_index},
-                                             JSArrayIterator::kNextIndexOffset,
-                                             StoreTaggedMode::kDefault);
+  BuildStoreTaggedFieldNoWriteBarrier(receiver, next_index,
+                                      JSArrayIterator::kNextIndexOffset,
+                                      StoreTaggedMode::kDefault);
   subgraph.Goto(&done);
 
   // Index is greater or equal than length.
@@ -7738,8 +7800,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       AddNewNode<CheckedSmiIncrement>({old_array_length_smi});
 
   ValueNode* elements_array = BuildLoadElements(receiver);
-  ValueNode* elements_array_length = AddNewNode<UnsafeSmiUntag>(
-      {BuildLoadTaggedField(elements_array, FixedArray::kLengthOffset)});
+  ValueNode* elements_array_length = BuildLoadFixedArrayLength(elements_array);
 
   auto build_array_push = [&](ElementsKind kind) {
     ValueNode* value;
@@ -10691,14 +10752,36 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
   return fast_literal;
 }
 
+VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
+  CHECK_EQ(old->type(), VirtualObject::kDefault);
+  ValueNode** slots = zone()->AllocateArray<ValueNode*>(old->slot_count());
+  VirtualObject* vobject = NodeBase::New<VirtualObject>(
+      zone(), 0, old->map(), NewObjectId(), old->slot_count(), slots);
+  current_interpreter_frame_.add_object(vobject);
+  for (int i = 0; i < static_cast<int>(old->slot_count()); i++) {
+    vobject->set_by_index(i, old->get_by_index(i));
+  }
+  vobject->set_allocation(old->allocation());
+  old->allocation()->UpdateObject(vobject);
+  return vobject;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateVirtualObjectForMerge(
+    compiler::MapRef map, uint32_t slot_count) {
+  ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
+  VirtualObject* vobject = NodeBase::New<VirtualObject>(
+      zone(), 0, map, NewObjectId(), slot_count, slots);
+  return vobject;
+}
+
 VirtualObject* MaglevGraphBuilder::CreateVirtualObject(
     compiler::MapRef map, uint32_t slot_count_including_map) {
   // VirtualObjects are not added to the Maglev graph.
   DCHECK_GT(slot_count_including_map, 0);
   uint32_t slot_count = slot_count_including_map - 1;
   ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
-  VirtualObject* vobject =
-      NodeBase::New<VirtualObject>(zone(), 0, map, slot_count, slots);
+  VirtualObject* vobject = NodeBase::New<VirtualObject>(
+      zone(), 0, map, NewObjectId(), slot_count, slots);
   current_interpreter_frame_.add_object(vobject);
   return vobject;
 }
@@ -10706,7 +10789,7 @@ VirtualObject* MaglevGraphBuilder::CreateVirtualObject(
 VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
   // VirtualObjects are not added to the Maglev graph.
   VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, broker()->heap_number_map(), value);
+      zone(), 0, broker()->heap_number_map(), NewObjectId(), value);
   current_interpreter_frame_.add_object(vobject);
   return vobject;
 }
@@ -10715,7 +10798,8 @@ VirtualObject* MaglevGraphBuilder::CreateDoubleFixedArray(
     uint32_t elements_length, compiler::FixedDoubleArrayRef elements) {
   // VirtualObjects are not added to the Maglev graph.
   VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, broker()->fixed_double_array_map(), elements_length, elements);
+      zone(), 0, broker()->fixed_double_array_map(), NewObjectId(),
+      elements_length, elements);
   current_interpreter_frame_.add_object(vobject);
   return vobject;
 }
@@ -12516,7 +12600,8 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
     BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
   }
-  ValueNode* case_value = AddNewNode<UnsafeSmiUntag>({state});
+  ValueNode* case_value =
+      state->is_tagged() ? AddNewNode<UnsafeSmiUntag>({state}) : state;
   BasicBlock* generator_prologue_block = FinishBlock<Switch>(
       {case_value}, case_value_base, targets, offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
@@ -12568,9 +12653,7 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
   if (v8_flags.maglev_assert) {
     // Check if register count is invalid, that is, larger than the
     // register file length.
-    ValueNode* array_length_smi =
-        BuildLoadTaggedField(array, FixedArrayBase::kLengthOffset);
-    ValueNode* array_length = AddNewNode<UnsafeSmiUntag>({array_length_smi});
+    ValueNode* array_length = BuildLoadFixedArrayLength(array);
     ValueNode* register_size = GetInt32Constant(
         parameter_count_without_receiver() + registers.register_count());
     AddNewNode<AssertInt32>(
