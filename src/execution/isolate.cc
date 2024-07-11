@@ -2717,10 +2717,11 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<FixedArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (IsJSError(*exception)) {
-      // We fetch the stack trace that corresponds to this error object.
-      // If the lookup fails, the exception is probably not a valid Error
-      // object. In that case, we fall through and capture the stack trace
+    if (IsJSObject(*exception)) {
+      // First, check whether a stack trace is already present on this object.
+      // It maybe an Error, or the embedder may have stored a stack trace using
+      // Exception::CaptureStackTrace().
+      // If the lookup fails, we fall through and capture the stack trace
       // at this throw site.
       stack_trace_object = GetDetailedStackTrace(Cast<JSObject>(exception));
     }
