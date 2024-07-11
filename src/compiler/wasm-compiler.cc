@@ -8310,8 +8310,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                 "(https://crbug.com/v8/14260)");
           }
 
+          START_ALLOW_USE_DEPRECATED()
           constexpr int kSize = sizeof(FastApiTypedArray<uint8_t>);
           constexpr int kAlign = alignof(FastApiTypedArray<uint8_t>);
+          END_ALLOW_USE_DEPRECATED()
 
           Node* stack_slot = gasm_->StackSlot(kSize, kAlign);
 

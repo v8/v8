@@ -12,8 +12,8 @@ function f() {
 
 %PrepareFunctionForOptimization(f);
 assertThrows(() => f(), Error,
-             "This method expects an array as a second argument.");
+             "This method expects an array as a first argument.");
 
 %OptimizeFunctionOnNextCall(f);
 assertThrows(() => f(), Error,
-             "This method expects an array as a second argument.");
+             "This method expects an array as a first argument.");

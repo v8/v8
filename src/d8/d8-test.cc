@@ -77,20 +77,21 @@ class FastCApiObject {
                                               AnyCType options) {
     AnyCType ret;
     CopyStringFastCallback(receiver.object_value, *source.string_value,
-                           *out.uint8_ta_value, *options.options_value);
+                           out.object_value, *options.options_value);
     return ret;
   }
 
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static void CopyStringFastCallback(Local<Object> receiver,
                                      const FastOneByteString& source,
-                                     const FastApiTypedArray<uint8_t>& out,
+                                     Local<Object> out,
                                      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     self->fast_call_count_++;
 
-    uint8_t* memory = nullptr;
-    CHECK(out.getStorageIfAligned(&memory));
+    HandleScope handle_scope(options.isolate);
+    uint8_t* memory =
+        reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
     memcpy(memory, source.data, source.length);
   }
 
@@ -257,13 +258,24 @@ class FastCApiObject {
   }
 
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
-                                         Local<Array> seq_arg,
+                                         Local<Object> seq_arg,
                                          FastApiCallbackOptions& options) {
+    if (seq_arg->IsUint32Array()) {
+      return AddAllTypedArrayFastCallback<uint32_t>(receiver, seq_arg, options);
+    }
+
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
-    uint32_t length = seq_arg->Length();
+    HandleScope handle_scope(options.isolate);
+    if (!seq_arg->IsArray()) {
+      options.isolate->ThrowError(
+          "This method expects an array as a first argument.");
+      return 0;
+    }
+    Local<Array> array = seq_arg.As<Array>();
+    uint32_t length = array->Length();
     if (length > 1024) {
       receiver->GetIsolate()->ThrowError(
           "Invalid length of array, must be between 0 and 1024.");
@@ -272,11 +284,11 @@ class FastCApiObject {
 
     Type buffer[1024];
     bool result = TryToCopyAndConvertArrayToCppBuffer<
-        CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer, 1024);
+        CTypeInfoBuilder<Type>::Build().GetId(), Type>(array, buffer, 1024);
     if (!result) {
-      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), seq_arg);
+      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), array);
     }
-    DCHECK_EQ(seq_arg->Length(), length);
+    DCHECK_EQ(array->Length(), length);
 
     Type sum = 0;
     for (uint32_t i = 0; i < length; ++i) {
@@ -316,7 +328,7 @@ class FastCApiObject {
       return;
     }
     if (!info[0]->IsArray()) {
-      isolate->ThrowError("This method expects an array as a second argument.");
+      isolate->ThrowError("This method expects an array as a first argument.");
       return;
     }
     Local<Array> seq_arg = info[0].As<Array>();
@@ -325,17 +337,6 @@ class FastCApiObject {
     info.GetReturnValue().Set(Number::New(isolate, sum));
   }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  template <typename T>
-  static const FastApiTypedArray<T>* AnyCTypeToTypedArray(AnyCType arg) {
-    if constexpr (std::is_same_v<T, uint8_t>) return arg.uint8_ta_value;
-    if constexpr (std::is_same_v<T, int32_t>) return arg.int32_ta_value;
-    if constexpr (std::is_same_v<T, uint32_t>) return arg.uint32_ta_value;
-    if constexpr (std::is_same_v<T, int64_t>) return arg.int64_ta_value;
-    if constexpr (std::is_same_v<T, uint64_t>) return arg.uint64_ta_value;
-    if constexpr (std::is_same_v<T, float>) return arg.float_ta_value;
-    if constexpr (std::is_same_v<T, double>) return arg.double_ta_value;
-    UNREACHABLE();
-  }
 
   template <typename T>
   static AnyCType AddAllTypedArrayFastCallbackPatch(AnyCType receiver,
@@ -343,28 +344,37 @@ class FastCApiObject {
                                                     AnyCType options) {
     AnyCType ret;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-    ret.double_value = AddAllTypedArrayFastCallback(
-        receiver.object_value, *AnyCTypeToTypedArray<T>(typed_array_arg),
+    ret.double_value = AddAllTypedArrayFastCallback<T>(
+        receiver.object_value, typed_array_arg.object_value,
         *options.options_value);
 #else
-    ret.int32_value = AddAllTypedArrayFastCallback(
-        receiver.object_value * AnyCTypeToTypedArray<T>(typed_array_arg),
+    ret.int32_value = AddAllTypedArrayFastCallback<T>(
+        receiver.object_value, typed_array_arg.object_value,
         *options.options_value);
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   template <typename T>
-  static Type AddAllTypedArrayFastCallback(
-      Local<Object> receiver, const FastApiTypedArray<T>& typed_array_arg,
-      FastApiCallbackOptions& options) {
+  static Type AddAllTypedArrayFastCallback(Local<Object> receiver,
+                                           Local<Value> typed_array_arg,
+                                           FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
 
+    HandleScope handle_scope(options.isolate);
+    if (!typed_array_arg->IsTypedArray()) {
+      options.isolate->ThrowError(
+          "This method expects a TypedArray as a first argument.");
+      return 0;
+    }
+    T* memory = reinterpret_cast<T*>(
+        typed_array_arg.As<TypedArray>()->Buffer()->Data());
+    size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
     T sum = 0;
-    for (unsigned i = 0; i < typed_array_arg.length(); ++i) {
-      sum += typed_array_arg.get(i);
+    for (size_t i = 0; i < length; ++i) {
+      sum += memory[i];
     }
     return static_cast<Type>(sum);
   }
@@ -1542,7 +1552,6 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             &add_all_float64_typed_array_c_func));
 
     const CFunction add_all_overloads[] = {
-        add_all_uint32_typed_array_c_func,
         add_all_seq_c_func,
         add_all_no_options_c_func,
     };
@@ -1551,7 +1560,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
         FunctionTemplate::NewWithCFunctionOverloads(
             isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, {add_all_overloads, 3}));
+            SideEffectType::kHasSideEffect, {add_all_overloads, 2}));
 
     CFunction add_all_int_invalid_func =
         CFunction::Make(FastCApiObject::AddAllIntInvalidCallback);

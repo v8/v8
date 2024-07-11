@@ -337,7 +337,13 @@ struct FastApiTypedArrayBase {
 };
 
 template <typename T>
-struct FastApiTypedArray : public FastApiTypedArrayBase {
+struct V8_DEPRECATE_SOON(
+    "When an API function expects a TypedArray as a parameter, the type in the "
+    "signature should be `v8::Local<v8::Value>` instead of "
+    "FastApiTypedArray<>. The API function then has to type-check the "
+    "parameter and convert it to a `v8::Local<v8::TypedArray` to access the "
+    "data. In essence, the parameter should be handled the same as for a "
+    "regular API call.") FastApiTypedArray : public FastApiTypedArrayBase {
  public:
   V8_INLINE T get(size_t index) const {
 #ifdef DEBUG
@@ -458,13 +464,6 @@ union V8_TRIVIAL_ABI AnyCType {
   void* pointer_value;
   Local<Object> object_value;
   Local<Array> sequence_value;
-  const FastApiTypedArray<uint8_t>* uint8_ta_value;
-  const FastApiTypedArray<int32_t>* int32_ta_value;
-  const FastApiTypedArray<uint32_t>* uint32_ta_value;
-  const FastApiTypedArray<int64_t>* int64_ta_value;
-  const FastApiTypedArray<uint64_t>* uint64_ta_value;
-  const FastApiTypedArray<float>* float_ta_value;
-  const FastApiTypedArray<double>* double_ta_value;
   const FastOneByteString* string_value;
   FastApiCallbackOptions* options_value;
 };

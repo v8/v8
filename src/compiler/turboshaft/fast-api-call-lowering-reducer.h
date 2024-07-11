@@ -474,6 +474,7 @@ class FastApiCallLoweringReducer : public Next {
 
     // We hard-code int32_t here, because all specializations of
     // FastApiTypedArray have the same size.
+    START_ALLOW_USE_DEPRECATED()
     constexpr int kAlign = alignof(FastApiTypedArray<int32_t>);
     constexpr int kSize = sizeof(FastApiTypedArray<int32_t>);
     static_assert(kAlign == alignof(FastApiTypedArray<double>),
@@ -482,6 +483,7 @@ class FastApiCallLoweringReducer : public Next {
     static_assert(kSize == sizeof(FastApiTypedArray<double>),
                   "Size mismatch between different specializations of "
                   "FastApiTypedArray");
+    END_ALLOW_USE_DEPRECATED()
     static_assert(
         kSize == sizeof(uintptr_t) + sizeof(size_t),
         "The size of "
