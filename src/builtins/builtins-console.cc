@@ -265,6 +265,8 @@ BUILTIN(ConsoleContext) {
   HandleScope scope(isolate);
   Factory* const factory = isolate->factory();
 
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kConsoleContext);
+
   // Generate a unique ID for the new `console.context`
   // and convert the parameter to a string (defaults to
   // 'anonymous' if unspecified).
