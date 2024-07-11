@@ -34,7 +34,7 @@ Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
 }
 
 void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
-  V8_ASSUME(2 * n < arraysize(simd128_registers_));
+  V8_ASSUME(n < 2 * arraysize(simd128_registers_));
   const Address start = reinterpret_cast<Address>(simd128_registers_);
   const size_t offset = n * sizeof(Float64);
   base::WriteUnalignedValue(start + offset, value);

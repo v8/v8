@@ -60,7 +60,7 @@ class RegisterValues {
   Float64 double_registers_[DoubleRegister::kNumRegisters];
   Simd128 simd128_registers_[Simd128Register::kNumRegisters];
 #else
-  Simd128 simd128_registers_[DoubleRegister::kNumRegisters];
+  Simd128 simd128_registers_[Simd128Register::kNumRegisters];
 #endif
 };
 
