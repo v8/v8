@@ -585,10 +585,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // JS frames on top.
   __ St_d(zero_reg, MemOperand(s5, 0));
 
-  __ li(s1, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(s1, IsolateFieldId::kFastCCallCallerFP);
   __ Ld_d(s2, MemOperand(s1, 0));
   __ St_d(zero_reg, MemOperand(s1, 0));
-  __ li(s1, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(s1, IsolateFieldId::kFastCCallCallerPC);
   __ Ld_d(s3, MemOperand(s1, 0));
   __ St_d(zero_reg, MemOperand(s1, 0));
   __ Push(s2, s3);
@@ -703,9 +703,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Restore the top frame descriptors from the stack.
   __ Pop(a4, a5);
-  __ li(a6, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadIsolateField(a6, IsolateFieldId::kFastCCallCallerFP);
   __ St_d(a4, MemOperand(a6, 0));
-  __ li(a6, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadIsolateField(a6, IsolateFieldId::kFastCCallCallerPC);
   __ St_d(a5, MemOperand(a6, 0));
 
   __ Pop(a5);

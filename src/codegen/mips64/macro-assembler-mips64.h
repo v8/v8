@@ -233,6 +233,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // that is guaranteed not to be clobbered.
   MemOperand ExternalReferenceAsOperand(ExternalReference reference,
                                         Register scratch);
+  MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
 
   inline void Move(Register output, MemOperand operand) { Ld(output, operand); }
 
@@ -726,6 +729,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+
+  void LoadIsolateField(Register dst, IsolateFieldId id);
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
