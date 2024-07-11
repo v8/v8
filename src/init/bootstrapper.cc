@@ -2523,6 +2523,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kArrayIsArray, 1, true);
     SimpleInstallFunction(isolate_, array_function, "from", Builtin::kArrayFrom,
                           1, false);
+    SimpleInstallFunction(isolate(), array_function, "fromAsync",
+                          Builtin::kArrayFromAsync, 1, false);
     SimpleInstallFunction(isolate_, array_function, "of", Builtin::kArrayOf, 0,
                           false);
     SetConstructorInstanceType(isolate_, array_function,
@@ -5801,16 +5803,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
                         factory()->InternalizeUtf8String("cleanupSome"),
                         isolate()->finalization_registry_cleanup_some(),
                         DONT_ENUM);
-}
-
-void Genesis::InitializeGlobal_harmony_array_from_async() {
-  if (!v8_flags.harmony_array_from_async) return;
-
-  Handle<JSObject> array_function(native_context()->array_function(),
-                                  isolate());
-
-  SimpleInstallFunction(isolate(), array_function, "fromAsync",
-                        Builtin::kArrayFromAsync, 1, false);
 }
 
 void Genesis::InitializeGlobal_js_explicit_resource_management() {
