@@ -46,6 +46,13 @@ ALL_VARIANT_FLAGS = {
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
+    # This combines two orthogonal variants always_sparkplug and
+    # stress_regexp_jit to use bot resources more effectively.
+    "always_sparkplug_and_stress_regexp_jit": [[
+        "--always-sparkplug",
+        "--sparkplug",
+        "--regexp-tier-up-ticks=0",
+    ]],
     "minor_ms": [["--minor-ms"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -156,6 +163,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
+    "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],

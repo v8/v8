@@ -647,9 +647,9 @@
 }], # variant == jitless
 
 ##############################################################################
-['variant == stress_regexp_jit', {
+['variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit', {
   'test-regexp/InterruptAndTransitionSubjectFromTwoByteToOneByte': [SKIP],
-}],  # variant == stress_regexp_jit
+}],  # variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -1058,7 +1058,7 @@
 }], # third_party_heap
 
 ################################################################################
-['variant == always_sparkplug', {
+['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
