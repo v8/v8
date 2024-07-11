@@ -9432,7 +9432,8 @@ ValueNode* MaglevGraphBuilder::BuildGenericConstruct(
           construct->set_arg(arg_index++, GetTaggedValue(args[i]));
         }
       },
-      feedback_source, target, new_target, context);
+      feedback_source, GetTaggedValue(target), GetTaggedValue(new_target),
+      GetTaggedValue(context));
 }
 
 ValueNode* MaglevGraphBuilder::BuildAndAllocateKeyValueArray(ValueNode* key,
