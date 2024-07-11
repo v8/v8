@@ -118,6 +118,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   }
 
+  void LoadIsolateField(const Register& rd, IsolateFieldId id);
+
   // Jump unconditionally to given label.
   void jmp(Label* L, Label::Distance distance = Label::kFar) {
     Branch(L, distance);
@@ -236,7 +238,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // that is guaranteed not to be clobbered.
   MemOperand ExternalReferenceAsOperand(ExternalReference reference,
                                         Register scratch);
-
+  MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
   inline void GenPCRelativeJump(Register rd, int32_t imm32) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(is_int32(imm32 + 0x800));

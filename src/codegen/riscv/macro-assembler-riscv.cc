@@ -259,6 +259,10 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
                             temps.Acquire());
 }
 
+void MacroAssembler::LoadIsolateField(const Register& rd, IsolateFieldId id) {
+  li(rd, ExternalReference::Create(id));
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
 #if V8_TARGET_ARCH_RISCV64
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
@@ -6687,26 +6691,15 @@ int MacroAssembler::CallCFunctionHelper(
       // and C frames.
       // 't' registers are caller-saved so this is safe as a scratch register.
       Register pc_scratch = t1;
-      Register scratch = t2;
 
       LoadAddress(pc_scratch, &get_pc);
       // See x64 code for reasoning about how to address the isolate data
       // fields.
-      if (root_array_available()) {
-        StoreWord(pc_scratch,
-                  MemOperand(kRootRegister,
-                             IsolateData::fast_c_call_caller_pc_offset()));
-        StoreWord(fp, MemOperand(kRootRegister,
-                                 IsolateData::fast_c_call_caller_fp_offset()));
-      } else {
-        DCHECK_NOT_NULL(isolate());
-        li(scratch,
-           ExternalReference::fast_c_call_caller_pc_address(isolate()));
-        StoreWord(pc_scratch, MemOperand(scratch));
-        li(scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-        StoreWord(fp, MemOperand(scratch));
-      }
+      CHECK(root_array_available());
+      StoreWord(pc_scratch,
+                ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
+      StoreWord(fp,
+                ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
     }
   }
 
@@ -6717,17 +6710,8 @@ int MacroAssembler::CallCFunctionHelper(
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
-    if (root_array_available()) {
-      StoreWord(zero_reg,
-                MemOperand(kRootRegister,
-                           IsolateData::fast_c_call_caller_fp_offset()));
-    } else {
-      DCHECK_NOT_NULL(isolate());
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-      StoreWord(zero_reg, MemOperand(scratch));
-    }
+    StoreWord(zero_reg,
+              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
   int stack_passed_arguments =
@@ -7056,8 +7040,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ Lb(scratch, __ ExternalReferenceAsOperand(
-                       ER::execution_mode_address(isolate), no_reg));
+    __ Lb(scratch,
+          __ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode));
     __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
               Operand(zero_reg));
 #ifdef V8_RUNTIME_CALL_STATS
@@ -7138,7 +7122,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Additional parameter is the address of the actual callback function.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          ER::api_callback_thunk_argument_address(isolate), no_reg);
+          IsolateFieldId::kApiCallbackThunkArgument);
       __ StoreWord(thunk_arg, thunk_arg_mem_op);
     }
     __ li(scratch, thunk_ref);
