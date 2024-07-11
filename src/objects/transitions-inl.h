@@ -357,33 +357,50 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
                       Smi::FromInt(number_of_transitions));
 }
 
-Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
+template <typename Char>
+std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
+    base::Vector<const Char> key_chars) {
   DisallowGarbageCollection no_gc;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
     case kMigrationTarget:
-    case kFullTransitionArray:
-      return Handle<String>::null();
+      return {Handle<String>::null(), Handle<Map>::null()};
     case kWeakRef: {
       Tagged<Map> target =
           Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       PropertyDetails details = GetSimpleTargetDetails(target);
-      if (details.location() != PropertyLocation::kField)
-        return Handle<String>::null();
+      if (details.location() != PropertyLocation::kField) {
+        return {Handle<String>::null(), Handle<Map>::null()};
+      }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      if (details.attributes() != NONE) return Handle<String>::null();
+      if (details.attributes() != NONE)
+        return {Handle<String>::null(), Handle<Map>::null()};
       Tagged<Name> name = GetSimpleTransitionKey(target);
-      if (!IsString(name)) return Handle<String>::null();
-      return handle(Cast<String>(name), isolate_);
+      if (IsString(name) && Cast<String>(name)->IsEqualTo(key_chars)) {
+        return {handle(Cast<String>(name), isolate_), handle(target, isolate_)};
+      }
+      return {Handle<String>::null(), Handle<Map>::null()};
+    }
+    case kFullTransitionArray: {
+      Tagged<TransitionArray> array =
+          Cast<TransitionArray>(raw_transitions_.GetHeapObjectAssumeStrong());
+      int entries = array->number_of_entries();
+      // Do linear search for small entries.
+      const int kMaxEntriesForLinearSearch = 8;
+      if (entries > kMaxEntriesForLinearSearch)
+        return {Handle<String>::null(), Handle<Map>::null()};
+      for (int i = entries - 1; i >= 0; i--) {
+        Tagged<Name> name = array->GetKey(InternalIndex(i));
+        if (IsString(name) && Cast<String>(name)->IsEqualTo(key_chars)) {
+          return {handle(Cast<String>(name), isolate_),
+                  handle(GetTarget(i), isolate_)};
+        }
+      }
+      return {Handle<String>::null(), Handle<Map>::null()};
     }
   }
   UNREACHABLE();
-}
-
-Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
-  DCHECK(!ExpectedTransitionKey().is_null());
-  return handle(GetTarget(0), isolate_);
 }
 
 template <typename Callback, typename ProtoCallback, bool with_key>

@@ -97,7 +97,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       graph_builder.Build();
 
       if (v8_flags.print_maglev_graphs) {
-        std::cout << "\nAfter graph buiding" << std::endl;
+        std::cout << "\nAfter graph building" << std::endl;
         PrintGraph(std::cout, compilation_info, graph);
       }
     }

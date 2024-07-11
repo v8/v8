@@ -99,8 +99,9 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                            const ForEachTransitionCallback& callback,
                            DisallowGarbageCollection* no_gc);
 
-  inline Handle<String> ExpectedTransitionKey();
-  inline Handle<Map> ExpectedTransitionTarget();
+  template <typename Char>
+  inline std::pair<Handle<String>, Handle<Map>> ExpectedTransition(
+      base::Vector<const Char> key_chars);
 
   enum class IterationMode {
     kDefault,

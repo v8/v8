@@ -1741,57 +1741,6 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString(
   return string;
 }
 
-bool ValueDeserializer::ReadExpectedString(DirectHandle<String> expected) {
-  DisallowGarbageCollection no_gc;
-  // In the case of failure, the position in the stream is reset.
-  const uint8_t* original_position = position_;
-
-  SerializationTag tag;
-  uint32_t byte_length;
-  base::Vector<const uint8_t> bytes;
-  if (!ReadTag().To(&tag) || !ReadVarint<uint32_t>().To(&byte_length)) {
-    return {};
-  }
-  // Length is also checked in ReadRawBytes.
-#ifdef V8_VALUE_DESERIALIZER_HARD_FAIL
-  CHECK_LE(byte_length,
-           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
-#endif  // V8_VALUE_DESERIALIZER_HARD_FAIL
-  if (!ReadRawBytes(byte_length).To(&bytes)) {
-    position_ = original_position;
-    return false;
-  }
-
-  String::FlatContent flat = expected->GetFlatContent(no_gc);
-
-  // If the bytes are verbatim what is in the flattened string, then the string
-  // is successfully consumed.
-  if (tag == SerializationTag::kOneByteString && flat.IsOneByte()) {
-    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    if (byte_length == static_cast<size_t>(chars.length()) &&
-        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
-      return true;
-    }
-  } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
-    base::Vector<const base::uc16> chars = flat.ToUC16Vector();
-    if (byte_length ==
-            static_cast<unsigned>(chars.length()) * sizeof(base::uc16) &&
-        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
-      return true;
-    }
-  } else if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
-    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    if (byte_length == static_cast<size_t>(chars.length()) &&
-        String::IsAscii(chars.begin(), chars.length()) &&
-        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
-      return true;
-    }
-  }
-
-  position_ = original_position;
-  return false;
-}
-
 MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeHandle<JSObject>());
@@ -2500,22 +2449,36 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         return Just(static_cast<uint32_t>(properties.size()));
       }
 
+      const uint8_t* start_position = position_;
+      uint32_t byte_length;
+      if (!ReadTag().To(&tag) || !ReadVarint<uint32_t>().To(&byte_length)) {
+        return Nothing<uint32_t>();
+      }
+      // Length is also checked in ReadRawBytes.
+#ifdef V8_VALUE_DESERIALIZER_HARD_FAIL
+      CHECK_LE(byte_length,
+               static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+#endif  // V8_VALUE_DESERIALIZER_HARD_FAIL
+
       // Determine the key to be used and the target map to transition to, if
       // possible. Transitioning may abort if the key is not a string, or if no
       // transition was found.
       Handle<Object> key;
       Handle<Map> target;
-      Handle<String> expected_key;
+      std::pair<Handle<String>, Handle<Map>> expected_transition;
       {
         TransitionsAccessor transitions(isolate_, *map);
-        expected_key = transitions.ExpectedTransitionKey();
-        if (!expected_key.is_null()) {
-          target = transitions.ExpectedTransitionTarget();
+        base::Vector<const uint8_t> key_chars(position_, byte_length);
+        auto expected_transition = transitions.ExpectedTransition(key_chars);
+        if (!expected_transition.first.is_null()) {
+          target = expected_transition.second;
         }
       }
-      if (!expected_key.is_null() && ReadExpectedString(expected_key)) {
-        key = expected_key;
+      if (!expected_transition.first.is_null()) {
+        key = expected_transition.first;
+        position_ += byte_length;
       } else {
+        position_ = start_position;
         if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }

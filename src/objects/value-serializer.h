@@ -266,10 +266,6 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
 
-  // Reads a string if it matches the one provided.
-  // Returns true if this was the case. Otherwise, nothing is consumed.
-  bool ReadExpectedString(DirectHandle<String> expected) V8_WARN_UNUSED_RESULT;
-
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
   MaybeHandle<Object> ReadObjectInternal() V8_WARN_UNUSED_RESULT;
