@@ -1005,8 +1005,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         formals.duplicate_loc = formals_scope.duplicate_location();
       }
 
-      Expression* expression =
-          ParseArrowFunctionLiteral(formals, function_literal_id);
+      // It doesn't really matter what value we pass here for
+      // could_be_immediately_invoked since we already introduced an eager
+      // compilation scope above.
+      bool could_be_immediately_invoked = false;
+      Expression* expression = ParseArrowFunctionLiteral(
+          formals, function_literal_id, could_be_immediately_invoked);
       // Scanning must end at the same position that was recorded
       // previously. If not, parsing has been interrupted due to a stack
       // overflow, at which point the partially parsed arrow function
