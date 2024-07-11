@@ -738,6 +738,8 @@ class V8_EXPORT ScriptCompiler {
 
   static ConsumeCodeCacheTask* StartConsumingCodeCache(
       Isolate* isolate, std::unique_ptr<CachedData> source);
+  static ConsumeCodeCacheTask* StartConsumingCodeCacheOnBackground(
+      Isolate* isolate, std::unique_ptr<CachedData> source);
 
   /**
    * Compiles a streamed script (bound to current context).

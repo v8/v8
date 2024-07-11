@@ -241,6 +241,86 @@ TEST_F(DeserializeTest, OffThreadDeserializeRejectsDifferentSource) {
   }
 }
 
+class DeserializeStarterThread : public base::Thread {
+ public:
+  explicit DeserializeStarterThread(Isolate* isolate,
+                                    v8::ScriptCompiler::CachedData* cached_data)
+      : Thread(base::Thread::Options("DeserializeStarterThread")),
+        isolate_(isolate),
+        cached_data_(cached_data) {}
+
+  void Run() override {
+    DeserializeThread deserialize_thread(
+        ScriptCompiler::StartConsumingCodeCacheOnBackground(
+            isolate_, std::make_unique<ScriptCompiler::CachedData>(
+                          cached_data_->data, cached_data_->length,
+                          ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+    task_ = deserialize_thread.TakeTask();
+  }
+
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> TakeTask() {
+    return std::move(task_);
+  }
+
+ private:
+  Isolate* isolate_;
+  v8::ScriptCompiler::CachedData* cached_data_;
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task_;
+};
+
+// Check that off-thread deserialization started from a background thread works.
+TEST_F(DeserializeTest, OffThreadDeserializeStartedFromBackgroundThread) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+
+  {
+    IsolateAndContextScope scope(this);
+
+    Local<String> source_code = NewString("function foo() { return 42; }");
+    Local<Script> script =
+        Script::Compile(context(), source_code).ToLocalChecked();
+
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(RunGlobalFunc("foo"), Integer::New(isolate(), 42));
+
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+
+    DeserializeStarterThread deserialize_starter_thread(isolate(),
+                                                        cached_data.get());
+    CHECK(deserialize_starter_thread.Start());
+    {
+      // Check that code execution works wille the DeserializeStarterThread
+      // staring a ConsumeCodeCacheTask.
+      Local<String> other_source_code =
+          NewString("function bar() { return 21; }");
+      Local<Script> other_script =
+          Script::Compile(context(), other_source_code).ToLocalChecked();
+      CHECK(!other_script->Run(context()).IsEmpty());
+      CHECK_EQ(RunGlobalFunc("bar"), Integer::New(isolate(), 21));
+    }
+    deserialize_starter_thread.Join();
+
+    Local<String> source_code = NewString("function foo() { return 42; }");
+    ScriptCompiler::Source source(
+        source_code, cached_data.release(),
+        deserialize_starter_thread.TakeTask().release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+
+    CHECK(!source.GetCachedData()->rejected);
+    CHECK(!script->Run(context()).IsEmpty());
+    CHECK_EQ(RunGlobalFunc("foo"), v8::Integer::New(isolate(), 42));
+  }
+}
+
 class MergeDeserializedCodeTest : public DeserializeTest {
  protected:
   // The source code used in these tests.

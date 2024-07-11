@@ -2786,6 +2786,16 @@ ScriptCompiler::ConsumeCodeCacheTask* ScriptCompiler::StartConsumingCodeCache(
                                                      std::move(cached_data)));
 }
 
+ScriptCompiler::ConsumeCodeCacheTask*
+ScriptCompiler::StartConsumingCodeCacheOnBackground(
+    Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
+  if (!i::v8_flags.concurrent_cache_deserialization) return nullptr;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  return new ScriptCompiler::ConsumeCodeCacheTask(
+      std::make_unique<i::BackgroundDeserializeTask>(i_isolate,
+                                                     std::move(cached_data)));
+}
+
 namespace {
 i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
     i::Isolate* i_isolate, ScriptCompiler::StreamedSource* v8_source,
