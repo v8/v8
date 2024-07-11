@@ -404,16 +404,18 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 1. Let to be ? ToObject(target).
   TNode<JSReceiver> to = ToObject_Inline(context, target);
 
-  Label done(this), done_fast_path(this), slow_path(this);
+  Label done(this);
   // 2. If only one argument was passed, return to.
   TNode<IntPtrT> args_length = args.GetLengthWithoutReceiver();
   GotoIf(UintPtrLessThanOrEqual(args_length, IntPtrConstant(1)), &done);
 
+#ifdef V8_OBJECT_ASSIGN_FASTCASE
   // First let's try a fastpath specifically for when the target objects is an
   // empty object literal.
   // TODO(olivf): For the cases where we could detect that the object literal
   // does not escape in the parser already, we should have a variant of this
   // builtin where the target is not yet allocated at all.
+  Label done_fast_path(this), slow_path(this);
   GotoIfForceSlowPath(&slow_path);
   {
     Label fall_through_slow_path(this);
@@ -538,11 +540,12 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     Branch(IntPtrGreaterThan(args_length, IntPtrConstant(2)), &slow_path,
            &done);
   }
+  BIND(&slow_path);
+#endif  // V8_OBJECT_ASSIGN_FASTCASE
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
-  BIND(&slow_path);
   {
     args.ForEach(
         [=](TNode<Object> next_source) {
