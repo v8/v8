@@ -2615,10 +2615,14 @@ void MacroAssembler::Abort(AbortReason reason) {
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     mov(r3, Operand(static_cast<int>(reason)));
     PrepareCallCFunction(1, 0, r4);
-    Move(r4, ExternalReference::abort_with_reason());
+    Register dst = ip;
+    if (!ABI_CALL_VIA_IP) {
+      dst = r4;
+    }
+    Move(dst, ExternalReference::abort_with_reason());
     // Use Call directly to avoid any unneeded overhead. The function won't
     // return anyway.
-    Call(r4);
+    Call(dst);
     return;
   }
 
