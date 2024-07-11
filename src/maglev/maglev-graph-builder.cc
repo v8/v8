@@ -900,6 +900,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           !compilation_unit->is_osr() &&
           (is_inline() ? parent_->allow_loop_peeling_
                        : v8_flags.maglev_loop_peeling)),
+      peeled_loop_effects_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
@@ -2770,11 +2771,13 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
               << "]: " << PrintNode(graph_labeller(), value) << std::endl;
   }
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
+  KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
+      known_node_aspects().loaded_context_slots;
   if (known_node_aspects().may_have_aliasing_contexts ==
       KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
     compiler::OptionalScopeInfoRef scope_info =
         graph()->TryGetScopeInfo(context, broker());
-    for (auto& cache : known_node_aspects().loaded_context_slots) {
+    for (auto& cache : loaded_context_slots) {
       if (std::get<int>(cache.first) == offset &&
           std::get<ValueNode*>(cache.first) != context) {
         if (ContextMayAlias(std::get<ValueNode*>(cache.first), scope_info) &&
@@ -2788,11 +2791,26 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
                       << std::endl;
           }
           cache.second = nullptr;
+          if (WithinAnEffectRecordingPeelingIteration()) {
+            GetCurrentPeeledLoopEffects().context_slot_written.insert(
+                cache.first);
+          }
         }
       }
     }
   }
-  known_node_aspects().loaded_context_slots[{context, offset}] = value;
+  KnownNodeAspects::LoadedContextSlotsKey key{context, offset};
+  if (WithinAnEffectRecordingPeelingIteration()) {
+    auto updated = loaded_context_slots.emplace(key, value);
+    if (updated.second) {
+      GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
+    } else if (updated.first->second != value) {
+      updated.first->second = value;
+      GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
+    }
+  } else {
+    loaded_context_slots[key] = value;
+  }
 }
 
 void MaglevGraphBuilder::BuildLoadContextSlot(
@@ -5638,6 +5656,9 @@ void MaglevGraphBuilder::RecordKnownProperty(
       loaded_properties.try_emplace(key, zone()).first->second;
 
   if (!is_const && IsAnyStore(access_mode)) {
+    if (WithinAnEffectRecordingPeelingIteration()) {
+      GetCurrentPeeledLoopEffects().keys_cleared.insert(key);
+    }
     // We don't do any aliasing analysis, so stores clobber all other cached
     // loads of a property with that key. We only need to do this for
     // non-constant properties, since constant properties are known not to
@@ -5682,7 +5703,18 @@ void MaglevGraphBuilder::RecordKnownProperty(
               << PrintNode(graph_labeller(), value) << std::endl;
   }
 
-  props_for_key[lookup_start_object] = value;
+  if (IsAnyStore(access_mode) && !is_const &&
+      WithinAnEffectRecordingPeelingIteration()) {
+    auto updated = props_for_key.emplace(lookup_start_object, value);
+    if (updated.second) {
+      GetCurrentPeeledLoopEffects().objects_written.insert(lookup_start_object);
+    } else if (updated.first->second != value) {
+      updated.first->second = value;
+      GetCurrentPeeledLoopEffects().objects_written.insert(lookup_start_object);
+    }
+  } else {
+    props_for_key[lookup_start_object] = value;
+  }
 }
 
 ReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
@@ -11550,9 +11582,9 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   DCHECK_LE(peeled_iteration_count_, 1);
   DCHECK_IMPLIES(in_peeled_iteration(),
                  v8_flags.maglev_optimistic_peeled_loops);
-  merge_states_[loop_header]->InitializeLoop(this, *compilation_unit_,
-                                             current_interpreter_frame_, block,
-                                             in_peeled_iteration());
+  merge_states_[loop_header]->InitializeLoop(
+      this, *compilation_unit_, current_interpreter_frame_, block,
+      in_peeled_iteration(), &peeled_loop_effects_);
 
   DCHECK_NE(iterator_.current_offset(), loop_header);
   iterator_.SetOffset(loop_header);

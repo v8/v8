@@ -254,6 +254,8 @@ class NodeInfo {
   AlternativeNodes alternative_;
 };
 
+struct LoopEffects;
+
 struct KnownNodeAspects {
   // Permanently valid if checked in a dominator.
   using NodeInfos = ZoneMap<ValueNode*, NodeInfo>;
@@ -283,7 +285,8 @@ struct KnownNodeAspects {
   // dependencies installed. Unstable maps however might be invalidated by
   // calls, and we don't know about these until it's too late.
   KnownNodeAspects* CloneForLoopHeader(Zone* zone,
-                                       bool optimistic_initial_state) const;
+                                       bool optimistic_initial_state,
+                                       LoopEffects* loop_effects) const;
 
   void ClearUnstableMaps() {
     // A side effect could change existing objects' maps. For stable maps we
@@ -791,7 +794,8 @@ class MergePointInterpreterFrameState {
   void InitializeLoop(MaglevGraphBuilder* graph_builder,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
-                      bool optimistic_initial_state = false);
+                      bool optimistic_initial_state = false,
+                      LoopEffects* loop_effects = nullptr);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -1052,6 +1056,21 @@ class MergePointInterpreterFrameState {
   };
 
   base::Optional<const compiler::LoopInfo*> loop_info_ = base::nullopt;
+};
+
+struct LoopEffects {
+  explicit LoopEffects(Zone* zone)
+      : context_slot_written(zone), objects_written(zone), keys_cleared(zone) {}
+  ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
+  ZoneSet<ValueNode*> objects_written;
+  ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
+  bool unstable_aspects_cleared = false;
+  void Clear() {
+    context_slot_written.clear();
+    objects_written.clear();
+    keys_cleared.clear();
+    unstable_aspects_cleared = false;
+  }
 };
 
 void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,

@@ -89,8 +89,22 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
 }
 
-KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(Zone* zone,
-                                                       bool optimistic) const {
+namespace {
+
+template <typename Key>
+bool NextInIgnoreList(typename ZoneSet<Key>::const_iterator& ignore,
+                      typename ZoneSet<Key>::const_iterator& ignore_end,
+                      const Key& cur) {
+  while (ignore != ignore_end && *ignore < cur) {
+    ++ignore;
+  }
+  return ignore != ignore_end && *ignore == cur;
+}
+
+}  // namespace
+
+KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
+    Zone* zone, bool optimistic, LoopEffects* loop_effects) const {
   KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
   if (!any_map_for_any_node_is_unstable) {
     clone->node_infos = node_infos;
@@ -99,7 +113,7 @@ KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(Zone* zone,
       DCHECK(!it.second.any_map_is_unstable());
     }
 #endif
-  } else if (optimistic) {
+  } else if (optimistic && !loop_effects->unstable_aspects_cleared) {
     clone->node_infos = node_infos;
     clone->any_map_for_any_node_is_unstable = any_map_for_any_node_is_unstable;
   } else {
@@ -108,11 +122,43 @@ KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(Zone* zone,
                                 NodeInfo::ClearUnstableMapsOnCopy{it.second});
     }
   }
-  if (optimistic) {
+  if (optimistic && !loop_effects->unstable_aspects_cleared) {
     // IMPORTANT: Whatever we clone here needs to be checked for consistency
     // in when we try to terminate the loop in `IsCompatibleWithLoopHeader`.
-    clone->loaded_properties = loaded_properties;
-    clone->loaded_context_slots = loaded_context_slots;
+    if (loop_effects->objects_written.empty() &&
+        loop_effects->keys_cleared.empty()) {
+      clone->loaded_properties = loaded_properties;
+    } else {
+      auto cleared_key = loop_effects->keys_cleared.begin();
+      auto cleared_keys_end = loop_effects->keys_cleared.end();
+      auto cleared_obj = loop_effects->objects_written.begin();
+      auto cleared_objs_end = loop_effects->objects_written.end();
+      for (auto loaded_key : loaded_properties) {
+        if (NextInIgnoreList(cleared_key, cleared_keys_end, loaded_key.first)) {
+          continue;
+        }
+        auto& props_for_key =
+            clone->loaded_properties.try_emplace(loaded_key.first, zone)
+                .first->second;
+        for (auto loaded_obj : loaded_key.second) {
+          if (!NextInIgnoreList(cleared_obj, cleared_objs_end,
+                                loaded_obj.first)) {
+            props_for_key.emplace(loaded_obj);
+          }
+        }
+      }
+    }
+    if (loop_effects->context_slot_written.empty()) {
+      clone->loaded_context_slots = loaded_context_slots;
+    } else {
+      auto slot_written = loop_effects->context_slot_written.begin();
+      auto slot_written_end = loop_effects->context_slot_written.end();
+      for (auto loaded : loaded_context_slots) {
+        if (!NextInIgnoreList(slot_written, slot_written_end, loaded.first)) {
+          clone->loaded_context_slots.emplace(loaded);
+        }
+      }
+    }
   }
   clone->loaded_constant_properties = loaded_constant_properties;
   clone->loaded_context_constants = loaded_context_constants;
@@ -433,7 +479,7 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 void MergePointInterpreterFrameState::InitializeLoop(
     MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
-    bool optimistic_initial_state) {
+    bool optimistic_initial_state, LoopEffects* loop_effects) {
   DCHECK_IMPLIES(optimistic_initial_state,
                  v8_flags.maglev_optimistic_peeled_loops);
   DCHECK_GT(predecessor_count_, 1);
@@ -444,7 +490,7 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK(is_unmerged_loop());
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
-      builder->zone(), optimistic_initial_state);
+      builder->zone(), optimistic_initial_state, loop_effects);
   frame_state_.set_virtual_objects(unmerged.virtual_objects());
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Initializing "
