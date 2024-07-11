@@ -2185,11 +2185,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename Function>
   TNode<Object> FastCloneJSObject(TNode<HeapObject> source,
-                                  TNode<IntPtrT> inobject_properties_start,
-                                  TNode<IntPtrT> inobject_properties_size,
-                                  bool target_has_same_offsets,
-                                  TNode<Map> target_map,
-                                  const Function& materialize_target);
+                                  TNode<Map> source_map, TNode<Map> target_map,
+                                  const Function& materialize_target,
+                                  bool target_is_new);
 
   TNode<NativeContext> GetCreationContextFromMap(TNode<Map> map,
                                                  Label* if_bailout);
@@ -3155,6 +3153,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename T>
   TNode<BoolT> IsSetWord32(TNode<Word32T> word32) {
     return IsSetWord32(word32, T::kMask);
+  }
+
+  // Returns true if none of the |T|'s bits in given |word32| are set.
+  template <typename T>
+  TNode<BoolT> IsNotSetWord32(TNode<Word32T> word32) {
+    return IsNotSetWord32(word32, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word32| are set.
@@ -4568,6 +4572,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
              IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
+  }
+
+  TNode<BoolT> IsPageFlagReset(TNode<IntPtrT> object, int mask) {
+    TNode<IntPtrT> header = MemoryChunkFromAddress(object);
+    TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), header,
+             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+    return WordEqual(WordAnd(flags, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
  private:

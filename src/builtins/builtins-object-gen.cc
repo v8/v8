@@ -424,14 +424,19 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     TNode<Object> source = args.GetOptionalArgumentValue(1);
     GotoIf(IsNullOrUndefined(source), &done_fast_path);
 
-    // Target must be in young space becasue `FastCloneJSObject` copies without
-    // write barriers. Adding write barriers to the cloning is slower overall.
-    TNode<BoolT> to_is_young = IsPageFlagSet(
-        BitcastTaggedToWord(to), MemoryChunk::kIsInYoungGenerationMask);
-    GotoIfNot(to_is_young, &slow_path);
-
     TVARIABLE(IntPtrT, var_result_index, IntPtrConstant(0));
-    TNode<JSReceiver> so = ToObject_Inline(context, source);
+    TNode<JSReceiver> from = ToObject_Inline(context, source);
+
+    TNode<Map> from_map = LoadMap(from);
+    TNode<Map> to_map = LoadMap(to);
+
+    // Chances are very slim that cloning is possible if we have different
+    // instance sizes.
+    // TODO(olivf): Re-Evaluate this once we have a faster target map lookup
+    // that does not need to go through the runtime.
+    TNode<IntPtrT> from_inst_size = LoadMapInstanceSizeInWords(from_map);
+    TNode<IntPtrT> to_inst_size = LoadMapInstanceSizeInWords(to_map);
+    GotoIfNot(IntPtrEqual(from_inst_size, to_inst_size), &slow_path);
 
     // Both source and target should be in fastmode, not a prototype and not
     // deprecated.
@@ -442,7 +447,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
     // Ensure the target is empty and extensible and has none of the exclusion
     // bits set.
-    TNode<Map> to_map = LoadMap(to);
     TNode<Uint32T> target_field3 = LoadMapBitField3(to_map);
     TNode<Uint32T> field3_descriptors_and_extensible_mask = Uint32Constant(
         Map::Bits3::NumberOfOwnDescriptorsBits::kMask |
@@ -461,17 +465,10 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     TNode<Map> empty_object_literal_map =
         LoadObjectFunctionInitialMap(native_context);
     GotoIfNot(TaggedEqual(to_map, empty_object_literal_map), &slow_path);
-    TNode<Map> so_map = LoadMap(so);
-    GotoIfNot(IsJSObjectMap(so_map), &slow_path);
-
-    // TODO(olivf): We could support the case when the `to` has elements, but
-    // the source doesn't. But there is a danger of then caching an invalid
-    // transition when the converse happens later.
-    GotoIfNot(TaggedEqual(LoadElements(CAST(to)), EmptyFixedArrayConstant()),
-              &slow_path);
+    GotoIfNot(IsJSObjectMap(from_map), &slow_path);
 
     // Check that the source is in fastmode, not a prototype and not deprecated.
-    TNode<Uint32T> source_field3 = LoadMapBitField3(so_map);
+    TNode<Uint32T> source_field3 = LoadMapBitField3(from_map);
     TNode<Uint32T> field3_exclusion_mask_const =
         Uint32Constant(field3_exclusion_mask);
     GotoIfNot(
@@ -483,18 +480,11 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
                          FIRST_ANY_NONEXTENSIBLE_ELEMENTS_KIND,
                          LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)));
 
-    // Establish that source and target to have a compatible number of in-object
-    // properties. Currently we require them to be equal and start with
-    // identical offset.
-    TNode<IntPtrT> so_properties_index =
-        LoadMapInobjectPropertiesStartInWords(so_map);
-    TNode<IntPtrT> to_properties_index =
-        LoadMapInobjectPropertiesStartInWords(to_map);
-    GotoIfNot(IntPtrEqual(so_properties_index, to_properties_index),
+    // TODO(olivf): We could support the case when the `to` has elements, but
+    // the source doesn't. But there is a danger of then caching an invalid
+    // transition when the converse happens later.
+    GotoIfNot(TaggedEqual(LoadElements(CAST(to)), EmptyFixedArrayConstant()),
               &slow_path);
-    TNode<IntPtrT> so_inst_size = LoadMapInstanceSizeInWords(so_map);
-    TNode<IntPtrT> to_inst_size = LoadMapInstanceSizeInWords(to_map);
-    GotoIfNot(IntPtrEqual(so_inst_size, to_inst_size), &slow_path);
 
     // Check if our particular source->target combination is fast clonable.
     // E.g., this ensures that we only have fast properties and in general that
@@ -503,33 +493,29 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     // transition array without going through the runtime.
     Label continue_fast_path(this);
     TNode<HeapObject> maybe_clone_map =
-        CAST(CallRuntime(Runtime::kObjectAssignTryFastcase, context, so, to));
+        CAST(CallRuntime(Runtime::kObjectAssignTryFastcase, context, from, to));
     GotoIf(TaggedEqual(maybe_clone_map, UndefinedConstant()), &slow_path);
-    GotoIf(IsMap(maybe_clone_map), &continue_fast_path);
-    CSA_DCHECK(this, TaggedEqual(maybe_clone_map, TrueConstant()));
-    Goto(&done_fast_path);
+    GotoIf(TaggedEqual(maybe_clone_map, TrueConstant()), &done_fast_path);
+    CSA_DCHECK(this, IsMap(maybe_clone_map));
+    Goto(&continue_fast_path);
 
     BIND(&continue_fast_path);
     TNode<Map> clone_map = CAST(maybe_clone_map);
-    // Since we share the cache with the clone object IC and this
-    // IC is able to shrink objects, we need to discard target maps which are
-    // smaller then our actual target objects map.
-    // TODO(olivf): Maybe we should use two caches?
-    TNode<IntPtrT> clone_inst_size = LoadMapInstanceSizeInWords(clone_map);
-    GotoIfNot(IntPtrEqual(so_inst_size, clone_inst_size), &slow_path);
-    // Since the runtime can allocate we need to re-check if to is still young.
-    GotoIfNot(IsPageFlagSet(BitcastTaggedToWord(to),
-                            MemoryChunk::kIsInYoungGenerationMask),
-              &slow_path);
-    FastCloneJSObject(so, so_properties_index, so_inst_size,
-                      true /*target_has_same_offsets*/, clone_map,
-                      [&](TNode<Map> map, TNode<HeapObject> properties,
-                          TNode<FixedArray> elements) {
-                        StoreMap(to, clone_map);
-                        StoreJSReceiverPropertiesOrHash(to, properties);
-                        StoreJSObjectElements(CAST(to), elements);
-                        return to;
-                      });
+    CSA_DCHECK(this, IntPtrEqual(LoadMapInstanceSizeInWords(to_map),
+                                 LoadMapInstanceSizeInWords(clone_map)));
+    CSA_DCHECK(this,
+               IntPtrEqual(LoadMapInobjectPropertiesStartInWords(to_map),
+                           LoadMapInobjectPropertiesStartInWords(clone_map)));
+    FastCloneJSObject(
+        from, from_map, clone_map,
+        [&](TNode<Map> map, TNode<HeapObject> properties,
+            TNode<FixedArray> elements) {
+          StoreMap(to, clone_map);
+          StoreJSReceiverPropertiesOrHash(to, properties);
+          StoreJSObjectElements(CAST(to), elements);
+          return to;
+        },
+        false /* target_is_new */);
 
     Goto(&done_fast_path);
     BIND(&done_fast_path);

@@ -88,25 +88,27 @@ TNode<Object> CodeStubAssembler::CallFunction(TNode<Context> context,
 
 template <typename Function>
 TNode<Object> CodeStubAssembler::FastCloneJSObject(
-    TNode<HeapObject> object, TNode<IntPtrT> inobject_properties_start,
-    TNode<IntPtrT> inobject_properties_size, bool target_has_same_offsets,
-    TNode<Map> target_map, const Function& materialize_target) {
+    TNode<HeapObject> object, TNode<Map> source_map, TNode<Map> target_map,
+    const Function& materialize_target, bool target_is_new) {
   Label done_copy_properties(this), done_copy_elements(this);
 
-  // Next to the trivial case above the IC supports only JSObjects.
-  // TODO(olivf): To support JSObjects other than JS_OBJECT_TYPE we need to
-  // initialize the the in-object properties below in
-  // `AllocateJSObjectFromMap`.
+  // This macro only suport JSObjects.
   CSA_DCHECK(this, InstanceTypeEqual(LoadInstanceType(object), JS_OBJECT_TYPE));
   CSA_DCHECK(this, IsStrong(TNode<MaybeObject>(target_map)));
   CSA_DCHECK(
       this, InstanceTypeEqual(LoadMapInstanceType(target_map), JS_OBJECT_TYPE));
+  // We do not want to deal with slack-tracking here.
+  CSA_DCHECK(this, IsNotSetWord32<Map::Bits3::ConstructionCounterBits>(
+                       LoadMapBitField3(source_map)));
+  CSA_DCHECK(this, IsNotSetWord32<Map::Bits3::ConstructionCounterBits>(
+                       LoadMapBitField3(target_map)));
 
   TVARIABLE(HeapObject, var_properties, EmptyFixedArrayConstant());
   TVARIABLE(FixedArray, var_elements, EmptyFixedArrayConstant());
 
   // Copy the PropertyArray backing store. The source PropertyArray
   // must be either an Smi, or a PropertyArray.
+  Comment("FastCloneJSObject: cloning properties");
   TNode<Object> source_properties =
       LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
   {
@@ -129,6 +131,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
   Goto(&done_copy_properties);
   BIND(&done_copy_properties);
 
+  Comment("FastCloneJSObject: cloning elements");
   TNode<FixedArrayBase> source_elements = LoadElements(CAST(object));
   GotoIf(TaggedEqual(source_elements, EmptyFixedArrayConstant()),
          &done_copy_elements);
@@ -138,56 +141,102 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
   Goto(&done_copy_elements);
   BIND(&done_copy_elements);
 
+  Comment("FastCloneJSObject: initialize the target object");
   TNode<JSReceiver> target = materialize_target(
       target_map, var_properties.value(), var_elements.value());
 
   // Lastly, clone any in-object properties.
-  TNode<IntPtrT> field_offset_difference;
-  if (target_has_same_offsets) {
 #ifdef DEBUG
+  {
+    TNode<IntPtrT> source_used_instance_size =
+        MapUsedInstanceSizeInWords(source_map);
+    TNode<IntPtrT> target_used_instance_size =
+        MapUsedInstanceSizeInWords(target_map);
+    TNode<IntPtrT> source_inobject_properties_start =
+        LoadMapInobjectPropertiesStartInWords(source_map);
     TNode<IntPtrT> target_inobject_properties_start =
         LoadMapInobjectPropertiesStartInWords(target_map);
-    CSA_DCHECK(this, IntPtrEqual(inobject_properties_start,
-                                 target_inobject_properties_start));
-#endif
-    field_offset_difference = IntPtrConstant(0);
-  } else {
-    TNode<IntPtrT> target_inobject_properties_start =
-        LoadMapInobjectPropertiesStartInWords(target_map);
-    field_offset_difference = TimesTaggedSize(
-        IntPtrSub(target_inobject_properties_start, inobject_properties_start));
+    CSA_DCHECK(this, IntPtrEqual(IntPtrSub(target_used_instance_size,
+                                           target_inobject_properties_start),
+                                 IntPtrSub(source_used_instance_size,
+                                           source_inobject_properties_start)));
+  }
+#endif  // DEBUG
+
+  // 1) Initialize unused in-object properties.
+  Comment("FastCloneJSObject: initializing unused in-object properties");
+  TNode<IntPtrT> target_used_payload_end =
+      TimesTaggedSize(MapUsedInstanceSizeInWords(target_map));
+  TNode<IntPtrT> target_payload_end =
+      TimesTaggedSize(LoadMapInstanceSizeInWords(target_map));
+  InitializeFieldsWithRoot(target, target_used_payload_end, target_payload_end,
+                           RootIndex::kUndefinedValue);
+
+  // 2) Copy all used in-object properties.
+  Comment("FastCloneJSObject: copying used in-object properties");
+  TNode<IntPtrT> source_payload_start =
+      TimesTaggedSize(LoadMapInobjectPropertiesStartInWords(source_map));
+  TNode<IntPtrT> target_payload_start =
+      TimesTaggedSize(LoadMapInobjectPropertiesStartInWords(target_map));
+  TNode<IntPtrT> field_offset_difference =
+      IntPtrSub(source_payload_start, target_payload_start);
+
+  Label done_copy_used(this);
+  auto EmitCopyLoop = [&](bool write_barrier) {
+    if (write_barrier) {
+      Comment(
+          "FastCloneJSObject: copying used in-object properties with write "
+          "barrier");
+    } else {
+      Comment(
+          "FastCloneJSObject: copying used in-object properties without write "
+          "barrier");
+    }
+    BuildFastLoop<IntPtrT>(
+        target_payload_start, target_used_payload_end,
+        [&](TNode<IntPtrT> result_offset) {
+          TNode<IntPtrT> source_offset =
+              IntPtrSub(result_offset, field_offset_difference);
+          if (write_barrier) {
+            TNode<Object> field = LoadObjectField(object, source_offset);
+            StoreObjectField(target, result_offset, field);
+          } else {
+            TNode<TaggedT> field =
+                LoadObjectField<TaggedT>(object, source_offset);
+            StoreObjectFieldNoWriteBarrier(target, result_offset, field);
+          }
+        },
+        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+  };
+
+  if (!target_is_new) {
+    Label if_no_write_barrier(this),
+        if_needs_write_barrier(this, Label::kDeferred);
+
+    TNode<BoolT> needs_write_barrier = IsPageFlagReset(
+        BitcastTaggedToWord(target), MemoryChunk::kIsInYoungGenerationMask);
+    Branch(needs_write_barrier, &if_needs_write_barrier, &if_no_write_barrier);
+
+    BIND(&if_needs_write_barrier);
+    EmitCopyLoop(true);
+
+    Goto(&done_copy_used);
+    BIND(&if_no_write_barrier);
   }
 
-  // Just copy the fields as raw data (pretending that there are no
-  // mutable HeapNumbers). This doesn't need write barriers.
-  BuildFastLoop<IntPtrT>(
-      inobject_properties_start, inobject_properties_size,
-      [=](TNode<IntPtrT> field_index) {
-        TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
-        TNode<TaggedT> field = LoadObjectField<TaggedT>(object, field_offset);
-        TNode<IntPtrT> result_offset =
-            target_has_same_offsets
-                ? field_offset
-                : IntPtrSub(field_offset, field_offset_difference);
-        StoreObjectFieldNoWriteBarrier(target, result_offset, field);
-      },
-      1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+  EmitCopyLoop(false);
+  Goto(&done_copy_used);
 
-  TNode<IntPtrT> target_inobject_properties_size =
-      LoadMapInstanceSizeInWords(target_map);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(IntPtrSub(inobject_properties_size,
-                                                      field_offset_difference),
-                                            target_inobject_properties_size));
+  BIND(&done_copy_used);
 
+  // 3) Duplicate heap number boxes if needed.
   // We need to go through the {object} again here and properly clone
   // them. We use a second loop here to ensure that the GC (and heap
   // verifier) always sees properly initialized objects, i.e. never
   // hits undefined values in double fields.
-  TNode<IntPtrT> start_offset = IntPtrSub(
-      TimesTaggedSize(inobject_properties_start), field_offset_difference);
-  TNode<IntPtrT> end_offset = TimesTaggedSize(target_inobject_properties_size);
+  Comment("FastCloneJSObject: cloning heap numbers");
   ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
-      target, start_offset, end_offset);
+      target, target_payload_start, target_used_payload_end);
 
   return target;
 }

@@ -5241,26 +5241,15 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     BIND(&if_result_map);
     Comment("CloneObjectIC_if_result_map");
 
-    TNode<IntPtrT> source_start =
-        LoadMapInobjectPropertiesStartInWords(source_map);
-    TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
-
     TNode<Object> object = FastCloneJSObject(
-        CAST(source), source_start, source_size, false, result_map.value(),
+        CAST(source), source_map, result_map.value(),
         [&](TNode<Map> map, TNode<HeapObject> properties,
             TNode<FixedArray> elements) {
-          // Both maps need to be in the same slack tracking state or the unused
-          // fields will be wrongly initialized.
-          static_assert(Map::kNoSlackTracking == 0);
-          CSA_DCHECK(this, Word32Equal(
-                               IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                                   LoadMapBitField3(source_map)),
-                               IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                                   LoadMapBitField3(result_map.value()))));
           return UncheckedCast<JSObject>(AllocateJSObjectFromMap(
               map, properties, elements, AllocationFlag::kNone,
               SlackTrackingMode::kDontInitializeInObjectProperties));
-        });
+        },
+        true /* target_is_new */);
 
     Return(object);
   }
