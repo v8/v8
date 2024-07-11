@@ -412,7 +412,7 @@ bool IsDataViewSetterSig(const wasm::FunctionSig* sig,
 //   Builtin id.
 // - JSFunction with Builtin id (e.g. `parseFloat`).
 WellKnownImport CheckForWellKnownImport(
-    Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
   if (trusted_instance_data.is_null()) return kGeneric;
@@ -669,7 +669,7 @@ WellKnownImport CheckForWellKnownImport(
 }  // namespace
 
 WasmImportData::WasmImportData(
-    Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
     uint32_t expected_canonical_type_index, WellKnownImport preknown_import)
     : callable_(callable) {
@@ -678,7 +678,7 @@ WasmImportData::WasmImportData(
 }
 
 ImportCallKind WasmImportData::ComputeKind(
-    Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     const wasm::FunctionSig* expected_sig,
     uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
   // If we already have a compile-time import, simply pass that through.
