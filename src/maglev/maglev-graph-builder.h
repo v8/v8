@@ -1199,7 +1199,8 @@ class MaglevGraphBuilder {
             call_builtin->set_arg(arg_index++, input);
           }
         },
-        builtin, target, new_target, GetContext());
+        builtin, GetTaggedValue(target), GetTaggedValue(new_target),
+        GetTaggedValue(GetContext()));
   }
 
   void BuildLoadGlobal(compiler::NameRef name,

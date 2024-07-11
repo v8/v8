@@ -8402,10 +8402,12 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
   switch (args.mode()) {
     case CallArguments::kDefault:
       return AddNewCallNode<Call>(args, args.receiver_mode(), target_type,
-                                  target, GetContext());
+                                  GetTaggedValue(target),
+                                  GetTaggedValue(GetContext()));
     case CallArguments::kWithSpread:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
-      return AddNewCallNode<CallWithSpread>(args, target, GetContext());
+      return AddNewCallNode<CallWithSpread>(args, GetTaggedValue(target),
+                                            GetTaggedValue(GetContext()));
     case CallArguments::kWithArrayLike:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
       // We don't use AddNewCallNode here, because the number of required
@@ -8429,7 +8431,8 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, function, context, receiver, new_target);
+      shared, GetTaggedValue(function), GetTaggedValue(context),
+      GetTaggedValue(receiver), GetTaggedValue(new_target));
 }
 
 bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
@@ -8571,12 +8574,12 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
             arg_index++,
             GetInt32Constant(JSParameterCount(static_cast<int>(args.count()))));
 
-        call_builtin->set_arg(arg_index++, receiver);
+        call_builtin->set_arg(arg_index++, GetTaggedValue(receiver));
         for (int i = 0; i < static_cast<int>(args.count()); i++) {
           call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
         }
       },
-      builtin_name, GetContext());
+      builtin_name, GetTaggedValue(GetContext()));
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -8936,7 +8939,8 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
       start_index =
           elements_value->Cast<ArgumentsElements>()->formal_parameter_count();
     }
-    return AddNewCallNode<CallForwardVarargs>(args, target_node, GetContext(),
+    return AddNewCallNode<CallForwardVarargs>(args, GetTaggedValue(target_node),
+                                              GetTaggedValue(GetContext()),
                                               start_index, target_type);
   }
 
@@ -9254,7 +9258,8 @@ void MaglevGraphBuilder::
           call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
         }
       },
-      Builtin::kCopyDataPropertiesWithExcludedProperties, GetContext());
+      Builtin::kCopyDataPropertiesWithExcludedProperties,
+      GetTaggedValue(GetContext()));
   SetAccumulator(call_builtin);
 }
 
@@ -9849,7 +9854,8 @@ void MaglevGraphBuilder::VisitConstructWithSpread() {
           construct->set_arg(arg_index++, GetTaggedValue(args[i]));
         }
       },
-      feedback_source, constructor, new_target, context);
+      feedback_source, GetTaggedValue(constructor), GetTaggedValue(new_target),
+      GetTaggedValue(context));
   SetAccumulator(construct);
 }
 
