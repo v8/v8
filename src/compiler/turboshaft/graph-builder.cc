@@ -1987,7 +1987,7 @@ OpIndex GraphBuilder::Process(
       for (int i = 0; i < c_arg_count; ++i) {
         arguments.push_back(Map(NodeProperties::GetValueInput(node, i)));
       }
-      OpIndex data_argument = Map(n.CallbackData());
+      V<Object> data_argument = Map(n.CallbackData());
 
       V<Context> context = Map(n.Context());
 

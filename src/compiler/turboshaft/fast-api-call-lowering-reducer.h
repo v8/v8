@@ -24,8 +24,8 @@ class FastApiCallLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
-  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
-                              V<Context> context,
+  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state,
+                              V<Object> data_argument, V<Context> context,
                               base::Vector<const OpIndex> arguments,
                               const FastApiCallParameters* parameters) {
     const auto& c_functions = parameters->c_functions;

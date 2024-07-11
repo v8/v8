@@ -4134,7 +4134,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
-                      OpIndex data_argument, V<Context> context,
+                      V<Object> data_argument, V<Context> context,
                       base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters) {
     return ReduceIfReachableFastApiCall(frame_state, data_argument, context,

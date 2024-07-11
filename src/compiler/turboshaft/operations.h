@@ -6230,7 +6230,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   V<FrameState> frame_state() const { return input<FrameState>(0); }
 
-  OpIndex data_argument() const { return input(1); }
+  V<Object> data_argument() const { return input<Object>(1); }
 
   V<Context> context() const { return input<Context>(2); }
 
@@ -6238,7 +6238,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     return inputs().SubVector(kNumNonParamInputs, inputs().size());
   }
 
-  FastApiCallOp(V<FrameState> frame_state, OpIndex data_argument,
+  FastApiCallOp(V<FrameState> frame_state, V<Object> data_argument,
                 V<Context> context, base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters)
       : Base(kNumNonParamInputs + arguments.size()),
@@ -6266,8 +6266,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   }
 
   static FastApiCallOp& New(Graph* graph, V<FrameState> frame_state,
-                            OpIndex data_argument,
-                            V<Context> context,
+                            V<Object> data_argument, V<Context> context,
                             base::Vector<const OpIndex> arguments,
                             const FastApiCallParameters* parameters) {
     return Base::New(graph, kNumNonParamInputs + arguments.size(), frame_state,
