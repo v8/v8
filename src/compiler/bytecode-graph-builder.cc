@@ -2081,8 +2081,21 @@ void BytecodeGraphBuilder::VisitGetKeyedProperty() {
 }
 
 void BytecodeGraphBuilder::VisitGetEnumeratedKeyedProperty() {
-  // TODO(v8:14245): Implement this bytecode in Maglev/Turbofan.
-  UNREACHABLE();
+  // GetEnumeratedKeyedProperty <object> <enum_index> <cache_type> <slot>
+  PrepareEagerCheckpoint();
+  Node* key = environment()->LookupAccumulator();
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  FeedbackSource feedback =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(3));
+  const Operator* op = javascript()->LoadProperty(feedback);
+
+  static_assert(JSLoadPropertyNode::ObjectIndex() == 0);
+  static_assert(JSLoadPropertyNode::KeyIndex() == 1);
+  static_assert(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* node = NewNode(op, object, key, feedback_vector_node());
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {

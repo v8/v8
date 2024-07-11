@@ -2606,6 +2606,39 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
   // TurboFan cannot prove that there is no observable side effect between
   // the {JSForInNext} and the {JSLoadProperty} node.
   //
+  // We can do a similar optimization when the receiver of {JSLoadProperty} is
+  // not identical to the receiver of {JSForInNext}:
+  //   for (name in receiver) {
+  //     value = object[name];
+  //     ...
+  //   }
+  //
+  // This is because when the key is {JSForInNext}, we will generate a
+  // {GetEnumeratedKeyedProperty} bytecode for {JSLoadProperty}. If the bytecode
+  // always manages to use the enum cache, we will keep the inline cache in
+  // uninitialized state. So If the graph is as below, we can firstly do a map
+  // check on {object} and then turn the {JSLoadProperty} into the
+  // {LoadFieldByIndex}. This is also safe when the bytecode has never been
+  // profiled. When it happens to pass the the map check, we can use the fast
+  // path. Otherwise it will trigger a deoptimization.
+
+  // object     receiver
+  //  ^             ^
+  //  |             |
+  //  |             |
+  //  |             |
+  //  |        JSToObject
+  //  |             ^
+  //  |             |
+  //  |             |
+  //  |        JSForInNext
+  //  |             ^
+  //  |             |
+  //  +----+  +-----+
+  //       |  |
+  //       |  |
+  //   JSLoadProperty (insufficient feedback)
+
   // Also note that it's safe to look through the {JSToObject}, since the
   // [[Get]] operation does an implicit ToObject anyway, and these operations
   // are not observable.
@@ -2626,11 +2659,32 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
   if (object->opcode() == IrOpcode::kJSToObject) {
     object = NodeProperties::GetValueInput(object, 0);
   }
-  if (object != receiver) return NoChange();
+  bool speculating_object_is_receiver = false;
+  if (object != receiver) {
+    JSLoadPropertyNode n(node);
+    PropertyAccess const& p = n.Parameters();
+
+    ProcessedFeedback const& feedback = broker()->GetFeedbackForPropertyAccess(
+        FeedbackSource(p.feedback()), AccessMode::kLoad, base::nullopt);
+    // When the feedback is uninitialized, it is either a load from a
+    // {GetEnumeratedKeyedProperty} which always hits the enum cache, or a keyed
+    // load that had never been reached. In either case, we can check the map
+    // of the receiver and use the enum cache if the map match the {cache_type}.
+    if (feedback.kind() != ProcessedFeedback::kInsufficient) {
+      return NoChange();
+    }
+
+    // Ensure that {receiver} is a HeapObject.
+    effect = graph()->NewNode(simplified()->CheckHeapObject(), receiver, effect,
+                              control);
+    speculating_object_is_receiver = true;
+  }
 
   // No need to repeat the map check if we can prove that there's no
-  // observable side effect between {effect} and {name].
-  if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
+  // observable side effect between {effect} and {name]. But we always need a
+  // map check when {object} is not identical to {receiver}.
+  if (!NodeProperties::NoObservableSideEffectBetween(effect, name) ||
+      speculating_object_is_receiver) {
     // Check that the {receiver} map is still valid.
     Node* receiver_map = effect =
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
