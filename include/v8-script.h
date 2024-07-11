@@ -656,10 +656,10 @@ class V8_EXPORT ScriptCompiler {
 
   enum CompileOptions {
     kNoCompileOptions = 0,
-    kConsumeCodeCache,
-    kEagerCompile,
-    kProduceCompileHints,
-    kConsumeCompileHints
+    kConsumeCodeCache = 1 << 0,
+    kEagerCompile = 1 << 1,
+    kProduceCompileHints = 1 << 2,
+    kConsumeCompileHints = 1 << 3,
   };
 
   /**

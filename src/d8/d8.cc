@@ -683,7 +683,7 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
   }
 
   ScriptCompiler::CachedData* cached_code = nullptr;
-  if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+  if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
     cached_code = LookupCodeCache(isolate, source);
   }
   ScriptCompiler::Source script_source(source, origin, cached_code);
@@ -893,7 +893,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
             i_isolate, true, i::construct_language_mode(i::v8_flags.use_strict),
             i::REPLMode::kNo, ScriptType::kClassic, i::v8_flags.lazy);
 
-    if (options.compile_options == v8::ScriptCompiler::kEagerCompile) {
+    if (options.compile_options & v8::ScriptCompiler::kEagerCompile) {
       flags.set_is_eager(true);
     }
 
@@ -957,7 +957,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     delete cached_data;
   }
   if (options.compile_only) return true;
-  if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+  if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
     i::DirectHandle<i::Script> i_script(
         i::Cast<i::Script>(
             Utils::OpenDirectHandle(*script)->shared()->script()),

@@ -2564,7 +2564,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       source->host_defined_options, source->resource_options);
 
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info;
-  if (options == kConsumeCodeCache) {
+  if (options & kConsumeCodeCache) {
     if (source->consume_cache_task) {
       // Take ownership of the internal deserialization task and clear it off
       // the consume task on the source.
@@ -2589,7 +2589,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
               &source->compilation_details);
       source->cached_data->rejected = cached_data->rejected();
     }
-  } else if (options == kConsumeCompileHints) {
+  } else if (options & kConsumeCompileHints) {
     maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
             i_isolate, str, script_details, source->compile_hint_callback,
@@ -2699,7 +2699,7 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
   script_details.wrapped_arguments = arguments_list;
 
   std::unique_ptr<i::AlignedCachedData> cached_data;
-  if (options == kConsumeCodeCache) {
+  if (options & kConsumeCodeCache) {
     DCHECK(source->cached_data);
     // ScriptData takes care of pointer-aligning the data.
     cached_data.reset(new i::AlignedCachedData(source->cached_data->data,
@@ -2712,7 +2712,7 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
            Utils::OpenHandle(*source->source_string), context, script_details,
            cached_data.get(), options, no_cache_reason)
            .ToHandle(&result);
-  if (options == kConsumeCodeCache) {
+  if (options & kConsumeCodeCache) {
     source->cached_data->rejected = cached_data->rejected();
   }
   RETURN_ON_FAILED_EXECUTION(Function);

@@ -1654,7 +1654,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(v8_flags.use_strict),
           REPLMode::kNo, type,
-          options != ScriptCompiler::CompileOptions::kEagerCompile &&
+          (options & ScriptCompiler::CompileOptions::kEagerCompile) == 0 &&
               v8_flags.lazy_streaming)),
       character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
                                            streamed_data->encoding)),
@@ -1668,11 +1668,11 @@ BackgroundCompileTask::BackgroundCompileTask(
       function_literal_id_(kFunctionLiteralIdTopLevel),
       compile_hint_callback_(compile_hint_callback),
       compile_hint_callback_data_(compile_hint_callback_data) {
-  if (options == ScriptCompiler::CompileOptions::kProduceCompileHints) {
+  if (options & ScriptCompiler::CompileOptions::kProduceCompileHints) {
     flags_.set_produce_compile_hints(true);
   }
   DCHECK(is_streaming_compilation());
-  if (options == ScriptCompiler::kConsumeCompileHints) {
+  if (options & ScriptCompiler::kConsumeCompileHints) {
     DCHECK_NOT_NULL(compile_hint_callback);
     DCHECK_NOT_NULL(compile_hint_callback_data);
   } else {
@@ -3545,8 +3545,7 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
   // modules is supported.
   return !script_details.origin_options.IsModule() && !extension &&
          script_details.repl_mode == REPLMode::kNo &&
-         (compile_options == ScriptCompiler::kNoCompileOptions ||
-          compile_options == ScriptCompiler::kProduceCompileHints) &&
+         (compile_options == ScriptCompiler::kNoCompileOptions) &&
          natives == NOT_NATIVES_CODE;
 }
 
@@ -3646,7 +3645,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
                                         compilation_details);
 
-  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+  if (compile_options & ScriptCompiler::kConsumeCodeCache) {
     // Have to have exactly one of cached_data or deserialize_task.
     DCHECK(cached_data || deserialize_task);
     DCHECK(!(cached_data && deserialize_task));
@@ -3656,7 +3655,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     DCHECK_NULL(deserialize_task);
   }
 
-  if (compile_options == ScriptCompiler::kConsumeCompileHints) {
+  if (compile_options & ScriptCompiler::kConsumeCompileHints) {
     DCHECK_NOT_NULL(compile_hint_callback);
     DCHECK_NOT_NULL(compile_hint_callback_data);
   } else {
@@ -3680,7 +3679,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   IsCompiledScope is_compiled_scope;
   if (use_compilation_cache) {
     bool can_consume_code_cache =
-        compile_options == ScriptCompiler::kConsumeCodeCache;
+        compile_options & ScriptCompiler::kConsumeCodeCache;
     if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
     }
@@ -3765,7 +3764,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
                                                        : ScriptType::kClassic,
               v8_flags.lazy);
 
-      flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
+      flags.set_is_eager(compile_options & ScriptCompiler::kEagerCompile);
 
       if (Handle<Script> script; maybe_script.ToHandle(&script)) {
         flags.set_script_id(script->id());
@@ -3787,7 +3786,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     }
   }
   Handle<SharedFunctionInfo> result;
-  if (compile_options == ScriptCompiler::CompileOptions::kProduceCompileHints &&
+  if (compile_options & ScriptCompiler::CompileOptions::kProduceCompileHints &&
       maybe_result.ToHandle(&result)) {
     Cast<Script>(result->script())->set_produce_compile_hints(true);
   }
@@ -3872,7 +3871,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
                                         &compilation_details);
 
-  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+  if (compile_options & ScriptCompiler::kConsumeCodeCache) {
     DCHECK(cached_data);
     DCHECK_EQ(script_details.repl_mode, REPLMode::kNo);
   } else {
@@ -3886,7 +3885,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   Handle<Script> script;
   IsCompiledScope is_compiled_scope;
   bool can_consume_code_cache =
-      compile_options == ScriptCompiler::kConsumeCodeCache;
+      compile_options & ScriptCompiler::kConsumeCodeCache;
   CompilationCache* compilation_cache = isolate->compilation_cache();
   // First check per-isolate compilation cache.
   CompilationCacheScript::LookupResult lookup_result =
@@ -3929,7 +3928,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     // functions fully non-lazy instead thus preventing source positions from
     // being omitted.
     flags.set_collect_source_positions(true);
-    flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
+    flags.set_is_eager(compile_options & ScriptCompiler::kEagerCompile);
 
     UnoptimizedCompileState compile_state;
     ReusableUnoptimizedCompileState reusable_state(isolate);
