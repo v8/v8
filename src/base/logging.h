@@ -423,6 +423,12 @@ DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, GE, CmpLEImpl(rhs, lhs))
 #undef MAKE_UNSIGNED
 #undef DEFINE_SIGNED_MISMATCH_COMP
 
+// For CHECK_BOUNDS, define to-unsigned conversion helpers.
+template <typename T>
+constexpr std::make_unsigned_t<T> ToUnsigned(T val) {
+  return static_cast<std::make_unsigned_t<T>>(val);
+}
+
 // Helper functions for CHECK_OP macro.
 // The (float, float) and (double, double) instantiations are explicitly
 // externalized to ensure proper 32/64-bit comparisons on x86.
@@ -466,6 +472,10 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
 #define CHECK_IMPLIES(lhs, rhs) \
   CHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
+// Performs a single (unsigned) comparison to check that {index} is
+// in range [0, limit).
+#define CHECK_BOUNDS(index, limit) \
+  CHECK_LT(v8::base::ToUnsigned(index), v8::base::ToUnsigned(limit))
 
 }  // namespace base
 }  // namespace v8
@@ -484,6 +494,8 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DCHECK_NOT_NULL(val) DCHECK((val) != nullptr)
 #define DCHECK_IMPLIES(lhs, rhs) \
   DCHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
+#define DCHECK_BOUNDS(index, limit) \
+  DCHECK_LT(v8::base::ToUnsigned(index), v8::base::ToUnsigned(limit))
 #else
 #define DCHECK(condition)      ((void) 0)
 #define DCHECK_WITH_LOC(condition, location) ((void)0)
@@ -497,6 +509,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DCHECK_NULL(val)       ((void) 0)
 #define DCHECK_NOT_NULL(val)   ((void) 0)
 #define DCHECK_IMPLIES(v1, v2) ((void) 0)
+#define DCHECK_BOUNDS(index, limit) ((void)0)
 #endif
 
 #endif  // V8_BASE_LOGGING_H_

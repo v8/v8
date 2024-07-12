@@ -615,8 +615,7 @@ class NfaInterpreter {
     DCHECK_GT(clock, 0);
 
     while (true) {
-      SBXCHECK_GE(t.pc, 0);
-      SBXCHECK_LT(t.pc, bytecode_.length());
+      SBXCHECK_BOUNDS(t.pc, bytecode_.size());
       if (IsPcProcessed(t.pc, t.consumed_since_last_quantifier)) {
         DestroyThread(t);
         return RegExp::kInternalRegExpSuccess;
@@ -694,8 +693,8 @@ class NfaInterpreter {
           active_threads_.Rewind(0);
           return RegExp::kInternalRegExpSuccess;
         case RegExpInstruction::SET_REGISTER_TO_CP:
-          SBXCHECK_GE(inst.payload.register_index, 0);
-          SBXCHECK_LT(inst.payload.register_index, register_count_per_match_);
+          SBXCHECK_BOUNDS(inst.payload.register_index,
+                          register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] = input_index_;
           if (v8_flags.experimental_regexp_engine_capture_group_opt) {
             GetCaptureClockArray(t)[inst.payload.register_index] = clock;
@@ -703,8 +702,8 @@ class NfaInterpreter {
           ++t.pc;
           break;
         case RegExpInstruction::CLEAR_REGISTER:
-          SBXCHECK_GE(inst.payload.register_index, 0);
-          SBXCHECK_LT(inst.payload.register_index, register_count_per_match_);
+          SBXCHECK_BOUNDS(inst.payload.register_index,
+                          register_count_per_match_);
           GetRegisterArray(t)[inst.payload.register_index] =
               kUndefinedRegisterValue;
           ++t.pc;
@@ -738,8 +737,8 @@ class NfaInterpreter {
           // Reaching this instruction means that the current lookbehind thread
           // has found a match and needs to be destroyed. Since the lookbehind
           // is verified at this position, we update the `lookbehind_table_`.
-          SBXCHECK_GE(inst.payload.looktable_index, 0);
-          SBXCHECK_LT(inst.payload.looktable_index, lookbehind_table_.length());
+          SBXCHECK_BOUNDS(inst.payload.looktable_index,
+                          lookbehind_table_.length());
           lookbehind_table_[inst.payload.looktable_index] = true;
           DestroyThread(t);
           return RegExp::kInternalRegExpSuccess;
@@ -751,8 +750,7 @@ class NfaInterpreter {
           // position.
           const int32_t lookbehind_index =
               inst.payload.read_lookbehind.lookbehind_index();
-          SBXCHECK_GE(lookbehind_index, 0);
-          SBXCHECK_LT(lookbehind_index, lookbehind_table_.length());
+          SBXCHECK_BOUNDS(lookbehind_index, lookbehind_table_.length());
           if (lookbehind_table_[lookbehind_index] !=
               inst.payload.read_lookbehind.is_positive()) {
             DestroyThread(t);

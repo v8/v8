@@ -463,6 +463,7 @@
   'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
+  'sandbox/regress/regress-349502157': [SKIP],
   'sandbox/wasm-inlining-sigcheck': [SKIP],
   'sandbox/wasm-signature-verification': [SKIP],
   'sandbox/wasm-table-import': [SKIP],

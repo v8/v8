@@ -306,7 +306,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
         exported_function->instance_data(), isolate);
     int func_index = exported_function->function_index();
     const WasmModule* module = target_instance_data->module();
-    SBXCHECK_LT(func_index, module->functions.size());
+    SBXCHECK_BOUNDS(func_index, module->functions.size());
     auto* wasm_function = module->functions.data() + func_index;
     UpdateDispatchTables(isolate, table, entry_index, wasm_function,
                          target_instance_data);
@@ -1364,7 +1364,7 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
 
 Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   wasm::NativeModule* native_module = this->native_module();
-  SBXCHECK_LT(func_index, native_module->num_functions());
+  SBXCHECK_BOUNDS(func_index, native_module->num_functions());
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);
   }
@@ -1940,7 +1940,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
     return;
   }
 
-  SBXCHECK_LT(index, length());
+  SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
   DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
   const int offset = OffsetOf(index);
@@ -1953,7 +1953,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
 
 void WasmDispatchTable::SetForImport(int index, Tagged<TrustedObject> ref,
                                      Address call_target) {
-  SBXCHECK_LT(index, length());
+  SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
   DCHECK_NE(kNullAddress, call_target);
   const int offset = OffsetOf(index);
@@ -1966,7 +1966,7 @@ void WasmDispatchTable::SetForImport(int index, Tagged<TrustedObject> ref,
 }
 
 void WasmDispatchTable::Clear(int index) {
-  SBXCHECK_LT(index, length());
+  SBXCHECK_BOUNDS(index, length());
   const int offset = OffsetOf(index);
   ClearProtectedPointerField(offset + kRefBias);
   WriteField<Address>(offset + kTargetBias, kNullAddress);
@@ -1974,7 +1974,7 @@ void WasmDispatchTable::Clear(int index) {
 }
 
 void WasmDispatchTable::SetTarget(int index, Address call_target) {
-  SBXCHECK_LT(index, length());
+  SBXCHECK_BOUNDS(index, length());
   const int offset = OffsetOf(index) + kTargetBias;
   WriteField<Address>(offset, call_target);
 }

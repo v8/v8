@@ -74,6 +74,8 @@ class Arguments {
     // Corruption of certain heap objects (see e.g. crbug.com/1507223) can lead
     // to OOB arguments access, and therefore OOB stack access. This SBXCHECK
     // defends against that.
+    // Note: "LE" is intentional: it's okay to compute the address of the
+    // first nonexistent entry.
     SBXCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
