@@ -7221,6 +7221,22 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
   return Replace(value);
 }
 
+namespace {
+
+FrameState CreateStringCreateLazyDeoptContinuationFrameState(
+    JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
+    Node* outer_frame_state) {
+  Node* const receiver = graph->TheHoleConstant();
+  Node* stack_parameters[]{receiver};
+  const int stack_parameter_count = arraysize(stack_parameters);
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      graph, shared, Builtin::kStringCreateLazyDeoptContinuation, target,
+      context, stack_parameters, stack_parameter_count, outer_frame_state,
+      ContinuationFrameStateMode::LAZY);
+}
+
+}  // namespace
+
 Reduction JSCallReducer::ReduceStringConstructor(Node* node,
                                                  JSFunctionRef constructor) {
   JSConstructNode n(node);
@@ -7244,13 +7260,12 @@ Reduction JSCallReducer::ReduceStringConstructor(Node* node,
         node, frame_state, constructor.shared(broker_), context, common(),
         graph());
 
-    // This continuation just returns the newly created String. We pass the_hole
-    // as the receiver, just like the builtin construct stub does in this case.
-    Node* const receiver = jsgraph()->TheHoleConstant();
+    // This continuation takes the newly created primitive string, and wraps it
+    // in a string wrapper, matching CreateStringWrapper.
     Node* continuation_frame_state =
-        CreateGenericLazyDeoptContinuationFrameState(
+        CreateStringCreateLazyDeoptContinuationFrameState(
             jsgraph(), constructor.shared(broker_), n.target(), context,
-            receiver, frame_state);
+            frame_state);
 
     primitive_value = effect = control =
         graph()->NewNode(javascript()->ToString(), n.Argument(0), context,

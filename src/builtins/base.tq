@@ -1485,6 +1485,9 @@ macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
 macro GetIteratorFunction(implicit context: Context)(): JSFunction {
   return *NativeContextSlot(ContextSlot::ITERATOR_FUNCTION_INDEX);
 }
+macro GetStringFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::STRING_FUNCTION_INDEX);
+}
 macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
   return *NativeContextSlot(ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 }
