@@ -6101,15 +6101,11 @@ int MacroAssembler::CallCFunctionHelper(
       // and C frames. 't' registers are caller-saved so this is safe as a
       // scratch register.
       Register pc_scratch = t1;
-      Register scratch = t2;
-      DCHECK(!AreAliased(pc_scratch, scratch, function));
+      DCHECK(!AreAliased(pc_scratch, function));
+      CHECK(root_array_available());
 
       LoadAddressPCRelative(pc_scratch, &get_pc);
 
-      // Save the frame pointer and PC so that the stack layout remains
-      // iterable, even without an ExitFrame which normally exists between JS
-      // and C frames.
-      CHECK(root_array_available());
       Sd(pc_scratch,
          ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
       Sd(fp, ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
