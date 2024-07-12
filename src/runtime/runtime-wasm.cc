@@ -587,13 +587,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
   DirectHandle<Object> origin(ref->call_origin(), isolate);
 
-  const wasm::WasmModule* module = nullptr;
-  Handle<WasmTrustedInstanceData> trusted_data;
-  if (ref->has_instance_data()) {
-    trusted_data =
-        Handle<WasmTrustedInstanceData>(ref->instance_data(), isolate);
-    module = trusted_data->module();
-  }
   if (IsWasmFuncRef(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there may not be an
     // instance.
@@ -609,6 +602,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }
+    const wasm::WasmModule* module =
+        ref->has_instance_data() ? ref->instance_data()->module() : nullptr;
+
     DirectHandle<Code> wasm_to_js_wrapper_code =
         compiler::CompileWasmToJSWrapper(
             isolate, module, &sig, kind, static_cast<int>(expected_arity),
@@ -625,6 +621,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  Handle<WasmTrustedInstanceData> trusted_data(ref->instance_data(), isolate);
   if (IsTuple2(*origin)) {
     auto tuple = Cast<Tuple2>(origin);
     trusted_data =
@@ -632,6 +629,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                isolate);
     origin = direct_handle(tuple->value2(), isolate);
   }
+  const wasm::WasmModule* module = trusted_data->module();
 
   // Get the function's canonical signature index.
   uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
