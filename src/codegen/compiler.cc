@@ -2017,6 +2017,7 @@ class ConstantPoolPointerForwarder {
   }
 
   void RecordOuterScopeInfos(Tagged<MaybeObject> maybe_old_sfi) {
+    if (!v8_flags.reuse_scope_infos) return;
     Tagged<SharedFunctionInfo> old_sfi =
         Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
     if (!old_sfi->HasOuterScopeInfo()) return;

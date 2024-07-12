@@ -2716,7 +2716,9 @@ void Scope::AllocateScopeInfosRecursively(
 #ifdef DEBUG
     // Mark this ID as being used. Skip hidden scopes because they are
     // synthetic, unreusable, but hard to make unique.
-    if (!is_hidden()) scope_infos_to_reuse[UniqueIdInScript()] = {};
+    if (v8_flags.reuse_scope_infos && !is_hidden()) {
+      scope_infos_to_reuse[UniqueIdInScript()] = {};
+    }
 #endif
     scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
     DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
@@ -2810,7 +2812,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
 
   Tagged<WeakFixedArray> infos = script->shared_function_infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
-  if (infos->length() != 0) {
+  if (v8_flags.reuse_scope_infos && infos->length() != 0) {
     // Look at all the existing inner functions (they are numbered id+1 until
     // max_id+1) to reattach their outer scope infos to corresponding scopes.
     for (int i = info->literal()->function_literal_id() + 1;
