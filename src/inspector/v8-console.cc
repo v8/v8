@@ -103,12 +103,48 @@ class ConsoleHelper {
   void reportCall(ConsoleAPIType type,
                   v8::MemorySpan<const v8::Local<v8::Value>> arguments) {
     if (!m_groupId) return;
+    // Depending on the type of the console message, we capture only parts of
+    // the stack trace, or no stack trace at all.
+    std::unique_ptr<V8StackTraceImpl> stackTrace;
+    switch (type) {
+      case ConsoleAPIType::kClear:
+        // The `console.clear()` API doesn't leave a trace in the DevTools'
+        // front-end and therefore doesn't need to have a stack trace attached
+        // to it.
+        break;
+
+      case ConsoleAPIType::kTrace:
+        // The purpose of `console.trace()` is to output a stack trace to the
+        // developer tools console, therefore we should always strive to
+        // capture a full stack trace, even before any debugger is attached.
+        stackTrace = m_inspector->debugger()->captureStackTrace(true);
+        break;
+
+      case ConsoleAPIType::kTimeEnd:
+        // The `console.time()` and `console.timeEnd()` APIs are meant for
+        // performance investigations, and therefore it's important to reduce
+        // the total overhead of these calls, but also make sure these APIs
+        // have consistent performance overhead. In order to guarantee that,
+        // we always capture only the top frame, otherwise the performance
+        // characteristics of `console.timeEnd()` would differ based on the
+        // current call depth, which would skew the results.
+        //
+        // See https://crbug.com/41433391 for more information.
+        stackTrace = V8StackTraceImpl::capture(m_inspector->debugger(), 1);
+        break;
+
+      default:
+        // All other APIs get a full stack trace only when the debugger is
+        // attached, otherwise record only the top frame.
+        stackTrace = m_inspector->debugger()->captureStackTrace(false);
+        break;
+    }
     std::unique_ptr<V8ConsoleMessage> message =
         V8ConsoleMessage::createForConsoleAPI(
             m_context, m_contextId, m_groupId, m_inspector,
             m_inspector->client()->currentTimeMS(), type, arguments,
             consoleContextToString(m_isolate, m_consoleContext),
-            m_inspector->debugger()->captureStackTrace(false));
+            std::move(stackTrace));
     consoleMessageStorage()->addMessage(std::move(message));
   }
 
