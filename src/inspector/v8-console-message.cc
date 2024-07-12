@@ -597,7 +597,7 @@ void V8ConsoleMessageStorage::clear() {
                                 session->releaseObjectGroup("console");
                               });
   for (auto& data : m_data) {
-    data.second.m_count.clear();
+    data.second.m_counters.clear();
     data.second.m_reportedDeprecationMessages.clear();
   }
 }
@@ -612,15 +612,17 @@ bool V8ConsoleMessageStorage::shouldReportDeprecationMessage(
   return true;
 }
 
-int V8ConsoleMessageStorage::count(int contextId, const String16& id) {
-  return ++m_data[contextId].m_count[id];
+int V8ConsoleMessageStorage::count(int contextId, int consoleContextId,
+                                   const String16& label) {
+  return ++m_data[contextId].m_counters[LabelKey{consoleContextId, label}];
 }
 
-bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
-  std::map<String16, int>& count_map = m_data[contextId].m_count;
-  if (count_map.find(id) == count_map.end()) return false;
-
-  count_map[id] = 0;
+bool V8ConsoleMessageStorage::countReset(int contextId, int consoleContextId,
+                                         const String16& label) {
+  std::map<LabelKey, int>& counters = m_data[contextId].m_counters;
+  auto it = counters.find(LabelKey{consoleContextId, label});
+  if (it == counters.end()) return false;
+  counters.erase(it);
   return true;
 }
 
@@ -628,7 +630,7 @@ bool V8ConsoleMessageStorage::time(int contextId, int consoleContextId,
                                    const String16& label) {
   return m_data[contextId]
       .m_timers
-      .try_emplace(TimerKey{consoleContextId, label},
+      .try_emplace(LabelKey{consoleContextId, label},
                    m_inspector->client()->currentTimeMS())
       .second;
 }

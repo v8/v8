@@ -288,46 +288,20 @@ void V8Console::Clear(const v8::debug::ConsoleCallArguments& info,
                                        String16("console.clear"));
 }
 
-static String16 identifierFromTitleOrStackTrace(
-    const String16& title, const ConsoleHelper& helper,
-    const v8::debug::ConsoleContext& consoleContext,
-    V8InspectorImpl* inspector) {
-  String16 identifier;
-  if (title.isEmpty()) {
-    std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(inspector->debugger(), 1);
-    if (stackTrace && !stackTrace->isEmpty()) {
-      identifier = toString16(stackTrace->topSourceURL()) + ":" +
-                   String16::fromInteger(stackTrace->topLineNumber());
-    }
-  } else {
-    identifier = title + "@";
-  }
-  identifier = consoleContextToString(inspector->isolate(), consoleContext) +
-               "@" + identifier;
-
-  return identifier;
-}
-
 void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::Count");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title =
+  String16 label =
       toProtocolString(m_inspector->isolate(), helper.firstArgAsString());
-  String16 identifier = identifierFromTitleOrStackTrace(
-      title, helper, consoleContext, m_inspector);
-
-  int count =
-      helper.consoleMessageStorage()->count(helper.contextId(), identifier);
-  String16 countString = String16::fromInteger(count);
-  helper.reportCallWithArgument(
-      ConsoleAPIType::kCount,
-      title.isEmpty() ? countString : (title + ": " + countString));
+  int count = helper.consoleMessageStorage()->count(helper.contextId(),
+                                                    consoleContext.id(), label);
+  helper.reportCallWithArgument(ConsoleAPIType::kCount,
+                                label + ": " + String16::fromInteger(count));
   TRACE_EVENT_END2(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                   "V8Console::Count", "title",
-                   TRACE_STR_COPY(title.utf8().c_str()), "count", count);
+                   "V8Console::Count", "label",
+                   TRACE_STR_COPY(label.utf8().c_str()), "count", count);
 }
 
 void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
@@ -335,19 +309,16 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                      "V8Console::CountReset");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title =
+  String16 label =
       toProtocolString(m_inspector->isolate(), helper.firstArgAsString());
-  String16 identifier = identifierFromTitleOrStackTrace(
-      title, helper, consoleContext, m_inspector);
-
   if (!helper.consoleMessageStorage()->countReset(helper.contextId(),
-                                                  identifier)) {
+                                                  consoleContext.id(), label)) {
     helper.reportCallWithArgument(ConsoleAPIType::kWarning,
-                                  "Count for '" + title + "' does not exist");
+                                  "Count for '" + label + "' does not exist");
   }
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                   "V8Console::CountReset", "title",
-                   TRACE_STR_COPY(title.utf8().c_str()));
+                   "V8Console::CountReset", "label",
+                   TRACE_STR_COPY(label.utf8().c_str()));
 }
 
 void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,

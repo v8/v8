@@ -123,8 +123,9 @@ class V8ConsoleMessageStorage {
   void clear();
 
   bool shouldReportDeprecationMessage(int contextId, const String16& method);
-  int count(int contextId, const String16& id);
-  bool countReset(int contextId, const String16& id);
+
+  int count(int contextId, int consoleContextId, const String16& id);
+  bool countReset(int contextId, int consoleContextId, const String16& id);
 
   bool time(int contextId, int consoleContextId, const String16& label);
   std::optional<double> timeLog(int contextId, int consoleContextId,
@@ -138,16 +139,16 @@ class V8ConsoleMessageStorage {
   int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
 
-  // Timers are keyed by their `console.context()` ID and their
-  // label.
-  typedef std::pair<int, String16> TimerKey;
+  // Timers and counters are keyed by their `console.context()` ID
+  // and their label.
+  typedef std::pair<int, String16> LabelKey;
 
   struct PerContextData {
     std::set<String16> m_reportedDeprecationMessages;
     // Corresponds to https://console.spec.whatwg.org/#count-map
-    std::map<String16, int> m_count;
+    std::map<LabelKey, int> m_counters;
     // Corresponds to https://console.spec.whatwg.org/#timer-table
-    std::map<TimerKey, double> m_timers;
+    std::map<LabelKey, double> m_timers;
   };
   std::map<int, PerContextData> m_data;
 };
