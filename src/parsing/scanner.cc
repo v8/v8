@@ -299,7 +299,7 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     }
     Advance();
   }
-  if (value == &compile_hints_value) {
+  if (value == &compile_hints_value && compile_hints_value.is_one_byte()) {
     base::Vector<const uint8_t> value_literal =
         compile_hints_value.one_byte_literal();
     if (value_literal == base::StaticOneByteVector("all")) {

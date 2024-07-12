@@ -689,6 +689,30 @@ TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
   }
 }
 
+// Regression test for https://issues.chromium.org/issues/351876778 .
+TEST_F(ScriptTest, CompileHintsMagicCommentInvalid2) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  const char* code =
+      "//# eagerCompilation=\xCF\x80\n"  // Two byte character
+      "function f1() {}";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+}
+
 TEST_F(ScriptTest, CompileHintsMagicCommentNotEnabledByCompileOptions) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
