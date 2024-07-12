@@ -56,9 +56,8 @@ class MaglevGraphLabeller {
     if (node != nullptr && node->Is<VirtualObject>()) {
       // VirtualObjects are unregisted nodes, since they are not attached to
       // the graph, but its inlined allocation is.
-      const VirtualObject* vo = node->Cast<VirtualObject>();
-      os << "VO{" << vo->id() << "}:";
-      node = vo->allocation();
+      os << "VO:";
+      node = node->Cast<VirtualObject>()->allocation();
     }
     auto node_id_it = nodes_.find(node);
 
