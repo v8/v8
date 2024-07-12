@@ -2637,10 +2637,9 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 MaybeLocal<Module> ScriptCompiler::CompileModule(
     Isolate* v8_isolate, Source* source, CompileOptions options,
     NoCacheReason no_cache_reason) {
-  Utils::ApiCheck(
-      options == kNoCompileOptions || options == kConsumeCodeCache ||
-          options == kProduceCompileHints,
-      "v8::ScriptCompiler::CompileModule", "Invalid CompileOptions");
+  Utils::ApiCheck(v8::ScriptCompiler::CompileOptionsIsValid(options),
+                  "v8::ScriptCompiler::CompileModule",
+                  "Invalid CompileOptions");
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
@@ -2725,10 +2724,9 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
     Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type,
     CompileOptions options, CompileHintCallback compile_hint_callback,
     void* compile_hint_callback_data) {
-  Utils::ApiCheck(
-      options == kNoCompileOptions || options == kEagerCompile ||
-          options == kProduceCompileHints || options == kConsumeCompileHints,
-      "v8::ScriptCompiler::StartStreaming", "Invalid CompileOptions");
+  Utils::ApiCheck(v8::ScriptCompiler::CompileOptionsIsValid(options),
+                  "v8::ScriptCompiler::StartStreaming",
+                  "Invalid CompileOptions");
   if (!i::v8_flags.script_streaming) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
@@ -10586,6 +10584,8 @@ CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
 
+// TODO(42203853): Remove this after the deprecated API is removed. Right now,
+// the embedder can still set the callback, but it's never called.
 CALLBACK_SETTER(JavaScriptCompileHintsMagicEnabledCallback,
                 JavaScriptCompileHintsMagicEnabledCallback,
                 compile_hints_magic_enabled_callback)

@@ -91,9 +91,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
-  flags.set_compile_hints_magic_enabled(v8_flags.compile_hints_magic ||
-                                        isolate->allow_compile_hints_magic());
-
   LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
 }

@@ -1679,6 +1679,9 @@ BackgroundCompileTask::BackgroundCompileTask(
     DCHECK_NULL(compile_hint_callback);
     DCHECK_NULL(compile_hint_callback_data);
   }
+  flags_.set_compile_hints_magic_enabled(
+      options &
+      ScriptCompiler::CompileOptions::kFollowCompileHintsMagicComment);
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
@@ -3766,6 +3769,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
               v8_flags.lazy);
 
       flags.set_is_eager(compile_options & ScriptCompiler::kEagerCompile);
+      flags.set_compile_hints_magic_enabled(
+          compile_options & ScriptCompiler::kFollowCompileHintsMagicComment);
 
       if (Handle<Script> script; maybe_script.ToHandle(&script)) {
         flags.set_script_id(script->id());

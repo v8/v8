@@ -528,22 +528,23 @@ TEST_F(CompileHintsTest, StreamingCompileHints) {
 }
 
 TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
-
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   // Run the top level code.
   const char* code =
-      "//# experimentalChromiumCompileHints=all\n"
+      "//# eagerCompilation=all\n"
       "function f1() {}\n"
       "let f2 = function() { }";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
@@ -587,8 +588,6 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
 }
 
 TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
-
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
@@ -596,13 +595,16 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
   // Run the top level code.
   const char* code =
       "function f1() {}\n"
-      "//# experimentalChromiumCompileHints=all\n"
+      "//# eagerCompilation=all\n"
       "function f2() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
@@ -647,20 +649,60 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
 }
 
 TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
-
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   // Run the top level code.
   const char* code =
-      "//# experimentalChromiumCompileHints=notAll\n"
+      "//# eagerCompilation=notAll\n"  // Not a valid compile hint.
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  // Retrieve the function object for f1.
+  {
+    const char* code2 = "f1";
+    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+
+    Local<Script> script2 =
+        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
+            .ToLocalChecked();
+    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
+
+    // f1 was compiled lazily.
+    EXPECT_EQ(i::Builtin::kCompileLazy, builtin);
+  }
+}
+
+TEST_F(ScriptTest, CompileHintsMagicCommentNotEnabledByCompileOptions) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "//# eagerCompilation=all\n"
+      "function f1() {}";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          // Not enabling the magic comment with compile options!
           v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
           .ToLocalChecked();
 
@@ -686,77 +728,46 @@ TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
   }
 }
 
-namespace {
-
-bool CompileHintsMagicEnabledCallback(v8::Local<v8::Context> context) {
-  return true;
-}
-}  // namespace
-
-// Like CompileHintsMagicCommentBasic but enable compile hints via an API
-// callback.
-TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, false);
-
-  isolate()->SetJavaScriptCompileHintsMagicEnabledCallback(
-      CompileHintsMagicEnabledCallback);
-
-  v8::Local<v8::Context> context = v8::Context::New(isolate());
-  isolate()->InstallConditionalFeatures(context);
-
+TEST_F(CompileHintsTest, StreamingCompileHintsMagic) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
 
-  // Run the top level code.
-  const char* code =
-      "//# experimentalChromiumCompileHints=all\n"
-      "function f1() {}\n"
-      "let f2 = function() { }";
-  v8::ScriptCompiler::Source script_source(NewString(code), origin);
-  Local<Script> script =
-      v8::ScriptCompiler::Compile(
-          v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+  // Consume compile hints.
+  const char* chunks[] = {
+      "//# eagerCompilati"
+      "on=all\n"
+      "function func1() {} function fu"
+      "nc2() {}",
+      nullptr};
+
+  v8::ScriptCompiler::StreamedSource source(
+      std::make_unique<i::TestSourceStream>(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreaming(
+          isolate(), &source, v8::ScriptType::kClassic,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::kProduceCompileHints |
+              v8::ScriptCompiler::kFollowCompileHintsMagicComment)));
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task.get());
+  task.reset();
+
+  std::unique_ptr<char[]> full_source(
+      i::TestSourceStream::FullSourceString(chunks));
+
+  v8::Local<Script> script =
+      v8::ScriptCompiler::Compile(v8_context(), &source,
+                                  NewString(full_source.get()), origin)
           .ToLocalChecked();
 
-  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  v8::MaybeLocal<v8::Value> result = script->Run(v8_context());
   EXPECT_FALSE(result.IsEmpty());
 
-  // Retrieve the function object for f1.
-  {
-    const char* code2 = "f1";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function =
-        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f1 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
-
-  // Retrieve the function object for f2.
-  {
-    const char* code2 = "f2";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function =
-        i::Cast<i::JSFunction>(Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f2 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
+  EXPECT_TRUE(FunctionIsCompiled("func1"));
+  EXPECT_TRUE(FunctionIsCompiled("func2"));
 }
 
 }  // namespace

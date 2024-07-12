@@ -2189,8 +2189,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void VerifyStaticRoots();
 
-  bool allow_compile_hints_magic() const { return allow_compile_hints_magic_; }
-
   class EnableRoAllocationForSnapshotScope final {
    public:
     explicit EnableRoAllocationForSnapshotScope(Isolate* isolate)
@@ -2646,10 +2644,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       abort_on_uncaught_exception_callback_ = nullptr;
 
   bool allow_atomics_wait_ = true;
-
-  // Cache for the JavaScriptCompileHintsMagic origin trial.
-  // TODO(v8:13917): Remove when the origin trial is removed.
-  std::atomic<bool> allow_compile_hints_magic_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;

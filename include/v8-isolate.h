@@ -1595,6 +1595,9 @@ class V8_EXPORT Isolate {
    * Register callback to control whether compile hints magic comments are
    * enabled.
    */
+  V8_DEPRECATED(
+      "Will be removed, use ScriptCompiler::CompileOptions for enabling the "
+      "compile hints magic comments")
   void SetJavaScriptCompileHintsMagicEnabledCallback(
       JavaScriptCompileHintsMagicEnabledCallback callback);
 

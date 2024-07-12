@@ -660,7 +660,28 @@ class V8_EXPORT ScriptCompiler {
     kEagerCompile = 1 << 1,
     kProduceCompileHints = 1 << 2,
     kConsumeCompileHints = 1 << 3,
+    kFollowCompileHintsMagicComment = 1 << 4,
   };
+
+  static inline bool CompileOptionsIsValid(CompileOptions compile_options) {
+    // kConsumeCodeCache is mutually exclusive with all other flag bits.
+    if ((compile_options & kConsumeCodeCache) &&
+        compile_options != kConsumeCodeCache) {
+      return false;
+    }
+    // kEagerCompile is mutually exclusive with all other flag bits.
+    if ((compile_options & kEagerCompile) && compile_options != kEagerCompile) {
+      return false;
+    }
+    // We don't currently support producing and consuming compile hints at the
+    // same time.
+    constexpr int produce_and_consume = CompileOptions::kProduceCompileHints |
+                                        CompileOptions::kConsumeCompileHints;
+    if ((compile_options & produce_and_consume) == produce_and_consume) {
+      return false;
+    }
+    return true;
+  }
 
   /**
    * The reason for which we are not requesting or providing a code cache.

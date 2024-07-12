@@ -272,8 +272,7 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     value = &source_mapping_url_;
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
-  } else if (name_literal ==
-             base::StaticOneByteVector("experimentalChromiumCompileHints")) {
+  } else if (name_literal == base::StaticOneByteVector("eagerCompilation")) {
     value = &compile_hints_value;
   } else {
     return;
