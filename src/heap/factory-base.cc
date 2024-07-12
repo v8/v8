@@ -1134,6 +1134,9 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
   Tagged<ScopeInfo> scope_info = Cast<ScopeInfo>(obj);
   MemsetTagged(scope_info->data_start(), read_only_roots().undefined_value(),
                length);
+#if TAGGED_SIZE_8_BYTES
+  scope_info->set_optional_padding(0);
+#endif
   return handle(scope_info, isolate());
 }
 
