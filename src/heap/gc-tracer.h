@@ -531,7 +531,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double recorded_embedder_speed_ = 0.0;
 
-  std::optional<base::TimeTicks> last_marking_start_time_;
+  // This is not the general last marking start time as it's only updated when
+  // we reach the minimum threshold for code flushing which is 1 sec.
+  std::optional<base::TimeTicks> last_marking_start_time_for_code_flushing_;
   uint16_t code_flushing_increase_s_ = 0;
 
   // Incremental scopes carry more information than just the duration. The infos

@@ -5,6 +5,7 @@
 #include "src/heap/gc-tracer.h"
 
 #include <cstdarg>
+#include <limits>
 #include <optional>
 
 #include "include/v8-metrics.h"
@@ -652,24 +653,35 @@ void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
 void GCTracer::NotifyMarkingStart() {
   const auto marking_start = base::TimeTicks::Now();
 
-  uint16_t result = 1;
-  if (last_marking_start_time_.has_value()) {
-    const double diff_in_seconds = std::round(
-        (marking_start - last_marking_start_time_.value()).InSecondsF());
-    if (diff_in_seconds > UINT16_MAX) {
-      result = UINT16_MAX;
-    } else if (diff_in_seconds >= 1) {
-      result = static_cast<uint16_t>(diff_in_seconds);
+  // Handle code flushing time deltas. Times are incremented conservatively:
+  // 1. The first delta is 0s.
+  // 2. Any delta is rounded downwards to a full second.
+  // 3. 0s-deltas are carried over to the next GC with their precise diff. This
+  //    allows for frequent GCs (within a single second) to be attributed
+  //    correctly later on.
+  // 4. The first non-zero increment after a reset always just increments by 1s.
+  using SFIAgeType = decltype(code_flushing_increase_s_);
+  static_assert(SharedFunctionInfo::kAgeSize == sizeof(SFIAgeType));
+  static constexpr auto kMaxDeltaForSFIAge =
+      base::TimeDelta::FromSeconds(std::numeric_limits<SFIAgeType>::max());
+  SFIAgeType code_flushing_increase_s = 0;
+  if (last_marking_start_time_for_code_flushing_.has_value()) {
+    const auto diff =
+        marking_start - last_marking_start_time_for_code_flushing_.value();
+    if (diff > kMaxDeltaForSFIAge) {
+      code_flushing_increase_s = std::numeric_limits<SFIAgeType>::max();
+    } else {
+      code_flushing_increase_s = static_cast<SFIAgeType>(diff.InSeconds());
     }
   }
-  DCHECK_GT(result, 0);
-  DCHECK_LE(result, UINT16_MAX);
-
-  code_flushing_increase_s_ = result;
-  last_marking_start_time_ = marking_start;
-
+  DCHECK_LE(code_flushing_increase_s, std::numeric_limits<SFIAgeType>::max());
+  code_flushing_increase_s_ = code_flushing_increase_s;
+  if (!last_marking_start_time_for_code_flushing_.has_value() ||
+      code_flushing_increase_s > 0) {
+    last_marking_start_time_for_code_flushing_ = marking_start;
+  }
   if (V8_UNLIKELY(v8_flags.trace_flush_code)) {
-    PrintIsolate(heap_->isolate(), "code flushing time: %d second(s)\n",
+    PrintIsolate(heap_->isolate(), "code flushing: increasing time: %u s\n",
                  code_flushing_increase_s_);
   }
 }

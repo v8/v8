@@ -424,10 +424,12 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::MakeOlder(
     Tagged<SharedFunctionInfo> sfi) const {
   if (v8_flags.flush_code_based_on_time) {
-    DCHECK_NE(code_flushing_increase_, 0);
+    if (code_flushing_increase_ == 0) {
+      return;
+    }
+
     uint16_t current_age;
     uint16_t updated_age;
-
     do {
       current_age = sfi->age();
       // When the age is 0, it was reset by the function prologue in
