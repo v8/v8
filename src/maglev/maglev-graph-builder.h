@@ -894,12 +894,11 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalentWithConvertedInputs(
-      std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> raw_inputs,
+                                   Args&&... args) {
+    DCHECK(v8_flags.maglev_cse);
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
-    DCHECK(v8_flags.maglev_cse);
-
     using options_result =
         typename std::invoke_result<decltype(&NodeT::options),
                                     const NodeT>::type;
@@ -907,6 +906,25 @@ class MaglevGraphBuilder {
         std::is_assignable<options_result, std::tuple<Args...>>::value,
         "Instruction participating in CSE needs options() returning "
         "a tuple matching the constructor arguments");
+    static_assert(IsFixedInputNode<NodeT>());
+    static_assert(NodeT::kInputCount <= 3);
+
+    std::array<ValueNode*, NodeT::kInputCount> inputs;
+    // Nodes with zero input count don't have kInputTypes defined.
+    if constexpr (NodeT::kInputCount > 0) {
+      int i = 0;
+      constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
+      for (ValueNode* raw_input : raw_inputs) {
+        inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
+        i++;
+      }
+      if constexpr (IsCommutativeNode(Node::opcode_of<NodeT>)) {
+        static_assert(NodeT::kInputCount == 2);
+        if (inputs[0] > inputs[1]) {
+          std::swap(inputs[0], inputs[1]);
+        }
+      }
+    }
 
     uint32_t value_number;
     {
@@ -972,80 +990,14 @@ class MaglevGraphBuilder {
     return AttachExtraInfoAndAddToGraph(node);
   }
 
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input, Args&&... args) {
-    static_assert(NodeT::kInputCount == 1);
-    constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
-    ValueNode* conv_input = ConvertInputTo<hint>(input, NodeT::kInputTypes[0]);
-    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
-        {conv_input}, std::forward<Args>(args)...);
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input0, ValueNode* input1,
-                                   Args&&... args) {
-    static_assert(NodeT::kInputCount == 2);
-    ValueNode* conv_input0 = ConvertInputTo(input0, NodeT::kInputTypes[0]);
-    ValueNode* conv_input1 = ConvertInputTo(input1, NodeT::kInputTypes[1]);
-    if constexpr (IsCommutativeNode(Node::opcode_of<NodeT>)) {
-      if (conv_input0 > conv_input1) {
-        std::swap(conv_input0, conv_input1);
-      }
-    }
-    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
-        {conv_input0, conv_input1}, std::forward<Args>(args)...);
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(ValueNode* input0, ValueNode* input1,
-                                   ValueNode* input2, Args&&... args) {
-    static_assert(NodeT::kInputCount == 3);
-    ValueNode* conv_input0 = ConvertInputTo(input0, NodeT::kInputTypes[0]);
-    ValueNode* conv_input1 = ConvertInputTo(input1, NodeT::kInputTypes[1]);
-    ValueNode* conv_input2 = ConvertInputTo(input2, NodeT::kInputTypes[2]);
-    return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
-        {conv_input0, conv_input1, conv_input2}, std::forward<Args>(args)...);
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeParticipatingInCSE(std::initializer_list<ValueNode*> inputs,
-                                      Args&&... args) {
-    // We want to convert the inputs to the correct representation before
-    // hashing them for CSE check. Since we cannot modify std::initializer_list
-    // and there is a small upper bound in the input count for nodes
-    // participating in CSE, we use input-count-specific
-    // AddNewNodeOrGetEquivalent functions.
-    DCHECK(v8_flags.maglev_cse);
-    static_assert(IsFixedInputNode<NodeT>());
-    static_assert(Node::participate_in_cse(Node::opcode_of<NodeT>));
-    static_assert(NodeT::kInputCount <= 3);
-    if constexpr (NodeT::kInputCount == 0) {
-      return AddNewNodeOrGetEquivalentWithConvertedInputs<NodeT>(
-          {}, std::forward<Args>(args)...);
-    } else if constexpr (NodeT::kInputCount == 1) {
-      DCHECK_EQ(inputs.size(), 1);
-      return AddNewNodeOrGetEquivalent<NodeT>(*inputs.begin(),
-                                              std::forward<Args>(args)...);
-    } else if constexpr (NodeT::kInputCount == 2) {
-      DCHECK_EQ(inputs.size(), 2);
-      return AddNewNodeOrGetEquivalent<NodeT>(
-          *inputs.begin(), *(inputs.begin() + 1), std::forward<Args>(args)...);
-    } else {
-      DCHECK_EQ(inputs.size(), 3);
-      return AddNewNodeOrGetEquivalent<NodeT>(
-          *inputs.begin(), *(inputs.begin() + 1), *(inputs.begin() + 2),
-          std::forward<Args>(args)...);
-    }
-  }
-
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
     static_assert(IsFixedInputNode<NodeT>());
     if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>)) {
       if (v8_flags.maglev_cse) {
-        return AddNewNodeParticipatingInCSE<NodeT>(inputs,
-                                                   std::forward<Args>(args)...);
+        return AddNewNodeOrGetEquivalent<NodeT>(inputs,
+                                                std::forward<Args>(args)...);
       }
     }
     NodeT* node = NodeBase::New<NodeT>(zone(), inputs.size(),
