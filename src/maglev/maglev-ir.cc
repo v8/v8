@@ -1421,11 +1421,13 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
     DCHECK(source().IsAnyStackSlot());
     MemOperand source_op = masm->ToMemOperand(source());
     if (target().IsRegister()) {
-      __ MoveRepr(repr, ToRegister(target()), source_op);
+      __ MoveRepr(MachineRepresentation::kTaggedPointer, ToRegister(target()),
+                  source_op);
     } else if (target().IsDoubleRegister()) {
       __ LoadFloat64(ToDoubleRegister(target()), source_op);
     } else {
       DCHECK(target().IsAnyStackSlot());
+      DCHECK_EQ(ElementSizeInBytes(repr), kSystemPointerSize);
       __ MoveRepr(repr, masm->ToMemOperand(target()), source_op);
     }
   }
