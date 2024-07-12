@@ -3685,11 +3685,10 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
             if (CanFastCloneObjectToObjectLiteral(
                     source_map, result_map, {}, null_proto_literal, isolate)) {
               DCHECK(result_map->OnlyHasSimpleProperties());
-              DCHECK_LE(source_map->GetInObjectProperties() -
+              DCHECK_EQ(source_map->GetInObjectProperties() -
                             source_map->UnusedInObjectProperties(),
-                        result_map->GetInObjectProperties());
-              DCHECK_GE(source_map->GetInObjectProperties(),
-                        result_map->GetInObjectProperties());
+                        result_map->GetInObjectProperties() -
+                            result_map->UnusedInObjectProperties());
               UpdateState(result_map);
             } else {
               if (CanCacheCloneTargetMapTransition(

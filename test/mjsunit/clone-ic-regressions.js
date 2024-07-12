@@ -325,3 +325,18 @@ test({0:0,1:0}, idView);
       ...v7,
   };
 })();
+
+// A case where we copy from a smaller into a bigger object.
+(function() {
+  function F0() {
+  }
+  function F3() {
+      const v9 = new F0();
+      const o10 = {
+          ...v9,
+      };
+  }
+  new F3();
+  new F3();
+  new F3();
+})();
