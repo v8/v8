@@ -7255,6 +7255,28 @@ Reduction JSCallReducer::ReduceStringConstructor(Node* node,
     primitive_value = effect = control =
         graph()->NewNode(javascript()->ToString(), n.Argument(0), context,
                          continuation_frame_state, effect, control);
+
+    // Rewire potential exception edges.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      // Create appropriate {IfException} and {IfSuccess} nodes.
+      Node* if_exception =
+          graph()->NewNode(common()->IfException(), effect, control);
+      control = graph()->NewNode(common()->IfSuccess(), control);
+
+      // Join the exception edges.
+      Node* merge =
+          graph()->NewNode(common()->Merge(2), if_exception, on_exception);
+      Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception,
+                                    on_exception, merge);
+      Node* phi =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           if_exception, on_exception, merge);
+      ReplaceWithValue(on_exception, phi, ephi, merge);
+      merge->ReplaceInput(1, on_exception);
+      ephi->ReplaceInput(1, on_exception);
+      phi->ReplaceInput(1, on_exception);
+    }
   }
 
   RelaxControls(node, control);
