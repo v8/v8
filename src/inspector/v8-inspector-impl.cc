@@ -55,6 +55,21 @@
 
 namespace v8_inspector {
 
+void V8InspectorClient::consoleTime(v8::Isolate* isolate,
+                                    v8::Local<v8::String> label) {
+  consoleTime(toStringView(toProtocolString(isolate, label)));
+}
+
+void V8InspectorClient::consoleTimeEnd(v8::Isolate* isolate,
+                                       v8::Local<v8::String> label) {
+  consoleTimeEnd(toStringView(toProtocolString(isolate, label)));
+}
+
+void V8InspectorClient::consoleTimeStamp(v8::Isolate* isolate,
+                                         v8::Local<v8::String> label) {
+  consoleTimeStamp(toStringView(toProtocolString(isolate, label)));
+}
+
 std::unique_ptr<V8Inspector> V8Inspector::create(v8::Isolate* isolate,
                                                  V8InspectorClient* client) {
   return std::unique_ptr<V8Inspector>(new V8InspectorImpl(isolate, client));
