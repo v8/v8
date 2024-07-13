@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6e0adf6e02ee6c2afc675039f0cd5608bba10274',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4b616207b1f7e14c93292dee6abcb558ff1f2878',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '24bce55e5ad2c9f688865aa53d99f8445f35652e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1ad30ceeab72be5041e28d4ce783667bc423cc9e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -280,7 +280,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '32eb84a95951fa3a0148fb3e6a1a02f830ded136',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b4aaf97d8f7eaffab79aa15e10a91b331b941fe2',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4b21f1abddaf7d28388d7430bab69a81eccb1909',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
