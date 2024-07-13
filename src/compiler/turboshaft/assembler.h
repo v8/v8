@@ -3158,9 +3158,10 @@ class TurboshaftAssemblerOpInterface
   }
   V<String> CallBuiltin_ToString(Isolate* isolate,
                                  V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input) {
+                                 V<Context> context, V<Object> input,
+                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToString>(
-        isolate, frame_state, context, {input});
+        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
   V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
                                                V<PlainPrimitive> input) {
@@ -3237,17 +3238,21 @@ class TurboshaftAssemblerOpInterface
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
       Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count) {
+      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<
         typename BuiltinCallDescriptor::FastNewFunctionContextFunction>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)});
+        isolate, frame_state, context, {scope_info, resolve(slot_count)},
+        lazy_deopt_on_throw);
   }
   V<Context> CallBuiltin_FastNewFunctionContextEval(
       Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count) {
+      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<
         typename BuiltinCallDescriptor::FastNewFunctionContextEval>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)});
+        isolate, frame_state, context, {scope_info, resolve(slot_count)},
+        lazy_deopt_on_throw);
   }
   V<JSFunction> CallBuiltin_FastNewClosure(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
@@ -3261,10 +3266,12 @@ class TurboshaftAssemblerOpInterface
                                                                {object});
   }
 
-  V<Object> CallBuiltinWithVarStackArgs(
-      Isolate* isolate, Zone* graph_zone, Builtin builtin,
-      V<turboshaft::FrameState> frame_state, int num_stack_args,
-      base::Vector<OpIndex> arguments) {
+  V<Object> CallBuiltinWithVarStackArgs(Isolate* isolate, Zone* graph_zone,
+                                        Builtin builtin,
+                                        V<turboshaft::FrameState> frame_state,
+                                        int num_stack_args,
+                                        base::Vector<OpIndex> arguments,
+                                        LazyDeoptOnThrow lazy_deopt_on_throw) {
     Callable callable = Builtins::CallableFor(isolate, builtin);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor* call_descriptor =
@@ -3275,14 +3282,15 @@ class TurboshaftAssemblerOpInterface
     return Call<Object>(
         stub_code, frame_state, arguments,
         TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
-                                 LazyDeoptOnThrow::kNo, graph_zone));
+                                 lazy_deopt_on_throw, graph_zone));
   }
 
   V<Object> CallBuiltin_CallWithSpread(Isolate* isolate, Zone* graph_zone,
                                        V<turboshaft::FrameState> frame_state,
                                        V<Context> context, V<Object> function,
                                        int num_args_no_spread, V<Object> spread,
-                                       base::Vector<V<Object>> args_no_spread) {
+                                       base::Vector<V<Object>> args_no_spread,
+                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
     base::SmallVector<OpIndex, 16> arguments;
     arguments.push_back(function);
     arguments.push_back(Word32Constant(num_args_no_spread));
@@ -3294,14 +3302,12 @@ class TurboshaftAssemblerOpInterface
 
     return CallBuiltinWithVarStackArgs(
         isolate, graph_zone, Builtin::kCallWithSpread, frame_state,
-        num_args_no_spread, base::VectorOf(arguments));
+        num_args_no_spread, base::VectorOf(arguments), lazy_deopt_on_throw);
   }
-  V<Object> CallBuiltin_CallWithArrayLike(Isolate* isolate, Zone* graph_zone,
-                                          V<turboshaft::FrameState> frame_state,
-                                          V<Context> context,
-                                          V<Object> receiver,
-                                          V<Object> function,
-                                          V<Object> arguments_list) {
+  V<Object> CallBuiltin_CallWithArrayLike(
+      Isolate* isolate, Zone* graph_zone, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<Object> receiver, V<Object> function,
+      V<Object> arguments_list, LazyDeoptOnThrow lazy_deopt_on_throw) {
     // CallWithArrayLike is a weird builtin that expects a receiver as top of
     // the stack, but doesn't explicitly list it as an extra argument. We thus
     // manually create the call descriptor with 1 stack argument.
@@ -3311,13 +3317,14 @@ class TurboshaftAssemblerOpInterface
 
     return CallBuiltinWithVarStackArgs(
         isolate, graph_zone, Builtin::kCallWithArrayLike, frame_state,
-        kNumberOfStackArguments, base::VectorOf(arguments));
+        kNumberOfStackArguments, base::VectorOf(arguments),
+        lazy_deopt_on_throw);
   }
   V<Object> CallBuiltin_CallForwardVarargs(
       Isolate* isolate, Zone* graph_zone, Builtin builtin,
       V<turboshaft::FrameState> frame_state, V<Context> context,
       V<JSFunction> function, int num_args, int start_index,
-      base::Vector<V<Object>> args) {
+      base::Vector<V<Object>> args, LazyDeoptOnThrow lazy_deopt_on_throw) {
     DCHECK(builtin == Builtin::kCallFunctionForwardVarargs ||
            builtin == Builtin::kCallForwardVarargs);
     base::SmallVector<OpIndex, 16> arguments;
@@ -3327,9 +3334,9 @@ class TurboshaftAssemblerOpInterface
     arguments.insert(arguments.end(), args.begin(), args.end());
     arguments.push_back(context);
 
-    return CallBuiltinWithVarStackArgs(isolate, graph_zone, builtin,
-                                       frame_state, num_args,
-                                       base::VectorOf(arguments));
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, builtin, frame_state, num_args,
+        base::VectorOf(arguments), lazy_deopt_on_throw);
   }
 
   template <typename Descriptor>
@@ -3427,11 +3434,12 @@ class TurboshaftAssemblerOpInterface
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
-  V<String> CallRuntime_SymbolDescriptiveString(Isolate* isolate,
-                                                V<Context> context,
-                                                V<Symbol> symbol) {
+  V<String> CallRuntime_SymbolDescriptiveString(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<Symbol> symbol,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallRuntime<typename RuntimeCallDescriptor::SymbolDescriptiveString>(
-        isolate, context, {symbol});
+        isolate, frame_state, context, lazy_deopt_on_throw, {symbol});
   }
   V<Object> CallRuntime_TerminateExecution(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,

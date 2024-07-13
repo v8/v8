@@ -157,6 +157,31 @@ class BlockOriginTrackingReducer : public Next {
     return maglev::ProcessResult::kContinue;    \
   }
 
+// TODO(dmercadier): LazyDeoptOnThrow is currently not very cleanly dealt with.
+// In Maglev, it is a property of the ExceptionHandlerInfo, which is use by all
+// throwing nodes and is created in a single place
+// (MaglevGraphBuilder::AttachExceptionHandlerInfo). However, during the
+// translation, we create different kind of calls from different places (Call,
+// CallBuiltin_XXX, CallRuntime_XXX), and non-call nodes can also
+// LazyDeoptOnThrow (such as GenericBinop) and we always have to manually
+// remember to pass ShouldLazyDeoptOnThrow, which is easy to forget, which can
+// then easily lead to bugs. A few ideas come to mind:
+//
+//  - Make ShouldLazyDeoptOnThrow non-optional on all throwing nodes. This is a
+//    bit verbose, but at least we won't forget it.
+//
+//  - Make ThrowingScope automatically annotate all throwing nodes that are
+//    emitted while the scope is active. The Assembler would be doing most of
+//    the work: it would have a "LazyDeoptOnThrowScope" or something similar,
+//    and any throwing node emitted during this scope would have the
+//    LazyDeoptOnThrow property added as needed. All throwing nodes have a
+//    {lazy_deopt_on_throw} field defined by THROWING_OP_BOILERPLATE (except
+//    calls, but we could add it), so it shouldn't be very hard for the
+//    Assembler to deal with this in a unified way.
+//    The downside of this approach is that the interaction between this and
+//    {current_catch_block} (in particular with nested scopes) might introduce
+//    even more complexity and magic in the assembler.
+
 class GraphBuilder {
  public:
   using AssemblerT =
@@ -1057,19 +1082,19 @@ class GraphBuilder {
     if (node->scope_type() == FUNCTION_SCOPE) {
       SetMap(node, __ CallBuiltin_FastNewFunctionContextFunction(
                        isolate_, frame_state, context, scope_info,
-                       node->slot_count()));
+                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
     } else {
       DCHECK_EQ(node->scope_type(), EVAL_SCOPE);
       SetMap(node, __ CallBuiltin_FastNewFunctionContextEval(
                        isolate_, frame_state, context, scope_info,
-                       node->slot_count()));
+                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
     }
     return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::FastCreateClosure* node,
                                 const maglev::ProcessingState& state) {
-    DCHECK(!node->properties().can_throw());
+    NoThrowingScopeRequired no_throws(node);
 
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     V<Context> context = Map(node->context());
@@ -1086,7 +1111,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CreateClosure* node,
                                 const maglev::ProcessingState& state) {
-    DCHECK(!node->properties().can_throw());
+    NoThrowingScopeRequired no_throws(node);
 
     V<Context> context = Map(node->context());
     V<SharedFunctionInfo> shared_function_info =
@@ -1120,7 +1145,7 @@ class GraphBuilder {
 
     SetMap(node, __ CallBuiltin_CallWithArrayLike(
                      isolate_, graph_zone(), frame_state, context, receiver,
-                     function, arguments_list));
+                     function, arguments_list, ShouldLazyDeoptOnThrow(node)));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -1142,7 +1167,8 @@ class GraphBuilder {
     SetMap(node, __ CallBuiltin_CallWithSpread(
                      isolate_, graph_zone(), frame_state, context, function,
                      node->num_args_no_spread(), spread,
-                     base::VectorOf(arguments_no_spread)));
+                     base::VectorOf(arguments_no_spread),
+                     ShouldLazyDeoptOnThrow(node)));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -1172,7 +1198,8 @@ class GraphBuilder {
     }
     V<Object> call = __ CallBuiltin_CallForwardVarargs(
         isolate_, graph_zone(), builtin, frame_state, context, function,
-        node->num_args(), node->start_index(), base::VectorOf(arguments));
+        node->num_args(), node->start_index(), base::VectorOf(arguments),
+        ShouldLazyDeoptOnThrow(node));
 
     SetMap(node, call);
     return maglev::ProcessResult::kContinue;
@@ -2010,15 +2037,16 @@ class GraphBuilder {
         V<i::Map> map = __ LoadMapField(value);
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         IF (__ Word32Equal(instance_type, SYMBOL_TYPE)) {
-          GOTO(done,
-               __ CallRuntime_SymbolDescriptiveString(
-                   isolate_, Map(node->context()), V<Symbol>::Cast(value)));
+          GOTO(done, __ CallRuntime_SymbolDescriptiveString(
+                         isolate_, frame_state, Map(node->context()),
+                         V<Symbol>::Cast(value), ShouldLazyDeoptOnThrow(node)));
         }
       }
     }
 
-    GOTO(done, __ CallBuiltin_ToString(isolate_, frame_state,
-                                       Map(node->context()), value));
+    GOTO(done,
+         __ CallBuiltin_ToString(isolate_, frame_state, Map(node->context()),
+                                 value, ShouldLazyDeoptOnThrow(node)));
 
     BIND(done, result);
     SetMap(node, result);
@@ -2026,6 +2054,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::NumberToString* node,
                                 const maglev::ProcessingState& state) {
+    NoThrowingScopeRequired no_throws(node);
+
     SetMap(node,
            __ CallBuiltin_NumberToString(isolate_, Map(node->value_input())));
     return maglev::ProcessResult::kContinue;
@@ -3272,6 +3302,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::ConvertReceiver* node,
                                 const maglev::ProcessingState& state) {
+    NoThrowingScopeRequired no_throws(node);
+
     Label<Object> done(this);
     Label<> non_js_receiver(this);
     V<Object> receiver = Map(node->receiver_input());
@@ -4405,6 +4437,16 @@ class GraphBuilder {
     GraphBuilder::AssemblerT& Asm() { return builder_.Asm(); }
     GraphBuilder& builder_;
     const maglev::BasicBlock* catch_block_ = nullptr;
+  };
+
+  class NoThrowingScopeRequired {
+   public:
+    explicit NoThrowingScopeRequired(maglev::NodeBase* node) {
+      // If this DCHECK fails, then the caller should instead use a
+      // ThrowingScope. Additionally, all of the calls it contains should
+      // explicitely pass LazyDeoptOnThrow.
+      DCHECK(!node->properties().can_throw());
+    }
   };
 
   template <typename Function>

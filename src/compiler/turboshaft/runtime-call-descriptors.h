@@ -152,7 +152,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<Symbol>>;
     using result_t = V<String>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
   };
 
