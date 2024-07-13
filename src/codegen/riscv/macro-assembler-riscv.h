@@ -776,7 +776,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Change endianness
   void ByteSwap(Register dest, Register src, int operand_size,
-                Register scratch);
+                Register scratch = no_reg);
+
+  // helper function for bytes reverse
+  template <int NBYTES>
+  void ReverseBytesHelper(Register rd, Register rs, Register tmp1,
+                          Register tmp2);
 
   void Clear_if_nan_d(Register rd, FPURegister fs);
   void Clear_if_nan_s(Register rd, FPURegister fs);

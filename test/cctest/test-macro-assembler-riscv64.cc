@@ -1384,13 +1384,34 @@ TEST(Ctz64) {
   }
 }
 
+template <int NBYTES, bool USE_SCRATCH>
+static void ByteSwapHelper() {
+  DCHECK(NBYTES == 4 || NBYTES == 8);
+  Func fn;
+  if (USE_SCRATCH) {
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, NBYTES, t0); };
+  } else {
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, NBYTES); };
+  }
+
+  if (NBYTES == 4) {
+    CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn));
+  } else {
+    CHECK_EQ((int64_t)0x0123'4567'89ab'cdef,
+             GenAndRunTest<int64_t>(0xefcd'ab89'6745'2301, fn));
+  }
+}
+
 TEST(ByteSwap) {
   CcTest::InitializeVM();
-  auto fn0 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4, t0); };
-  CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn0));
-  auto fn1 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 8, t0); };
-  CHECK_EQ((int64_t)0x0123'4567'89ab'cdef,
-           GenAndRunTest<int64_t>(0xefcd'ab89'6745'2301, fn1));
+  ByteSwapHelper<4, true>();
+  ByteSwapHelper<8, true>();
+}
+
+TEST(ByteSwap_no_scratch) {
+  CcTest::InitializeVM();
+  ByteSwapHelper<4, false>();
+  ByteSwapHelper<8, false>();
 }
 
 TEST(Dpopcnt) {
