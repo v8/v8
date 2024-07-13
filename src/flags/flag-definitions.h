@@ -288,8 +288,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   /* Following two flags should ship the same time but may stage */ \
   /* differently . */                                               \
   V(harmony_remove_intl_locale_info_getters,                        \
-    "Remove Obsoleted Intl Locale Info getters")                    \
-  V(harmony_intl_locale_info_func, "Intl Locale Info API as functions")
+    "Remove Obsoleted Intl Locale Info getters")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 #else
@@ -302,9 +301,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_atomics_pause, "Atomics.pause")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) \
-  HARMONY_STAGED_BASE(V)  \
-  V(harmony_intl_duration_format, "Intl DurationFormat API")
+#define HARMONY_STAGED(V)                                    \
+  HARMONY_STAGED_BASE(V)                                     \
+  V(harmony_intl_duration_format, "Intl DurationFormat API") \
+  V(harmony_intl_locale_info_func, "Intl Locale Info API as functions")
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
