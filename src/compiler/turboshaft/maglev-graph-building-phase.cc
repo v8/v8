@@ -2346,12 +2346,13 @@ class GraphBuilder {
     V<JSDataView> data_view = Map<JSDataView>(node->object_input());
     V<WordPtr> storage = __ LoadField<WordPtr>(
         data_view, AccessBuilder::ForJSDataViewDataPointer());
-    SetMap(node,
-           __ LoadDataViewElement(
-               data_view, storage,
-               __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-               RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
-               node->type()));
+    V<Word32> is_little_endian =
+        ToBit(node->is_little_endian_input(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+    SetMap(node, __ LoadDataViewElement(
+                     data_view, storage,
+                     __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+                     is_little_endian, node->type()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
@@ -2359,12 +2360,14 @@ class GraphBuilder {
     V<JSDataView> data_view = Map<JSDataView>(node->object_input());
     V<WordPtr> storage = __ LoadField<WordPtr>(
         data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<Word32> is_little_endian =
+        ToBit(node->is_little_endian_input(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     SetMap(node,
            __ LoadDataViewElement(
                data_view, storage,
                __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-               RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
-               ExternalArrayType::kExternalFloat64Array));
+               is_little_endian, ExternalArrayType::kExternalFloat64Array));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -2373,12 +2376,13 @@ class GraphBuilder {
     V<JSDataView> data_view = Map<JSDataView>(node->object_input());
     V<WordPtr> storage = __ LoadField<WordPtr>(
         data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<Word32> is_little_endian =
+        ToBit(node->is_little_endian_input(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     __ StoreDataViewElement(
         data_view, storage,
         __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-        Map<Word32>(node->value_input()),
-        RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
-        node->type());
+        Map<Word32>(node->value_input()), is_little_endian, node->type());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
@@ -2386,11 +2390,13 @@ class GraphBuilder {
     V<JSDataView> data_view = Map<JSDataView>(node->object_input());
     V<WordPtr> storage = __ LoadField<WordPtr>(
         data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<Word32> is_little_endian =
+        ToBit(node->is_little_endian_input(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     __ StoreDataViewElement(
         data_view, storage,
         __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-        Map<Float64>(node->value_input()),
-        RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
+        Map<Float64>(node->value_input()), is_little_endian,
         ExternalArrayType::kExternalFloat64Array);
     return maglev::ProcessResult::kContinue;
   }
@@ -2578,9 +2584,7 @@ class GraphBuilder {
         node->check_type() == maglev::CheckType::kCheckHeapObject
             ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
             : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
-    V<Word32> condition = V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
-        Map(node->condition_input()),
-        TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit, assumption));
+    V<Word32> condition = ToBit(node->condition_input(), assumption);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
@@ -3039,9 +3043,7 @@ class GraphBuilder {
         node->check_type() == maglev::CheckType::kCheckHeapObject
             ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
             : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
-    V<Word32> condition = V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
-        Map(node->value()), TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
-        assumption));
+    V<Word32> condition = ToBit(node->value(), assumption);
     SetMap(node, ConvertWord32ToJSBool(condition, /*flip*/ true));
     return maglev::ProcessResult::kContinue;
   }
@@ -3059,11 +3061,8 @@ class GraphBuilder {
             TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
         break;
     }
-    SetMap(node, ConvertWord32ToJSBool(
-                     V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
-                         Map(node->value()),
-                         TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
-                         input_assumptions))));
+    SetMap(node,
+           ConvertWord32ToJSBool(ToBit(node->value(), input_assumptions)));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32ToBoolean* node,
@@ -4327,6 +4326,26 @@ class GraphBuilder {
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
                      BranchHint::kNone, SelectOp::Implementation::kBranch);
+  }
+
+  // This function corresponds to MaglevAssembler::ToBoolean.
+  V<Word32> ToBit(
+      maglev::Input input,
+      TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumptions) {
+    // TODO(dmercadier): {input} in Maglev is of type Object (like, any
+    // HeapObject or Smi). However, the implementation of ToBoolean in Maglev is
+    // identical to the lowering of TruncateJSPrimitiveToUntaggedOp(kBit) in
+    // Turboshaft (which is done in MachineLoweringReducer), so we're using
+    // TruncateJSPrimitiveToUntaggedOp with a non-JSPrimitive input (but it
+    // still works). We should avoid doing this to avoid any confusion. Renaming
+    // TruncateJSPrimitiveToUntagged to TruncateObjectToUntagged might be the
+    // proper fix, in particular because it seems that the Turbofan input to
+    // this operation is indeed an Object rather than a JSPrimitive (since
+    // we use this operation in the regular TF->TS graph builder to translate
+    // TruncateTaggedToBit and TruncateTaggedPointerToBit).
+    return V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
+        Map(input.node()), TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+        assumptions));
   }
 
   // Converts a Float64 to a Word32 boolean, correctly producing 0 for NaN, by
