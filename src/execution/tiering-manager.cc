@@ -162,7 +162,8 @@ bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
          // events; see JSFunction::InitializeFeedbackCell()).
          (function->ActiveTierIsIgnition(isolate) &&
           CanCompileWithBaseline(isolate, function->shared()) &&
-          !function->shared()->sparkplug_compiled());
+          function->shared()->cached_tiering_decision() ==
+              CachedTieringDecision::kPending);
 }
 
 bool TieringOrTieredUpToOptimizedTier(Tagged<FeedbackVector> vector) {
@@ -203,6 +204,13 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
       return v8_flags.invocation_count_for_early_optimization * bytecode_length;
     }
     return v8_flags.invocation_count_for_maglev * bytecode_length;
+  }
+  // kEarlyMaglev implies the function has not been tiered up to Turbofan, we
+  // delay turbofan compilation in this case.
+  if (cached_tiering_decision == CachedTieringDecision::kEarlyMaglev) {
+    return v8_flags
+               .invocation_count_for_turbofan_if_profile_guided_non_turbofan *
+           bytecode_length;
   }
   return v8_flags.invocation_count_for_turbofan * bytecode_length;
 }
@@ -414,7 +422,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
                            : CodeKind::INTERPRETED_FUNCTION;
   if (code_kind == CodeKind::INTERPRETED_FUNCTION &&
       CanCompileWithBaseline(isolate_, vector->shared_function_info()) &&
-      !vector->shared_function_info()->sparkplug_compiled()) {
+      vector->shared_function_info()->cached_tiering_decision() ==
+          CachedTieringDecision::kPending) {
     // Don't delay tier-up if we haven't tiered up to baseline yet, but will --
     // baseline code is feedback independent.
     return;
@@ -430,7 +439,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     int new_budget = invocations * bytecodes;
     int current_budget = cell->interrupt_budget();
     if (v8_flags.profile_guided_optimization &&
-        shared->cached_tiering_decision() == CachedTieringDecision::kPending) {
+        shared->cached_tiering_decision() <
+            CachedTieringDecision::kEarlyMaglevPending) {
       if (TieringOrTieredUpToOptimizedTier(vector)) {
         shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
       } else {
@@ -466,7 +476,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
       }
     }
     if (!v8_flags.profile_guided_optimization ||
-        shared->cached_tiering_decision() == CachedTieringDecision::kPending ||
+        shared->cached_tiering_decision() <
+            CachedTieringDecision::kEarlyMaglevPending ||
         shared->cached_tiering_decision() == CachedTieringDecision::kNormal) {
       if (new_budget > current_budget) {
         if (v8_flags.trace_opt_verbose) {
@@ -508,10 +519,12 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
 
   // Ensure that the feedback vector has been allocated.
   if (!had_feedback_vector) {
-    if (compile_sparkplug) {
+    if (compile_sparkplug && function->shared()->cached_tiering_decision() ==
+                                 CachedTieringDecision::kPending) {
       // Mark the function as compiled with sparkplug before the feedback vector
       // is created to initialize the interrupt budget for the next tier.
-      function->shared()->set_sparkplug_compiled(true);
+      function->shared()->set_cached_tiering_decision(
+          CachedTieringDecision::kEarlySparkplug);
     }
     JSFunction::CreateAndAttachFeedbackVector(isolate_, function,
                                               &is_compiled_scope);
@@ -555,7 +568,11 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
     // been set by JSFunction::CreateAndAttachFeedbackVector, so no need to
     // set it again.
     if (had_feedback_vector) {
-      function->shared()->set_sparkplug_compiled(true);
+      if (function->shared()->cached_tiering_decision() ==
+          CachedTieringDecision::kPending) {
+        function->shared()->set_cached_tiering_decision(
+            CachedTieringDecision::kEarlySparkplug);
+      }
       function->SetInterruptBudget(isolate_);
     }
     return;

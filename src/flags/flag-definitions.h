@@ -904,6 +904,9 @@ DEFINE_VALUE_IMPLICATION(always_osr_from_maglev, osr_from_maglev, true)
 // Tiering: Turbofan.
 DEFINE_INT(invocation_count_for_turbofan, 3000,
            "invocation count required for optimizing with TurboFan")
+DEFINE_INT(invocation_count_for_turbofan_if_profile_guided_non_turbofan, 6000,
+           "invocation count required for optimizing with TurboFan if profile "
+           "guided non TurboFan")
 DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
 DEFINE_INT(osr_to_tierup, 1,
            "number to decrease the invocation budget by when we follow OSR")
@@ -1101,6 +1104,9 @@ DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
                               invocation_count_for_turbofan, 5000)
+DEFINE_WEAK_VALUE_IMPLICATION(
+    maglev_overwrite_budget,
+    invocation_count_for_turbofan_if_profile_guided_non_turbofan, 10000)
 DEFINE_BOOL(maglev_overwrite_osr_budget, false,
             "whether maglev resets the OSR interrupt budget")
 DEFINE_WEAK_IMPLICATION(maglev_osr, maglev_overwrite_osr_budget)
