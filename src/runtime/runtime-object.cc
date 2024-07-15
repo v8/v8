@@ -364,10 +364,14 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
 }
 
 MaybeHandle<Object> Runtime::SetObjectProperty(
-    Isolate* isolate, Handle<Object> object, Handle<Object> key,
-    Handle<Object> value, StoreOrigin store_origin,
-    Maybe<ShouldThrow> should_throw) {
-  if (IsNullOrUndefined(*object, isolate)) {
+    Isolate* isolate, Handle<Object> lookup_start_obj, Handle<Object> key,
+    Handle<Object> value, MaybeHandle<Object> maybe_receiver,
+    StoreOrigin store_origin, Maybe<ShouldThrow> should_throw) {
+  Handle<Object> receiver;
+  if (!maybe_receiver.ToHandle(&receiver)) {
+    receiver = lookup_start_obj;
+  }
+  if (IsNullOrUndefined(*lookup_start_obj, isolate)) {
     MaybeDirectHandle<String> maybe_property =
         Object::NoSideEffectsToMaybeString(isolate, key);
     DirectHandle<String> property_name;
@@ -375,11 +379,11 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
       THROW_NEW_ERROR(
           isolate,
           NewTypeError(MessageTemplate::kNonObjectPropertyStoreWithProperty,
-                       object, property_name));
+                       lookup_start_obj, property_name));
     } else {
-      THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(MessageTemplate::kNonObjectPropertyStore, object));
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kNonObjectPropertyStore,
+                                   lookup_start_obj));
     }
   }
 
@@ -387,7 +391,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
-  LookupIterator it(isolate, object, lookup_key);
+  LookupIterator it(isolate, receiver, lookup_key, lookup_start_obj);
   if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, false);
     MAYBE_RETURN_NULL(can_store);
@@ -400,6 +404,14 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
       Object::SetProperty(&it, value, store_origin, should_throw));
 
   return value;
+}
+
+MaybeHandle<Object> Runtime::SetObjectProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
+  return SetObjectProperty(isolate, object, key, value, object, store_origin,
+                           should_throw);
 }
 
 MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,

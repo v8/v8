@@ -463,6 +463,57 @@ THREADED_TEST(Access) {
   CHECK(result);
 }
 
+THREADED_TEST(AccessWithReceiver) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::Object> a = CompileRun(R"(
+  ({
+    get prop() { return this },
+    set prop(v) { this.got = v },
+    val: 42,
+  })
+  )")
+                            .As<v8::Object>();
+  Local<v8::Object> b = v8::Object::New(isolate);
+
+  CHECK(a->Get(env.local(), v8_str("missing")).ToLocalChecked()->IsUndefined());
+  CHECK(a->Get(env.local(), v8_str("missing"), a)
+            .ToLocalChecked()
+            ->IsUndefined());
+  CHECK(a->Get(env.local(), v8_str("missing"), b)
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  CHECK(a->Get(env.local(), v8_str("val"))
+            .ToLocalChecked()
+            ->StrictEquals(v8_int(42)));
+  CHECK(a->Get(env.local(), v8_str("val"), a)
+            .ToLocalChecked()
+            ->StrictEquals(v8_int(42)));
+  CHECK(a->Get(env.local(), v8_str("val"), b)
+            .ToLocalChecked()
+            ->StrictEquals(v8_int(42)));
+
+  CHECK(a->Get(env.local(), v8_str("prop")).ToLocalChecked()->StrictEquals(a));
+  CHECK(
+      a->Get(env.local(), v8_str("prop"), a).ToLocalChecked()->StrictEquals(a));
+  CHECK(
+      a->Get(env.local(), v8_str("prop"), b).ToLocalChecked()->StrictEquals(b));
+
+  CHECK(a->Set(env.local(), v8_str("prop"), v8_int(10)).ToChecked());
+  CHECK(a->Get(env.local(), v8_str("got"))
+            .ToLocalChecked()
+            ->StrictEquals(v8_int(10)));
+  CHECK(b->Get(env.local(), v8_str("got")).ToLocalChecked()->IsUndefined());
+  a->Delete(env.local(), v8_str("got")).ToChecked();
+
+  CHECK(a->Set(env.local(), v8_str("prop"), v8_int(10), b).ToChecked());
+  CHECK(a->Get(env.local(), v8_str("got")).ToLocalChecked()->IsUndefined());
+  CHECK(b->Get(env.local(), v8_str("got"))
+            .ToLocalChecked()
+            ->StrictEquals(v8_int(10)));
+}
 
 THREADED_TEST(AccessElement) {
   LocalContext env;

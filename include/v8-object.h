@@ -238,6 +238,9 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
                                         Local<Value> key, Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
+                                        Local<Value> key, Local<Value> value,
+                                        MaybeLocal<Object> receiver);
 
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
@@ -293,6 +296,9 @@ class V8_EXPORT Object : public Value {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+                                              Local<Value> key,
+                                              MaybeLocal<Object> receiver);
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               uint32_t index);
