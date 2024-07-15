@@ -4750,6 +4750,12 @@ base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
       compilation_info->toplevel_compilation_unit(), &bailout);
   builder.ProcessGraph(maglev_graph);
 
+  // Copying {inlined_functions} from Maglev to Turboshaft.
+  for (OptimizedCompilationInfo::InlinedFunctionHolder holder :
+       maglev_graph->inlined_functions()) {
+    data->info()->inlined_functions().push_back(holder);
+  }
+
   return bailout;
 }
 
