@@ -507,6 +507,14 @@ inline void MaglevAssembler::AddInt32(Register reg, int amount) {
   add(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::AndInt32(Register reg, int mask) {
+  and_(reg, reg, Operand(mask));
+}
+
+inline void MaglevAssembler::OrInt32(Register reg, int mask) {
+  orr(reg, reg, Operand(mask));
+}
+
 inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   lsl(reg, reg, Operand(amount));
 }

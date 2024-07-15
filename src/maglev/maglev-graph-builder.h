@@ -1150,6 +1150,10 @@ class MaglevGraphBuilder {
   void BuildStoreMap(ValueNode* object, compiler::MapRef map,
                      StoreMap::Kind kind);
 
+  ValueNode* BuildExtendPropertiesBackingStore(compiler::MapRef map,
+                                               ValueNode* receiver,
+                                               ValueNode* property_array);
+
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
     using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;

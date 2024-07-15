@@ -3992,6 +3992,106 @@ void MaybeGrowFastElements::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+void ExtendPropertiesBackingStore::SetValueLocationConstraints() {
+  UseRegister(property_array_input());
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+
+void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register old_property_array = ToRegister(property_array_input());
+  Register new_property_array = ToRegister(result());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DCHECK_NE(object, old_property_array);
+  DCHECK_NE(object, new_property_array);
+  DCHECK_NE(object, scratch);
+  DCHECK_NE(old_property_array, new_property_array);
+  DCHECK_NE(old_property_array, scratch);
+  DCHECK_NE(new_property_array, scratch);
+
+  int new_length = old_length_ + JSObject::kFieldsAdded;
+
+  // Allocate new PropertyArray.
+  {
+    RegisterSnapshot snapshot = register_snapshot();
+    // old_property_array needs to be live, since we'll read data from it.
+    // Object needs to be live, since we write the new property array into it.
+    snapshot.live_registers.set(object);
+    snapshot.live_registers.set(old_property_array);
+    snapshot.live_tagged_registers.set(object);
+    snapshot.live_tagged_registers.set(old_property_array);
+
+    Register size_in_bytes = scratch;
+    __ Move(size_in_bytes, PropertyArray::SizeFor(new_length));
+    __ Allocate(snapshot, new_property_array, size_in_bytes,
+                AllocationType::kYoung);
+    __ SetMapAsRoot(new_property_array, RootIndex::kPropertyArrayMap);
+  }
+
+  // Copy existing properties over.
+  for (int i = 0; i < old_length_; ++i) {
+    __ LoadTaggedField(scratch, old_property_array,
+                       PropertyArray::OffsetOfElementAt(i));
+
+    __ StoreTaggedFieldNoWriteBarrier(
+        new_property_array, PropertyArray::OffsetOfElementAt(i), scratch);
+  }
+
+  // Initialize new properties to undefined.
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+  for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
+    __ StoreTaggedFieldNoWriteBarrier(
+        new_property_array, PropertyArray::OffsetOfElementAt(old_length_ + i),
+        scratch);
+  }
+
+  // Read the hash.
+  if (old_length_ == 0) {
+    // The object might still have a hash, stored in properties_or_hash. If
+    // properties_or_hash is a SMI, then it's the hash. It can also be an empty
+    // PropertyArray.
+    __ LoadTaggedField(scratch, object, JSObject::kPropertiesOrHashOffset);
+
+    Label done;
+    __ JumpIfSmi(scratch, &done);
+
+    __ Move(scratch, PropertyArray::kNoHashSentinel);
+
+    __ bind(&done);
+    __ SmiUntag(scratch);
+    __ ShiftLeft(scratch, PropertyArray::HashField::kShift);
+  } else {
+    __ LoadTaggedField(scratch, old_property_array,
+                       PropertyArray::kLengthAndHashOffset);
+    __ SmiUntag(scratch);
+    __ AndInt32(scratch, PropertyArray::HashField::kMask);
+  }
+
+  // Add the new length and write the length-and-hash field.
+  static_assert(PropertyArray::LengthField::kShift == 0);
+  __ OrInt32(scratch, new_length);
+
+  __ UncheckedSmiTagInt32(scratch, scratch);
+  __ StoreTaggedFieldNoWriteBarrier(
+      new_property_array, PropertyArray::kLengthAndHashOffset, scratch);
+
+  {
+    RegisterSnapshot snapshot = register_snapshot();
+    // new_property_array needs to be live since we'll return it.
+    snapshot.live_registers.set(new_property_array);
+    snapshot.live_tagged_registers.set(new_property_array);
+
+    __ StoreTaggedFieldWithWriteBarrier(
+        object, JSObject::kPropertiesOrHashOffset, new_property_array, snapshot,
+        MaglevAssembler::kValueIsDecompressed,
+        MaglevAssembler::kValueCannotBeSmi);
+  }
+}
+
 int SetKeyedGeneric::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
   return D::GetStackParameterCount();
@@ -7141,6 +7241,11 @@ void BranchIfUint32Compare::PrintParams(
 void BranchIfTypeOf::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
+}
+
+void ExtendPropertiesBackingStore::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << old_length_ << ")";
 }
 
 // Keeping track of the effects this instruction has on known node aspects.

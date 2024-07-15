@@ -377,6 +377,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void IncrementInt32(Register reg);
   inline void DecrementInt32(Register reg);
   inline void AddInt32(Register reg, int amount);
+  inline void AndInt32(Register reg, int mask);
+  inline void OrInt32(Register reg, int mask);
   inline void ShiftLeft(Register reg, int amount);
   inline void IncrementAddress(Register reg, int32_t delta);
   inline void LoadAddress(Register dst, MemOperand location);

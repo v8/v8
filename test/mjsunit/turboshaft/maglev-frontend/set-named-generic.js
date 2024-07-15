@@ -5,14 +5,15 @@
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 
 function set_named_generic() {
-  let iterator = new Set().values();
-  iterator.x = 0;
-  return iterator;
+  function f() {}
+  f.prototype = undefined;
+  return f;
 }
 
 %PrepareFunctionForOptimization(set_named_generic);
 let before = set_named_generic();
+assertEquals(undefined, before.prototype);
 %OptimizeFunctionOnNextCall(set_named_generic);
 let after = set_named_generic();
-assertEquals(before, after);
+assertEquals(undefined, after.prototype);
 assertOptimized(set_named_generic);

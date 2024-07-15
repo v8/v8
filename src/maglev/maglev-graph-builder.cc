@@ -4392,18 +4392,37 @@ void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
   }
 }
 
+ValueNode* MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
+    compiler::MapRef map, ValueNode* receiver, ValueNode* property_array) {
+  int length = map.NextFreePropertyIndex() - map.GetInObjectProperties();
+  // Under normal circumstances, NextFreePropertyIndex() will always be larger
+  // than GetInObjectProperties(). However, an attacker able to corrupt heap
+  // memory can break this invariant, in which case we'll get confused here,
+  // potentially causing a sandbox violation. This CHECK defends against that.
+  SBXCHECK_GE(length, 0);
+  return AddNewNode<ExtendPropertiesBackingStore>({property_array, receiver},
+                                                  length);
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
     compiler::AccessMode access_mode) {
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
 
+  bool need_to_extend_properties_backing_store = false;
+  compiler::OptionalMapRef original_map;
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
-    compiler::MapRef original_map = transition.GetBackPointer(broker()).AsMap();
-    // TODO(verwaest): Support growing backing stores.
-    if (original_map.UnusedPropertyFields() == 0) {
-      return ReduceResult::Fail();
+    original_map = transition.GetBackPointer(broker()).AsMap();
+
+    if (original_map->UnusedPropertyFields() == 0) {
+      if (v8_flags.maglev_extend_properties_backing_store) {
+        DCHECK(!field_index.is_inobject());
+        need_to_extend_properties_backing_store = true;
+      } else {
+        return ReduceResult::Fail();
+      }
     }
     if (!field_index.is_inobject()) {
       // If slack tracking ends after this compilation started but before it's
@@ -4413,7 +4432,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
       // Map has actually zero UnusedPropertyFields. Thus, we install a
       // dependency on {orininal_map} now, so that if such a situation happens,
       // we'll throw away the code.
-      broker()->dependencies()->DependOnNoSlackTrackingChange(original_map);
+      broker()->dependencies()->DependOnNoSlackTrackingChange(*original_map);
     }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
@@ -4427,6 +4446,10 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     // The field is in the property array, first load it from there.
     store_target =
         BuildLoadTaggedField(receiver, JSReceiver::kPropertiesOrHashOffset);
+    if (need_to_extend_properties_backing_store) {
+      store_target = BuildExtendPropertiesBackingStore(*original_map, receiver,
+                                                       store_target);
+    }
   }
 
   if (field_representation.IsDouble()) {

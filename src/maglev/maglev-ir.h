@@ -179,6 +179,7 @@ class ExceptionHandlerInfo;
   V(CreateRegExpLiteral)                            \
   V(DeleteProperty)                                 \
   V(EnsureWritableFastElements)                     \
+  V(ExtendPropertiesBackingStore)                   \
   V(InlinedAllocation)                              \
   V(ForInPrepare)                                   \
   V(ForInNext)                                      \
@@ -6773,6 +6774,36 @@ class EnsureWritableFastElements
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ExtendPropertiesBackingStore
+    : public FixedInputValueNodeT<2, ExtendPropertiesBackingStore> {
+  using Base = FixedInputValueNodeT<2, ExtendPropertiesBackingStore>;
+
+ public:
+  explicit ExtendPropertiesBackingStore(uint64_t bitfield, int old_length)
+      : Base(bitfield), old_length_(old_length) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::CanRead() |
+      OpProperties::CanWrite() | OpProperties::DeferredCall() |
+      OpProperties::EagerDeopt() | OpProperties::NotIdempotent();
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  static constexpr int kPropertyArrayIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  Input& property_array_input() { return input(kPropertyArrayIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int old_length_;
 };
 
 class MaybeGrowFastElements
