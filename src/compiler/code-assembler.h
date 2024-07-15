@@ -71,6 +71,7 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
+class TurbofanCompilationJob;
 class Zone;
 #define MAKE_FORWARD_DECLARATION(Name) class Name;
 TORQUE_DEFINED_CLASS_LIST(MAKE_FORWARD_DECLARATION)
@@ -414,6 +415,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   static Handle<Code> GenerateCode(CodeAssemblerState* state,
                                    const AssemblerOptions& options,
                                    const ProfileDataFromFile* profile_data);
+
+  static void CompileCode(Isolate* isolate,
+                          std::unique_ptr<TurbofanCompilationJob> job,
+                          int& builtins_installed_count);
+
   bool Is64() const;
   bool Is32() const;
   bool IsFloat64RoundUpSupported() const;
@@ -574,6 +580,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
   }
+
+  void CanonicalizeEmbeddedBuiltinsConstantIfNeeded(Handle<HeapObject> object);
   TNode<HeapObject> UntypedHeapConstantNoHole(Handle<HeapObject> object);
   TNode<HeapObject> UntypedHeapConstantMaybeHole(Handle<HeapObject> object);
   TNode<HeapObject> UntypedHeapConstantHole(Handle<HeapObject> object);
@@ -1750,6 +1758,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerVariable;
   friend class CodeAssemblerTester;
   friend class CodeAssemblerParameterizedLabelBase;
+  friend class CodeAssemblerCompilationJob;
   friend class ScopedExceptionHandler;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
