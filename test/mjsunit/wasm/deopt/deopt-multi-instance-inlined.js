@@ -9,7 +9,7 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-(function TestWithMultipleFrames() {
+(function TestMultipleModulesUninlineableTargets() {
   const builder = new WasmModuleBuilder();
   let calleeSig = builder.addType(makeSig([], [kWasmI32]));
   let mainSig = builder.addType(makeSig([wasmRefType(calleeSig)], [kWasmI32]));
@@ -45,14 +45,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTrue(%IsTurboFanFunction(instance2.exports.main));
   assertEquals(84, instance2.exports.main(instance.exports.callee_0));
   assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  // Run it one more time, so that the call count to inlinee is > 0 for
+  // instance2 as otherwise the feedback doesn't get updated.
+  assertEquals(84, instance2.exports.main(instance.exports.callee_0));
   %WasmTierUpFunction(instance2.exports.main);
   assertEquals(84, instance2.exports.main(instance.exports.callee_0));
-  // TODO(mliedtke): Right now there isn't any feedback collection to indicate
-  // that the callee was non-inlineable causing deopt loops...
-  assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  assertTrue(%IsTurboFanFunction(instance2.exports.main));
 })();
 
-(function TestWithRecursiveFrames() {
+(function TestMultipleModulesUninlineableTargetsRecursiveFrames() {
   const builder = new WasmModuleBuilder();
   let calleeSig = builder.addType(makeSig([], [kWasmI32]));
   let mainSig =

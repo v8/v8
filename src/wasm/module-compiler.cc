@@ -1431,6 +1431,11 @@ class FeedbackMaker {
     cache_usage_++;
   }
 
+  bool HasTargetCached(int target) {
+    auto end = targets_cache_ + cache_usage_;
+    return std::find(targets_cache_, end, target) != end;
+  }
+
   void FinalizeCall() {
     if (cache_usage_ == 0) {
       result_.emplace_back();
@@ -1457,6 +1462,8 @@ class FeedbackMaker {
     has_non_inlineable_targets_ = false;
     cache_usage_ = 0;
   }
+
+  void set_has_non_inlineable_targets() { has_non_inlineable_targets_ = true; }
 
   // {GetResult} can only be called on a r-value reference to make it more
   // obvious at call sites that {this} should not be used after this operation.
@@ -1568,6 +1575,38 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
     } else {
       UNREACHABLE();
     }
+
+    if (v8_flags.wasm_deopt &&
+        first_slot != ReadOnlyRoots{isolate_}.megamorphic_symbol()) {
+      // If we already had feedback for this call, also add the already existing
+      // feedback to prevent deopt loops where two different instantiations
+      // (which have their own on-heap feedback vector) to "flip-flop" between
+      // their inlining decisions potentially causing deopt loops.
+      const std::vector<CallSiteFeedback>& existing =
+          feedback_for_function_[func_index].feedback_vector;
+      size_t feedback_index = i / 2;
+      if (feedback_index < existing.size()) {
+        const CallSiteFeedback& old_feedback = existing[feedback_index];
+        if (old_feedback.has_non_inlineable_targets()) {
+          fm.set_has_non_inlineable_targets();
+        }
+        for (int i = 0; i < old_feedback.num_cases(); ++i) {
+          int old_target_function_index = old_feedback.function_index(i);
+          // If the new feedback already contains the target, we do not touch
+          // the call count.
+          if (!fm.HasTargetCached(old_target_function_index)) {
+            fm.AddCall(old_target_function_index, old_feedback.call_count(i));
+            // There shouldn't be any imported functions in there as they can't
+            // be inlined. If this DCHECK is invalidated,
+            // has_non_inlineable_targets_ would need to be updated here to
+            // reflect that.
+            DCHECK_GE(static_cast<uint32_t>(old_target_function_index),
+                      instance_data_->module()->num_imported_functions);
+          }
+        }
+      }
+    }
+
     fm.FinalizeCall();
   }
   std::vector<CallSiteFeedback> result = std::move(fm).GetResult();
