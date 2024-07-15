@@ -249,13 +249,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
-  // 1 bit of information that, paired with a bit from the script, allows us to
-  // identify whether the scope info still belongs to the script, or already to
-  // a parent. Once a scope info belongs to a parent, the bit may match up again
-  // with the bit of this script once we reach the parent of a parent (in case
-  // of nested eval).
-  bool EvalState() const;
-
 #ifdef DEBUG
   // For LiveEdit we ignore:
   //   - position info: "unchanged" functions are allowed to move in a script

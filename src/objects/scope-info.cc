@@ -248,7 +248,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
-        EvalStateBit::encode(scope->eval_state()) |
         HasLocalsBlockListBit::encode(false);
     scope_info->set_flags(flags);
 
@@ -450,7 +449,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(true) | EvalStateBit::encode(false) |
+      HasContextExtensionSlotBit::encode(true) |
       HasLocalsBlockListBit::encode(false);
   scope_info->set_flags(flags);
 
@@ -467,8 +466,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   if (has_outer_scope_info) {
     Tagged<ScopeInfo> outer = *outer_scope.ToHandleChecked();
     scope_info->set(index++, outer);
-    scope_info->set_flags(
-        EvalStateBit::update(scope_info->flags(), !outer->EvalState()));
   }
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
@@ -546,7 +543,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context ||
                                          has_const_tracking_let_side_data) |
-      EvalStateBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -828,8 +825,6 @@ bool ScopeInfo::IsReplModeScope() const {
 bool ScopeInfo::HasLocalsBlockList() const {
   return HasLocalsBlockListBit::decode(Flags());
 }
-
-bool ScopeInfo::EvalState() const { return EvalStateBit::decode(Flags()); }
 
 Tagged<StringSet> ScopeInfo::LocalsBlockList() const {
   DCHECK(HasLocalsBlockList());

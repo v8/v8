@@ -386,7 +386,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool has_await_using_declaration() const {
     return has_await_using_declaration_;
   }
-  bool eval_state() const { return eval_state_; }
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsAsmModule() const;
@@ -741,7 +740,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
-    inner_scope->eval_state_ = eval_state_;
   }
 
   void SetDefaults();
@@ -828,8 +826,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool must_use_preparsed_scope_data_ : 1;
 
-  bool eval_state_ : 1;
-
   // True if this is a deserialized scope which caches its lookups on another
   // Scope's variable map. This will be true for every scope above the first
   // non-eval declaration scope above the compilation entry point, e.g. for
@@ -888,8 +884,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
   }
-
-  void set_eval_state();
 
   // Inform the scope and outer scopes that the corresponding code contains an
   // eval call.

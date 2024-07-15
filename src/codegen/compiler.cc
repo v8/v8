@@ -2024,10 +2024,8 @@ class ConstantPoolPointerForwarder {
     Tagged<SharedFunctionInfo> old_sfi =
         Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak());
     if (!old_sfi->HasOuterScopeInfo()) return;
-    bool eval_state = old_sfi->scope_info()->EvalState();
     Tagged<ScopeInfo> scope_info = old_sfi->GetOuterScopeInfo();
     while (true) {
-      CHECK_EQ(scope_info->EvalState(), eval_state);
       if (scope_infos_to_update_.find(scope_info->StartPosition()) !=
           scope_infos_to_update_.end()) {
         return;

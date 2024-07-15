@@ -801,10 +801,7 @@ class ParserBase {
   }
 
   DeclarationScope* NewEvalScope(Scope* parent) const {
-    DeclarationScope* result =
-        zone()->template New<DeclarationScope>(zone(), parent, EVAL_SCOPE);
-    result->set_eval_state();
-    return result;
+    return zone()->template New<DeclarationScope>(zone(), parent, EVAL_SCOPE);
   }
 
   ClassScope* NewClassScope(Scope* parent, bool is_anonymous) const {

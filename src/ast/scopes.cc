@@ -329,7 +329,6 @@ void DeclarationScope::SetDefaults() {
   is_skipped_function_ = false;
   preparse_data_builder_ = nullptr;
   class_scope_has_private_brand_ = false;
-  eval_state_ = false;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -354,7 +353,6 @@ void Scope::SetDefaults() {
 
   calls_eval_ = false;
   sloppy_eval_can_extend_vars_ = false;
-  eval_state_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;
@@ -556,16 +554,6 @@ DeclarationScope* Scope::AsDeclarationScope() {
 const DeclarationScope* Scope::AsDeclarationScope() const {
   SBXCHECK(is_declaration_scope());
   return static_cast<const DeclarationScope*>(this);
-}
-
-void DeclarationScope::set_eval_state() {
-  DCHECK(is_eval_scope());
-  if (outer_scope_->scope_info_.is_null()) {
-    CHECK(outer_scope_->is_script_scope());
-    eval_state_ = true;
-  } else {
-    eval_state_ = !outer_scope_->scope_info()->EvalState();
-  }
 }
 
 ModuleScope* Scope::AsModuleScope() {
@@ -2813,6 +2801,10 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
   Tagged<WeakFixedArray> infos = script->shared_function_infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
   if (v8_flags.reuse_scope_infos && infos->length() != 0) {
+    Tagged<SharedFunctionInfo> sfi = *info->literal()->shared_function_info();
+    Tagged<ScopeInfo> outer = sfi->HasOuterScopeInfo()
+                                  ? sfi->GetOuterScopeInfo()
+                                  : Tagged<ScopeInfo>();
     // Look at all the existing inner functions (they are numbered id+1 until
     // max_id+1) to reattach their outer scope infos to corresponding scopes.
     for (int i = info->literal()->function_literal_id() + 1;
@@ -2826,8 +2818,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
         if (!sfi->HasOuterScopeInfo()) continue;
         Tagged<ScopeInfo> scope_info = sfi->GetOuterScopeInfo();
         while (true) {
-          if (scope_info->EvalState() != scope->eval_state()) break;
-          if (scope_info->StartPosition() < scope->start_position()) break;
+          if (scope_info == outer) break;
           int id = scope_info->UniqueIdInScript();
           auto it = scope_infos_to_reuse.find(id);
           if (it != scope_infos_to_reuse.end()) {
