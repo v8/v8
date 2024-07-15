@@ -3614,22 +3614,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination) : ip;
       switch (src.type()) {
         case Constant::kInt32:
-#if V8_ENABLE_WEBASSEMBLY && !V8_TARGET_ARCH_PPC64
-          if (RelocInfo::IsWasmReference(src.rmode())) {
-            __ mov(dst, Operand(src.ToInt32(), src.rmode()));
-            break;
-          }
-#endif  // V8_ENABLE_WEBASSEMBLY && !V8_TARGET_ARCH_PPC64
-          __ mov(dst, Operand(src.ToInt32()));
+          __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           break;
         case Constant::kInt64:
-#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_PPC64
-          if (RelocInfo::IsWasmReference(src.rmode())) {
-            __ mov(dst, Operand(src.ToInt64(), src.rmode()));
-            break;
-          }
-#endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_PPC64
-          __ mov(dst, Operand(src.ToInt64()));
+          __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           break;
         case Constant::kFloat32:
           __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));

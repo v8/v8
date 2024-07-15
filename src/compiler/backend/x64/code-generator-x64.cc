@@ -153,10 +153,7 @@ class X64OperandConverter : public InstructionOperandConverter {
       DCHECK_EQ(0, constant.ToFloat64().AsUint64());
       return Immediate(0);
     }
-    if (RelocInfo::IsWasmReference(constant.rmode())) {
-      return Immediate(constant.ToInt32(), constant.rmode());
-    }
-    return Immediate(constant.ToInt32());
+    return Immediate(constant.ToInt32(), constant.rmode());
   }
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
@@ -7629,7 +7626,7 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
     X64OperandConverter g(this, nullptr);
     Constant src = g.ToConstant(&move->source());
     if (move->destination().IsStackSlot() &&
-        (RelocInfo::IsWasmReference(src.rmode()) ||
+        (!RelocInfo::IsNoInfo(src.rmode()) ||
          (src.type() != Constant::kInt32 && src.type() != Constant::kInt64))) {
       move_cycle_.pending_scratch_register_use = true;
     }
@@ -7675,23 +7672,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     switch (src.type()) {
       case Constant::kInt32: {
-        if (RelocInfo::IsWasmReference(src.rmode())) {
-          __ movq(dst, Immediate64(src.ToInt64(), src.rmode()));
+        int32_t value = src.ToInt32();
+        if (value == 0 && RelocInfo::IsNoInfo(src.rmode())) {
+          __ xorl(dst, dst);
         } else {
-          int32_t value = src.ToInt32();
-          if (value == 0) {
-            __ xorl(dst, dst);
-          } else {
-            __ movl(dst, Immediate(value));
-          }
+          __ movl(dst, Immediate(value, src.rmode()));
         }
         break;
       }
       case Constant::kInt64:
-        if (RelocInfo::IsWasmReference(src.rmode())) {
-          __ movq(dst, Immediate64(src.ToInt64(), src.rmode()));
-        } else {
+        if (RelocInfo::IsNoInfo(src.rmode())) {
           __ Move(dst, src.ToInt64());
+        } else {
+          __ movq(dst, Immediate64(src.ToInt64(), src.rmode()));
         }
         break;
       case Constant::kFloat32:
@@ -7729,7 +7722,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   };
   // Helper function to write the given constant to the stack.
   auto MoveConstantToSlot = [&](Operand dst, Constant src) {
-    if (!RelocInfo::IsWasmReference(src.rmode())) {
+    if (RelocInfo::IsNoInfo(src.rmode())) {
       switch (src.type()) {
         case Constant::kInt32:
           __ Move(dst, src.ToInt32());

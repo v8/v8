@@ -215,11 +215,6 @@ class RelocInfo {
   static constexpr bool IsWasmCanonicalSigId(Mode mode) {
     return mode == WASM_CANONICAL_SIG_ID;
   }
-  // Code generators use {IsWasmReference} to determine whether to materialize a
-  // constant as relocatable int32 constant.
-  static constexpr bool IsWasmReference(Mode mode) {
-    return mode == WASM_CALL || mode == WASM_CANONICAL_SIG_ID;
-  }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
   static constexpr bool IsDeoptPosition(Mode mode) {

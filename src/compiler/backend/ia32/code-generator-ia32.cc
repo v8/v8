@@ -68,16 +68,9 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
-#if V8_ENABLE_WEBASSEMBLY
-    if (constant.type() == Constant::kInt32 &&
-        RelocInfo::IsWasmReference(constant.rmode())) {
-      return Immediate(static_cast<Address>(constant.ToInt32()),
-                       constant.rmode());
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
     switch (constant.type()) {
       case Constant::kInt32:
-        return Immediate(constant.ToInt32());
+        return Immediate(constant.ToInt32(), constant.rmode());
       case Constant::kFloat32:
         return Immediate::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:

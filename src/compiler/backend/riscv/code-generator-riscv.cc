@@ -4737,26 +4737,22 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-          if (RelocInfo::IsWasmReference(src.rmode())) {
-            __ li(dst, Operand(src.ToInt32(), src.rmode()));
-          } else if (src.ToInt32() == 0 && destination->IsStackSlot()) {
+          if (src.ToInt32() == 0 && destination->IsStackSlot() &&
+              RelocInfo::IsNoInfo(src.rmode())) {
             dst = zero_reg;
           } else {
-            __ li(dst, Operand(src.ToInt32()));
+            __ li(dst, Operand(src.ToInt32(), src.rmode()));
           }
           break;
         case Constant::kFloat32:
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kInt64:
-          if (RelocInfo::IsWasmReference(src.rmode())) {
-            __ li(dst, Operand(src.ToInt64(), src.rmode()));
+          if (src.ToInt64() == 0 && destination->IsStackSlot() &&
+              RelocInfo::IsNoInfo(src.rmode())) {
+            dst = zero_reg;
           } else {
-            if (src.ToInt64() == 0 && destination->IsStackSlot()) {
-              dst = zero_reg;
-            } else {
-              __ li(dst, Operand(src.ToInt64()));
-            }
+            __ li(dst, Operand(src.ToInt64(), src.rmode()));
           }
           break;
         case Constant::kFloat64:
@@ -4788,8 +4784,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers
       }
-      if (destination->IsStackSlot())
+      if (destination->IsStackSlot()) {
         __ StoreWord(dst, g.ToMemOperand(destination));
+      }
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
