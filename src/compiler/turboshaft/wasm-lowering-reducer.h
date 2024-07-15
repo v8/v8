@@ -745,13 +745,12 @@ class WasmLoweringReducer : public Next {
       // supertype array.
       if (static_cast<uint32_t>(rtt_depth) >=
           wasm::kMinimumSupertypeArraySize) {
-        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
+        V<Word32> supertypes_length = __ UntagSmi(
             __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                     MemoryRepresentation::TaggedSigned(),
                     WasmTypeInfo::kSupertypesLengthOffset));
-        __ TrapIfNot(
-            __ UintPtrLessThan(__ IntPtrConstant(rtt_depth), supertypes_length),
-            TrapId::kTrapIllegalCast);
+        __ TrapIfNot(__ Uint32LessThan(rtt_depth, supertypes_length),
+                     TrapId::kTrapIllegalCast);
       }
 
       V<Object> maybe_match =
@@ -815,14 +814,11 @@ class WasmLoweringReducer : public Next {
       // supertype array.
       if (static_cast<uint32_t>(rtt_depth) >=
           wasm::kMinimumSupertypeArraySize) {
-        // TODO(mliedtke): Why do we convert to word size and not just do a 32
-        // bit operation? (The same applies for WasmTypeCast below.)
-        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
+        V<Word32> supertypes_length = __ UntagSmi(
             __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                     MemoryRepresentation::TaggedSigned(),
                     WasmTypeInfo::kSupertypesLengthOffset));
-        GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(__ IntPtrConstant(rtt_depth),
-                                              supertypes_length)),
+        GOTO_IF_NOT(LIKELY(__ Uint32LessThan(rtt_depth, supertypes_length)),
                     end_label, __ Word32Constant(0));
       }
 
@@ -943,10 +939,6 @@ class WasmLoweringReducer : public Next {
                    MemoryRepresentation::TaggedPointer(),
                    IsolateData::root_slot_offset(index));
 #endif
-  }
-
-  V<WordPtr> ChangeSmiToWordPtr(V<Smi> smi) {
-    return __ ChangeInt32ToIntPtr(__ UntagSmi(smi));
   }
 
   V<Word32> IsDataRefMap(V<Map> map) {
