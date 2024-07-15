@@ -2159,6 +2159,8 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
+    // Deopt if {left} is not a Smi.
+    RETURN_VOID_IF_ABORT(BuildCheckSmi(left));
     // If the constant is the unit of the operation, it already has the right
     // value, so just return.
     return;
