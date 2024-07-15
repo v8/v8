@@ -9,6 +9,9 @@
 d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
+// Test case for deopt tracing. Note that there is a 32 bit and a 64 bit variant
+// of this test case. Please keep them in sync.
+
 (function TestDeoptTracing() {
   var builder = new WasmModuleBuilder();
   let funcRefT = builder.addType(kSig_i_ii);

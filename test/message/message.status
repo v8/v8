@@ -134,9 +134,12 @@
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################
-['arch != x64', {
-  # TODO(42204618): Missing support for wasm deopts on other platforms.
-  'wasm-trace-deopt': [SKIP],
+# On 32 bit platforms we have int64 lowering.
+['(arch != x64 and arch != arm64) or no_simd_hardware', {
+  'wasm-trace-deopt-64': [SKIP],
+}],
+['(arch != ia32 and arch != arm) or no_simd_hardware', {
+  'wasm-trace-deopt-32': [SKIP],
 }],
 
 ##############################################################################
