@@ -262,6 +262,7 @@ RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
       return RegisterRepresentation::Word32();
     case kI64:
       return RegisterRepresentation::Word64();
+    case kF16:
     case kF32:
       return RegisterRepresentation::Float32();
     case kF64:
@@ -1145,6 +1146,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         break;
       case kI8:
       case kI16:
+      case kF16:
       case kRtt:
       case kVoid:
       case kBottom:
@@ -3430,6 +3432,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         case kI8:
         case kI16:
+        case kF16:
         case kVoid:
         case kBottom:
           UNREACHABLE();
@@ -4305,6 +4308,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         case wasm::kI16:
           array_copy_max_loop_length = 20;
           break;
+        case wasm::kF16:  // TODO(irezvov): verify the threshold for F16.
         case wasm::kF32:
         case wasm::kF64:
           array_copy_max_loop_length = 35;
@@ -5663,6 +5667,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         return __ Word32Constant(int32_t{0});
       case kI64:
         return __ Word64Constant(int64_t{0});
+      case kF16:
       case kF32:
         return __ Float32Constant(0.0f);
       case kF64:
@@ -7640,6 +7645,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           break;
         case kI8:
         case kI16:
+        case kF16:
         case kVoid:
         case kBottom:
           UNREACHABLE();
@@ -7882,6 +7888,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case wasm::kRef:
         value_int64 = kTaggedSize == 4 ? __ ChangeInt32ToInt64(value) : value;
         break;
+      case wasm::kF16:
+        UNIMPLEMENTED();
       case wasm::kRtt:
       case wasm::kVoid:
       case wasm::kBottom:

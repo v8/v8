@@ -3090,6 +3090,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
       case MachineRepresentation::kWord64:
+      case MachineRepresentation::kFloat16:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kSimd128:
       case MachineRepresentation::kSimd256:

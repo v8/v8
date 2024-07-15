@@ -197,6 +197,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
       return WasmValue(0);
     case kI64:
       return WasmValue(int64_t{0});
+    case kF16:
     case kF32:
       return WasmValue(0.0f);
     case kF64:

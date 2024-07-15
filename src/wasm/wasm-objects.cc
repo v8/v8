@@ -1847,6 +1847,9 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     CASE_TYPE(kI16, int16_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
+    case wasm::kF16:
+      return wasm::WasmValue(fp16_ieee_to_fp32_value(
+          base::ReadUnalignedValue<uint16_t>(field_address)));
     case wasm::kRef:
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
@@ -1873,6 +1876,9 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     CASE_TYPE(kI16, int16_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
+    case wasm::kF16:
+      return wasm::WasmValue(fp16_ieee_to_fp32_value(
+          base::ReadUnalignedValue<uint16_t>(element_address)));
     case wasm::kRef:
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
@@ -2244,6 +2250,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
       case wasm::kBottom:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
         UNREACHABLE();
     }
   }

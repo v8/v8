@@ -5120,6 +5120,7 @@ class LiftoffCompiler {
       }
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
@@ -5176,6 +5177,7 @@ class LiftoffCompiler {
       }
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
@@ -8793,6 +8795,7 @@ class LiftoffCompiler {
         return __ LoadConstant(reg, WasmValue(int32_t{0}));
       case kI64:
         return __ LoadConstant(reg, WasmValue(int64_t{0}));
+      case kF16:
       case kF32:
         return __ LoadConstant(reg, WasmValue(float{0.0}));
       case kF64:

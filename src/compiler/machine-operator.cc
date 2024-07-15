@@ -879,6 +879,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Int64MulWithOverflow, Operator::kAssociative | Operator::kCommutative)
 
 #define MACHINE_TYPE_LIST(V) \
+  V(Float16)                 \
   V(Float32)                 \
   V(Float64)                 \
   V(Simd128)                 \
@@ -902,6 +903,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Simd256)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
+  V(kFloat16)                          \
   V(kFloat32)                          \
   V(kFloat64)                          \
   V(kSimd128)                          \

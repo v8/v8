@@ -385,6 +385,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kVoidCode:
     case kI8Code:
     case kI16Code:
+    case kF16Code:
       // Fall through to the error reporting below.
       break;
   }

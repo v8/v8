@@ -1649,6 +1649,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
+      case i::wasm::kF16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
@@ -1688,6 +1689,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
+      case i::wasm::kF16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
@@ -1979,6 +1981,7 @@ auto Global::get() const -> Val {
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
+    case i::wasm::kF16:
     case i::wasm::kVoid:
     case i::wasm::kBottom:
       UNREACHABLE();

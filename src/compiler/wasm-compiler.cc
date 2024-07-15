@@ -2318,6 +2318,7 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
         break;
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
@@ -2463,6 +2464,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         break;
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
@@ -5489,6 +5491,7 @@ Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
       return Int32Constant(0);
     case wasm::kI64:
       return Int64Constant(0);
+    case wasm::kF16:
     case wasm::kF32:
       return Float32Constant(0);
     case wasm::kF64:
@@ -5995,6 +5998,7 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
     case wasm::kI16:
       array_copy_max_loop_length = 20;
       break;
+    case wasm::kF16:
     case wasm::kF32:
     case wasm::kF64:
       array_copy_max_loop_length = 35;
@@ -6109,6 +6113,8 @@ Node* WasmGraphBuilder::StoreInInt64StackSlot(Node* value,
                               mcgraph()->machine()->ChangeInt32ToInt64(), value)
                         : value;
       break;
+    case wasm::kF16:
+      UNIMPLEMENTED();
     case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:
@@ -7313,6 +7319,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRtt:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kS128:
       case wasm::kVoid:
       case wasm::kBottom:
@@ -7444,6 +7451,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
@@ -7499,6 +7507,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();
@@ -7622,6 +7631,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         case wasm::kS128:
         case wasm::kI8:
         case wasm::kI16:
+        case wasm::kF16:
         case wasm::kBottom:
         case wasm::kVoid:
           return false;
@@ -7672,6 +7682,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();

@@ -38,7 +38,8 @@ namespace wasm {
   V(F64, 3, F64, Float64, 'd', "f64")    \
   V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
-  V(I16, 1, I16, Int16, 'h', "i16")
+  V(I16, 1, I16, Int16, 'h', "i16")      \
+  V(F16, 1, F16, Float16, 'p', "f16")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
@@ -525,9 +526,11 @@ constexpr MachineType machine_type(ValueKind kind) {
   return kMachineType[kind];
 }
 
-constexpr bool is_packed(ValueKind kind) { return kind == kI8 || kind == kI16; }
+constexpr bool is_packed(ValueKind kind) {
+  return kind == kI8 || kind == kI16 || kind == kF16;
+}
 constexpr ValueKind unpacked(ValueKind kind) {
-  return is_packed(kind) ? kI32 : kind;
+  return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
 }
 
 constexpr bool is_rtt(ValueKind kind) { return kind == kRtt; }
@@ -550,7 +553,7 @@ class ValueType {
   /******************************* Constructors *******************************/
   constexpr ValueType() : bit_field_(KindField::encode(kVoid)) {}
   static constexpr ValueType Primitive(ValueKind kind) {
-    DCHECK(kind == kBottom || kind <= kI16);
+    DCHECK(kind == kBottom || kind <= kF16);
     return ValueType(KindField::encode(kind));
   }
   static constexpr ValueType Ref(uint32_t heap_type) {
@@ -928,6 +931,7 @@ constexpr ValueType kWasmF64 = ValueType::Primitive(kF64);
 constexpr ValueType kWasmS128 = ValueType::Primitive(kS128);
 constexpr ValueType kWasmI8 = ValueType::Primitive(kI8);
 constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
+constexpr ValueType kWasmF16 = ValueType::Primitive(kF16);
 constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type and wasm-gc proposal shorthands.
@@ -983,6 +987,7 @@ using FunctionSig = Signature<ValueType>;
   V(I64, 16U, Uint16)        \
   V(I64, 32S, Int32)         \
   V(I64, 32U, Uint32)        \
+  V(F32, F16, Float16)       \
   V(F32, , Float32)          \
   V(F64, , Float64)          \
   V(S128, , Simd128)
@@ -1021,6 +1026,8 @@ class LoadType {
         return is_signed ? kI32Load8S : kI32Load8U;
       case kI16:
         return is_signed ? kI32Load16S : kI32Load16U;
+      case kF16:
+        return kF32LoadF16;
       default:
         UNREACHABLE();
     }
@@ -1068,6 +1075,7 @@ class LoadType {
   V(I64, 8, Word8)            \
   V(I64, 16, Word16)          \
   V(I64, 32, Word32)          \
+  V(F32, F16, Float16)        \
   V(F32, , Float32)           \
   V(F64, , Float64)           \
   V(S128, , Simd128)
@@ -1106,6 +1114,8 @@ class StoreType {
         return kI32Store8;
       case kI16:
         return kI32Store16;
+      case kF16:
+        return kF32StoreF16;
       default:
         UNREACHABLE();
     }

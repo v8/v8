@@ -1042,6 +1042,7 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kProtectedPointer:
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
+      case MachineRepresentation::kFloat16:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:

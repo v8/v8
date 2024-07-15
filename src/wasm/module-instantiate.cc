@@ -2196,6 +2196,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     case kRtt:
     case kI8:
     case kI16:
+    case kF16:
       UNREACHABLE();
   }
 

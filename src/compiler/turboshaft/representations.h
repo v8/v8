@@ -287,6 +287,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
         return Compressed();
+      case MachineRepresentation::kFloat16:
       case MachineRepresentation::kFloat32:
         return Float32();
       case MachineRepresentation::kFloat64:
@@ -500,6 +501,7 @@ class MemoryRepresentation {
     kUint32,
     kInt64,
     kUint64,
+    kFloat16,
     kFloat32,
     kFloat64,
     kAnyTagged,
@@ -555,6 +557,9 @@ class MemoryRepresentation {
       return Uint32();
     }
   }
+  static constexpr MemoryRepresentation Float16() {
+    return MemoryRepresentation(Enum::kFloat16);
+  }
   static constexpr MemoryRepresentation Float32() {
     return MemoryRepresentation(Enum::kFloat32);
   }
@@ -601,6 +606,7 @@ class MemoryRepresentation {
       case Uint32():
       case Uint64():
         return false;
+      case Float16():
       case Float32():
       case Float64():
       case AnyTagged():
@@ -634,6 +640,7 @@ class MemoryRepresentation {
       case Uint16():
       case Uint32():
       case Uint64():
+      case Float16():
       case Float32():
       case Float64():
       case UncompressedTaggedPointer():
@@ -658,6 +665,7 @@ class MemoryRepresentation {
       case Int64():
       case Uint64():
         return RegisterRepresentation::Word64();
+      case Float16():
       case Float32():
         return RegisterRepresentation::Float32();
       case Float64():
@@ -731,6 +739,7 @@ class MemoryRepresentation {
         return MachineType::Int64();
       case Uint64():
         return MachineType::Uint64();
+      case Float16():
       case Float32():
         return MachineType::Float32();
       case Float64():
@@ -780,6 +789,8 @@ class MemoryRepresentation {
         return IndirectPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
+      case MachineRepresentation::kFloat16:
+        return Float16();
       case MachineRepresentation::kFloat32:
         return Float32();
       case MachineRepresentation::kFloat64:
@@ -815,6 +826,8 @@ class MemoryRepresentation {
         return TaggedPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
+      case MachineRepresentation::kFloat16:
+        return Float16();
       case MachineRepresentation::kFloat32:
         return Float32();
       case MachineRepresentation::kFloat64:
@@ -847,6 +860,7 @@ class MemoryRepresentation {
         return 0;
       case Int16():
       case Uint16():
+      case Float16():
         return 1;
       case Int32():
       case Uint32():

@@ -261,6 +261,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kWord64:
           os << "|w64";
           break;
+        case MachineRepresentation::kFloat16:
+          os << "|f16";
+          break;
         case MachineRepresentation::kFloat32:
           os << "|f32";
           break;
@@ -1036,6 +1039,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
+    case MachineRepresentation::kFloat16:
       return InstructionSequence::DefaultRepresentation();
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:

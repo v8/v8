@@ -25,6 +25,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects-inl.h"
@@ -511,6 +512,12 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
     previous_value = value;
   }
 }
+
+struct Fp16Printer {
+  uint16_t val;
+  Fp16Printer(float f) : val(fp16_ieee_from_fp32_value(f)) {}
+  operator float() const { return fp16_ieee_to_fp32_value(val); }
+};
 
 template <typename ElementType>
 void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
@@ -2405,6 +2412,10 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;
+      case wasm::kF16:
+        os << fp16_ieee_to_fp32_value(
+            base::ReadUnalignedValue<uint16_t>(field_address));
+        break;
       case wasm::kF32:
         os << base::ReadUnalignedValue<float>(field_address);
         break;
@@ -2463,6 +2474,10 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
       break;
     case wasm::kI64:
       PrintTypedArrayElements(os, reinterpret_cast<int64_t*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::kF16:
+      PrintTypedArrayElements(os, reinterpret_cast<Fp16Printer*>(data_ptr), len,
                               true);
       break;
     case wasm::kF32:

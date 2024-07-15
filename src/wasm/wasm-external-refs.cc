@@ -593,6 +593,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       base[0] = base[1] = static_cast<int32_t>(initial_value);
       break;
     }
+    case kF16:
     case kI16: {
       int16_t* base = reinterpret_cast<int16_t*>(initial_element_address);
       base[0] = base[1] = base[2] = base[3] =

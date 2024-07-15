@@ -315,6 +315,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kRtt:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kS128:
       case wasm::kVoid:
       case wasm::kBottom:
@@ -833,6 +834,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();
@@ -1009,6 +1011,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
@@ -1028,6 +1031,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         case wasm::kS128:
         case wasm::kI8:
         case wasm::kI16:
+        case wasm::kF16:
         case wasm::kBottom:
         case wasm::kVoid:
           return false;
@@ -1089,6 +1093,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kF16:
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();

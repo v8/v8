@@ -2191,6 +2191,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
       case wasm::kI16:
       case wasm::kI32:
       case wasm::kI64:
+      case wasm::kF16:
       case wasm::kF32:
       case wasm::kF64:
       case wasm::kS128: {

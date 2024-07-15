@@ -14,6 +14,7 @@
 #include "src/handles/handles.h"
 #include "src/utils/boxed-float.h"
 #include "src/wasm/value-type.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +32,7 @@ namespace wasm {
   V(u32, kWasmI32, uint32_t)              \
   V(i64, kWasmI64, int64_t)               \
   V(u64, kWasmI64, uint64_t)              \
+  V(f16, kWasmF16, uint16_t)              \
   V(f32, kWasmF32, float)                 \
   V(f32_boxed, kWasmF32, Float32)         \
   V(f64, kWasmF64, double)                \
@@ -136,6 +138,8 @@ class WasmValue {
         return std::to_string(to_i32());
       case kI64:
         return std::to_string(to_i64());
+      case kF16:
+        return std::to_string(fp16_ieee_to_fp32_value(to_f16()));
       case kF32:
         return std::to_string(to_f32());
       case kF64:

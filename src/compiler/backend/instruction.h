@@ -582,6 +582,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
+      case MachineRepresentation::kFloat16:
       case MachineRepresentation::kNone:
         return false;
       case MachineRepresentation::kMapWord:
@@ -1829,6 +1830,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   int representation_mask() const { return representation_mask_; }
   bool HasFPVirtualRegisters() const {
     constexpr int kFPRepMask =
+        RepresentationBit(MachineRepresentation::kFloat16) |
         RepresentationBit(MachineRepresentation::kFloat32) |
         RepresentationBit(MachineRepresentation::kFloat64) |
         RepresentationBit(MachineRepresentation::kSimd128) |

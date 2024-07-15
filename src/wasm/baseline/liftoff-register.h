@@ -59,6 +59,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
   constexpr auto kRegClasses =
       base::make_array<kNumValueKinds>([](std::size_t kind) {
         switch (kind) {
+          case kF16:
           case kF32:
           case kF64:
             return kFpReg;

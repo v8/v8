@@ -1060,6 +1060,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd256:  // Fall through.
       opcode = kX64Movdqu256;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
@@ -1102,6 +1104,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movdqu;
     case MachineRepresentation::kSimd256:
       return kX64Movdqu256;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
       // We never store directly to protected pointers from generated code.

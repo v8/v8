@@ -224,6 +224,7 @@ class WasmInitExpr : public ZoneObject {
         return WasmInitExpr(int32_t{0});
       case kI64:
         return WasmInitExpr(int64_t{0});
+      case kF16:
       case kF32:
         return WasmInitExpr(0.0f);
       case kF64:

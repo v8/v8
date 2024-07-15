@@ -27,6 +27,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -536,6 +537,10 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate,
     case wasm::kI64: {
       int64_t value = base::ReadUnalignedValue<int64_t>(field_address);
       return BigInt::FromInt64(isolate, value);
+    }
+    case wasm::kF16: {
+      uint16_t value = base::Memory<uint16_t>(field_address);
+      return isolate->factory()->NewNumber(fp16_ieee_to_fp32_value(value));
     }
     case wasm::kF32: {
       float value = base::Memory<float>(field_address);

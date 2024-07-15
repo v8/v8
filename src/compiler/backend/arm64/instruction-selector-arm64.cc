@@ -1255,6 +1255,8 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       opcode = kArm64StrQ;
       immediate_mode = kNoImmediate;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kMapWord:
       // We never store directly to protected pointers from generated code.
@@ -1772,6 +1774,8 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
       opcode = kArm64LdrQ;
       immediate_mode = kNoImmediate;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.

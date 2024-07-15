@@ -999,6 +999,8 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kSimd128:
       opcode = kArmVld1S128;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
@@ -1041,6 +1043,8 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kArmStr;
     case MachineRepresentation::kSimd128:
       return kArmVst1S128;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.

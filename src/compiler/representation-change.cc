@@ -220,6 +220,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetTaggedRepresentationFor(node, output_rep, output_type,
                                         use_info.truncation());
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,

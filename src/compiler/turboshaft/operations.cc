@@ -1481,6 +1481,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
       return kWord32;
     case wasm::kI64:
       return kWord64;
+    case wasm::kF16:
     case wasm::kF32:
       return kFloat32;
     case wasm::kF64:

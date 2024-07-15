@@ -3966,6 +3966,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                recursion_depth + 1));
       }
     }
+    case kF16:
     case kF32:
       return WasmInitExpr(0.0f);
     case kF64:

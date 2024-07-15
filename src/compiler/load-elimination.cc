@@ -1091,6 +1091,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
@@ -1151,6 +1152,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
@@ -1451,6 +1453,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
       UNREACHABLE();
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
       // Currently untracked.
       return IndexRange::Invalid();

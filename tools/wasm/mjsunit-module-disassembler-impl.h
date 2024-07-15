@@ -304,6 +304,7 @@ class MjsunitNamesProvider {
       case kI16:  out << "kWasmI16";  return;
       case kI32:  out << "kWasmI32";  return;
       case kI64:  out << "kWasmI64";  return;
+      case kF16:  out << "kWasmF16";  return;
       case kF32:  out << "kWasmF32";  return;
       case kF64:  out << "kWasmF64";  return;
       case kS128: out << "kWasmS128"; return;

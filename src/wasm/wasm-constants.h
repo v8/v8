@@ -33,6 +33,7 @@ enum ValueTypeCode : uint8_t {
   kS128Code = 0x7b,             // -0x05
   kI8Code = 0x78,               // -0x08, packed type
   kI16Code = 0x77,              // -0x09, packed type
+  kF16Code = 0x76,              // -0x0a, packed type
   kNoExnCode = 0x74,            // -0x0c
   kNoFuncCode = 0x73,           // -0x0d
   kNoExternCode = 0x72,         // -0x0e

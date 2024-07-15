@@ -99,6 +99,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kBottom:
     case kI8:
     case kI16:
+    case kF16:
       UNREACHABLE();
   }
 }
@@ -134,6 +135,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kBottom:
     case kI8:
     case kI16:
+    case kF16:
       UNREACHABLE();
   }
 }
@@ -569,6 +571,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kS128Load:
       movdqu(dst.fp(), src_op);
       break;
+    case LoadType::kF32LoadF16:
+      UNIMPLEMENTED();
+      break;
   }
 }
 
@@ -644,6 +649,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kS128Store:
       Movdqu(dst_op, src.fp());
+      break;
+    case StoreType::kF32StoreF16:
+      UNIMPLEMENTED();
       break;
   }
 }

@@ -118,6 +118,7 @@ let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
 let kWasmI8 = 0x78;
 let kWasmI16 = 0x77;
+let kWasmF16 = 0x76;
 
 // These are defined as negative integers to distinguish them from positive type
 // indices.

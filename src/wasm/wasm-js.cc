@@ -1815,6 +1815,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
+    case i::wasm::kF16:
     case i::wasm::kVoid:
     case i::wasm::kBottom:
       UNREACHABLE();
@@ -2031,6 +2032,7 @@ void EncodeExceptionValues(
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
+      case i::wasm::kF16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
       case i::wasm::kS128:
@@ -2914,6 +2916,7 @@ void WebAssemblyExceptionGetArgImpl(
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
+      case i::wasm::kF16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
       case i::wasm::kS128:
@@ -2961,6 +2964,7 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
+    case i::wasm::kF16:
     case i::wasm::kVoid:
     case i::wasm::kBottom:
     case i::wasm::kS128:
@@ -3029,6 +3033,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
+    case i::wasm::kF16:
     case i::wasm::kBottom:
     case i::wasm::kVoid:
       UNREACHABLE();
@@ -3117,6 +3122,7 @@ void WebAssemblyGlobalSetValueImpl(
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
+    case i::wasm::kF16:
     case i::wasm::kBottom:
     case i::wasm::kVoid:
       UNREACHABLE();

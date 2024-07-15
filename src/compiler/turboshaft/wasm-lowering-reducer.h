@@ -517,6 +517,8 @@ class WasmLoweringReducer : public Next {
       case wasm::kI64:
         return is_signed ? MemoryRepresentation::Int64()
                          : MemoryRepresentation::Uint64();
+      case wasm::kF16:
+        return MemoryRepresentation::Float16();
       case wasm::kF32:
         return MemoryRepresentation::Float32();
       case wasm::kF64:
