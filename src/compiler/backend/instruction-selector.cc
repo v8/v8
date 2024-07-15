@@ -689,7 +689,11 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         return g->UseImmediate(cst->word32());
       }
     } else if (Is64() && input.Is<turboshaft::Opmask::kWord64Constant>()) {
-      return g->UseImmediate64(input.Cast<turboshaft::ConstantOp>().word64());
+      if (rep == MachineRepresentation::kWord32) {
+        return g->UseImmediate(input.Cast<turboshaft::ConstantOp>().word32());
+      } else {
+        return g->UseImmediate64(input.Cast<turboshaft::ConstantOp>().word64());
+      }
     }
   }
 
@@ -764,7 +768,11 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       } else if (Is64() &&
                  input->InputAt(0)->opcode() == IrOpcode::kInt64Constant) {
         int64_t value = OpParameter<int64_t>(input->InputAt(0)->op());
-        return g->UseImmediate64(value);
+        if (rep == MachineRepresentation::kWord32) {
+          return g->UseImmediate(static_cast<int>(value));
+        } else {
+          return g->UseImmediate64(value);
+        }
       }
     }
       [[fallthrough]];
