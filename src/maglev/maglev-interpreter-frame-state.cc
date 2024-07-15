@@ -1084,25 +1084,12 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
   return result;
 }
 
-void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
-    interpreter::Register owner, ValueNode* merged, unsigned num) {
-  // If the merged node is null, this is a pre-created loop header merge
-  // frame with null values for anything that isn't a loop Phi.
-  if (merged == nullptr) {
-    DCHECK(is_unmerged_loop());
-    DCHECK_EQ(predecessors_so_far_, 0);
-    return;
-  }
-
-  Phi* result = merged->TryCast<Phi>();
-  if (result != nullptr && result->merge_state() == this) {
-    // It's possible that merged == unmerged at this point since loop-phis are
-    // not dropped if they are only assigned to themselves in the loop.
-    DCHECK_EQ(result->owner(), owner);
-    result->reduce_input_count(num);
+void MergePointInterpreterFrameState::ReducePhiPredecessorCount(unsigned num) {
+  for (Phi* phi : phis_) {
+    phi->reduce_input_count(num);
     if (predecessors_so_far_ == predecessor_count_ - 1 &&
-        predecessor_count_ > 1 && result->is_loop_phi()) {
-      result->promote_post_loop_type();
+        predecessor_count_ > 1 && phi->is_loop_phi()) {
+      phi->promote_post_loop_type();
     }
   }
 }

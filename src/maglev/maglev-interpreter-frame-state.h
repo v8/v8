@@ -825,11 +825,7 @@ class MergePointInterpreterFrameState {
                  unsigned num = 1) {
     DCHECK_GE(predecessor_count_, num);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-
-    frame_state_.ForEachValue(compilation_unit,
-                              [&](ValueNode* value, interpreter::Register reg) {
-                                ReducePhiPredecessorCount(reg, value, num);
-                              });
+    ReducePhiPredecessorCount(num);
     predecessor_count_ -= num;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
@@ -864,12 +860,6 @@ class MergePointInterpreterFrameState {
 
   bool has_phi() const { return !phis_.is_empty(); }
   Phi::List* phis() { return &phis_; }
-
-  void SetPhis(Phi::List&& phis) {
-    // Move the collected phis to the live interpreter frame.
-    DCHECK(phis_.is_empty());
-    phis_.MoveTail(&phis, phis.begin());
-  }
 
   int predecessor_count() const { return predecessor_count_; }
 
@@ -1007,8 +997,7 @@ class MergePointInterpreterFrameState {
                         Alternatives::List* per_predecessor_alternatives,
                         bool optimistic_loop_phis = false);
 
-  void ReducePhiPredecessorCount(interpreter::Register owner, ValueNode* merged,
-                                 unsigned num = 1);
+  void ReducePhiPredecessorCount(unsigned num);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,
