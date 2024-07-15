@@ -2862,6 +2862,9 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!InReadOnlySpace(*shared));
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  Utils::ApiCheck(!i_isolate->serializer_enabled(),
+                  "ScriptCompiler::CreateCodeCache",
+                  "Cannot create code cache while creating a snapshot");
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(shared->is_toplevel());
   return i::CodeSerializer::Serialize(i_isolate, shared);
@@ -2875,6 +2878,9 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!InReadOnlySpace(*shared));
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*shared);
+  Utils::ApiCheck(!i_isolate->serializer_enabled(),
+                  "ScriptCompiler::CreateCodeCache",
+                  "Cannot create code cache while creating a snapshot");
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(shared->is_toplevel());
   return i::CodeSerializer::Serialize(i_isolate, shared);
@@ -2884,6 +2890,9 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
     Local<Function> function) {
   auto js_function = i::Cast<i::JSFunction>(Utils::OpenDirectHandle(*function));
   i::Isolate* i_isolate = js_function->GetIsolate();
+  Utils::ApiCheck(!i_isolate->serializer_enabled(),
+                  "ScriptCompiler::CreateCodeCacheForFunction",
+                  "Cannot create code cache while creating a snapshot");
   i::Handle<i::SharedFunctionInfo> shared(js_function->shared(), i_isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(shared->is_wrapped(),
