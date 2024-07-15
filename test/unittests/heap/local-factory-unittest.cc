@@ -90,8 +90,8 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
 
     // Create the SFI list on the script so that SFI SetScript works.
     DirectHandle<WeakFixedArray> infos = local_factory()->NewWeakFixedArray(
-        parse_info()->max_function_literal_id() + 1, AllocationType::kOld);
-    script_->set_shared_function_infos(*infos);
+        parse_info()->max_info_id() + 1, AllocationType::kOld);
+    script_->set_infos(*infos);
 
     return parse_info()->literal();
   }

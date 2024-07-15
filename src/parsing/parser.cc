@@ -81,7 +81,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       name, function_scope, body, expected_property_count, parameter_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAnonymousExpression, default_eager_compile_hint(),
-      pos, true, GetNextFunctionLiteralId());
+      pos, true, GetNextInfoId());
   return function_literal;
 }
 
@@ -602,7 +602,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_NULL(scope_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
-  ResetFunctionLiteralId();
+  ResetInfoId();
 
   FunctionLiteral* result = nullptr;
   {
@@ -707,7 +707,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     result->set_suspend_count(function_state.suspend_count());
   }
 
-  info->set_max_function_literal_id(GetLastFunctionLiteralId());
+  info->set_max_info_id(GetLastInfoId());
 
   if (has_error()) return nullptr;
 
@@ -938,9 +938,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
-  ResetFunctionLiteralId();
+  ResetInfoId();
   DCHECK_LT(0, function_literal_id);
-  SkipFunctionLiterals(function_literal_id - 1);
+  SkipInfos(function_literal_id - 1);
 
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
@@ -974,7 +974,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         }
       }
 
-      CHECK_EQ(function_literal_id, GetNextFunctionLiteralId());
+      CHECK_EQ(function_literal_id, GetNextInfoId());
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       DeclarationScope* scope = NewFunctionScope(kind);
@@ -1047,7 +1047,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         flags().has_static_private_methods_or_accessors());
   }
 
-  info->set_max_function_literal_id(GetLastFunctionLiteralId());
+  info->set_max_info_id(GetLastInfoId());
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
@@ -1067,8 +1067,8 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
 
   // We will reindex the function literals later.
-  ResetFunctionLiteralId();
-  SkipFunctionLiterals(initializer_id - 1);
+  ResetInfoId();
+  SkipInfos(initializer_id - 1);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
@@ -2733,7 +2733,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int num_parameters = -1;
   int function_length = -1;
   bool has_duplicate_parameters = false;
-  int function_literal_id = GetNextFunctionLiteralId();
+  int function_literal_id = GetNextInfoId();
   ProducedPreparseData* produced_preparse_data = nullptr;
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
@@ -2847,7 +2847,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   if (consumed_preparse_data_) {
     int end_position;
     LanguageMode language_mode;
-    int num_inner_functions;
+    int num_inner_infos;
     bool uses_super_property;
     if (stack_overflow()) return true;
     {
@@ -2855,7 +2855,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       *produced_preparse_data =
           consumed_preparse_data_->GetDataForSkippableFunction(
               main_zone(), function_scope->start_position(), &end_position,
-              num_parameters, function_length, &num_inner_functions,
+              num_parameters, function_length, &num_inner_infos,
               &uses_super_property, &language_mode);
     }
 
@@ -2868,7 +2868,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     if (uses_super_property) {
       function_scope->RecordSuperPropertyUsage();
     }
-    SkipFunctionLiterals(num_inner_functions);
+    SkipInfos(num_inner_infos);
     function_scope->ResetAfterPreparsing(ast_value_factory_, false);
     return true;
   }
@@ -2925,7 +2925,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
     *function_length = logger->function_length();
-    SkipFunctionLiterals(logger->num_inner_functions());
+    SkipInfos(logger->num_inner_infos());
     if (!private_name_scope_iter.Done()) {
       private_name_scope_iter.GetScope()->MigrateUnresolvedPrivateNameTail(
           factory(), unresolved_private_tail);

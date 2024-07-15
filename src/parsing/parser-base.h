@@ -22,7 +22,6 @@
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/function-kind.h"
-#include "src/objects/tagged-impl.h"
 #include "src/parsing/expression-scope.h"
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/parse-info.h"
@@ -263,7 +262,7 @@ class ParserBase {
         expression_scope_(nullptr),
         scanner_(scanner),
         flags_(flags),
-        function_literal_id_(0),
+        info_id_(0),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
@@ -292,13 +291,13 @@ class ParserBase {
   int loop_nesting_depth() const {
     return function_state_->loop_nesting_depth();
   }
-  int PeekNextFunctionLiteralId() { return function_literal_id_ + 1; }
-  int GetNextFunctionLiteralId() { return ++function_literal_id_; }
-  int GetLastFunctionLiteralId() const { return function_literal_id_; }
+  int PeekNextInfoId() { return info_id_ + 1; }
+  int GetNextInfoId() { return ++info_id_; }
+  int GetLastInfoId() const { return info_id_; }
 
-  void SkipFunctionLiterals(int delta) { function_literal_id_ += delta; }
+  void SkipInfos(int delta) { info_id_ += delta; }
 
-  void ResetFunctionLiteralId() { function_literal_id_ = 0; }
+  void ResetInfoId() { info_id_ = 0; }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->single_parse_zone(); }
@@ -620,7 +619,7 @@ class ParserBase {
             FunctionKind::kClassStaticInitializerFunction);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
-        static_elements_function_id = parser->GetNextFunctionLiteralId();
+        static_elements_function_id = parser->GetNextInfoId();
       }
       return static_elements_scope;
     }
@@ -632,7 +631,7 @@ class ParserBase {
             FunctionKind::kClassMembersInitializerFunction);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
-        instance_members_function_id = parser->GetNextFunctionLiteralId();
+        instance_members_function_id = parser->GetNextInfoId();
       }
       return instance_members_scope;
     }
@@ -1557,17 +1556,15 @@ class ParserBase {
   // Keep track of eval() calls since they disable all local variable
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
-  Call::PossiblyEval CheckPossibleEvalCall(ExpressionT expression,
-                                           bool is_optional_call,
-                                           Scope* scope) {
+  bool CheckPossibleEvalCall(ExpressionT expression, bool is_optional_call,
+                             Scope* scope) {
     if (impl()->IsIdentifier(expression) &&
         impl()->IsEval(impl()->AsIdentifier(expression)) && !is_optional_call) {
       function_state_->RecordFunctionOrEvalCall();
       scope->RecordEvalCall();
-
-      return Call::IS_POSSIBLY_EVAL;
+      return true;
     }
-    return Call::NOT_EVAL;
+    return false;
   }
 
   // Convenience method which determines the type of return statement to emit
@@ -1681,7 +1678,7 @@ class ParserBase {
   Scanner* scanner_;
 
   const UnoptimizedCompileFlags flags_;
-  int function_literal_id_;
+  int info_id_;
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 
@@ -1890,7 +1887,7 @@ bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
         return true;
       // Top-level wrapper function scopes.
       case FUNCTION_SCOPE:
-        return function_literal_id_ == kFunctionLiteralIdTopLevel;
+        return info_id_ == kFunctionLiteralIdTopLevel;
       // Used by debug-evaluate. If the outer scope is top-level,
       // extraordinary private name access is allowed.
       case EVAL_SCOPE:
@@ -2076,8 +2073,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     if (V8_UNLIKELY(peek() == Token::kArrow)) {
-      ArrowHeadParsingScope parsing_scope(impl(), kind,
-                                          PeekNextFunctionLiteralId());
+      ArrowHeadParsingScope parsing_scope(impl(), kind, PeekNextInfoId());
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
@@ -2144,8 +2140,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         if (peek() != Token::kArrow) ReportUnexpectedToken(Token::kRightParen);
         next_arrow_function_info_.scope =
             NewFunctionScope(FunctionKind::kArrowFunction);
-        next_arrow_function_info_.function_literal_id =
-            PeekNextFunctionLiteralId();
+        next_arrow_function_info_.function_literal_id = PeekNextInfoId();
         next_arrow_function_info_.could_be_immediately_invoked =
             position_after_last_primary_expression_open_parenthesis_ == beg_pos;
         return factory()->NewEmptyParentheses(beg_pos);
@@ -2154,7 +2149,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       bool could_be_immediately_invoked_arrow_function =
           position_after_last_primary_expression_open_parenthesis_ == beg_pos;
       ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kArrowFunction,
-                                        PeekNextFunctionLiteralId());
+                                        PeekNextInfoId());
       position_after_last_primary_expression_open_parenthesis_ =
           peek_position();
       // Heuristically try to detect immediately called functions before
@@ -3139,7 +3134,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     // function, and checks whether it's still the function id we wanted. If
     // not, we'll reindex the arrow function formal parameters to shift them all
     // 1 down to make space for the arrow function.
-    if (function_literal_id != GetNextFunctionLiteralId()) {
+    if (function_literal_id != GetNextInfoId()) {
       impl()->ReindexArrowFunctionFormalParameters(&parameters);
     }
 
@@ -3724,7 +3719,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     int pos = position();
 
     ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kAsyncArrowFunction,
-                                      PeekNextFunctionLiteralId());
+                                      PeekNextInfoId());
     Scope::Snapshot scope_snapshot(scope());
 
     ExpressionListT args(pointer_buffer());
@@ -3830,11 +3825,13 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        Call::PossiblyEval is_possibly_eval =
-            CheckPossibleEvalCall(result, is_optional, scope());
+        int eval_scope_info_index = 0;
+        if (CheckPossibleEvalCall(result, is_optional, scope())) {
+          eval_scope_info_index = GetNextInfoId();
+        }
 
         result = factory()->NewCall(result, args, pos, has_spread,
-                                    is_possibly_eval, is_optional);
+                                    eval_scope_info_index, is_optional);
 
         fni_.RemoveLastFunction();
         break;

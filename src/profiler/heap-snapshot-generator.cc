@@ -1709,8 +1709,7 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
   TagObject(script->line_ends(), "(script line ends)", HeapEntry::kCode);
   SetInternalReference(entry, "line_ends", script->line_ends(),
                        Script::kLineEndsOffset);
-  TagObject(script->shared_function_infos(), "(shared function infos)",
-            HeapEntry::kCode);
+  TagObject(script->infos(), "(infos)", HeapEntry::kCode);
   TagObject(script->host_defined_options(), "(host-defined options)",
             HeapEntry::kCode);
 #if V8_ENABLE_WEBASSEMBLY
@@ -1724,7 +1723,7 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
                          Script::kEvalFromPositionOffset);
     SetInternalReference(entry, "wasm_weak_instance_list",
                          script->wasm_weak_instance_list(),
-                         Script::kSharedFunctionInfosOffset);
+                         Script::kInfosOffset);
   }
 #endif
 }

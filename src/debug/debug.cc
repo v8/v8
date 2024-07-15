@@ -2148,7 +2148,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     }
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->shared_function_info_count() > 0) {
+        script->infos()->length() > 0) {
       MaybeHandle<SharedFunctionInfo> shared =
           GetTopLevelWithRecompile(script, &triedTopLevelCompile);
       if (shared.is_null()) return false;
@@ -2183,10 +2183,9 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
 
 MaybeHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
     Handle<Script> script, bool* did_compile) {
-  DCHECK_LE(kFunctionLiteralIdTopLevel, script->shared_function_info_count());
-  DCHECK_LE(script->shared_function_info_count(),
-            script->shared_function_infos()->length());
-  Tagged<MaybeObject> maybeToplevel = script->shared_function_infos()->get(0);
+  DCHECK_LE(kFunctionLiteralIdTopLevel, script->infos()->length());
+  Tagged<MaybeObject> maybeToplevel =
+      script->infos()->get(kFunctionLiteralIdTopLevel);
   Tagged<HeapObject> heap_object;
   const bool topLevelInfoExists =
       maybeToplevel.GetHeapObject(&heap_object) && !IsUndefined(heap_object);
