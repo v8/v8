@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
+#include "src/base/platform/yield-processor.h"
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
 #include "src/execution/futex-emulation.h"
 #include "src/heap/factory.h"
@@ -275,6 +272,73 @@ BUILTIN(AtomicsWaitAsync) {
 
   return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
                 timeout);
+}
+
+namespace {
+V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
+    Isolate* isolate, Handle<Object> iteration_number) {
+  constexpr char method_name[] = "Atomics.pause";
+
+  enum { None, BadType, Negative } error_type = None;
+  if (IsNumber(*iteration_number)) {
+    // a. If iterationNumber is not an integral Number, throw a TypeError
+    // exception.
+    // b. If ℝ(iterationNumber) < 0, throw a RangeError exception.
+    double iter = Object::NumberValue(*iteration_number);
+    if (!std::isfinite(iter) || nearbyint(iter) != iter) {
+      error_type = BadType;
+    } else if (iter < 0) {
+      error_type = Negative;
+    }
+  } else {
+    error_type = BadType;
+  }
+
+  if (error_type != None) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewError(error_type == BadType ? isolate->type_error_function()
+                                       : isolate->range_error_function(),
+                 MessageTemplate::kArgumentIsNotUndefinedOrNonNegativeInteger,
+                 isolate->factory()->NewStringFromAsciiChecked(method_name)),
+        Nothing<bool>());
+  }
+
+  return Just(true);
+}
+}  // namespace
+
+// https://tc39.es/proposal-atomics-microwait/
+BUILTIN(AtomicsPause) {
+  HandleScope scope(isolate);
+  Handle<Object> iteration_number = args.atOrUndefined(isolate, 1);
+
+  // 1. If iterationNumber is not undefined, then
+  if (V8_UNLIKELY(
+          !IsUndefined(*iteration_number, isolate) &&
+          !(IsSmi(*iteration_number) && Smi::ToInt(*iteration_number) >= 0))) {
+    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, CheckAtomicsPauseIterationNumber(isolate, iteration_number),
+        ReadOnlyRoots(isolate).exception());
+  }
+
+  // 2. If the execution environment of the ECMAScript implementation supports a
+  //    signal that the current executing code is in a spin-wait loop, send that
+  //    signal. An ECMAScript implementation may send that signal multiple
+  //    times, determined by iterationNumber when not undefined. The number of
+  //    times the signal is sent for an integral Number N is at most the number
+  //    of times it is sent for N + 1.
+  //
+  // In the non-inlined version, JS call overhead is sufficiently expensive that
+  // iterationNumber is not used to determine how many times YIELD_PROCESSOR is
+  // performed.
+  //
+  // TODO(352359899): Try to estimate the call overhead and adjust the yield
+  // count while taking iterationNumber into account.
+  YIELD_PROCESSOR;
+
+  // 3. Return undefined.
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

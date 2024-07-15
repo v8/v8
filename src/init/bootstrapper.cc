@@ -5556,6 +5556,15 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 #undef ITERATOR_HELPERS
 }
 
+void Genesis::InitializeGlobal_js_atomics_pause() {
+  if (!v8_flags.js_atomics_pause) return;
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSObject> atomics_object = Cast<JSObject>(
+      JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
+  InstallFunctionWithBuiltinId(isolate(), atomics_object, "pause",
+                               Builtin::kAtomicsPause, 0, false);
+}
+
 void Genesis::InitializeGlobal_js_promise_try() {
   if (!v8_flags.js_promise_try) return;
   Handle<JSFunction> promise_fun =

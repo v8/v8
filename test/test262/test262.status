@@ -1872,13 +1872,6 @@
 ####
 # import test262@753d502e9a582d3aa152c0296310dc0761973d2f
 [ALWAYS, {
-
-  'built-ins/Atomics/pause/descriptor': [FAIL],
-  'built-ins/Atomics/pause/length': [FAIL],
-  'built-ins/Atomics/pause/name': [FAIL],
-  'built-ins/Atomics/pause/negative-iterationnumber-throws': [FAIL],
-  'built-ins/Atomics/pause/not-a-constructor': [FAIL],
-  'built-ins/Atomics/pause/returns-undefined': [FAIL],
   'built-ins/Temporal/PlainDate/from/argument-leap-second': [FAIL],
   'built-ins/Temporal/PlainDate/from/argument-object-invalid': [FAIL],
   'built-ins/Temporal/PlainDate/from/argument-object-valid': [FAIL],

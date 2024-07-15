@@ -66,6 +66,7 @@ FEATURE_FLAGS = {
     'explicit-resource-management': '--js_explicit_resource_management',
     'decorators': '--js-decorators',
     'promise-try': '--js-promise-try',
+    'Atomics.pause': '--js-atomics-pause',
 }
 
 SKIPPED_FEATURES = set([])
