@@ -1507,24 +1507,24 @@ TEST_F(ParsingTest, ScopePositions) {
   };
 
   const SourceData source_data[] = {
-      {"  with ({})", "{ block; }", " more;", i::WITH_SCOPE,
+      {"  with ({}", "){ block; }", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({})", "{ block; }", "; more;", i::WITH_SCOPE,
+      {"  with ({}", "){ block; }", "; more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({})",
-       "{\n"
+      {"  with ({}",
+       "){\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({})", "statement;", " more;", i::WITH_SCOPE,
+      {"  with ({}", ")statement;", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({})", "statement",
+      {"  with ({}", ")statement",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({})", "statement;",
+      {"  with ({}", ")statement;",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},

@@ -995,6 +995,8 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 DEFINE_BOOL(reuse_scope_infos, false,
             "reuse scope infos from previous compiles")
 
+DEFINE_IMPLICATION(fuzzing, reuse_scope_infos)
+
 // Flags for Sparkplug
 #undef FLAG
 #if V8_ENABLE_SPARKPLUG

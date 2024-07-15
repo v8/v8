@@ -6097,7 +6097,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, with_scope);
-    with_scope->set_start_position(end_position());
+    with_scope->set_start_position(position());
     body = ParseStatement(labels, nullptr);
     with_scope->set_end_position(end_position());
   }
