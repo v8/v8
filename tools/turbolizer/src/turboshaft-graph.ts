@@ -4,7 +4,7 @@
 
 import * as C from "./common/constants";
 import { MovableContainer } from "./movable-container";
-import { TurboshaftGraphNode } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
 import { TurboshaftGraphBlock } from "./phases/turboshaft-graph-phase/turboshaft-graph-block";
 import { TurboshaftGraphEdge } from "./phases/turboshaft-graph-phase/turboshaft-graph-edge";
 import { DataTarget } from "./phases/turboshaft-custom-data-phase";
@@ -15,7 +15,7 @@ import {
 
 export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
   blockMap: Array<TurboshaftGraphBlock>;
-  nodeMap: Array<TurboshaftGraphNode>;
+  nodeMap: Array<TurboshaftGraphOperation>;
   customData: TurboshaftCustomData;
 
   constructor(graphPhase: TurboshaftGraphPhase) {
@@ -32,7 +32,7 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     }
   }
 
-  public *nodes(func = (n: TurboshaftGraphNode) => true) {
+  public *nodes(func = (n: TurboshaftGraphOperation) => true) {
     for (const node of this.nodeMap) {
       if (!node || !func(node)) continue;
       yield node;
@@ -49,7 +49,7 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     }
   }
 
-  public *nodesEdges(func = (e: TurboshaftGraphEdge<TurboshaftGraphNode>) => true) {
+  public *nodesEdges(func = (e: TurboshaftGraphEdge<TurboshaftGraphOperation>) => true) {
     for (const block of this.nodeMap) {
       if (!block) continue;
       for (const edge of block.inputs) {
