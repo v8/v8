@@ -171,8 +171,14 @@ void ExecuteAgainstReference(Isolate* isolate,
   isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
                                             &oom_callback_data);
 
+  Tagged<WasmExportedFunctionData> func_data =
+      main_function->shared()->wasm_exported_function_data();
+  const FunctionSig* sig = func_data->instance_data()
+                               ->module()
+                               ->functions[func_data->function_index()]
+                               .sig;
   base::OwnedVector<Handle<Object>> compiled_args =
-      testing::MakeDefaultArguments(isolate, main_function->sig());
+      testing::MakeDefaultArguments(isolate, sig);
   std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
       isolate, instance_ref, "main", compiled_args.as_vector(), &exception_ref);

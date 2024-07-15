@@ -241,13 +241,14 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   Handle<WasmExportedFunction> main_function =
       testing::GetExportedFunction(i_isolate, instance, "main")
           .ToHandleChecked();
-  int function_to_optimize = main_function->function_index();
+  int function_to_optimize =
+      main_function->shared()->wasm_exported_function_data()->function_index();
   // As the main function has a fixed signature, it doesn't provide great
   // coverage to always optimize and deopt the main function. Instead by only
   // optimizing an inner wasm function, there can be a large amount of
   // parameters with all kinds of types.
   if (!inlinees.empty() && (data.last() & 1)) {
-    function_to_optimize = main_function->function_index() - 1;
+    function_to_optimize--;
   }
 
   size_t num_callees = reference_results.size();

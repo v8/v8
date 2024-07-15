@@ -796,9 +796,6 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
  public:
-  Tagged<WasmTrustedInstanceData> instance_data();
-  V8_EXPORT_PRIVATE int function_index();
-
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
@@ -806,12 +803,6 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
-
-  Address GetWasmCallTarget();
-
-  V8_EXPORT_PRIVATE const wasm::FunctionSig* sig();
-
-  bool MatchesSignature(uint32_t other_canonical_sig_index);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
@@ -900,6 +891,8 @@ class WasmExportedFunctionData
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
   DECL_PRIMITIVE_ACCESSORS(sig, const wasm::FunctionSig*)
+
+  bool MatchesSignature(uint32_t other_canonical_sig_index);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)

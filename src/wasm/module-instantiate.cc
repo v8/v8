@@ -671,10 +671,25 @@ WellKnownImport CheckForWellKnownImport(
 WasmImportData::WasmImportData(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
-    uint32_t expected_canonical_type_index, WellKnownImport preknown_import)
-    : callable_(callable) {
+    uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
+  SetCallable(callable->GetIsolate(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
                       expected_canonical_type_index, preknown_import);
+}
+
+void WasmImportData::SetCallable(Isolate* isolate,
+                                 Tagged<JSReceiver> callable) {
+  SetCallable(isolate, handle(callable, isolate));
+}
+void WasmImportData::SetCallable(Isolate* isolate,
+                                 Handle<JSReceiver> callable) {
+  callable_ = callable;
+  trusted_function_data_ = {};
+  if (!IsJSFunction(*callable)) return;
+  Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(*callable_)->shared();
+  if (sfi->HasWasmFunctionData()) {
+    trusted_function_data_ = handle(sfi->wasm_function_data(), isolate);
+  }
 }
 
 ImportCallKind WasmImportData::ComputeKind(
@@ -694,36 +709,38 @@ ImportCallKind WasmImportData::ComputeKind(
   Isolate* isolate = callable_->GetIsolate();
   if (IsWasmSuspendingObject(*callable_)) {
     suspend_ = kSuspend;
-    callable_ =
-        handle(Cast<WasmSuspendingObject>(*callable_)->callable(), isolate);
+    SetCallable(isolate, Cast<WasmSuspendingObject>(*callable_)->callable());
   }
-  if (WasmExportedFunction::IsWasmExportedFunction(*callable_)) {
-    auto imported_function = Cast<WasmExportedFunction>(callable_);
-    if (!imported_function->MatchesSignature(expected_canonical_type_index)) {
+  if (!trusted_function_data_.is_null() &&
+      IsWasmExportedFunctionData(*trusted_function_data_)) {
+    Tagged<WasmExportedFunctionData> data =
+        Cast<WasmExportedFunctionData>(*trusted_function_data_);
+    if (!data->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
     }
-    uint32_t func_index =
-        static_cast<uint32_t>(imported_function->function_index());
-    if (func_index >=
-        imported_function->instance_data()->module()->num_imported_functions) {
+    uint32_t func_index = static_cast<uint32_t>(data->function_index());
+    if (func_index >= data->instance_data()->module()->num_imported_functions) {
       return ImportCallKind::kWasmToWasm;
     }
     // Resolve the shortcut to the underlying callable and continue.
-    ImportedFunctionEntry entry(
-        handle(imported_function->instance_data(), isolate), func_index);
-    callable_ = handle(entry.callable(), isolate);
+    ImportedFunctionEntry entry(handle(data->instance_data(), isolate),
+                                func_index);
+    SetCallable(isolate, entry.callable());
   }
-  if (WasmJSFunction::IsWasmJSFunction(*callable_)) {
+  if (!trusted_function_data_.is_null() &&
+      IsWasmJSFunctionData(*trusted_function_data_)) {
     Tagged<WasmJSFunctionData> js_function_data =
-        Cast<WasmJSFunction>(callable_)->shared()->wasm_js_function_data();
+        Cast<WasmJSFunctionData>(*trusted_function_data_);
     suspend_ = js_function_data->GetSuspend();
     if (!js_function_data->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
     }
     // Resolve the short-cut to the underlying callable and continue.
-    callable_ = handle(js_function_data->GetCallable(), isolate);
+    SetCallable(isolate, js_function_data->GetCallable());
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
+    // TODO(jkummerow): Update this to follow the style of the other kinds of
+    // functions.
     auto capi_function = Cast<WasmCapiFunction>(callable_);
     if (!capi_function->MatchesSignature(expected_canonical_type_index)) {
       return ImportCallKind::kLinkError;
@@ -747,8 +764,7 @@ ImportCallKind WasmImportData::ComputeKind(
   // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
     auto function = Cast<JSFunction>(callable_);
-    DirectHandle<SharedFunctionInfo> shared(function->shared(),
-                                            function->GetIsolate());
+    DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
 
 // Check for math intrinsics.
 #define COMPARE_SIG_FOR_BUILTIN(name)                                     \
@@ -1864,6 +1880,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
   js_receiver = resolved.callable();
+  Handle<WasmFunctionData> trusted_function_data =
+      resolved.trusted_function_data();
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
@@ -1877,11 +1895,14 @@ bool InstanceBuilder::ProcessImportedFunction(
       return false;
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
-      auto imported_function = Cast<WasmExportedFunction>(js_receiver);
-      // The import reference is the instance object itself.
-      Address imported_target = imported_function->GetWasmCallTarget();
-      imported_entry.SetWasmToWasm(imported_function->instance_data(),
-                                   imported_target);
+      auto function_data =
+          Cast<WasmExportedFunctionData>(trusted_function_data);
+      // The import reference is the trusted instance data itself.
+      Tagged<WasmTrustedInstanceData> instance_data =
+          function_data->instance_data();
+      Address imported_target =
+          instance_data->GetCallTarget(function_data->function_index());
+      imported_entry.SetWasmToWasm(instance_data, imported_target);
       break;
     }
     case ImportCallKind::kWasmToCapi: {

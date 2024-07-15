@@ -546,8 +546,9 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exp_fun = Cast<WasmExportedFunction>(function);
-  Tagged<WasmTrustedInstanceData> trusted_data = exp_fun->instance_data();
-  int func_index = exp_fun->function_index();
+  auto func_data = exp_fun->shared()->wasm_exported_function_data();
+  Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
+  int func_index = func_data->function_index();
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -577,8 +578,9 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exp_fun = Cast<WasmExportedFunction>(function);
-  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
-  uint32_t func_index = exp_fun->function_index();
+  auto data = exp_fun->shared()->wasm_exported_function_data();
+  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  uint32_t func_index = data->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_liftoff() &&
@@ -591,8 +593,9 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exp_fun = Cast<WasmExportedFunction>(function);
-  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
-  uint32_t func_index = exp_fun->function_index();
+  auto data = exp_fun->shared()->wasm_exported_function_data();
+  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  uint32_t func_index = data->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_liftoff());
@@ -604,8 +607,9 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exp_fun = Cast<WasmExportedFunction>(function);
-  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
-  uint32_t func_index = exp_fun->function_index();
+  auto data = exp_fun->shared()->wasm_exported_function_data();
+  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  uint32_t func_index = data->function_index();
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_turbofan());
@@ -617,8 +621,9 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exp_fun = Cast<WasmExportedFunction>(function);
-  wasm::NativeModule* native_module = exp_fun->instance_data()->native_module();
-  uint32_t func_index = exp_fun->function_index();
+  auto data = exp_fun->shared()->wasm_exported_function_data();
+  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  uint32_t func_index = data->function_index();
   return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
 }
 
@@ -679,9 +684,10 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
     return Smi::FromInt(-1);
   }
   auto wasm_func = Cast<WasmExportedFunction>(arg);
+  auto func_data = wasm_func->shared()->wasm_exported_function_data();
   const wasm::WasmModule* module =
-      wasm_func->instance_data()->native_module()->module();
-  uint32_t func_index = wasm_func->function_index();
+      func_data->instance_data()->native_module()->module();
+  uint32_t func_index = func_data->function_index();
   const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
   base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback.mutex);
   auto entry = feedback.deopt_count_for_function.find(func_index);

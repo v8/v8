@@ -302,9 +302,10 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
 
   if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
     auto exported_function = Cast<WasmExportedFunction>(external);
+    auto func_data = exported_function->shared()->wasm_exported_function_data();
     Handle<WasmTrustedInstanceData> target_instance_data(
-        exported_function->instance_data(), isolate);
-    int func_index = exported_function->function_index();
+        func_data->instance_data(), isolate);
+    int func_index = func_data->function_index();
     const WasmModule* module = target_instance_data->module();
     SBXCHECK_BOUNDS(func_index, module->functions.size());
     auto* wasm_function = module->functions.data() + func_index;
@@ -653,8 +654,10 @@ void WasmTableObject::GetFunctionTableEntry(
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
     auto target_func = Cast<WasmExportedFunction>(element);
-    *instance_data = handle(target_func->instance_data(), isolate);
-    *function_index = target_func->function_index();
+    auto func_data = Cast<WasmExportedFunctionData>(
+        target_func->shared()->wasm_exported_function_data());
+    *instance_data = handle(func_data->instance_data(), isolate);
+    *function_index = func_data->function_index();
     *maybe_js_function = MaybeHandle<WasmJSFunction>();
     return;
   }
@@ -2296,14 +2299,6 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   return Cast<WasmCapiFunction>(result);
 }
 
-Tagged<WasmTrustedInstanceData> WasmExportedFunction::instance_data() {
-  return shared()->wasm_exported_function_data()->instance_data();
-}
-
-int WasmExportedFunction::function_index() {
-  return shared()->wasm_exported_function_data()->function_index();
-}
-
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
@@ -2386,19 +2381,10 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   return Cast<WasmExportedFunction>(js_function);
 }
 
-Address WasmExportedFunction::GetWasmCallTarget() {
-  return instance_data()->GetCallTarget(function_index());
-}
-
-const wasm::FunctionSig* WasmExportedFunction::sig() {
-  return instance_data()->module()->functions[function_index()].sig;
-}
-
-bool WasmExportedFunction::MatchesSignature(
+bool WasmExportedFunctionData::MatchesSignature(
     uint32_t other_canonical_type_index) {
   return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
-      this->shared()->wasm_exported_function_data()->canonical_type_index(),
-      other_canonical_type_index);
+      canonical_type_index(), other_canonical_type_index);
 }
 
 // static

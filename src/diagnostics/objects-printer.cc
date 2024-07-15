@@ -2084,8 +2084,10 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
 #if V8_ENABLE_WEBASSEMBLY
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     Tagged<WasmExportedFunction> function = Cast<WasmExportedFunction>(*this);
-    os << "\n - Wasm instance data: " << Brief(function->instance_data());
-    os << "\n - Wasm function index: " << function->function_index();
+    Tagged<WasmExportedFunctionData> data =
+        function->shared()->wasm_exported_function_data();
+    os << "\n - Wasm instance data: " << Brief(data->instance_data());
+    os << "\n - Wasm function index: " << data->function_index();
   }
   if (WasmJSFunction::IsWasmJSFunction(*this)) {
     Tagged<WasmJSFunction> function = Cast<WasmJSFunction>(*this);

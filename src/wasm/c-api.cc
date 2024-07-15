@@ -1553,10 +1553,9 @@ auto Func::type() const -> own<FuncType> {
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   auto function = i::Cast<i::WasmExportedFunction>(func);
-  return FunctionSigToFuncType(function->instance_data()
-                                   ->module()
-                                   ->functions[function->function_index()]
-                                   .sig);
+  auto data = function->shared()->wasm_exported_function_data();
+  return FunctionSigToFuncType(
+      data->instance_data()->module()->functions[data->function_index()].sig);
 }
 
 auto Func::param_arity() const -> size_t {
@@ -1568,10 +1567,9 @@ auto Func::param_arity() const -> size_t {
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   auto function = i::Cast<i::WasmExportedFunction>(func);
-  const i::wasm::FunctionSig* sig = function->instance_data()
-                                        ->module()
-                                        ->functions[function->function_index()]
-                                        .sig;
+  auto data = function->shared()->wasm_exported_function_data();
+  const i::wasm::FunctionSig* sig =
+      data->instance_data()->module()->functions[data->function_index()].sig;
   return sig->parameter_count();
 }
 
@@ -1584,10 +1582,9 @@ auto Func::result_arity() const -> size_t {
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   auto function = i::Cast<i::WasmExportedFunction>(func);
-  const i::wasm::FunctionSig* sig = function->instance_data()
-                                        ->module()
-                                        ->functions[function->function_index()]
-                                        .sig;
+  auto data = function->shared()->wasm_exported_function_data();
+  const i::wasm::FunctionSig* sig =
+      data->instance_data()->module()->functions[data->function_index()].sig;
   return sig->return_count();
 }
 

@@ -2500,7 +2500,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(fun);
     i::Tagged<i::WasmExportedFunctionData> data =
         wasm_exported_function->shared()->wasm_exported_function_data();
-    sig = wasm_exported_function->sig();
+    sig =
+        data->instance_data()->module()->functions[data->function_index()].sig;
     i::wasm::Promise promise_flags =
         i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());
     if (promise_flags != i::wasm::kNoPromise) {
