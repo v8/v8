@@ -1245,16 +1245,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Set up isorecursive canonical types array.
-  //--------------------------------------------------------------------------
-  trusted_data->set_isorecursive_canonical_types(
-      module_->isorecursive_canonical_type_ids.data());
-  if (shared) {
-    shared_trusted_data->set_isorecursive_canonical_types(
-        module_->isorecursive_canonical_type_ids.data());
-  }
-
-  //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
   int table_count = static_cast<int>(module_->tables.size());

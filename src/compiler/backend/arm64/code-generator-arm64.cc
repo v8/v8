@@ -239,6 +239,11 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     switch (constant.type()) {
       case Constant::kInt32:
+#if V8_ENABLE_WEBASSEMBLY
+        if (RelocInfo::IsWasmCanonicalSigId(constant.rmode())) {
+          return Operand(constant.ToInt32(), constant.rmode());
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
         return Operand(constant.ToInt32());
       case Constant::kInt64:
 #if V8_ENABLE_WEBASSEMBLY

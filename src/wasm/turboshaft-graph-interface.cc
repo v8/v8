@@ -400,7 +400,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         shared_(shared),
         wire_bytes_(wire_bytes),
         return_phis_(nullptr),
-        is_inlined_tail_call_(false) {}
+        is_inlined_tail_call_(false) {
+    DCHECK_NOT_NULL(env_);
+    DCHECK_NOT_NULL(env_->module);
+  }
 
   // For inlined functions.
   TurboshaftGraphBuildingInterface(
@@ -7091,20 +7094,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         WasmDispatchTable::kEntriesOffset);
 
     if (needs_type_check) {
-      // We store the isorecursive canonical types array in both the shared
-      // and non-shared part of the instance.
-      constexpr bool kShared = false;
-      V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(kShared), IsorecursiveCanonicalTypes,
-          MemoryRepresentation::UintPtr());
-      V<Word32> expected_sig_id =
-          __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
+      uint32_t canonical_sig_id =
+          env_->module->isorecursive_canonical_type_ids[sig_index];
+      V<Word32> expected_canonical_sig =
+          __ RelocatableWasmCanonicalSignatureId(canonical_sig_id);
+
       V<Word32> loaded_sig =
           __ Load(dispatch_table, dispatch_table_entry_offset,
                   LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
                   WasmDispatchTable::kSigBias);
-      V<Word32> sigs_match = __ Word32Equal(expected_sig_id, loaded_sig);
+      V<Word32> sigs_match = __ Word32Equal(expected_canonical_sig, loaded_sig);
       if (!decoder->module_->types[sig_index].is_final) {
         // In this case, a full type check is needed.
         Label<> end(&asm_);
@@ -8010,13 +8009,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     WasmFullDecoder<Decoder::FullValidationTag,
                     TurboshaftGraphBuildingInterface>
-        inlinee_decoder(
-            decoder->zone_, decoder->module_, decoder->enabled_,
-            decoder->detected_, inlinee_body, decoder->zone_, nullptr, asm_,
-            inlinee_mode, instance_cache_, assumptions_, inlining_positions_,
-            func_index, inlinee_is_shared, wire_bytes_,
-            base::VectorOf(inlinee_args), callee_return_block,
-            inlinee_return_phis, callee_catch_block, is_tail_call, frame_state);
+        inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
+                        decoder->detected_, inlinee_body, decoder->zone_, env_,
+                        asm_, inlinee_mode, instance_cache_, assumptions_,
+                        inlining_positions_, func_index, inlinee_is_shared,
+                        wire_bytes_, base::VectorOf(inlinee_args),
+                        callee_return_block, inlinee_return_phis,
+                        callee_catch_block, is_tail_call, frame_state);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined

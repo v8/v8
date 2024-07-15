@@ -79,10 +79,13 @@ class TypeCanonicalizer {
                                             const WasmModule* sub_module,
                                             const WasmModule* super_module);
 
-  // Deletes recursive groups. Used only by the Wasm compile fuzzer.
+  // Deletes recursive groups. Used by fuzzers to avoid accumulating memory, and
+  // used by specific tests e.g. for serialization / deserialization.
   V8_EXPORT_PRIVATE void EmptyStorageForTesting();
 
   size_t EstimateCurrentMemoryConsumption() const;
+
+  size_t GetCurrentNumberOfTypes() const;
 
  private:
   struct CanonicalType {

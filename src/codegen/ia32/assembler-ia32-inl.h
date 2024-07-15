@@ -130,6 +130,19 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  WriteUnalignedValue<uint32_t>(pc, new_constant);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
+  }
+}
+
 void Assembler::emit(uint32_t x) {
   WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
   pc_ += sizeof(uint32_t);

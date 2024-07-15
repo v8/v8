@@ -1991,6 +1991,13 @@ class TurboshaftAssemblerOpInterface
                                RelocInfo::WASM_STUB_CALL);
   }
 
+  V<Word32> RelocatableWasmCanonicalSignatureId(int32_t canonical_id) {
+    DCHECK_LE(0, canonical_id);
+    return ReduceIfReachableConstant(
+        ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId,
+        static_cast<uint64_t>(canonical_id));
+  }
+
   V<Context> NoContextConstant() {
     return V<Context>::Cast(TagSmi(Context::kNoContext));
   }

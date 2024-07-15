@@ -559,6 +559,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm stub call: 0x"
          << reinterpret_cast<void*>(storage.integral);
       break;
+    case Kind::kRelocatableWasmCanonicalSignatureId:
+      os << "relocatable wasm canonical signature ID: "
+         << static_cast<int32_t>(storage.integral);
+      break;
   }
   os << ']';
 }

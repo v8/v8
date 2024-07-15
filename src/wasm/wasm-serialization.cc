@@ -299,9 +299,14 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   void WriteCode(const WasmCode*, Writer*);
   void WriteTieringBudget(Writer* writer);
 
+  uint32_t CanonicalTypeIdToModuleLocalTypeId(uint32_t canonical_type_id);
+
   const NativeModule* const native_module_;
   const base::Vector<WasmCode* const> code_table_;
   const base::Vector<WellKnownImport const> import_statuses_;
+  // Map back canonical type IDs to module-local type IDs. Initialized lazily.
+  std::unordered_map<uint32_t, uint32_t>
+      canonical_type_ids_to_module_local_ids_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
   int num_turbofan_functions_ = 0;
@@ -449,13 +454,15 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
 #endif
   memcpy(code_start, code->instructions().begin(), code_size);
   // Relocate the code.
-  int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
-             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+  constexpr int kMask =
+      RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+      RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+      RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
+      RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
-                          code->constant_pool(), mask);
+                          code->constant_pool(), kMask);
   WritableJitAllocation jit_allocation =
       WritableJitAllocation::ForNonExecutableMemory(
           reinterpret_cast<Address>(code_start), code->instructions().size(),
@@ -464,7 +471,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
            jit_allocation, {code_start, code->instructions().size()},
            code->reloc_info(),
            reinterpret_cast<Address>(code_start) + code->constant_pool_offset(),
-           mask);
+           kMask);
        !iter.done(); iter.next(), orig_iter.next()) {
     RelocInfo::Mode mode = orig_iter.rinfo()->rmode();
     switch (mode) {
@@ -479,6 +486,12 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
         uint32_t tag = static_cast<uint32_t>(
             native_module_->GetBuiltinInJumptableSlot(target));
         SetWasmCalleeTag(iter.rinfo(), tag);
+      } break;
+      case RelocInfo::WASM_CANONICAL_SIG_ID: {
+        uint32_t canonical_sig_id = orig_iter.rinfo()->wasm_canonical_sig_id();
+        uint32_t module_local_sig_id =
+            CanonicalTypeIdToModuleLocalTypeId(canonical_sig_id);
+        iter.rinfo()->set_wasm_canonical_sig_id(module_local_sig_id);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
@@ -508,6 +521,28 @@ void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
   writer->WriteVector(
       base::VectorOf(native_module_->tiering_budget_array(),
                      native_module_->module()->num_declared_functions));
+}
+
+uint32_t NativeModuleSerializer::CanonicalTypeIdToModuleLocalTypeId(
+    uint32_t canonical_type_id) {
+  if (canonical_type_ids_to_module_local_ids_.empty()) {
+    const WasmModule* module = native_module_->module();
+    DCHECK_GE(kMaxUInt32, module->isorecursive_canonical_type_ids.size());
+    uint32_t num_types =
+        static_cast<uint32_t>(module->isorecursive_canonical_type_ids.size());
+    canonical_type_ids_to_module_local_ids_.reserve(num_types);
+    for (uint32_t local_id = 0; local_id < num_types; ++local_id) {
+      uint32_t canonical_id = module->isorecursive_canonical_type_ids[local_id];
+      // Try to emplace, skip if an entry exists already. It does not matter
+      // which local type ID we use if multiple types got canonicalized to the
+      // same ID.
+      canonical_type_ids_to_module_local_ids_.emplace(
+          std::make_pair(canonical_id, local_id));
+    }
+  }
+  auto it = canonical_type_ids_to_module_local_ids_.find(canonical_type_id);
+  DCHECK_NE(canonical_type_ids_to_module_local_ids_.end(), it);
+  return it->second;
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -877,14 +912,15 @@ void NativeModuleDeserializer::CopyAndRelocate(
                           unit.src_code_buffer.size());
 
   // Relocate the code.
-  int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-             RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
-             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+  int kMask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+              RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
+              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   for (WritableRelocIterator iter(jit_allocation, unit.code->instructions(),
                                   unit.code->reloc_info(),
-                                  unit.code->constant_pool(), mask);
+                                  unit.code->constant_pool(), kMask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
@@ -902,6 +938,13 @@ void NativeModuleDeserializer::CopyAndRelocate(
         iter.rinfo()->set_wasm_stub_call_address(target);
         break;
       }
+      case RelocInfo::WASM_CANONICAL_SIG_ID: {
+        uint32_t module_local_sig_id = iter.rinfo()->wasm_canonical_sig_id();
+        uint32_t canonical_sig_id =
+            native_module_->module()
+                ->isorecursive_canonical_type_ids[module_local_sig_id];
+        iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id);
+      } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address address = ExternalReferenceList::Get().address_from_tag(tag);

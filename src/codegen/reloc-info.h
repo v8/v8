@@ -117,6 +117,7 @@ class RelocInfo {
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
+    WASM_CANONICAL_SIG_ID,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -208,9 +209,16 @@ class RelocInfo {
                            LAST_EMBEDDED_OBJECT_RELOC_MODE);
   }
   static constexpr bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
-  static constexpr bool IsWasmReference(Mode mode) { return mode == WASM_CALL; }
   static constexpr bool IsWasmStubCall(Mode mode) {
     return mode == WASM_STUB_CALL;
+  }
+  static constexpr bool IsWasmCanonicalSigId(Mode mode) {
+    return mode == WASM_CANONICAL_SIG_ID;
+  }
+  // Code generators use {IsWasmReference} to determine whether to materialize a
+  // constant as relocatable int32 constant.
+  static constexpr bool IsWasmReference(Mode mode) {
+    return mode == WASM_CALL || mode == WASM_CANONICAL_SIG_ID;
   }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
@@ -287,6 +295,7 @@ class RelocInfo {
 
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
+  V8_EXPORT_PRIVATE uint32_t wasm_canonical_sig_id() const;
 
   uint32_t wasm_call_tag() const;
 
@@ -423,6 +432,7 @@ class WritableRelocInfo : public RelocInfo {
 
   void set_wasm_call_address(Address);
   void set_wasm_stub_call_address(Address);
+  void set_wasm_canonical_sig_id(uint32_t);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,

@@ -550,6 +550,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
 
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
 

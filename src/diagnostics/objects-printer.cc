@@ -2596,8 +2596,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
-  PRINT_WASM_INSTANCE_FIELD(isorecursive_canonical_types,
-                            reinterpret_cast<const uint32_t*>);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(data_segment_starts, Brief);
   PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, Brief);

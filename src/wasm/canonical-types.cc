@@ -357,4 +357,9 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   return result;
 }
 
+size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
+  base::MutexGuard mutex_guard(&mutex_);
+  return canonical_supertypes_.size();
+}
+
 }  // namespace v8::internal::wasm

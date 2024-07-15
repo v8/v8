@@ -292,6 +292,20 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   }
 }
 
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  CHECK(is_constant_pool_load(pc));
+  return Memory<uint32_t>(constant_pool_entry_address(pc, constant_pool));
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  CHECK(is_constant_pool_load(pc));
+  Memory<uint32_t>(constant_pool_entry_address(pc, constant_pool)) =
+      new_constant;
+  // Icache flushing not needed for Ldr via the constant pool.
+}
+
 EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 template <typename T>

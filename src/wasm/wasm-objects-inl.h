@@ -196,8 +196,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_limit_address,
                     Address*, kOldAllocationLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_top_address,
                     Address*, kOldAllocationTopAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, isorecursive_canonical_types,
-                    const uint32_t*, kIsorecursiveCanonicalTypesOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,

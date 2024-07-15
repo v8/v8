@@ -1072,6 +1072,11 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
     case ConstantOp::Kind::kRelocatableWasmStubCall:
       return RelocatableIntPtrConstant(op.integral(),
                                        RelocInfo::WASM_STUB_CALL);
+    case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
+      return AddNode(common.RelocatableInt32Constant(
+                         base::checked_cast<int32_t>(op.integral()),
+                         RelocInfo::WASM_CANONICAL_SIG_ID),
+                     {});
   }
 }
 

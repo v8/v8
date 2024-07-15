@@ -2485,7 +2485,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kHeapObject,
     kCompressedHeapObject,
     kRelocatableWasmCall,
-    kRelocatableWasmStubCall
+    kRelocatableWasmStubCall,
+    kRelocatableWasmCanonicalSignatureId
   };
 
   Kind kind;
@@ -2525,6 +2526,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 
   static RegisterRepresentation Representation(Kind kind) {
     switch (kind) {
+      case Kind::kRelocatableWasmCanonicalSignatureId:
       case Kind::kWord32:
         return RegisterRepresentation::Word32();
       case Kind::kWord64:
@@ -2554,6 +2556,9 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     DCHECK_IMPLIES(
         kind == Kind::kWord32,
         storage.integral <= WordRepresentation::Word32().MaxUnsignedValue());
+    DCHECK_IMPLIES(
+        kind == Kind::kRelocatableWasmCanonicalSignatureId,
+        storage.integral <= WordRepresentation::Word32().MaxSignedValue());
   }
 
   uint64_t integral() const {
@@ -2565,6 +2570,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     DCHECK(IsIntegral());
     switch (kind) {
       case Kind::kWord32:
+      case Kind::kRelocatableWasmCanonicalSignatureId:
         return static_cast<int32_t>(storage.integral);
       case Kind::kWord64:
         return static_cast<int64_t>(storage.integral);
@@ -2644,7 +2650,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   bool IsIntegral() const {
     return kind == Kind::kWord32 || kind == Kind::kWord64 ||
            kind == Kind::kRelocatableWasmCall ||
-           kind == Kind::kRelocatableWasmStubCall;
+           kind == Kind::kRelocatableWasmStubCall ||
+           kind == Kind::kRelocatableWasmCanonicalSignatureId;
   }
 
   auto options() const { return std::tuple{kind, storage}; }
@@ -2659,6 +2666,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmCanonicalSignatureId:
         return HashWithOptions(storage.integral);
       case Kind::kFloat32:
         return HashWithOptions(storage.float32);
@@ -2686,6 +2694,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmCanonicalSignatureId:
         return storage.integral == other.storage.integral;
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing

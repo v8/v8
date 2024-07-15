@@ -4753,6 +4753,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           break;
         case ConstantOp::Kind::kRelocatableWasmCall:
         case ConstantOp::Kind::kRelocatableWasmStubCall:
+        case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
           break;
       }
       VisitConstant(node);

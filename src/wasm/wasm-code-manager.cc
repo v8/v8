@@ -355,6 +355,11 @@ void WasmCode::Validate() const {
         CHECK(code->contains(target));
         break;
       }
+      case RelocInfo::WASM_CANONICAL_SIG_ID: {
+        uint32_t sig_id = it.rinfo()->wasm_canonical_sig_id();
+        CHECK_LE(sig_id, GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
+        break;
+      }
       case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
         Address target = it.rinfo()->target_internal_reference();

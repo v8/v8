@@ -130,8 +130,6 @@ class TestingModuleBuilder {
     test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
                                          is_shared);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
-    trusted_instance_data_->set_isorecursive_canonical_types(
-        test_module_->isorecursive_canonical_type_ids.data());
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
     return static_cast<uint8_t>(size - 1);

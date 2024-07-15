@@ -293,6 +293,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // This value is used in the serialization process and must be zero for
   // ARM64, as the code target is split across multiple instructions and does
   // not exist separately in the code, so the serializer should not step

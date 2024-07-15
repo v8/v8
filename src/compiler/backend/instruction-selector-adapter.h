@@ -74,8 +74,12 @@ struct TurbofanAdapter {
       return node_->opcode() == IrOpcode::kRelocatableInt32Constant;
     }
     int32_t int32_value() const {
-      DCHECK(is_int32() || is_relocatable_int32());
-      return OpParameter<int32_t>(node_->op());
+      if (is_int32()) return OpParameter<int32_t>(node_->op());
+      DCHECK(is_relocatable_int32());
+      RelocatablePtrConstantInfo constant_info =
+          OpParameter<RelocatablePtrConstantInfo>(node_->op());
+      DCHECK_EQ(RelocatablePtrConstantInfo::kInt32, constant_info.type());
+      return static_cast<int32_t>(constant_info.value());
     }
     bool is_int64() const {
       return node_->opcode() == IrOpcode::kInt64Constant;
@@ -84,8 +88,12 @@ struct TurbofanAdapter {
       return node_->opcode() == IrOpcode::kRelocatableInt64Constant;
     }
     int64_t int64_value() const {
-      DCHECK(is_int64() || is_relocatable_int64());
-      return OpParameter<int64_t>(node_->op());
+      if (is_int64()) return OpParameter<int64_t>(node_->op());
+      DCHECK(is_relocatable_int64());
+      RelocatablePtrConstantInfo constant_info =
+          OpParameter<RelocatablePtrConstantInfo>(node_->op());
+      DCHECK_EQ(RelocatablePtrConstantInfo::kInt64, constant_info.type());
+      return constant_info.value();
     }
     bool is_heap_object() const {
       return node_->opcode() == IrOpcode::kHeapConstant;
