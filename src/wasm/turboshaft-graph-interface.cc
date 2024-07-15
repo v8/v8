@@ -2147,7 +2147,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringCharCodeAt: {
         V<String> string = ExternRefToString(args[0]);
-        V<String> view = V<String>::Cast(__ StringAsWtf16(string));
+        V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
         result = GetCodeUnitImpl(decoder, view, args[1].op);
         decoder->detected_->add_imported_strings();
@@ -2155,7 +2155,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringCodePointAt: {
         V<String> string = ExternRefToString(args[0]);
-        V<String> view = V<String>::Cast(__ StringAsWtf16(string));
+        V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
         result = StringCodePointAt(decoder, view, args[1].op);
         decoder->detected_->add_imported_strings();
@@ -2256,12 +2256,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringSubstring: {
         V<String> string = ExternRefToString(args[0]);
-        V<Object> view = __ StringAsWtf16(string);
+        V<String> view = __ StringAsWtf16(string);
         // TODO(12868): Consider annotating {view}'s type when the typing story
         //              for string views has been settled.
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
-            decoder, {V<String>::Cast(view), args[1].op, args[2].op});
+            decoder, {view, args[1].op, args[2].op});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->add_imported_strings();
         break;
@@ -4873,7 +4873,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    result->op = __ StringAsWtf16(NullCheck(str));
+    result->op = __ StringAsWtf16(V<String>::Cast(NullCheck(str)));
   }
 
   V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<String> string,

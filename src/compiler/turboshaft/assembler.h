@@ -4325,7 +4325,7 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }
 
-  V<Object> StringAsWtf16(V<Object> string) {
+  V<String> StringAsWtf16(V<String> string) {
     return ReduceIfReachableStringAsWtf16(string);
   }
 

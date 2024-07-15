@@ -721,11 +721,11 @@ OpIndex GraphBuilder::Process(
           return __ TruncateFloat64ToInt64OverflowToMin(Map(node->InputAt(0)));
       }
     case IrOpcode::kFloat64InsertLowWord32: {
-      OpIndex high;
-      OpIndex low = Map(node->InputAt(1));
+      V<Word32> high;
+      V<Word32> low = Map<Word32>(node->InputAt(1));
       if (node->InputAt(0)->opcode() == IrOpcode::kFloat64InsertHighWord32) {
         // We can turn this into a single operation.
-        high = Map(node->InputAt(0)->InputAt(1));
+        high = Map<Word32>(node->InputAt(0)->InputAt(1));
       } else {
         // We need to extract the high word to combine it.
         high = __ Float64ExtractHighWord32(Map(node->InputAt(0)));
@@ -733,14 +733,14 @@ OpIndex GraphBuilder::Process(
       return __ BitcastWord32PairToFloat64(high, low);
     }
     case IrOpcode::kFloat64InsertHighWord32: {
-      OpIndex high = Map(node->InputAt(1));
-      OpIndex low;
+      V<Word32> high = Map<Word32>(node->InputAt(1));
+      V<Word32> low;
       if (node->InputAt(0)->opcode() == IrOpcode::kFloat64InsertLowWord32) {
         // We can turn this into a single operation.
-        low = Map(node->InputAt(0)->InputAt(1));
+        low = Map<Word32>(node->InputAt(0)->InputAt(1));
       } else {
         // We need to extract the low word to combine it.
-        low = __ Float64ExtractLowWord32(Map(node->InputAt(0)));
+        low = __ Float64ExtractLowWord32(Map<Float64>(node->InputAt(0)));
       }
       return __ BitcastWord32PairToFloat64(high, low);
     }
@@ -1237,7 +1237,7 @@ OpIndex GraphBuilder::Process(
       __ Retain(Map(node->InputAt(0)));
       return OpIndex::Invalid();
     case IrOpcode::kStackPointerGreaterThan:
-      return __ StackPointerGreaterThan(Map(node->InputAt(0)),
+      return __ StackPointerGreaterThan(Map<WordPtr>(node->InputAt(0)),
                                         StackCheckKindOf(op));
     case IrOpcode::kLoadStackCheckOffset:
       return __ StackCheckOffset();

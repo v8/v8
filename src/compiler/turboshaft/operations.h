@@ -2298,10 +2298,10 @@ struct BitcastWord32PairToFloat64Op
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex high_word32() const { return input(0); }
-  OpIndex low_word32() const { return input(1); }
+  V<Word32> high_word32() const { return input<Word32>(0); }
+  V<Word32> low_word32() const { return input<Word32>(1); }
 
-  BitcastWord32PairToFloat64Op(OpIndex high_word32, OpIndex low_word32)
+  BitcastWord32PairToFloat64Op(V<Word32> high_word32, V<Word32> low_word32)
       : Base(high_word32, low_word32) {}
 
   void Validate(const Graph& graph) const {
@@ -7103,9 +7103,9 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  explicit StringAsWtf16Op(V<Object> string) : Base(string) {}
+  explicit StringAsWtf16Op(V<String> string) : Base(string) {}
 
-  OpIndex string() const { return input(0); }
+  V<String> string() const { return input<String>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();

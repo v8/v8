@@ -298,8 +298,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceChange(input, kind, assumption, from, to);
   }
 
-  OpIndex REDUCE(BitcastWord32PairToFloat64)(OpIndex hi_word32,
-                                             OpIndex lo_word32) {
+  V<Float64> REDUCE(BitcastWord32PairToFloat64)(V<Word32> hi_word32,
+                                                V<Word32> lo_word32) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceBitcastWord32PairToFloat64(hi_word32, lo_word32);
     }

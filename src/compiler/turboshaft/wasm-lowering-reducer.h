@@ -372,8 +372,8 @@ class WasmLoweringReducer : public Next {
     return result_value;
   }
 
-  OpIndex REDUCE(StringAsWtf16)(OpIndex string) {
-    Label<Object> done(&Asm());
+  V<String> REDUCE(StringAsWtf16)(V<String> string) {
+    Label<String> done(&Asm());
     V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(string));
     V<Word32> string_representation = __ Word32BitwiseAnd(
         instance_type, __ Word32Constant(kStringRepresentationMask));
