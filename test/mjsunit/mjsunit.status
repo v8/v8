@@ -561,6 +561,7 @@
   'regress/regress-1409058': [SKIP],
   'regress/regress-1447383': [SKIP],
   'regress/regress-crbug-335592010': [SKIP],
+  'regress/regress-352402863': [SKIP],
 
   # Temporal intl tests won't work without i18n
   'temporal/function-exist': [FAIL],
