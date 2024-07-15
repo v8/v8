@@ -37,8 +37,7 @@ namespace v8 {
 namespace internal {
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
-                                            bool call_super, int pos,
-                                            int end_pos) {
+                                            bool call_super, int pos) {
   int expected_property_count = 0;
   const int parameter_count = 0;
 
@@ -1026,7 +1025,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
       result = DefaultConstructor(raw_name, IsDerivedConstructor(kind),
-                                  start_position, end_position);
+                                  start_position);
     } else {
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
           info->is_wrapped_as_function()
@@ -3307,8 +3306,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   bool has_default_constructor = class_info->constructor == nullptr;
   int end_pos = block_scope->end_position();
   if (has_default_constructor) {
-    class_info->constructor =
-        DefaultConstructor(name, has_extends, pos, end_pos);
+    class_info->constructor = DefaultConstructor(name, has_extends, pos);
   }
 
   if (!IsEmptyIdentifier(name)) {
