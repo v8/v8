@@ -2026,11 +2026,11 @@ class ConstantPoolPointerForwarder {
     if (!old_sfi->HasOuterScopeInfo()) return;
     Tagged<ScopeInfo> scope_info = old_sfi->GetOuterScopeInfo();
     while (true) {
-      if (scope_infos_to_update_.find(scope_info->StartPosition()) !=
+      if (scope_infos_to_update_.find(scope_info->UniqueIdInScript()) !=
           scope_infos_to_update_.end()) {
         return;
       }
-      scope_infos_to_update_[scope_info->StartPosition()] =
+      scope_infos_to_update_[scope_info->UniqueIdInScript()] =
           handle(scope_info, local_heap_);
       if (!scope_info->HasOuterScopeInfo()) break;
       scope_info = scope_info->OuterScopeInfo();
@@ -2059,7 +2059,7 @@ class ConstantPoolPointerForwarder {
   void UpdateOuterScopeInfo(Tagged<SharedFunctionInfo> sfi) {
     if (!sfi->HasOuterScopeInfo()) return;
     Tagged<ScopeInfo> outer_info = sfi->GetOuterScopeInfo();
-    auto it = scope_infos_to_update_.find(outer_info->StartPosition());
+    auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
     if (it == scope_infos_to_update_.end()) return;
     if (outer_info == *it->second) return;
     VerifyScopeInfo(outer_info, *it->second);
@@ -2111,7 +2111,7 @@ class ConstantPoolPointerForwarder {
   template <typename TArray>
   void VisitScopeInfo(Tagged<TArray> constant_pool, int i,
                       Tagged<ScopeInfo> scope_info) {
-    auto it = scope_infos_to_update_.find(scope_info->StartPosition());
+    auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
     // Try to replace the scope info itself with an already existing version.
     if (it != scope_infos_to_update_.end()) {
       if (scope_info != *it->second) {
@@ -2124,7 +2124,7 @@ class ConstantPoolPointerForwarder {
       // info. We only need to look at the direct outer scope info since we'll
       // process all scope infos that are created by this compilation task.
       Tagged<ScopeInfo> outer = scope_info->OuterScopeInfo();
-      it = scope_infos_to_update_.find(outer->StartPosition());
+      it = scope_infos_to_update_.find(outer->UniqueIdInScript());
       if (it != scope_infos_to_update_.end() && outer != *it->second) {
         VerifyScopeInfo(outer, *it->second);
         scope_info->set_outer_scope_info(*it->second);
