@@ -762,6 +762,9 @@
 ##############################################################################
 ['tsan == True', {
 
+  # TODO(clemensb): Fails on TSAN builds.
+  'regress/regress-350779648': [SKIP],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
