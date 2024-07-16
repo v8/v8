@@ -579,7 +579,14 @@ class GraphBuilder {
     // same InitialValues in Turboshaft as in Maglev, in order to simplify
     // things.
 #ifdef DEBUG
-    char* debug_name = strdup(node->source().ToString().c_str());
+    // We cannot use strdup or something that simple for {debug_name}, because
+    // it has to be zone allocated rather than heap-allocated, since it won't be
+    // freed and this would thus cause a leak.
+    std::string reg_string_name = node->source().ToString();
+    base::Vector<char> debug_name_arr =
+        graph_zone()->NewVector<char>(reg_string_name.length() + /* \n */ 1);
+    strcpy(debug_name_arr.data(), reg_string_name.c_str());
+    char* debug_name = debug_name_arr.data();
 #else
     char* debug_name = nullptr;
 #endif
