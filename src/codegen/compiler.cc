@@ -2226,9 +2226,10 @@ void BackgroundMergeTask::BeginMergeInBackground(
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
-    if (maybe_new_sfi.IsWeak()) {
-      // Since we're just compiled the new script, we're certain that we can
-      // only see shared function infos here.
+    // We might have scope infos in the table if it's deserialized from a code
+    // cache.
+    if (maybe_new_sfi.IsWeak() &&
+        Is<SharedFunctionInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
       Tagged<SharedFunctionInfo> new_sfi =
           Cast<SharedFunctionInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak());
       if (maybe_old_info.IsWeak()) {
