@@ -873,8 +873,11 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
 
 void Heap::ReportStatisticsAfterGC() {
   if (deferred_counters_.empty()) return;
-  isolate()->CountUsage(base::VectorOf(deferred_counters_));
-  deferred_counters_.clear();
+  // Move the contents into a new SmallVector first, in case
+  // {Isolate::CountUsage} puts the counters into {deferred_counters_} again.
+  decltype(deferred_counters_) to_report = std::move(deferred_counters_);
+  DCHECK(deferred_counters_.empty());
+  isolate()->CountUsage(base::VectorOf(to_report));
 }
 
 class Heap::AllocationTrackerForDebugging final
