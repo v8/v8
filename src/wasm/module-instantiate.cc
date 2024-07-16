@@ -482,8 +482,10 @@ WellKnownImport CheckForWellKnownImport(
 
     DirectHandle<HeapObject> js_signature(sfi->api_func_data()->signature(),
                                           isolate);
+    DirectHandle<Object> callback_data(
+        sfi->api_func_data()->callback_data(kAcquireLoad), isolate);
     DirectHandle<WasmFastApiCallData> fast_api_call_data =
-        isolate->factory()->NewWasmFastApiCallData(js_signature);
+        isolate->factory()->NewWasmFastApiCallData(js_signature, callback_data);
     trusted_instance_data->well_known_imports()->set(func_index,
                                                      *fast_api_call_data);
     return WellKnownImport::kFastAPICall;

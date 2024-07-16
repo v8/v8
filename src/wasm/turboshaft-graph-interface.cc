@@ -2062,11 +2062,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       static_assert(
           sizeof(v8::FastApiCallbackOptions::isolate) == sizeof(intptr_t),
           "We expected 'isolate' to be pointer sized, but it is not.");
-      __ Store(options_object,
-               __ ExternalConstant(ExternalReference::isolate_address()),
-               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-               compiler::kNoWriteBarrier,
-               offsetof(v8::FastApiCallbackOptions, isolate));
+      __ StoreOffHeap(options_object,
+                      __ IsolateField(IsolateFieldId::kIsolateAddress),
+                      MemoryRepresentation::UintPtr(),
+                      offsetof(v8::FastApiCallbackOptions, isolate));
+
+      V<Object> callback_data =
+          __ Load(data, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmFastApiCallData::kCallbackDataOffset);
+      V<WordPtr> data_argument_to_pass = __ AdaptLocalArgument(callback_data);
+
+      __ StoreOffHeap(options_object, data_argument_to_pass,
+                      MemoryRepresentation::UintPtr(),
+                      offsetof(v8::FastApiCallbackOptions, data));
     }
 
     inputs[param_count] = options_object;

@@ -44,6 +44,7 @@ extern operator '.instance_data' macro LoadInstanceDataFromWasmApiFunctionRef(
 
 class WasmFastApiCallData extends HeapObject {
   signature: HeapObject;
+  callback_data: Object;
   cached_map: Weak<Map>|Null;
 }
 

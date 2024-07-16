@@ -1692,11 +1692,12 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
 }
 
 Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
-    DirectHandle<HeapObject> signature) {
+    DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data) {
   Tagged<Map> map = *wasm_fast_api_call_data_map();
   auto result = Cast<WasmFastApiCallData>(AllocateRawWithImmortalMap(
       map->instance_size(), AllocationType::kOld, map));
   result->set_signature(*signature);
+  result->set_callback_data(*callback_data);
   result->set_cached_map(read_only_roots().null_value());
   return handle(result, isolate());
 }
