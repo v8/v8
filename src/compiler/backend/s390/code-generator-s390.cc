@@ -3758,7 +3758,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination) : r1;
       switch (src.type()) {
         case Constant::kInt32:
-            __ mov(dst, Operand(src.ToInt32()));
+          __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           break;
         case Constant::kInt64:
           __ mov(dst, Operand(src.ToInt64(), src.rmode()));
