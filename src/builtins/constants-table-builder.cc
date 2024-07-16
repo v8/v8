@@ -36,6 +36,9 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
+  // Must be on the main thread.
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+
   // Must be generating embedded builtin code.
   DCHECK(isolate_->IsGeneratingEmbeddedBuiltins());
 
@@ -44,24 +47,12 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   DCHECK(!IsInstructionStream(*object));
 #endif
 
-  // This method is called concurrently from both the main thread and
-  // compilation threads. Constant indices need to be reproducible during
-  // builtin generation, so the main thread pre-adds all the constants. A lock
-  // is still needed since the map data structure is still being concurrently
-  // accessed.
-  base::MutexGuard guard(&mutex_);
-  if (ThreadId::Current() != isolate_->thread_id()) {
-    auto find_result = map_.Find(object);
-    DCHECK_NOT_NULL(find_result);
-    return *find_result;
-  } else {
-    auto find_result = map_.FindOrInsert(object);
-    if (!find_result.already_exists) {
-      DCHECK(IsHeapObject(*object));
-      *find_result.entry = map_.size() - 1;
-    }
-    return *find_result.entry;
+  auto find_result = map_.FindOrInsert(object);
+  if (!find_result.already_exists) {
+    DCHECK(IsHeapObject(*object));
+    *find_result.entry = map_.size() - 1;
   }
+  return *find_result.entry;
 }
 
 namespace {
