@@ -505,6 +505,7 @@ class MemoryRepresentation {
     kAnyTagged,
     kTaggedPointer,
     kTaggedSigned,
+    kUncompressedTaggedPointer,
     kProtectedPointer,
     kIndirectPointer,
     kSandboxedPointer,
@@ -569,6 +570,9 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation TaggedSigned() {
     return MemoryRepresentation(Enum::kTaggedSigned);
   }
+  static constexpr MemoryRepresentation UncompressedTaggedPointer() {
+    return MemoryRepresentation(Enum::kUncompressedTaggedPointer);
+  }
   static constexpr MemoryRepresentation ProtectedPointer() {
     return MemoryRepresentation(Enum::kProtectedPointer);
   }
@@ -602,6 +606,7 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case UncompressedTaggedPointer():
       case ProtectedPointer():
       case IndirectPointer():
       case SandboxedPointer():
@@ -615,7 +620,7 @@ class MemoryRepresentation {
   // have to deal with pointer compression. Indirect/sandboxed pointers,
   // while they resolve to tagged pointers, return {false} because they
   // use incompatible compression schemes.
-  bool IsTagged() const {
+  bool IsCompressibleTagged() const {
     switch (*this) {
       case AnyTagged():
       case TaggedPointer():
@@ -631,6 +636,7 @@ class MemoryRepresentation {
       case Uint64():
       case Float32():
       case Float64():
+      case UncompressedTaggedPointer():
       case IndirectPointer():
       case ProtectedPointer():
       case SandboxedPointer():
@@ -659,6 +665,7 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case UncompressedTaggedPointer():
       case IndirectPointer():
       case ProtectedPointer():
         return RegisterRepresentation::Tagged();
@@ -734,6 +741,8 @@ class MemoryRepresentation {
         return MachineType::TaggedPointer();
       case TaggedSigned():
         return MachineType::TaggedSigned();
+      case UncompressedTaggedPointer():
+        return MachineType::UintPtr();
       case ProtectedPointer():
         return MachineType::ProtectedPointer();
       case IndirectPointer():
@@ -854,6 +863,8 @@ class MemoryRepresentation {
       case TaggedSigned():
       case ProtectedPointer():
         return kTaggedSizeLog2;
+      case UncompressedTaggedPointer():
+        return kSystemPointerSizeLog2;
       case Simd128():
         return 4;
       case Simd256():

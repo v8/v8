@@ -2910,7 +2910,7 @@ struct LoadOp : OperationT<LoadOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
-           (loaded_rep.IsTagged() &&
+           (loaded_rep.IsCompressibleTagged() &&
             result_rep == RegisterRepresentation::Compressed()) ||
            kind.is_atomic);
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());

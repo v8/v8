@@ -1289,7 +1289,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     int alignment = offset % type.value_kind_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
-    if (COMPRESS_POINTERS_BOOL && rep.IsTagged()) {
+    if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {
       // We are storing tagged value to off-heap location, so we need to store
       // it as a full word otherwise we will not be able to decompress it.
       rep = MemoryRepresentation::UintPtr();
@@ -1318,7 +1318,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     int alignment = offset % type.value_kind_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
-    if (COMPRESS_POINTERS_BOOL && rep.IsTagged()) {
+    if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {
       // We are loading tagged value from off-heap location, so we need to load
       // it as a full word otherwise we will not be able to decompress it.
       rep = MemoryRepresentation::UintPtr();

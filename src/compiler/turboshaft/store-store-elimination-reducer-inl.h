@@ -359,7 +359,7 @@ class RedundantStoreAnalysis {
                 store.maybe_initializing_or_transitioning &&
                 store.kind == StoreOp::Kind::TaggedBase() &&
                 store.write_barrier == WriteBarrierKind::kNoWriteBarrier &&
-                store.stored_rep.IsTagged()) {
+                store.stored_rep.IsCompressibleTagged()) {
               if (last_field_initialization_store_.valid() &&
                   graph_.NextIndex(index) == last_field_initialization_store_) {
                 const StoreOp& store0 = store;
