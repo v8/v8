@@ -1011,8 +1011,8 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
       if (repeat_end < end &&
           serializer_->root_index_map()->Lookup(*obj, &root_index) &&
           RootsTable::IsImmortalImmovable(root_index) &&
-          current.load(cage_base) == repeat_end.load(cage_base)) {
-        DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
+          current.load(cage_base) == repeat_end.load(cage_base) &&
+          reference_type == HeapObjectReferenceType::STRONG) {
         DCHECK(!Heap::InYoungGeneration(*obj));
         while (repeat_end < end &&
                repeat_end.load(cage_base) == current.load(cage_base)) {
