@@ -431,7 +431,6 @@ DEFINE_NEG_IMPLICATION(enable_third_party_heap, inline_new)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_builtin_generation)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, script_streaming)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap,
                        parallel_compile_tasks_for_eager_toplevel)
@@ -796,12 +795,10 @@ DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
 DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(assert_types, concurrent_builtin_generation)
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_assert_types,
     "generate runtime type assertions to test the turboshaft type system")
 DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_builtin_generation)
 
 // Enable verification of SimplifiedLowering in debug builds.
 DEFINE_BOOL(verify_simplified_lowering, DEBUG_BOOL,
@@ -1071,9 +1068,6 @@ DEFINE_SIZE_T(
     "max size of the shared heap (in Mbytes); "
     "other heap size flags (e.g. max_shared_heap_size) take precedence")
 
-DEFINE_BOOL(concurrent_builtin_generation, true,
-            "generate builtins concurrently on separate threads in mksnapshot")
-
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
@@ -1153,13 +1147,11 @@ DEFINE_BOOL(turbo_wasm_address_reassociation, true,
 
 DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
-DEFINE_NEG_IMPLICATION(trace_turbo, concurrent_builtin_generation)
 DEFINE_STRING(trace_turbo_path, nullptr,
               "directory to dump generated TurboFan IR to")
 DEFINE_STRING(trace_turbo_filter, "*",
               "filter for tracing turbofan compilation")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
-DEFINE_NEG_IMPLICATION(trace_turbo_graph, concurrent_builtin_generation)
 DEFINE_BOOL(trace_turbo_scheduled, false, "trace TurboFan IR with schedule")
 DEFINE_IMPLICATION(trace_turbo_scheduled, trace_turbo_graph)
 DEFINE_STRING(trace_turbo_file_prefix, "turbo",
@@ -1316,7 +1308,6 @@ DEFINE_BOOL(turbo_load_elimination, true, "enable load elimination in TurboFan")
 DEFINE_BOOL(trace_turbo_load_elimination, false,
             "trace TurboFan load elimination")
 DEFINE_BOOL(turbo_profiling, false, "enable basic block profiling in TurboFan")
-DEFINE_NEG_IMPLICATION(turbo_profiling, concurrent_builtin_generation)
 DEFINE_BOOL(turbo_profiling_verbose, false,
             "enable basic block profiling in TurboFan, and include each "
             "function's schedule and disassembly in the output")
@@ -3124,7 +3115,6 @@ DEFINE_NEG_IMPLICATION(predictable_gc_schedule, memory_reducer)
 DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(single_threaded, concurrent_builtin_generation)
 DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 DEFINE_NEG_IMPLICATION(single_threaded, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(single_threaded,

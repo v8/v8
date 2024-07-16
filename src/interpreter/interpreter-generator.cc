@@ -3277,20 +3277,28 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 
 }  // namespace
 
-void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
-                             Bytecode bytecode, OperandScale operand_scale) {
+Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
+                                     Bytecode bytecode,
+                                     OperandScale operand_scale,
+                                     Builtin builtin,
+                                     const AssemblerOptions& options) {
+  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  compiler::CodeAssemblerState state(
+      isolate, &zone, InterpreterDispatchDescriptor{},
+      CodeKind::BYTECODE_HANDLER, debug_name, builtin);
+
   switch (bytecode) {
-#define CALL_GENERATOR(Name, ...)                    \
-  case Bytecode::k##Name:                            \
-    Name##Assembler::Generate(state, operand_scale); \
+#define CALL_GENERATOR(Name, ...)                     \
+  case Bytecode::k##Name:                             \
+    Name##Assembler::Generate(&state, operand_scale); \
     break;
     BYTECODE_LIST_WITH_UNIQUE_HANDLERS(CALL_GENERATOR);
 #undef CALL_GENERATOR
     case Bytecode::kIllegal:
-      IllegalAssembler::Generate(state, operand_scale);
+      IllegalAssembler::Generate(&state, operand_scale);
       break;
     case Bytecode::kStar0:
-      Star0Assembler::Generate(state, operand_scale);
+      Star0Assembler::Generate(&state, operand_scale);
       break;
     default:
       // Others (the rest of the short stars, and the rest of the illegal range)
@@ -3298,6 +3306,19 @@ void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
       // the jump table point to those handlers.
       UNREACHABLE();
   }
+
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+      &state, options, ProfileDataFromFile::TryRead(debug_name));
+
+#ifdef ENABLE_DISASSEMBLER
+  if (v8_flags.trace_ignition_codegen) {
+    StdoutStream os;
+    code->Disassemble(Bytecodes::ToString(bytecode), os, isolate);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
 }
 
 }  // namespace interpreter

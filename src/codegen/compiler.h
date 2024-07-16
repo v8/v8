@@ -480,10 +480,6 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   void RecordFunctionCompilation(LogEventListener::CodeTag code_type,
                                  Isolate* isolate) const;
 
-  // Only used for concurrent builtin generation, which needs to be
-  // deterministic and reproducible.
-  virtual int FinalizeOrder() const { UNREACHABLE(); }
-
   // Intended for use as a globally unique id in trace events.
   uint64_t trace_id() const;
 
