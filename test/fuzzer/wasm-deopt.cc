@@ -73,6 +73,36 @@ std::ostream& operator<<(std::ostream& out, const ExecutionResult& result) {
   return out;
 }
 
+class NearHeapLimitCallbackScope {
+ public:
+  explicit NearHeapLimitCallbackScope(Isolate* isolate) : isolate_(isolate) {
+    isolate_->heap()->AddNearHeapLimitCallback(Callback, this);
+  }
+
+  ~NearHeapLimitCallbackScope() {
+    isolate_->heap()->RemoveNearHeapLimitCallback(Callback, initial_limit_);
+  }
+
+  bool heap_limit_reached() const { return heap_limit_reached_; }
+
+ private:
+  static size_t Callback(void* raw_data, size_t current_limit,
+                         size_t initial_limit) {
+    NearHeapLimitCallbackScope* data =
+        reinterpret_cast<NearHeapLimitCallbackScope*>(raw_data);
+    data->heap_limit_reached_ = true;
+    data->isolate_->TerminateExecution();
+    data->initial_limit_ = initial_limit;
+    // Return a slightly raised limit, just to make it to the next
+    // interrupt check point, where execution will terminate.
+    return initial_limit * 1.25;
+  }
+
+  Isolate* isolate_;
+  bool heap_limit_reached_ = false;
+  size_t initial_limit_ = 0;
+};
+
 std::vector<ExecutionResult> PerformReferenceRun(
     const std::vector<std::string>& callees, ModuleWireBytes wire_bytes,
     WasmEnabledFeatures enabled_features, bool valid, Isolate* isolate) {
@@ -96,24 +126,8 @@ std::vector<ExecutionResult> PerformReferenceRun(
 
   auto arguments = base::OwnedVector<Handle<Object>>::New(1);
 
+  NearHeapLimitCallbackScope near_heap_limit(isolate);
   for (uint32_t i = 0; i < callees.size(); ++i) {
-    struct OomCallbackData {
-      Isolate* isolate;
-      bool heap_limit_reached{false};
-      size_t initial_limit{0};
-    } oom_callback_data{isolate};
-    auto heap_limit_callback = [](void* raw_data, size_t current_limit,
-                                  size_t initial_limit) -> size_t {
-      OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
-      data->heap_limit_reached = true;
-      data->isolate->TerminateExecution();
-      data->initial_limit = initial_limit;
-      // Return a slightly raised limit, just to make it to the next
-      // interrupt check point, where execution will terminate.
-      return initial_limit * 1.25;
-    };
-    isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
-                                              &oom_callback_data);
 
     arguments[0] = handle(Smi::FromInt(i), isolate);
     std::unique_ptr<const char[]> exception;
@@ -127,9 +141,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
     if (nondeterminism != 0) break;
     // Similar to max steps reached, also discard modules that need too much
     // memory.
-    isolate->heap()->RemoveNearHeapLimitCallback(
-        heap_limit_callback, oom_callback_data.initial_limit);
-    if (oom_callback_data.heap_limit_reached) {
+    if (near_heap_limit.heap_limit_reached()) {
       isolate->CancelTerminateExecution();
       break;
     }
