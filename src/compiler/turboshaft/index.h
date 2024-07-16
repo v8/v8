@@ -14,6 +14,7 @@
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-function.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
@@ -535,7 +536,7 @@ using NumberOrUndefined = UnionOf<Number, Undefined>;
 
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using CallTarget = UntaggedUnion<WordPtr, Code>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
 #ifdef HAS_CPP_CONCEPTS

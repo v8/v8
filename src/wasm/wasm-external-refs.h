@@ -135,9 +135,9 @@ void return_switch(Isolate* isolate, Address continuation);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);
-intptr_t switch_to_the_central_stack_for_js(Address receiver,
+intptr_t switch_to_the_central_stack_for_js(Isolate* isolate,
                                             uintptr_t* stack_limit_slot);
-void switch_from_the_central_stack_for_js(Address receiver,
+void switch_from_the_central_stack_for_js(Isolate* isolate,
                                           uintptr_t stack_limit);
 
 }  // namespace wasm

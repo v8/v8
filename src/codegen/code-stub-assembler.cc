@@ -18325,18 +18325,18 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStack(
-    TNode<Object> receiver) {
+TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStack() {
   TNode<WordT> stack_limit_slot = IntPtrAdd(
       LoadFramePointer(),
       IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
 
   TNode<ExternalReference> do_switch = ExternalConstant(
       ExternalReference::wasm_switch_to_the_central_stack_for_js());
-  TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(
-      CallCFunction(do_switch, MachineType::Pointer(),
-                    std::make_pair(MachineType::TaggedPointer(), receiver),
-                    std::make_pair(MachineType::Pointer(), stack_limit_slot)));
+  TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())),
+      std::make_pair(MachineType::Pointer(), stack_limit_slot)));
 
   TNode<RawPtrT> old_sp = LoadStackPointer();
   SetStackPointer(central_stack_sp);
@@ -18347,17 +18347,18 @@ TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStack(
   return old_sp;
 }
 
-void CodeStubAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp,
-                                                  TNode<Object> receiver) {
+void CodeStubAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp) {
   TNode<WordT> stack_limit = Load<RawPtrT>(
       LoadFramePointer(),
       IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
 
   TNode<ExternalReference> do_switch = ExternalConstant(
       ExternalReference::wasm_switch_from_the_central_stack_for_js());
-  CallCFunction(do_switch, MachineType::Pointer(),
-                std::make_pair(MachineType::TaggedPointer(), receiver),
-                std::make_pair(MachineType::Pointer(), stack_limit));
+  CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())),
+      std::make_pair(MachineType::Pointer(), stack_limit));
 
   StoreNoWriteBarrier(
       MachineType::PointerRepresentation(), LoadFramePointer(),
@@ -18366,15 +18367,14 @@ void CodeStubAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp,
   SetStackPointer(old_sp);
 }
 
-TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStackIfNeeded(
-    TNode<Object> receiver) {
+TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStackIfNeeded() {
   TVARIABLE(RawPtrT, old_sp, PointerConstant(nullptr));
   Label no_switch(this);
   Label end(this);  // -> return value of the call (kTaggedPointer)
   TNode<Uint8T> is_on_central_stack_flag = LoadUint8FromRootRegister(
       IntPtrConstant(IsolateData::is_on_central_stack_flag_offset()));
   GotoIf(is_on_central_stack_flag, &no_switch);
-  old_sp = SwitchToTheCentralStack(receiver);
+  old_sp = SwitchToTheCentralStack();
   Goto(&no_switch);
   Bind(&no_switch);
   return old_sp.value();

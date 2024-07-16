@@ -4555,10 +4555,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // to the central stack (but not the frame pointer) and adjust the stack
   // limit. Returns the old stack pointer, or nullptr if no switch was
   // performed.
-  TNode<RawPtrT> SwitchToTheCentralStackIfNeeded(TNode<Object> receiver);
+  TNode<RawPtrT> SwitchToTheCentralStackIfNeeded();
   // Switch the SP back to the secondary stack after switching to the central
   // stack.
-  void SwitchFromTheCentralStack(TNode<RawPtrT> old_sp, TNode<Object> receiver);
+  void SwitchFromTheCentralStack(TNode<RawPtrT> old_sp);
 
   TNode<BoolT> IsMarked(TNode<Object> object);
 
@@ -4737,7 +4737,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, ElementsKind elements_kind,
       TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
 
-  TNode<RawPtrT> SwitchToTheCentralStack(TNode<Object> receiver);
+  TNode<RawPtrT> SwitchToTheCentralStack();
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {

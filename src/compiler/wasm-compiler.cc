@@ -7862,9 +7862,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->Call(then_call_desc, then_target, value, on_fulfilled, on_rejected,
                 UndefinedValue(), native_context);
 
-    BuildSwitchBackFromCentralStack(*old_sp, suspender);
+    BuildSwitchBackFromCentralStack(*old_sp);
     Node* resolved = gasm_->Call(call_descriptor, call_target, suspender);
-    BuildSwitchToTheCentralStack(suspender);
+    BuildSwitchToTheCentralStack();
     gasm_->Goto(&resume, resolved, *old_sp);
 
     gasm_->Bind(&bad_suspender);
@@ -7876,7 +7876,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return resume.PhiAt(0);
   }
 
-  Node* BuildSwitchToTheCentralStack(Node* receiver) {
+  Node* BuildSwitchToTheCentralStack() {
     Node* stack_limit_slot = gasm_->IntPtrAdd(
         gasm_->LoadFramePointer(),
         gasm_->IntPtrConstant(
@@ -7888,8 +7888,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                           MachineType::Pointer()};
     MachineSignature sig(1, 2, reps);
 
-    Node* central_stack_sp =
-        BuildCCall(&sig, do_switch, receiver, stack_limit_slot);
+    Node* central_stack_sp = BuildCCall(
+        &sig, do_switch,
+        gasm_->ExternalConstant(ExternalReference::isolate_address()),
+        stack_limit_slot);
     Node* old_sp = gasm_->LoadStackPointer();
     // Temporarily disallow sp-relative offsets.
     gasm_->SetStackPointer(central_stack_sp);
@@ -7901,7 +7903,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return old_sp;
   }
 
-  void BuildSwitchBackFromCentralStack(Node* old_sp, Node* receiver) {
+  void BuildSwitchBackFromCentralStack(Node* old_sp) {
     Node* stack_limit = gasm_->Load(
         MachineType::Pointer(), gasm_->LoadFramePointer(),
         WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
@@ -7910,7 +7912,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         ExternalReference::wasm_switch_from_the_central_stack_for_js());
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
     MachineSignature sig(0, 2, reps);
-    BuildCCall(&sig, do_switch, receiver, stack_limit);
+    BuildCCall(&sig, do_switch,
+               gasm_->ExternalConstant(ExternalReference::isolate_address()),
+               stack_limit);
     gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                      kNoWriteBarrier),
                  gasm_->LoadFramePointer(),
@@ -7919,7 +7923,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->SetStackPointer(old_sp);
   }
 
-  Node* BuildSwitchToTheCentralStackIfNeeded(Node* receiver) {
+  Node* BuildSwitchToTheCentralStackIfNeeded() {
     // If the current stack is a secondary stack, switch to the central stack.
     auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
     Node* isolate_root = BuildLoadIsolateRoot();
@@ -7929,7 +7933,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIf(is_on_central_stack_flag, &end, BranchHint::kTrue,
                   gasm_->IntPtrConstant(0));
 
-    Node* old_sp = BuildSwitchToTheCentralStack(receiver);
+    Node* old_sp = BuildSwitchToTheCentralStack();
     gasm_->Goto(&end, old_sp);
 
     gasm_->Bind(&end);
@@ -7963,7 +7967,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* callable_node = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));
-    Node* old_sp = BuildSwitchToTheCentralStackIfNeeded(callable_node);
+    Node* old_sp = BuildSwitchToTheCentralStackIfNeeded();
 
     Node* undefined_node = UndefinedValue();
     Node* call = nullptr;
@@ -8082,7 +8086,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto done = gasm_->MakeLabel();
     gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done,
                   BranchHint::kTrue);
-    BuildSwitchBackFromCentralStack(old_sp, callable_node);
+    BuildSwitchBackFromCentralStack(old_sp);
     gasm_->Goto(&done);
     gasm_->Bind(&done);
 
