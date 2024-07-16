@@ -106,6 +106,9 @@ class Managed : public Foreign {
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
+  // Read back the memory estimate that was provided when creating this Managed.
+  size_t estimated_size() const { return GetDestructor()->estimated_size_; }
+
   // Create a {Managed>} from an existing {std::shared_ptr} or {std::unique_ptr}
   // (which will automatically convert to a {std::shared_ptr}).
   static Handle<Managed<CppType>> From(
@@ -116,14 +119,16 @@ class Managed : public Foreign {
  private:
   friend class Tagged<Managed>;
 
-  // Internally this {Foreign} object stores a pointer to a new
-  // std::shared_ptr<CppType>.
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  // Internally this {Foreign} object stores a pointer to a
+  // ManagedPtrDestructor, which again stores the std::shared_ptr.
+  ManagedPtrDestructor* GetDestructor() const {
     static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
-    auto destructor =
-        reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
+    return reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
+  }
+
+  std::shared_ptr<CppType>* GetSharedPtrPtr() {
     return reinterpret_cast<std::shared_ptr<CppType>*>(
-        destructor->shared_ptr_ptr_);
+        GetDestructor()->shared_ptr_ptr_);
   }
 };
 

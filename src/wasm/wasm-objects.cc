@@ -1243,7 +1243,11 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<ProtectedFixedArray> empty_protected_fixed_array =
       isolate->factory()->empty_protected_fixed_array();
 
-  size_t estimated_size = native_module->EstimateCurrentMemoryConsumption();
+  // Use the same memory estimate as the (untrusted) Managed in
+  // WasmModuleObject. This is not security critical, and we at least always
+  // read the memory estimation of *some* NativeModule here.
+  size_t estimated_size =
+      module_object->managed_native_module()->estimated_size();
   DirectHandle<TrustedManaged<wasm::NativeModule>>
       trusted_managed_native_module = TrustedManaged<wasm::NativeModule>::From(
           isolate, estimated_size, native_module);
