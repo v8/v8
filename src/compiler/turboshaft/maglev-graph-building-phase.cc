@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
 #include <limits>
+#include <memory>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -43,8 +44,11 @@
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-verifier.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -1774,7 +1778,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::AllocationBlock* node,
                                 const maglev::ProcessingState& state) {
-    if (!node->is_used()) return maglev::ProcessResult::kRemove;
+    DCHECK(
+        node->is_used());  // Should have been dead-code eliminated otherwise.
     int size = 0;
     for (auto alloc : node->allocation_list()) {
       if (!alloc->HasBeenAnalysed() || alloc->HasEscaped()) {
@@ -1789,9 +1794,8 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::InlinedAllocation* node,
                                 const maglev::ProcessingState& state) {
-    if (node->HasBeenAnalysed() && node->HasBeenElided()) {
-      return maglev::ProcessResult::kRemove;
-    }
+    DCHECK(node->HasBeenAnalysed() &&
+           node->HasEscaped());  // Would have been removed otherwise.
     V<HeapObject> alloc = Map(node->allocation_block());
     SetMap(node, __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                      __ BitcastHeapObjectToWordPtr(alloc), node->offset())));
@@ -3496,6 +3500,7 @@ class GraphBuilder {
  private:
   OptionalV<FrameState> BuildFrameState(
       maglev::EagerDeoptInfo* eager_deopt_info) {
+    deduplicator_.Reset();
     // Eager deopts don't have a result location/size.
     const interpreter::Register result_location =
         interpreter::Register::invalid_value();
@@ -3516,6 +3521,7 @@ class GraphBuilder {
 
   OptionalV<FrameState> BuildFrameState(
       maglev::LazyDeoptInfo* lazy_deopt_info) {
+    deduplicator_.Reset();
     switch (lazy_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
@@ -3566,6 +3572,9 @@ class GraphBuilder {
       builder.AddParentFrameState(parent_frame.value());
     }
 
+    const maglev::VirtualObject::List& virtual_objects =
+        maglev::GetVirtualObjects(frame);
+
     // Closure
     // TODO(dmercadier): ConstructInvokeStub frames don't have a Closure input,
     // but the instruction selector assumes that they do and that it should be
@@ -3576,10 +3585,10 @@ class GraphBuilder {
     builder.AddInput(MachineType::AnyTagged(), fake_closure_input);
 
     // Parameters
-    AddDeoptInput(builder, frame.receiver());
+    AddDeoptInput(builder, virtual_objects, frame.receiver());
 
     // Context
-    AddDeoptInput(builder, frame.context());
+    AddDeoptInput(builder, virtual_objects, frame.context());
 
     if (builder.Inputs().size() >
         std::numeric_limits<decltype(Operation::input_count)>::max() - 1) {
@@ -3603,12 +3612,15 @@ class GraphBuilder {
       builder.AddParentFrameState(parent_frame.value());
     }
 
+    const maglev::VirtualObject::List& virtual_objects =
+        maglev::GetVirtualObjects(frame);
+
     // Closure
-    AddDeoptInput(builder, frame.closure());
+    AddDeoptInput(builder, virtual_objects, frame.closure());
 
     // Parameters
     for (const maglev::ValueNode* arg : frame.arguments()) {
-      AddDeoptInput(builder, arg);
+      AddDeoptInput(builder, virtual_objects, arg);
     }
 
     // Context
@@ -3642,6 +3654,9 @@ class GraphBuilder {
       builder.AddParentFrameState(parent_frame.value());
     }
 
+    const maglev::VirtualObject::List& virtual_objects =
+        maglev::GetVirtualObjects(frame);
+
     // Closure
     if (frame.is_javascript()) {
       builder.AddInput(MachineType::AnyTagged(),
@@ -3652,7 +3667,7 @@ class GraphBuilder {
 
     // Parameters
     for (maglev::ValueNode* param : frame.parameters()) {
-      AddDeoptInput(builder, param);
+      AddDeoptInput(builder, virtual_objects, param);
     }
 
     // Extra fixed JS frame parameters. These are at the end since JS builtins
@@ -3674,7 +3689,7 @@ class GraphBuilder {
     }
 
     // Context
-    AddDeoptInput(builder, frame.context());
+    AddDeoptInput(builder, virtual_objects, frame.context());
 
     if (builder.Inputs().size() >
         std::numeric_limits<decltype(Operation::input_count)>::max() - 1) {
@@ -3701,17 +3716,22 @@ class GraphBuilder {
       builder.AddParentFrameState(parent_frame.value());
     }
 
+    const maglev::VirtualObject::List& virtual_objects =
+        frame.frame_state()->virtual_objects();
+
     // Closure
-    AddDeoptInput(builder, frame.closure());
+    AddDeoptInput(builder, virtual_objects, frame.closure());
 
     // Parameters
     frame.frame_state()->ForEachParameter(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          AddDeoptInput(builder, value, reg, result_location, result_size);
+          AddDeoptInput(builder, virtual_objects, value, reg, result_location,
+                        result_size);
         });
 
     // Context
-    AddDeoptInput(builder, frame.frame_state()->context(frame.unit()));
+    AddDeoptInput(builder, virtual_objects,
+                  frame.frame_state()->context(frame.unit()));
 
     // Locals
     // ForEachLocal in Maglev skips over dead registers, but we still need to
@@ -3727,7 +3747,8 @@ class GraphBuilder {
             builder.AddUnusedRegister();
             local_index++;
           }
-          AddDeoptInput(builder, value, reg, result_location, result_size);
+          AddDeoptInput(builder, virtual_objects, value, reg, result_location,
+                        result_size);
           local_index++;
         });
     for (; local_index < frame.unit().register_count(); local_index++) {
@@ -3736,7 +3757,8 @@ class GraphBuilder {
 
     // Accumulator
     if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
-      AddDeoptInput(builder, frame.frame_state()->accumulator(frame.unit()),
+      AddDeoptInput(builder, virtual_objects,
+                    frame.frame_state()->accumulator(frame.unit()),
                     interpreter::Register::virtual_accumulator(),
                     result_location, result_size);
     } else {
@@ -3759,24 +3781,192 @@ class GraphBuilder {
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
+                     const maglev::VirtualObject::List& virtual_objects,
                      const maglev::ValueNode* node) {
     if (const maglev::VirtualObject* vobj =
             node->TryCast<maglev::VirtualObject>()) {
+      DCHECK(vobj->allocation()->HasBeenAnalysed());
+      if (vobj->allocation()->HasBeenElided()) {
+        AddVirtualObjectInput(builder, virtual_objects, vobj);
+        return;
+      }
       node = vobj->allocation();
     }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
+                     const maglev::VirtualObject::List& virtual_objects,
                      const maglev::ValueNode* node, interpreter::Register reg,
                      interpreter::Register result_location, int result_size) {
     if (result_location.is_valid() && maglev::LazyDeoptInfo::InReturnValues(
                                           reg, result_location, result_size)) {
       builder.AddUnusedRegister();
     } else {
-      AddDeoptInput(builder, node);
+      AddDeoptInput(builder, virtual_objects, node);
     }
   }
+
+  void AddVirtualObjectInput(FrameStateData::Builder& builder,
+                             const maglev::VirtualObject::List& virtual_objects,
+                             const maglev::VirtualObject* vobj) {
+    if (vobj->type() == maglev::VirtualObject::kHeapNumber) {
+      builder.AddInput(MachineType::AnyTagged(),
+                       __ NumberConstant(vobj->number().get_scalar()));
+      return;
+    }
+
+    Deduplicator::DuplicatedId dup_id = deduplicator_.GetDuplicatedId(vobj);
+    if (dup_id.duplicated) {
+      builder.AddDematerializedObjectReference(dup_id.id);
+      return;
+    }
+    if (vobj->type() == maglev::VirtualObject::kFixedDoubleArray) {
+      constexpr int kMapAndLengthFieldCount = 2;
+      uint32_t length = vobj->double_elements_length();
+      uint32_t field_count = length + kMapAndLengthFieldCount;
+      builder.AddDematerializedObject(dup_id.id, field_count);
+      builder.AddInput(
+          MachineType::AnyTagged(),
+          __ HeapConstantNoHole(local_factory_->fixed_double_array_map()));
+      builder.AddInput(MachineType::AnyTagged(),
+                       __ SmiConstant(Smi::FromInt(length)));
+      FixedDoubleArrayRef elements = vobj->double_elements();
+      for (uint32_t i = 0; i < length; i++) {
+        i::Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
+        if (value.is_hole_nan()) {
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ HeapConstantHole(local_factory_->the_hole_value()));
+        } else {
+          builder.AddInput(MachineType::AnyTagged(),
+                           __ NumberConstant(value.get_scalar()));
+        }
+      }
+      return;
+    }
+
+    DCHECK_EQ(vobj->type(), maglev::VirtualObject::kDefault);
+    constexpr int kMapFieldCount = 1;
+    uint32_t field_count = vobj->slot_count() + kMapFieldCount;
+    builder.AddDematerializedObject(dup_id.id, field_count);
+    builder.AddInput(MachineType::AnyTagged(),
+                     __ HeapConstantNoHole(vobj->map().object()));
+    for (uint32_t i = 0; i < vobj->slot_count(); i++) {
+      AddVirtualObjectNestedValue(builder, virtual_objects,
+                                  vobj->get_by_index(i));
+    }
+  }
+
+  void AddVirtualObjectNestedValue(
+      FrameStateData::Builder& builder,
+      const maglev::VirtualObject::List& virtual_objects,
+      const maglev::ValueNode* value) {
+    if (maglev::IsConstantNode(value->opcode())) {
+      switch (value->opcode()) {
+        case maglev::Opcode::kConstant:
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ HeapConstant(value->Cast<maglev::Constant>()->ref().object()));
+          break;
+
+        case maglev::Opcode::kFloat64Constant:
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ NumberConstant(value->Cast<maglev::Float64Constant>()
+                                    ->value()
+                                    .get_scalar()));
+          break;
+
+        case maglev::Opcode::kInt32Constant:
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ NumberConstant(value->Cast<maglev::Int32Constant>()->value()));
+          break;
+
+        case maglev::Opcode::kUint32Constant:
+          builder.AddInput(MachineType::AnyTagged(),
+                           __ NumberConstant(
+                               value->Cast<maglev::Uint32Constant>()->value()));
+          break;
+
+        case maglev::Opcode::kRootConstant:
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              (__ HeapConstant(Cast<HeapObject>(isolate_->root_handle(
+                  value->Cast<maglev::RootConstant>()->index())))));
+          break;
+
+        case maglev::Opcode::kSmiConstant:
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ SmiConstant(value->Cast<maglev::SmiConstant>()->value()));
+          break;
+
+        case maglev::Opcode::kTaggedIndexConstant:
+        case maglev::Opcode::kExternalConstant:
+        default:
+          UNREACHABLE();
+      }
+      return;
+    }
+
+    // Special nodes.
+    switch (value->opcode()) {
+      case maglev::Opcode::kArgumentsElements:
+        builder.AddArgumentsElements(
+            value->Cast<maglev::ArgumentsElements>()->type());
+        break;
+      case maglev::Opcode::kArgumentsLength:
+        builder.AddArgumentsLength();
+        break;
+      case maglev::Opcode::kRestLength:
+        builder.AddRestLength();
+        break;
+      case maglev::Opcode::kVirtualObject:
+        UNREACHABLE();
+      case maglev::Opcode::kInlinedAllocation: {
+        // If the object hasn't been snapshotted yet, then it's the most
+        // up-to-date version and we can directly use the object pointed to by
+        // the allocation.
+        maglev::VirtualObject* vobject =
+            value->Cast<maglev::InlinedAllocation>()->object();
+        if (vobject->IsSnapshot()) {
+          vobject = virtual_objects.FindAllocatedWith(vobject->allocation());
+        }
+        AddDeoptInput(builder, virtual_objects, vobject);
+        break;
+      }
+      default:
+        AddDeoptInput(builder, virtual_objects, value);
+        break;
+    }
+  }
+
+  class Deduplicator {
+   public:
+    struct DuplicatedId {
+      uint32_t id;
+      bool duplicated;
+    };
+    DuplicatedId GetDuplicatedId(const maglev::VirtualObject* object) {
+      // TODO(dmercadier): do better than a linear search here.
+      for (uint32_t idx = 0; idx < object_ids_.size(); idx++) {
+        if (object_ids_[idx] == object) {
+          return {idx, true};
+        }
+      }
+      object_ids_.push_back(object);
+      return {static_cast<uint32_t>(object_ids_.size() - 1), false};
+    }
+
+    void Reset() { object_ids_.clear(); }
+
+    static const uint32_t kNotDuplicated = -1;
+
+   private:
+    std::vector<const maglev::VirtualObject*> object_ids_{10};
+  };
 
   OutputFrameStateCombine ComputeCombine(maglev::InterpretedDeoptFrame& frame,
                                          interpreter::Register result_location,
@@ -4304,6 +4494,11 @@ class GraphBuilder {
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
 
+  // The {deduplicator_} is used when building frame states containing escaped
+  // objects. It could be a local object in `BuildFrameState`, but it's instead
+  // defined here to recycle its memory.
+  Deduplicator deduplicator_;
+
   // In Turboshaft, exception blocks start with a CatchBlockBegin. In Maglev,
   // there is no such operation, and the exception is instead populated into the
   // accumulator by the throwing code, and is then loaded in Maglev through an
@@ -4374,7 +4569,6 @@ class NodeProcessorBase : public GraphBuilder {
   }
 };
 
-namespace {
 void PrintBytecode(PipelineData& data,
                    maglev::MaglevCompilationInfo* compilation_info) {
   DCHECK(data.info()->trace_turbo_graph());
@@ -4395,24 +4589,71 @@ void PrintBytecode(PipelineData& data,
 
 void PrintMaglevGraph(PipelineData& data,
                       maglev::MaglevCompilationInfo* compilation_info,
-                      maglev::Graph* maglev_graph) {
+                      maglev::Graph* maglev_graph, const char* msg) {
   CodeTracer* code_tracer = data.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
-  tracing_scope.stream()
-      << "\n----- Maglev graph after MaglevGraphBuilding -----" << std::endl;
+  tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
   maglev::PrintGraph(tracing_scope.stream(), compilation_info, maglev_graph);
 }
-}  // namespace
+
+// TODO(dmercadier, nicohartmann): consider doing some of these optimizations on
+// the Turboshaft graph after the Maglev->Turboshaft translation. For instance,
+// MaglevPhiRepresentationSelector is the Maglev equivalent of Turbofan's
+// SimplifiedLowering, but is much less powerful (doesn't take truncations into
+// account, doesn't do proper range analysis, doesn't run a fixpoint
+// analysis...).
+void RunMaglevOptimizations(PipelineData* data,
+                            maglev::MaglevCompilationInfo* compilation_info,
+                            maglev::MaglevGraphBuilder& maglev_graph_builder,
+                            maglev::Graph* maglev_graph) {
+  // Phi untagging.
+  {
+    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
+        &maglev_graph_builder);
+    processor.ProcessGraph(maglev_graph);
+  }
+
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintMaglevGraph(*data, compilation_info, maglev_graph,
+                     "After phi untagging");
+  }
+
+  // Escape analysis.
+  {
+    maglev::GraphMultiProcessor<maglev::AnyUseMarkingProcessor> processor;
+    processor.ProcessGraph(maglev_graph);
+  }
+
+#ifdef DEBUG
+  maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
+      compilation_info);
+  verifier.ProcessGraph(maglev_graph);
+#endif
+
+  // Dead nodes elimination (which, amongst other things, cleans up the left
+  // overs of escape analysis).
+  {
+    maglev::GraphMultiProcessor<maglev::DeadNodeSweepingProcessor> processor(
+        maglev::DeadNodeSweepingProcessor{compilation_info});
+    processor.ProcessGraph(maglev_graph);
+  }
+
+  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
+    PrintMaglevGraph(*data, compilation_info, maglev_graph,
+                     "After escape analysis and dead node sweeping");
+  }
+}
 
 base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
                                                             Zone* temp_zone) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
-  auto compilation_info = maglev::MaglevCompilationInfo::NewForTurboshaft(
-      data->isolate(), broker, data->info()->closure(),
-      data->info()->osr_offset(),
-      data->info()->function_context_specializing());
+  std::unique_ptr<maglev::MaglevCompilationInfo> compilation_info =
+      maglev::MaglevCompilationInfo::NewForTurboshaft(
+          data->isolate(), broker, data->info()->closure(),
+          data->info()->osr_offset(),
+          data->info()->function_context_specializing());
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
     PrintBytecode(*data, compilation_info.get());
@@ -4431,15 +4672,13 @@ base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
       maglev_graph);
   maglev_graph_builder.Build();
 
-  // TODO(dmercadier, nicohartmann): remove the MaglevPhiRepresentationSelector
-  // once we have representation selection / simplified lowering in Turboshaft.
-  maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector>
-      representation_selector(&maglev_graph_builder);
-  representation_selector.ProcessGraph(maglev_graph);
-
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    PrintMaglevGraph(*data, compilation_info.get(), maglev_graph);
+    PrintMaglevGraph(*data, compilation_info.get(), maglev_graph,
+                     "After graph building");
   }
+
+  RunMaglevOptimizations(data, compilation_info.get(), maglev_graph_builder,
+                         maglev_graph);
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);
