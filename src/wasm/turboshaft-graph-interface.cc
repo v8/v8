@@ -7772,7 +7772,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BrOrRet(decoder, br_depth);
     }
     // Narrow type for the successful cast fallthrough branch.
-    Forward(decoder, object, value_on_fallthrough);
+    value_on_fallthrough->op =
+        __ AnnotateWasmType(V<Object>::Cast(object.op), config.to);
   }
 
   V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,

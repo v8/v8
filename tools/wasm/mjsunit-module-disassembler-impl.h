@@ -1177,8 +1177,11 @@ class MjsunitModuleDis {
           break;
         }
       }
-      for (uint32_t pre = i; pre < std::min(recgroup.end_type_index, i + 1);
-           pre++) {
+      uint32_t end_index =
+          recgroup.end_type_index != OffsetsProvider::RecGroup::kInvalid
+              ? recgroup.end_type_index
+              : i + 1;
+      for (uint32_t pre = i; pre < end_index; pre++) {
         if (needed_at[pre] == i) {
           out_ << "let ";
           names()->PrintTypeVariableName(out_, pre);
