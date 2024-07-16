@@ -325,29 +325,47 @@ class GraphBuilder {
         // their inputs (and also, Maglev exception blocks have no
         // predecessors).
         !maglev_block->is_exception_handler_block()) {
-      // Collecting the Maglev predecessors.
-      base::SmallVector<const maglev::BasicBlock*, 16> maglev_predecessors;
-      maglev_predecessors.resize_no_init(maglev_block->predecessor_count());
-      for (int i = 0; i < maglev_block->predecessor_count(); ++i) {
-        maglev_predecessors[i] = maglev_block->predecessor_at(i);
-      }
-
-      predecessor_permutation_.resize_and_init(
-          maglev_block->predecessor_count(), Block::kInvalidPredecessorIndex);
-      int index = turboshaft_block->PredecessorCount() - 1;
-      for (const Block* pred : turboshaft_block->PredecessorsIterable()) {
-        // Finding out to which Maglev predecessor {pred} corresponds.
-        const maglev::BasicBlock* orig = __ GetMaglevOrigin(pred);
-        auto orig_it = std::find(maglev_predecessors.begin(),
-                                 maglev_predecessors.end(), orig);
-        DCHECK_NE(orig_it, maglev_predecessors.end());
-        auto orig_index = std::distance(maglev_predecessors.begin(), orig_it);
-
-        predecessor_permutation_[orig_index] = index;
-        index--;
-      }
-      DCHECK_EQ(index, -1);
+      ComputePredecessorPermutations(maglev_block, turboshaft_block, false);
     }
+  }
+
+  void ComputePredecessorPermutations(maglev::BasicBlock* maglev_block,
+                                      Block* turboshaft_block,
+                                      bool skip_backedge) {
+    // This function is only called for loops that need a "single block
+    // predecessor" (from EmitLoopSinglePredecessorBlock). The backedge should
+    // always be skipped in thus cases. Additionally, this means that when
+    // even when {maglev_block} is a loop, {turboshaft_block} shouldn't and
+    // should instead be the new single forward predecessor of the loop.
+    DCHECK_EQ(skip_backedge, maglev_block->is_loop());
+    DCHECK(!turboshaft_block->IsLoop());
+
+    DCHECK(maglev_block->has_phi());
+    DCHECK(turboshaft_block->IsBound());
+    DCHECK_EQ(__ current_block(), turboshaft_block);
+
+    // Collecting the Maglev predecessors.
+    base::SmallVector<const maglev::BasicBlock*, 16> maglev_predecessors;
+    maglev_predecessors.resize_no_init(maglev_block->predecessor_count());
+    for (int i = 0; i < maglev_block->predecessor_count() - skip_backedge;
+         ++i) {
+      maglev_predecessors[i] = maglev_block->predecessor_at(i);
+    }
+
+    predecessor_permutation_.resize_and_init(maglev_block->predecessor_count(),
+                                             Block::kInvalidPredecessorIndex);
+    int index = turboshaft_block->PredecessorCount() - 1;
+    // Iterating predecessors from the end (because it's simpler and more
+    // efficient in Turboshaft).
+    for (const Block* pred : turboshaft_block->PredecessorsIterable()) {
+      // Finding out to which Maglev predecessor {pred} corresponds.
+      const maglev::BasicBlock* orig = __ GetMaglevOrigin(pred);
+      auto orig_index = *base::index_of(maglev_predecessors, orig);
+
+      predecessor_permutation_[orig_index] = index;
+      index--;
+    }
+    DCHECK_EQ(index, -1);
   }
 
   // Exceptions Phis are a bit special in Maglev: they have no predecessors, and
@@ -494,19 +512,17 @@ class GraphBuilder {
     __ Bind(loop_pred);
 
     if (maglev_loop_header->has_phi()) {
+      ComputePredecessorPermutations(maglev_loop_header, loop_pred, true);
+
       // Now we need to emit Phis (one per loop phi in {block}, which should
       // contain the same input except for the backedge).
       loop_phis_first_input_.clear();
       loop_phis_first_input_index_ = 0;
       for (maglev::Phi* phi : *maglev_loop_header->phis()) {
-        base::SmallVector<OpIndex, 16> inputs;
         constexpr int kSkipBackedge = 1;
-        for (int i = 0; i < phi->input_count() - kSkipBackedge; i++) {
-          inputs.push_back(Map(phi->input(i)));
-        }
+        int input_count = phi->input_count() - kSkipBackedge;
         loop_phis_first_input_.push_back(
-            __ Phi(base::VectorOf(inputs),
-                   RegisterRepresentationFor(phi->value_representation())));
+            MakePhiMaybePermuteInputs(phi, input_count));
       }
     }
 
@@ -664,17 +680,30 @@ class GraphBuilder {
       }
       SetMap(node, __ PendingLoopPhi(first_phi_input, rep));
     } else {
-      DCHECK(!predecessor_permutation_.empty());
-      base::SmallVector<OpIndex, 16> inputs;
-      inputs.resize_and_init(__ current_block()->PredecessorCount());
-      for (int i = 0; i < input_count; ++i) {
-        if (predecessor_permutation_[i] != Block::kInvalidPredecessorIndex) {
-          inputs[predecessor_permutation_[i]] = Map(node->input(i));
-        }
-      }
-      SetMap(node, __ Phi(base::VectorOf(inputs), rep));
+      SetMap(node, MakePhiMaybePermuteInputs(node, input_count));
     }
     return maglev::ProcessResult::kContinue;
+  }
+
+  V<Any> MakePhiMaybePermuteInputs(maglev::ValueNode* maglev_node,
+                                   int maglev_input_count) {
+    DCHECK(!predecessor_permutation_.empty());
+
+    base::SmallVector<OpIndex, 16> inputs;
+    // Note that it's important to use `current_block()->PredecessorCount()` as
+    // the size of {inputs}, because some Maglev predecessors could have been
+    // dropped by Turboshaft during the translation (and thus, `input_count`
+    // might be too much).
+    inputs.resize_and_init(__ current_block()->PredecessorCount());
+    for (int i = 0; i < maglev_input_count; ++i) {
+      if (predecessor_permutation_[i] != Block::kInvalidPredecessorIndex) {
+        inputs[predecessor_permutation_[i]] = Map(maglev_node->input(i));
+      }
+    }
+
+    return __ Phi(
+        base::VectorOf(inputs),
+        RegisterRepresentationFor(maglev_node->value_representation()));
   }
 
   maglev::ProcessResult Process(maglev::Call* node,
