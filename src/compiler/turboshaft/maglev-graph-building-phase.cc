@@ -3852,6 +3852,15 @@ class GraphBuilder {
       }
       node = vobj->allocation();
     }
+    if (const maglev::Identity* ident_obj = node->TryCast<maglev::Identity>()) {
+      // The value_representation of Identity nodes is always Tagged rather than
+      // the actual value_representation of their input. We thus bypass identity
+      // nodes manually here to get to correct value_representation and thus the
+      // correct MachineType.
+      node = ident_obj->input(0).node();
+      // Identity nodes should not have Identity as input.
+      DCHECK(!node->Is<maglev::Identity>());
+    }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
 
