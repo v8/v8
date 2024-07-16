@@ -4635,11 +4635,20 @@ class GraphBuilder {
   base::Optional<BailoutReason>* bailout_;
 };
 
-// A NodeProcessor wrapper around GraphBuilder that takes care of skipping nodes
-// when we are in Unreachable code.
+// A NodeProcessor wrapper around GraphBuilder that takes care of
+//  - skipping nodes when we are in Unreachable code.
+//  - recording source positions.
 class NodeProcessorBase : public GraphBuilder {
  public:
   using GraphBuilder::GraphBuilder;
+
+  NodeProcessorBase(PipelineData* data, Graph& graph, Zone* temp_zone,
+                    maglev::MaglevCompilationUnit* maglev_compilation_unit,
+                    base::Optional<BailoutReason>* bailout)
+      : GraphBuilder::GraphBuilder(data, graph, temp_zone,
+                                   maglev_compilation_unit, bailout),
+        graph_(graph),
+        labeller_(maglev_compilation_unit->graph_labeller()) {}
 
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
@@ -4651,9 +4660,23 @@ class NodeProcessorBase : public GraphBuilder {
       // just return kContinue for simplicity.
       return maglev::ProcessResult::kContinue;
     } else {
-      return GraphBuilder::Process(node, state);
+      OpIndex last_index_before = graph_.LastOperation();
+      maglev::ProcessResult result = GraphBuilder::Process(node, state);
+
+      // Recording the SourcePositions of the OpIndex that were just created.
+      SourcePosition source = labeller_->GetNodeProvenance(node).position;
+      for (OpIndex idx = last_index_before; idx != graph_.LastOperation();
+           idx = graph_.NextIndex(idx)) {
+        graph_.source_positions()[idx] = source;
+      }
+
+      return result;
     }
   }
+
+ private:
+  Graph& graph_;
+  maglev::MaglevGraphLabeller* labeller_;
 };
 
 void PrintBytecode(PipelineData& data,
@@ -4751,9 +4774,10 @@ base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
                                     : broker->isolate()->AsLocalIsolate();
   maglev::Graph* maglev_graph =
       maglev::Graph::New(temp_zone, data->info()->is_osr());
-  if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
-    compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
-  }
+
+  // We always create a MaglevGraphLabeller in order to record source positions.
+  compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
+
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),
       maglev_graph);
