@@ -150,28 +150,31 @@ class LogCodesTask : public Task {
 
   ~LogCodesTask() override {
     // If the platform deletes this task before executing it, we also deregister
-    // it to avoid use-after-free from still-running background threads.
-    if (!cancelled()) DeregisterTask();
+    // it to avoid use-after-free from still-running background threads. In this
+    // case this object was never visible to any other thread, hence
+    // {task_slot_} can be written without synchronization.
+    DeregisterTask();
   }
 
   void Run() override {
-    if (cancelled()) return;
+    Isolate* isolate = isolate_.load(std::memory_order_relaxed);
+    if (!isolate) return;  // cancelled
     DeregisterTask();
-    engine_->LogOutstandingCodesForIsolate(isolate_);
+    engine_->LogOutstandingCodesForIsolate(isolate);
   }
 
   void Cancel() {
+    isolate_.store(nullptr, std::memory_order_relaxed);
     // Cancel will only be called on Isolate shutdown, which happens on the
-    // Isolate's foreground thread. Thus no synchronization needed.
-    isolate_ = nullptr;
+    // Isolate's foreground thread. Thus no synchronization needed on
+    // {task_slot_}.
+    DeregisterTask();
   }
 
-  bool cancelled() const { return isolate_ == nullptr; }
-
   void DeregisterTask() {
-    // The task will only be deregistered from the foreground thread (executing
-    // this task or calling its destructor), thus we do not need synchronization
-    // on this field access.
+    // Synchronization when reading or writing {task_slot_} is not needed, as
+    // deregistering will only happen on the main thread, or before registering
+    // this task with the platform (hence no other threads saw the object yet).
     if (task_slot_ == nullptr) return;  // already deregistered.
     // Remove this task from the {IsolateInfo} in the engine. The next
     // logging request will allocate and schedule a new task.
@@ -184,7 +187,10 @@ class LogCodesTask : public Task {
   // The slot in the WasmEngine where this LogCodesTask is stored. This is
   // cleared by this task before execution or on task destruction.
   std::atomic<LogCodesTask*>* task_slot_;
-  Isolate* isolate_;
+  // The isolate where to log code. On cancellation this is set to {nullptr}. As
+  // cancellation can happen while posting this task from another thread, it
+  // needs to be atomic.
+  std::atomic<Isolate*> isolate_;
   WasmEngine* const engine_;
 };
 
