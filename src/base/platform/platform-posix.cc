@@ -266,6 +266,8 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 }
 #endif  // !V8_OS_FUCHSIA
 
+bool OS::IsHardwareEnforcedShadowStacksEnabled() { return false; }
+
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
