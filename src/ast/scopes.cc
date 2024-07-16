@@ -2693,7 +2693,7 @@ void Scope::AllocateScopeInfosRecursively(
     // next outer scope that needs a context.
     next_outer_scope = scope_info_;
     DCHECK(!scope_info_.is_null());
-    DCHECK(!is_hidden());
+    DCHECK(!is_hidden_catch_scope());
     CHECK_EQ(scope_info_->scope_type(), scope_type_);
     CHECK_EQ(scope_info_->ContextLength(), num_heap_slots_);
 #ifdef DEBUG
@@ -2704,7 +2704,7 @@ void Scope::AllocateScopeInfosRecursively(
 #ifdef DEBUG
     // Mark this ID as being used. Skip hidden scopes because they are
     // synthetic, unreusable, but hard to make unique.
-    if (v8_flags.reuse_scope_infos && !is_hidden()) {
+    if (v8_flags.reuse_scope_infos && !is_hidden_catch_scope()) {
       scope_infos_to_reuse[UniqueIdInScript()] = {};
     }
 #endif
