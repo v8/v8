@@ -468,6 +468,8 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd128:
       opcode = kS390_LoadSimd128;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kProtectedPointer:  // Fall through.
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
@@ -1176,6 +1178,8 @@ static void VisitGeneralStore(
         }
         break;
       }
+      case MachineRepresentation::kFloat16:
+        UNIMPLEMENTED();
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
