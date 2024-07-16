@@ -36,10 +36,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   %WasmTierUpFunction(wasm.main);
   // Tier-up.
   assertEquals(42, wasm.main(30, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   // Non-deopt call succeeded, now causing deopt with imported function.
   assertEquals(360, wasm.main(30, wasm.mul));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   // Deopt happened, executions are now in Liftoff.
   assertEquals(42, wasm.main(30, wasm.add));
   // Re-opt.
@@ -48,7 +52,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   // non-inlineable), they should not trigger new deopts.
   assertEquals(360, wasm.main(30, wasm.mul));
   assertEquals(42, wasm.main(30, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();
 
 (function TestDeoptWithNonInlineableTargetCallIndirect() {
@@ -87,10 +93,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   %WasmTierUpFunction(wasm.main);
   // Tier-up.
   assertEquals(42, wasm.main(12, 30, addTableIndex));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   // Non-deopt call succeeded, now causing deopt with imported function.
   assertEquals(360, wasm.main(12, 30, mulTableIndex));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   // Deopt happened, executions are now in Liftoff.
   assertEquals(42, wasm.main(12, 30, addTableIndex));
   // Re-opt.
@@ -99,5 +109,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   // non-inlineable), they should not trigger new deopts.
   assertEquals(360, wasm.main(12, 30, mulTableIndex));
   assertEquals(42, wasm.main(12, 30, addTableIndex));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();

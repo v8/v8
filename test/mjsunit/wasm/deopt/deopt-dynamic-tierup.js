@@ -56,7 +56,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // queued in the background that re-trigger new deopts with the wasm.mul
   // target. Therefore we can't assert that the deopt count is still 1.
   assertTrue(initialDeoptCount + %WasmDeoptsExecutedCount() < 20);
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertEquals(360, wasm.main(12, 30, wasm.mul));
 })();

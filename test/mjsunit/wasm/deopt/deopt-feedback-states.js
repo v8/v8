@@ -59,10 +59,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   print("tierup");
   assertEquals(42, wasm.main(12, 30, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   print("non-deopt call succeeded, now causing deopt");
   assertEquals(360, wasm.main(12, 30, wasm.mul));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   print("deopt happened");
   assertEquals(42, wasm.main(12, 30, wasm.add));
   print("collect more feedback in liftoff");
@@ -72,9 +76,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(360, wasm.main(12, 30, wasm.mul));
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(12, wasm.main(12, 30, wasm.first));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   print("deopt happened");
   print("re-opt with maximum polymorphism");
   %WasmTierUpFunction(wasm.main);
@@ -82,9 +90,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(42, wasm.main(12, 30, wasm.add));
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
   assertEquals(12, wasm.main(12, 30, wasm.first));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(30, wasm.main(12, 30, wasm.second));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   print("deopt happened");
   print("reopt again");
   %WasmTierUpFunction(wasm.main);
@@ -94,8 +106,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(-18, wasm.main(12, 30, wasm.sub));
   assertEquals(12, wasm.main(12, 30, wasm.first));
   assertEquals(30, wasm.main(12, 30, wasm.second));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   // Previously unseen call targets do not cause a deopt any more.
   assertEquals(1, wasm.main(42, 42, wasm.equals));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();

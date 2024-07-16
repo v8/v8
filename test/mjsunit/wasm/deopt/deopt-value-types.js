@@ -80,10 +80,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
-  assertTrue(%IsTurboFanFunction(wasm.literals));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.literals));
+  }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(expected, wasm.literals(wasm.nop2), delta);
-  assertFalse(%IsTurboFanFunction(wasm.literals));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.literals));
+  }
 })();
 
 (function TestDeoptTypesLiteralsOnValueStack() {
@@ -154,10 +158,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
   %WasmTierUpFunction(wasm.literals);
   assertEqualsDelta(expected, wasm.literals(wasm.nop1), delta);
-  assertTrue(%IsTurboFanFunction(wasm.literals));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.literals));
+  }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(expected, wasm.literals(wasm.nop2), delta);
-  assertFalse(%IsTurboFanFunction(wasm.literals));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.literals));
+  }
 })();
 
 (function TestDeoptTypesNonLiterals() {
@@ -226,8 +234,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
   %WasmTierUpFunction(wasm.locals);
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop1), delta);
-  assertTrue(%IsTurboFanFunction(wasm.locals));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.locals));
+  }
   // Deopt happened, the result should still be the same.
   assertEqualsDelta(42 * 7, wasm.locals(42, wasm.nop2), delta);
-  assertFalse(%IsTurboFanFunction(wasm.locals));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.locals));
+  }
 })();

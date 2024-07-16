@@ -39,16 +39,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals((1 + 2) * 3, wasm.main(1, 2, wasm.add, 3, wasm.mul));
   %WasmTierUpFunction(wasm.main);
   assertEquals((1 + 2) * 3, wasm.main(1, 2, wasm.add, 3, wasm.mul));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   // New target on 2nd call_ref.
   assertEquals((1 + 2) + 3, wasm.main(1, 2, wasm.add, 3, wasm.add));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   // New target on 1st call_ref.
   assertEquals((1 * 2) * 3, wasm.main(1, 2, wasm.mul, 3, wasm.mul));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   // New combination but no new targets.
   assertEquals((1 * 2) + 3, wasm.main(1, 2, wasm.mul, 3, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();
