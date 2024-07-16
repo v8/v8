@@ -2159,8 +2159,8 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
-    // Deopt if {left} is not a Smi.
-    RETURN_VOID_IF_ABORT(BuildCheckSmi(left));
+    // Deopt if {left} is not a Int32.
+    EnsureInt32(left);
     // If the constant is the unit of the operation, it already has the right
     // value, so just return.
     return;
@@ -12290,7 +12290,7 @@ void MaglevGraphBuilder::VisitForInPrepare() {
           AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
       StoreRegisterPair({cache_array_reg, cache_length_reg}, result);
       // Force a conversion to Int32 for the cache length value.
-      GetInt32(cache_length_reg);
+      EnsureInt32(cache_length_reg);
       break;
     }
   }

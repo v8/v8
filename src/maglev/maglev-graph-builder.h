@@ -1423,9 +1423,14 @@ class MaglevGraphBuilder {
   // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value);
 
-  ValueNode* GetInt32(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    return GetInt32(value);
+  void EnsureInt32(ValueNode* value) {
+    // Either the value is Int32 already, or we force a conversion to Int32 and
+    // cache the value in its alternative representation node.
+    GetInt32(value);
+  }
+
+  void EnsureInt32(interpreter::Register reg) {
+    EnsureInt32(current_interpreter_frame_.get(reg));
   }
 
   // Get a Float64 representation node whose value is equivalent to the given
