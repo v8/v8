@@ -1905,6 +1905,13 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     }
 
     RecordRelocInfo(j.rmode(), immediate);
+    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
+      // wasm_canonical_sig_id is 32-bit value.
+      DCHECK(is_int32(immediate));
+      lui(rd, (immediate >> 16) & kImm16Mask);
+      ori(rd, rd, immediate & kImm16Mask);
+      return;
+    }
     lui(rd, (immediate >> 32) & kImm16Mask);
     ori(rd, rd, (immediate >> 16) & kImm16Mask);
     dsll(rd, rd, 16);

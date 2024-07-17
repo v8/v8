@@ -1511,6 +1511,11 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     RecordRelocInfo(j.rmode(), immediate);
     lu12i_w(rd, immediate >> 12 & 0xfffff);
     ori(rd, rd, immediate & kImm12Mask);
+    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
+      // wasm_canonical_sig_id is 32-bit value.
+      DCHECK(is_int32(immediate));
+      return;
+    }
     lu32i_d(rd, immediate >> 32 & 0xfffff);
   } else if (mode == ADDRESS_LOAD) {
     // We always need the same number of instructions as we may need to patch
