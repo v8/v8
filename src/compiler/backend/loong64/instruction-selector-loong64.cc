@@ -781,6 +781,8 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
       case MachineRepresentation::kSandboxedPointer:
         opcode = kLoong64LoadDecodeSandboxedPointer;
         break;
+      case MachineRepresentation::kFloat16:
+        UNIMPLEMENTED();
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:     // Fall through.
@@ -906,6 +908,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kIndirectPointer:
         code = kLoong64StoreIndirectPointer;
         break;
+      case MachineRepresentation::kFloat16:
+        UNIMPLEMENTED();
       case MachineRepresentation::kMapWord:
       case MachineRepresentation::kNone:
       case MachineRepresentation::kSimd128:

@@ -770,6 +770,8 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaLd;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kProtectedPointer:   // Fall through.
@@ -856,6 +858,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kSimd128:
         opcode = kMips64MsaSt;
         break;
+      case MachineRepresentation::kFloat16:
+        UNIMPLEMENTED();
       case MachineRepresentation::kSimd256:            // Fall through.
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
@@ -2630,6 +2634,8 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaLd;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
@@ -2682,6 +2688,8 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaSt;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.

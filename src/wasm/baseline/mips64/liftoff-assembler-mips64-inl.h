@@ -621,6 +621,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF32Load:
       MacroAssembler::Ulwc1(dst.fp(), src_op, t8);
       break;
+    case LoadType::kF32LoadF16:
+      UNIMPLEMENTED();
+      break;
     case LoadType::kF64Load:
       MacroAssembler::Uldc1(dst.fp(), src_op, t8);
       break;
@@ -684,6 +687,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kF32Store:
       MacroAssembler::Uswc1(src.fp(), dst_op, t8);
+      break;
+    case StoreType::kF32StoreF16:
+      UNIMPLEMENTED();
       break;
     case StoreType::kF64Store:
       MacroAssembler::Usdc1(src.fp(), dst_op, t8);
