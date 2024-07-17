@@ -1622,6 +1622,10 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         Tagged<HeapObject> feedback = GetFeedback().GetHeapObject();
+        if (GetFeedbackExtra().IsCleared()) {
+          os << " <cleared>\n";
+          break;
+        }
         if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
           Tagged<WeakFixedArray> array =
