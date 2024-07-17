@@ -66,10 +66,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expected, wasm.main(argumentValue, wasm.nop1));
   %WasmTierUpFunction(wasm.main);
   assertEquals(expected, wasm.main(argumentValue, wasm.nop1));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   // Deopt happened, the result should still be the same.
   assertEquals(expected, wasm.main(argumentValue, wasm.nop2));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
 })();
 
 (function TestInlinedI64Params() {
@@ -105,11 +109,17 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(43n, wasm.main(1n, 42n, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(43n, wasm.main(1n, 42n, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(-41n, wasm.main(1n, 42n, wasm.sub));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   assertEquals(43n, wasm.main(1n, 42n, wasm.add));
   assertEquals(-41n, wasm.main(1n, 42n, wasm.sub));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();

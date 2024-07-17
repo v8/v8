@@ -27,15 +27,23 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   instance.exports.main(instance.exports.callee_0);
   %WasmTierUpFunction(instance.exports.main);
   instance.exports.main(instance.exports.callee_0);
-  assertTrue(%IsTurboFanFunction(instance.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance.exports.main));
+  }
 
   const instance2 = builder.instantiate({});
-  assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  }
   instance2.exports.main(instance.exports.callee_0);
-  assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  }
   %WasmTierUpFunction(instance2.exports.main);
   instance2.exports.main(instance.exports.callee_0);
-  assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  }
 })();
 
 (function TestCallIndirect() {
@@ -67,13 +75,21 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   instance.exports.main(0);
   %WasmTierUpFunction(instance.exports.main);
   instance.exports.main(0);
-  assertTrue(%IsTurboFanFunction(instance.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance.exports.main));
+  }
 
   const instance2 = builder.instantiate({});
-  assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  }
   instance2.exports.main(1);
-  assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(instance2.exports.main));
+  }
   %WasmTierUpFunction(instance2.exports.main);
   instance2.exports.main(1);
-  assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(instance2.exports.main));
+  }
 })();

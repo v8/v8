@@ -32,12 +32,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, wasm.main(wasm.justOne));
   %WasmTierUpFunction(wasm.main);
   assertEquals(1, wasm.main(wasm.justOne));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(0x7fa7a1b9, wasm.main(wasm.reinterpretF32));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   assertEquals(0x7fa7a1b9, wasm.main(wasm.reinterpretF32));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();
 
 (function TestDeoptSignalingNanFloat32Value() {
@@ -68,12 +74,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, wasm.main(wasm.justOne));
   %WasmTierUpFunction(wasm.main);
   assertEquals(1, wasm.main(wasm.justOne));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(0x7fa7a1b9, wasm.main(wasm.reinterpretF32));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   assertEquals(0x7fa7a1b9, wasm.main(wasm.reinterpretF32));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();
 
 (function TestDeoptSignalingNanFloat64Literal() {
@@ -100,12 +112,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1n, wasm.main(wasm.justOne));
   %WasmTierUpFunction(wasm.main);
   assertEquals(1n, wasm.main(wasm.justOne));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(0x7ff4000000000000n, wasm.main(wasm.reinterpretF64));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   assertEquals(0x7ff4000000000000n, wasm.main(wasm.reinterpretF64));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();
 
 (function TestDeoptSignalingNanFloat64Value() {
@@ -137,10 +155,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1n, wasm.main(wasm.justOne));
   %WasmTierUpFunction(wasm.main);
   assertEquals(1n, wasm.main(wasm.justOne));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(0x7ff4000000000000n, wasm.main(wasm.reinterpretF32));
-  assertFalse(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.main));
+  }
   %WasmTierUpFunction(wasm.main);
   assertEquals(0x7ff4000000000000n, wasm.main(wasm.reinterpretF32));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
 })();

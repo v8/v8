@@ -303,6 +303,7 @@ std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
 
+int g_num_isolates_for_testing = 1;
 
 }  // namespace internal
 }  // namespace v8

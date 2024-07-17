@@ -1114,11 +1114,10 @@
   # at a time.
   'wasm/log-code-after-post-message': [SKIP],
 
-  # The tests assert that something is not optimized after deopting. As wasm
-  # code objects are shared, multiple isolates interfere with these test cases.
-  # TODO(42204618): Figure out how to create multi-isolate wasm-deopt test
-  # coverage.
-  'wasm/deopt/*': [SKIP],
+  # These test cases assert on the exact amount of deopts happening between two
+  # points in the code which cannot be guaranteed with multiple isolates.
+  'wasm/deopt/deopt-dynamic-tierup': [SKIP],
+  'wasm/deopt/deopt-metrics': [SKIP],
 
   # The test explicitly deserializes a wasm module and expects the resulting
   # wasm module to match the serialized one. With multiple isolate the resulting

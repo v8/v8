@@ -32,10 +32,14 @@ assertEquals(-457571083, instance.exports.main(instance.exports.getS));
 %WasmTierUpFunction(instance.exports.main);
 // Test value produced by DeoptimizerLiteral constant.
 assertEquals(1689912565, instance.exports.main(instance.exports.getU));
-assertFalse(%IsTurboFanFunction(instance.exports.main));
+if (%IsolateCountForTesting() == 1) {
+  assertFalse(%IsTurboFanFunction(instance.exports.main));
+}
 // Test value produced by Liftoff.
 assertEquals(1689912565, instance.exports.main(instance.exports.getU));
 %WasmTierUpFunction(instance.exports.main);
 // Test value produced by Turboshaft.
 assertEquals(1689912565, instance.exports.main(instance.exports.getU));
-assertTrue(%IsTurboFanFunction(instance.exports.main));
+if (%IsolateCountForTesting() == 1) {
+  assertTrue(%IsTurboFanFunction(instance.exports.main));
+}

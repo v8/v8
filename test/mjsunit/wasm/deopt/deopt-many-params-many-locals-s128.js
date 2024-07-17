@@ -71,15 +71,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedSum, wasm.main(0, wasm.add));
   %WasmTierUpFunction(wasm.deopting);
   assertEquals(expectedSum, wasm.main(0, wasm.add));
-  assertTrue(%IsTurboFanFunction(wasm.deopting));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.deopting));
+  }
   assertEquals(expectedDiff, wasm.main(0, wasm.sub));
-  assertFalse(%IsTurboFanFunction(wasm.deopting));
+  if (%IsolateCountForTesting() == 1) {
+    assertFalse(%IsTurboFanFunction(wasm.deopting));
+  }
 
   // Repeat the test but this time with an additional layer of inlining.
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(0, wasm.add));
   assertEquals(expectedDiff, wasm.main(0, wasm.sub));
-  assertTrue(%IsTurboFanFunction(wasm.main));
+  if (%IsolateCountForTesting() == 1) {
+    assertTrue(%IsTurboFanFunction(wasm.main));
+  }
   assertEquals(expectedMax, wasm.main(0, wasm.max));
 
   function generateCalleeBody(binop) {
