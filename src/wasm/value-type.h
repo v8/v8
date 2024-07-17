@@ -1034,7 +1034,7 @@ class LoadType {
   }
 
  private:
-  const LoadTypeValue val_;
+  LoadTypeValue val_;
 
   static constexpr uint8_t kLoadSize[] = {
   // MSVC wants a static_cast here.
@@ -1122,7 +1122,7 @@ class StoreType {
   }
 
  private:
-  const StoreTypeValue val_;
+  StoreTypeValue val_;
 
   static constexpr uint8_t kStoreSizeLog2[] = {
   // MSVC wants a static_cast here.

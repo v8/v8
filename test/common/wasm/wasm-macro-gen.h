@@ -551,6 +551,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   index, val,                                                                  \
       static_cast<uint8_t>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
+#define WASM_F16_LOAD_MEM(index) \
+  index, WASM_NUMERIC_OP(kExprF32LoadMemF16), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_F16_STORE_MEM(index, val) \
+  index, val, WASM_NUMERIC_OP(kExprF32StoreMemF16), ZERO_ALIGNMENT, ZERO_OFFSET
 #define WASM_RETHROW(index) kExprRethrow, static_cast<uint8_t>(index)
 
 #define WASM_CALL_FUNCTION0(index) \

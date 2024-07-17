@@ -58,7 +58,12 @@
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
   /* V8 side owner: manoskouk */                                               \
-  V(shared, "shared-everything threads", false)
+  V(shared, "shared-everything threads", false)                                \
+                                                                               \
+  /* FP16 proposal. */                                                         \
+  /* https://github.com/WebAssembly/half-precision */                          \
+  /* V8 side owner: irezvov */                                                 \
+  V(fp16, "fp16", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

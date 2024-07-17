@@ -274,6 +274,8 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_float64_to_int64_sat, "wasm::float64_to_int64_sat_wrapper")  \
   IF_WASM(V, wasm_float64_to_uint64_sat,                                       \
           "wasm::float64_to_uint64_sat_wrapper")                               \
+  IF_WASM(V, wasm_float16_to_float32, "wasm::float16_to_float32_wrapper")      \
+  IF_WASM(V, wasm_float32_to_float16, "wasm::float32_to_float16_wrapper")      \
   IF_WASM(V, wasm_int64_div, "wasm::int64_div")                                \
   IF_WASM(V, wasm_int64_mod, "wasm::int64_mod")                                \
   IF_WASM(V, wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")          \

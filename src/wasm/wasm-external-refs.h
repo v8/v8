@@ -62,6 +62,10 @@ V8_EXPORT_PRIVATE void float64_to_int64_sat_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void float64_to_uint64_sat_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void float32_to_float16_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float16_to_float32_wrapper(Address data);
+
 V8_EXPORT_PRIVATE int32_t int64_div_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t int64_mod_wrapper(Address data);

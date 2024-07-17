@@ -97,7 +97,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I64LoadMem16S, 0x32, l_i, "i64.load16_s") \
   V(I64LoadMem16U, 0x33, l_i, "i64.load16_u") \
   V(I64LoadMem32S, 0x34, l_i, "i64.load32_s") \
-  V(I64LoadMem32U, 0x35, l_i, "i64.load32_u")
+  V(I64LoadMem32U, 0x35, l_i, "i64.load32_u") \
+  V(F32LoadMemF16, 0xfc30, f_i, "f32.load_f16")
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V)           \
@@ -109,7 +110,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I32StoreMem16, 0x3b, v_ii, "i32.store16") \
   V(I64StoreMem8, 0x3c, v_il, "i64.store8")   \
   V(I64StoreMem16, 0x3d, v_il, "i64.store16") \
-  V(I64StoreMem32, 0x3e, v_il, "i64.store32")
+  V(I64StoreMem32, 0x3e, v_il, "i64.store32") \
+  V(F32StoreMemF16, 0xfc31, v_if, "f32.store_f16")
 
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V)        \

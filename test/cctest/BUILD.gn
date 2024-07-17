@@ -343,6 +343,7 @@ v8_source_set("cctest_sources") {
       "wasm/test-run-wasm-atomics64.cc",
       "wasm/test-run-wasm-bulk-memory.cc",
       "wasm/test-run-wasm-exceptions.cc",
+      "wasm/test-run-wasm-f16.cc",
       "wasm/test-run-wasm-js.cc",
       "wasm/test-run-wasm-memory64.cc",
       "wasm/test-run-wasm-module.cc",

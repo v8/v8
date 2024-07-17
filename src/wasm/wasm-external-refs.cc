@@ -14,6 +14,7 @@
 #include "src/common/assert-scope.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
+#include "src/wasm/float16.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -281,6 +282,14 @@ void float64_to_uint64_sat_wrapper(Address data) {
     return;
   }
   WriteUnalignedValue<uint64_t>(data, 0);
+}
+
+void float16_to_float32_wrapper(Address data) {
+  WriteUnalignedValue<float>(data, Float16::Read(data).ToFloat32());
+}
+
+void float32_to_float16_wrapper(Address data) {
+  Float16::FromFloat32(ReadUnalignedValue<float>(data)).Write(data);
 }
 
 int32_t int64_div_wrapper(Address data) {

@@ -209,7 +209,7 @@ inline CPURegister LoadToRegister(LiftoffAssembler* assm,
                                   UseScratchRegisterScope* temps,
                                   const LiftoffAssembler::VarState& src) {
   if (src.is_reg()) {
-    return GetRegFromType(src.reg(), src.kind()).Reg();
+    return GetRegFromType(src.reg(), src.kind());
   }
   if (src.is_const()) {
     if (src.kind() == kI32) {

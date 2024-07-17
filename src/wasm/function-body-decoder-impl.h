@@ -2306,6 +2306,13 @@ class WasmDecoder : public Decoder {
             (ios.TableIndex(imm), ...);
             return length + imm.length;
           }
+          case kExprF32LoadMemF16:
+          case kExprF32StoreMemF16: {
+            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
+                                      kConservativelyAssumeMemory64, validate);
+            (ios.MemoryAccess(imm), ...);
+            return length + imm.length;
+          }
           default:
             // This path is only possible if we are validating.
             V8_ASSUME(ValidationTag::validate);
@@ -6018,6 +6025,26 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             Pop(table_index_type, imm.table->type, table_index_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableFill, imm, start, value, count);
         return opcode_length + imm.length;
+      }
+      case kExprF32LoadMemF16: {
+        if (!v8_flags.experimental_wasm_fp16) {
+          this->DecodeError(
+              "invalid numeric opcode: 0x%x, "
+              "enable with --experimental-wasm-fp16",
+              opcode);
+          return 0;
+        }
+        return DecodeLoadMem(LoadType::kF32LoadF16, 2);
+      }
+      case kExprF32StoreMemF16: {
+        if (!v8_flags.experimental_wasm_fp16) {
+          this->DecodeError(
+              "invalid numeric opcode: 0x%x, "
+              "enable with --experimental-wasm-fp16",
+              opcode);
+          return 0;
+        }
+        return DecodeStoreMem(StoreType::kF32StoreF16, 2);
       }
       default:
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);

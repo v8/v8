@@ -2821,6 +2821,7 @@ filegroup(
             "src/wasm/constant-expression-interface.cc",
             "src/wasm/constant-expression-interface.h",
             "src/wasm/decoder.h",
+            "src/wasm/float16.h",
             "src/wasm/function-body-decoder.cc",
             "src/wasm/function-body-decoder.h",
             "src/wasm/function-body-decoder-impl.h",

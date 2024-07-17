@@ -566,6 +566,8 @@ FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
                    wasm::float64_to_int64_sat_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
                    wasm::float64_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float16_to_float32, wasm::float16_to_float32_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_float16, wasm::float32_to_float16_wrapper)
 FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
 FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)

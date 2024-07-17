@@ -3615,8 +3615,13 @@ class LiftoffCompiler {
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index_val,
                Value* result) {
+    DCHECK_EQ(type.value_type().kind(), result->type.kind());
+    bool needs_f16_to_f32_conv = false;
+    if (type.value() == LoadType::kF32LoadF16) {
+      needs_f16_to_f32_conv = true;
+      type = LoadType::kI32Load16U;
+    }
     ValueKind kind = type.value_type().kind();
-    DCHECK_EQ(kind, result->type.kind());
     if (!CheckSupportedType(decoder, kind, "load")) return;
 
     uintptr_t offset = imm.offset;
@@ -3636,7 +3641,15 @@ class LiftoffCompiler {
       Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
       __ Load(value, mem, no_reg, offset, type, nullptr, true, i64_offset);
-      __ PushRegister(kind, value);
+      if (needs_f16_to_f32_conv) {
+        LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
+        auto conv_ref = ExternalReference::wasm_float16_to_float32();
+        GenerateCCallWithStackBuffer(&dst, kVoid, kF32,
+                                     {VarState{kI32, value, 0}}, conv_ref);
+        __ PushRegister(kF32, dst);
+      } else {
+        __ PushRegister(kind, value);
+      }
     } else {
       LiftoffRegister full_index = __ PopToRegister();
       index =
@@ -3657,7 +3670,15 @@ class LiftoffCompiler {
       if (imm.memory->bounds_checks == kTrapHandler) {
         RegisterProtectedInstruction(decoder, protected_load_pc);
       }
-      __ PushRegister(kind, value);
+      if (needs_f16_to_f32_conv) {
+        LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
+        auto conv_ref = ExternalReference::wasm_float16_to_float32();
+        GenerateCCallWithStackBuffer(&dst, kVoid, kF32,
+                                     {VarState{kI32, value, 0}}, conv_ref);
+        __ PushRegister(kF32, dst);
+      } else {
+        __ PushRegister(kind, value);
+      }
     }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -3770,6 +3791,17 @@ class LiftoffCompiler {
 
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
+
+    if (type.value() == StoreType::kF32StoreF16) {
+      type = StoreType::kI32Store16;
+      // {value} is always a float, so can't alias with {i16}.
+      DCHECK_EQ(kF32, kind);
+      LiftoffRegister i16 = pinned.set(__ GetUnusedRegister(kGpReg, {}));
+      auto conv_ref = ExternalReference::wasm_float32_to_float16();
+      GenerateCCallWithStackBuffer(&i16, kVoid, kI32,
+                                   {VarState{kF32, value, 0}}, conv_ref);
+      value = i16;
+    }
 
     uintptr_t offset = imm.offset;
     Register index = no_reg;
