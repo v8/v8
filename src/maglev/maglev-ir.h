@@ -8043,7 +8043,7 @@ class Phi : public ValueNodeT<Phi> {
   void promote_post_loop_type() {
     DCHECK(!has_key());
     DCHECK(is_unmerged_loop_phi());
-    DCHECK(NodeTypeIs(post_loop_type_, type_));
+    DCHECK_EQ(type_, NodeType::kUnknown);
     type_ = post_loop_type_;
   }
 

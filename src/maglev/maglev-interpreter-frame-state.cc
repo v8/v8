@@ -232,6 +232,10 @@ bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
   return true;
 }
 
+bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
+  return NodeTypeIs(after.type(), before.type());
+}
+
 bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
 
 }  // namespace
@@ -239,10 +243,25 @@ bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
 bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     const KnownNodeAspects& loop_header) const {
   // Needs to be in sync with `CloneForLoopHeader(zone, true)`.
+
+  bool had_effects = effect_epoch() != loop_header.effect_epoch();
+
+  if (!had_effects) {
+    if (!AspectIncludes(loop_header.node_infos, node_infos, NodeInfoTypeIs)) {
+      return false;
+    }
+    // In debug builds we do a full comparison to ensure that without an effect
+    // epoch change all unstable properties still hold.
+#ifndef DEBUG
+    return true;
+#endif
+  }
+
   if (!AspectIncludes(loop_header.node_infos, node_infos, NodeInfoIncludes)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible node_infos\n";
     }
+    DCHECK(had_effects);
     return false;
   }
 
@@ -252,6 +271,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_properties\n";
     }
+    DCHECK(had_effects);
     return false;
   }
   if (!AspectIncludes(loop_header.loaded_context_slots, loaded_context_slots,
@@ -259,6 +279,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_context_slots\n";
     }
+    DCHECK(had_effects);
     return false;
   }
 
@@ -592,38 +613,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_NOT_NULL(known_node_aspects_);
   DCHECK(v8_flags.maglev_optimistic_peeled_loops);
 
-  bool compatible_state = true;
-  bool had_effects = known_node_aspects_->effect_epoch() !=
-                     loop_end_state.known_node_aspects()->effect_epoch();
-  if (had_effects) {
-    compatible_state =
-        loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
-            *known_node_aspects_);
-  } else {
-    DCHECK(loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
-        *known_node_aspects_));
-  }
-  if (compatible_state) {
-    frame_state_.ForEachValue(
-        compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-          if (!compatible_state || !value->Is<Phi>()) return;
-          Phi* phi = value->Cast<Phi>();
-          if (!phi->is_loop_phi()) return;
-          NodeType old_type = phi->type();
-          NodeType new_type = GetNodeType(
-              builder->broker(), builder->local_isolate(),
-              *loop_end_state.known_node_aspects(), loop_end_state.get(reg));
-          if (!NodeTypeIs(new_type, old_type)) {
-            if (v8_flags.trace_maglev_loop_speeling) {
-              std::cout << "Cannot merge " << new_type << " into " << old_type
-                        << " for r" << reg.index() << "\n";
-            }
-            compatible_state = false;
-          }
-        });
-  }
-
-  if (!compatible_state) {
+  if (!loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
+          *known_node_aspects_)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "Merging failed, peeling loop instead... " << std::endl;
     }
@@ -885,14 +876,21 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
         // happened to be true before allowing the loop to conclude in
         // `TryMergeLoop`. Some types which are known to cause issues are
         // generalized here.
-        result->set_type(unmerged_type == NodeType::kSmi ? NodeType::kNumber
-                         : unmerged_type == NodeType::kInternalizedString
-                             ? NodeType::kString
-                             : unmerged_type);
+        auto GetInitialOptimisticType = [](NodeType unmerged_type) {
+          if (unmerged_type == NodeType::kSmi) return NodeType::kNumber;
+          if (unmerged_type == NodeType::kInternalizedString)
+            return NodeType::kString;
+          return unmerged_type;
+        };
+        known_node_aspects_
+            ->GetOrCreateInfoFor(result, builder->broker(),
+                                 builder->local_isolate())
+            ->CombineType(GetInitialOptimisticType(unmerged_type));
       }
     } else {
       if (optimistic_loop_phis) {
-        result->merge_type(unmerged_type);
+        known_node_aspects_->TryGetInfoFor(result)->IntersectType(
+            unmerged_type);
       }
       result->merge_post_loop_type(unmerged_type);
     }
