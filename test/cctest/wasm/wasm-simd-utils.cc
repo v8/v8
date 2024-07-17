@@ -18,6 +18,7 @@
 #include "test/common/c-signature.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
@@ -395,6 +396,56 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+bool IsCanonical(uint16_t actual) {
+  // Canonical NaN has quiet bit and no payload.
+  return isnan(actual) && (actual & 0xFE00) == actual;
+}
+
+bool isnan(uint16_t f) { return (f & 0x7C00) == 0x7C00 && (f & 0x03FF); }
+
+void CheckFloat16LaneResult(float x, float y, uint16_t expected,
+                            uint16_t actual, bool exact) {
+  CheckFloat16LaneResult(x, y, y, expected, actual, exact);
+}
+
+void CheckFloat16LaneResult(float x, float y, float z, uint16_t expected,
+                            uint16_t actual, bool exact) {
+  if (isnan(expected)) {
+    CHECK(isnan(actual));
+    if (std::isnan(x) && IsSameNan(fp16_ieee_from_fp32_value(x), actual)) {
+      return;
+    }
+    if (std::isnan(y) && IsSameNan(fp16_ieee_from_fp32_value(y), actual)) {
+      return;
+    }
+    if (std::isnan(z) && IsSameNan(fp16_ieee_from_fp32_value(z), actual)) {
+      return;
+    }
+    if (IsSameNan(expected, actual)) return;
+    if (IsCanonical(actual)) return;
+    // This is expected to assert; it's useful for debugging.
+    CHECK_EQ(expected, actual);
+  } else {
+    if (exact) {
+      CHECK_EQ(expected, actual);
+      return;
+    }
+    // Otherwise, perform an approximate equality test. First check for
+    // equality to handle +/-Infinity where approximate equality doesn't work.
+    if (expected == actual) return;
+
+    // 1% error allows all platforms to pass easily.
+    constexpr float kApproximationError = 0.01f;
+    float f32_expected = fp16_ieee_to_fp32_value(expected);
+    float f32_actual = fp16_ieee_to_fp32_value(actual);
+    float abs_error = std::abs(f32_expected) * kApproximationError;
+    float min = f32_expected - abs_error;
+    float max = f32_expected + abs_error;
+    CHECK_LE(min, f32_actual);
+    CHECK_GE(max, f32_actual);
+  }
+}
+
 bool IsExtreme(float x) {
   float abs_x = std::fabs(x);
   const float kSmallFloatThreshold = 1.0e-32f;
@@ -433,8 +484,9 @@ void CheckFloatResult(float x, float y, float expected, float actual,
 
     // 1% error allows all platforms to pass easily.
     constexpr float kApproximationError = 0.01f;
-    float abs_error = std::abs(expected) * kApproximationError,
-          min = expected - abs_error, max = expected + abs_error;
+    float abs_error = std::abs(expected) * kApproximationError;
+    float min = expected - abs_error;
+    float max = expected + abs_error;
     CHECK_LE(min, actual);
     CHECK_GE(max, actual);
   }

@@ -92,6 +92,7 @@ struct ManuallyImportedJSFunction {
 };
 
 // Helper Functions.
+bool IsSameNan(uint16_t expected, uint16_t actual);
 bool IsSameNan(float expected, float actual);
 bool IsSameNan(double expected, double actual);
 

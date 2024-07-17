@@ -27,6 +27,13 @@ namespace internal {
 namespace wasm {
 
 // Helper Functions.
+bool IsSameNan(uint16_t expected, uint16_t actual) {
+  // Sign is non-deterministic.
+  uint16_t expected_bits = expected & ~0x8000;
+  uint16_t actual_bits = actual & ~0x8000;
+  return (expected_bits == actual_bits);
+}
+
 bool IsSameNan(float expected, float actual) {
   // Sign is non-deterministic.
   uint32_t expected_bits = base::bit_cast<uint32_t>(expected) & ~0x80000000;
