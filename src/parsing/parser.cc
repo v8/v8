@@ -896,7 +896,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result = ParseClassForMemberInitialization(
         function_kind, start_position, function_literal_id, end_position,
         info->function_name());
-
+    info->set_max_info_id(GetLastInfoId());
   } else if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
                          original_scope_->is_class_scope())) {
     // If the function skips the outer class and the outer scope is a class, the
