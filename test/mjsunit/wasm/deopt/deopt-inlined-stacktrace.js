@@ -44,9 +44,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Trigger tierup.
   %WasmTierUpFunction(wasm.main);
   assertEquals(42, wasm.main(12, 30, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
   // Trigger deopt which then calls a target that throws, i.e. the stack trace
   // contains frames created by the deoptimizer.
   try {
@@ -55,9 +53,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   } catch (error) {
     verifyException(error);
   }
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.main));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.main));
   // Rerun unoptimized which should produce the same result.
   try {
     wasm.main(10, 0, wasm.div);
@@ -73,9 +69,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   } catch (error) {
     verifyException(error);
   }
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
 
   function verifyException(error) {
     assertMatches(/RuntimeError: divide by zero/, error + "");

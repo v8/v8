@@ -43,14 +43,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   // Tier up.
   assertEquals(42, wasm.main(12, 30, add));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
   // Deopt.
   assertEquals(-360, wasm.main(12, -30, mul));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.main));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.main));
   assertEquals(42, wasm.main(12, 30, add));
   // Re-optimize.
   %WasmTierUpFunction(wasm.main);

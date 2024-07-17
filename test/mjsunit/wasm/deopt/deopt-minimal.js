@@ -40,14 +40,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   %WasmTierUpFunction(wasm.main);
   // tierup.
   assertEquals(42, wasm.main(30, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
   // Non-deopt call succeeded, now causing deopt.
   assertEquals(360, wasm.main(30, wasm.mul));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.main));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.main));
   // Deopt happened, executions are now in liftoff.
   assertEquals(42, wasm.main(30, wasm.add));
   // Re-opt.
@@ -55,7 +51,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // There is feedback for both targets, they do not trigger new deopts.
   assertEquals(360, wasm.main(30, wasm.mul));
   assertEquals(42, wasm.main(30, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
 })();

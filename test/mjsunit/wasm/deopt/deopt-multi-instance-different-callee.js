@@ -31,29 +31,21 @@ const instanceB = builder.instantiate({});
 instanceA.exports.main(instanceA.exports.a);
 %WasmTierUpFunction(instanceA.exports.main);
 instanceA.exports.main(instanceA.exports.a);
-if (%IsolateCountForTesting() == 1) {
-  assertTrue(%IsTurboFanFunction(instanceA.exports.main));
-}
+assertTrue(%IsTurboFanFunction(instanceA.exports.main));
 
 // This triggers a deopt as the callee is not function a and the optimized code
 // is shared with instanceA.
 instanceB.exports.main(instanceB.exports.b);
-if (%IsolateCountForTesting() == 1) {
-  assertFalse(%IsTurboFanFunction(instanceB.exports.main));
-}
+assertFalse(%IsTurboFanFunction(instanceB.exports.main));
 // This re-optimizes the function with the feedback from instanceB.
 // To prevent deopt loops, it must also keep the feedback from instanceA.
 %WasmTierUpFunction(instanceB.exports.main);
 instanceB.exports.main(instanceB.exports.b);
-if (%IsolateCountForTesting() == 1) {
-  assertTrue(%IsTurboFanFunction(instanceA.exports.main));
-}
+assertTrue(%IsTurboFanFunction(instanceA.exports.main));
 // Calling a or b does not trigger a deopt.
 instanceA.exports.main(instanceA.exports.a);
 instanceA.exports.main(instanceA.exports.b);
 instanceB.exports.main(instanceB.exports.a);
 instanceB.exports.main(instanceB.exports.b);
-if (%IsolateCountForTesting() == 1) {
-  assertTrue(%IsTurboFanFunction(instanceA.exports.main));
-  assertTrue(%IsTurboFanFunction(instanceB.exports.main));
-}
+assertTrue(%IsTurboFanFunction(instanceA.exports.main));
+assertTrue(%IsTurboFanFunction(instanceB.exports.main));

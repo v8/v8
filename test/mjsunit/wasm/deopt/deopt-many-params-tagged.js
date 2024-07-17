@@ -97,35 +97,23 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(...valuesTyped, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
-   assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
   assertEquals(expectedDiff, wasm.main(...valuesTyped, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.main));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.main));
 
   // Repeat the test but this time with an additional layer of inlining.
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add));
   %WasmTierUpFunction(wasm.outerDirect);
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add));
   assertEquals(expectedDiff, wasm.outerDirect(42, ...valuesTyped, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.outerDirect));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.outerDirect));
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.outerDirect));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.outerDirect));
   %WasmTierUpFunction(wasm.outerDirect);
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.add2));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.outerDirect));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.outerDirect));
   assertEquals(expectedSum, wasm.outerDirect(42, ...valuesTyped, wasm.addGC));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.outerDirect));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.outerDirect));
 
   function generateCalleeBody(binop) {
     let result = [kExprLocalGet, 0, ...types[0].toI32];

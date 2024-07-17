@@ -578,7 +578,6 @@ namespace internal {
   F(IsSharedString, 1, 1)                     \
   F(IsSparkplugEnabled, 0, 1)                 \
   F(IsTurbofanEnabled, 0, 1)                  \
-  F(IsolateCountForTesting, 0, 1)             \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
@@ -1042,9 +1041,6 @@ enum class OptimizationStatus {
   kTopmostFrameIsMaglev = 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev = 1 << 20,
 };
-
-// The number of isolates used for testing in d8.
-V8_EXPORT_PRIVATE extern int g_num_isolates_for_testing;
 
 }  // namespace internal
 }  // namespace v8

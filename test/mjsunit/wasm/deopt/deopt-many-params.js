@@ -37,13 +37,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedSum, wasm.main(...values, wasm.add));
   %WasmTierUpFunction(wasm.main);
   assertEquals(expectedSum, wasm.main(...values, wasm.add));
-  if (%IsolateCountForTesting() == 1) {
-    assertTrue(%IsTurboFanFunction(wasm.main));
-  }
+  assertTrue(%IsTurboFanFunction(wasm.main));
   assertEquals(expectedDiff, wasm.main(...values, wasm.sub));
-  if (%IsolateCountForTesting() == 1) {
-    assertFalse(%IsTurboFanFunction(wasm.main));
-  }
+  assertFalse(%IsTurboFanFunction(wasm.main));
 
 
   function generateCalleeBody(binop) {

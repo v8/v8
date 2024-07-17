@@ -5523,7 +5523,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
-  internal::g_num_isolates_for_testing = options.num_isolates;
   SourceGroup* current = options.isolate_sources;
   current->Begin(argv, 1);
   for (int i = 1; i < argc; i++) {
