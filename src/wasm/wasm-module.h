@@ -601,7 +601,7 @@ struct FunctionTypeFeedback {
 
   static constexpr uint32_t kCallRef = 0xFFFFFFFF;
   static constexpr uint32_t kCallIndirect = kCallRef - 1;
-  static_assert(kV8MaxWasmFunctions < kCallIndirect);
+  static_assert(kV8MaxWasmTotalFunctions < kCallIndirect);
 };
 
 struct TypeFeedbackStorage {

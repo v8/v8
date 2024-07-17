@@ -1556,8 +1556,8 @@ DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
            "budget for wrapper tierup (number of calls until tier-up)")
-DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmFunctions,
-           "maximum number of wasm functions supported in a module")
+DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmDefinedFunctions,
+           "maximum number of wasm functions defined in a module")
 DEFINE_INT(
     wasm_caching_threshold, 1'000,
     "the amount of wasm top tier code that triggers the next caching event")

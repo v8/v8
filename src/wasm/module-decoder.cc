@@ -423,7 +423,7 @@ class ValidateFunctionsTask : public JobTask {
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
       // number of functions is limited to a value much smaller than the
       // integer range, this is near impossible to happen.
-      static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
+      static_assert(kV8MaxWasmTotalFunctions < kMaxInt / 2);
       int func_index;
       do {
         func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
@@ -563,12 +563,12 @@ DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
         decoder.consume_bytes(name_payload_len);
         break;
       case kLocalCode:
-        static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
+        static_assert(kV8MaxWasmTotalFunctions <= IndirectNameMap::kMaxKey);
         static_assert(kV8MaxWasmFunctionLocals <= NameMap::kMaxKey);
         DecodeIndirectNameMap(local_names_, decoder, name_payload_len);
         break;
       case kLabelCode:
-        static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
+        static_assert(kV8MaxWasmTotalFunctions <= IndirectNameMap::kMaxKey);
         static_assert(kV8MaxWasmFunctionSize <= NameMap::kMaxKey);
         DecodeIndirectNameMap(label_names_, decoder, name_payload_len);
         break;
