@@ -397,9 +397,10 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     // been executed yet, we serialize it as {kLazyFunction}, and the function
     // will not get compiled upon deserialization.
     NativeModule* native_module = code->native_module();
-    uint32_t budget =
-        native_module->tiering_budget_array()[declared_function_index(
-            native_module->module(), code->index())];
+    uint32_t budget = native_module
+                          ->tiering_budget_array()[declared_function_index(
+                              native_module->module(), code->index())]
+                          .load(std::memory_order_relaxed);
     writer->Write(budget == static_cast<uint32_t>(v8_flags.wasm_tiering_budget)
                       ? kLazyFunction
                       : kEagerFunction);
@@ -518,9 +519,11 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
 }
 
 void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
-  writer->WriteVector(
-      base::VectorOf(native_module_->tiering_budget_array(),
-                     native_module_->module()->num_declared_functions));
+  for (size_t i = 0; i < native_module_->module()->num_declared_functions;
+       ++i) {
+    writer->Write(native_module_->tiering_budget_array()[i].load(
+        std::memory_order_relaxed));
+  }
 }
 
 uint32_t NativeModuleSerializer::CanonicalTypeIdToModuleLocalTypeId(

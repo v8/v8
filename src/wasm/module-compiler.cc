@@ -1629,8 +1629,8 @@ void TriggerTierUp(Isolate* isolate,
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         &module->type_feedback.mutex);
     int array_index = wasm::declared_function_index(module, func_index);
-    trusted_instance_data->tiering_budget_array()[array_index] =
-        v8_flags.wasm_tiering_budget;
+    trusted_instance_data->tiering_budget_array()[array_index].store(
+        v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     int& stored_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
     if (stored_priority < kMaxInt) ++stored_priority;

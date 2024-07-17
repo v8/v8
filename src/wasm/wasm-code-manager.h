@@ -763,7 +763,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the NamesProvider. Requires {HasWireBytes()}.
   NamesProvider* GetNamesProvider();
 
-  uint32_t* tiering_budget_array() const { return tiering_budgets_.get(); }
+  std::atomic<uint32_t>* tiering_budget_array() const {
+    return tiering_budgets_.get();
+  }
 
   Counters* counters() const { return code_allocator_.counters(); }
 
@@ -928,7 +930,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmImportWrapperCache import_wrapper_cache_;
 
   // Array to handle number of function calls.
-  std::unique_ptr<uint32_t[]> tiering_budgets_;
+  std::unique_ptr<std::atomic<uint32_t>[]> tiering_budgets_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.

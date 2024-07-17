@@ -760,8 +760,8 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
       // budget to appropriately delay the next call.
       int array_index =
           wasm::declared_function_index(trusted_data->module(), func_index);
-      trusted_data->tiering_budget_array()[array_index] =
-          v8_flags.wasm_tiering_budget;
+      trusted_data->tiering_budget_array()[array_index].store(
+          v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     } else {
       wasm::TriggerTierUp(isolate, trusted_data, func_index);
     }
