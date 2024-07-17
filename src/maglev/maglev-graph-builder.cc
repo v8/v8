@@ -3656,6 +3656,9 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
            !known_node_aspects().TryGetInfoFor(node)->alternative().has_none());
   }
 #endif  // DEBUG
+  if (auto phi = node->TryCast<Phi>()) {
+    return CombineType(it->second.type(), phi->type());
+  }
   return it->second.type();
 }
 
