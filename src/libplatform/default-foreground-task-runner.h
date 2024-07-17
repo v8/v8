@@ -63,25 +63,19 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
 
   enum Nestability { kNestable, kNonNestable };
 
-  void WaitForTaskLocked(const base::MutexGuard&);
+  void WaitForTaskLocked();
 
   // The same as PostTask or PostNonNestableTask, but the lock is already held
-  // by the caller. The {guard} parameter should make sure that the caller is
-  // holding the lock.
-  void PostTaskLocked(std::unique_ptr<Task> task, Nestability nestability,
-                      const base::MutexGuard&);
+  // by the caller.
+  void PostTaskLocked(std::unique_ptr<Task> task, Nestability nestability);
 
   // The same as PostDelayedTask or PostNonNestableDelayedTask, but the lock is
-  // already held by the caller. The {guard} parameter should make sure that the
-  // caller is holding the lock.
+  // already held by the caller.
   void PostDelayedTaskLocked(std::unique_ptr<Task> task,
-                             double delay_in_seconds, Nestability nestability,
-                             const base::MutexGuard&);
+                             double delay_in_seconds, Nestability nestability);
 
-  // A caller of this function has to hold {lock_}. The {guard} parameter should
-  // make sure that the caller is holding the lock.
-  std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(const base::MutexGuard&,
-                                                      Nestability* nestability);
+  // A caller of this function has to hold {mutex_}.
+  std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(Nestability* nestability);
 
   // A non-nestable task is poppable only if the task runner is not nested,
   // i.e. if a task is not being run from within a task. A nestable task is
@@ -89,10 +83,10 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   bool HasPoppableTaskInQueue() const;
 
   // Move delayed tasks that hit their deadline to the main queue.
-  void MoveExpiredDelayedTasks(const base::MutexGuard& guard);
+  void MoveExpiredDelayedTasks();
 
   bool terminated_ = false;
-  base::Mutex lock_;
+  base::Mutex mutex_;
   base::ConditionVariable event_loop_control_;
   int nesting_depth_ = 0;
 
