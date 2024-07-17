@@ -759,33 +759,40 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 namespace {
-void InitializeCETStatus() {
-  DCHECK_EQ(kNotSet, g_cet);
-  g_cet = kDisabled;
 
-  bool cet_available = false;
+bool UserShadowStackEnabled() {
   auto is_user_cet_available_in_environment =
       reinterpret_cast<decltype(&IsUserCetAvailableInEnvironment)>(
           ::GetProcAddress(::GetModuleHandleW(L"kernel32.dll"),
                            "IsUserCetAvailableInEnvironment"));
-  if (!is_user_cet_available_in_environment) return;
-
-  cet_available =
-      is_user_cet_available_in_environment(USER_CET_ENVIRONMENT_WIN32_PROCESS);
-  if (!cet_available) return;
-
   auto get_process_mitigation_policy =
       reinterpret_cast<decltype(&GetProcessMitigationPolicy)>(::GetProcAddress(
           ::GetModuleHandle(L"Kernel32.dll"), "GetProcessMitigationPolicy"));
 
-  PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY uss_policy;
-  if (get_process_mitigation_policy(GetCurrentProcess(),
-                                    ProcessUserShadowStackPolicy, &uss_policy,
-                                    sizeof(uss_policy)) &&
-      uss_policy.EnableUserShadowStack) {
-    g_cet = kEnabled;
+  if (!is_user_cet_available_in_environment || !get_process_mitigation_policy) {
+    return false;
   }
+
+  if (!is_user_cet_available_in_environment(
+          USER_CET_ENVIRONMENT_WIN32_PROCESS)) {
+    return false;
+  }
+
+  PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY uss_policy;
+  if (!get_process_mitigation_policy(GetCurrentProcess(),
+                                     ProcessUserShadowStackPolicy, &uss_policy,
+                                     sizeof(uss_policy))) {
+    return false;
+  }
+
+  return uss_policy.EnableUserShadowStack;
 }
+
+void InitializeCETStatus() {
+  DCHECK_EQ(kNotSet, g_cet);
+  g_cet = UserShadowStackEnabled() ? kEnabled : kDisabled;
+}
+
 }  // namespace
 
 void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
