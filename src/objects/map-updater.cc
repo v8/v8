@@ -1222,7 +1222,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
 
   std::queue<Tagged<Map>> backlog;
   backlog.push(*map);
-  std::unordered_set<Tagged<Map>, Object::Hasher> sidestep_transition;
+  std::vector<Tagged<Map>> sidestep_transition;
 
   ReadOnlyRoots roots(isolate);
   while (!backlog.empty()) {
@@ -1234,13 +1234,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
         &no_gc,
         [&](Tagged<Name> key, Tagged<Map> target) {
           if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-            if (sidestep_transition.count(target)) {
-              return;
-            }
-            sidestep_transition.insert(target);
-            if (current != target) {
-              backlog.push(target->FindFieldOwner(isolate, descriptor));
-            }
+            sidestep_transition.push_back(target);
           } else {
             backlog.push(target);
           }
@@ -1256,46 +1250,52 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);
 
-    PropertyConstness cur_new_constness = new_constness;
-    Representation cur_new_representation = new_representation;
-    Handle<FieldType> cur_new_type = new_type;
-    // Through side-steps we can reach transition trees which are already more
-    // generalized. Ensure we don't re-concretize them.
-    if (!sidestep_transition.empty()) {
-      cur_new_constness =
-          GeneralizeConstness(new_constness, details.constness());
-      cur_new_representation =
-          new_representation.generalize(details.representation());
-      cur_new_type = GeneralizeFieldType(
-          details.representation(),
-          handle(descriptors->GetFieldType(descriptor), isolate),
-          cur_new_representation, new_type, isolate);
-      DCHECK(new_representation.fits_into(cur_new_representation));
-    }
-
     // It is allowed to change representation here only from None
     // to something or from Smi or HeapObject to Tagged.
-    CHECK(
-        details.representation().Equals(cur_new_representation) ||
-        details.representation().CanBeInPlaceChangedTo(cur_new_representation));
+    CHECK(details.representation().Equals(new_representation) ||
+          details.representation().CanBeInPlaceChangedTo(new_representation));
 
     // Skip if we already updated the shared descriptor or the target was more
     // general in the first place.
-    if (cur_new_constness == details.constness() &&
-        cur_new_representation.Equals(details.representation()) &&
-        FieldType::Equals(descriptors->GetFieldType(descriptor),
-                          *cur_new_type)) {
+    if (new_constness == details.constness() &&
+        new_representation.Equals(details.representation()) &&
+        FieldType::Equals(descriptors->GetFieldType(descriptor), *new_type)) {
       continue;
     }
 
-    DCHECK_IMPLIES(IsClass(*cur_new_type),
-                   cur_new_representation.IsHeapObject());
-    MaybeObjectHandle wrapped_type(Map::WrapFieldType(cur_new_type));
+    DCHECK_IMPLIES(IsClass(*new_type), new_representation.IsHeapObject());
+    MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_type));
     Descriptor d = Descriptor::DataField(
         name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-        cur_new_constness, cur_new_representation, wrapped_type);
+        new_constness, new_representation, wrapped_type);
     DCHECK_EQ(descriptors->GetKey(descriptor), *d.key_);
     descriptors->Replace(descriptor, &d);
+  }
+
+  for (Tagged<Map> current : sidestep_transition) {
+    Tagged<DescriptorArray> descriptors =
+        current->instance_descriptors(isolate);
+    details = descriptors->GetDetails(descriptor);
+    // Through side-steps we can reach transition trees which are already more
+    // generalized. Ensure we don't re-concretize them.
+    PropertyConstness cur_new_constness =
+        GeneralizeConstness(new_constness, details.constness());
+    Representation cur_new_representation =
+        new_representation.generalize(details.representation());
+    Handle<FieldType> cur_new_type = GeneralizeFieldType(
+        details.representation(),
+        handle(descriptors->GetFieldType(descriptor), isolate),
+        cur_new_representation, new_type, isolate);
+    DCHECK(new_representation.fits_into(cur_new_representation));
+    // Skip if we already updated the shared descriptor or the target was more
+    // general in the first place.
+    if (cur_new_constness != details.constness() ||
+        !cur_new_representation.Equals(details.representation()) ||
+        !FieldType::Equals(descriptors->GetFieldType(descriptor),
+                           *cur_new_type)) {
+      GeneralizeField(isolate, handle(current, isolate), descriptor,
+                      cur_new_constness, cur_new_representation, cur_new_type);
+    }
   }
 }
 
