@@ -400,7 +400,6 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     ShiftLeftU64(scratch, index, Operand(1));
     AddU64(scratch,
            Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-    LoadU16(result, MemOperand(string, scratch));
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
       LoadU16(result, MemOperand(string, scratch));
