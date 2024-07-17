@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '44ddb34bcb2b59b661e507f2adbe0d9111861438',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c37c5b5fff59a74f9c53fd40185559512a26c27c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e755567ca25f21cbf1636e91e0232270bc842d3a',
   'buildtools/linux64': {
@@ -300,7 +300,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '928433a141bda317ba7374a0f37ad8bd3acb7318',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6bb75caa139ee1e686d2205910454cf6ea212e58',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2469fdd73f192383d2d94288da0ff5b9a3869f5',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2e473a9f2020b097873e597b8328abe423ebd35d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a5953b107df1aa821e0f9e890cd3ba1afa180e37',
   'tools/luci-go': {
       'packages': [
         {
@@ -478,7 +478,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'da15da385565ae3fa6e0da92c161c3419d895c52',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b7e091d75c59b4b2159fe53f58fbbd751781d04c',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
