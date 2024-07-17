@@ -2521,16 +2521,26 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       }
     }
   } else if (MustUseReg(j.rmode())) {
-    int64_t immediate;
-    if (j.IsHeapNumberRequest()) {
-      RequestHeapNumber(j.heap_number_request());
-      immediate = 0;
+    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
+      RecordRelocInfo(j.rmode());
+      DCHECK(is_int32(j.immediate()));
+#if V8_TARGET_ARCH_RISCV64
+      li_constant32(rd, int32_t(j.immediate()));
+#elif V8_TARGET_ARCH_RISCV32
+      li_constant(rd, int32_t(j.immediate()));
+#endif
     } else {
-      immediate = j.immediate();
-    }
+      int64_t immediate;
+      if (j.IsHeapNumberRequest()) {
+        RequestHeapNumber(j.heap_number_request());
+        immediate = 0;
+      } else {
+        immediate = j.immediate();
+      }
 
-    RecordRelocInfo(j.rmode(), immediate);
-    li_ptr(rd, immediate);
+      RecordRelocInfo(j.rmode(), immediate);
+      li_ptr(rd, immediate);
+    }
   } else if (mode == ADDRESS_LOAD) {
     // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need all 6 instructions.
