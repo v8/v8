@@ -181,12 +181,6 @@ class DeadNodeSweepingProcessor {
                   (!NodeT::kProperties.is_required_when_unused() ||
                    std::is_same_v<ArgumentsElements, NodeT>)) {
       if (!node->is_used()) {
-        if constexpr (std::is_same_v<NodeT, Phi>) {
-          // The UseMarkingProcessor will clear dead forward jump Phis eagerly,
-          // so the only dead phis that should remain are loop and exception
-          // phis.
-          DCHECK(node->is_loop_phi() || node->is_exception_phi());
-        }
         return ProcessResult::kRemove;
       }
       return ProcessResult::kContinue;
