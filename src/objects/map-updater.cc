@@ -1234,7 +1234,9 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
         &no_gc,
         [&](Tagged<Name> key, Tagged<Map> target) {
           if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-            sidestep_transition.push_back(target);
+            if (!target->is_deprecated()) {
+              sidestep_transition.push_back(target);
+            }
           } else {
             backlog.push(target);
           }
