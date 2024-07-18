@@ -66,8 +66,11 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   void WaitForTaskLocked();
 
   // The same as PostTask or PostNonNestableTask, but the lock is already held
-  // by the caller.
-  void PostTaskLocked(std::unique_ptr<Task> task, Nestability nestability);
+  // by the caller. If the task runner is already terminated, the task is
+  // returned (such that it can be deleted later, after releasing the lock).
+  // Otherwise, nullptr is returned.
+  std::unique_ptr<Task> PostTaskLocked(std::unique_ptr<Task> task,
+                                       Nestability nestability);
 
   // The same as PostDelayedTask or PostNonNestableDelayedTask, but the lock is
   // already held by the caller.
@@ -82,8 +85,10 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   // always poppable.
   bool HasPoppableTaskInQueue() const;
 
-  // Move delayed tasks that hit their deadline to the main queue.
-  void MoveExpiredDelayedTasks();
+  // Move delayed tasks that hit their deadline to the main queue. Returns all
+  // tasks that expired but were not scheduled because the task runner was
+  // terminated.
+  std::vector<std::unique_ptr<Task>> MoveExpiredDelayedTasksLocked();
 
   bool terminated_ = false;
   base::Mutex mutex_;

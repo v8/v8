@@ -47,18 +47,19 @@ void DefaultForegroundTaskRunner::Terminate() {
   while (!obsolete_idle_tasks.empty()) obsolete_idle_tasks.pop();
 }
 
-void DefaultForegroundTaskRunner::PostTaskLocked(std::unique_ptr<Task> task,
-                                                 Nestability nestability) {
+std::unique_ptr<Task> DefaultForegroundTaskRunner::PostTaskLocked(
+    std::unique_ptr<Task> task, Nestability nestability) {
   DCHECK(!mutex_.TryLock());
-  if (terminated_) return;
+  if (terminated_) return task;
   task_queue_.push_back(std::make_pair(nestability, std::move(task)));
   event_loop_control_.NotifyOne();
+  return {};
 }
 
 void DefaultForegroundTaskRunner::PostTaskImpl(std::unique_ptr<Task> task,
                                                const SourceLocation& location) {
   base::MutexGuard guard(&mutex_);
-  PostTaskLocked(std::move(task), kNestable);
+  task = PostTaskLocked(std::move(task), kNestable);
 }
 
 double DefaultForegroundTaskRunner::MonotonicallyIncreasingTime() {
@@ -105,7 +106,7 @@ bool DefaultForegroundTaskRunner::IdleTasksEnabled() {
 void DefaultForegroundTaskRunner::PostNonNestableTaskImpl(
     std::unique_ptr<Task> task, const SourceLocation& location) {
   base::MutexGuard guard(&mutex_);
-  PostTaskLocked(std::move(task), kNonNestable);
+  task = PostTaskLocked(std::move(task), kNonNestable);
 }
 
 bool DefaultForegroundTaskRunner::NonNestableTasksEnabled() const {
@@ -120,23 +121,31 @@ bool DefaultForegroundTaskRunner::HasPoppableTaskInQueue() const {
   return false;
 }
 
-void DefaultForegroundTaskRunner::MoveExpiredDelayedTasks() {
+std::vector<std::unique_ptr<Task>>
+DefaultForegroundTaskRunner::MoveExpiredDelayedTasksLocked() {
   Nestability nestability;
+  std::vector<std::unique_ptr<Task>> expired_tasks_to_delete;
   while (std::unique_ptr<Task> task =
              PopTaskFromDelayedQueueLocked(&nestability)) {
-    PostTaskLocked(std::move(task), nestability);
+    auto to_delete = PostTaskLocked(std::move(task), nestability);
+    if (to_delete) expired_tasks_to_delete.emplace_back(std::move(to_delete));
   }
+  return expired_tasks_to_delete;
 }
 
 std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue(
     MessageLoopBehavior wait_for_work) {
+  std::vector<std::unique_ptr<Task>> tasks_to_delete;
   base::MutexGuard guard(&mutex_);
-  MoveExpiredDelayedTasks();
+  tasks_to_delete = MoveExpiredDelayedTasksLocked();
 
   while (!HasPoppableTaskInQueue()) {
     if (wait_for_work == MessageLoopBehavior::kDoNotWait) return {};
     WaitForTaskLocked();
-    MoveExpiredDelayedTasks();
+    auto new_tasks_to_delete = MoveExpiredDelayedTasksLocked();
+    tasks_to_delete.insert(tasks_to_delete.end(),
+                           std::make_move_iterator(new_tasks_to_delete.begin()),
+                           std::make_move_iterator(new_tasks_to_delete.end()));
   }
 
   auto it = task_queue_.begin();
