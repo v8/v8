@@ -115,9 +115,15 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   bool ContainsAsmModule();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  // Read/write the raw 'flags' field. This uses relaxed atomic loads/stores
+  // because the flags are read by background compile threads and updated by the
+  // main thread.
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t new_flags);
+
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
-  inline CompilationType compilation_type();
+  inline CompilationType compilation_type() const;
   inline void set_compilation_type(CompilationType type);
 
   inline bool produce_compile_hints() const;

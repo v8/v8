@@ -120,7 +120,19 @@ void Script::set_break_on_entry(bool value) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-Script::CompilationType Script::compilation_type() {
+uint32_t Script::flags() const {
+  // Use a relaxed load since background compile threads read the
+  // {compilation_type()} while the foreground thread might update e.g. the
+  // {origin_options}.
+  return TaggedField<Smi>::Relaxed_Load(*this, kFlagsOffset).value();
+}
+
+void Script::set_flags(uint32_t new_flags) {
+  DCHECK(is_int31(new_flags));
+  TaggedField<Smi>::Relaxed_Store(*this, kFlagsOffset, Smi::FromInt(new_flags));
+}
+
+Script::CompilationType Script::compilation_type() const {
   return CompilationTypeBit::decode(flags());
 }
 void Script::set_compilation_type(CompilationType type) {
