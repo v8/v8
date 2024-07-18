@@ -2052,6 +2052,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     inputs[0] = receiver_handle;
 
+    Label<> value_out_of_range(&asm_);
     for (size_t i = 1; i < param_count; ++i) {
       if (sig->GetParam(i).is_reference()) {
         inputs[i] = __ AdaptLocalArgument(args[i].op);
@@ -2063,29 +2064,43 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           inputs[i] = args[i].op;
         } else if (callback_sig->GetParam(i - 1) == MachineType::Int64()) {
           if (sig->GetParam(i) == kWasmF64) {
-            // TODO(ahaas): Handle values that are out of range of int64.
-            inputs[i] = __ template Projection<0>(
-                __ TryTruncateFloat64ToInt64(args[i].op));
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat64ToInt64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
           } else if (sig->GetParam(i) == kWasmI32) {
             inputs[i] = __ ChangeInt32ToInt64(args[i].op);
           } else {
             // TODO(ahaas): Handle values that are out of range of int64.
             CHECK_EQ(sig->GetParam(i), kWasmF32);
-            inputs[i] = __ template Projection<0>(
-                __ TryTruncateFloat32ToInt64(args[i].op));
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat32ToInt64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
           }
         } else if (callback_sig->GetParam(i - 1) == MachineType::Uint64()) {
           if (sig->GetParam(i) == kWasmF64) {
-            // TODO(ahaas): Handle values that are out of range of int64.
-            inputs[i] = __ template Projection<0>(
-                __ TryTruncateFloat64ToUint64(args[i].op));
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat64ToUint64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
           } else if (sig->GetParam(i) == kWasmI32) {
             inputs[i] = __ ChangeUint32ToUint64(args[i].op);
           } else {
             // TODO(ahaas): Handle values that are out of range of int64.
             CHECK_EQ(sig->GetParam(i), kWasmF32);
-            inputs[i] = __ template Projection<0>(
-                __ TryTruncateFloat32ToUint64(args[i].op));
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat32ToUint64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
           }
         }
       } else {
@@ -2153,6 +2168,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Object> exception = __ Load(
         __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
         MemoryRepresentation::UintPtr(), IsolateData::exception_offset());
+
     IF_NOT (LIKELY(
                 __ TaggedEqual(exception, LOAD_ROOT(TheHoleValue)))) {
       CallBuiltinThroughJumptable<
@@ -2183,7 +2199,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
       }
     }
-    returns[0].op = ret_val;
+    Label<> done(&asm_);
+    GOTO(done);
+    BIND(value_out_of_range);
+    auto [target, ref] = BuildImportedFunctionTargetAndRef(decoder, imm.index);
+    BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+    __ Unreachable();
+    BIND(done);
+    if (sig->return_count()) {
+      returns[0].op = ret_val;
+    }
   }
 
   bool HandleWellKnownImport(FullDecoder* decoder,
