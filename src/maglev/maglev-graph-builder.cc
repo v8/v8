@@ -115,23 +115,6 @@ class FunctionContextSpecialization final : public AllStatic {
   }
 };
 
-ValueNode* ReplaceInlinedAllocationWithVirtualObject(ValueNode* value) {
-  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    alloc->object()->Snapshot();
-    return alloc->object();
-  }
-  return value;
-}
-
-base::Vector<ValueNode*> ReplaceInlinedAllocationWithVirtualObject(
-    Zone* zone, base::Vector<ValueNode* const> values) {
-  auto* new_array = zone->AllocateArray<ValueNode*>(values.size());
-  for (size_t i = 0; i < values.size(); i++) {
-    new_array[i] = ReplaceInlinedAllocationWithVirtualObject(values[i]);
-  }
-  return {new_array, values.size()};
-}
-
 }  // namespace
 
 ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
@@ -358,10 +341,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
       : builder_(builder),
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation,
-            {},
-            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext()),
-            maybe_js_target}) {
+            continuation, {}, builder->GetContext(), maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -375,11 +355,8 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
       : builder_(builder),
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
-            continuation,
-            ReplaceInlinedAllocationWithVirtualObject(builder->zone(),
-                                                      parameters),
-            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext()),
-            maybe_js_target}) {
+            continuation, builder->zone()->CloneVector(parameters),
+            builder->GetContext(), maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -394,8 +371,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::ConstructInvokeStubFrameData{
             *builder->compilation_unit(), builder->current_source_position_,
-            ReplaceInlinedAllocationWithVirtualObject(receiver),
-            ReplaceInlinedAllocationWithVirtualObject(builder->GetContext())}) {
+            receiver, builder->GetContext()}) {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
@@ -1267,10 +1243,8 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
     // formal parameter and arguments count.
     if (HasMismatchedArgumentAndParameterCount()) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
-          *compilation_unit_, caller_bytecode_offset_,
-          ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
-          ReplaceInlinedAllocationWithVirtualObject(zone(), inlined_arguments_),
-          parent_deopt_frame_);
+          *compilation_unit_, caller_bytecode_offset_, GetClosure(),
+          inlined_arguments_, parent_deopt_frame_);
       AddDeoptUse(GetClosure());
       for (ValueNode* arg :
            parent_deopt_frame_->as_inlined_arguments().arguments()) {
@@ -1290,9 +1264,8 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-        ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
-        BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        GetParentDeoptFrame()));
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        current_source_position_, GetParentDeoptFrame()));
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1361,9 +1334,8 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
-        ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
-        BytecodeOffset(iterator_.current_offset()), current_source_position_,
-        GetParentDeoptFrame());
+        GetClosure(), BytecodeOffset(iterator_.current_offset()),
+        current_source_position_, GetParentDeoptFrame());
     ret.frame_state()->ForEachValue(
         *compilation_unit_, [this, result_location, result_size](
                                 ValueNode* node, interpreter::Register reg) {
@@ -1424,9 +1396,8 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
           *compilation_unit_,
           GetInLivenessFor(graph_->is_osr() ? bailout_for_entrypoint() : 0),
           current_interpreter_frame_),
-      ReplaceInlinedAllocationWithVirtualObject(GetClosure()),
-      BytecodeOffset(bailout_for_entrypoint()), current_source_position_,
-      nullptr);
+      GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
+      current_source_position_, nullptr);
 
   (*entry_stack_check_frame_)
       .frame_state()

@@ -826,14 +826,6 @@ ValueNode* EnsureTagged(const MaglevGraphBuilder* builder,
                            value, predecessor);
 }
 
-ValueNode* ReplaceInlinedAllocationWithVirtualObject(ValueNode* value) {
-  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    alloc->object()->Snapshot();
-    return alloc->object();
-  }
-  return value;
-}
-
 }  // namespace
 
 NodeType MergePointInterpreterFrameState::AlternativeType(
@@ -861,7 +853,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     } else {
       DCHECK(is_exception_handler());
     }
-    return ReplaceInlinedAllocationWithVirtualObject(unmerged);
+    return unmerged;
   }
 
   auto UpdateLoopPhiType = [&](Phi* result, NodeType unmerged_type) {

@@ -1506,17 +1506,6 @@ class MaglevFrameTranslationBuilder {
         break;
       case Opcode::kVirtualObject:
         UNREACHABLE();
-      case Opcode::kInlinedAllocation: {
-        // If the object hasn't been snapshotted yet, then it's the most
-        // up-to-date version and we can directly use the object pointed to by
-        // the allocation.
-        VirtualObject* vobject = value->Cast<InlinedAllocation>()->object();
-        if (vobject->IsSnapshot()) {
-          vobject = virtual_objects.FindAllocatedWith(vobject->allocation());
-        }
-        BuildDeoptFrameSingleValue(vobject, input_location, virtual_objects);
-        break;
-      }
       default:
         BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
         break;
@@ -1554,11 +1543,11 @@ class MaglevFrameTranslationBuilder {
                                   const InputLocation*& input_location,
                                   const VirtualObject::List& virtual_objects) {
     DCHECK(!value->Is<Identity>());
-    // The InlinedAllocation should have been patched by a VirtualObject.
-    DCHECK(!value->Is<InlinedAllocation>());
+    DCHECK(!value->Is<VirtualObject>());
     size_t input_locations_to_advance = 1;
-    if (const VirtualObject* vobject = value->TryCast<VirtualObject>()) {
-      if (vobject->allocation()->HasBeenElided()) {
+    if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+      VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+      if (alloc->HasBeenElided()) {
         input_location++;
         BuildVirtualObject(vobject, input_location, virtual_objects);
         return;

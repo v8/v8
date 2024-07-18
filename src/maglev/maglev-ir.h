@@ -5143,7 +5143,7 @@ class VirtualObject::List {
 
   bool is_empty() const { return head_ == nullptr; }
 
-  VirtualObject* FindAllocatedWith(InlinedAllocation* allocation) const {
+  VirtualObject* FindAllocatedWith(const InlinedAllocation* allocation) const {
     VirtualObject* result = nullptr;
     for (VirtualObject* vo : *this) {
       if (vo->allocation() == allocation) {

@@ -2292,12 +2292,14 @@ class MaglevGraphBuilder {
 
   inline void AddDeoptUse(ValueNode* node) {
     if (node == nullptr) return;
-    DCHECK(!node->Is<InlinedAllocation>());
-    if (VirtualObject* vobject = node->TryCast<VirtualObject>()) {
-      AddDeoptUse(vobject);
+    DCHECK(!node->Is<VirtualObject>());
+    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+      AddDeoptUse(
+          current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+              alloc));
       // Add an escaping use for the allocation.
-      AddNonEscapingUses(vobject->allocation(), 1);
-      vobject->allocation()->add_use();
+      AddNonEscapingUses(alloc, 1);
+      alloc->add_use();
     } else {
       node->add_use();
     }

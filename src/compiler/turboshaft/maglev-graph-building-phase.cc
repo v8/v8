@@ -3843,14 +3843,14 @@ class GraphBuilder {
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::VirtualObject::List& virtual_objects,
                      const maglev::ValueNode* node) {
-    if (const maglev::VirtualObject* vobj =
-            node->TryCast<maglev::VirtualObject>()) {
-      DCHECK(vobj->allocation()->HasBeenAnalysed());
-      if (vobj->allocation()->HasBeenElided()) {
-        AddVirtualObjectInput(builder, virtual_objects, vobj);
+    if (const maglev::InlinedAllocation* alloc =
+            node->TryCast<maglev::InlinedAllocation>()) {
+      DCHECK(alloc->HasBeenAnalysed());
+      if (alloc->HasBeenElided()) {
+        AddVirtualObjectInput(builder, virtual_objects,
+                              virtual_objects.FindAllocatedWith(alloc));
         return;
       }
-      node = vobj->allocation();
     }
     if (const maglev::Identity* ident_obj = node->TryCast<maglev::Identity>()) {
       // The value_representation of Identity nodes is always Tagged rather than
@@ -3994,18 +3994,6 @@ class GraphBuilder {
         break;
       case maglev::Opcode::kVirtualObject:
         UNREACHABLE();
-      case maglev::Opcode::kInlinedAllocation: {
-        // If the object hasn't been snapshotted yet, then it's the most
-        // up-to-date version and we can directly use the object pointed to by
-        // the allocation.
-        maglev::VirtualObject* vobject =
-            value->Cast<maglev::InlinedAllocation>()->object();
-        if (vobject->IsSnapshot()) {
-          vobject = virtual_objects.FindAllocatedWith(vobject->allocation());
-        }
-        AddDeoptInput(builder, virtual_objects, vobject);
-        break;
-      }
       default:
         AddDeoptInput(builder, virtual_objects, value);
         break;

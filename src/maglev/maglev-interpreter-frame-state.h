@@ -574,12 +574,6 @@ class CompactInterpreterFrameState {
     virtual_objects_ = state.virtual_objects();
     ForEachValue(info, [&](ValueNode*& entry, interpreter::Register reg) {
       entry = state.get(reg);
-      if (entry != nullptr && entry->Is<InlinedAllocation>()) {
-        // Ensure the object is snapshotted and use the current snapshot.
-        VirtualObject* vobj = entry->Cast<InlinedAllocation>()->object();
-        vobj->Snapshot();
-        entry = vobj;
-      }
     });
   }
 
@@ -1073,12 +1067,7 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
   }
   state.frame_state().ForEachValue(
       info, [&](ValueNode* value, interpreter::Register reg) {
-        // Patch the allocation back.
-        if (VirtualObject* vobj = value->TryCast<VirtualObject>()) {
-          frame_[reg] = vobj->allocation();
-        } else {
           frame_[reg] = value;
-        }
       });
   if (preserve_known_node_aspects) {
     known_node_aspects_ = state.CloneKnownNodeAspects(zone);
