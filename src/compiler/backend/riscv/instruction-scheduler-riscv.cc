@@ -409,26 +409,30 @@ int InstructionScheduler::GetTargetInstructionFlags(
 }
 
 enum Latency {
+  ADD = 1,
+
   BRANCH = 4,  // Estimated max.
   RINT_S = 4,  // Estimated.
   RINT_D = 4,  // Estimated.
 
   // TODO(RISCV): remove MULT instructions (MIPS legacy).
-  MULT = 4,
-  MULTU = 4,
-  DMULT = 4,
+  MUL = 4,
+  MULW = 4,
+  MULH = 4,
+  MULHS = 4,
+  MULHU = 4,
 
-  MUL32 = 7,
+  DIVW = 50,  // Min:11 Max:50
+  DIV = 50,
+  DIVU = 50,
+  DIVUW = 50,
 
-  DIV32 = 50,  // Min:11 Max:50
-  DIV64 = 50,
-  DIVU32 = 50,
-  DIVU64 = 50,
-
-  ABS_S = 4,
-  ABS_D = 4,
-  NEG_S = 4,
-  NEG_D = 4,
+  FSGNJ_S = 4,
+  FSGNJ_D = 4,
+  ABS_S = FSGNJ_S,
+  ABS_D = FSGNJ_S,
+  NEG_S = FSGNJ_S,
+  NEG_D = FSGNJ_S,
   ADD_S = 4,
   ADD_D = 4,
   SUB_S = 4,
@@ -532,18 +536,30 @@ enum Latency {
   STORE_DOUBLE = 1,
 };
 
-int Add64Latency(bool is_operand_register = true) {
-  if (is_operand_register) {
-    return 1;
-  } else {
-    return 2;  // Estimated max.
+inline int LoadConstantLatency() {
+  return 1;
+  // #if V8_TARGET_ARCH_RISCV32
+  //   return 2; //lui+aii Estimated max.
+  // #elif V8_TARGET_ARCH_RISCV64
+  //   return 4;
+  // #endif
+}
+
+inline int Add64Latency(bool is_operand_register = true) {
+  int latency = Latency::ADD;
+  if (!is_operand_register) {
+    latency += LoadConstantLatency();
   }
+  return latency;
 }
 
 int Sub64Latency(bool is_operand_register = true) {
   return Add64Latency(is_operand_register);
 }
 
+int ShiftLatency(bool is_operand_register = true) {
+  return Add64Latency(is_operand_register);
+}
 int AndLatency(bool is_operand_register = true) {
   return Add64Latency(is_operand_register);
 }
@@ -556,7 +572,7 @@ int NorLatency(bool is_operand_register = true) {
   if (is_operand_register) {
     return 1;
   } else {
-    return 2;  // Estimated max.
+    return 1 + LoadConstantLatency();  // Estimated max.
   }
 }
 
@@ -566,104 +582,106 @@ int XorLatency(bool is_operand_register = true) {
 
 int Mul32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::MUL32;
+    return Latency::MULW;
   } else {
-    return Latency::MUL32 + 1;
+    return Latency::MULW + 1;
   }
 }
 
 int Mul64Latency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MOVF_LOW;
+  int latency = Latency::MUL;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mulh32Latency(bool is_operand_register = true) {
-  int latency = Latency::MULT + Latency::MOVF_HIGH;
+  int latency = Latency::MULH + ShiftLatency(true);
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mulhu32Latency(bool is_operand_register = true) {
-  int latency = Latency::MULTU + Latency::MOVF_HIGH;
+  int latency = Latency::MULHU + ShiftLatency(true) * 2;
   if (!is_operand_register) {
+    latency += LoadConstantLatency();
+  } else {
     latency += 1;
   }
   return latency;
 }
 
 int Mulh64Latency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MOVF_HIGH;
+  int latency = Latency::MULH;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Div32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIV32;
+    return Latency::DIVW;
   } else {
-    return Latency::DIV32 + 1;
+    return Latency::DIVW + 1;
   }
 }
 
 int Divu32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIVU32;
+    return Latency::DIVUW;
   } else {
-    return Latency::DIVU32 + 1;
+    return Latency::DIVUW + LoadConstantLatency();
   }
 }
 
 int Div64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_LOW;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Divu64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIVU64 + Latency::MOVF_LOW;
+  int latency = Latency::DIVU;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mod32Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV32 + Latency::MOVF_HIGH;
+  int latency = Latency::DIVW;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Modu32Latency(bool is_operand_register = true) {
-  int latency = Latency::DIVU32 + Latency::MOVF_HIGH;
+  int latency = Latency::DIVUW;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mod64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Modu64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
