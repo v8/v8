@@ -4,7 +4,6 @@
 
 // Flags: --wasm-deopt --allow-natives-syntax --no-jit-fuzzing --liftoff
 // Flags: --turboshaft-wasm-instruction-selection-staged
-// Flags: --experimental-wasm-inlining-call-indirect
 // Flags: --wasm-inlining-ignore-call-counts --wasm-inlining-factor=15
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');

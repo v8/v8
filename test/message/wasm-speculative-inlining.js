@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-inlining-call-indirect --allow-natives-syntax
+// Flags: --wasm-inlining-call-indirect --allow-natives-syntax
 // Flags: --trace-wasm-inlining --turboshaft-wasm --wasm-dynamic-tiering
 // Explicitly set Turboshaft since the tracing output is slightly different in
 // TurboFan (which is also on its way out anyway).

@@ -2633,7 +2633,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    if (v8_flags.experimental_wasm_inlining_call_indirect) {
+    if (v8_flags.wasm_inlining_call_indirect) {
       feedback_slot_++;
 
       if (should_inline(decoder, feedback_slot_,
@@ -2830,7 +2830,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
-    if (v8_flags.experimental_wasm_inlining_call_indirect) {
+    if (v8_flags.wasm_inlining_call_indirect) {
       feedback_slot_++;
 
       if (should_inline(decoder, feedback_slot_,

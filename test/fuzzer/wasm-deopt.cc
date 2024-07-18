@@ -188,8 +188,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // Enable the experimental features we want to fuzz. (Note that
   // EnableExperimentalWasmFeatures only enables staged features.)
   FlagScope<bool> deopt_scope(&v8_flags.wasm_deopt, true);
-  FlagScope<bool> inlining_indirect(
-      &v8_flags.experimental_wasm_inlining_call_indirect, true);
+  FlagScope<bool> inlining_indirect(&v8_flags.wasm_inlining_call_indirect,
+                                    true);
   // Make inlining more aggressive.
   FlagScope<bool> ignore_call_counts_scope(
       &v8_flags.wasm_inlining_ignore_call_counts, true);

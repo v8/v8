@@ -8463,7 +8463,7 @@ class LiftoffCompiler {
                 LoadType::ForValueKind(kIntPtrKind));
       }
 
-      if (v8_flags.experimental_wasm_inlining_call_indirect) {
+      if (v8_flags.wasm_inlining_call_indirect) {
         SCOPED_CODE_COMMENT("Feedback collection for speculative inlining");
 
         ScopedTempRegister vector{std::move(dispatch_table_base)};
