@@ -588,7 +588,9 @@ class V8_EXPORT_PRIVATE Debug {
   debug::DebugDelegate* debug_delegate_ = nullptr;
 
   // Debugger is active, i.e. there is a debug event listener attached.
-  bool is_active_;
+  // This field is atomic because background compilation jobs can read it
+  // through Isolate::NeedsDetailedOptimizedCodeLineInfo.
+  std::atomic<bool> is_active_;
   // Debugger needs to be notified on every new function call.
   // Used for stepping and read-only checks
   bool hook_on_function_call_;
