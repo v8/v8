@@ -2029,18 +2029,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
     size_t param_count = sig->parameter_count();
     DCHECK_LE(sig->return_count(), 1);
+
+    const MachineSignature* callback_sig =
+        env_->fast_api_signatures[func_index];
     // All normal parameters + the options as additional parameter at the end.
     MachineSignature::Builder builder(decoder->zone(), sig->return_count(),
                                       param_count + 1);
     if (sig->return_count()) {
-      builder.AddReturn(sig->GetReturn().machine_type());
+      builder.AddReturn(callback_sig->GetReturn());
     }
     // The first parameter is the receiver. Because of the fake handle on the
     // stack the type is `Pointer`.
     builder.AddParam(MachineType::Pointer());
 
-    for (size_t i = 1; i < sig->parameter_count(); ++i) {
-      builder.AddParam(sig->GetParam(i).machine_type());
+    for (size_t i = 0; i < callback_sig->parameter_count(); ++i) {
+      builder.AddParam(callback_sig->GetParam(i));
     }
     // Options object.
     builder.AddParam(MachineType::Pointer());
@@ -2052,6 +2055,39 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (size_t i = 1; i < param_count; ++i) {
       if (sig->GetParam(i).is_reference()) {
         inputs[i] = __ AdaptLocalArgument(args[i].op);
+      } else if (callback_sig->GetParam(i - 1).representation() ==
+                 MachineRepresentation::kWord64) {
+        if (sig->GetParam(i) == kWasmI64) {
+          // If we already have an I64, then no conversion is needed neither for
+          // int64 nor uint64.
+          inputs[i] = args[i].op;
+        } else if (callback_sig->GetParam(i - 1) == MachineType::Int64()) {
+          if (sig->GetParam(i) == kWasmF64) {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            inputs[i] = __ template Projection<0>(
+                __ TryTruncateFloat64ToInt64(args[i].op));
+          } else if (sig->GetParam(i) == kWasmI32) {
+            inputs[i] = __ ChangeInt32ToInt64(args[i].op);
+          } else {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            CHECK_EQ(sig->GetParam(i), kWasmF32);
+            inputs[i] = __ template Projection<0>(
+                __ TryTruncateFloat32ToInt64(args[i].op));
+          }
+        } else if (callback_sig->GetParam(i - 1) == MachineType::Uint64()) {
+          if (sig->GetParam(i) == kWasmF64) {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            inputs[i] = __ template Projection<0>(
+                __ TryTruncateFloat64ToUint64(args[i].op));
+          } else if (sig->GetParam(i) == kWasmI32) {
+            inputs[i] = __ ChangeUint32ToUint64(args[i].op);
+          } else {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            CHECK_EQ(sig->GetParam(i), kWasmF32);
+            inputs[i] = __ template Projection<0>(
+                __ TryTruncateFloat32ToUint64(args[i].op));
+          }
+        }
       } else {
         inputs[i] = args[i].op;
       }
@@ -2125,9 +2161,27 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     BuildModifyThreadInWasmFlag(__ graph_zone(), true);
 
-    if (env_->fast_api_return_is_bool[func_index]) {
-      ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
-                                  WordRepresentation::Word32());
+    if (callback_sig->return_count() > 0) {
+      if (callback_sig->GetReturn() == MachineType::Bool()) {
+        ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
+                                    WordRepresentation::Word32());
+      } else if (callback_sig->GetReturn() == MachineType::Int64()) {
+        if (sig->GetReturn() == kWasmF64) {
+          ret_val = __ ChangeInt64ToFloat64(ret_val);
+        } else if (sig->GetReturn() == kWasmI32) {
+          ret_val = __ TruncateWord64ToWord32(ret_val);
+        } else if (sig->GetReturn() == kWasmF32) {
+          ret_val = __ ChangeInt64ToFloat32(ret_val);
+        }
+      } else if (callback_sig->GetReturn() == MachineType::Uint64()) {
+        if (sig->GetReturn() == kWasmF64) {
+          ret_val = __ ChangeUint64ToFloat64(ret_val);
+        } else if (sig->GetReturn() == kWasmI32) {
+          ret_val = __ TruncateWord64ToWord32(ret_val);
+        } else if (sig->GetReturn() == kWasmF32) {
+          ret_val = __ ChangeUint64ToFloat32(ret_val);
+        }
+      }
     }
     returns[0].op = ret_val;
   }

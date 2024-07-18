@@ -528,16 +528,22 @@ class V8_EXPORT CFunction {
   }
 
   template <typename F>
-  static CFunction Make(F* func) {
-    return ArgUnwrap<F*>::Make(func);
+  static CFunction Make(F* func,
+                        CFunctionInfo::Int64Representation int64_rep =
+                            CFunctionInfo::Int64Representation::kNumber) {
+    CFunction result = ArgUnwrap<F*>::Make(func, int64_rep);
+    result.GetInt64Representation();
+    return result;
   }
 
   // Provided for testing purposes.
   template <typename R, typename... Args, typename R_Patch,
             typename... Args_Patch>
   static CFunction Make(R (*func)(Args...),
-                        R_Patch (*patching_func)(Args_Patch...)) {
-    CFunction c_func = ArgUnwrap<R (*)(Args...)>::Make(func);
+                        R_Patch (*patching_func)(Args_Patch...),
+                        CFunctionInfo::Int64Representation int64_rep =
+                            CFunctionInfo::Int64Representation::kNumber) {
+    CFunction c_func = ArgUnwrap<R (*)(Args...)>::Make(func, int64_rep);
     static_assert(
         sizeof...(Args_Patch) == sizeof...(Args),
         "The patching function must have the same number of arguments.");
@@ -560,7 +566,9 @@ class V8_EXPORT CFunction {
   template <typename R, typename... Args>
   class ArgUnwrap<R (*)(Args...)> {
    public:
-    static CFunction Make(R (*func)(Args...));
+    static CFunction Make(R (*func)(Args...),
+                          CFunctionInfo::Int64Representation int64_rep =
+                              CFunctionInfo::Int64Representation::kNumber);
   };
 };
 
@@ -935,8 +943,14 @@ class CFunctionBuilder {
 
 // static
 template <typename R, typename... Args>
-CFunction CFunction::ArgUnwrap<R (*)(Args...)>::Make(R (*func)(Args...)) {
-  return internal::CFunctionBuilder().Fn(func).Build();
+CFunction CFunction::ArgUnwrap<R (*)(Args...)>::Make(
+    R (*func)(Args...), CFunctionInfo::Int64Representation int64_rep) {
+  if (int64_rep == CFunctionInfo::Int64Representation::kNumber) {
+    return internal::CFunctionBuilder().Fn(func).Build();
+  }
+  return internal::CFunctionBuilder()
+      .Fn(func)
+      .template Build<CFunctionInfo::Int64Representation::kBigInt>();
 }
 
 using CFunctionBuilder = internal::CFunctionBuilder;

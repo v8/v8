@@ -642,7 +642,11 @@ struct WasmTable {
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
-  Zone signature_zone;
+  // The signature zone is also used to store the signatures of C++ functions
+  // called with the V8 fast API. These signatures are added during
+  // instantiation, so the `signature_zone` may be changed even when the
+  // `WasmModule` is already `const`.
+  mutable Zone signature_zone;
   int start_function_index = -1;   // start function, >= 0 if any
 
   // Size of the buffer required for all globals that are not imported and

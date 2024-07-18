@@ -205,13 +205,22 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
 
 namespace {
 
-MachineRepresentation NormalizeFastApiRepresentation(const CTypeInfo& info) {
+bool CompareWithNormalizedCType(const CTypeInfo& info, ValueType expected,
+                                CFunctionInfo::Int64Representation int64_rep) {
   MachineType t = MachineType::TypeForCType(info);
   // Wasm representation of bool is i32 instead of i1.
   if (t.semantic() == MachineSemantic::kBool) {
-    return MachineRepresentation::kWord32;
+    return expected == kWasmI32;
   }
-  return t.representation();
+
+  if (t.representation() == MachineRepresentation::kWord64) {
+    if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
+      return expected == kWasmI64;
+    }
+    DCHECK_EQ(int64_rep, CFunctionInfo::Int64Representation::kNumber);
+    return expected == kWasmI32 || expected == kWasmF32 || expected == kWasmF64;
+  }
+  return t.representation() == expected.machine_representation();
 }
 
 enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
@@ -285,8 +294,8 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
         log_imported_function_mismatch(c_func_id, "too many return values");
         continue;
       }
-      if (NormalizeFastApiRepresentation(return_info) !=
-          expected_sig->GetReturn(0).machine_type().representation()) {
+      if (!CompareWithNormalizedCType(return_info, expected_sig->GetReturn(0),
+                                      info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "mismatching return value");
         continue;
       }
@@ -321,8 +330,8 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       // Arg 0 is the receiver, skip over it since either the receiver does not
       // matter, or we already checked it above.
       CTypeInfo arg = info->ArgumentInfo(i + 1);
-      if (NormalizeFastApiRepresentation(arg) !=
-          expected_sig->GetParam(sig_index).machine_type().representation()) {
+      if (!CompareWithNormalizedCType(arg, expected_sig->GetParam(sig_index),
+                                      info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "parameter type mismatch");
         param_mismatch = true;
         break;
@@ -407,6 +416,25 @@ bool IsDataViewSetterSig(const wasm::FunctionSig* sig,
          sig->GetParam(3) == wasm::kWasmI32;
 }
 
+const MachineSignature* GetFunctionSigForFastApiImport(
+    Zone* zone, const CFunctionInfo* info) {
+  uint32_t arg_count = info->ArgumentCount();
+  uint32_t ret_count =
+      info->ReturnInfo().GetType() == CTypeInfo::Type::kVoid ? 0 : 1;
+  constexpr uint32_t param_offset = 1;
+
+  MachineSignature::Builder sig_builder(zone, ret_count,
+                                        arg_count - param_offset);
+  if (ret_count) {
+    sig_builder.AddReturn(MachineType::TypeForCType(info->ReturnInfo()));
+  }
+
+  for (uint32_t i = param_offset; i < arg_count; ++i) {
+    sig_builder.AddParam(MachineType::TypeForCType(info->ArgumentInfo(i)));
+  }
+  return sig_builder.Build();
+}
+
 // This detects imports of the forms:
 // - `Function.prototype.call.bind(foo)`, where `foo` is something that has a
 //   Builtin id.
@@ -476,9 +504,20 @@ WellKnownImport CheckForWellKnownImport(
     isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
                                                               c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    native_module->set_fast_api_return_is_bool(
-        func_index, func_data->GetCSignature(0)->ReturnInfo().GetType() ==
-                        CTypeInfo::Type::kBool);
+    // Store the signature of the C++ function in the native_module. We check
+    // first if the signature already exists in the native_module such that we
+    // do not create a copy of the signature unnecessarily. Since
+    // `has_fast_api_signature` and `set_fast_api_signature` don't happen
+    // atomically, it is still possible that multiple copies of the signature
+    // get created. However, the `TrySetFastApiCallTarget` above guarantees that
+    // if there are concurrent calls to `set_cast_api_signature`, then all calls
+    // would store the same signature to the native module.
+    if (!native_module->has_fast_api_signature(func_index)) {
+      native_module->set_fast_api_signature(
+          func_index, GetFunctionSigForFastApiImport(
+                          &native_module->module()->signature_zone,
+                          func_data->GetCSignature(out_api_function_index)));
+    }
 
     DirectHandle<HeapObject> js_signature(sfi->api_func_data()->signature(),
                                           isolate);

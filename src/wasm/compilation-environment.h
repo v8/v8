@@ -72,7 +72,7 @@ struct CompilationEnv {
 
   const std::atomic<Address>* fast_api_targets;
 
-  std::atomic<bool>* fast_api_return_is_bool;
+  std::atomic<const MachineSignature*>* fast_api_signatures;
 
   uint32_t deopt_info_bytecode_offset = std::numeric_limits<uint32_t>::max();
   LocationKindForDeopt deopt_location_kind = LocationKindForDeopt::kNone;
@@ -85,16 +85,15 @@ struct CompilationEnv {
   static constexpr CompilationEnv NoModuleAllFeatures();
 
  private:
-  constexpr CompilationEnv(const WasmModule* module,
-                           WasmEnabledFeatures enabled_features,
-                           DynamicTiering dynamic_tiering,
-                           std::atomic<Address>* fast_api_targets,
-                           std::atomic<bool>* fast_api_return_is_bool)
+  constexpr CompilationEnv(
+      const WasmModule* module, WasmEnabledFeatures enabled_features,
+      DynamicTiering dynamic_tiering, std::atomic<Address>* fast_api_targets,
+      std::atomic<const MachineSignature*>* fast_api_signatures)
       : module(module),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering),
         fast_api_targets(fast_api_targets),
-        fast_api_return_is_bool(fast_api_return_is_bool) {}
+        fast_api_signatures(fast_api_signatures) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)

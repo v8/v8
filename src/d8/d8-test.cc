@@ -1531,7 +1531,8 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     CFunction add_all_no_options_c_func = CFunction::Make(
         FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
-            FastCApiObject::AddAllFastCallbackNoOptionsPatch));
+            FastCApiObject::AddAllFastCallbackNoOptionsPatch),
+        CFunctionInfo::Int64Representation::kBigInt);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_no_options",
         FunctionTemplate::New(

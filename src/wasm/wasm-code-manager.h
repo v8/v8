@@ -785,30 +785,53 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kLazyCompileTable,
   };
 
-  bool TrySetFastApiCallTarget(int index, Address target) {
-    Address old_val = fast_api_targets_[index].load(std::memory_order_relaxed);
+  // This function tries to set the fast API call target of function import
+  // `index`. If the call target has been set before with a different value,
+  // then this function returns false, and this import will be marked as not
+  // suitable for wellknown imports, i.e. all existing compiled code of the
+  // module gets flushed, and future calls to this import will not use fast API
+  // calls.
+  bool TrySetFastApiCallTarget(int func_index, Address target) {
+    Address old_val =
+        fast_api_targets_[func_index].load(std::memory_order_relaxed);
     if (old_val == target) {
       return true;
     }
     if (old_val != kNullAddress) {
       // If already a different target is stored, then there are conflicting
-      // targets and fast api calls are not possible.
+      // targets and fast api calls are not possible. In that case the import
+      // will be marked as not suitable for wellknown imports, and the
+      // `fast_api_target` of this import will never be used anymore in the
+      // future.
       return false;
     }
-    return fast_api_targets_[index].compare_exchange_strong(
-        old_val, target, std::memory_order_relaxed);
+    if (fast_api_targets_[func_index].compare_exchange_strong(
+            old_val, target, std::memory_order_relaxed)) {
+      return true;
+    }
+    // If a concurrent call to `TrySetFastAPICallTarget` set the call target to
+    // the same value as this call, we consider also this call successful.
+    return old_val == target;
   }
 
   std::atomic<Address>* fast_api_targets() const {
     return fast_api_targets_.get();
   }
 
-  void set_fast_api_return_is_bool(int index, bool return_is_bool) {
-    fast_api_return_is_bool_[index] = return_is_bool;
+  // Stores the signature of the C++ call target of an imported web API
+  // function. The signature got copied from the `FunctionTemplateInfo` object
+  // of the web API function into the `signature_zone` of the `WasmModule` so
+  // that it stays alive as long as the `WasmModule` exists.
+  void set_fast_api_signature(int func_index, const MachineSignature* sig) {
+    fast_api_signatures_[func_index] = sig;
   }
 
-  std::atomic<bool>* fast_api_return_is_bool() const {
-    return fast_api_return_is_bool_.get();
+  bool has_fast_api_signature(int index) {
+    return fast_api_signatures_[index] != nullptr;
+  }
+
+  std::atomic<const MachineSignature*>* fast_api_signatures() const {
+    return fast_api_signatures_.get();
   }
 
  private:
@@ -1004,7 +1027,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<bool> log_code_{false};
 
   std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
-  std::unique_ptr<std::atomic<bool>[]> fast_api_return_is_bool_;
+  std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
