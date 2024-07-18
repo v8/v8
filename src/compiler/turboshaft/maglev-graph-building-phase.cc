@@ -4794,6 +4794,14 @@ base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
     data->info()->inlined_functions().push_back(holder);
   }
 
+  if (V8_UNLIKELY(bailout.has_value() &&
+                  (v8_flags.trace_turbo || v8_flags.trace_turbo_graph))) {
+    // If we've bailed out, then we've probably left the graph in some kind of
+    // invalid state. We Reset it now, so that --trace-turbo doesn't try to
+    // print an invalid graph.
+    data->graph().Reset();
+  }
+
   return bailout;
 }
 
