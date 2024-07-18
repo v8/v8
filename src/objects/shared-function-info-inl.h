@@ -786,7 +786,9 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
   if (IsBytecodeArray(data)) {
     return Cast<BytecodeArray>(data);
   } else {
-    DCHECK(IsInterpreterData(data));
+    // We need an explicit check here since we use the
+    // kUnknownIndirectPointerTag above and so don't have any type guarantees.
+    SBXCHECK(IsInterpreterData(data));
     return Cast<InterpreterData>(data)->bytecode_array();
   }
 }

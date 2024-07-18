@@ -3531,6 +3531,9 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   Goto(&done);
 
   BIND(&done);
+  // We need an explicit check here since we use the
+  // kUnknownIndirectPointerTag above and so don't have any type guarantees.
+  CSA_SBXCHECK(this, HasInstanceType(var_result.value(), BYTECODE_ARRAY_TYPE));
   return CAST(var_result.value());
 }
 
