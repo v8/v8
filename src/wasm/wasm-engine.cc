@@ -135,65 +135,27 @@ void WasmEngine::FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start) {
   }
 }
 
-namespace {
 // A task to log a set of {WasmCode} objects in an isolate. It does not own any
 // data itself, since it is owned by the platform, so lifetime is not really
 // bound to the wasm engine.
-class LogCodesTask : public Task {
+class WasmEngine::LogCodesTask : public CancelableTask {
+  friend class WasmEngine;
+
  public:
-  LogCodesTask(std::atomic<LogCodesTask*>* task_slot, Isolate* isolate,
-               WasmEngine* engine)
-      : task_slot_(task_slot), isolate_(isolate), engine_(engine) {
-    DCHECK_NOT_NULL(task_slot);
-    DCHECK_NOT_NULL(isolate);
-  }
+  LogCodesTask(Isolate* isolate) : CancelableTask(isolate), isolate_(isolate) {}
 
-  ~LogCodesTask() override {
-    // If the platform deletes this task before executing it, we also deregister
-    // it to avoid use-after-free from still-running background threads. In this
-    // case this object was never visible to any other thread, hence
-    // {task_slot_} can be written without synchronization.
-    DeregisterTask();
-  }
+  ~LogCodesTask() override { GetWasmEngine()->DeregisterCodeLoggingTask(this); }
 
-  void Run() override {
-    Isolate* isolate = isolate_.load(std::memory_order_relaxed);
-    if (!isolate) return;  // cancelled
-    DeregisterTask();
-    engine_->LogOutstandingCodesForIsolate(isolate);
-  }
-
-  void Cancel() {
-    isolate_.store(nullptr, std::memory_order_relaxed);
-    // Cancel will only be called on Isolate shutdown, which happens on the
-    // Isolate's foreground thread. Thus no synchronization needed on
-    // {task_slot_}.
-    DeregisterTask();
-  }
-
-  void DeregisterTask() {
-    // Synchronization when reading or writing {task_slot_} is not needed, as
-    // deregistering will only happen on the main thread, or before registering
-    // this task with the platform (hence no other threads saw the object yet).
-    if (task_slot_ == nullptr) return;  // already deregistered.
-    // Remove this task from the {IsolateInfo} in the engine. The next
-    // logging request will allocate and schedule a new task.
-    LogCodesTask* old_task = task_slot_->exchange(nullptr);
-    CHECK(old_task == nullptr || old_task == this);
-    task_slot_ = nullptr;
+  void RunInternal() override {
+    GetWasmEngine()->DeregisterCodeLoggingTask(this);
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
  private:
-  // The slot in the WasmEngine where this LogCodesTask is stored. This is
-  // cleared by this task before execution or on task destruction.
-  std::atomic<LogCodesTask*>* task_slot_;
-  // The isolate where to log code. On cancellation this is set to {nullptr}. As
-  // cancellation can happen while posting this task from another thread, it
-  // needs to be atomic.
-  std::atomic<Isolate*> isolate_;
-  WasmEngine* const engine_;
+  Isolate* const isolate_;
 };
 
+namespace {
 void CheckNoArchivedThreads(Isolate* isolate) {
   class ArchivedThreadsVisitor : public ThreadVisitor {
     void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
@@ -521,7 +483,7 @@ struct WasmEngine::IsolateInfo {
   bool log_codes;
 
   // The currently scheduled LogCodesTask.
-  std::atomic<LogCodesTask*> log_codes_task = nullptr;
+  LogCodesTask* log_codes_task = nullptr;
 
   // Maps script ID to vector of code objects that still need to be logged, and
   // the respective source URL.
@@ -1266,9 +1228,15 @@ OperationsBarrier::Token WasmEngine::StartWrapperCompilation(Isolate* isolate) {
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(0, isolates_.count(isolate));
-  isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
+  // Create the IsolateInfo.
+  {
+    // Create the IsolateInfo outside the mutex to reduce the size of the
+    // critical section and to avoid lock-order-inversion issues.
+    auto isolate_info = std::make_unique<IsolateInfo>(isolate);
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(0, isolates_.count(isolate));
+    isolates_.emplace(isolate, std::move(isolate_info));
+  }
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -1287,6 +1255,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);
+
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   if (gdb_server_) {
     gdb_server_->AddIsolate(isolate);
@@ -1346,8 +1315,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
 
-  // Cancel outstanding code logging and clear the {code_to_log} vector.
-  if (auto* task = isolate_info->log_codes_task.load()) task->Cancel();
+  // Clear the {code_to_log} vector.
   for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
     for (WasmCode* code : code_to_log.code) {
       // Keep a reference in the {code_ref_scope_for_dead_code} such that the
@@ -1404,10 +1372,9 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
         code->IncRef();
       }
 
-      if (info->log_codes_task.load() == nullptr) {
-        std::unique_ptr<LogCodesTask> new_task = std::make_unique<LogCodesTask>(
-            &info->log_codes_task, isolate, this);
-        CHECK_NULL(info->log_codes_task.exchange(new_task.get()));
+      if (info->log_codes_task == nullptr) {
+        auto new_task = std::make_unique<LogCodesTask>(isolate);
+        info->log_codes_task = new_task.get();
         // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
         // Posting the task in the mutex can cause the following deadlock (only
         // in d8): When d8 shuts down, it sets a terminate to the task runner.
@@ -1465,6 +1432,17 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     }
     WasmCode::DecrementRefCount(base::VectorOf(code_to_log.code));
   }
+}
+
+void WasmEngine::DeregisterCodeLoggingTask(LogCodesTask* task) {
+  base::MutexGuard engine_mutex_guard(&mutex_);
+  Isolate* isolate = task->isolate_;
+  auto it = isolates_.find(isolate);
+  // If the isolate died already, the IsolateInfo can not be found.
+  if (it == isolates_.end()) return;
+  IsolateInfo* info = it->second.get();
+  DCHECK(info->log_codes_task == nullptr || info->log_codes_task == task);
+  info->log_codes_task = nullptr;
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(

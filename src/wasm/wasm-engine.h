@@ -157,6 +157,8 @@ class NativeModuleCache {
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing Wasm code.
 class V8_EXPORT_PRIVATE WasmEngine {
+  class LogCodesTask;
+
  public:
   WasmEngine();
   WasmEngine(const WasmEngine&) = delete;
@@ -295,6 +297,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // This is called from the foreground thread of the Isolate to log all
   // outstanding code objects (added via {LogCode}).
   void LogOutstandingCodesForIsolate(Isolate*);
+
+  // Code logging is done via a separate task per isolate. This deregisters a
+  // task after execution (or destruction because of isolate shutdown).
+  void DeregisterCodeLoggingTask(LogCodesTask*);
 
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
