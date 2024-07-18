@@ -794,13 +794,20 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeIsWellFormed:
     case Builtin::kStringPrototypeItalics:
     case Builtin::kStringPrototypeLastIndexOf:
+    case Builtin::kStringPrototypeLocaleCompare:
     case Builtin::kStringPrototypeLink:
+    case Builtin::kStringPrototypeMatch:
     case Builtin::kStringPrototypeMatchAll:
+
     case Builtin::kStringPrototypePadEnd:
     case Builtin::kStringPrototypePadStart:
     case Builtin::kStringPrototypeRepeat:
+    case Builtin::kStringPrototypeReplace:
+    case Builtin::kStringPrototypeReplaceAll:
+    case Builtin::kStringPrototypeSearch:
     case Builtin::kStringPrototypeSlice:
     case Builtin::kStringPrototypeSmall:
+    case Builtin::kStringPrototypeSplit:
     case Builtin::kStringPrototypeStartsWith:
     case Builtin::kStringSlowFlatten:
     case Builtin::kStringPrototypeStrike:
@@ -809,9 +816,17 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeSubstring:
     case Builtin::kStringPrototypeSup:
     case Builtin::kStringPrototypeToString:
-#ifndef V8_INTL_SUPPORT
+    case Builtin::kStringPrototypeToLocaleLowerCase:
+    case Builtin::kStringPrototypeToLocaleUpperCase:
+#ifdef V8_INTL_SUPPORT
+    case Builtin::kStringToLowerCaseIntl:
+    case Builtin::kStringPrototypeToLowerCaseIntl:
+    case Builtin::kStringPrototypeToUpperCaseIntl:
+    case Builtin::kStringPrototypeNormalizeIntl:
+#else
     case Builtin::kStringPrototypeToLowerCase:
     case Builtin::kStringPrototypeToUpperCase:
+    case Builtin::kStringPrototypeNormalize:
 #endif
     case Builtin::kStringPrototypeToWellFormed:
     case Builtin::kStringPrototypeTrim:
@@ -864,6 +879,10 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kConstructWithArrayLike:
     case Builtin::kGetOwnPropertyDescriptor:
     case Builtin::kOrdinaryGetOwnPropertyDescriptor:
+#if V8_ENABLE_WEBASSEMBLY
+    case Builtin::kWasmAllocateInYoungGeneration:
+    case Builtin::kWasmAllocateInOldGeneration:
+#endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     case Builtin::kGetContinuationPreservedEmbedderData:
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -1001,11 +1020,15 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kRegExpPrototypeGlobalGetter:
     case Builtin::kRegExpPrototypeHasIndicesGetter:
     case Builtin::kRegExpPrototypeIgnoreCaseGetter:
+    case Builtin::kRegExpPrototypeMatch:
     case Builtin::kRegExpPrototypeMatchAll:
     case Builtin::kRegExpPrototypeMultilineGetter:
     case Builtin::kRegExpPrototypeDotAllGetter:
     case Builtin::kRegExpPrototypeUnicodeGetter:
+    case Builtin::kRegExpPrototypeUnicodeSetsGetter:
     case Builtin::kRegExpPrototypeStickyGetter:
+    case Builtin::kRegExpPrototypeReplace:
+    case Builtin::kRegExpPrototypeSearch:
       return DebugInfo::kRequiresRuntimeChecks;
 
     default:
@@ -1237,6 +1260,22 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
         default:
           return false;
       }
+    case Builtin::kRegExpMatchFast:
+      // This is not a problem. We force String.prototype.match to take the
+      // slow path so that this call is not made.
+      return caller == Builtin::kStringPrototypeMatch;
+    case Builtin::kRegExpReplace:
+      // This is not a problem. We force String.prototype.replace to take the
+      // slow path so that this call is not made.
+      return caller == Builtin::kStringPrototypeReplace;
+    case Builtin::kRegExpSplit:
+      // This is not a problem. We force String.prototype.split to take the
+      // slow path so that this call is not made.
+      return caller == Builtin::kStringPrototypeSplit;
+    case Builtin::kRegExpSearchFast:
+      // This is not a problem. We force String.prototype.split to take the
+      // slow path so that this call is not made.
+      return caller == Builtin::kStringPrototypeSearch;
     default:
       return false;
   }

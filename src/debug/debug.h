@@ -411,6 +411,8 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
 
+  void PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id);
+
   bool PerformSideEffectCheckForAccessor(
       DirectHandle<AccessorInfo> accessor_info, Handle<Object> receiver,
       AccessorComponent component);

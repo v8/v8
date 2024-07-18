@@ -20,6 +20,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
@@ -3108,6 +3109,9 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
   DirectHandle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   DebugInfo::SideEffectState side_effect_state =
       debug_info->GetSideEffectState(isolate_);
+  if (shared->HasBuiltinId()) {
+    PrepareBuiltinForSideEffectCheck(isolate_, shared->builtin_id());
+  }
   switch (side_effect_state) {
     case DebugInfo::kHasSideEffects:
       if (v8_flags.trace_side_effect_free_debug_evaluate) {
@@ -3139,6 +3143,29 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
 
 Handle<Object> Debug::return_value_handle() {
   return handle(thread_local_.return_value_, isolate_);
+}
+
+void Debug::PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id) {
+  switch (id) {
+    case Builtin::kStringPrototypeMatch:
+    case Builtin::kStringPrototypeSearch:
+    case Builtin::kStringPrototypeSplit:
+    case Builtin::kStringPrototypeMatchAll:
+    case Builtin::kStringPrototypeReplace:
+    case Builtin::kStringPrototypeReplaceAll:
+      if (Protectors::IsRegExpSpeciesLookupChainIntact(isolate_)) {
+        // Force RegExps to go slow path so that we have a chance to perform
+        // side-effect checks for the functions for Symbol.match,
+        // Symbol.matchAll, Symbol.search, Symbol.split and Symbol.replace.
+        if (v8_flags.trace_side_effect_free_debug_evaluate) {
+          PrintF("[debug-evaluate] invalidating protector cell for RegExps\n");
+        }
+        Protectors::InvalidateRegExpSpeciesLookupChain(isolate_);
+      }
+      return;
+    default:
+      return;
+  }
 }
 
 bool Debug::PerformSideEffectCheckForAccessor(
