@@ -1464,6 +1464,9 @@ config("toolchain") {
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
     }
+    if (riscv_use_sv39) {
+      defines += [ "RISCV_USE_SV39" ]
+    }
   }
 
   if (v8_current_cpu == "riscv32") {

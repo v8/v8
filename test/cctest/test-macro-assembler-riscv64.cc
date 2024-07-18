@@ -158,9 +158,15 @@ TEST(LoadAddress) {
                 RelocInfo::INTERNAL_REFERENCE_ENCODED),
         ADDRESS_LOAD);
   int check_size = masm.InstructionsGeneratedSince(&skip);
+#ifdef RISCV_USE_SV39
+  // NOTE (RISCV): current li generates 4 instructions, if the sequence is
+  // changed, need to adjust the CHECK_EQ value too
+  CHECK_EQ(4, check_size);
+#else
   // NOTE (RISCV): current li generates 6 instructions, if the sequence is
   // changed, need to adjust the CHECK_EQ value too
   CHECK_EQ(6, check_size);
+#endif
   __ jr(a4);
   __ nop();
   __ stop();

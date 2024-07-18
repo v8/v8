@@ -1745,6 +1745,15 @@ TEST(TARGET_ADDR) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
+#ifdef RISCV_USE_SV39
+  // This is the series of instructions to load 39 bit address 0x00304abfe961
+  uint32_t buffer[4] = {0x304ac537, 0xfe950513, 0x851513, 0x6156513};
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+  CHECK_EQ(0x00304abfe961L, res);
+#else
   // This is the series of instructions to load 48 bit address 0x0123456789ab
   uint32_t buffer[6] = {0x091ab37,  0x2b330213, 0x00b21213,
                         0x62626213, 0x00621213, 0x02b26213};
@@ -1753,6 +1762,7 @@ TEST(TARGET_ADDR) {
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   Address res = __ target_address_at(static_cast<Address>(addr));
   CHECK_EQ(0x0123456789abL, res);
+#endif
 }
 
 TEST(SET_TARGET_ADDR) {
@@ -1760,6 +1770,18 @@ TEST(SET_TARGET_ADDR) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
+#ifdef RISCV_USE_SV39
+  // This is the series of instructions to load 39 bit address 0x00304abfe961
+  uint32_t buffer[4] = {0x304ac537, 0xfe950513, 0x851513, 0x6156513};
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  __ set_target_value_at(static_cast<Address>(addr), 0x00304abfe961L,
+                         FLUSH_ICACHE_IF_NEEDED);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+  CHECK_EQ(0x00304abfe961L, res);
+#else
   // This is the series of instructions to load 48 bit address 0xba9876543210
   uint32_t buffer[6] = {0x091ab37,  0x2b330213, 0x00b21213,
                         0x62626213, 0x00621213, 0x02b26213};
@@ -1771,6 +1793,7 @@ TEST(SET_TARGET_ADDR) {
                          FLUSH_ICACHE_IF_NEEDED);
   Address res = __ target_address_at(static_cast<Address>(addr));
   CHECK_EQ(0xba9876543210L, res);
+#endif
 }
 
 // pair.first is the F_TYPE input to test, pair.second is I_TYPE expected
