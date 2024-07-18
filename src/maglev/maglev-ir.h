@@ -5190,6 +5190,25 @@ class VirtualObject::List {
     return nullptr;
   }
 
+  void Snapshot() const {
+    for (VirtualObject* vo : *this) {
+      if (vo->IsSnapshot()) {
+        // Stop processing once a snapshotted object is found, as all remaining
+        // objects must be snapshotted.
+        break;
+      }
+      vo->Snapshot();
+    }
+    SLOW_DCHECK(IsSnapshot());
+  }
+
+  bool IsSnapshot() const {
+    for (VirtualObject* vo : *this) {
+      if (!vo->IsSnapshot()) return false;
+    }
+    return true;
+  }
+
   Iterator begin() const { return Iterator(head_); }
   Iterator end() const { return Iterator(nullptr); }
 

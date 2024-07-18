@@ -342,6 +342,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::BuiltinContinuationFrameData{
             continuation, {}, builder->GetContext(), maybe_js_target}) {
+    builder_->current_interpreter_frame().virtual_objects().Snapshot();
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -357,6 +358,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         data_(DeoptFrame::BuiltinContinuationFrameData{
             continuation, builder->zone()->CloneVector(parameters),
             builder->GetContext(), maybe_js_target}) {
+    builder_->current_interpreter_frame().virtual_objects().Snapshot();
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
@@ -372,6 +374,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         data_(DeoptFrame::ConstructInvokeStubFrameData{
             *builder->compilation_unit(), builder->current_source_position_,
             receiver, builder->GetContext()}) {
+    builder_->current_interpreter_frame().virtual_objects().Snapshot();
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
@@ -1260,6 +1263,7 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
     return GetDeoptFrameForEntryStackCheck();
   }
   if (!latest_checkpointed_frame_) {
+    current_interpreter_frame_.virtual_objects().Snapshot();
     latest_checkpointed_frame_.emplace(InterpretedDeoptFrame(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
@@ -1330,6 +1334,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
       liveness_copy->MarkAccumulatorDead();
       liveness = liveness_copy;
     }
+    current_interpreter_frame_.virtual_objects().Snapshot();
     InterpretedDeoptFrame ret(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
@@ -4141,12 +4146,15 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   // This avoids loop in the object graph.
   if (value->Is<InlinedAllocation>()) return;
   InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
-  // TODO(victorgomes): Technically if it is not sealed, we could avoid copying
-  // the object here. This does not currently work, since we need to seal
-  // objects on branches.
-  VirtualObject* vobject = DeepCopyVirtualObject(
-      current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-          allocation));
+  // If it hasn't be snapshotted yet, it is the latest created version of this
+  // object and we can still modify it, we don't need to copy it.
+  VirtualObject* vobject = allocation->object();
+  if (vobject->IsSnapshot()) {
+    vobject = DeepCopyVirtualObject(
+        current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+            allocation));
+  }
+  CHECK_NOT_NULL(vobject);
   vobject->set(offset, value);
   AddNonEscapingUses(allocation, 1);
   TRACE("  * Setting value in virtual object "

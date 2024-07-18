@@ -314,6 +314,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
   merge_state->predecessors_[0] = predecessor;
   merge_state->known_node_aspects_ =
       state.known_node_aspects()->Clone(info.zone());
+  state.virtual_objects().Snapshot();
   merge_state->set_virtual_objects(state.virtual_objects());
   return merge_state;
 }
@@ -552,6 +553,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
   if (frame_state_.virtual_objects().is_empty()) return;
   if (unmerged_vos.is_empty()) return;
 
+  frame_state_.virtual_objects().Snapshot();
+
   PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
 
   SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
@@ -622,6 +625,7 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
       builder->zone(), optimistic_initial_state, loop_effects);
+  unmerged.virtual_objects().Snapshot();
   frame_state_.set_virtual_objects(unmerged.virtual_objects());
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Initializing "
@@ -775,6 +779,7 @@ void MergePointInterpreterFrameState::MergeThrow(
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
     known_node_aspects_ = known_node_aspects.Clone(builder->zone());
+    virtual_objects.Snapshot();
     frame_state_.set_virtual_objects(virtual_objects);
   } else {
     known_node_aspects_->Merge(known_node_aspects, builder->zone());
