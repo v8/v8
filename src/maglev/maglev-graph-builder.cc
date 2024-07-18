@@ -4415,17 +4415,14 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
 
-  bool need_to_extend_properties_backing_store = false;
   compiler::OptionalMapRef original_map;
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
     original_map = transition.GetBackPointer(broker()).AsMap();
 
     if (original_map->UnusedPropertyFields() == 0) {
-      if (v8_flags.maglev_extend_properties_backing_store) {
-        DCHECK(!field_index.is_inobject());
-        need_to_extend_properties_backing_store = true;
-      } else {
+      DCHECK(!field_index.is_inobject());
+      if (!v8_flags.maglev_extend_properties_backing_store) {
         return ReduceResult::Fail();
       }
     }
@@ -4451,7 +4448,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     // The field is in the property array, first load it from there.
     store_target =
         BuildLoadTaggedField(receiver, JSReceiver::kPropertiesOrHashOffset);
-    if (need_to_extend_properties_backing_store) {
+    if (original_map && original_map->UnusedPropertyFields() == 0) {
       store_target = BuildExtendPropertiesBackingStore(*original_map, receiver,
                                                        store_target);
     }

@@ -3998,15 +3998,18 @@ void ExtendPropertiesBackingStore::SetValueLocationConstraints() {
   UseRegister(property_array_input());
   UseRegister(object_input());
   DefineAsRegister(this);
-  set_temporaries_needed(1);
+  set_temporaries_needed(2);
 }
 
 void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register old_property_array = ToRegister(property_array_input());
-  Register new_property_array = ToRegister(result());
+  Register result_reg = ToRegister(result());
   MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register new_property_array =
+      result_reg == object || result_reg == old_property_array ? temps.Acquire()
+                                                               : result_reg;
   Register scratch = temps.Acquire();
   DCHECK_NE(object, old_property_array);
   DCHECK_NE(object, new_property_array);
@@ -4091,6 +4094,9 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
         object, JSObject::kPropertiesOrHashOffset, new_property_array, snapshot,
         MaglevAssembler::kValueIsDecompressed,
         MaglevAssembler::kValueCannotBeSmi);
+  }
+  if (result_reg != new_property_array) {
+    __ Move(result_reg, new_property_array);
   }
 }
 
