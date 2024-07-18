@@ -1547,6 +1547,7 @@ class MaglevFrameTranslationBuilder {
     size_t input_locations_to_advance = 1;
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+      CHECK_NOT_NULL(vobject);
       if (alloc->HasBeenElided()) {
         input_location++;
         BuildVirtualObject(vobject, input_location, virtual_objects);

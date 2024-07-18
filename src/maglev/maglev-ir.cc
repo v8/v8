@@ -7136,7 +7136,7 @@ void Float64Round::PrintParams(std::ostream& os,
 
 void Phi::PrintParams(std::ostream& os,
                       MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << owner().ToString() << ")";
+  os << "(" << (owner().is_valid() ? owner().ToString() : "VO") << ")";
 }
 
 void Call::PrintParams(std::ostream& os,

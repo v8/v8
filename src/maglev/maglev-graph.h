@@ -132,7 +132,7 @@ class Graph final : public ZoneObject {
     return osr_values().back()->stack_slot() + 1;
   }
 
-  int NewObjectId() { return object_ids_++; }
+  uint32_t NewObjectId() { return object_ids_++; }
 
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
@@ -214,7 +214,7 @@ class Graph final : public ZoneObject {
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
   bool is_osr_ = false;
-  int object_ids_ = 0;
+  uint32_t object_ids_ = 0;
   ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
 };
 

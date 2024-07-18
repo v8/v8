@@ -704,6 +704,7 @@ class CompactInterpreterFrameState {
   const VirtualObject::List& virtual_objects() const {
     return virtual_objects_;
   }
+  VirtualObject::List& virtual_objects() { return virtual_objects_; }
   void set_virtual_objects(const VirtualObject::List& vos) {
     virtual_objects_ = vos;
   }
@@ -808,7 +809,7 @@ class MergePointInterpreterFrameState {
 
   // Merges an unmerged framestate into a possibly merged framestate at the
   // start of the target catchblock.
-  void MergeThrow(const MaglevGraphBuilder* handler_builder,
+  void MergeThrow(MaglevGraphBuilder* handler_builder,
                   const MaglevCompilationUnit* handler_unit,
                   const KnownNodeAspects& known_node_aspects,
                   const VirtualObject::List virtual_objects);
@@ -875,8 +876,12 @@ class MergePointInterpreterFrameState {
   }
 
   void PrintVirtualObjects(const MaglevCompilationUnit& info,
-                           VirtualObject::List from_ifs) {
+                           VirtualObject::List from_ifs,
+                           const char* prelude = nullptr) {
     if (!v8_flags.trace_maglev_graph_building) return;
+    if (prelude) {
+      std::cout << prelude << std::endl;
+    }
     from_ifs.Print(std::cout,
                    "* VOs (Interpreter Frame State): ", info.graph_labeller());
     frame_state_.virtual_objects().Print(
@@ -992,6 +997,20 @@ class MergePointInterpreterFrameState {
                         bool optimistic_loop_phis = false);
 
   void ReducePhiPredecessorCount(unsigned num);
+
+  void MergeVirtualObjects(MaglevGraphBuilder* builder,
+                           MaglevCompilationUnit& compilation_unit,
+                           const VirtualObject::List unmerged_vos,
+                           const KnownNodeAspects& unmerged_aspects);
+
+  void MergeVirtualObject(MaglevGraphBuilder* builder,
+                          const VirtualObject::List unmerged_vos,
+                          const KnownNodeAspects& unmerged_aspects,
+                          VirtualObject* merged, VirtualObject* unmerged);
+
+  ValueNode* MergeVirtualObjectValue(const MaglevGraphBuilder* graph_builder,
+                                     const KnownNodeAspects& unmerged_aspects,
+                                     ValueNode* merged, ValueNode* unmerged);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,
