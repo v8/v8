@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:22.20240710.1.1',
+  'fuchsia_version': 'version:22.20240717.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c37c5b5fff59a74f9c53fd40185559512a26c27c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0e57d88781588cad25981e5748b46d0407ca9c3f',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e755567ca25f21cbf1636e91e0232270bc842d3a',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'adc2a53a411826b429a01363ad0ff598325c1f73',
   'buildtools/linux64': {
     'packages': [
       {
@@ -221,7 +221,7 @@ deps = {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
-        'version': 'wpJvg81kuXdMM66r_l9Doa-pLfR6S26Jd1x40LpwWEoC',
+        'version': 'h9HeidXTeHQ-oskldbqCZx26-7VrVvXpLfqOI87uy4QC',
       },
     ],
     'condition': 'checkout_android',
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f101c4275b8cd30de9ed742b94a54ed47bce379f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '29445d0e3f4de0f20d4894506716584e9d604e04',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '88f793b4be43cd880a4e1041bfcd65bc688c23cb',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b4102e43a02805cf7bcb100446d27caef1b4e51d',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
