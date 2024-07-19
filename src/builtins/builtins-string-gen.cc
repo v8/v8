@@ -119,8 +119,8 @@ TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteInOneByteString(
                     std::make_pair(MachineType::UintPtr(), search_length)));
   return Select<IntPtrT>(
       WordEqual(result_address, IntPtrConstant(0)),
-      [=] { return IntPtrConstant(-1); },
-      [=] {
+      [=, this] { return IntPtrConstant(-1); },
+      [=, this] {
         return IntPtrAdd(RawPtrSub(result_address, subject_start_ptr),
                          start_position);
       });
@@ -465,8 +465,8 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
       Word32And(left_instance_type, right_instance_type);
   TNode<Map> result_map = CAST(Select<Object>(
       IsSetWord32(combined_instance_type, kStringEncodingMask),
-      [=] { return ConsOneByteStringMapConstant(); },
-      [=] { return ConsTwoByteStringMapConstant(); }));
+      [=, this] { return ConsOneByteStringMapConstant(); },
+      [=, this] { return ConsTwoByteStringMapConstant(); }));
   TNode<HeapObject> result = AllocateInNewSpace(sizeof(ConsString));
   StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldNoWriteBarrier(result, offsetof(ConsString, length_), length);
@@ -1210,11 +1210,11 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
         DescriptorIndexNameValue{
             JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
             RootIndex::kreplace_symbol, Context::REGEXP_REPLACE_FUNCTION_INDEX},
-        [=]() {
+        [=, this]() {
           Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
                              replace));
         },
-        [=](TNode<Object> fn) {
+        [=, this](TNode<Object> fn) {
           Return(Call(context, fn, search, receiver, replace));
         });
     Goto(&next);
@@ -1427,7 +1427,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     Return(
         RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
   };
-  auto if_generic_call = [=](TNode<Object> fn) {
+  auto if_generic_call = [=, this](TNode<Object> fn) {
     Return(Call(context, fn, maybe_regexp, receiver));
   };
   MaybeCallFunctionAtSymbol(
@@ -1464,10 +1464,10 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
   // Try to use cached one byte characters.
   {
-    TNode<Smi> length_smi =
-        Select<Smi>(TaggedIsSmi(limit_number),
-                    [=] { return SmiMin(CAST(limit_number), subject_length); },
-                    [=] { return subject_length; });
+    TNode<Smi> length_smi = Select<Smi>(
+        TaggedIsSmi(limit_number),
+        [=, this] { return SmiMin(CAST(limit_number), subject_length); },
+        [=] { return subject_length; });
     TNode<IntPtrT> length = SmiToIntPtr(length_smi);
 
     ToDirectStringAssembler to_direct(state(), subject_string);
@@ -1565,8 +1565,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   TNode<String> subject_string = ToString_Inline(context, receiver);
   TNode<Number> limit_number = Select<Number>(
-      IsUndefined(limit), [=] { return NumberConstant(kMaxUInt32); },
-      [=] { return ToUint32(context, limit); });
+      IsUndefined(limit), [=, this] { return NumberConstant(kMaxUInt32); },
+      [=, this] { return ToUint32(context, limit); });
   const TNode<String> separator_string = ToString_Inline(context, separator);
 
   Label return_empty_array(this);

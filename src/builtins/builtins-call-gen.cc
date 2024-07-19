@@ -497,7 +497,7 @@ void CallOrConstructBuiltinsAssembler::CallReceiver(
   auto target = Parameter<Object>(Descriptor::kFunction);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  LazyNode<Object> receiver = [=] {
+  LazyNode<Object> receiver = [=, this] {
     if (maybe_receiver) {
       return *maybe_receiver;
     } else {

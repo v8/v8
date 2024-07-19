@@ -616,8 +616,8 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   }
 
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
-  auto visitor = [=](Handle<String> name, Handle<Object> value,
-                     ScopeType scope_type) {
+  auto visitor = [=, this](Handle<String> name, Handle<Object> value,
+                           ScopeType scope_type) {
     if (IsOptimizedOut(*value, isolate_)) {
       JSObject::SetAccessor(
           scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)

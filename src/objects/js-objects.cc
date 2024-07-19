@@ -5625,7 +5625,7 @@ Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwap(
     SeqCstAccessTag tag) {
   return HeapObject::SeqCst_CompareAndSwapField(
       expected, value,
-      [=](Tagged<Object> expected_value, Tagged<Object> new_value) {
+      [=, this](Tagged<Object> expected_value, Tagged<Object> new_value) {
         return RawFastPropertyAtCompareAndSwapInternal(index, expected_value,
                                                        new_value, tag);
       });

@@ -44,7 +44,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const char* operation_name, CloseOnRejectionOption close_on_rejection,
       Label::Type reject_label_type = Label::kDeferred,
       base::Optional<TNode<Object>> initial_exception_value = base::nullopt) {
-    auto get_method = [=](const TNode<JSReceiver> sync_iterator) {
+    auto get_method = [=, this](const TNode<JSReceiver> sync_iterator) {
       return GetProperty(context, sync_iterator, name);
     };
     return Generate_AsyncFromSyncIteratorMethod(
@@ -174,8 +174,8 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   TNode<Object> on_rejected;
   if (close_on_rejection == kCloseOnRejection) {
     on_rejected = Select<Object>(
-        IsTrue(done), [=] { return UndefinedConstant(); },
-        [=] {
+        IsTrue(done), [=, this] { return UndefinedConstant(); },
+        [=, this] {
           return CreateAsyncFromSyncIteratorCloseSyncAndRethrowClosure(
               native_context, sync_iterator);
         });
@@ -330,7 +330,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto get_method = [=](const TNode<JSReceiver> unused) {
+  auto get_method = [=, this](const TNode<JSReceiver> unused) {
     return LoadObjectField(CAST(iterator),
                            JSAsyncFromSyncIterator::kNextOffset);
   };
@@ -350,7 +350,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto if_return_undefined = [=, &args](
+  auto if_return_undefined = [=, this, &args](
                                  const TNode<NativeContext> native_context,
                                  const TNode<JSPromise> promise,
                                  const TNode<JSReceiver> sync_iterator,
@@ -386,9 +386,10 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
 
   // 8. If throw is undefined, then
   auto if_throw_undefined =
-      [=, &args](const TNode<NativeContext> native_context,
-                 const TNode<JSPromise> promise,
-                 const TNode<JSReceiver> sync_iterator, Label* if_exception) {
+      [=, this, &args](const TNode<NativeContext> native_context,
+                       const TNode<JSPromise> promise,
+                       const TNode<JSReceiver> sync_iterator,
+                       Label* if_exception) {
         // a. NOTE: If syncIterator does not have a `throw` method, close it to
         //    give it a chance to clean up before we reject the capability.
         // b. Let closeCompletion be NormalCompletion(~empty~).

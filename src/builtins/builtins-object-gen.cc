@@ -580,7 +580,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 4. For each element nextSource of sources, in ascending index order,
   {
     args.ForEach(
-        [=](TNode<Object> next_source) {
+        [=, this](TNode<Object> next_source) {
           CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
         },
         slow_path_index.value());
@@ -1156,12 +1156,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<Object> receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver_heap_object);
     TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
-        [=] {
+        IsTrue(receiver_is_array), [=, this] { return ArrayStringConstant(); },
+        [=, this] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [=] { return FunctionStringConstant(); },
-              [=] { return ObjectStringConstant(); });
+              [=, this] { return FunctionStringConstant(); },
+              [=, this] { return ObjectStringConstant(); });
         });
 
     // Lookup the @@toStringTag property on the {receiver_heap_object}.
