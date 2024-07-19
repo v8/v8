@@ -272,16 +272,18 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   ForBuilder0 ForZeroUntil(TNode<Number> excluded_limit) {
     TNode<Number> initial_value = ZeroConstant();
-    auto cond = [=](TNode<Number> i) {
+    auto cond = [=, this](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
-    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
+    auto step = [=, this](TNode<Number> i) {
+      return NumberAdd(i, OneConstant());
+    };
     return {this, initial_value, cond, step};
   }
 
   ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
-    return {this, initial_value, [=](TNode<Number>) { return TrueConstant(); },
-            step};
+    return {this, initial_value,
+            [=, this](TNode<Number>) { return TrueConstant(); }, step};
   }
 
   using For1BodyFunction = std::function<void(TNode<Number>, TNode<Object>*)>;
@@ -354,10 +356,12 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   ForBuilder1 For1ZeroUntil(TNode<Number> excluded_limit,
                             TNode<Object> initial_arg0) {
     TNode<Number> initial_value = ZeroConstant();
-    auto cond = [=](TNode<Number> i) {
+    auto cond = [=, this](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
-    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
+    auto step = [=, this](TNode<Number> i) {
+      return NumberAdd(i, OneConstant());
+    };
     return {this, initial_value, cond, step, initial_arg0};
   }
 
