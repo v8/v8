@@ -176,18 +176,18 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     AccessorAssembler accessor_asm(state());
-    ExitPoint exit_point(this, [=](TNode<Object> result) {
+    ExitPoint exit_point(this, [=, this](TNode<Object> result) {
       SetAccumulator(result);
       Dispatch();
     });
 
-    LazyNode<TaggedIndex> lazy_slot = [=] {
+    LazyNode<TaggedIndex> lazy_slot = [=, this] {
       return BytecodeOperandIdxTaggedIndex(slot_operand_index);
     };
 
-    LazyNode<Context> lazy_context = [=] { return GetContext(); };
+    LazyNode<Context> lazy_context = [=, this] { return GetContext(); };
 
-    LazyNode<Name> lazy_name = [=] {
+    LazyNode<Name> lazy_name = [=, this] {
       TNode<Name> name =
           CAST(LoadConstantPoolEntryAtOperandIndex(name_operand_index));
       return name;
@@ -549,13 +549,13 @@ IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TNode<Object> recv = LoadRegisterAtOperandIndex(0);
 
   // Load the name and context lazily.
-  LazyNode<TaggedIndex> lazy_slot = [=] {
+  LazyNode<TaggedIndex> lazy_slot = [=, this] {
     return BytecodeOperandIdxTaggedIndex(2);
   };
-  LazyNode<Name> lazy_name = [=] {
+  LazyNode<Name> lazy_name = [=, this] {
     return CAST(LoadConstantPoolEntryAtOperandIndex(1));
   };
-  LazyNode<Context> lazy_context = [=] { return GetContext(); };
+  LazyNode<Context> lazy_context = [=, this] { return GetContext(); };
 
   Label done(this);
   TVARIABLE(Object, var_result);
@@ -1434,7 +1434,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=] {
+    LazyNode<Object> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);
@@ -1463,7 +1463,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=] {
+    LazyNode<Object> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);
