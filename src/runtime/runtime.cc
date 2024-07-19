@@ -193,75 +193,55 @@ bool Runtime::MayAllocate(FunctionId id) {
   }
 }
 
-bool Runtime::IsEnabledForFuzzing(FunctionId id) {
+bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
   CHECK(v8_flags.fuzzing);
-
-  // In general, all runtime functions meant for testing should also be exposed
-  // to the fuzzers. That way, the fuzzers are able to import and mutate
-  // regression tests that use those functions. Internal runtime functions
-  // (which are e.g. only called from other builtins, etc.) should not directly
-  // be exposed as they are not meant to be called directly from JavaScript.
-  // However, exceptions exist: some test functions cannot be used for certain
-  // types of fuzzing (e.g. differential fuzzing), or would cause false
-  // positive crashes and therefore should not be exposed to fuzzers at all.
-
-  // First the special cases: functions that explicitly opt-in or opt-out.
-  bool is_differential_fuzzing =
-      v8_flags.allow_natives_for_differential_fuzzing;
   switch (id) {
-    // Runtime functions only permitted for certain types of fuzzing.
-    // Reasons for a function to be in this list include that it returns
-    // different values in the context of different flags passed to V8, which
-    // make them ill-suited for differential fuzzing.
+    // Runtime functions allowlisted for all fuzzers. Only add functions that
+    // help increase coverage.
+    case Runtime::kArrayBufferDetach:
+    case Runtime::kDeoptimizeFunction:
+    case Runtime::kDeoptimizeNow:
+    case Runtime::kDisableOptimizationFinalization:
+    case Runtime::kEnableCodeLoggingForTesting:
+    case Runtime::kFinalizeOptimization:
+    case Runtime::kGetUndetectable:
+    case Runtime::kNeverOptimizeFunction:
+    case Runtime::kOptimizeFunctionOnNextCall:
+    case Runtime::kOptimizeMaglevOnNextCall:
+    case Runtime::kOptimizeOsr:
+    case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kPretenureAllocationSite:
+    case Runtime::kSetAllocationTimeout:
+    case Runtime::kSetForceSlowPath:
+    case Runtime::kSimulateNewspaceFull:
+    case Runtime::kWaitForBackgroundOptimization:
+    case Runtime::kSetBatterySaverMode:
+    case Runtime::kSetPriorityBestEffort:
+    case Runtime::kSetPriorityUserVisible:
+    case Runtime::kSetPriorityUserBlocking:
+    case Runtime::kIsEfficiencyModeEnabled:
+#if V8_ENABLE_WEBASSEMBLY && !defined(OFFICIAL_BUILD)
+    case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return true;
+    // Runtime functions only permitted for non-differential fuzzers.
+    // This list may contain functions performing extra checks or returning
+    // different values in the context of different flags passed to V8.
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
-      return !is_differential_fuzzing;
+      return !v8_flags.allow_natives_for_differential_fuzzing;
     case Runtime::kVerifyType:
-      return !is_differential_fuzzing && !v8_flags.concurrent_recompilation;
+      return !v8_flags.allow_natives_for_differential_fuzzing &&
+             !v8_flags.concurrent_recompilation;
     case Runtime::kLeakHole:
       return v8_flags.hole_fuzzing;
-
-    // Runtime functions disabled for any fuzzing.
-    // Reasons for a function to be in this list include that it is not
-    // useful for fuzzing (e.g. %DebugPrint) or not fuzzing-safe and
-    // therefore would cause false-positive crashes (e.g. %AbortJS).
-    case Runtime::kAbort:
-    case Runtime::kAbortCSADcheck:
-    case Runtime::kAbortJS:
-    case Runtime::kSystemBreak:
-    case Runtime::kBenchMaglev:
-    case Runtime::kBenchTurbofan:
-    case Runtime::kDebugPrint:
-    case Runtime::kDisassembleFunction:
-    case Runtime::kGetCallable:
-    case Runtime::kTurbofanStaticAssert:
-#ifdef V8_ENABLE_WEBASSEMBLY
-    case Runtime::kWasmTraceEnter:
-    case Runtime::kWasmTraceExit:
-    case Runtime::kCheckIsOnCentralStack:
-#endif  // V8_ENABLE_WEBASSEMBLY
-    // TODO(353685107): should these be enabled for the fuzzers as well?
-    case Runtime::kConstructDouble:
-    case Runtime::kConstructConsString:
-    case Runtime::kConstructSlicedString:
-    case Runtime::kConstructInternalizedString:
-    case Runtime::kConstructThinString:
-      return false;
-
-    default:
-      break;
-  }
-
-  // Then the default case: test functions are exposed, everything else is not.
-  switch (id) {
-#define F(name, nargs, ressize) case k##name:
-#define I(name, nargs, ressize) case kInline##name:
-    FOR_EACH_INTRINSIC_TEST(F, I)
-    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
-#undef I
-#undef F
-    return true;
+    case Runtime::kBaselineOsr:
+    case Runtime::kCompileBaseline:
+#ifdef V8_ENABLE_SPARKPLUG
+      return true;
+#endif
+      // Fallthrough.
     default:
       return false;
   }
