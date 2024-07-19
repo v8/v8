@@ -2619,6 +2619,24 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                          kScratchSimd128Reg);
 }
 
+bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
   UNREACHABLE();
