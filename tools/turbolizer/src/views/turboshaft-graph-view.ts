@@ -14,7 +14,7 @@ import {
 import { MovableView } from "./movable-view";
 import { SelectionBroker } from "../selection/selection-broker";
 import { SelectionMap } from "../selection/selection-map";
-import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { TurboshaftGraphEdge } from "../phases/turboshaft-graph-phase/turboshaft-graph-edge";
 import { TurboshaftGraph } from "../turboshaft-graph";
 import { TurboshaftGraphLayout } from "../turboshaft-graph-layout";
@@ -604,19 +604,19 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
           d3.event.stopPropagation();
         });
       nodeY += node.getHeight(false, state.compactView);
-        if (view.graph.customData.nodes.size > 0) {
-          const customData = view.graph.getCustomData(selectedCustomData, node.id, DataTarget.Nodes);
-          nodeSvg
-            .append("text")
-            .attr("dx", C.TURBOSHAFT_NODE_X_INDENT)
-            .classed("inline-node-custom-data", true)
-            .attr("dy", nodeY)
-            .append("tspan")
-            .text(view.getReadableString(customData, blockWidth))
-            .append("title")
-            .text(customData);
-            nodeY += node.labelBox.height;
-        }
+      if (view.graph.customData.nodes.size > 0) {
+        const customData = view.graph.getCustomData(selectedCustomData, node.id, DataTarget.Nodes);
+        nodeSvg
+          .append("text")
+          .attr("dx", C.TURBOSHAFT_NODE_X_INDENT)
+          .classed("inline-node-custom-data", true)
+          .attr("dy", nodeY)
+          .append("tspan")
+          .text(view.getReadableString(customData, blockWidth))
+          .append("title")
+          .text(customData);
+          nodeY += node.labelBox.height;
+      }
     });
 
     newNodes.merge(selNodes)

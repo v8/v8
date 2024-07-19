@@ -12,7 +12,7 @@ import { GraphNode } from "../phases/graph-phase/graph-node";
 import { HistoryHandler } from "../selection/selection-handler";
 import { GraphPhase } from "../phases/graph-phase/graph-phase";
 import { SelectionStorage } from "../selection/selection-storage";
-import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { TurboshaftGraphPhase } from "../phases/turboshaft-graph-phase/turboshaft-graph-phase";
 import { PhaseType } from "../phases/phase";
 

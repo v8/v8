@@ -5,7 +5,7 @@
 import { GenericPosition, SourceResolver } from "../source-resolver";
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { BytecodePosition } from "../position";
-import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import {
   ClearableHandler,
   SourcePositionSelectionHandler,

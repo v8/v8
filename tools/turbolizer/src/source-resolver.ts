@@ -13,7 +13,7 @@ import { BytecodeSource, BytecodeSourceData, Source } from "./source";
 import { TurboshaftCustomDataPhase } from "./phases/turboshaft-custom-data-phase";
 import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 import { GraphNode } from "./phases/graph-phase/graph-node";
-import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { BytecodePosition, InliningPosition, PositionsContainer, SourcePosition } from "./position";
 import { NodeOrigin } from "./origin";
 

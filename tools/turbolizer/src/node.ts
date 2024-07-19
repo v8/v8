@@ -6,7 +6,7 @@ import * as C from "./common/constants";
 import { measureText } from "./common/util";
 import { GraphEdge } from "./phases/graph-phase/graph-edge";
 import { TurboshaftGraphEdge } from "./phases/turboshaft-graph-phase/turboshaft-graph-edge";
-import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { TurboshaftGraphBlock } from "./phases/turboshaft-graph-phase/turboshaft-graph-block";
 
 export abstract class Node<EdgeType extends GraphEdge | TurboshaftGraphEdge<TurboshaftGraphOperation

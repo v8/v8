@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { TurboshaftGraphOperation } from "./turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./turboshaft-graph-operation";
 import { Edge } from "../../edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 

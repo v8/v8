@@ -4,7 +4,7 @@
 
 import * as C from "../../common/constants";
 import { measureText } from "../../common/util";
-import { TurboshaftGraphOperation } from "./turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./turboshaft-graph-operation";
 import { Node } from "../../node";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 

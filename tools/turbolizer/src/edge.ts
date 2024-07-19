@@ -4,7 +4,7 @@
 
 import * as C from "./common/constants";
 import { GraphNode } from "./phases/graph-phase/graph-node";
-import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { TurboshaftGraphBlock } from "./phases/turboshaft-graph-phase/turboshaft-graph-block";
 import { Graph } from "./graph";
 import { TurboshaftGraph } from "./turboshaft-graph";

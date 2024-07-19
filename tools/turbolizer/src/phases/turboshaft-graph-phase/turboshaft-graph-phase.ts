@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { GraphStateType, Phase, PhaseType } from "../phase";
-import { TurboshaftGraphOperation } from "./turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./turboshaft-graph-operation";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 import { DataTarget, TurboshaftCustomDataPhase } from "../turboshaft-custom-data-phase";

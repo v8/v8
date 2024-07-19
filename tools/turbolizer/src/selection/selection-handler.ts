@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "../phases/turboshaft-graph-phase/turboshaft-graph-operation";
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { TurboshaftGraphBlock } from "../phases/turboshaft-graph-phase/turboshaft-graph-block";
 import { GenericPosition } from "../source-resolver";

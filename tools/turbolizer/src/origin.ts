@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { GraphNode } from "./phases/graph-phase/graph-node";
-import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphOperation } from "./phases/turboshaft-graph-phase/turboshaft-graph-operation";
 
 export abstract class Origin {
   phase: string;
