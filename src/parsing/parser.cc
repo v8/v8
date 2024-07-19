@@ -353,6 +353,12 @@ Expression* Parser::NewTargetExpression(int pos) {
 
 Expression* Parser::ImportMetaExpression(int pos) {
   ScopedPtrList<Expression> args(pointer_buffer());
+  if (!has_module_in_scope_chain()) {
+    DCHECK(IsParsingWhileDebugging());
+    // When debugging, we permit import.meta invocations -- however, they will
+    // never produce a non-undefined result outside of a module.
+    return factory()->NewUndefinedLiteral(pos);
+  }
   return factory()->NewCallRuntime(Runtime::kInlineGetImportMetaObject, args,
                                    pos);
 }
@@ -514,12 +520,15 @@ void Parser::DeserializeScopeChain(
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
-        ast_value_factory(), mode);
+        ast_value_factory(), mode, info);
     if (flags().is_eval() || IsArrowFunction(flags().function_kind()) ||
         flags().function_kind() ==
             FunctionKind::kClassStaticInitializerFunction) {
       original_scope_->GetReceiverScope()->DeserializeReceiver(
           ast_value_factory());
+    }
+    if (info->has_module_in_scope_chain()) {
+      set_has_module_in_scope_chain();
     }
   }
 }

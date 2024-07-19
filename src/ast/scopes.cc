@@ -417,7 +417,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                     Tagged<ScopeInfo> scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
-                                    DeserializationMode deserialization_mode) {
+                                    DeserializationMode deserialization_mode,
+                                    ParseInfo* parse_info) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
@@ -470,6 +471,9 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
       outer_scope = zone->New<ModuleScope>(handle(scope_info, isolate),
                                            ast_value_factory);
+      if (parse_info) {
+        parse_info->set_has_module_in_scope_chain();
+      }
     } else {
       DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
       DCHECK_EQ(scope_info->ContextLocalCount(), 1);
@@ -536,12 +540,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         Isolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode);
+        DeserializationMode deserialization_mode, ParseInfo* parse_info);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode);
+        DeserializationMode deserialization_mode, ParseInfo* parse_info);
 
 DeclarationScope* Scope::AsDeclarationScope() {
   // Here and below: if an attacker corrupts the in-sandox SFI::unique_id or

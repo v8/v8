@@ -157,7 +157,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                       Tagged<ScopeInfo> scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
-                                      DeserializationMode deserialization_mode);
+                                      DeserializationMode deserialization_mode,
+                                      ParseInfo* info = nullptr);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

@@ -4830,6 +4830,82 @@ TEST(DebugEvaluateLocalSharedCrossOrigin) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
+TEST(DebugEvaluateImportMetaInScript) {
+  struct BreakProgramDelegate : public v8::debug::DebugDelegate {
+    void BreakProgramRequested(v8::Local<v8::Context> context,
+                               std::vector<v8::debug::BreakpointId> const&,
+                               v8::debug::BreakReasons) final {
+      v8::Isolate* isolate = context->GetIsolate();
+      v8::TryCatch tryCatch(isolate);
+      tryCatch.SetCaptureMessage(true);
+      std::unique_ptr<v8::debug::StackTraceIterator> it =
+          v8::debug::StackTraceIterator::Create(isolate);
+      auto result =
+          it->Evaluate(v8_str(isolate, "import.meta"), false).ToLocalChecked();
+
+      // Within the context of a devtools evaluation, import.meta is
+      // always permitted, and will return `undefined` when outside of a
+      // module.
+      CHECK(result->IsUndefined());
+      CHECK(!tryCatch.HasCaught());
+    }
+  } delegate;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  v8::Script::Compile(env.local(), v8_str(isolate, "debugger;"))
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+}
+
+static v8::MaybeLocal<v8::Module> UnexpectedModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_assertions,
+    v8::Local<v8::Module> referrer) {
+  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
+}
+
+TEST(DebugEvaluateImportMetaInModule) {
+  struct BreakProgramDelegate : public v8::debug::DebugDelegate {
+    void BreakProgramRequested(v8::Local<v8::Context> context,
+                               std::vector<v8::debug::BreakpointId> const&,
+                               v8::debug::BreakReasons) final {
+      v8::Isolate* isolate = context->GetIsolate();
+      v8::TryCatch tryCatch(isolate);
+      tryCatch.SetCaptureMessage(true);
+      std::unique_ptr<v8::debug::StackTraceIterator> it =
+          v8::debug::StackTraceIterator::Create(isolate);
+      auto result =
+          it->Evaluate(v8_str(isolate, "import.meta"), false).ToLocalChecked();
+      CHECK(result->IsObject());
+      CHECK(!tryCatch.HasCaught());
+    }
+  } delegate;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  v8::ScriptOrigin script_origin(v8_str("test"), 0, 0, false, -1,
+                                 v8::Local<v8::Value>(), false, false, true);
+  v8::ScriptCompiler::Source script_compiler_source(v8_str("debugger;"),
+                                                    script_origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &script_compiler_source)
+          .ToLocalChecked();
+
+  CHECK_EQ(
+      module->InstantiateModule(env.local(), UnexpectedModuleResolveCallback)
+          .ToChecked(),
+      true);
+  module->Evaluate(env.local()).ToLocalChecked();
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+}
+
 namespace {
 i::MaybeHandle<i::Script> FindScript(
     i::Isolate* isolate, const std::vector<i::Handle<i::Script>>& scripts,

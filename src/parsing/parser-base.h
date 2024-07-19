@@ -263,12 +263,19 @@ class ParserBase {
         scanner_(scanner),
         flags_(flags),
         info_id_(0),
+        has_module_in_scope_chain_(flags_.is_module()),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
   }
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
+  bool has_module_in_scope_chain() const { return has_module_in_scope_chain_; }
+
+  // DebugEvaluate code
+  bool IsParsingWhileDebugging() const {
+    return flags().parsing_while_debugging() == ParsingWhileDebugging::kYes;
+  }
 
   bool allow_eval_cache() const { return allow_eval_cache_; }
   void set_allow_eval_cache(bool allow) { allow_eval_cache_ = allow; }
@@ -1667,6 +1674,7 @@ class ParserBase {
   PendingCompilationErrorHandler* pending_error_handler_;
 
   // Parser base's private field members.
+  void set_has_module_in_scope_chain() { has_module_in_scope_chain_ = true; }
 
  private:
   Zone* zone_;
@@ -1679,6 +1687,8 @@ class ParserBase {
 
   const UnoptimizedCompileFlags flags_;
   int info_id_;
+
+  bool has_module_in_scope_chain_ : 1;
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 
@@ -4007,7 +4017,7 @@ ParserBase<Impl>::ParseImportExpressions() {
     } else {
       ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                               pos);
-      if (!flags().is_module()) {
+      if (!flags().is_module() && !IsParsingWhileDebugging()) {
         impl()->ReportMessageAt(scanner()->location(),
                                 MessageTemplate::kImportMetaOutsideModule);
         return impl()->FailureExpression();
