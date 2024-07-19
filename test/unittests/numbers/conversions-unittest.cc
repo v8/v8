@@ -44,6 +44,13 @@ TEST_F(ConversionsTest, Hex) {
   CHECK_EQ(16.0, StringToDouble("0x10", ALLOW_HEX));
   CHECK_EQ(255.0, StringToDouble("0xFF", ALLOW_HEX));
   CHECK_EQ(175.0, StringToDouble("0xAF", ALLOW_HEX));
+
+  CHECK_EQ(0.0, HexStringToDouble(base::OneByteVector("0x0")));
+  CHECK_EQ(0.0, HexStringToDouble(base::OneByteVector("0X0")));
+  CHECK_EQ(1.0, HexStringToDouble(base::OneByteVector("0x1")));
+  CHECK_EQ(16.0, HexStringToDouble(base::OneByteVector("0x10")));
+  CHECK_EQ(255.0, HexStringToDouble(base::OneByteVector("0xFF")));
+  CHECK_EQ(175.0, HexStringToDouble(base::OneByteVector("0xAF")));
 }
 
 TEST_F(ConversionsTest, Octal) {
@@ -53,6 +60,22 @@ TEST_F(ConversionsTest, Octal) {
   CHECK_EQ(7.0, StringToDouble("0o7", ALLOW_OCTAL));
   CHECK_EQ(8.0, StringToDouble("0o10", ALLOW_OCTAL));
   CHECK_EQ(63.0, StringToDouble("0o77", ALLOW_OCTAL));
+
+  CHECK_EQ(0.0, OctalStringToDouble(base::OneByteVector("0o0")));
+  CHECK_EQ(0.0, OctalStringToDouble(base::OneByteVector("0O0")));
+  CHECK_EQ(1.0, OctalStringToDouble(base::OneByteVector("0o1")));
+  CHECK_EQ(7.0, OctalStringToDouble(base::OneByteVector("0o7")));
+  CHECK_EQ(8.0, OctalStringToDouble(base::OneByteVector("0o10")));
+  CHECK_EQ(63.0, OctalStringToDouble(base::OneByteVector("0o77")));
+
+  const double x = 010000000000;  // Power of 2, no rounding errors.
+  CHECK_EQ(x * x * x * x * x,
+           OctalStringToDouble(base::OneByteVector("0o01"
+                                                   "0000000000"
+                                                   "0000000000"
+                                                   "0000000000"
+                                                   "0000000000"
+                                                   "0000000000")));
 }
 
 TEST_F(ConversionsTest, ImplicitOctal) {
@@ -86,6 +109,12 @@ TEST_F(ConversionsTest, Binary) {
   CHECK_EQ(1.0, StringToDouble("0b1", ALLOW_BINARY));
   CHECK_EQ(2.0, StringToDouble("0b10", ALLOW_BINARY));
   CHECK_EQ(3.0, StringToDouble("0b11", ALLOW_BINARY));
+
+  CHECK_EQ(0.0, BinaryStringToDouble(base::OneByteVector("0b0")));
+  CHECK_EQ(0.0, BinaryStringToDouble(base::OneByteVector("0B0")));
+  CHECK_EQ(1.0, BinaryStringToDouble(base::OneByteVector("0b1")));
+  CHECK_EQ(2.0, BinaryStringToDouble(base::OneByteVector("0b10")));
+  CHECK_EQ(3.0, BinaryStringToDouble(base::OneByteVector("0b11")));
 }
 
 TEST_F(ConversionsTest, MalformedOctal) {

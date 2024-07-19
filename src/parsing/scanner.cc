@@ -13,6 +13,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/strings.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-inl.h"
@@ -1078,12 +1079,14 @@ double Scanner::DoubleValue() {
     case IMPLICIT_OCTAL:
       return ImplicitOctalStringToDouble(literal_one_byte_string());
     case BINARY:
+      return BinaryStringToDouble(literal_one_byte_string());
     case OCTAL:
+      return OctalStringToDouble(literal_one_byte_string());
     case HEX:
+      return HexStringToDouble(literal_one_byte_string());
     case DECIMAL:
     case DECIMAL_WITH_LEADING_ZERO:
-      return StringToDouble(literal_one_byte_string(),
-                            ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY);
+      return StringToDouble(literal_one_byte_string(), NO_CONVERSION_FLAGS);
   }
 }
 

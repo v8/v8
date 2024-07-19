@@ -904,6 +904,24 @@ double StringToDouble(base::Vector<const base::uc16> str, int flags,
   return InternalStringToDouble(str.begin(), end, flags, empty_string_val);
 }
 
+double BinaryStringToDouble(base::Vector<const uint8_t> str) {
+  DCHECK_EQ(str[0], '0');
+  DCHECK_EQ(tolower(str[1]), 'b');
+  return InternalStringToIntDouble<1>(str.begin() + 2, str.end(), false, false);
+}
+
+double OctalStringToDouble(base::Vector<const uint8_t> str) {
+  DCHECK_EQ(str[0], '0');
+  DCHECK_EQ(tolower(str[1]), 'o');
+  return InternalStringToIntDouble<3>(str.begin() + 2, str.end(), false, false);
+}
+
+double HexStringToDouble(base::Vector<const uint8_t> str) {
+  DCHECK_EQ(str[0], '0');
+  DCHECK_EQ(tolower(str[1]), 'x');
+  return InternalStringToIntDouble<4>(str.begin() + 2, str.end(), false, false);
+}
+
 double ImplicitOctalStringToDouble(base::Vector<const uint8_t> str) {
   return InternalStringToIntDouble<3>(str.begin(), str.end(), false, false);
 }
