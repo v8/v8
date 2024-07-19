@@ -416,8 +416,8 @@ void AccessorAssembler::HandleLoadAccessor(
   TNode<MaybeObject> maybe_context = Select<MaybeObject>(
       IsSetWord32<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
           handler_word),
-      [=] { return LoadHandlerDataField(handler, 3); },
-      [=] { return LoadHandlerDataField(handler, 2); });
+      [=, this] { return LoadHandlerDataField(handler, 3); },
+      [=, this] { return LoadHandlerDataField(handler, 2); });
 
   CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
   CSA_CHECK(this, IsNotCleared(maybe_context));
@@ -1220,7 +1220,8 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       // Code sub-handlers are not expected in LoadICs, so no |on_code_handler|.
       nullptr,
       // on_found_on_lookup_start_object
-      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
+      [=, this](TNode<PropertyDictionary> properties,
+                TNode<IntPtrT> name_index) {
         if (access_mode == LoadAccessMode::kHas) {
           exit_point->Return(TrueConstant());
         } else {
@@ -1936,7 +1937,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   OnCodeHandler on_code_handler;
   if (support_elements == kSupportElements) {
     // Code sub-handlers are expected only in KeyedStoreICs.
-    on_code_handler = [=](TNode<Code> code_handler) {
+    on_code_handler = [=, this](TNode<Code> code_handler) {
       // This is either element store or transitioning element store.
       Label if_element_store(this), if_transitioning_element_store(this);
       Branch(IsStoreHandler0Map(LoadMap(handler)), &if_element_store,
@@ -1967,7 +1968,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   TNode<Object> smi_handler = HandleProtoHandler<StoreHandler>(
       p, handler, on_code_handler,
       // on_found_on_lookup_start_object
-      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
+      [=, this](TNode<PropertyDictionary> properties,
+                TNode<IntPtrT> name_index) {
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
@@ -2066,13 +2068,13 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<MaybeObject> maybe_context = Select<MaybeObject>(
           IsSetWord32<StoreHandler::DoAccessCheckOnLookupStartObjectBits>(
               handler_word),
-          [=] { return LoadHandlerDataField(handler, 3); },
-          [=] { return LoadHandlerDataField(handler, 2); });
+          [=, this] { return LoadHandlerDataField(handler, 3); },
+          [=, this] { return LoadHandlerDataField(handler, 2); });
 
       CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
       TNode<Object> context = Select<Object>(
-          IsCleared(maybe_context), [=] { return SmiConstant(0); },
-          [=] { return GetHeapObjectAssumeWeak(maybe_context); });
+          IsCleared(maybe_context), [=, this] { return SmiConstant(0); },
+          [=, this] { return GetHeapObjectAssumeWeak(maybe_context); });
 
       TVARIABLE(Object, api_holder, p->receiver());
       Label store(this);
@@ -5142,7 +5144,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   // similar here?
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
-      [=](TNode<Name> key, LazyNode<Object> value) {
+      [=, this](TNode<Name> key, LazyNode<Object> value) {
         CreateDataProperty(context, result, key, value());
       },
       &runtime_copy);
