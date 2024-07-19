@@ -303,12 +303,6 @@ class V8_EXPORT V8InspectorClient {
   virtual void consoleTimeStamp(v8::Isolate* isolate,
                                 v8::Local<v8::String> label);
 
-  // The consoleTime* functions below are deprecated and will be removed
-  // after Blink is migrated to the signatures above.
-  virtual void consoleTime(const StringView& label) {}
-  virtual void consoleTimeEnd(const StringView& label) {}
-  virtual void consoleTimeStamp(const StringView& label) {}
-
   virtual void consoleClear(int contextGroupId) {}
   virtual double currentTimeMS() { return 0; }
   typedef void (*TimerCallback)(void*);
