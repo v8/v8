@@ -741,6 +741,9 @@ class MaglevGraphBuilder {
       unobserved_context_slot_stores_.clear();
       bool preserve_known_node_aspects = in_optimistic_peeling_iteration() &&
                                          loop_headers_to_peel_.Contains(offset);
+      if (merge_state->is_resumable_loop()) {
+        current_for_in_state.enum_cache_indices = nullptr;
+      }
       if (current_block_ != nullptr) {
         DCHECK(!preserve_known_node_aspects);
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
@@ -2173,6 +2176,12 @@ class MaglevGraphBuilder {
   ReduceResult TryBuildPropertySetterCall(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
+  bool TryBuildGetKeyedPropertyWithEnumeratedKey(
+      ValueNode* object, const compiler::FeedbackSource& feedback_source,
+      const compiler::ProcessedFeedback& processed_feedback);
+  void BuildGetKeyedProperty(
+      ValueNode* object, const compiler::FeedbackSource& feedback_source,
+      const compiler::ProcessedFeedback& processed_feedback);
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
