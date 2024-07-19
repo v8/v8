@@ -755,8 +755,6 @@ double InternalStringToDouble(Iterator current, EndMark end, int flags,
     }
   }
 
-  bool octal = leading_zero && (flags & ALLOW_IMPLICIT_OCTAL) != 0;
-
   // Copy significant digits of the integer part (if any) to the buffer.
   while (*current >= '0' && *current <= '9') {
     if (significant_digits < kMaxSignificantDigits) {
@@ -768,19 +766,11 @@ double InternalStringToDouble(Iterator current, EndMark end, int flags,
       insignificant_digits++;  // Move the digit into the exponential part.
       nonzero_digit_dropped = nonzero_digit_dropped || *current != '0';
     }
-    octal = octal && *current < '8';
     ++current;
     if (current == end) goto parsing_done;
   }
 
-  if (significant_digits == 0) {
-    octal = false;
-  }
-
   if (*current == '.') {
-    if (octal && !allow_trailing_junk) return JunkStringValue();
-    if (octal) goto parsing_done;
-
     ++current;
     if (current == end) {
       if (significant_digits == 0 && !leading_zero) {
@@ -828,7 +818,6 @@ double InternalStringToDouble(Iterator current, EndMark end, int flags,
 
   // Parse exponential part.
   if (*current == 'e' || *current == 'E') {
-    if (octal) return JunkStringValue();
     ++current;
     if (current == end) {
       if (allow_trailing_junk) {
@@ -883,12 +872,6 @@ double InternalStringToDouble(Iterator current, EndMark end, int flags,
 parsing_done:
   exponent += insignificant_digits;
 
-  if (octal) {
-    return InternalStringToIntDouble<3>(buffer, buffer + buffer_pos,
-                                        sign == Sign::kNegative,
-                                        allow_trailing_junk);
-  }
-
   if (nonzero_digit_dropped) {
     buffer[buffer_pos++] = '1';
     exponent--;
@@ -919,6 +902,10 @@ double StringToDouble(base::Vector<const base::uc16> str, int flags,
                       double empty_string_val) {
   const base::uc16* end = str.begin() + str.length();
   return InternalStringToDouble(str.begin(), end, flags, empty_string_val);
+}
+
+double ImplicitOctalStringToDouble(base::Vector<const uint8_t> str) {
+  return InternalStringToIntDouble<3>(str.begin(), str.end(), false, false);
 }
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix) {

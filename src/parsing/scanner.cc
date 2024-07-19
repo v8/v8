@@ -748,7 +748,7 @@ bool Scanner::ScanOctalDigits() {
 
 bool Scanner::ScanImplicitOctalDigits(int start_pos,
                                       Scanner::NumberKind* kind) {
-  *kind = IMPLICIT_OCTAL;
+  DCHECK_EQ(*kind, IMPLICIT_OCTAL);
 
   while (true) {
     // (possible) octal number
@@ -842,7 +842,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
-          next().smi_value_ = static_cast<uint32_t>(value);
+          next().smi_value = static_cast<uint32_t>(value);
 
           if (kind == DECIMAL_WITH_LEADING_ZERO) {
             octal_pos_ = Location(start_pos, source_pos());
@@ -883,7 +883,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     Advance();
   } else if (AsciiAlphaToLower(c0_) == 'e') {
     // scan exponent, if any
-    DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+    DCHECK_NE(kind, HEX);  // 'e'/'E' must be scanned as part of the hex number
 
     if (!IsDecimalNumberKind(kind)) return Token::kIllegal;
 
@@ -906,6 +906,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
   }
 
+  next().number_kind = kind;
   return is_bigint ? Token::kBigInt : Token::kNumber;
 }
 
@@ -1073,9 +1074,17 @@ const AstRawString* Scanner::CurrentRawSymbol(
 
 double Scanner::DoubleValue() {
   DCHECK(is_literal_one_byte());
-  return StringToDouble(
-      literal_one_byte_string(),
-      ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+  switch (current().number_kind) {
+    case IMPLICIT_OCTAL:
+      return ImplicitOctalStringToDouble(literal_one_byte_string());
+    case BINARY:
+    case OCTAL:
+    case HEX:
+    case DECIMAL:
+    case DECIMAL_WITH_LEADING_ZERO:
+      return StringToDouble(literal_one_byte_string(),
+                            ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY);
+  }
 }
 
 const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {

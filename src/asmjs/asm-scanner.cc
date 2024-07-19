@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 
+#include "src/base/iterator.h"
 #include "src/flags/flags.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/scanner.h"
@@ -271,6 +272,13 @@ void AsmJsScanner::ConsumeIdentifier(base::uc32 ch) {
   }
 }
 
+namespace {
+bool IsValidImplicitOctal(std::string_view number) {
+  DCHECK_EQ(number[0], '0');
+  return std::all_of(number.begin() + 1, number.end(), IsOctalDigit);
+}
+}  // namespace
+
 void AsmJsScanner::ConsumeNumber(base::uc32 ch) {
   std::string number;
   number.assign(1, ch);
@@ -308,10 +316,15 @@ void AsmJsScanner::ConsumeNumber(base::uc32 ch) {
     token_ = '.';
     return;
   }
-  // Decode numbers.
-  double_value_ = StringToDouble(
-      base::Vector<const uint8_t>::cast(base::VectorOf(number)),
-      ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL);
+  // Decode numbers, with a seperate path for implicit octals.
+  if (number[0] == '0' && !has_prefix && IsValidImplicitOctal(number)) {
+    double_value_ = ImplicitOctalStringToDouble(
+        base::Vector<const uint8_t>::cast(base::VectorOf(number)));
+  } else {
+    double_value_ = StringToDouble(
+        base::Vector<const uint8_t>::cast(base::VectorOf(number)),
+        ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY);
+  }
   if (std::isnan(double_value_)) {
     // Check if string to number conversion didn't consume all the characters.
     // This happens if the character filter let through something invalid
