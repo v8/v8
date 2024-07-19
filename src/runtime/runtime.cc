@@ -247,6 +247,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kConstructSlicedString:
     case Runtime::kConstructInternalizedString:
     case Runtime::kConstructThinString:
+    // TODO(353971258): should this be enabled for fuzzing?
+    case Runtime::kSerializeDeserializeNow:
       return false;
 
     default:
