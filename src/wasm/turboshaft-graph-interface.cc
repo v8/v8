@@ -5592,7 +5592,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       CHECK_EQ(phi_inputs_total_, phi_count() * inputs_per_phi_);
       CHECK_EQ(phi_count(), input_count_per_phi_.size());
       CHECK(std::all_of(input_count_per_phi_.begin(),
-                        input_count_per_phi_.end(), [=](uint32_t input_count) {
+                        input_count_per_phi_.end(),
+                        [=, this](uint32_t input_count) {
                           return input_count == inputs_per_phi_;
                         }));
     }
