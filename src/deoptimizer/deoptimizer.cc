@@ -954,6 +954,13 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     Address signed_pc =
         PointerAuthentication::SignAndCheckPC(isolate(), pc, context);
     previous_frame->SetPc(signed_pc);
+  } else {
+    Address old_context =
+        caller_frame_top_ - input_->parameter_count() * kSystemPointerSize;
+    Address new_context =
+        caller_frame_top_ - parameter_stack_slots * kSystemPointerSize;
+    caller_pc_ = PointerAuthentication::MoveSignedPC(isolate(), caller_pc_,
+                                                     new_context, old_context);
   }
 
   // Store the caller PC.
