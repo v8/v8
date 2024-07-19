@@ -1819,6 +1819,8 @@ class WasmDecoder : public Decoder {
       case kExprS128Store32Lane:
         num_lanes = 4;
         break;
+      case kExprF16x8ExtractLane:
+      case kExprF16x8ReplaceLane:
       case kExprI16x8ExtractLaneS:
       case kExprI16x8ExtractLaneU:
       case kExprI16x8ReplaceLane:
@@ -4061,7 +4063,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
-    if (WasmOpcodes::IsRelaxedSimdOpcode(full_opcode)) {
+    if (WasmOpcodes::IsFP16SimdOpcode(full_opcode)) {
+      this->detected_->add_fp16();
+    } else if (WasmOpcodes::IsRelaxedSimdOpcode(full_opcode)) {
       this->detected_->add_relaxed_simd();
     }
     return DecodeSimdOpcode(full_opcode, opcode_length);
@@ -4556,6 +4560,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     switch (opcode) {
       case kExprF64x2ExtractLane:
         return SimdExtractLane(opcode, kWasmF64, opcode_length);
+      case kExprF16x8ExtractLane: {
+        if (!v8_flags.experimental_wasm_fp16) {
+          this->DecodeError(
+              "invalid simd opcode: 0x%x, "
+              "enable with --experimental-wasm-fp16",
+              opcode);
+          return 0;
+        }
+        [[fallthrough]];
+      }
       case kExprF32x4ExtractLane:
         return SimdExtractLane(opcode, kWasmF32, opcode_length);
       case kExprI64x2ExtractLane:
@@ -4568,6 +4582,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return SimdExtractLane(opcode, kWasmI32, opcode_length);
       case kExprF64x2ReplaceLane:
         return SimdReplaceLane(opcode, kWasmF64, opcode_length);
+      case kExprF16x8ReplaceLane: {
+        if (!v8_flags.experimental_wasm_fp16) {
+          this->DecodeError(
+              "invalid simd opcode: 0x%x, "
+              "enable with --experimental-wasm-fp16",
+              opcode);
+          return 0;
+        }
+        [[fallthrough]];
+      }
       case kExprF32x4ReplaceLane:
         return SimdReplaceLane(opcode, kWasmF32, opcode_length);
       case kExprI64x2ReplaceLane:
@@ -4654,6 +4678,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);
+      case kExprF16x8Splat: {
+        if (!v8_flags.experimental_wasm_fp16) {
+          this->DecodeError(
+              "invalid simd opcode: 0x%x, "
+              "enable with --experimental-wasm-fp16",
+              opcode);
+          return 0;
+        }
+        [[fallthrough]];
+      }
       default: {
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {

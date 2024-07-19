@@ -661,6 +661,7 @@
   'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-f16/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],

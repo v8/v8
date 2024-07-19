@@ -1025,6 +1025,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i64x2_splat(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1417,6 +1418,8 @@ class LiftoffAssembler : public MacroAssembler {
                                       uint8_t imm_lane_idx);
   inline void emit_i64x2_extract_lane(LiftoffRegister dst, LiftoffRegister lhs,
                                       uint8_t imm_lane_idx);
+  inline bool emit_f16x8_extract_lane(LiftoffRegister dst, LiftoffRegister lhs,
+                                      uint8_t imm_lane_idx);
   inline void emit_f32x4_extract_lane(LiftoffRegister dst, LiftoffRegister lhs,
                                       uint8_t imm_lane_idx);
   inline void emit_f64x2_extract_lane(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1431,6 +1434,9 @@ class LiftoffAssembler : public MacroAssembler {
                                       LiftoffRegister src2,
                                       uint8_t imm_lane_idx);
   inline void emit_i64x2_replace_lane(LiftoffRegister dst, LiftoffRegister src1,
+                                      LiftoffRegister src2,
+                                      uint8_t imm_lane_idx);
+  inline bool emit_f16x8_replace_lane(LiftoffRegister dst, LiftoffRegister src1,
                                       LiftoffRegister src2,
                                       uint8_t imm_lane_idx);
   inline void emit_f32x4_replace_lane(LiftoffRegister dst, LiftoffRegister src1,

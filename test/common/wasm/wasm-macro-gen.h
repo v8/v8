@@ -987,6 +987,12 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
 
+#define WASM_SIMD_F16x8_SPLAT(x) WASM_SIMD_SPLAT(F16x8, x)
+#define WASM_SIMD_F16x8_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprF16x8ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_F16x8_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprF16x8ReplaceLane), TO_BYTE(lane)
+
 #define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
 #define WASM_SIMD_I64x2_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI64x2ExtractLane), TO_BYTE(lane)

@@ -2043,6 +2043,7 @@ class LiftoffCompiler {
         CheckNan(dst, pinned, result_kind);
       } else if (result_kind == ValueKind::kS128 &&
                  (result_lane_kind == kF32 || result_lane_kind == kF64)) {
+        // TODO(irezvov): Add NaN detection for F16.
         CheckS128Nan(dst, pinned, result_lane_kind);
       }
     }
@@ -4329,6 +4330,18 @@ class LiftoffCompiler {
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i32x4_splat);
       case wasm::kExprI64x2Splat:
         return EmitUnOp<kI64, kS128>(&LiftoffAssembler::emit_i64x2_splat);
+      case wasm::kExprF16x8Splat: {
+        auto emit_with_c_fallback = [this](LiftoffRegister dst,
+                                           LiftoffRegister src) {
+          if (asm_.emit_f16x8_splat(dst, src)) return;
+          LiftoffRegister value = __ GetUnusedRegister(kGpReg, {});
+          auto conv_ref = ExternalReference::wasm_float32_to_float16();
+          GenerateCCallWithStackBuffer(&value, kVoid, kI32,
+                                       {VarState{kF32, src, 0}}, conv_ref);
+          __ emit_i16x8_splat(dst, value);
+        };
+        return EmitUnOp<kF32, kS128>(emit_with_c_fallback);
+      }
       case wasm::kExprF32x4Splat:
         return EmitUnOp<kF32, kS128, kF32>(&LiftoffAssembler::emit_f32x4_splat);
       case wasm::kExprF64x2Splat:
@@ -4951,6 +4964,19 @@ class LiftoffCompiler {
       CASE_SIMD_EXTRACT_LANE_OP(F32x4ExtractLane, F32, f32x4_extract_lane)
       CASE_SIMD_EXTRACT_LANE_OP(F64x2ExtractLane, F64, f64x2_extract_lane)
 #undef CASE_SIMD_EXTRACT_LANE_OP
+      case wasm::kExprF16x8ExtractLane:
+        EmitSimdExtractLaneOp<kS128, kF32>(
+            [this](LiftoffRegister dst, LiftoffRegister lhs,
+                   uint8_t imm_lane_idx) {
+              if (asm_.emit_f16x8_extract_lane(dst, lhs, imm_lane_idx)) return;
+              LiftoffRegister value = __ GetUnusedRegister(kGpReg, {});
+              __ emit_i16x8_extract_lane_u(value, lhs, imm_lane_idx);
+              auto conv_ref = ExternalReference::wasm_float16_to_float32();
+              GenerateCCallWithStackBuffer(
+                  &dst, kVoid, kF32, {VarState{kI32, value, 0}}, conv_ref);
+            },
+            imm);
+        break;
 #define CASE_SIMD_REPLACE_LANE_OP(opcode, kind, fn)          \
   case wasm::kExpr##opcode:                                  \
     EmitSimdReplaceLaneOp<k##kind>(                          \
@@ -4967,6 +4993,24 @@ class LiftoffCompiler {
       CASE_SIMD_REPLACE_LANE_OP(F32x4ReplaceLane, F32, f32x4_replace_lane)
       CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
 #undef CASE_SIMD_REPLACE_LANE_OP
+      case wasm::kExprF16x8ReplaceLane: {
+        EmitSimdReplaceLaneOp<kI32>(
+            [this](LiftoffRegister dst, LiftoffRegister src1,
+                   LiftoffRegister src2, uint8_t imm_lane_idx) {
+              if (asm_.emit_f16x8_replace_lane(dst, src1, src2, imm_lane_idx)) {
+                return;
+              }
+              __ PushRegister(kS128, src1);
+              LiftoffRegister value = __ GetUnusedRegister(kGpReg, {});
+              auto conv_ref = ExternalReference::wasm_float32_to_float16();
+              GenerateCCallWithStackBuffer(&value, kVoid, kI32,
+                                           {VarState{kF32, src2, 0}}, conv_ref);
+              __ PopToFixedRegister(src1);
+              __ emit_i16x8_replace_lane(dst, src1, value, imm_lane_idx);
+            },
+            imm);
+        break;
+      }
       default:
         UNREACHABLE();
     }

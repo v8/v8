@@ -4213,6 +4213,24 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   F64x2Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(), kScratchDoubleReg);
 }
 
+bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
   Label done;
