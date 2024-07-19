@@ -16,6 +16,7 @@ const SUBSCRIPT_DY: string = "50px";
 enum Opcode {
   Constant = "Constant",
   WordBinop = "WordBinop",
+  Comparison = "Comparison",
   Shift = "Shift",
   Load = "Load",
   Store = "Store",
@@ -334,14 +335,62 @@ class CompactOperationPrinter_WordBinop extends CompactOperationPrinter {
     subscript += wrString(this.rep);
     return `v${id} = ${input(0)} ${symbol}${this.sub(subscript)} ${input(1)}`;
   }
+}
 
+enum Comparison_Kind {
+  Equal = "Equal",
+  SignedLessThan = "SignedLessThan",
+  SignedLessThanOrEqual = "SignedLessThanOrEqual",
+  UnsignedLessThan = "UnsignedLessThan",
+  UnsignedLessThanOrEqual = "UnsignedLessThanOrEqual",
+}
+
+class CompactOperationPrinter_Comparison extends CompactOperationPrinter {
+  kind: Comparison_Kind;
+  rep: RegisterRepresentation;
+
+  constructor(operation: TurboshaftGraphOperation, properties: string) {
+    super(operation);
+
+    const options = this.parseOptions(properties, 2);
+    this.kind = toEnum(Comparison_Kind, options[0]);
+    this.rep = toEnum(RegisterRepresentation, options[1]);
+  }
+
+   public override Print(id: number, input: InputPrinter): string {
+    let symbol: string;
+    let subscript = "";
+    switch(this.kind) {
+      case Comparison_Kind.Equal:
+        symbol = "==";
+        break;
+      case Comparison_Kind.SignedLessThan:
+        symbol = "<";
+        subscript = "s";
+        break;
+      case Comparison_Kind.SignedLessThanOrEqual:
+        symbol = "<=";
+        subscript = "s";
+        break;
+       case Comparison_Kind.UnsignedLessThan:
+        symbol = "<";
+        subscript = "u";
+        break;
+      case Comparison_Kind.UnsignedLessThanOrEqual:
+        symbol = "<=";
+        subscript = "u";
+        break;
+    }
+    if(subscript.length > 0) subscript += ",";
+    subscript += rrString(this.rep);
+    return `v${id} = ${input(0)} ${symbol}${this.sub(subscript)} ${input(1)}`;
+  }
 }
 
 class CompactOperationPrinter_Load extends CompactOperationPrinter {
   taggedBase: boolean;
   maybeUnaligned: boolean = false;
   withTrapHandler: boolean = false;
-  trapOnNull: boolean = false;
   loadedRep: MemoryRepresentation;
   resultRep: RegisterRepresentation;
   elementSizeLog2: number = 0;
@@ -380,14 +429,82 @@ class CompactOperationPrinter_Load extends CompactOperationPrinter {
     let offsetStr = "";
     if(this.offset > 0) offsetStr = ` + ${this.offset}`;
     else if(this.offset < 0) offsetStr = ` - ${-this.offset}`;
-    if(this.GetInputCount() == 1) {
+    if(this.GetInputCount() === 1) {
       return prefix + ` [${input(0)}${this.sub(this.taggedBase ? "t" : "r")}${offsetStr}]${this.sub(mrString(this.loadedRep))}`;
-    } else if(this.GetInputCount() == 2) {
+    } else if(this.GetInputCount() === 2) {
       let indexStr = `+ ${input(1)}`;
       if(this.elementSizeLog2 > 0) indexStr += `*${2**this.elementSizeLog2}`;
       return prefix + ` [${input(0)}${this.sub(this.taggedBase ? "t" : "r")}${indexStr}${offsetStr}]${this.sub(mrString(this.loadedRep))}`;
     } else {
       throw new CompactOperationError("Unexpected input count in Load operation");
+    }
+  }
+}
+
+enum WriteBarrierKind {
+  NoWriteBarrier = "NoWriteBarrier",
+  AssertNoWriteBarrier = "AssertNoWriteBarrier",
+  MapWriteBarrier = "MapWriteBarrier",
+  PointerWriteBarrier = "PointerWriteBarrier",
+  IndirectPointerWriteBarrier = "IndirectPointerWriteBarrier",
+  EphemeronKeyWriteBarrier = "EphemeronKeyWriteBarrier",
+  FullWriteBarrier = "FullWriteBarrier",
+}
+
+class CompactOperationPrinter_Store extends CompactOperationPrinter {
+  taggedBase: boolean;
+  maybeUnaligned: boolean = false;
+  withTrapHandler: boolean = false;
+  storedRep: MemoryRepresentation;
+  writeBarrier: WriteBarrierKind;
+  elementSizeLog2: number = 0;
+  offset: number = 0;
+  maybeInitializingOrTransitioning: boolean = false;
+
+  constructor(operation: TurboshaftGraphOperation, properties: string) {
+    super(operation);
+
+    const options = this.parseOptions(properties);
+    let idx = 0;
+    this.taggedBase = chooseOption(options[idx++], undefined, "tagged base", "raw") === 0;
+    if(chooseOption(options[idx], 1, "unaligned") === 0) {
+      this.maybeUnaligned = true;
+      ++idx;
+    }
+    if(chooseOption(options[idx], 1, "protected") === 0) {
+      this.withTrapHandler = true;
+      ++idx;
+    }
+    this.storedRep = toEnum(MemoryRepresentation, options[idx++]);
+    this.writeBarrier = toEnum(WriteBarrierKind, options[idx++]);
+    if(idx < options.length && options[idx].startsWith("element size: 2^")) {
+      this.elementSizeLog2 = parseInt(options[idx].substring("element size: 2^".length));
+      ++idx;
+    }
+    if(idx < options.length && options[idx].startsWith("offset: ")) {
+      this.offset = parseInt(options[idx++].substring("offset: ".length));
+    }
+    if(idx < options.length) {
+      if(options[idx] !== "initializing") {
+        throw new CompactOperationError(`Option "${options[idx]}" expected to be "initializing`);
+      }
+      this.maybeInitializingOrTransitioning = true;
+    }
+  }
+
+  public override Print(id: number, input: InputPrinter): string {
+    let prefix = `${id}: [${input(0)}${this.sub(this.taggedBase ? "t" : "r")}`;
+    let offsetStr = "";
+    if(this.offset > 0) offsetStr = ` + ${this.offset}`;
+    else if(this.offset < 0) offsetStr = ` - ${-this.offset}`;
+    if(this.GetInputCount() === 2) {
+      return prefix + `${offsetStr}]${this.sub(mrString(this.storedRep))} = ${input(1)}`;
+    } else if(this.GetInputCount() === 3) {
+      let indexStr = `+ ${input(1)}`;
+      if(this.elementSizeLog2 > 0) indexStr += `*${2**this.elementSizeLog2}`;
+      return prefix + `${indexStr}${offsetStr}]${this.sub(mrString(this.storedRep))}] = ${input(1)}`;
+    } else {
+      throw new CompactOperationError("Unexpected input count in Store operation");
     }
   }
 }
@@ -500,17 +617,22 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
     return this.title === that.title;
   }
 
-  private parseOperationForCompactRepresentation(properties: string): CompactOperationPrinter {
+  private parseOperationForCompactRepresentation(properties: string):
+      CompactOperationPrinter {
     try {
       switch(this.title) {
         case Opcode.Constant:
           return new CompactOperationPrinter_Constant(this, properties);
         case Opcode.WordBinop:
           return new CompactOperationPrinter_WordBinop(this, properties);
+        case Opcode.Comparison:
+          return new CompactOperationPrinter_Comparison(this, properties);
         case Opcode.Shift:
           return new CompactOperationPrinter_Shift(this, properties);
         case Opcode.Load:
           return new CompactOperationPrinter_Load(this, properties);
+        case Opcode.Store:
+          return new CompactOperationPrinter_Store(this, properties);
         default:
           return null;
       }
