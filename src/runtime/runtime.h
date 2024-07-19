@@ -342,6 +342,7 @@ namespace internal {
   F(ObjectGetOwnPropertyNames, 1, 1)                                   \
   F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                            \
   F(ObjectHasOwnProperty, 2, 1)                                        \
+  F(HasOwnConstDataProperty, 2, 1)                                     \
   F(ObjectIsExtensible, 1, 1)                                          \
   F(ObjectKeys, 1, 1)                                                  \
   F(ObjectValues, 1, 1)                                                \
@@ -554,7 +555,6 @@ namespace internal {
   F(HasFixedUint8Elements, 1, 1)              \
   F(HasHoleyElements, 1, 1)                   \
   F(HasObjectElements, 1, 1)                  \
-  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasPackedElements, 1, 1)                  \
   F(HasSloppyArgumentsElements, 1, 1)         \
   F(HasSmiElements, 1, 1)                     \
@@ -894,9 +894,8 @@ class Runtime : public AllStatic {
   // allocation.
   static bool MayAllocate(FunctionId id);
 
-  // Check if a runtime function with the given {id} is allowlisted for
-  // using it with fuzzers.
-  static bool IsAllowListedForFuzzing(FunctionId id);
+  // Check if a runtime function with the given {id} is enabled for fuzzing.
+  static bool IsEnabledForFuzzing(FunctionId id);
 
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);
