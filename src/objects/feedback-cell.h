@@ -37,6 +37,13 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
 
   inline void clear_interrupt_budget();
 
+#ifdef V8_ENABLE_LEAPTIERING
+  inline void initialize_dispatch_handle(IsolateForSandbox isolate,
+                                         uint16_t parameter_count);
+  inline void clear_dispatch_handle();
+  inline JSDispatchHandle dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
+
   inline void clear_padding();
   inline void reset_feedback_vector(
       base::Optional<
@@ -49,8 +56,7 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   // creation by updating the map.
   inline void IncrementClosureCount(Isolate* isolate);
 
-  using BodyDescriptor =
-      FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(FeedbackCell)
 };

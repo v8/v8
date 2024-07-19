@@ -9,6 +9,7 @@
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
 namespace v8 {
@@ -35,6 +36,9 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
       ExternalBufferTag tag, Address host);
 
   inline CodePointerTable::Space* GetCodePointerTableSpaceFor(
+      Address owning_slot);
+
+  inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(
       Address owning_slot);
 
   inline TrustedPointerTable& GetTrustedPointerTable();

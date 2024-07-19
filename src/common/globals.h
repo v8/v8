@@ -140,6 +140,18 @@ namespace internal {
 #define V8_ENABLE_SANDBOX_BOOL false
 #endif
 
+#ifdef V8_ENABLE_SANDBOX
+// Initially, Leaptiering is only available on sandbox-enabled builds, and so
+// V8_ENABLE_SANDBOX and V8_ENABLE_LEAPTIERING are effectively equivalent. Once
+// completed there, it will be ported to non-sandbox builds, at which point the
+// two defines will be separated from each other. Finally, once Leaptiering is
+// used on all configurations, the define will be removed completely.
+#define V8_ENABLE_LEAPTIERING 1
+#define V8_ENABLE_LEAPTIERING_BOOL true
+#else
+#define V8_ENABLE_LEAPTIERING_BOOL false
+#endif
+
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
 #else

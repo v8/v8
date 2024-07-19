@@ -387,6 +387,14 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                                      Address value,
                                                      CodeEntrypointTag tag);
 
+  // JSDispatchHandles.
+  //
+  // These are references to entries in the JSDispatchTable, which contain the
+  // current code for a JSFunction.
+  inline void InitJSDispatchHandleField(size_t offset,
+                                        IsolateForSandbox isolate,
+                                        uint16_t parameter_count);
+
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to

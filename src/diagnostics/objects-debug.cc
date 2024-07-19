@@ -91,6 +91,7 @@
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/utils/ostreams.h"
 #include "torque-generated/class-verifiers.h"
 
@@ -1195,6 +1196,16 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(map(isolate)->is_callable());
   // Ensure that the function's meta map belongs to the same native context.
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchHandle handle = raw_feedback_cell(isolate)->dispatch_handle();
+  if (handle != kNullJSDispatchHandle) {
+    uint16_t parameter_count =
+        GetProcessWideJSDispatchTable()->GetParameterCount(handle);
+    CHECK_EQ(parameter_count,
+             shared(isolate)->internal_formal_parameter_count_with_receiver());
+  }
+#endif  // V8_ENABLE_LEAPTIERING
 
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),

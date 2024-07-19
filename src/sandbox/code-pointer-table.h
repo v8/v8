@@ -133,6 +133,7 @@ class V8_EXPORT_PRIVATE CodePointerTable
       CodePointerTableEntry,
       kCodePointerTableReservationSize>::SpaceWithBlackAllocationSupport;
 
+  // Retrieves the entrypoint of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
   inline Address GetEntrypoint(CodePointerHandle handle,

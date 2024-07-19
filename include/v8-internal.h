@@ -811,6 +811,8 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
 // A JSDispatchHandle represents a 32-bit index into a JSDispatchTable.
 using JSDispatchHandle = uint32_t;
 
+constexpr JSDispatchHandle kNullJSDispatchHandle = 0;
+
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.

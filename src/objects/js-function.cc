@@ -524,7 +524,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
-  DCHECK(function->shared()->HasBytecodeArray());
+  DCHECK(shared->HasBytecodeArray());
 
   const bool has_closure_feedback_cell_array =
       (function->has_closure_feedback_cell_array() ||
@@ -554,6 +554,11 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
     DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
+#ifdef V8_ENABLE_LEAPTIERING
+    Tagged<BytecodeArray> bytecode = shared->GetBytecodeArray(isolate);
+    feedback_cell->initialize_dispatch_handle(isolate,
+                                              bytecode->parameter_count());
+#endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
     function->SetInterruptBudget(isolate);
   } else {

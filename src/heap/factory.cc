@@ -2041,6 +2041,9 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell() {
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
+#ifdef V8_ENABLE_LEAPTIERING
+  result->clear_dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
   result->clear_padding();
   return handle(result, isolate());
 }
@@ -2053,6 +2056,9 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(
   DisallowGarbageCollection no_gc;
   result->set_value(*value);
   result->clear_interrupt_budget();
+#ifdef V8_ENABLE_LEAPTIERING
+  result->clear_dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
   result->clear_padding();
   return handle(result, isolate());
 }
@@ -2064,6 +2070,9 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell() {
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
+#ifdef V8_ENABLE_LEAPTIERING
+  result->clear_dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
   result->clear_padding();
   return handle(result, isolate());
 }

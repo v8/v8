@@ -61,6 +61,11 @@ CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
              : isolate_->heap()->code_pointer_space();
 }
 
+JSDispatchTable::Space* IsolateForSandbox::GetJSDispatchTableSpaceFor(
+    Address owning_slot) {
+  return isolate_->heap()->js_dispatch_table_space();
+}
+
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTable() {
   return isolate_->trusted_pointer_table();
 }

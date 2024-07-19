@@ -1746,6 +1746,24 @@ class ObjectBoilerplateDescription::BodyDescriptor final
   }
 };
 
+class FeedbackCell::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointer(obj, kValueOffset, v);
+
+#ifdef V8_ENABLE_LEAPTIERING
+    v->VisitJSDispatchTableEntry(
+        obj, obj->ReadField<JSDispatchHandle>(kDispatchHandleOffset));
+#endif
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kAlignedSize;
+  }
+};
+
 class ClosureFeedbackCellArray::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:

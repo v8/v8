@@ -53,6 +53,21 @@ void FeedbackCell::clear_interrupt_budget() {
   set_interrupt_budget(0);
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+void FeedbackCell::initialize_dispatch_handle(IsolateForSandbox isolate,
+                                              uint16_t parameter_count) {
+  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
+}
+
+void FeedbackCell::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+}
+
+JSDispatchHandle FeedbackCell::dispatch_handle() {
+  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);
   if (map() == r.no_closures_cell_map()) {

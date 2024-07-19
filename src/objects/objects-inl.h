@@ -1064,6 +1064,26 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
   i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
 }
 
+void HeapObject::InitJSDispatchHandleField(size_t offset,
+                                           IsolateForSandbox isolate,
+                                           uint16_t parameter_count) {
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable::Space* space =
+      isolate.GetJSDispatchTableSpaceFor(field_address(offset));
+  JSDispatchHandle handle =
+      GetProcessWideJSDispatchTable()->AllocateAndInitializeEntry(
+          space, parameter_count);
+
+  // Use a Release_Store to ensure that the store of the pointer into the table
+  // is not reordered after the store of the handle. Otherwise, other threads
+  // may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<JSDispatchHandle*>(field_address(offset));
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_LEAPTIERING
+}
+
 ObjectSlot HeapObject::RawField(int byte_offset) const {
   return ObjectSlot(field_address(byte_offset));
 }
