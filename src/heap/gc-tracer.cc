@@ -190,9 +190,10 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
 }
 
 void GCTracer::ResetForTesting() {
+  auto* heap = heap_;
   this->~GCTracer();
-  new (this) GCTracer(heap_, base::TimeTicks::Now(),
-                      GarbageCollectionReason::kTesting);
+  new (this)
+      GCTracer(heap, base::TimeTicks::Now(), GarbageCollectionReason::kTesting);
 }
 
 void GCTracer::StartObservablePause(base::TimeTicks time) {
