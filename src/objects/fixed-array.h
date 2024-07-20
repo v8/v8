@@ -885,7 +885,7 @@ class FixedIntegerArrayBase : public Base {
 
   inline int length() const;
 
-  OBJECT_CONSTRUCTORS(FixedIntegerArrayBase<T LITERAL_COMMA Base>, Base);
+  OBJECT_CONSTRUCTORS(FixedIntegerArrayBase, Base);
 };
 
 using FixedInt8Array = FixedIntegerArrayBase<int8_t, ByteArray>;
@@ -914,7 +914,7 @@ class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
   static inline Handle<FixedAddressArrayBase> New(Isolate* isolate, int length,
                                                   MoreArgs&&... more_args);
 
-  OBJECT_CONSTRUCTORS(FixedAddressArrayBase<Base>, Underlying);
+  OBJECT_CONSTRUCTORS(FixedAddressArrayBase, Underlying);
 };
 
 using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
@@ -1011,7 +1011,7 @@ class PodArray : public PodArrayBase<T, ByteArray> {
       LocalIsolate* isolate, int length,
       AllocationType allocation = AllocationType::kOld);
 
-  OBJECT_CONSTRUCTORS(PodArray<T>, PodArrayBase<T, ByteArray>);
+  OBJECT_CONSTRUCTORS(PodArray, PodArrayBase<T, ByteArray>);
 };
 
 template <class T>
@@ -1020,7 +1020,7 @@ class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
   static Handle<TrustedPodArray<T>> New(Isolate* isolate, int length);
   static Handle<TrustedPodArray<T>> New(LocalIsolate* isolate, int length);
 
-  OBJECT_CONSTRUCTORS(TrustedPodArray<T>, PodArrayBase<T, TrustedByteArray>);
+  OBJECT_CONSTRUCTORS(TrustedPodArray, PodArrayBase<T, TrustedByteArray>);
 };
 
 }  // namespace internal
