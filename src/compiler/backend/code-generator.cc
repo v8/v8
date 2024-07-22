@@ -1530,8 +1530,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
-        DCHECK_NE(type, MachineType::HoleyFloat64());
-        literal = DeoptimizationLiteral(constant.ToFloat64().value());
+        if (type == MachineType::HoleyFloat64() &&
+            constant.ToFloat64().AsUint64() == kHoleNanInt64) {
+          literal = DeoptimizationLiteral::HoleNaN();
+        } else {
+          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+        }
         break;
       case Constant::kHeapObject:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
