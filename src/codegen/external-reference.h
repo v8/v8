@@ -311,6 +311,14 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_f16x8_ne, "wasm::f16x8_ne_wrapper")                          \
   IF_WASM(V, wasm_f16x8_lt, "wasm::f16x8_lt_wrapper")                          \
   IF_WASM(V, wasm_f16x8_le, "wasm::f16x8_le_wrapper")                          \
+  IF_WASM(V, wasm_f16x8_add, "wasm::f16x8_add_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_sub, "wasm::f16x8_sub_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_mul, "wasm::f16x8_mul_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_div, "wasm::f16x8_div_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_min, "wasm::f16x8_min_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_max, "wasm::f16x8_max_wrapper")                        \
+  IF_WASM(V, wasm_f16x8_pmin, "wasm::f16x8_pmin_wrapper")                      \
+  IF_WASM(V, wasm_f16x8_pmax, "wasm::f16x8_pmax_wrapper")                      \
   IF_WASM(V, wasm_memory_init, "wasm::memory_init")                            \
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \

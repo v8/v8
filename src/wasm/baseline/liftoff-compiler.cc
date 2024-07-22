@@ -4727,6 +4727,38 @@ class LiftoffCompiler {
         return EmitSimdFloatRoundingOpWithCFallback<kF16>(
             &LiftoffAssembler::emit_f16x8_nearest_int,
             ExternalReference::wasm_f16x8_nearest_int);
+      case wasm::kExprF16x8Add:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_add,
+            ExternalReference::wasm_f16x8_add);
+      case wasm::kExprF16x8Sub:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_sub,
+            ExternalReference::wasm_f16x8_sub);
+      case wasm::kExprF16x8Mul:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_mul,
+            ExternalReference::wasm_f16x8_mul);
+      case wasm::kExprF16x8Div:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_div,
+            ExternalReference::wasm_f16x8_div);
+      case wasm::kExprF16x8Min:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_min,
+            ExternalReference::wasm_f16x8_min);
+      case wasm::kExprF16x8Max:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_max,
+            ExternalReference::wasm_f16x8_max);
+      case wasm::kExprF16x8Pmin:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_pmin,
+            ExternalReference::wasm_f16x8_pmin);
+      case wasm::kExprF16x8Pmax:
+        return EmitSimdFloatBinOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_pmax,
+            ExternalReference::wasm_f16x8_pmax);
       case wasm::kExprF32x4Abs:
         return EmitUnOp<kS128, kS128, kF32>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:

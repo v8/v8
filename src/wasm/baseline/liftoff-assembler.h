@@ -1303,6 +1303,22 @@ class LiftoffAssembler : public MacroAssembler {
   inline bool emit_f16x8_floor(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_f16x8_trunc(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_f16x8_nearest_int(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
+  inline bool emit_f16x8_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
+  inline bool emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
   inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_sqrt(LiftoffRegister dst, LiftoffRegister src);

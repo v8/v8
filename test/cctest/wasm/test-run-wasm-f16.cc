@@ -173,6 +173,36 @@ CMP_OP_LIST(TEST_CMP_OP)
 #undef TEST_CMP_OP
 #undef UN_CMP_LIST
 
+float Add(float a, float b) { return a + b; }
+float Sub(float a, float b) { return a - b; }
+float Mul(float a, float b) { return a * b; }
+
+#define BIN_OP_LIST(V) \
+  V(Add, Add)          \
+  V(Sub, Sub)          \
+  V(Mul, Mul)          \
+  V(Div, base::Divide) \
+  V(Min, JSMin)        \
+  V(Max, JSMax)        \
+  V(Pmin, Minimum)     \
+  V(Pmax, Maximum)
+
+#define TEST_BIN_OP(WasmName, COp)                                       \
+  uint16_t WasmName##F16(uint16_t a, uint16_t b) {                       \
+    return fp16_ieee_from_fp32_value(                                    \
+        COp(fp16_ieee_to_fp32_value(a), fp16_ieee_to_fp32_value(b)));    \
+  }                                                                      \
+  TEST(F16x8##WasmName) {                                                \
+    i::v8_flags.experimental_wasm_fp16 = true;                           \
+    RunF16x8BinOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName, \
+                      WasmName##F16);                                    \
+  }
+
+BIN_OP_LIST(TEST_BIN_OP)
+
+#undef TEST_BIN_OP
+#undef BIN_OP_LIST
+
 }  // namespace test_run_wasm_f16
 }  // namespace wasm
 }  // namespace internal
