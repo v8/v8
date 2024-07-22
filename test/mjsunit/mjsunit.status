@@ -2075,6 +2075,7 @@
   # architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
+  'regress/wasm/regress-353582136': [SKIP],
 }],
 
 ##############################################################################
