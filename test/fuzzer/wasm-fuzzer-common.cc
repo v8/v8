@@ -279,6 +279,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   const bool offsets = false;  // Not supported by MjsunitModuleDis.
   StdoutStream os;
   out.WriteTo(os, offsets);
+  os.flush();
 }
 
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
