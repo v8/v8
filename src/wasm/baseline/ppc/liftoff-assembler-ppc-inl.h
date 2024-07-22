@@ -2220,24 +2220,39 @@ SIMD_RELAXED_UNOP_LIST(SIMD_VISIT_RELAXED_UNOP)
 #undef SIMD_VISIT_RELAXED_UNOP
 #undef SIMD_RELAXED_UNOP_LIST
 
-#define F16_OP_LIST(V) \
-  V(f16x8_splat)       \
-  V(f16x8_abs)         \
-  V(f16x8_neg)         \
-  V(f16x8_sqrt)        \
-  V(f16x8_ceil)        \
-  V(f16x8_floor)       \
-  V(f16x8_trunc)       \
+#define F16_UNOP_LIST(V) \
+  V(f16x8_splat)         \
+  V(f16x8_abs)           \
+  V(f16x8_neg)           \
+  V(f16x8_sqrt)          \
+  V(f16x8_ceil)          \
+  V(f16x8_floor)         \
+  V(f16x8_trunc)         \
   V(f16x8_nearest_int)
 
-#define VISIT_F16_OP(name)                                  \
+#define VISIT_F16_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
                                      LiftoffRegister src) { \
     return false;                                           \
   }
-F16_OP_LIST(VISIT_F16_OP)
-#undef VISIT_F16_OP
-#undef F16_OP_LIST
+F16_UNOP_LIST(VISIT_F16_UNOP)
+#undef VISIT_F16_UNOP
+#undef F16_UNOP_LIST
+
+#define F16_BINOP_LIST(V) \
+  V(f16x8_eq)             \
+  V(f16x8_ne)             \
+  V(f16x8_lt)             \
+  V(f16x8_le)
+
+#define VISIT_F16_BINOP(name)                                                  \
+  bool LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
+                                     LiftoffRegister rhs) {                    \
+    return false;                                                              \
+  }
+F16_BINOP_LIST(VISIT_F16_BINOP)
+#undef VISIT_F16_BINOP
+#undef F16_BINOP_LIST
 
 bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
