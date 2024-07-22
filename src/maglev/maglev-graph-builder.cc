@@ -10108,8 +10108,9 @@ ReduceResult MaglevGraphBuilder::BuildOrdinaryHasInstance(
       object, callable, callable_node_if_not_constant));
 
   return BuildCallBuiltin<Builtin::kOrdinaryHasInstance>(
-      {callable_node_if_not_constant ? callable_node_if_not_constant
-                                     : GetConstant(callable),
+      {callable_node_if_not_constant
+           ? GetTaggedValue(callable_node_if_not_constant)
+           : GetConstant(callable),
        GetTaggedValue(object)});
 }
 
