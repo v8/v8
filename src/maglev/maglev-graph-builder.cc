@@ -4114,6 +4114,8 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
     // TODO(victorgomes): Support modifying contexts. Currently
     // StaLookupSlotFunction can implicitly modify the active context.
     if (alloc->object()->map().IsContextMap()) return false;
+    // TODO(victorgomes): Support double fixed array.
+    if (alloc->object()->type() != VirtualObject::kDefault) return false;
     return true;
   }
   return false;
