@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
+  'reclient_version': 're_client_version:0.150.1.d9707319-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -80,10 +80,10 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.2',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:b41f9eaf44dfdaec51ab2d7089aaa4cb6d9e7f5e',
+  'siso_version': 'git_revision:50a6db5dae3978d2d2e8dce29f6df024dde48d1b',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:c9c95dda5f310610a3fc574af44faeed298b3938',
+  'luci_go': 'git_revision:771ea9a614a104c71655f699ef82219a2a474817',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ad2f859fc3b655b9a69157d7f82478ac5f3902bf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7a8285c06acd753e6228263f48e5595e20ca1577',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'adc2a53a411826b429a01363ad0ff598325c1f73',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3ef44a2b92d5dd1faa5189a06f3a5febe6db2d58',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '29445d0e3f4de0f20d4894506716584e9d604e04',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '16999365265c9850d7b5c46e53ddd52aca56f8dc',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b4102e43a02805cf7bcb100446d27caef1b4e51d',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cdcdd6efeec145eb246eeac20c78f2c55c9d393e',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -280,7 +280,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '32eb84a95951fa3a0148fb3e6a1a02f830ded136',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9ff2450a56aed4f7f124f5104d9e3088bf791ee9',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'cee1ba1f24fb12b9ae8f31e70dca3f73dbb12cc2',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
@@ -426,7 +426,7 @@ deps = {
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
-    Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + 'e582d7f0edb9d67499b0f5abd6ae5550e91da7f2',
+    Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '6638e9b0a79afc2ff7edd9e84b518fe7d5d5fea9',
   'third_party/ninja': {
     'packages': [
       {
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2469fdd73f192383d2d94288da0ff5b9a3869f5',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a5953b107df1aa821e0f9e890cd3ba1afa180e37',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4dc76da47b1145e53e508a23c1bf2204cf5ee7ee',
   'tools/luci-go': {
       'packages': [
         {
