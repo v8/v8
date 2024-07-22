@@ -7240,5 +7240,19 @@ void DefaultWasmAsyncResolvePromiseCallback(
   CHECK(ret.IsJust() ? ret.FromJust() : isolate->IsExecutionTerminating());
 }
 
+// static
+intptr_t Isolate::GetOffset(IsolateFieldId id) {
+  switch (id) {
+    case IsolateFieldId::kUnknown:
+      UNREACHABLE();
+    case IsolateFieldId::kIsolateAddress:
+      return -isolate_root_bias();
+    case IsolateFieldId::kHandleScopeImplementer:
+      return offsetof(Isolate, handle_scope_implementer_) - isolate_root_bias();
+    default:
+      return IsolateData::GetOffset(id);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

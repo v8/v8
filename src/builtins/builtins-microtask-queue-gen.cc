@@ -387,8 +387,8 @@ void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
-  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> hsi =
+      Load<RawPtrT>(IsolateField(IsolateFieldId::kHandleScopeImplementer));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> size_offset =
@@ -401,8 +401,8 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
     TNode<Context> native_context) {
   CSA_DCHECK(this, IsNativeContext(native_context));
 
-  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> hsi =
+      Load<RawPtrT>(IsolateField(IsolateFieldId::kHandleScopeImplementer));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> capacity_offset =
@@ -448,8 +448,8 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
 
 void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
     TNode<IntPtrT> saved_entered_context_count) {
-  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> hsi =
+      Load<RawPtrT>(IsolateField(IsolateFieldId::kHandleScopeImplementer));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> size_offset =

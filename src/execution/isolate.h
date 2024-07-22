@@ -1652,6 +1652,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  static intptr_t GetOffset(IsolateFieldId id);
+
   void set_force_slow_path(bool v) { force_slow_path_ = v; }
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
@@ -1756,10 +1758,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void IncrementJavascriptExecutionCounter() {
     javascript_execution_counter_++;
-  }
-
-  Address handle_scope_implementer_address() {
-    return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
   void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
