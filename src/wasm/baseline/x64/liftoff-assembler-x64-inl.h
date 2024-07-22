@@ -70,6 +70,9 @@ inline Operand GetMemOp(LiftoffAssembler* assm, Register addr,
 inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
                           Operand src, ValueKind kind) {
   switch (kind) {
+    case kI16:
+      assm->movw(dst.gp(), src);
+      break;
     case kI32:
       assm->movl(dst.gp(), src);
       break;
@@ -97,6 +100,9 @@ inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
 inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
                           LiftoffRegister src, ValueKind kind) {
   switch (kind) {
+    case kI16:
+      assm->movw(dst, src.gp());
+      break;
     case kI32:
       assm->movl(dst, src.gp());
       break;

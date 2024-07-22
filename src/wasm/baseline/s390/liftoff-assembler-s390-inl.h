@@ -55,6 +55,9 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
                           Register scratch) {
   if (src.is_reg()) {
     switch (src.kind()) {
+      case kI16:
+        assm->StoreU16(src.reg().gp(), dst);
+        break;
       case kI32:
         assm->StoreU32(src.reg().gp(), dst);
         break;
@@ -3115,6 +3118,9 @@ void LiftoffAssembler::CallCWithStackBuffer(
   // Load potential output value from the buffer on the stack.
   if (out_argument_kind != kVoid) {
     switch (out_argument_kind) {
+      case kI16:
+        LoadS16(result_reg->gp(), MemOperand(sp));
+        break;
       case kI32:
         LoadS32(result_reg->gp(), MemOperand(sp));
         break;

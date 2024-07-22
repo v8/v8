@@ -232,6 +232,11 @@ inline CPURegister LoadToRegister(LiftoffAssembler* assm,
 
 inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
                           const LiftoffAssembler::VarState& src) {
+  if (src.kind() == kI16) {
+    DCHECK(src.is_reg());
+    assm->Strh(src.reg().gp(), dst);
+    return;
+  }
   UseScratchRegisterScope temps{assm};
   CPURegister src_reg = LoadToRegister(assm, &temps, src);
   assm->Str(src_reg, dst);
@@ -3831,7 +3836,11 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_kind != kVoid) {
-    Peek(liftoff::GetRegFromType(*next_result_reg, out_argument_kind), 0);
+    if (out_argument_kind == kI16) {
+      Ldrh(next_result_reg->gp(), MemOperand(sp));
+    } else {
+      Peek(liftoff::GetRegFromType(*next_result_reg, out_argument_kind), 0);
+    }
   }
 
   Drop(total_size, 1);

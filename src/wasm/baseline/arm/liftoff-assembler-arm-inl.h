@@ -282,6 +282,9 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
   DCHECK(UseScratchRegisterScope{assm}.CanAcquire());
 #endif
   switch (kind) {
+    case kI16:
+      assm->strh(src.gp(), dst);
+      break;
     case kI32:
     case kRefNull:
     case kRef:
@@ -316,6 +319,9 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueKind kind) {
   switch (kind) {
+    case kI16:
+      assm->ldrh(dst.gp(), src);
+      break;
     case kI32:
     case kRefNull:
     case kRef:
