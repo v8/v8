@@ -137,15 +137,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 namespace v8 {
 namespace base {
 
-namespace {
-
-// g_cet gets set to kEnabled on platform initialization if the Intel CET shadow
-// stack is found to be enabled for this process.
-enum PlatformCETStatus { kNotSet, kEnabled, kDisabled };
-PlatformCETStatus g_cet = kNotSet;
-
-}  // namespace
-
 class WindowsTimezoneCache : public TimezoneCache {
  public:
   WindowsTimezoneCache() : initialized_(false) {}
@@ -788,16 +779,10 @@ bool UserShadowStackEnabled() {
   return uss_policy.EnableUserShadowStack;
 }
 
-void InitializeCETStatus() {
-  DCHECK_EQ(kNotSet, g_cet);
-  g_cet = UserShadowStackEnabled() ? kEnabled : kDisabled;
-}
-
 }  // namespace
 
 void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
   g_abort_mode = abort_mode;
-  InitializeCETStatus();
 }
 
 typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
@@ -830,8 +815,8 @@ void OS::EnsureWin32MemoryAPILoaded() {
 
 // static
 bool OS::IsHardwareEnforcedShadowStacksEnabled() {
-  DCHECK_NE(kNotSet, g_cet);
-  return g_cet == kEnabled;
+  static bool cet_enabled = UserShadowStackEnabled();
+  return cet_enabled;
 }
 
 // static
