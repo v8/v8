@@ -613,11 +613,11 @@ DEF_GETTER(SharedFunctionInfo, outer_scope_info, Tagged<HeapObject>) {
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
   Tagged<ScopeInfo> outer_info;
-  if (!is_compiled()) {
+  Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
+  if (info->IsEmpty()) {
     if (!IsScopeInfo(outer_scope_info())) return false;
     outer_info = Cast<ScopeInfo>(outer_scope_info());
   } else {
-    Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
     if (!info->HasOuterScopeInfo()) return false;
     outer_info = info->OuterScopeInfo();
   }
@@ -626,8 +626,9 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
 
 Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
-  if (!is_compiled()) return Cast<ScopeInfo>(outer_scope_info());
-  return scope_info(kAcquireLoad)->OuterScopeInfo();
+  Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
+  if (info->IsEmpty()) return Cast<ScopeInfo>(outer_scope_info());
+  return info->OuterScopeInfo();
 }
 
 void SharedFunctionInfo::set_outer_scope_info(Tagged<HeapObject> value,
@@ -635,6 +636,7 @@ void SharedFunctionInfo::set_outer_scope_info(Tagged<HeapObject> value,
   DCHECK(!is_compiled());
   DCHECK(IsTheHole(raw_outer_scope_info_or_feedback_metadata()));
   DCHECK(IsScopeInfo(value) || IsTheHole(value));
+  DCHECK(scope_info()->IsEmpty());
   set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 

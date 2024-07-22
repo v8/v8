@@ -726,7 +726,8 @@ int ScopeInfo::ContextLength() const {
          (function_name_context_slot ? 1 : 0);
 }
 
-// Needs to be kept in sync with Scope::UniqueIdInScript.
+// Needs to be kept in sync with Scope::UniqueIdInScript and
+// SharedFunctionInfo::UniqueIdInScript.
 int ScopeInfo::UniqueIdInScript() const {
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
