@@ -2690,6 +2690,38 @@ SIMD_RELAXED_UNOP_LIST(SIMD_VISIT_RELAXED_UNOP)
 #undef SIMD_VISIT_RELAXED_UNOP
 #undef SIMD_RELAXED_UNOP_LIST
 
+#define F16_OP_LIST(V) \
+  V(f16x8_splat)       \
+  V(f16x8_abs)         \
+  V(f16x8_neg)         \
+  V(f16x8_sqrt)        \
+  V(f16x8_ceil)        \
+  V(f16x8_floor)       \
+  V(f16x8_trunc)       \
+  V(f16x8_nearest_int)
+
+#define VISIT_F16_OP(name)                                  \
+  bool LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
+                                     LiftoffRegister src) { \
+    return false;                                           \
+  }
+F16_OP_LIST(VISIT_F16_OP)
+#undef VISIT_F16_OP
+#undef F16_OP_LIST
+
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -3000,24 +3032,6 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     int lane_width) {
   // S390 uses bytewise selection for all lane widths.
   emit_s128_select(dst, src1, src2, mask);
-}
-
-bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  return false;
-}
-
-bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
-                                               LiftoffRegister lhs,
-                                               uint8_t imm_lane_idx) {
-  return false;
-}
-
-bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  return false;
 }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
