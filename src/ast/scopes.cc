@@ -2607,7 +2607,8 @@ void ModuleScope::AllocateModuleVariables() {
   }
 }
 
-// Needs to be kept in sync with ScopeInfo::UniqueIdInScript.
+// Needs to be kept in sync with ScopeInfo::UniqueIdInScript and
+// SharedFunctionInfo::UniqueIdInScript.
 int Scope::UniqueIdInScript() const {
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
@@ -2801,9 +2802,10 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
     Tagged<ScopeInfo> outer = sfi->HasOuterScopeInfo()
                                   ? sfi->GetOuterScopeInfo()
                                   : Tagged<ScopeInfo>();
-    // Look at all the existing inner functions (they are numbered id+1 until
-    // max_id+1) to reattach their outer scope infos to corresponding scopes.
-    for (int i = info->literal()->function_literal_id() + 1;
+    // Look at all inner functions whether they have scope infos that we should
+    // reuse. Also look at the compiled function itself, and reuse its function
+    // scope info if it exists.
+    for (int i = info->literal()->function_literal_id();
          i < info->max_info_id() + 1; ++i) {
       Tagged<MaybeObject> maybe_info = infos->get(i);
       if (maybe_info.IsWeak()) {
@@ -2811,10 +2813,14 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
         Tagged<ScopeInfo> scope_info;
         if (Is<SharedFunctionInfo>(info)) {
           Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
-          // Reuse outer scope infos. Don't look at sfi->scope_info() because
-          // that might be empty if the sfi isn't compiled yet.
-          if (!sfi->HasOuterScopeInfo()) continue;
-          scope_info = sfi->GetOuterScopeInfo();
+          if (!sfi->scope_info()->IsEmpty() &&
+              sfi->scope_info()->HasContext()) {
+            scope_info = sfi->scope_info();
+          } else if (sfi->HasOuterScopeInfo()) {
+            scope_info = sfi->GetOuterScopeInfo();
+          } else {
+            continue;
+          }
         } else {
           scope_info = Cast<ScopeInfo>(info);
         }
