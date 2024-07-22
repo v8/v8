@@ -550,7 +550,14 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I16x8RelaxedQ15MulRS, 0xfd111, s_ss, "i16x8.relaxed_q15mulr_s")        \
   V(I16x8DotI8x16I7x16S, 0xfd112, s_ss, "i16x8.dot_i8x16_i7x16_s")         \
   V(I32x4DotI8x16I7x16AddS, 0xfd113, s_sss, "i32x4.dot_i8x16_i7x16_add_s") \
-  V(F16x8Splat, 0xfd120, s_f, "f16x8.splat")
+  V(F16x8Splat, 0xfd120, s_f, "f16x8.splat")                               \
+  V(F16x8Abs, 0xfd130, s_s, "f16x8.abs")                                   \
+  V(F16x8Neg, 0xfd131, s_s, "f16x8.neg")                                   \
+  V(F16x8Sqrt, 0xfd132, s_s, "f16x8.sqrt")                                 \
+  V(F16x8Ceil, 0xfd133, s_s, "f16x8.ceil")                                 \
+  V(F16x8Floor, 0xfd134, s_s, "f16x8.floor")                               \
+  V(F16x8Trunc, 0xfd135, s_s, "f16x8.trunc")                               \
+  V(F16x8NearestInt, 0xfd136, s_s, "f16x8.nearest")
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V)          \
   V(I8x16ExtractLaneS, 0xfd15, _, "i8x16.extract_lane_s") \

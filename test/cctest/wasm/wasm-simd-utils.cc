@@ -446,6 +446,32 @@ void CheckFloat16LaneResult(float x, float y, float z, uint16_t expected,
   }
 }
 
+void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      HalfUnOp expected_op, bool exact) {
+  WasmRunner<int32_t, float> r(execution_tier);
+  // Global to hold output.
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  // Build fn to splat test value, perform unop, and write the result.
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    // Extreme values have larger errors so skip them for approximation tests.
+    if (!exact && IsExtreme(x)) continue;
+    uint16_t expected = expected_op(fp16_ieee_from_fp32_value(x));
+    if (!PlatformCanRepresent(expected)) continue;
+    r.Call(x);
+    for (int i = 0; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, expected, actual, exact);
+    }
+  }
+}
+
 bool IsExtreme(float x) {
   float abs_x = std::fabs(x);
   const float kSmallFloatThreshold = 1.0e-32f;

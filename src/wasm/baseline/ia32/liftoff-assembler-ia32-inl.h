@@ -4675,6 +4675,41 @@ bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
   return false;
 }
 
+bool LiftoffAssembler::emit_f16x8_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_neg(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  return false;
+}
+
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
   UNREACHABLE();

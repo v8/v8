@@ -314,6 +314,9 @@ bool IsCanonical(double actual);
 void CheckDoubleResult(double x, double y, double expected, double actual,
                        bool exact = true);
 
+void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                      HalfUnOp expected_op, bool exact = true);
+
 void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                       FloatUnOp expected_op, bool exact = true);
 

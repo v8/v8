@@ -126,6 +126,30 @@ TEST(F16x8ExtractLane) {
   }
 }
 
+#define UN_OP_LIST(V) \
+  V(Abs, std::abs)    \
+  V(Neg, -)           \
+  V(Sqrt, std::sqrt)  \
+  V(Ceil, ceilf)      \
+  V(Floor, floorf)    \
+  V(Trunc, truncf)    \
+  V(NearestInt, nearbyintf)
+
+#define TEST_UN_OP(WasmName, COp)                                       \
+  uint16_t WasmName##F16(uint16_t a) {                                  \
+    return fp16_ieee_from_fp32_value(COp(fp16_ieee_to_fp32_value(a)));  \
+  }                                                                     \
+  TEST(F16x8##WasmName) {                                               \
+    i::v8_flags.experimental_wasm_fp16 = true;                          \
+    RunF16x8UnOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName, \
+                     WasmName##F16);                                    \
+  }
+
+UN_OP_LIST(TEST_UN_OP)
+
+#undef TEST_UN_OP
+#undef UN_OP_LIST
+
 }  // namespace test_run_wasm_f16
 }  // namespace wasm
 }  // namespace internal

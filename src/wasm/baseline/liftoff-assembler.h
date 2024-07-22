@@ -1288,6 +1288,13 @@ class LiftoffAssembler : public MacroAssembler {
                                             LiftoffRegister src);
   inline void emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                              LiftoffRegister src);
+  inline bool emit_f16x8_abs(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_neg(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_sqrt(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_ceil(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_floor(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_trunc(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f16x8_nearest_int(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_sqrt(LiftoffRegister dst, LiftoffRegister src);

@@ -406,6 +406,60 @@ void f32x4_nearest_int_wrapper(Address data) {
   simd_float_round_wrapper<float, &nearbyintf>(data);
 }
 
+Float16 f16_abs(Float16 a) {
+  return Float16::FromFloat32(std::abs(a.ToFloat32()));
+}
+
+void f16x8_abs_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_abs>(data);
+}
+
+Float16 f16_neg(Float16 a) { return Float16::FromFloat32(-(a.ToFloat32())); }
+
+void f16x8_neg_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_neg>(data);
+}
+
+Float16 f16_sqrt(Float16 a) {
+  return Float16::FromFloat32(std::sqrt(a.ToFloat32()));
+}
+
+void f16x8_sqrt_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_sqrt>(data);
+}
+
+Float16 f16_ceil(Float16 a) {
+  return Float16::FromFloat32(ceilf(a.ToFloat32()));
+}
+
+void f16x8_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_ceil>(data);
+}
+
+Float16 f16_floor(Float16 a) {
+  return Float16::FromFloat32(floorf(a.ToFloat32()));
+}
+
+void f16x8_floor_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_floor>(data);
+}
+
+Float16 f16_trunc(Float16 a) {
+  return Float16::FromFloat32(truncf(a.ToFloat32()));
+}
+
+void f16x8_trunc_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_trunc>(data);
+}
+
+Float16 f16_nearest_int(Float16 a) {
+  return Float16::FromFloat32(nearbyintf(a.ToFloat32()));
+}
+
+void f16x8_nearest_int_wrapper(Address data) {
+  simd_float_round_wrapper<Float16, &f16_nearest_int>(data);
+}
+
 namespace {
 class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

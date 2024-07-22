@@ -4656,6 +4656,34 @@ class LiftoffCompiler {
       case wasm::kExprI64x2UConvertI32x4High:
         return EmitUnOp<kS128, kS128>(
             &LiftoffAssembler::emit_i64x2_uconvert_i32x4_high);
+      case wasm::kExprF16x8Abs:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_abs,
+            &ExternalReference::wasm_f16x8_abs);
+      case wasm::kExprF16x8Neg:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_neg,
+            &ExternalReference::wasm_f16x8_neg);
+      case wasm::kExprF16x8Sqrt:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_sqrt,
+            &ExternalReference::wasm_f16x8_sqrt);
+      case wasm::kExprF16x8Ceil:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_ceil,
+            &ExternalReference::wasm_f16x8_ceil);
+      case wasm::kExprF16x8Floor:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_floor,
+            ExternalReference::wasm_f16x8_floor);
+      case wasm::kExprF16x8Trunc:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_trunc,
+            ExternalReference::wasm_f16x8_trunc);
+      case wasm::kExprF16x8NearestInt:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_nearest_int,
+            ExternalReference::wasm_f16x8_nearest_int);
       case wasm::kExprF32x4Abs:
         return EmitUnOp<kS128, kS128, kF32>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:
