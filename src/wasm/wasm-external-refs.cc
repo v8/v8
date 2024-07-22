@@ -460,6 +460,41 @@ void f16x8_nearest_int_wrapper(Address data) {
   simd_float_round_wrapper<Float16, &f16_nearest_int>(data);
 }
 
+template <int16_t (*float_round_op)(Float16, Float16)>
+void simd_float16_cmp_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(Float16);
+  for (int i = 0; i < n; i++) {
+    Float16 lhs = Float16::Read(data + (i * sizeof(Float16)));
+    Float16 rhs = Float16::Read(data + kSimd128Size + (i * sizeof(Float16)));
+    int16_t value = float_round_op(lhs, rhs);
+    WriteUnalignedValue<int16_t>(data + (i * sizeof(int16_t)), value);
+  }
+}
+
+int16_t f16_eq(Float16 a, Float16 b) {
+  return a.ToFloat32() == b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_eq_wrapper(Address data) { simd_float16_cmp_wrapper<&f16_eq>(data); }
+
+int16_t f16_ne(Float16 a, Float16 b) {
+  return a.ToFloat32() != b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_ne_wrapper(Address data) { simd_float16_cmp_wrapper<&f16_ne>(data); }
+
+int16_t f16_lt(Float16 a, Float16 b) {
+  return a.ToFloat32() < b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_lt_wrapper(Address data) { simd_float16_cmp_wrapper<&f16_lt>(data); }
+
+int16_t f16_le(Float16 a, Float16 b) {
+  return a.ToFloat32() <= b.ToFloat32() ? -1 : 0;
+}
+
+void f16x8_le_wrapper(Address data) { simd_float16_cmp_wrapper<&f16_le>(data); }
+
 namespace {
 class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

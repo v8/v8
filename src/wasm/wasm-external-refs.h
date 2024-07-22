@@ -114,6 +114,14 @@ V8_EXPORT_PRIVATE void f16x8_trunc_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f16x8_nearest_int_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void f16x8_eq_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f16x8_ne_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f16x8_lt_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f16x8_le_wrapper(Address data);
+
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
 int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,

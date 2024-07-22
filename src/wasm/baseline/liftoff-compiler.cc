@@ -4295,6 +4295,31 @@ class LiftoffCompiler {
     __ PushRegister(kS128, dst);
   }
 
+  template <ValueKind result_lane_kind, bool swap_lhs_rhs = false>
+  void EmitSimdFloatBinOpWithCFallback(
+      bool (LiftoffAssembler::*emit_fn)(LiftoffRegister, LiftoffRegister,
+                                        LiftoffRegister),
+      ExternalReference (*ext_ref)()) {
+    static constexpr RegClass rc = reg_class_for(kS128);
+    LiftoffRegister src2 = __ PopToRegister();
+    LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src2});
+    LiftoffRegister dst = __ GetUnusedRegister(rc, {src1, src2}, {});
+
+    if (swap_lhs_rhs) std::swap(src1, src2);
+
+    if (!(asm_.*emit_fn)(dst, src1, src2)) {
+      // Return v128 via stack for ARM.
+      GenerateCCallWithStackBuffer(
+          &dst, kVoid, kS128,
+          {VarState{kS128, src1, 0}, VarState{kS128, src2, 0}}, ext_ref());
+    }
+    if (V8_UNLIKELY(nondeterminism_)) {
+      LiftoffRegList pinned{dst};
+      CheckS128Nan(dst, pinned, result_lane_kind);
+    }
+    __ PushRegister(kS128, dst);
+  }
+
   template <ValueKind result_lane_kind, typename EmitFn>
   void EmitSimdFmaOp(EmitFn emit_fn) {
     LiftoffRegList pinned;
@@ -4432,6 +4457,24 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_i64x2_ge_s);
       case wasm::kExprI64x2GeS:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_ge_s);
+      case wasm::kExprF16x8Eq:
+        return EmitSimdFloatBinOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_f16x8_eq, ExternalReference::wasm_f16x8_eq);
+      case wasm::kExprF16x8Ne:
+        return EmitSimdFloatBinOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_f16x8_ne, ExternalReference::wasm_f16x8_ne);
+      case wasm::kExprF16x8Lt:
+        return EmitSimdFloatBinOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_f16x8_lt, ExternalReference::wasm_f16x8_lt);
+      case wasm::kExprF16x8Gt:
+        return EmitSimdFloatBinOpWithCFallback<kI16, true>(
+            &LiftoffAssembler::emit_f16x8_lt, ExternalReference::wasm_f16x8_lt);
+      case wasm::kExprF16x8Le:
+        return EmitSimdFloatBinOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_f16x8_le, ExternalReference::wasm_f16x8_le);
+      case wasm::kExprF16x8Ge:
+        return EmitSimdFloatBinOpWithCFallback<kI16, true>(
+            &LiftoffAssembler::emit_f16x8_le, ExternalReference::wasm_f16x8_le);
       case wasm::kExprF32x4Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_eq);
       case wasm::kExprF32x4Ne:

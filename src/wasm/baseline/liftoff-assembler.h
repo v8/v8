@@ -1072,6 +1072,14 @@ class LiftoffAssembler : public MacroAssembler {
                               LiftoffRegister rhs);
   inline void emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                               LiftoffRegister rhs);
+  inline bool emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline bool emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
   inline void emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,

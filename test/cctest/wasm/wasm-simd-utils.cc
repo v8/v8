@@ -472,6 +472,37 @@ void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+void RunF16x8CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                           HalfCompareOp expected_op) {
+  WasmRunner<int32_t, float, float> r(execution_tier);
+  // Set up global to hold mask output.
+  int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
+  // Build fn to splat test values, perform compare op, and write the result.
+  uint8_t value1 = 0, value2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value1))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value2))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp2))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      float diff = x - y;  // Model comparison as subtraction.
+      if (!PlatformCanRepresent(diff)) continue;
+      r.Call(x, y);
+      int16_t expected = expected_op(fp16_ieee_from_fp32_value(x),
+                                     fp16_ieee_from_fp32_value(y));
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
+
 bool IsExtreme(float x) {
   float abs_x = std::fabs(x);
   const float kSmallFloatThreshold = 1.0e-32f;

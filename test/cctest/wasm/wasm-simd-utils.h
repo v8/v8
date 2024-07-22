@@ -316,6 +316,8 @@ void CheckDoubleResult(double x, double y, double expected, double actual,
 
 void RunF16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                       HalfUnOp expected_op, bool exact = true);
+void RunF16x8CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
+                           HalfCompareOp expected_op);
 
 void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                       FloatUnOp expected_op, bool exact = true);

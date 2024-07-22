@@ -4479,6 +4479,26 @@ bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
   return false;
 }
 
+bool LiftoffAssembler::emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
   UNREACHABLE();

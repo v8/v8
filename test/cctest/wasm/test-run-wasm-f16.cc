@@ -150,6 +150,29 @@ UN_OP_LIST(TEST_UN_OP)
 #undef TEST_UN_OP
 #undef UN_OP_LIST
 
+#define CMP_OP_LIST(V) \
+  V(Eq, ==)            \
+  V(Ne, !=)            \
+  V(Gt, >)             \
+  V(Ge, >=)            \
+  V(Lt, <)             \
+  V(Le, <=)
+
+#define TEST_CMP_OP(WasmName, COp)                                             \
+  int16_t WasmName(uint16_t a, uint16_t b) {                                   \
+    return fp16_ieee_to_fp32_value(a) COp fp16_ieee_to_fp32_value(b) ? -1 : 0; \
+  }                                                                            \
+  TEST(F16x8##WasmName) {                                                      \
+    i::v8_flags.experimental_wasm_fp16 = true;                                 \
+    RunF16x8CompareOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName,   \
+                          WasmName);                                           \
+  }
+
+CMP_OP_LIST(TEST_CMP_OP)
+
+#undef TEST_CMP_OP
+#undef UN_CMP_LIST
+
 }  // namespace test_run_wasm_f16
 }  // namespace wasm
 }  // namespace internal
