@@ -1241,7 +1241,11 @@ class FastCApiObject {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
-
+    // This CHECK here is unnecessary, but it keeps this function from getting
+    // merged with `sumInt64FastCallback`. There is a test which relies on
+    // `sumUint64FastCallback` and `sumInt64FastCallback` being different call
+    // targets.
+    CHECK_GT(self->fast_call_count_, 0);
     return a + b;
   }
 
