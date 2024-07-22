@@ -6759,14 +6759,20 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       local_isolate_, inner_unit, graph_, call_frequency,
       BytecodeOffset(iterator_.current_offset()), inlining_id, this);
 
-  // Propagate catch block.
-  inner_graph_builder.parent_catch_ = GetCurrentTryCatchBlock();
-  if (catch_block_stack_.size() == 0) {
-    inner_graph_builder.parent_catch_deopt_frame_distance_ =
-        parent_catch_deopt_frame_distance_ + 1;
-  } else {
-    inner_graph_builder.parent_catch_deopt_frame_distance_ = 1;
+  // Merge catch block state if needed.
+  CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
+  if (catch_block.ref && catch_block.state->exception_handler_was_used()) {
+    // Merge the current state into the handler state.
+    catch_block.state->MergeThrow(
+        GetCurrentCatchBlockGraphBuilder(), catch_block.unit,
+        *current_interpreter_frame_.known_node_aspects(),
+        current_interpreter_frame_.virtual_objects());
   }
+
+  // Propagate catch block.
+  inner_graph_builder.parent_catch_ = catch_block;
+  inner_graph_builder.parent_catch_deopt_frame_distance_ =
+      1 + (IsInsideTryBlock() ? 0 : parent_catch_deopt_frame_distance_);
 
   // Set the inner graph builder to build in the current block.
   inner_graph_builder.current_block_ = current_block_;
@@ -11045,10 +11051,6 @@ void MaglevGraphBuilder::ClearCurrentAllocationBlock() {
 void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
                                             int use_count) {
   if (!v8_flags.maglev_escape_analysis) return;
-  // TODO(victorgomes): Support materializing objects in catch blocks.
-  // If we are inside a try-catch block, always escape the objects, ie, do not
-  // add non escaping use.
-  if (catch_block_stack_.size() > 0) return;
   allocation->AddNonEscapingUses(use_count);
 }
 

@@ -808,13 +808,11 @@ class MaglevGraphBuilder {
 
     // Handle exceptions if we have a table.
     if (bytecode().handler_table_size() > 0) {
-      if (catch_block_stack_.size() > 0) {
-        // Pop all entries where offset >= end.
-        while (catch_block_stack_.size() > 0) {
-          HandlerTableEntry& entry = catch_block_stack_.top();
-          if (offset < entry.end) break;
-          catch_block_stack_.pop();
-        }
+      // Pop all entries where offset >= end.
+      while (IsInsideTryBlock()) {
+        HandlerTableEntry& entry = catch_block_stack_.top();
+        if (offset < entry.end) break;
+        catch_block_stack_.pop();
       }
       // Push new entries from interpreter handler table where offset >= start
       // && offset < end.
@@ -1084,22 +1082,16 @@ class MaglevGraphBuilder {
           DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
           return;
         }
-        MaglevGraphBuilder* builder = this;
-        int depth = 0;
-        if (catch_block_stack_.size() == 0) {
-          for (; depth < parent_catch_deopt_frame_distance_; depth++) {
-            builder = builder->parent();
-          }
-        }
-        new (node->exception_handler_info())
-            ExceptionHandlerInfo(catch_block.ref, depth);
+
+        new (node->exception_handler_info()) ExceptionHandlerInfo(
+            catch_block.ref, CatchBlockDeoptFrameDistance());
         DCHECK(node->exception_handler_info()->HasExceptionHandler());
         DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
         // Merge the current state into the handler state.
         DCHECK_NOT_NULL(catch_block.state);
         catch_block.state->MergeThrow(
-            builder, catch_block.unit,
+            GetCurrentCatchBlockGraphBuilder(), catch_block.unit,
             *current_interpreter_frame_.known_node_aspects(),
             current_interpreter_frame_.virtual_objects());
       } else {
@@ -1112,6 +1104,16 @@ class MaglevGraphBuilder {
     }
   }
 
+  // Bytecode iterator of the current graph builder is inside a try-block
+  // region.
+  bool IsInsideTryBlock() const { return catch_block_stack_.size() > 0; }
+
+  int CatchBlockDeoptFrameDistance() const {
+    if (IsInsideTryBlock()) return 0;
+    DCHECK_IMPLIES(parent_catch_deopt_frame_distance_ > 0, is_inline());
+    return parent_catch_deopt_frame_distance_;
+  }
+
   struct CatchBlockDetails {
     BasicBlockRef* ref = nullptr;
     MergePointInterpreterFrameState* state = nullptr;
@@ -1119,13 +1121,22 @@ class MaglevGraphBuilder {
   };
 
   CatchBlockDetails GetCurrentTryCatchBlock() {
-    if (catch_block_stack_.size() > 0) {
+    if (IsInsideTryBlock()) {
       // Inside a try-block.
       int offset = catch_block_stack_.top().handler;
       return {&jump_targets_[offset], merge_states_[offset], compilation_unit_};
     }
     DCHECK_IMPLIES(parent_catch_.ref != nullptr, is_inline());
     return parent_catch_;
+  }
+
+  MaglevGraphBuilder* GetCurrentCatchBlockGraphBuilder() {
+    if (IsInsideTryBlock()) return this;
+    MaglevGraphBuilder* builder = this;
+    for (int depth = 0; depth < parent_catch_deopt_frame_distance_; depth++) {
+      builder = builder->parent();
+    }
+    return builder;
   }
 
   bool ContextMayAlias(ValueNode* context,
