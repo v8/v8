@@ -142,7 +142,8 @@ class WasmEngine::LogCodesTask : public CancelableTask {
   friend class WasmEngine;
 
  public:
-  LogCodesTask(Isolate* isolate) : CancelableTask(isolate), isolate_(isolate) {}
+  explicit LogCodesTask(Isolate* isolate)
+      : CancelableTask(isolate), isolate_(isolate) {}
 
   ~LogCodesTask() override { GetWasmEngine()->DeregisterCodeLoggingTask(this); }
 
@@ -1272,6 +1273,10 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
   // Keep a WasmCodeRefScope which dies after the {mutex_} is released, to avoid
   // deadlock when code actually dies, as that requires taking the {mutex_}.
+  // Also, keep the NativeModules themselves alive. The isolate is shutting
+  // down, so the heap will not do that any more.
+  std::map<NativeModule*, std::shared_ptr<NativeModule>>
+      native_modules_with_code_to_log;
   WasmCodeRefScope code_ref_scope_for_dead_code;
 
   base::MutexGuard guard(&mutex_);
@@ -1318,6 +1323,17 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   // Clear the {code_to_log} vector.
   for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
     for (WasmCode* code : code_to_log.code) {
+      if (!native_modules_with_code_to_log.count(code->native_module())) {
+        std::shared_ptr<NativeModule> shared_native_module =
+            native_modules_[code->native_module()]->weak_ptr.lock();
+        if (!shared_native_module) {
+          // The module is dying already; there's no need to decrement the ref
+          // count and add the code to the WasmCodeRefScope.
+          continue;
+        }
+        native_modules_with_code_to_log.insert(std::make_pair(
+            code->native_module(), std::move(shared_native_module)));
+      }
       // Keep a reference in the {code_ref_scope_for_dead_code} such that the
       // code cannot become dead immediately.
       WasmCodeRefScope::AddRef(code);
@@ -1441,7 +1457,8 @@ void WasmEngine::DeregisterCodeLoggingTask(LogCodesTask* task) {
   // If the isolate died already, the IsolateInfo can not be found.
   if (it == isolates_.end()) return;
   IsolateInfo* info = it->second.get();
-  DCHECK(info->log_codes_task == nullptr || info->log_codes_task == task);
+  // If another task is already scheduled (or we already deregistered), return.
+  if (info->log_codes_task != task) return;
   info->log_codes_task = nullptr;
 }
 
