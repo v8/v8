@@ -472,7 +472,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
 
     Tagged<MaybeObject> obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      FeedbackNexus nexus(*this, slot);
+      FeedbackNexus nexus(isolate, *this, slot);
       feedback_updated |= nexus.Clear(behavior);
     }
   }
@@ -550,19 +550,19 @@ NexusConfig::GetFeedbackPair(Tagged<FeedbackVector> vector,
   return std::make_pair(feedback, feedback_extra);
 }
 
-FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+FeedbackNexus::FeedbackNexus(Isolate* isolate, Handle<FeedbackVector> vector,
+                             FeedbackSlot slot)
     : vector_handle_(vector),
       slot_(slot),
-      config_(NexusConfig::FromMainThread(
-          vector.is_null() ? nullptr : vector->GetIsolate())) {
+      config_(NexusConfig::FromMainThread(isolate)) {
   kind_ = vector.is_null() ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
 }
 
-FeedbackNexus::FeedbackNexus(Tagged<FeedbackVector> vector, FeedbackSlot slot)
+FeedbackNexus::FeedbackNexus(Isolate* isolate, Tagged<FeedbackVector> vector,
+                             FeedbackSlot slot)
     : vector_(vector),
       slot_(slot),
-      config_(NexusConfig::FromMainThread(
-          vector.is_null() ? nullptr : vector->GetIsolate())) {
+      config_(NexusConfig::FromMainThread(isolate)) {
   kind_ = vector.is_null() ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
 }
 
@@ -576,12 +576,12 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
 Handle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
   DCHECK(config()->can_write());
   Handle<WeakFixedArray> array =
-      GetIsolate()->factory()->NewWeakFixedArray(length);
+      config()->isolate()->factory()->NewWeakFixedArray(length);
   return array;
 }
 
 void FeedbackNexus::ConfigureUninitialized() {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = config()->isolate();
   switch (kind()) {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
@@ -677,7 +677,7 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
 
 bool FeedbackNexus::ConfigureMegamorphic() {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = config()->isolate();
   Tagged<MaybeObject> sentinel = MegamorphicSentinel();
   if (GetFeedback() != sentinel) {
     SetFeedback(sentinel, SKIP_WRITE_BARRIER, ClearedValue(isolate));
@@ -939,7 +939,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
 void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(ClearedValue(GetIsolate()), UPDATE_WRITE_BARRIER, *handler,
+  SetFeedback(ClearedValue(config()->isolate()), UPDATE_WRITE_BARRIER, *handler,
               UPDATE_WRITE_BARRIER);
 }
 
@@ -955,7 +955,7 @@ void FeedbackNexus::ConfigureCloneObject(
     return MakeWeak(*handler_handle);
   };
   DCHECK(config()->can_write());
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = config()->isolate();
   Handle<HeapObject> feedback;
   {
     Tagged<MaybeObject> maybe_feedback = GetFeedback();

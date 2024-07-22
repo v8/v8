@@ -970,7 +970,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
     DCHECK(IsName(*name));
     DCHECK(IsFeedbackVector(*maybe_vector));
     Handle<FeedbackVector> vector = Cast<FeedbackVector>(maybe_vector);
-    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
+    FeedbackNexus nexus(isolate, vector, FeedbackVector::ToSlot(index));
     if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
       if (IsUniqueName(*name)) {
         nexus.ConfigureMonomorphic(Cast<Name>(name),

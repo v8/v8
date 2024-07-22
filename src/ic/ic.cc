@@ -202,7 +202,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(kind),
       target_maps_set_(false),
       slow_stub_reason_(nullptr),
-      nexus_(vector, slot) {
+      nexus_(isolate, vector, slot) {
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
   old_state_ = state_;
@@ -3621,7 +3621,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
     if (IsFeedbackVector(*maybe_vector)) {
       int index = args.tagged_index_value_at(2);
       FeedbackSlot slot = FeedbackVector::ToSlot(index);
-      nexus.emplace(Cast<FeedbackVector>(maybe_vector), slot);
+      nexus.emplace(isolate, Cast<FeedbackVector>(maybe_vector), slot);
     }
     if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
       bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;

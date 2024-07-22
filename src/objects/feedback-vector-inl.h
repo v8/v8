@@ -450,15 +450,15 @@ void NexusConfig::SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
 }
 
 Tagged<MaybeObject> FeedbackNexus::UninitializedSentinel() const {
-  return *FeedbackVector::UninitializedSentinel(GetIsolate());
+  return *FeedbackVector::UninitializedSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::MegamorphicSentinel() const {
-  return *FeedbackVector::MegamorphicSentinel(GetIsolate());
+  return *FeedbackVector::MegamorphicSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
-  return *FeedbackVector::MegaDOMSentinel(GetIsolate());
+  return *FeedbackVector::MegaDOMSentinel(config()->isolate());
 }
 
 Tagged<MaybeObject> FeedbackNexus::FromHandle(MaybeObjectHandle slot) const {
@@ -514,7 +514,6 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                             mode_extra);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 

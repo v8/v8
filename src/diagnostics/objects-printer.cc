@@ -1540,7 +1540,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
 }
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
-  FeedbackNexus nexus(*this, slot);
+  FeedbackNexus nexus(GetIsolate(), *this, slot);
   nexus.Print(os);
 }
 

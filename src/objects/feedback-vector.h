@@ -733,11 +733,13 @@ class FeedbackMetadataIterator {
 class V8_EXPORT_PRIVATE NexusConfig {
  public:
   static NexusConfig FromMainThread(Isolate* isolate) {
+    DCHECK_NOT_NULL(isolate);
     return NexusConfig(isolate);
   }
 
   static NexusConfig FromBackgroundThread(Isolate* isolate,
                                           LocalHeap* local_heap) {
+    DCHECK_NOT_NULL(isolate);
     return NexusConfig(isolate, local_heap);
   }
 
@@ -782,8 +784,9 @@ class V8_EXPORT_PRIVATE NexusConfig {
 class V8_EXPORT_PRIVATE FeedbackNexus final {
  public:
   // For use on the main thread. A null {vector} is accepted as well.
-  FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot);
-  FeedbackNexus(Tagged<FeedbackVector> vector, FeedbackSlot slot);
+  FeedbackNexus(Isolate* isolate, Handle<FeedbackVector> vector,
+                FeedbackSlot slot);
+  FeedbackNexus(Isolate*, Tagged<FeedbackVector> vector, FeedbackSlot slot);
 
   // For use on the main or background thread as configured by {config}.
   // {vector} must be valid.
@@ -852,8 +855,6 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline Tagged<MaybeObject> GetFeedbackExtra() const;
   inline std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>> GetFeedbackPair()
       const;
-
-  inline Isolate* GetIsolate() const;
 
   void ConfigureMonomorphic(Handle<Name> name, DirectHandle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
@@ -953,6 +954,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   mutable base::Optional<std::pair<MaybeObjectHandle, MaybeObjectHandle>>
       feedback_cache_;
   NexusConfig config_;
+  Isolate* isolate_;
 };
 
 class V8_EXPORT_PRIVATE FeedbackIterator final {
