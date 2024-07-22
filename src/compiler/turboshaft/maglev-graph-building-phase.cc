@@ -4521,7 +4521,10 @@ class GraphBuilder {
       auto it = regs_to_vars_.find(owner.index());
       Variable var;
       if (it == regs_to_vars_.end()) {
-        var = __ NewVariable(RegisterRepresentation::Tagged());
+        // We use a LoopInvariantVariable: if loop phis were needed, then the
+        // Maglev value would already be a loop Phi, and we wouldn't need
+        // Turboshaft to automatically insert a loop phi.
+        var = __ NewLoopInvariantVariable(RegisterRepresentation::Tagged());
         regs_to_vars_.insert({owner.index(), var});
       } else {
         var = it->second;
