@@ -1519,24 +1519,6 @@ class CurrentScriptNameStackVisitor {
   Handle<String> name_or_url_;
 };
 
-class CurrentScriptStackVisitor {
- public:
-  bool Visit(FrameSummary& summary) {
-    // Skip frames that aren't subject to debugging. Keep this in sync with
-    // StackFrameBuilder::Visit so both visitors visit the same frames.
-    if (!summary.is_subject_to_debugging()) return true;
-
-    // Frames that are subject to debugging always have a valid script object.
-    current_script_ = Cast<Script>(summary.script());
-    return false;
-  }
-
-  MaybeHandle<Script> CurrentScript() const { return current_script_; }
-
- private:
-  MaybeHandle<Script> current_script_;
-};
-
 }  // namespace
 
 Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
@@ -1544,17 +1526,6 @@ Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
-}
-
-MaybeHandle<Script> Isolate::CurrentReferrerScript() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
-  CurrentScriptStackVisitor visitor{};
-  VisitStack(this, &visitor);
-  Handle<Script> script;
-  if (!visitor.CurrentScript().ToHandle(&script)) {
-    return MaybeHandle<Script>();
-  }
-  return handle(script->GetEvalOrigin(), this);
 }
 
 bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {

@@ -170,8 +170,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, DirectHandle<Script> script);
 
-  Tagged<Script> inline GetEvalOrigin();
-
   // Initialize line_ends array with source code positions of line ends if
   // it doesn't exist yet.
   static inline void InitLineEnds(Isolate* isolate,

@@ -385,7 +385,7 @@ static inline v8::Local<v8::Boolean> v8_bool(bool val) {
   return v8::Boolean::New(v8::Isolate::GetCurrent(), val);
 }
 
-static inline v8::Local<v8::Number> v8_num(double x) {
+static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
