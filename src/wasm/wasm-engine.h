@@ -298,10 +298,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // outstanding code objects (added via {LogCode}).
   void LogOutstandingCodesForIsolate(Isolate*);
 
-  // Code logging is done via a separate task per isolate. This deregisters a
-  // task after execution (or destruction because of isolate shutdown).
-  void DeregisterCodeLoggingTask(LogCodesTask*);
-
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory

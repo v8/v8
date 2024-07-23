@@ -145,10 +145,7 @@ class WasmEngine::LogCodesTask : public CancelableTask {
   explicit LogCodesTask(Isolate* isolate)
       : CancelableTask(isolate), isolate_(isolate) {}
 
-  ~LogCodesTask() override { GetWasmEngine()->DeregisterCodeLoggingTask(this); }
-
   void RunInternal() override {
-    GetWasmEngine()->DeregisterCodeLoggingTask(this);
     GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
@@ -482,9 +479,6 @@ struct WasmEngine::IsolateInfo {
 
   // Caches whether code needs to be logged on this isolate.
   bool log_codes;
-
-  // The currently scheduled LogCodesTask.
-  LogCodesTask* log_codes_task = nullptr;
 
   // Maps script ID to vector of code objects that still need to be logged, and
   // the respective source URL.
@@ -1368,10 +1362,13 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
       // weak handle is cleared already, we also don't need to log any more.
       if (script_it == info->scripts.end()) continue;
 
-      // If this is the first code to log in that isolate, request an interrupt
-      // to log the newly added code as soon as possible.
+      // If there is no code scheduled to be logged already in that isolate,
+      // then schedule a new task and also set an interrupt to log the newly
+      // added code as soon as possible.
       if (info->code_to_log.empty()) {
         isolate->stack_guard()->RequestLogWasmCode();
+        to_schedule.emplace_back(info->foreground_task_runner,
+                                 std::make_unique<LogCodesTask>(isolate));
       }
 
       WeakScriptHandle& weak_script_handle = script_it->second;
@@ -1386,22 +1383,6 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
       for (WasmCode* code : code_vec) {
         DCHECK_EQ(native_module, code->native_module());
         code->IncRef();
-      }
-
-      if (info->log_codes_task == nullptr) {
-        auto new_task = std::make_unique<LogCodesTask>(isolate);
-        info->log_codes_task = new_task.get();
-        // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
-        // Posting the task in the mutex can cause the following deadlock (only
-        // in d8): When d8 shuts down, it sets a terminate to the task runner.
-        // When the terminate flag in the taskrunner is set, all newly posted
-        // tasks get destroyed immediately. When the LogCodesTask gets
-        // destroyed, it takes the WasmEngine::mutex_ lock to deregister itself
-        // from the IsolateInfo. Therefore, as the LogCodesTask may get
-        // destroyed immediately when it gets posted, it cannot get posted when
-        // the WasmEngine::mutex_ lock is held.
-        to_schedule.emplace_back(info->foreground_task_runner,
-                                 std::move(new_task));
       }
     }
   }
@@ -1448,18 +1429,6 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     }
     WasmCode::DecrementRefCount(base::VectorOf(code_to_log.code));
   }
-}
-
-void WasmEngine::DeregisterCodeLoggingTask(LogCodesTask* task) {
-  base::MutexGuard engine_mutex_guard(&mutex_);
-  Isolate* isolate = task->isolate_;
-  auto it = isolates_.find(isolate);
-  // If the isolate died already, the IsolateInfo can not be found.
-  if (it == isolates_.end()) return;
-  IsolateInfo* info = it->second.get();
-  // If another task is already scheduled (or we already deregistered), return.
-  if (info->log_codes_task != task) return;
-  info->log_codes_task = nullptr;
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
@@ -1909,7 +1878,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 760);
-  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 192);
+  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 184);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 144);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
   size_t result = sizeof(WasmEngine);
