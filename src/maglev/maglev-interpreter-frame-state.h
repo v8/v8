@@ -1008,9 +1008,10 @@ class MergePointInterpreterFrameState {
                           const KnownNodeAspects& unmerged_aspects,
                           VirtualObject* merged, VirtualObject* unmerged);
 
-  ValueNode* MergeVirtualObjectValue(const MaglevGraphBuilder* graph_builder,
-                                     const KnownNodeAspects& unmerged_aspects,
-                                     ValueNode* merged, ValueNode* unmerged);
+  std::optional<ValueNode*> MergeVirtualObjectValue(
+      const MaglevGraphBuilder* graph_builder,
+      const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
+      ValueNode* unmerged);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,

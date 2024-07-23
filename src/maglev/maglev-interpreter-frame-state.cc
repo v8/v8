@@ -504,6 +504,7 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
   // Currently, the graph builder will never change the VO map.
   DCHECK(unmerged->map().equals(merged->map()));
   DCHECK_EQ(merged->slot_count(), unmerged->slot_count());
+  DCHECK_EQ(merged->allocation(), unmerged->allocation());
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << " - Merging VOS: "
@@ -518,27 +519,15 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
   VirtualObject* result = builder->CreateVirtualObjectForMerge(
       unmerged->map(), unmerged->slot_count());
   for (uint32_t i = 0; i < merged->slot_count(); i++) {
-    // If a nested allocation doesn't point to the same object in both lists,
-    // then we currently give up merging them and escape the allocation.
-    if (InlinedAllocation* nested = unmerged->TryCast<InlinedAllocation>()) {
-      VirtualObject* nested_merged =
-          frame_state_.virtual_objects().FindAllocatedWith(nested);
-      if (nested_merged) {
-        VirtualObject* nested_unmerged = unmerged_vos.FindAllocatedWith(nested);
-        if (nested_merged == nested_unmerged) {
-          result->set_by_index(i, nested_merged);
-          continue;
-        }
-      }
-      // We should escape this object and abort the merge! The {result} object
-      // was created and it is in the list, but it does not point to any inlined
-      // allocation.
+    std::optional<ValueNode*> merged_value_opt = MergeVirtualObjectValue(
+        builder, unmerged_aspects, merged->get_by_index(i),
+        unmerged->get_by_index(i));
+    if (!merged_value_opt.has_value()) {
+      // Merge failed, we should escape the allocation instead.
       unmerged->allocation()->ForceEscaping();
       return;
     }
-    result->set_by_index(i, MergeVirtualObjectValue(builder, unmerged_aspects,
-                                                    merged->get_by_index(i),
-                                                    unmerged->get_by_index(i)));
+    result->set_by_index(i, merged_value_opt.value());
   }
   result->set_allocation(unmerged->allocation());
   result->Snapshot();
@@ -1120,7 +1109,8 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   return result;
 }
 
-ValueNode* MergePointInterpreterFrameState::MergeVirtualObjectValue(
+std::optional<ValueNode*>
+MergePointInterpreterFrameState::MergeVirtualObjectValue(
     const MaglevGraphBuilder* builder, const KnownNodeAspects& unmerged_aspects,
     ValueNode* merged, ValueNode* unmerged) {
   DCHECK_NOT_NULL(merged);
@@ -1142,6 +1132,24 @@ ValueNode* MergePointInterpreterFrameState::MergeVirtualObjectValue(
 
   if (merged == unmerged) {
     return merged;
+  }
+
+  if (InlinedAllocation* merged_nested_alloc =
+          merged->TryCast<InlinedAllocation>()) {
+    if (InlinedAllocation* unmerged_nested_alloc =
+            unmerged->TryCast<InlinedAllocation>()) {
+      // If a nested allocation doesn't point to the same object in both
+      // objects, then we currently give up merging them and escape the
+      // allocation.
+      if (merged_nested_alloc != unmerged_nested_alloc) {
+        return {};
+      }
+    }
+  }
+
+  // We don't support exception phis inside a virtual object.
+  if (is_exception_handler()) {
+    return {};
   }
 
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this,
