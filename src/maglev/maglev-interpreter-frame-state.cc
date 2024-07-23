@@ -1028,24 +1028,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     return result;
   }
 
-  if (InlinedAllocation* unmerged_allocation =
-          unmerged->TryCast<InlinedAllocation>()) {
-    if (merged == unmerged_allocation->object()) {
-      return merged;
-    }
-    if (VirtualObject* merged_vobject = merged->TryCast<VirtualObject>()) {
-      // If the objects have different allocations, we are merging distinct
-      // objects, we should fallback to a phi node.
-      if (unmerged_allocation == merged_vobject->allocation()) {
-        // The objects should have already been merged into the current
-        // virtual_objects list, we can just look for its value.
-        merged = frame_state_.virtual_objects().FindAllocatedWith(
-            unmerged_allocation);
-        return merged;
-      }
-    }
-  }
-
   if (merged == unmerged) {
     // Cache the alternative representations of the unmerged node.
     if (per_predecessor_alternatives) {
@@ -1092,13 +1074,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     for (int i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
-  }
-
-  // If merge is a VirtualObject, we should force the object to escape and patch
-  // back the inlined allocation, before adding it to the Phi.
-  if (VirtualObject* merged_vobject = merged->TryCast<VirtualObject>()) {
-    merged_vobject->allocation()->ForceEscaping();
-    merged = merged_vobject->allocation();
   }
 
   NodeType merged_type =
