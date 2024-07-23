@@ -999,6 +999,11 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     // Don't set inputs on exception phis.
     DCHECK_EQ(result->is_exception_phi(), is_exception_handler());
     if (is_exception_handler()) {
+      // If an inlined allocation flows to an exception phi, we should consider
+      // as an use.
+      if (unmerged->Is<InlinedAllocation>()) {
+        unmerged->add_use();
+      }
       return result;
     }
 
@@ -1055,6 +1060,13 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 
   // For exception phis, just allocate exception handlers.
   if (is_exception_handler()) {
+    // ... and add an use if inputs are inlined allocation.
+    if (merged->Is<InlinedAllocation>()) {
+      merged->add_use();
+    }
+    if (unmerged->Is<InlinedAllocation>()) {
+      unmerged->add_use();
+    }
     return NewExceptionPhi(builder->zone(), owner);
   }
 
