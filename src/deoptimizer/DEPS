@@ -2,4 +2,7 @@ specific_include_rules = {
   "frame-translation-builder.cc": [
     "+third_party/zlib",
   ],
+  "deoptimizer.cc": [
+    "+src/compiler/wasm-compiler.h",
+  ],
 }

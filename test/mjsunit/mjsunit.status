@@ -1817,6 +1817,7 @@
   'regress/wasm/regress-344484969': [SKIP],
   'regress/wasm/regress-341947685': [SKIP],
   'regress/wasm/regress-343748812': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2076,6 +2077,7 @@
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
 }],
 
 ##############################################################################

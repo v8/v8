@@ -28,9 +28,13 @@
 #include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+// TODO(mliedtke): Factor out GetI32WasmCallDescriptor() into non-sea-of-nodes
+// header.
+#include "src/compiler/wasm-compiler.h"
 #include "src/wasm/baseline/liftoff-varstate.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -105,6 +109,31 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
     return code;
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+class DummyResultCollector {
+ public:
+  void AddParamAt(size_t index, LinkageLocation location) {}
+  void AddReturnAt(size_t index, LinkageLocation location) {}
+};
+
+void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
+                             int* parameter_stack_slots,
+                             int* return_stack_slots) {
+  int untagged_slots, untagged_return_slots;
+  DummyResultCollector result_collector;
+  base::Optional<AccountingAllocator> alloc;
+  base::Optional<Zone> zone;
+  if constexpr (!Is64()) {
+    alloc.emplace();
+    zone.emplace(&*alloc, "deoptimizer i32sig lowering");
+    sig = compiler::GetI32Sig(&*zone, sig);
+  }
+  wasm::IterateSignatureImpl(sig, false, result_collector, &untagged_slots,
+                             parameter_stack_slots, &untagged_return_slots,
+                             return_stack_slots);
+}
+#endif
 
 }  // namespace
 
@@ -593,16 +622,16 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
     // pointers as well as the incoming parameter stack slots are going to be
     // copied into the outgoing FrameDescription which will "push" them back
     // onto the stack. (This is consistent with how JS handles this.)
-    int parameter_slots = code->first_tagged_parameter_slot() +
-                          code->num_tagged_parameter_slots();
-    // For arm64, the stack pointer has to be 16-byte-aligned, so additional
-    // padding might be required.
-    parameter_slots += ArgumentPaddingSlots(parameter_slots);
+    const wasm::FunctionSig* sig =
+        code->native_module()->module()->functions[code->index()].sig;
+    int parameter_stack_slots, return_stack_slots;
+    GetWasmStackSlotsCounts(sig, &parameter_stack_slots, &return_stack_slots);
+
     unsigned input_frame_size = fp_to_sp_delta +
-                                parameter_slots * kSystemPointerSize +
+                                parameter_stack_slots * kSystemPointerSize +
                                 CommonFrameConstants::kFixedFrameSizeAboveFp;
-    input_ =
-        FrameDescription::Create(input_frame_size, parameter_slots, isolate_);
+    input_ = FrameDescription::Create(input_frame_size, parameter_stack_slots,
+                                      isolate_);
     return;
   }
 #endif
@@ -884,10 +913,23 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
 
   DCHECK(liftoff_description);
 
+  int parameter_stack_slots, return_stack_slots;
+  const wasm::FunctionSig* sig =
+      native_module->module()->functions[frame.wasm_function_index()].sig;
+  GetWasmStackSlotsCounts(sig, &parameter_stack_slots, &return_stack_slots);
+
+  // Allocate and populate the FrameDescription describing the output frame.
+  const uint32_t output_frame_size = liftoff_description->total_frame_size;
+  const uint32_t total_output_frame_size =
+      output_frame_size + parameter_stack_slots * kSystemPointerSize +
+      CommonFrameConstants::kFixedFrameSizeAboveFp;
+
   if (verbose_tracing_enabled()) {
     std::ostringstream outstream;
     outstream << "  Liftoff stack & register state for function index "
-              << frame.wasm_function_index() << '\n';
+              << frame.wasm_function_index() << ", frame size "
+              << output_frame_size << ", total frame size "
+              << total_output_frame_size << '\n';
     size_t index = 0;
     for (const wasm::LiftoffVarState& state : liftoff_description->var_state) {
       outstream << "     " << index++ << ": " << state << '\n';
@@ -896,18 +938,6 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     PrintF(file, "%s", outstream.str().c_str());
   }
 
-  uint32_t parameter_stack_slots = wasm_code->first_tagged_parameter_slot() +
-                                   wasm_code->num_tagged_parameter_slots();
-
-  // For arm64, the stack pointer has to be 16-byte-aligned, so additional
-  // padding might be required.
-  parameter_stack_slots += ArgumentPaddingSlots(parameter_stack_slots);
-
-  // Allocate and populate the FrameDescription describing the output frame.
-  const uint32_t output_frame_size = liftoff_description->total_frame_size;
-  const uint32_t total_output_frame_size =
-      output_frame_size + parameter_stack_slots * kSystemPointerSize +
-      CommonFrameConstants::kFixedFrameSizeAboveFp;
   FrameDescription* output_frame = FrameDescription::Create(
       total_output_frame_size, parameter_stack_slots, isolate());
 
@@ -920,7 +950,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // Note that zero is clearly not the correct value. Still, liftoff copies
   // all parameters into "its own" stack slots at the beginning and always
   // uses these slots to restore parameters from the stack.
-  for (uint32_t i = 0; i < parameter_stack_slots; ++i) {
+  for (int i = 0; i < parameter_stack_slots; ++i) {
     output_offset -= kSystemPointerSize;
     output_frame->SetFrameSlot(output_offset, 0);
   }
