@@ -1721,6 +1721,15 @@ class GraphBuilder {
               /* try_migrate */ true);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::MigrateMapIfNeeded* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    SetMap(node,
+           __ MigrateMapIfNeeded(
+               Map(node->object_input()), Map(node->map_input()), frame_state,
+               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckValue* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
