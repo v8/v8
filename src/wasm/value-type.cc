@@ -35,6 +35,46 @@ V8_EXPORT_PRIVATE extern void PrintFunctionSig(const wasm::FunctionSig* sig) {
 }
 #endif
 
+namespace {
+const wasm::FunctionSig* ReplaceTypeInSig(Zone* zone,
+                                          const wasm::FunctionSig* sig,
+                                          wasm::ValueType from,
+                                          wasm::ValueType to,
+                                          size_t num_replacements) {
+  size_t param_occurences =
+      std::count(sig->parameters().begin(), sig->parameters().end(), from);
+  size_t return_occurences =
+      std::count(sig->returns().begin(), sig->returns().end(), from);
+  if (param_occurences == 0 && return_occurences == 0) return sig;
+
+  wasm::FunctionSig::Builder builder(
+      zone, sig->return_count() + return_occurences * (num_replacements - 1),
+      sig->parameter_count() + param_occurences * (num_replacements - 1));
+
+  for (wasm::ValueType ret : sig->returns()) {
+    if (ret == from) {
+      for (size_t i = 0; i < num_replacements; i++) builder.AddReturn(to);
+    } else {
+      builder.AddReturn(ret);
+    }
+  }
+
+  for (wasm::ValueType param : sig->parameters()) {
+    if (param == from) {
+      for (size_t i = 0; i < num_replacements; i++) builder.AddParam(to);
+    } else {
+      builder.AddParam(param);
+    }
+  }
+
+  return builder.Build();
+}
+}  // namespace
+
+const wasm::FunctionSig* GetI32Sig(Zone* zone, const wasm::FunctionSig* sig) {
+  return ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -28,9 +28,6 @@
 #include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-// TODO(mliedtke): Factor out GetI32WasmCallDescriptor() into non-sea-of-nodes
-// header.
-#include "src/compiler/wasm-compiler.h"
 #include "src/wasm/baseline/liftoff-varstate.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
@@ -127,7 +124,7 @@ void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
   if constexpr (!Is64()) {
     alloc.emplace();
     zone.emplace(&*alloc, "deoptimizer i32sig lowering");
-    sig = compiler::GetI32Sig(&*zone, sig);
+    sig = GetI32Sig(&*zone, sig);
   }
   wasm::IterateSignatureImpl(sig, false, result_collector, &untagged_slots,
                              parameter_stack_slots, &untagged_return_slots,

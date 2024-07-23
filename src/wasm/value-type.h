@@ -23,6 +23,7 @@ class Signature;
 
 // Type for holding simd values, defined in simd128.h.
 class Simd128;
+class Zone;
 
 namespace wasm {
 
@@ -1147,6 +1148,11 @@ class StoreType {
 
 base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature);
+
+// Lowers a signature for 32 bit platforms by replacing i64 parameters and
+// returns with two i32s each.
+V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
+    Zone* zone, const wasm::FunctionSig* sig);
 
 }  // namespace wasm
 }  // namespace internal

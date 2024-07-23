@@ -340,6 +340,13 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const CallDescriptor::Kind& k);
 
+#if V8_ENABLE_WEBASSEMBLY
+// Lowers a wasm CallDescriptor for 32 bit platforms by replacing i64 parameters
+// and returns with two i32s each.
+V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
+    Zone* zone, const CallDescriptor* call_descriptor);
+#endif
+
 // Defines the linkage for a compilation, including the calling conventions
 // for incoming parameters and return value(s) as well as the outgoing calling
 // convention for any kind of call. Linkage is generally architecture-specific.

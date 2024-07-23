@@ -9125,83 +9125,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   return std::move(*result);
 }
 
-namespace {
-
-CallDescriptor* ReplaceTypeInCallDescriptorWith(
-    Zone* zone, const CallDescriptor* call_descriptor, size_t num_replacements,
-    MachineType from, MachineType to) {
-  // The last parameter may be the special callable parameter. In that case we
-  // have to preserve it as the last parameter, i.e. we allocate it in the new
-  // location signature again in the same register.
-  bool extra_callable_param =
-      (call_descriptor->GetInputLocation(call_descriptor->InputCount() - 1) ==
-       LinkageLocation::ForRegister(kJSFunctionRegister.code(),
-                                    MachineType::TaggedPointer()));
-
-  size_t return_count = call_descriptor->ReturnCount();
-  // To recover the function parameter count, disregard the instance parameter,
-  // and the extra callable parameter if present.
-  size_t parameter_count =
-      call_descriptor->ParameterCount() - (extra_callable_param ? 2 : 1);
-
-  // Precompute if the descriptor contains {from}.
-  bool needs_change = false;
-  for (size_t i = 0; !needs_change && i < return_count; i++) {
-    needs_change = call_descriptor->GetReturnType(i) == from;
-  }
-  for (size_t i = 1; !needs_change && i < parameter_count + 1; i++) {
-    needs_change = call_descriptor->GetParameterType(i) == from;
-  }
-  if (!needs_change) return const_cast<CallDescriptor*>(call_descriptor);
-
-  std::vector<MachineType> reps;
-
-  for (size_t i = 0, limit = return_count; i < limit; i++) {
-    MachineType initial_type = call_descriptor->GetReturnType(i);
-    if (initial_type == from) {
-      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
-      return_count += num_replacements - 1;
-    } else {
-      reps.push_back(initial_type);
-    }
-  }
-
-  // Disregard the instance (first) parameter.
-  for (size_t i = 1, limit = parameter_count + 1; i < limit; i++) {
-    MachineType initial_type = call_descriptor->GetParameterType(i);
-    if (initial_type == from) {
-      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
-      parameter_count += num_replacements - 1;
-    } else {
-      reps.push_back(initial_type);
-    }
-  }
-
-  MachineSignature sig(return_count, parameter_count, reps.data());
-
-  int parameter_slots;
-  int return_slots;
-  LocationSignature* location_sig = BuildLocations(
-      zone, &sig, extra_callable_param, &parameter_slots, &return_slots);
-
-  return zone->New<CallDescriptor>(               // --
-      call_descriptor->kind(),                    // kind
-      call_descriptor->tag(),                     // tag
-      call_descriptor->GetInputType(0),           // target MachineType
-      call_descriptor->GetInputLocation(0),       // target location
-      location_sig,                               // location_sig
-      parameter_slots,                            // parameter slot count
-      call_descriptor->properties(),              // properties
-      call_descriptor->CalleeSavedRegisters(),    // callee-saved registers
-      call_descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
-      call_descriptor->flags(),                   // flags
-      call_descriptor->debug_name(),              // debug name
-      call_descriptor->GetStackArgumentOrder(),   // stack order
-      call_descriptor->AllocatableRegisters(),    // allocatable registers
-      return_slots);                              // return slot count
-}
-}  // namespace
-
 void WasmGraphBuilder::StoreCallCount(Node* call, int count) {
   mcgraph()->StoreCallCount(call->id(), count);
 }
@@ -9210,51 +9133,7 @@ void WasmGraphBuilder::ReserveCallCounts(size_t num_call_instructions) {
   mcgraph()->ReserveCallCounts(num_call_instructions);
 }
 
-CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, const CallDescriptor* call_descriptor) {
-  return ReplaceTypeInCallDescriptorWith(
-      zone, call_descriptor, 2, MachineType::Int64(), MachineType::Int32());
-}
 
-namespace {
-const wasm::FunctionSig* ReplaceTypeInSig(Zone* zone,
-                                          const wasm::FunctionSig* sig,
-                                          wasm::ValueType from,
-                                          wasm::ValueType to,
-                                          size_t num_replacements) {
-  size_t param_occurences =
-      std::count(sig->parameters().begin(), sig->parameters().end(), from);
-  size_t return_occurences =
-      std::count(sig->returns().begin(), sig->returns().end(), from);
-  if (param_occurences == 0 && return_occurences == 0) return sig;
-
-  wasm::FunctionSig::Builder builder(
-      zone, sig->return_count() + return_occurences * (num_replacements - 1),
-      sig->parameter_count() + param_occurences * (num_replacements - 1));
-
-  for (wasm::ValueType ret : sig->returns()) {
-    if (ret == from) {
-      for (size_t i = 0; i < num_replacements; i++) builder.AddReturn(to);
-    } else {
-      builder.AddReturn(ret);
-    }
-  }
-
-  for (wasm::ValueType param : sig->parameters()) {
-    if (param == from) {
-      for (size_t i = 0; i < num_replacements; i++) builder.AddParam(to);
-    } else {
-      builder.AddParam(param);
-    }
-  }
-
-  return builder.Build();
-}
-}  // namespace
-
-const wasm::FunctionSig* GetI32Sig(Zone* zone, const wasm::FunctionSig* sig) {
-  return ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2);
-}
 AssemblerOptions WasmAssemblerOptions() {
   return AssemblerOptions{
       // Relocation info required to serialize {WasmCode} for proper functions.

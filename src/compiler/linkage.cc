@@ -11,6 +11,10 @@
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler-definitions.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -254,6 +258,90 @@ void CallDescriptor::ComputeParamCounts() const {
     }
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+CallDescriptor* ReplaceTypeInCallDescriptorWith(
+    Zone* zone, const CallDescriptor* call_descriptor, size_t num_replacements,
+    MachineType from, MachineType to) {
+  // The last parameter may be the special callable parameter. In that case we
+  // have to preserve it as the last parameter, i.e. we allocate it in the new
+  // location signature again in the same register.
+  bool extra_callable_param =
+      (call_descriptor->GetInputLocation(call_descriptor->InputCount() - 1) ==
+       LinkageLocation::ForRegister(kJSFunctionRegister.code(),
+                                    MachineType::TaggedPointer()));
+
+  size_t return_count = call_descriptor->ReturnCount();
+  // To recover the function parameter count, disregard the instance parameter,
+  // and the extra callable parameter if present.
+  size_t parameter_count =
+      call_descriptor->ParameterCount() - (extra_callable_param ? 2 : 1);
+
+  // Precompute if the descriptor contains {from}.
+  bool needs_change = false;
+  for (size_t i = 0; !needs_change && i < return_count; i++) {
+    needs_change = call_descriptor->GetReturnType(i) == from;
+  }
+  for (size_t i = 1; !needs_change && i < parameter_count + 1; i++) {
+    needs_change = call_descriptor->GetParameterType(i) == from;
+  }
+  if (!needs_change) return const_cast<CallDescriptor*>(call_descriptor);
+
+  std::vector<MachineType> reps;
+
+  for (size_t i = 0, limit = return_count; i < limit; i++) {
+    MachineType initial_type = call_descriptor->GetReturnType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      return_count += num_replacements - 1;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  // Disregard the instance (first) parameter.
+  for (size_t i = 1, limit = parameter_count + 1; i < limit; i++) {
+    MachineType initial_type = call_descriptor->GetParameterType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      parameter_count += num_replacements - 1;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  MachineSignature sig(return_count, parameter_count, reps.data());
+
+  int parameter_slots;
+  int return_slots;
+  LocationSignature* location_sig = BuildLocations(
+      zone, &sig, extra_callable_param, &parameter_slots, &return_slots);
+
+  return zone->New<CallDescriptor>(               // --
+      call_descriptor->kind(),                    // kind
+      call_descriptor->tag(),                     // tag
+      call_descriptor->GetInputType(0),           // target MachineType
+      call_descriptor->GetInputLocation(0),       // target location
+      location_sig,                               // location_sig
+      parameter_slots,                            // parameter slot count
+      call_descriptor->properties(),              // properties
+      call_descriptor->CalleeSavedRegisters(),    // callee-saved registers
+      call_descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
+      call_descriptor->flags(),                   // flags
+      call_descriptor->debug_name(),              // debug name
+      call_descriptor->GetStackArgumentOrder(),   // stack order
+      call_descriptor->AllocatableRegisters(),    // allocatable registers
+      return_slots);                              // return slot count
+}
+}  // namespace
+
+CallDescriptor* GetI32WasmCallDescriptor(
+    Zone* zone, const CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(
+      zone, call_descriptor, 2, MachineType::Int64(), MachineType::Int32());
+}
+#endif
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {

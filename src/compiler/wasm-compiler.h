@@ -905,12 +905,6 @@ V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     compiler::SourcePositionTable* spt, wasm::WasmEnabledFeatures features,
     Node* frame_state, bool set_in_wasm_flag);
 
-V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, const CallDescriptor* call_descriptor);
-
-V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
-    Zone* zone, const wasm::FunctionSig* sig);
-
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
 
