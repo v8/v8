@@ -223,7 +223,7 @@ Address ExternalReference::address() const {
 int32_t ExternalReference::offset_from_root_register() const {
   CHECK(IsIsolateFieldId());
   return static_cast<int32_t>(
-      Isolate::GetOffset(static_cast<IsolateFieldId>(raw_)));
+      IsolateData::GetOffset(static_cast<IsolateFieldId>(raw_)));
 }
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -279,6 +279,11 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 
 ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
+}
+
+ExternalReference ExternalReference::handle_scope_implementer_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
 #ifdef V8_ENABLE_SANDBOX

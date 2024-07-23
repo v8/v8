@@ -100,10 +100,8 @@ class Isolate;
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
-#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)                  \
-  V(isolate_address, "isolate address", IsolateAddress)            \
-  V(handle_scope_implementer, "Isolate::handle_scope_implementer", \
-    HandleScopeImplementer)
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V) \
+  V(isolate_address, "isolate address", IsolateAddress)
 
 constexpr uint8_t kNumIsolateFieldIds = 0
 #define PLUS_1(...) +1
@@ -249,10 +247,12 @@ class IsolateData final {
   THREAD_LOCAL_TOP_MEMBER_OFFSET(context)
 #undef THREAD_LOCAL_TOP_MEMBER_OFFSET
 
-  // Returns the offset of isolate fields defined in the isolate data. Other
-  // isolate fields are handled in isolate.cc.
   static constexpr intptr_t GetOffset(IsolateFieldId id) {
     switch (id) {
+      case IsolateFieldId::kUnknown:
+        UNREACHABLE();
+      case IsolateFieldId::kIsolateAddress:
+        return -kIsolateRootBias;
 #define CASE(camel, size, name)  \
   case IsolateFieldId::k##camel: \
     return IsolateData::name##_offset();
