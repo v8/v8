@@ -2713,7 +2713,15 @@ F16_UNOP_LIST(VISIT_F16_UNOP)
   V(f16x8_eq)             \
   V(f16x8_ne)             \
   V(f16x8_lt)             \
-  V(f16x8_le)
+  V(f16x8_le)             \
+  V(f16x8_add)            \
+  V(f16x8_sub)            \
+  V(f16x8_mul)            \
+  V(f16x8_div)            \
+  V(f16x8_min)            \
+  V(f16x8_max)            \
+  V(f16x8_pmin)           \
+  V(f16x8_pmax)
 
 #define VISIT_F16_BINOP(name)                                                  \
   bool LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
