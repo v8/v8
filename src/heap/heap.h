@@ -1034,7 +1034,6 @@ class Heap final {
   uint8_t* IsMarkingFlagAddress();
   uint8_t* IsMinorMarkingFlagAddress();
 
-  void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
                                              size_t slot_offset);
