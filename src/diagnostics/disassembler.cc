@@ -252,7 +252,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     const char* reference_name =
         ref_encoder
             ? ref_encoder->NameOfAddress(isolate, address)
-            : ExternalReferenceTable::NameOfIsolateIndependentAddress(address);
+            : ExternalReferenceTable::NameOfIsolateIndependentAddress(
+                  address, IsolateGroup::current()->external_ref_table());
     out << "    ;; external reference (" << reference_name << ")";
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out << "    ;; code:";
