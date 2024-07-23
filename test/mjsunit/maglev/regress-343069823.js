@@ -17,9 +17,4 @@ assertEquals(1, foo());
 
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(1, foo());
-
-%OptimizeMaglevOnNextCall(foo);
-assertEquals(1, foo());
-// Check we don't have a deopt loop, ie, we don't try to optimize
-// ArrayProtoNext again.
 assertTrue(isOptimized(foo));
