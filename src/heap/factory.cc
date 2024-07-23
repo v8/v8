@@ -1715,9 +1715,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     internal->set_call_target(kNullAddress);
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
     internal->set_ref(*ref);
-#if V8_ENABLE_SANDBOX
+#if V8_ENABLE_LEAPTIERING
     internal->set_signature_hash(signature_hash);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
     // Default values, will be overwritten by the caller.
     internal->set_function_index(function_index);
     internal->set_external(*undefined_value());
@@ -4522,6 +4522,9 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   function->set_shared(*sfi_, mode);
   function->set_context(*context_, kReleaseStore, mode);
   function->set_raw_feedback_cell(*feedback_cell, mode);
+#ifdef V8_ENABLE_SANDBOX
+  function->set_dispatch_handle(feedback_cell->dispatch_handle());
+#endif  // V8_ENABLE_SANDBOX
   function->set_code(*code, kReleaseStore, mode);
   if (function->has_prototype_slot()) {
     function->set_prototype_or_initial_map(

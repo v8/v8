@@ -104,6 +104,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::feedback_cell() field.
   static FieldAccess ForJSFunctionFeedbackCell();
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Provides access to JSFunction::dispatch_handle() field.
+  static FieldAccess ForJSFunctionDispatchHandleNoWriteBarrier();
+#endif  // V8_ENABLE_LEAPTIERING
+
   // Provides access to JSBoundFunction::bound_target_function() field.
   static FieldAccess ForJSBoundFunctionBoundTargetFunction();
 
@@ -376,6 +381,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to FeedbackCell fields.
   static FieldAccess ForFeedbackCellInterruptBudget();
+#ifdef V8_ENABLE_LEAPTIERING
+  static FieldAccess ForFeedbackCellDispatchHandleNoWriteBarrier();
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Provides access to a FeedbackVector fields.
   static FieldAccess ForFeedbackVectorInvocationCount();

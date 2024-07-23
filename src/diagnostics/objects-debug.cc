@@ -1181,7 +1181,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
   static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
-                8 * kTaggedSize);
+                (8 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
@@ -1198,7 +1198,11 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle handle = raw_feedback_cell(isolate)->dispatch_handle();
+  JSDispatchHandle handle = dispatch_handle();
+  // Currently, the handle can still be the null handle as not all places where
+  // a JSFunction object is created populate the entry correctly. However, in
+  // the future, every JSFunction must have a valid dispatch handle, and then
+  // this check should be removed.
   if (handle != kNullJSDispatchHandle) {
     uint16_t parameter_count =
         GetProcessWideJSDispatchTable()->GetParameterCount(handle);

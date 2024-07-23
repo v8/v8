@@ -159,7 +159,8 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
              IntPtrEqual(LoadMapInstanceSizeInWords(function_map),
                          IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                         kTaggedSize)));
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype ==
+                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -167,6 +168,11 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(function, JSFunction::kFeedbackCellOffset,
                        RootIndex::kManyClosuresCell);
+#ifdef V8_ENABLE_LEAPTIERING
+  // TODO(saelo): obtain an appropriate dispatch handle here.
+  StoreObjectFieldNoWriteBarrier(function, JSFunction::kDispatchHandleOffset,
+                                 Int32Constant(kNullJSDispatchHandle));
+#endif  // V8_ENABLE_LEAPTIERING
 
   StoreObjectFieldNoWriteBarrier(
       function, JSFunction::kSharedFunctionInfoOffset, shared_info);

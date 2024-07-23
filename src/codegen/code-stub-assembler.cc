@@ -16896,7 +16896,8 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   CSA_DCHECK(this, Word32BinaryNot(IsConstructorMap(map)));
   CSA_DCHECK(this, Word32BinaryNot(IsFunctionWithPrototypeSlotMap(map)));
   const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype ==
+                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
   StoreMapNoWriteBarrier(fun, map);
   StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -16908,6 +16909,12 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
+#ifdef V8_ENABLE_LEAPTIERING
+  // TODO(saelo): obtain an appropriate dispatch handle here
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
+                                 Int32Constant(kNullJSDispatchHandle));
+#endif  // V8_ENABLE_LEAPTIERING
+
   return CAST(fun);
 }
 

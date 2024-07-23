@@ -208,7 +208,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   auto feedback_cell = Parameter<FeedbackCell>(Descriptor::kFeedbackCell);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  // Bump the closure counter encoded the {feedback_cell}s map.
+  // Bump the closure counter encoded in the {feedback_cell}s map.
   {
     const TNode<Map> feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
@@ -274,12 +274,25 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     BIND(&done);
   }
 
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype ==
+                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
+#ifdef V8_ENABLE_LEAPTIERING
+  // TODO(olivf): do we potentially need to allocate a dedicated dispatch entry
+  // here if this is the first JSFunction for the given feedback cell.
+  TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
+      feedback_cell, FeedbackCell::kDispatchHandleOffset);
+  // TODO(saelo): the dispatch handle should never be the null handle here, but
+  // currently it still is as not all FeedbackCells have one yet.
+  // CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
+  // Int32Constant(kNullJSDispatchHandle)));
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
+                                 dispatch_handle);
+#endif  // V8_ENABLE_LEAPTIERING
   TNode<Code> lazy_builtin =
       HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   StoreCodePointerField(result, JSFunction::kCodeOffset, lazy_builtin);

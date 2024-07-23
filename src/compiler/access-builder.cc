@@ -270,6 +270,21 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
   return access;
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+// static
+FieldAccess AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier() {
+  // We currently don't require write barriers when writing dispatch handles of
+  // JSFunctions because they are loaded from the function's FeedbackCell and
+  // so must already be reachable. If this ever changes, we'll need to
+  // implement write barrier support for dispatch handles in generated code.
+  FieldAccess access = {
+      kTaggedBase,      JSFunction::kDispatchHandleOffset, Handle<Name>(),
+      OptionalMapRef(), TypeCache::Get()->kInt32,          MachineType::Int32(),
+      kNoWriteBarrier,  "JSFunctionDispatchHandle"};
+  return access;
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 // static
 FieldAccess AccessBuilder::ForJSBoundFunctionBoundTargetFunction() {
   FieldAccess access = {
@@ -1424,6 +1439,24 @@ FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
                         "FeedbackCellInterruptBudget"};
   return access;
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+// static
+FieldAccess AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier() {
+  // Dispatch handles in FeedbackCells are effectively const-after-init and so
+  // they are marked as kNoWriteBarrier here (because the fields will not be
+  // written to).
+  FieldAccess access = {kTaggedBase,
+                        FeedbackCell::kDispatchHandleOffset,
+                        Handle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Int32(),
+                        kNoWriteBarrier,
+                        "FeedbackCellDispatchHandle"};
+  return access;
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 // static
 FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {
