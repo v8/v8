@@ -570,7 +570,11 @@ class GraphBuilder {
     SetMap(node, __ SmiConstant(node->value().ptr()));
     return maglev::ProcessResult::kContinue;
   }
-
+  maglev::ProcessResult Process(maglev::TrustedConstant* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ HeapConstant(node->object().object()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::InitialValue* node,
                                 const maglev::ProcessingState& state) {
     // TODO(dmercadier): InitialValues are much simpler in Maglev because they
@@ -2188,6 +2192,16 @@ class GraphBuilder {
         Map(node->object_input()), node->offset());
     __ StoreField(field, AccessBuilder::ForHeapNumberValue(),
                   Map(node->value_input()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::StoreTrustedPointerFieldWithWriteBarrier* node,
+      const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(),
+             MemoryRepresentation::IndirectPointer(),
+             WriteBarrierKind::kIndirectPointerWriteBarrier, node->offset(),
+             node->initializing_or_transitioning());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
