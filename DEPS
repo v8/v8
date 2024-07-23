@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.150.1.d9707319-gomaip',
+  'reclient_version': 're_client_version:0.148.0.41b09b51-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -80,7 +80,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.2',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:b41f9eaf44dfdaec51ab2d7089aaa4cb6d9e7f5e',
+  'siso_version': 'git_revision:59d7ce479a969e583ba82fbd4e270aa7b1d87750',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:771ea9a614a104c71655f699ef82219a2a474817',
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5f1a1b3207a9c145dbf87cdc6e34427fa4791d9d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1ad7eaaa406d1292163635ede597b5cd747fd189',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8701c84f51401d41af5088414df1efc4a080cc7a',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2d250d7c33775c0f16f8f381747c3cf6eae1f007',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ede9a33d985cd8e134df3e32769b2c00aeac200f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1a616deaac7e579d5d6ab463f99657dcec5ce9b5',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -280,7 +280,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '32eb84a95951fa3a0148fb3e6a1a02f830ded136',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'cee1ba1f24fb12b9ae8f31e70dca3f73dbb12cc2',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '57e107a10ea4ff5d8d31df9e4833f80b414b0dd2',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
@@ -300,7 +300,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6bb75caa139ee1e686d2205910454cf6ea212e58',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'c759813582d28b7ca13bcc67bc5ea0bb8c182f4a',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
