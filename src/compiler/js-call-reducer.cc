@@ -4971,6 +4971,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeGetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalFloat64Array);
+    case Builtin::kDataViewPrototypeGetBigInt64:
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalBigInt64Array);
+    case Builtin::kDataViewPrototypeGetBigUint64:
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalBigUint64Array);
     case Builtin::kDataViewPrototypeSetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalUint8Array);
@@ -4995,6 +5001,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeSetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat64Array);
+    case Builtin::kDataViewPrototypeSetBigInt64:
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalBigInt64Array);
+    case Builtin::kDataViewPrototypeSetBigUint64:
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalBigUint64Array);
     case Builtin::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE);
     case Builtin::kTypedArrayPrototypeByteOffset:
@@ -8403,6 +8415,12 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   Node* receiver = n.receiver();
   Node* offset = n.ArgumentOr(0, jsgraph()->ZeroConstant());
   Node* value = nullptr;
+
+  if (!Is64() && (element_type == kExternalBigInt64Array ||
+                  element_type == kExternalBigUint64Array)) {
+    return NoChange();
+  }
+
   if (access == DataViewAccess::kSet) {
     value = n.ArgumentOrUndefined(1, jsgraph());
   }
@@ -8465,10 +8483,18 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
   // Coerce {value} to Number.
   if (access == DataViewAccess::kSet) {
-    value = effect = graph()->NewNode(
-        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
-                                          p.feedback()),
-        value, effect, control);
+    if (element_type == kExternalBigInt64Array ||
+        element_type == kExternalBigUint64Array) {
+      value = effect =
+          graph()->NewNode(simplified()->SpeculativeToBigInt(
+                               BigIntOperationHint::kBigInt, p.feedback()),
+                           value, effect, control);
+    } else {
+      value = effect = graph()->NewNode(
+          simplified()->SpeculativeToNumber(
+              NumberOperationHint::kNumberOrOddball, p.feedback()),
+          value, effect, control);
+    }
   }
 
   // We need to retain either the {receiver} itself or it's backing
