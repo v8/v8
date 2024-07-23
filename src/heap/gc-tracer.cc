@@ -1702,7 +1702,7 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.collection_rate_in_percent = 0;
   } else {
     event.collection_rate_in_percent =
-        static_cast<double>(event.objects.bytes_after) /
+        static_cast<double>(event.objects.bytes_freed) /
         event.objects.bytes_before;
   }
   // Efficiency:
