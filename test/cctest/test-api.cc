@@ -24944,6 +24944,57 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
                    nullptr, "bar2.js");
 }
 
+void GetCurrentHostDefinedOptionsTest(
+    const v8::FunctionCallbackInfo<Value>& info) {
+  v8::Local<v8::Data> host_defined_options =
+      info.GetIsolate()->GetCurrentHostDefinedOptions().ToLocalChecked();
+  CHECK(host_defined_options.As<v8::PrimitiveArray>()
+            ->Get(info.GetIsolate(), 0)
+            ->StrictEquals(v8_num(4.2)));
+}
+
+THREADED_TEST(TestGetCurrentHostDefinedOptions) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  context->Global()
+      ->Set(context, v8_str("test"),
+            v8::Function::New(context, GetCurrentHostDefinedOptionsTest)
+                .ToLocalChecked())
+      .ToChecked();
+
+  {
+    v8::Local<v8::PrimitiveArray> host_defined_options =
+        v8::PrimitiveArray::New(isolate, 1);
+    host_defined_options->Set(isolate, 0, v8_num(4.2));
+    v8::ScriptOrigin origin(v8_str(""), 0, 0, false, -1, Local<v8::Value>(),
+                            false, false, false, host_defined_options);
+    v8::ScriptCompiler::Source source(
+        v8::String::NewFromUtf8Literal(isolate, "eval('[1].forEach(test)')"),
+        origin);
+    v8::Local<v8::Script> script =
+        v8::ScriptCompiler::Compile(context, &source).ToLocalChecked();
+    script->Run(context).ToLocalChecked();
+  }
+
+  {
+    v8::Local<v8::PrimitiveArray> host_defined_options =
+        v8::PrimitiveArray::New(isolate, 1);
+    host_defined_options->Set(isolate, 0, v8_num(4.2));
+    v8::ScriptOrigin origin(v8_str(""), 0, 0, false, -1, Local<v8::Value>(),
+                            false, false, true, host_defined_options);
+    v8::ScriptCompiler::Source source(
+        v8::String::NewFromUtf8Literal(isolate, "eval('[1].forEach(test)')"),
+        origin);
+    v8::Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+        .ToChecked();
+    module->Evaluate(context).ToLocalChecked();
+  }
+}
 
 TEST(NewStringRangeError) {
   // This test uses a lot of memory and fails with flaky OOM when run

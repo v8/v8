@@ -9629,6 +9629,16 @@ v8::Local<v8::Context> Isolate::GetIncumbentContext() {
   return Utils::ToLocal(context);
 }
 
+v8::MaybeLocal<v8::Data> Isolate::GetCurrentHostDefinedOptions() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Script> script;
+  if (!i_isolate->CurrentReferrerScript().ToHandle(&script)) {
+    return MaybeLocal<v8::Data>();
+  }
+  return ToApiHandle<Data>(
+      i::direct_handle(script->host_defined_options(), i_isolate), i_isolate);
+}
+
 v8::Local<Value> Isolate::ThrowError(v8::Local<v8::String> message) {
   return ThrowException(v8::Exception::Error(message));
 }
