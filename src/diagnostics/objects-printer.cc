@@ -1593,7 +1593,8 @@ void FeedbackNexus::Print(std::ostream& os) {
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
-        if (IsWeakFixedArray(handler)) {
+        if (IsWeakFixedArray(handler) &&
+            !Cast<WeakFixedArray>(handler)->get(0).IsCleared()) {
           handler = Cast<WeakFixedArray>(handler)->get(0).GetHeapObjectOrSmi();
         }
         LoadHandler::PrintHandler(handler, os);
@@ -1620,10 +1621,14 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetKeyedSloppy:
     case FeedbackSlotKind::kSetKeyedStrict: {
       os << InlineCacheState2String(ic_state());
+      if (GetFeedback().IsCleared()) {
+        os << "\n   [cleared]";
+        break;
+      }
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         Tagged<HeapObject> feedback = GetFeedback().GetHeapObject();
         if (GetFeedbackExtra().IsCleared()) {
-          os << " <cleared>\n";
+          os << " [cleared]\n";
           break;
         }
         if (IsName(feedback)) {
