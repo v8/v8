@@ -529,6 +529,16 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
+#if V8_ENABLE_DRUMBRAKE
+#define HR(name, caption, min, max, num_buckets)     \
+  Histogram* name() {                                \
+    name##_.EnsureCreated(v8_flags.slow_histograms); \
+    return &name##_;                                 \
+  }
+  HISTOGRAM_RANGE_LIST_SLOW(HR)
+#undef HR
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #define HT(name, caption, max, res) \
   NestedTimedHistogram* name() {    \
     name##_.EnsureCreated();        \
@@ -651,6 +661,9 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
   HISTOGRAM_RANGE_LIST(HR)
+#if V8_ENABLE_DRUMBRAKE
+  HISTOGRAM_RANGE_LIST_SLOW(HR)
+#endif  // V8_ENABLE_DRUMBRAKE
 #undef HR
 
 #define HT(name, caption, max, res) NestedTimedHistogram name##_;

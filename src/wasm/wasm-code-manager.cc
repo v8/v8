@@ -48,6 +48,10 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/well-known-imports.h"
 
+#if V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
@@ -240,6 +244,10 @@ std::string WasmCode::DebugName() const {
       return "jump-table";
     case kWasmToJsWrapper:
       return "wasm-to-js";
+#if V8_ENABLE_DRUMBRAKE
+    case kInterpreterEntry:
+      return "interpreter entry";
+#endif  // V8_ENABLE_DRUMBRAKE
     case kWasmFunction:
       // Gets handled below
       break;
@@ -512,6 +520,10 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-capi";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
+#if V8_ENABLE_DRUMBRAKE
+    case WasmCode::kInterpreterEntry:
+      return "interpreter entry";
+#endif  // V8_ENABLE_DRUMBRAKE
     case WasmCode::kJumpTable:
       return "jump table";
   }
@@ -892,8 +904,11 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled,
     std::fill_n(tiering_budgets_.get(), module_->num_declared_functions,
                 v8_flags.wasm_tiering_budget);
   }
-  // Even though there cannot be another thread using this object (since we are
-  // just constructing it), we need to hold the mutex to fulfill the
+
+  if (v8_flags.wasm_jitless) return;
+
+  // Even though there cannot be another thread using this object (since we
+  // are just constructing it), we need to hold the mutex to fulfill the
   // precondition of {WasmCodeAllocator::Init}, which calls
   // {NativeModule::AddCodeSpaceLocked}.
   base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -903,6 +918,8 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled,
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
+  if (v8_flags.wasm_jitless) return;
+
   WasmCodeRefScope code_ref_scope;
   CHECK_LE(module_->num_declared_functions, max_functions);
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
@@ -1268,6 +1285,10 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   switch (result.kind) {
     case WasmCompilationResult::kWasmToJsWrapper:
       return WasmCode::Kind::kWasmToJsWrapper;
+#if V8_ENABLE_DRUMBRAKE
+    case WasmCompilationResult::kInterpreterEntry:
+      return WasmCode::Kind::kInterpreterEntry;
+#endif  // V8_ENABLE_DRUMBRAKE
     case WasmCompilationResult::kFunction:
       return WasmCode::Kind::kWasmFunction;
     default:
@@ -2229,6 +2250,21 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled,
     CompileTimeImports compile_imports, size_t code_size_estimate,
     std::shared_ptr<const WasmModule> module) {
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    VirtualMemory code_space;
+    std::shared_ptr<NativeModule> ret;
+    new NativeModule(enabled, compile_imports,
+                     DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
+                     std::move(code_space), std::move(module),
+                     isolate->async_counters(), &ret);
+    // The constructor initialized the shared_ptr.
+    DCHECK_NOT_NULL(ret);
+    TRACE_HEAP("New NativeModule (wasm-jitless) %p\n", ret.get());
+    return ret;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
     // Flush Liftoff code and record the flushed code size.
@@ -2303,6 +2339,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 void NativeModule::SampleCodeSize(Counters* counters) const {
   size_t code_size = code_allocator_.committed_code_space();
   int code_size_mb = static_cast<int>(code_size / MB);
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    base::MutexGuard lock(&module_->interpreter_mutex_);
+    if (auto interpreter = module_->interpreter_.lock()) {
+      code_size_mb = static_cast<int>(interpreter->TotalBytecodeSize() / MB);
+    }
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
   counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
   int code_size_kb = static_cast<int>(code_size / KB);
   counters->wasm_module_code_size_kb()->AddSample(code_size_kb);

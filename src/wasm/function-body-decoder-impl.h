@@ -617,11 +617,13 @@ struct SelectTypeImmediate {
   }
 };
 
+static constexpr uint32_t kInlineSignatureSentinel = UINT_MAX;
+
 struct BlockTypeImmediate {
   uint32_t length = 1;
   // After decoding, either {sig_index} is set XOR {sig} points to
   // {single_return_sig_storage}.
-  uint32_t sig_index;
+  uint32_t sig_index = kInlineSignatureSentinel;
   FunctionSig sig{0, 0, single_return_sig_storage};
   // Internal field, potentially pointed to by {sig}. Do not access directly.
   ValueType single_return_sig_storage[1];

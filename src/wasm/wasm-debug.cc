@@ -191,7 +191,14 @@ class DebugInfoImpl {
   int DeadBreakpoint(int func_index, base::Vector<const int> breakpoints,
                      Isolate* isolate) {
     DebuggableStackFrameIterator it(isolate);
+#if !V8_ENABLE_DRUMBRAKE
     if (it.done() || !it.is_wasm()) return 0;
+#else   // !V8_ENABLE_DRUMBRAKE
+    // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
+    if (it.done() || !it.is_wasm() || it.is_wasm_interpreter_entry()) {
+      return 0;
+    }
+#endif  // !V8_ENABLE_DRUMBRAKE
     auto* wasm_frame = WasmFrame::cast(it.frame());
     if (static_cast<int>(wasm_frame->function_index()) != func_index) return 0;
     return DeadBreakpoint(wasm_frame, breakpoints);
@@ -691,7 +698,12 @@ class DebugInfoImpl {
          it.Advance(), return_location = kAfterWasmCall) {
       // We still need the flooded function for stepping.
       if (it.frame()->id() == stepping_frame) continue;
+#if !V8_ENABLE_DRUMBRAKE
       if (!it.is_wasm()) continue;
+#else   // !V8_ENABLE_DRUMBRAKE
+      // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
+      if (!it.is_wasm() || it.is_wasm_interpreter_entry()) continue;
+#endif  // !V8_ENABLE_DRUMBRAKE
       WasmFrame* frame = WasmFrame::cast(it.frame());
       if (frame->native_module() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;

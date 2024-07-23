@@ -2317,7 +2317,10 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
     Object::VerifyPointer(isolate, call_ref);
     CHECK(IsWasmTrustedInstanceData(call_ref) ||
           IsWasmApiFunctionRef(call_ref) || call_ref == Smi::zero());
-    CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
+    if (!v8_flags.wasm_jitless) {
+      // call_target always null with the interpreter.
+      CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
+    }
   }
 }
 
@@ -2335,12 +2338,16 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
   Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper->is_builtin() &&
-         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-          wrapper->builtin_id() == Builtin::kWasmPromising ||
-          wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
+  CHECK(
+      wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+      wrapper->kind() == CodeKind::C_WASM_ENTRY ||
+      (wrapper->is_builtin() &&
+       (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+        wrapper->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
+        wrapper->builtin_id() == Builtin::kWasmPromising ||
+        wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

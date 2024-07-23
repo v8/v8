@@ -631,7 +631,14 @@ namespace internal {
   F(TypedArraySet, 2, 1)                       \
   F(TypedArraySortFast, 1, 1)
 
+#if V8_ENABLE_DRUMBRAKE
+#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I) F(WasmRunInterpreter, 3, 1)
+#else
+#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #define FOR_EACH_INTRINSIC_WASM(F, I)         \
+  FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)     \
   F(ThrowBadSuspenderError, 0, 1)             \
   F(ThrowWasmError, 1, 1)                     \
   F(TrapHandlerThrowWasmError, 0, 1)          \
@@ -731,6 +738,10 @@ namespace internal {
   F(WasmTraceMemory, 1, 1)                                 \
   F(WasmNull, 0, 1)
 
+#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \
+  F(WasmTraceBeginExecution, 0, 1)                   \
+  F(WasmTraceEndExecution, 0, 1)
+
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
   F(JSFinalizationRegistryRegisterWeakCellWithUnregisterToken, 4, 1) \
   F(JSWeakRefAddToKeptObjects, 1, 1)                                 \
@@ -773,39 +784,40 @@ namespace internal {
   F(HasElementWithInterceptor, 2, 1)         \
   F(ObjectAssignTryFastcase, 2, 1)
 
-#define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
-  FOR_EACH_INTRINSIC_ARRAY(F, I)                    \
-  FOR_EACH_INTRINSIC_ATOMICS(F, I)                  \
-  FOR_EACH_INTRINSIC_BIGINT(F, I)                   \
-  FOR_EACH_INTRINSIC_CLASSES(F, I)                  \
-  FOR_EACH_INTRINSIC_COLLECTIONS(F, I)              \
-  FOR_EACH_INTRINSIC_COMPILER(F, I)                 \
-  FOR_EACH_INTRINSIC_DATE(F, I)                     \
-  FOR_EACH_INTRINSIC_DEBUG(F, I)                    \
-  FOR_EACH_INTRINSIC_FORIN(F, I)                    \
-  FOR_EACH_INTRINSIC_FUNCTION(F, I)                 \
-  FOR_EACH_INTRINSIC_GENERATOR(F, I)                \
-  FOR_EACH_INTRINSIC_IC(F, I)                       \
-  FOR_EACH_INTRINSIC_INTERNAL(F, I)                 \
-  FOR_EACH_INTRINSIC_TRACE(F, I)                    \
-  FOR_EACH_INTRINSIC_INTL(F, I)                     \
-  FOR_EACH_INTRINSIC_LITERALS(F, I)                 \
-  FOR_EACH_INTRINSIC_MODULE(F, I)                   \
-  FOR_EACH_INTRINSIC_NUMBERS(F, I)                  \
-  FOR_EACH_INTRINSIC_OBJECT(F, I)                   \
-  FOR_EACH_INTRINSIC_OPERATORS(F, I)                \
-  FOR_EACH_INTRINSIC_PROMISE(F, I)                  \
-  FOR_EACH_INTRINSIC_PROXY(F, I)                    \
-  FOR_EACH_INTRINSIC_REGEXP(F, I)                   \
-  FOR_EACH_INTRINSIC_SCOPES(F, I)                   \
-  FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)             \
-  FOR_EACH_INTRINSIC_STRINGS(F, I)                  \
-  FOR_EACH_INTRINSIC_SYMBOL(F, I)                   \
-  FOR_EACH_INTRINSIC_TEMPORAL(F, I)                 \
-  FOR_EACH_INTRINSIC_TEST(F, I)                     \
-  FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)               \
-  IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)            \
-  IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)       \
+#define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I)               \
+  FOR_EACH_INTRINSIC_ARRAY(F, I)                                  \
+  FOR_EACH_INTRINSIC_ATOMICS(F, I)                                \
+  FOR_EACH_INTRINSIC_BIGINT(F, I)                                 \
+  FOR_EACH_INTRINSIC_CLASSES(F, I)                                \
+  FOR_EACH_INTRINSIC_COLLECTIONS(F, I)                            \
+  FOR_EACH_INTRINSIC_COMPILER(F, I)                               \
+  FOR_EACH_INTRINSIC_DATE(F, I)                                   \
+  FOR_EACH_INTRINSIC_DEBUG(F, I)                                  \
+  FOR_EACH_INTRINSIC_FORIN(F, I)                                  \
+  FOR_EACH_INTRINSIC_FUNCTION(F, I)                               \
+  FOR_EACH_INTRINSIC_GENERATOR(F, I)                              \
+  FOR_EACH_INTRINSIC_IC(F, I)                                     \
+  FOR_EACH_INTRINSIC_INTERNAL(F, I)                               \
+  FOR_EACH_INTRINSIC_TRACE(F, I)                                  \
+  FOR_EACH_INTRINSIC_INTL(F, I)                                   \
+  FOR_EACH_INTRINSIC_LITERALS(F, I)                               \
+  FOR_EACH_INTRINSIC_MODULE(F, I)                                 \
+  FOR_EACH_INTRINSIC_NUMBERS(F, I)                                \
+  FOR_EACH_INTRINSIC_OBJECT(F, I)                                 \
+  FOR_EACH_INTRINSIC_OPERATORS(F, I)                              \
+  FOR_EACH_INTRINSIC_PROMISE(F, I)                                \
+  FOR_EACH_INTRINSIC_PROXY(F, I)                                  \
+  FOR_EACH_INTRINSIC_REGEXP(F, I)                                 \
+  FOR_EACH_INTRINSIC_SCOPES(F, I)                                 \
+  FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)                           \
+  FOR_EACH_INTRINSIC_STRINGS(F, I)                                \
+  FOR_EACH_INTRINSIC_SYMBOL(F, I)                                 \
+  FOR_EACH_INTRINSIC_TEMPORAL(F, I)                               \
+  FOR_EACH_INTRINSIC_TEST(F, I)                                   \
+  FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)                             \
+  IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)                          \
+  IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)                     \
+  IF_WASM_DRUMBRAKE(FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST, F, I) \
   FOR_EACH_INTRINSIC_WEAKREF(F, I)
 
 #define FOR_EACH_THROWING_INTRINSIC(F)       \

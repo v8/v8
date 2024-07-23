@@ -85,7 +85,15 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
-  enum Kind { kWasmFunction, kWasmToCapiWrapper, kWasmToJsWrapper, kJumpTable };
+  enum Kind {
+    kWasmFunction,
+    kWasmToCapiWrapper,
+    kWasmToJsWrapper,
+#if V8_ENABLE_DRUMBRAKE
+    kInterpreterEntry,
+#endif  // V8_ENABLE_DRUMBRAKE
+    kJumpTable
+  };
 
   static constexpr Builtin GetRecordWriteBuiltin(SaveFPRegsMode fp_mode) {
     switch (fp_mode) {
@@ -417,7 +425,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   const uint8_t flags_;  // Bit field, see below.
   // Bits encoded in {flags_}:
+#if !V8_ENABLE_DRUMBRAKE
   using KindField = base::BitField8<Kind, 0, 2>;
+#else   // !V8_ENABLE_DRUMBRAKE
+  // We have an additional kind: Wasm interpreter.
+  using KindField = base::BitField8<Kind, 0, 3>;
+#endif  // !V8_ENABLE_DRUMBRAKE
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
   using FrameHasFeedbackSlotField = ForDebuggingField::Next<bool, 1>;

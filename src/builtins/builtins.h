@@ -287,6 +287,22 @@ class Builtins {
     jspi_prompt_handler_offset_ = offset;
   }
 
+#if V8_ENABLE_DRUMBRAKE
+  int cwasm_interpreter_entry_handler_offset() const {
+    DCHECK_NE(cwasm_interpreter_entry_handler_offset_, 0);
+    return cwasm_interpreter_entry_handler_offset_;
+  }
+
+  void SetCWasmInterpreterEntryHandlerOffset(int offset) {
+    // Check the stored offset is either uninitialized or unchanged (we
+    // generate multiple variants of this builtin but they should all have the
+    // same handler offset).
+    CHECK(cwasm_interpreter_entry_handler_offset_ == 0 ||
+          cwasm_interpreter_entry_handler_offset_ == offset);
+    cwasm_interpreter_entry_handler_offset_ = offset;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   // Returns given builtin's slot in the main builtin table.
   FullObjectSlot builtin_slot(Builtin builtin);
   // Returns given builtin's slot in the tier0 builtin table.
@@ -360,6 +376,14 @@ class Builtins {
   // label) in JSEntry and its variants. It's used to generate the handler table
   // during codegen (mksnapshot-only).
   int js_entry_handler_offset_ = 0;
+
+#if V8_ENABLE_DRUMBRAKE
+  // Stores the offset of exception handler entry point (the handler_entry
+  // label) in CWasmInterpreterEntry. It's used to generate the handler table
+  // during codegen (mksnapshot-only).
+  int cwasm_interpreter_entry_handler_offset_ = 0;
+#endif  // V8_ENABLE_DRUMBRAKE
+
   // Do the same for the JSPI prompt, which catches uncaught exceptions and
   // rejects the corresponding promise.
   int jspi_prompt_handler_offset_ = 0;

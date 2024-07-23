@@ -37,6 +37,9 @@ using WasmName = base::Vector<const char>;
 
 struct AsmJsOffsets;
 class ErrorThrower;
+#if V8_ENABLE_DRUMBRAKE
+class WasmInterpreterRuntime;
+#endif  // V8_ENABLE_DRUMBRAKE
 class WellKnownImportsList;
 
 // Reference to a string in the wire bytes.
@@ -853,6 +856,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
+
+#if V8_ENABLE_DRUMBRAKE
+  void SetWasmInterpreter(
+      std::shared_ptr<WasmInterpreterRuntime> interpreter) const {
+    base::MutexGuard lock(&interpreter_mutex_);
+    interpreter_ = interpreter;
+  }
+  mutable std::weak_ptr<WasmInterpreterRuntime> interpreter_;
+  mutable base::Mutex interpreter_mutex_;
+#endif  // V8_ENABLE_DRUMBRAKE
 
   size_t EstimateStoredSize() const;                // No tracing.
   size_t EstimateCurrentMemoryConsumption() const;  // With tracing.

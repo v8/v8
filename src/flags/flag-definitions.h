@@ -1522,6 +1522,12 @@ DEFINE_NEG_NEG_IMPLICATION(jitless,
                            jitless_and_not_correctness_fuzzer_suppressions)
 DEFINE_NEG_IMPLICATION(correctness_fuzzer_suppressions,
                        jitless_and_not_correctness_fuzzer_suppressions)
+#ifdef V8_ENABLE_DRUMBRAKE
+DEFINE_NEG_IMPLICATION(wasm_jitless,
+                       jitless_and_not_correctness_fuzzer_suppressions)
+DEFINE_NEG_IMPLICATION(wasm_jitless_if_available_for_testing,
+                       jitless_and_not_correctness_fuzzer_suppressions)
+#endif  // V8_ENABLE_DRUMBRAKE
 DEFINE_DISABLE_FLAG_IMPLICATION(jitless_and_not_correctness_fuzzer_suppressions,
                                 expose_wasm)
 DEFINE_INT(wasm_num_compilation_tasks, 128,
@@ -1636,9 +1642,17 @@ DEFINE_BOOL(
 
 DEFINE_BOOL(validate_asm, true,
             "validate asm.js modules and translate them to Wasm")
+// Directly interpret asm.js code as regular JavaScript code.
 // asm.js validation is disabled since it triggers wasm code generation.
-// --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
+
+#if V8_ENABLE_DRUMBRAKE
+// Wasm is put into interpreter-only mode. We repeat flag implications down
+// here to ensure they're applied correctly by setting the --jitless flag.
+DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
+#endif  // V8_ENABLE_DRUMBRAKE
+
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "print asm.js timing info to the console")
@@ -1808,6 +1822,72 @@ DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
                      "Use trap handling for Wasm memory64 bounds checks (not "
                      "supported for this architecture)")
 #endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+
+#ifdef V8_ENABLE_DRUMBRAKE
+// DrumBrake flags.
+DEFINE_EXPERIMENTAL_FEATURE(wasm_jitless,
+                            "Execute all wasm code in the Wasm interpreter")
+DEFINE_BOOL(wasm_jitless_if_available_for_testing, false,
+            "Enables the Wasm interpreter, for testing, but only if "
+            "the 'v8_enable_drumbrake' flag is set.")
+DEFINE_IMPLICATION(wasm_jitless_if_available_for_testing, wasm_jitless)
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+DEFINE_BOOL(trace_drumbrake_bytecode_generator, false,
+            "trace drumbrake generation of interpreter bytecode")
+DEFINE_BOOL(trace_drumbrake_execution, false,
+            "trace drumbrake execution of wasm code")
+DEFINE_BOOL(trace_drumbrake_execution_verbose, false,
+            "print more information for the drumbrake execution of wasm code")
+DEFINE_IMPLICATION(trace_drumbrake_execution_verbose, trace_drumbrake_execution)
+DEFINE_BOOL(redirect_drumbrake_traces, false,
+            "write drumbrake traces into file <pid>-<isolate id>.dbt")
+DEFINE_STRING(
+    trace_drumbrake_filter, "*",
+    "filter for selecting which wasm functions to trace in the interpreter")
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+DEFINE_BOOL(drumbrake_super_instructions, true,
+            "enable drumbrake merged wasm instructions optimization")
+DEFINE_BOOL(drumbrake_register_optimization, true,
+            "enable passing the top stack value in a register in drumbrake")
+
+// Directly interpret asm.js code as regular JavaScript code, instead of
+// translating it to Wasm bytecode first and then interpreting that with
+// DrumBrake. (validate_asm=false turns off asm.js to Wasm compilation.)
+DEFINE_NEG_IMPLICATION(wasm_jitless, validate_asm)
+
+// --wasm-jitless resets {asm-,}wasm-lazy-compilation.
+DEFINE_NEG_IMPLICATION(wasm_jitless, asm_wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_lazy_validation)
+DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_tier_up)
+
+// --wasm-enable-exec-time-histograms works both in jitted and jitless mode
+// and enables histogram V8.Jit[less]WasmExecutionPercentage, which measures
+// the percentage of time spent running Wasm code. Note that generating samples
+// for this metric causes a small performance degradation, and requires setting
+// the additional flag --slow-histograms.
+DEFINE_BOOL(wasm_enable_exec_time_histograms, false,
+            "enables histograms that track the time spent executing Wasm code")
+DEFINE_INT(wasm_exec_time_histogram_sample_duration, 1000,
+           "sample duration for V8.Jit[less]WasmExecutionPercentage, in msec")
+DEFINE_INT(wasm_exec_time_histogram_sample_period, 4000,
+           "sample period for V8.Jit[less]WasmExecutionPercentage, in msec")
+DEFINE_INT(wasm_exec_time_histogram_slow_threshold, 10000,
+           "V8.Jit[less]WasmExecutionPercentage threshold used to detect "
+           "Wasm-intensive workloads (0-100000)")
+DEFINE_INT(wasm_exec_time_slow_threshold_samples_count, 1,
+           "number of V8.Jit[less]WasmExecutionPercentage samples used to "
+           "calculate the threshold for the V8.Jit[less]WasmExecutionTooSlow "
+           "histogram")
+DEFINE_IMPLICATION(wasm_enable_exec_time_histograms, slow_histograms)
+DEFINE_NEG_IMPLICATION(wasm_enable_exec_time_histograms,
+                       turbo_inline_js_wasm_calls)
+DEFINE_NEG_IMPLICATION(wasm_enable_exec_time_histograms, wasm_generic_wrapper)
+#else   // V8_ENABLE_DRUMBRAKE
+DEFINE_BOOL_READONLY(wasm_jitless, false,
+                     "execute all Wasm code in the Wasm interpreter")
+DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
+#endif  // V8_ENABLE_DRUMBRAKE
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -604,12 +604,23 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
                                         int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm()) {
-    auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
+#if V8_ENABLE_DRUMBRAKE
+  if (info->IsWasmInterpretedFrame()) {
+    auto module = info->GetWasmInstance()->module();
     uint32_t func_index = info->GetWasmFunctionIndex();
     return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());
+  } else {
+#endif  // V8_ENABLE_DRUMBRAKE
+    if (info->IsWasm()) {
+      auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
+      uint32_t func_index = info->GetWasmFunctionIndex();
+      return wasm::GetSourcePosition(module, func_index, offset,
+                                     info->IsAsmJsAtNumberConversion());
+    }
+#if V8_ENABLE_DRUMBRAKE
   }
+#endif  // V8_ENABLE_DRUMBRAKE
   if (info->IsBuiltin()) {
     return 0;
   }

@@ -747,6 +747,97 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
   ScopeType type_;
 };
 
+#if V8_ENABLE_DRUMBRAKE
+class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
+ public:
+  explicit DebugWasmInterpreterScopeIterator(WasmInterpreterEntryFrame* frame)
+      : frame_(frame), type_(debug::ScopeIterator::ScopeTypeModule) {
+    // TODO(paolosev@microsoft.com) -  Enable local scopes and expression stack
+    // scopes.
+  }
+
+  bool Done() override { return type_ == ScopeTypeWith; }
+
+  void Advance() override {
+    DCHECK(!Done());
+    switch (type_) {
+      case ScopeTypeModule:
+        // We use ScopeTypeWith type as marker for done.
+        type_ = debug::ScopeIterator::ScopeTypeWith;
+        break;
+      case ScopeTypeWasmExpressionStack:
+      case ScopeTypeLocal:
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  ScopeType GetType() override { return type_; }
+
+  v8::Local<v8::Object> GetObject() override {
+    Isolate* isolate = frame_->isolate();
+    switch (type_) {
+      case debug::ScopeIterator::ScopeTypeModule: {
+        Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
+        Handle<JSObject> object =
+            isolate->factory()->NewSlowJSObjectWithNullProto();
+        JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
+        Handle<JSObject> module_object(instance->module_object(), isolate);
+        JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
+        if (FunctionsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "functions",
+              GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (GlobalsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "globals",
+              GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (MemoriesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "memories",
+              GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (TablesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "tables",
+              GetOrCreateInstanceProxy<TablesProxy>(isolate, instance), FROZEN);
+        }
+        return Utils::ToLocal(object);
+      }
+      case debug::ScopeIterator::ScopeTypeLocal:
+      case debug::ScopeIterator::ScopeTypeWasmExpressionStack:
+      default:
+        UNREACHABLE();
+    }
+  }
+  v8::Local<v8::Value> GetFunctionDebugName() override {
+    return Utils::ToLocal(frame_->isolate()->factory()->empty_string());
+  }
+
+  int GetScriptId() override { return -1; }
+
+  bool HasLocationInfo() override { return false; }
+
+  debug::Location GetStartLocation() override { return {}; }
+
+  debug::Location GetEndLocation() override { return {}; }
+
+  bool SetVariableValue(v8::Local<v8::String> name,
+                        v8::Local<v8::Value> value) override {
+    return false;
+  }
+
+ private:
+  WasmInterpreterEntryFrame* const frame_;
+  ScopeType type_;
+};
+#endif  // V8_ENABLE_DRUMBRAKE
+
 Handle<String> WasmSimd128ToString(Isolate* isolate, Simd128 s128) {
   // We use the canonical format as described in:
   // https://github.com/WebAssembly/simd/blob/master/proposals/simd/TextSIMD.md
@@ -1045,6 +1136,13 @@ Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame) {
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
 }
+
+#if V8_ENABLE_DRUMBRAKE
+std::unique_ptr<debug::ScopeIterator> GetWasmInterpreterScopeIterator(
+    WasmInterpreterEntryFrame* frame) {
+  return std::make_unique<DebugWasmInterpreterScopeIterator>(frame);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 Handle<String> GetWasmFunctionDebugName(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,

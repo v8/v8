@@ -166,6 +166,11 @@ declare_args() {
   # Location of zlib.
   v8_zlib_path = "//third_party/zlib"
 
+  # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
+  v8_enable_pointer_compression = ""
+  v8_enable_pointer_compression_shared_cage = ""
+  v8_enable_31bit_smis_on_64bit_arch = false
+
   # Change code emission and runtime features to be CET shadow-stack compliant
   # (incomplete and experimental).
   v8_enable_cet_shadow_stack = false
@@ -208,6 +213,18 @@ if (v8_enable_webassembly == "") {
 }
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
+
+if (v8_enable_pointer_compression == "") {
+  v8_enable_pointer_compression =
+      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+}
+
+# The Wasm interpreter is currently supported only on arm64 and x64, on
+# Windows, Linux and MacOS.
+is_drumbrake_supported =
+    v8_enable_webassembly && v8_enable_pointer_compression &&
+    (v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
+    (target_os == "win" || target_os == "linux" || target_os == "mac")
 
 # Turbofan is enabled by default, except in lite mode.
 if (v8_enable_turbofan == "") {

@@ -301,8 +301,14 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(isolate_, trusted_instance_data_,
                                  function.func_index);
+#if !V8_ENABLE_DRUMBRAKE
       trusted_instance_data_->dispatch_table(table_index)
           ->Set(i, *entry.ref(), entry.call_target(), sig_id);
+#else   // !V8_ENABLE_DRUMBRAKE
+      trusted_instance_data_->dispatch_table(table_index)
+          ->Set(i, *entry.ref(), entry.call_target(), sig_id,
+                function.func_index);
+#endif  // !V8_ENABLE_DRUMBRAKE
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }
@@ -528,6 +534,8 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
     }
     env.module->set_function_validated(function_->func_index);
   }
+
+  if (v8_flags.wasm_jitless) return;
 
   base::Optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==

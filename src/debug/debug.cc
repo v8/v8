@@ -1485,6 +1485,11 @@ void Debug::PrepareStep(StepAction step_action) {
     clear_suspended_generator();
 #if V8_ENABLE_WEBASSEMBLY
   } else if (frame->is_wasm() && step_action != StepOut) {
+#if V8_ENABLE_DRUMBRAKE
+    // TODO(paolosev@microsoft.com) - If we are running with the interpreter, we
+    // cannot step.
+    if (frame->is_wasm_interpreter_entry()) return;
+#endif  // V8_ENABLE_DRUMBRAKE
     // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
     auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
@@ -1549,6 +1554,11 @@ void Debug::PrepareStep(StepAction step_action) {
       bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
 #if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_DRUMBRAKE
+        // TODO(paolosev@microsoft.com): Implement stepping out from JS to wasm
+        // interpreter.
+        if (frame->is_wasm_interpreter_entry()) continue;
+#endif  // V8_ENABLE_DRUMBRAKE
         if (frames_it.frame()->is_wasm()) {
           if (in_current_frame) {
             in_current_frame = false;

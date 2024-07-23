@@ -113,6 +113,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 
   switch (tier_) {
     case ExecutionTier::kNone:
+#if V8_ENABLE_DRUMBRAKE
+    case ExecutionTier::kInterpreter:
+#endif  // V8_ENABLE_DRUMBRAKE
       UNREACHABLE();
 
     case ExecutionTier::kLiftoff: {
@@ -215,19 +218,23 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     : isolate_(isolate),
       sig_(sig),
       canonical_sig_index_(canonical_sig_index),
-      job_(compiler::NewJSToWasmCompilationJob(isolate, sig, module,
-                                               enabled_features)) {
-  OptimizedCompilationInfo* info =
-      v8_flags.turboshaft_wasm_wrappers
-          ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
-                job_.get())
-                ->compilation_info()
-          : static_cast<TurbofanCompilationJob*>(job_.get())
-                ->compilation_info();
-  if (info->trace_turbo_graph()) {
-    // Make sure that code tracer is initialized on the main thread if tracing
-    // is enabled.
-    isolate->GetCodeTracer();
+      job_(v8_flags.wasm_jitless
+               ? nullptr
+               : compiler::NewJSToWasmCompilationJob(isolate, sig, module,
+                                                     enabled_features)) {
+  if (!v8_flags.wasm_jitless) {
+    OptimizedCompilationInfo* info =
+        v8_flags.turboshaft_wasm_wrappers
+            ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
+                  job_.get())
+                  ->compilation_info()
+            : static_cast<TurbofanCompilationJob*>(job_.get())
+                  ->compilation_info();
+    if (info->trace_turbo_graph()) {
+      // Make sure that code tracer is initialized on the main thread if tracing
+      // is enabled.
+      isolate->GetCodeTracer();
+    }
   }
 }
 
@@ -236,11 +243,20 @@ JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 void JSToWasmWrapperCompilationUnit::Execute() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileJSToWasmWrapper");
-  CompilationJob::Status status = job_->ExecuteJob(nullptr);
-  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  if (!v8_flags.wasm_jitless) {
+    CompilationJob::Status status = job_->ExecuteJob(nullptr);
+    CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  }
 }
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    return isolate_->builtins()->code_handle(
+        Builtin::kGenericJSToWasmInterpreterWrapper);
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   OptimizedCompilationInfo* info =

@@ -32,6 +32,11 @@
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
+#if V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/wasm-interpreter-inl.h"
+#include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+#endif  // V8_ENABLE_DRUMBRAKE
+
 // Needs to be last so macros do not get undefined.
 #include "src/objects/object-macros.h"
 
@@ -265,6 +270,15 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
               trusted_instance_data->dispatch_table(table_index)->length());
     WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
         isolate, trusted_instance_data, table_index, new_size);
+
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_jitless &&
+        trusted_instance_data->has_interpreter_object()) {
+      wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
+          isolate, handle(trusted_instance_data->instance_object(), isolate),
+          table_index);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
   }
 
   for (uint32_t entry = old_size; entry < new_size; ++entry) {
@@ -310,7 +324,12 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
     SBXCHECK_BOUNDS(func_index, module->functions.size());
     auto* wasm_function = module->functions.data() + func_index;
     UpdateDispatchTables(isolate, table, entry_index, wasm_function,
-                         target_instance_data);
+                         target_instance_data
+#if V8_ENABLE_DRUMBRAKE
+                         ,
+                         func_index
+#endif  // V8_ENABLE_DRUMBRAKE
+    );
   } else if (WasmJSFunction::IsWasmJSFunction(*external)) {
     UpdateDispatchTables(isolate, table, entry_index,
                          Cast<WasmJSFunction>(external));
@@ -473,7 +492,12 @@ bool FunctionSigMatchesTable(uint32_t canonical_sig_id,
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
     const wasm::WasmFunction* func,
-    DirectHandle<WasmTrustedInstanceData> target_instance_data) {
+    DirectHandle<WasmTrustedInstanceData> target_instance_data
+#if V8_ENABLE_DRUMBRAKE
+    ,
+    int target_func_index
+#endif  // V8_ENABLE_DRUMBRAKE
+) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
   DirectHandle<FixedArray> uses(table->uses(), isolate);
@@ -491,6 +515,15 @@ void WasmTableObject::UpdateDispatchTables(
           // For wasm functions, just pass the target instance data.
           : target_instance_data;
   Address call_target = target_instance_data->GetCallTarget(func->func_index);
+
+#if V8_ENABLE_DRUMBRAKE
+  if (target_func_index <
+      static_cast<int>(
+          target_instance_data->module()->num_imported_functions)) {
+    target_func_index = target_instance_data->imported_function_indices()->get(
+        target_func_index);
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 
   const WasmModule* target_module = target_instance_data->module();
   uint32_t canonical_sig_id =
@@ -520,10 +553,22 @@ void WasmTableObject::UpdateDispatchTables(
     Tagged<WasmTrustedInstanceData> target_instance_data =
         is_shared ? non_shared_instance_data->shared_part()
                   : non_shared_instance_data;
+#if !V8_ENABLE_DRUMBRAKE
     SBXCHECK(FunctionSigMatchesTable(
         canonical_sig_id, target_instance_data->module(), table_index));
     target_instance_data->dispatch_table(table_index)
         ->Set(entry_index, *call_ref, call_target, canonical_sig_id);
+#else   // !V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_jitless &&
+        instance_object->trusted_data(isolate)->has_interpreter_object()) {
+      Handle<WasmInstanceObject> instance_handle(*instance_object, isolate);
+      wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
+          isolate, instance_handle, table_index);
+    }
+    target_instance_data->dispatch_table(table_index)
+        ->Set(entry_index, *call_ref, call_target, canonical_sig_id,
+              target_func_index);
+#endif  // !V8_ENABLE_DRUMBRAKE
   }
 }
 
@@ -590,7 +635,12 @@ void WasmTableObject::UpdateDispatchTables(
         capi_function->shared()->wasm_capi_function_data()->internal()->ref();
     Address call_target = wasm_code->instruction_start();
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, ref, call_target, canonical_type_index);
+        ->Set(entry_index, ref, call_target, canonical_type_index
+#if V8_ENABLE_DRUMBRAKE
+              ,
+              WasmDispatchTable::kInvalidFunctionIndex
+#endif  // V8_ENABLE_DRUMBRAKE
+        );
   }
 }
 
@@ -719,6 +769,17 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   trusted_instance_data->SetRawMemory(
       memory_index, reinterpret_cast<uint8_t*>(buffer->backing_store()),
       byte_length);
+
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless &&
+      trusted_instance_data->has_interpreter_object()) {
+    AllowHeapAllocation allow_heap;
+    Isolate* isolate = trusted_instance_data->instance_object()->GetIsolate();
+    HandleScope scope(isolate);
+    wasm::WasmInterpreterRuntime::UpdateMemoryAddress(
+        handle(trusted_instance_data->instance_object(), isolate));
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 }
 
 }  // namespace
@@ -1047,8 +1108,15 @@ FunctionTargetAndRef::FunctionTargetAndRef(
                       target_instance_data->dispatch_table_for_imports()->ref(
                           target_func_index)),
                   isolate);
+#if V8_ENABLE_DRUMBRAKE
+    target_func_index_ = target_instance_data->imported_function_indices()->get(
+        target_func_index);
+#endif  // V8_ENABLE_DRUMBRAKE
   } else {
     // The function in the target instance was not imported.
+#if V8_ENABLE_DRUMBRAKE
+    target_func_index_ = target_func_index;
+#endif  // V8_ENABLE_DRUMBRAKE
   }
   call_target_ = target_instance_data->GetCallTarget(target_func_index);
 }
@@ -1078,6 +1146,9 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
 
   instance_data_->dispatch_table_for_imports()->SetForImport(index_, *ref,
                                                              wrapper_entry);
+#if V8_ENABLE_DRUMBRAKE
+  instance_data_->imported_function_indices()->set(index_, -1);
+#endif  // V8_ENABLE_DRUMBRAKE
 }
 
 void ImportedFunctionEntry::SetWasmToJs(
@@ -1087,8 +1158,10 @@ void ImportedFunctionEntry::SetWasmToJs(
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
             instance_data_->ptr(), index_, callable->ptr(),
-            wasm_to_js_wrapper->instructions().begin());
-  DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
+            wasm_to_js_wrapper ? nullptr
+                               : wasm_to_js_wrapper->instructions().begin());
+  DCHECK(v8_flags.wasm_jitless ||
+         wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
   DirectHandle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(
@@ -1101,11 +1174,22 @@ void ImportedFunctionEntry::SetWasmToJs(
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   dispatch_table->SetForImport(index_, *ref,
-                               wasm_to_js_wrapper->instruction_start());
+                               v8_flags.wasm_jitless
+                                   ? Address()
+                                   : wasm_to_js_wrapper->instruction_start());
+
+#if V8_ENABLE_DRUMBRAKE
+  instance_data_->imported_function_indices()->set(index_, -1);
+#endif  // V8_ENABLE_DRUMBRAKE
 }
 
 void ImportedFunctionEntry::SetWasmToWasm(
-    Tagged<WasmTrustedInstanceData> target_instance_data, Address call_target) {
+    Tagged<WasmTrustedInstanceData> target_instance_data, Address call_target
+#if V8_ENABLE_DRUMBRAKE
+    ,
+    int exported_function_index
+#endif  // V8_ENABLE_DRUMBRAKE
+) {
   TRACE_IFT("Import Wasm 0x%" PRIxPTR "[%d] = {instance_data=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
             instance_data_->ptr(), index_, target_instance_data.ptr(),
@@ -1114,6 +1198,11 @@ void ImportedFunctionEntry::SetWasmToWasm(
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   dispatch_table->SetForImport(index_, target_instance_data, call_target);
+
+#if V8_ENABLE_DRUMBRAKE
+  instance_data_->imported_function_indices()->set(index_,
+                                                   exported_function_index);
+#endif  // V8_ENABLE_DRUMBRAKE
 }
 
 // Returns an empty Tagged<Object>() if no callable is available, a JSReceiver
@@ -1141,10 +1230,17 @@ void ImportedFunctionEntry::set_target(Address new_target) {
                                                                  new_target);
 }
 
+#if V8_ENABLE_DRUMBRAKE
+int ImportedFunctionEntry::function_index_in_called_module() {
+  return instance_data_->imported_function_indices()->get(index_);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 // static
-constexpr std::array<uint16_t, 16> WasmTrustedInstanceData::kTaggedFieldOffsets;
+constexpr std::array<uint16_t, WasmTrustedInstanceData::kTaggedFieldsCount>
+    WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, 16>
+constexpr std::array<const char*, WasmTrustedInstanceData::kTaggedFieldsCount>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
 constexpr std::array<uint16_t, 6>
@@ -1190,6 +1286,32 @@ void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
   }
 }
 
+#if V8_ENABLE_DRUMBRAKE
+Handle<Tuple2> WasmTrustedInstanceData::GetOrCreateInterpreterObject(
+    Handle<WasmInstanceObject> instance) {
+  DCHECK(v8_flags.wasm_jitless);
+  Isolate* isolate = instance->GetIsolate();
+  Handle<WasmTrustedInstanceData> trusted_data =
+      handle(instance->trusted_data(isolate), isolate);
+  if (trusted_data->has_interpreter_object()) {
+    return handle(trusted_data->interpreter_object(), isolate);
+  }
+  Handle<Tuple2> new_interpreter = WasmInterpreterObject::New(instance);
+  DCHECK(trusted_data->has_interpreter_object());
+  return new_interpreter;
+}
+
+Handle<Tuple2> WasmTrustedInstanceData::GetInterpreterObject(
+    Handle<WasmInstanceObject> instance) {
+  DCHECK(v8_flags.wasm_jitless);
+  Isolate* isolate = instance->GetIsolate();
+  Handle<WasmTrustedInstanceData> trusted_data =
+      handle(instance->trusted_data(isolate), isolate);
+  CHECK(trusted_data->has_interpreter_object());
+  return handle(trusted_data->interpreter_object(), isolate);
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     bool shared) {
@@ -1228,6 +1350,11 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       FixedAddressArray::New(isolate, num_data_segments);
   DirectHandle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate, num_data_segments);
+
+#if V8_ENABLE_DRUMBRAKE
+  Handle<FixedInt32Array> imported_function_indices =
+      FixedInt32Array::New(isolate, num_imported_functions);
+#endif  // V8_ENABLE_DRUMBRAKE
 
   static_assert(wasm::kV8MaxWasmMemories < kMaxInt / 2);
   int num_memories = static_cast<int>(module->memories.size());
@@ -1284,6 +1411,9 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_old_allocation_top_address(
         isolate->heap()->OldSpaceAllocationTopAddress());
     trusted_data->set_globals_start(empty_backing_store_buffer);
+#if V8_ENABLE_DRUMBRAKE
+    trusted_data->set_imported_function_indices(*imported_function_indices);
+#endif  // V8_ENABLE_DRUMBRAKE
     trusted_data->set_native_context(*isolate->native_context());
     trusted_data->set_jump_table_start(native_module->jump_table_start());
     trusted_data->set_hook_on_function_call_address(
@@ -1375,8 +1505,10 @@ Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);
   }
-  return jump_table_start() +
-         JumpTableOffset(native_module->module(), func_index);
+  return v8_flags.wasm_jitless
+             ? 0
+             : jump_table_start() +
+                   JumpTableOffset(native_module->module(), func_index);
 }
 
 // static
@@ -1616,6 +1748,11 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   if (entry.IsStrongOrWeak() && IsCodeWrapper(entry.GetHeapObject())) {
     wrapper_code = direct_handle(
         Cast<CodeWrapper>(entry.GetHeapObject())->code(isolate), isolate);
+#if V8_ENABLE_DRUMBRAKE
+  } else if (v8_flags.wasm_jitless) {
+    wrapper_code = isolate->builtins()->code_handle(
+        Builtin::kGenericJSToWasmInterpreterWrapper);
+#endif  // V8_ENABLE_DRUMBRAKE
   } else if (CanUseGenericJsToWasmWrapper(module, function.sig)) {
     wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   } else {
@@ -1784,8 +1921,14 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
               isolate, module->signature(sig_id)));
 
   WasmApiFunctionRef::SetIndexInTableAsCallOrigin(ref, entry_index);
+#if !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
       ->Set(entry_index, *ref, call_target, canonical_sig_index);
+#else   // !V8_ENABLE_DRUMBRAKE
+  trusted_instance_data->dispatch_table(table_index)
+      ->Set(entry_index, *ref, call_target, canonical_sig_index,
+            WasmDispatchTable::kInvalidFunctionIndex);
+#endif  // !V8_ENABLE_DRUMBRAKE
 }
 
 uint8_t* WasmTrustedInstanceData::GetGlobalStorage(
@@ -1946,7 +2089,12 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
 }
 
 void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
-                            int sig_id) {
+                            int sig_id
+#if V8_ENABLE_DRUMBRAKE
+                            ,
+                            uint32_t function_index
+#endif  // V8_ENABLE_DRUMBRAKE
+) {
   if (ref == Smi::zero()) {
     DCHECK_EQ(kNullAddress, call_target);
     Clear(index);
@@ -1955,12 +2103,21 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
 
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
-  DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
+  if (!v8_flags.wasm_jitless) {
+    DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
+  }
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kRefBias, Cast<TrustedObject>(ref));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kRefBias, ref,
                             UPDATE_WRITE_BARRIER);
-  WriteField<Address>(offset + kTargetBias, call_target);
+  if (v8_flags.wasm_jitless) {
+#if V8_ENABLE_DRUMBRAKE
+    // Ignore call_target, not used in jitless mode.
+    WriteField<int>(offset + kFunctionIndexBias, function_index);
+#endif  // V8_ENABLE_DRUMBRAKE
+  } else {
+    WriteField<Address>(offset + kTargetBias, call_target);
+  }
   WriteField<int>(offset + kSigBias, sig_id);
 }
 
@@ -1968,12 +2125,15 @@ void WasmDispatchTable::SetForImport(int index, Tagged<TrustedObject> ref,
                                      Address call_target) {
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
-  DCHECK_NE(kNullAddress, call_target);
+  DCHECK(kNullAddress != call_target || v8_flags.wasm_jitless);
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kRefBias, Cast<TrustedObject>(ref));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kRefBias, ref,
                             UPDATE_WRITE_BARRIER);
-  WriteField<Address>(offset + kTargetBias, call_target);
+  if (!v8_flags.wasm_jitless) {
+    // Ignore call_target, not used in jitless mode.
+    WriteField<Address>(offset + kTargetBias, call_target);
+  }
   // Leave the signature untouched, it is unused for imports.
   DCHECK_EQ(-1, ReadField<int>(offset + kSigBias));
 }
@@ -1988,8 +2148,10 @@ void WasmDispatchTable::Clear(int index) {
 
 void WasmDispatchTable::SetTarget(int index, Address call_target) {
   SBXCHECK_BOUNDS(index, length());
-  const int offset = OffsetOf(index) + kTargetBias;
-  WriteField<Address>(offset, call_target);
+  if (!v8_flags.wasm_jitless) {
+    const int offset = OffsetOf(index) + kTargetBias;
+    WriteField<Address>(offset, call_target);
+  }
 }
 
 // static
@@ -2027,8 +2189,12 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
   for (int i = 0; i < old_length; ++i) {
-    new_table->Set(i, old_table->ref(i), old_table->target(i),
-                   old_table->sig(i));
+    new_table->Set(i, old_table->ref(i), old_table->target(i), old_table->sig(i)
+#if V8_ENABLE_DRUMBRAKE
+                                                                   ,
+                   old_table->function_index(i)
+#endif  // V8_ENABLE_DRUMBRAKE
+    );
   }
   return new_table;
 }
@@ -2262,6 +2428,9 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
   Tagged<JSFunction> js_function = Cast<JSFunction>(object);
   Tagged<Code> code = js_function->code(GetIsolateForSandbox(js_function));
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
+#if V8_ENABLE_DRUMBRAKE
+      code->builtin_id() != Builtin::kGenericJSToWasmInterpreterWrapper &&
+#endif  // V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
       code->builtin_id() != Builtin::kWasmPromising &&
       code->builtin_id() != Builtin::kWasmPromisingWithSuspender) {
@@ -2319,6 +2488,10 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
        (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+        export_wrapper->builtin_id() ==
+            Builtin::kGenericJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
         export_wrapper->builtin_id() == Builtin::kWasmPromising ||
         export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
   int func_index = internal_function->function_index();
@@ -2338,6 +2511,20 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance_data, func_ref, internal_function, sig,
           canonical_type_index, v8_flags.wasm_wrapper_tiering_budget, promise);
+
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    uint32_t aligned_size =
+        wasm::WasmBytecode::JSToWasmWrapperPackedArraySize(sig);
+    bool hasRefArgs = wasm::WasmBytecode::RefArgsCount(sig) > 0;
+    bool hasRefRets = wasm::WasmBytecode::RefRetsCount(sig) > 0;
+    function_data->set_packed_args_size(
+        wasm::WasmInterpreterRuntime::PackedArgsSizeField::encode(
+            aligned_size) |
+        wasm::WasmInterpreterRuntime::HasRefArgsField::encode(hasRefArgs) |
+        wasm::WasmInterpreterRuntime::HasRefRetsField::encode(hasRefRets));
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = is_asmjs_module(module);
@@ -2506,23 +2693,33 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     }
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
     // signature instead of compiling a new one for every instantiation.
-    if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
-      internal_function->set_call_target(
-          Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_jitless) {
+      function_data->func_ref()->internal(isolate)->set_call_target(
+          Builtins::EntryOf(Builtin::kGenericWasmToJSInterpreterWrapper,
+                            isolate));
     } else {
-      // The Code object can be moved during compaction, so do not store a
-      // call_target directly but load the target from the code object at
-      // runtime.
-      DirectHandle<Code> wrapper_code =
-          compiler::CompileWasmToJSWrapper(isolate, nullptr, sig, kind,
-                                           expected_arity, suspend)
-              .ToHandleChecked();
-      DirectHandle<WasmApiFunctionRef> api_function_ref{
-          Cast<WasmApiFunctionRef>(internal_function->ref()), isolate};
-      api_function_ref->set_code(*wrapper_code);
-      internal_function->set_call_target(
-          Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+#endif  // V8_ENABLE_DRUMBRAKE
+      if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
+        internal_function->set_call_target(
+            Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+      } else {
+        // The Code object can be moved during compaction, so do not store a
+        // call_target directly but load the target from the code object at
+        // runtime.
+        DirectHandle<Code> wrapper_code =
+            compiler::CompileWasmToJSWrapper(isolate, nullptr, sig, kind,
+                                             expected_arity, suspend)
+                .ToHandleChecked();
+        DirectHandle<WasmApiFunctionRef> api_function_ref{
+            Cast<WasmApiFunctionRef>(internal_function->ref()), isolate};
+        api_function_ref->set_code(*wrapper_code);
+        internal_function->set_call_target(Builtins::EntryOf(
+            Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+      }
+#if V8_ENABLE_DRUMBRAKE
     }
+#endif  // V8_ENABLE_DRUMBRAKE
   }
 
   Handle<String> name = factory->Function_string();

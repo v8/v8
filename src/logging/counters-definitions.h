@@ -114,6 +114,18 @@ namespace internal {
   HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)               \
   HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)
 
+#if V8_ENABLE_DRUMBRAKE
+#define HISTOGRAM_RANGE_LIST_SLOW(HR)                                         \
+  /* Percentage (*1000) of time spent running Wasm jitted code. */            \
+  HR(wasm_jit_execution_ratio, V8.JitWasmExecutionPercentage, 0, 100000, 101) \
+  HR(wasm_jit_execution_too_slow, V8.JitWasmExecutionTooSlow, 0, 100000, 101) \
+  /* Percentage (*1000) of time spent running in the Wasm interpreter. */     \
+  HR(wasm_jitless_execution_ratio, V8.JitlessWasmExecutionPercentage, 0,      \
+     100000, 101)                                                             \
+  HR(wasm_jitless_execution_too_slow, V8.JitlessWasmExecutionTooSlow, 0,      \
+     100000, 101)
+#endif  // V8_ENABLE_DRUMBRAKE
+
 // Like TIMED_HISTOGRAM_LIST, but allows the use of NestedTimedHistogramScope.
 // HT(name, caption, max, unit)
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \

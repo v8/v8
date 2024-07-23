@@ -141,11 +141,6 @@ declare_args() {
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
-  # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
-  v8_enable_pointer_compression = ""
-  v8_enable_pointer_compression_shared_cage = ""
-  v8_enable_31bit_smis_on_64bit_arch = false
-
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
 
@@ -391,6 +386,19 @@ declare_args() {
   # This is only used by nodejs.
   v8_scriptormodule_legacy_lifetime = false
 
+  # WebAssembly interpreter (DrumBrake)  build flag.
+  v8_enable_drumbrake = false
+
+  # Enable Wasm interpreter tracing.
+  v8_enable_drumbrake_tracing = false
+
+  # On non-Desktop platforms, enable explicit bounds checks in the Wasm
+  # interpreter, where the bounds checking is done in the instruction handler,
+  # not using an unhandled exception filter (which also doesn't work with Win-ASAN).
+  v8_drumbrake_bounds_checks =
+      (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
+      !(is_win || is_linux || is_mac) || v8_current_cpu != "x64"
+
   # Enables pointer compression for 8GB heaps.
   # Sets -DV8_COMPRESS_POINTERS_8GB.
   v8_enable_pointer_compression_8gb = ""
@@ -477,9 +485,11 @@ if (v8_enable_debug_code == "") {
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
-if (v8_enable_pointer_compression == "") {
-  v8_enable_pointer_compression =
-      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+
+if (v8_enable_drumbrake && v8_enable_webassembly) {
+  assert(
+      is_drumbrake_supported,
+      "DrumBrake is only available on x64, arm64 on Windows, Linux and MacOS.")
 }
 
 # Toggle pointer compression for correctness fuzzing when building the
@@ -1257,6 +1267,15 @@ config("features") {
   }
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
+  }
+  if (v8_enable_drumbrake) {
+    defines += [ "V8_ENABLE_DRUMBRAKE" ]
+    if (v8_enable_drumbrake_tracing) {
+      defines += [ "V8_ENABLE_DRUMBRAKE_TRACING" ]
+    }
+    if (v8_drumbrake_bounds_checks) {
+      defines += [ "V8_DRUMBRAKE_BOUNDS_CHECKS" ]
+    }
   }
   if (v8_enable_memory_corruption_api) {
     defines += [ "V8_ENABLE_MEMORY_CORRUPTION_API" ]
@@ -2728,6 +2747,7 @@ action("v8_dump_build_config") {
     "has_maglev=$v8_enable_maglev",
     "has_turbofan=$v8_enable_turbofan",
     "has_webassembly=$v8_enable_webassembly",
+    "has_wasm_interpreter=$v8_enable_drumbrake",
     "i18n=$v8_enable_i18n_support",
     "is_android=$is_android",
     "is_ios=$is_ios",
@@ -2960,6 +2980,15 @@ v8_source_set("v8_initializers") {
       "src/builtins/builtins-wasm-gen.cc",
       "src/builtins/builtins-wasm-gen.h",
     ]
+
+    if (v8_enable_drumbrake) {
+      if (v8_current_cpu == "x64") {
+        sources += [ "src/wasm/interpreter/x64/interpreter-builtins-x64.cc" ]
+      } else if (v8_current_cpu == "arm64") {
+        sources +=
+            [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
+      }
+    }
   }
 
   if (v8_current_cpu == "x86") {
@@ -4395,6 +4424,18 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
     ]
+
+    if (v8_enable_drumbrake) {
+      sources += [
+        "src/wasm/interpreter/instruction-handlers.h",
+        "src/wasm/interpreter/wasm-interpreter-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-objects-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-objects.h",
+        "src/wasm/interpreter/wasm-interpreter-runtime-inl.h",
+        "src/wasm/interpreter/wasm-interpreter-runtime.h",
+        "src/wasm/interpreter/wasm-interpreter.h",
+      ]
+    }
   }
 
   if (v8_enable_wasm_simd256_revec) {
@@ -5859,6 +5900,15 @@ v8_source_set("v8_base_without_compiler") {
       sources += [
         ### gcmole(all) ###
         "src/wasm/fuzzing/random-module-generation.cc",
+      ]
+    }
+
+    if (v8_enable_drumbrake) {
+      sources += [
+        "src/wasm/interpreter/wasm-interpreter-objects.cc",
+        "src/wasm/interpreter/wasm-interpreter-runtime.cc",
+        "src/wasm/interpreter/wasm-interpreter-simd.cc",
+        "src/wasm/interpreter/wasm-interpreter.cc",
       ]
     }
   }

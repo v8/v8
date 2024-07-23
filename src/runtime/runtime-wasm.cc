@@ -29,6 +29,10 @@
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/wasm-interpreter.h"
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_DRUMBRAKE
+
 namespace v8 {
 namespace internal {
 
@@ -105,12 +109,26 @@ class V8_NODISCARD ClearThreadInWasmScope {
     if (is_thread_in_wasm_) {
       trap_handler::ClearThreadInWasm();
     }
+
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      isolate->wasm_execution_timer()->Stop();
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
   }
   ~ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
                    !trap_handler::IsThreadInWasm());
     if (!isolate_->has_exception() && is_thread_in_wasm_) {
       trap_handler::SetThreadInWasm();
+
+#if V8_ENABLE_DRUMBRAKE
+      if (v8_flags.wasm_enable_exec_time_histograms &&
+          v8_flags.slow_histograms && !v8_flags.wasm_jitless) {
+        isolate_->wasm_execution_timer()->Start();
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
     }
     // Otherwise we only want to set the flag if the exception is caught in
     // wasm. This is handled by the unwinder.
@@ -124,6 +142,14 @@ class V8_NODISCARD ClearThreadInWasmScope {
 Tagged<Object> ThrowWasmError(
     Isolate* isolate, MessageTemplate message,
     std::initializer_list<DirectHandle<Object>> args = {}) {
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) {
+    // Store the trap reason to be retrieved later when the interpreter will
+    // trap while detecting the thrown exception.
+    wasm::WasmInterpreterThread::SetRuntimeLastWasmError(isolate, message);
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+
   Handle<JSObject> error_obj =
       isolate->factory()->NewWasmRuntimeError(message, base::VectorOf(args));
   JSObject::AddProperty(isolate, error_obj,
@@ -292,6 +318,15 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
   // The caller may be wasm or JS. Only clear the thread_in_wasm flag if the
   // caller is wasm, and let the unwinder set it back depending on the handler.
   if (trap_handler::IsTrapHandlerEnabled() && trap_handler::IsThreadInWasm()) {
+#if V8_ENABLE_DRUMBRAKE
+    // Transitioning from Wasm To JS.
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      // Stop measuring the time spent running jitted Wasm.
+      isolate->wasm_execution_timer()->Stop();
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+
     trap_handler::ClearThreadInWasm();
   }
   HandleScope scope(isolate);
@@ -1969,6 +2004,32 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
                                   unibrow::Utf8Variant::kWtf8)
               .ToHandleChecked();
 }
+
+#ifdef V8_ENABLE_DRUMBRAKE
+RUNTIME_FUNCTION(Runtime_WasmTraceBeginExecution) {
+  DCHECK(v8_flags.slow_histograms && !v8_flags.wasm_jitless &&
+         v8_flags.wasm_enable_exec_time_histograms);
+  DCHECK_EQ(0, args.length());
+  HandleScope scope(isolate);
+
+  wasm::WasmExecutionTimer* timer = isolate->wasm_execution_timer();
+  timer->Start();
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTraceEndExecution) {
+  DCHECK(v8_flags.slow_histograms && !v8_flags.wasm_jitless &&
+         v8_flags.wasm_enable_exec_time_histograms);
+  DCHECK_EQ(0, args.length());
+  HandleScope scope(isolate);
+
+  wasm::WasmExecutionTimer* timer = isolate->wasm_execution_timer();
+  timer->Stop();
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#endif  // V8_ENABLE_DRUMBRAKE
 
 RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
   ClearThreadInWasmScope flag_scope(isolate);

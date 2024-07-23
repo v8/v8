@@ -541,6 +541,16 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
+['has_wasm_interpreter', {
+  # Skip tests that require Wasm experimental features not supported by the
+  # Wasm interpreter.
+
+  # --experimental-wasm-memory64
+  'test-run-wasm-memory64/*': [SKIP],
+
+ }],  # has_wasm_interpreter
+
+##############################################################################
 ['lite_mode or variant == jitless', {
 
   # Slow tests

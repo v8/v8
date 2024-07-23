@@ -7713,6 +7713,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return;
     }
 
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      Node* runtime_call = BuildCallToRuntimeWithContext(
+          Runtime::kWasmTraceBeginExecution, js_context, nullptr, 0);
+      SetControl(runtime_call);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+
     const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
 
     // Check whether the signature of the function allows for a fast
@@ -7746,6 +7755,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* jsval =
           BuildCallAndReturn(js_context, function_data, args, do_conversion,
                              frame_state, set_in_wasm_flag);
+
+#if V8_ENABLE_DRUMBRAKE
+      if (v8_flags.wasm_enable_exec_time_histograms &&
+          v8_flags.slow_histograms && !v8_flags.wasm_jitless) {
+        Node* runtime_call = BuildCallToRuntimeWithContext(
+            Runtime::kWasmTraceEndExecution, js_context, nullptr, 0);
+        SetControl(runtime_call);
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
+
       gasm_->Goto(&done, jsval);
       gasm_->Bind(&slow_path);
     }
@@ -7774,6 +7793,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* jsval =
         BuildCallAndReturn(js_context, function_data, args, do_conversion,
                            frame_state, set_in_wasm_flag);
+
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      Node* runtime_call = BuildCallToRuntimeWithContext(
+          Runtime::kWasmTraceEndExecution, js_context, nullptr, 0);
+      SetControl(runtime_call);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -7975,6 +8004,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return;
     }
 
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      Node* runtime_call = BuildCallToRuntimeWithContext(
+          Runtime::kWasmTraceEndExecution, native_context, nullptr, 0);
+      SetControl(runtime_call);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
+
     Node* callable_node = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));
@@ -8067,6 +8105,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // source position 0 encodes the call to the imported JS code.
     SetSourcePosition(call, 0);
     DCHECK_NOT_NULL(call);
+
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
+        !v8_flags.wasm_jitless) {
+      Node* runtime_call = BuildCallToRuntimeWithContext(
+          Runtime::kWasmTraceBeginExecution, native_context, nullptr, 0);
+      SetControl(runtime_call);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
 
     if (suspend == wasm::kSuspend) {
       Node* active_suspender =
@@ -8846,6 +8893,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          wasm::ImportCallKind kind,
                                          int expected_arity,
                                          wasm::Suspend suspend) {
+  DCHECK(!v8_flags.wasm_jitless);
+
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
   constexpr size_t kMaxNameLen = 128;
   constexpr size_t kNamePrefixLen = 11;
@@ -8920,6 +8969,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
 
 Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
                                const wasm::WasmModule* module) {
+  DCHECK(!v8_flags.wasm_jitless);
+
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
