@@ -83,6 +83,13 @@ extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
 extern runtime PropagateException(NoContext): JSAny;
 }
 
+extern operator '.wasm_exported_function_data' macro
+    LoadSharedFunctionInfoWasmExportedFunctionData(SharedFunctionInfo):
+        WasmExportedFunctionData;
+extern operator '.wasm_js_function_data' macro
+    LoadSharedFunctionInfoWasmJSFunctionData(SharedFunctionInfo):
+        WasmJSFunctionData;
+
 namespace unsafe {
 extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;

@@ -482,13 +482,7 @@ macro HandleF32Params(
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): never {
-  const functionData =
-      UnsafeCast<WasmExportedFunctionData>(target.shared_function_info.data);
-  // The SFI::data field is a trusted pointer but loaded using the
-  // wildcard/unknown type tag as it can reference trusted objects of different
-  // types. As such, here it is not guaranteed that the received object really
-  // is a WasmExportedFunctionData and so an explicit check is required.
-  sbxcheck(Is<WasmExportedFunctionData>(functionData));
+  const functionData = target.shared_function_info.wasm_exported_function_data;
 
   // Trigger a wrapper tier-up when this function got called often enough.
   const switchStack = promise != Promise::kNoPromise;

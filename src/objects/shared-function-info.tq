@@ -108,9 +108,6 @@ extern class SharedFunctionInfo extends HeapObject {
   padding: uint16;
 }
 
-extern operator '.data' macro LoadSharedFunctionInfoData(SharedFunctionInfo):
-    Object;
-
 // A wrapper around a SharedFunctionInfo in trusted space.
 // Can be useful in cases where a protected pointer reference to a
 // SharedFunctionInfo is required, for example because it is stored inside an

@@ -3537,6 +3537,47 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   return CAST(var_result.value());
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+TNode<WasmFunctionData>
+CodeStubAssembler::LoadSharedFunctionInfoWasmFunctionData(
+    TNode<SharedFunctionInfo> sfi) {
+#ifdef V8_ENABLE_SANDBOX
+  return CAST(LoadTrustedPointerFromObject(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
+      kWasmFunctionDataIndirectPointerTag));
+#else
+  return LoadObjectField<WasmFunctionData>(
+      sfi, SharedFunctionInfo::kFunctionDataOffset);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+TNode<WasmExportedFunctionData>
+CodeStubAssembler::LoadSharedFunctionInfoWasmExportedFunctionData(
+    TNode<SharedFunctionInfo> sfi) {
+  TNode<WasmFunctionData> function_data =
+      LoadSharedFunctionInfoWasmFunctionData(sfi);
+  // TODO(saelo): it would be nice if we could use LoadTrustedPointerFromObject
+  // with a kWasmExportedFunctionDataIndirectPointerTag to avoid the SBXCHECK,
+  // but for that our tagging scheme first needs to support type hierarchies.
+  CSA_SBXCHECK(
+      this, HasInstanceType(function_data, WASM_EXPORTED_FUNCTION_DATA_TYPE));
+  return CAST(function_data);
+}
+
+TNode<WasmJSFunctionData>
+CodeStubAssembler::LoadSharedFunctionInfoWasmJSFunctionData(
+    TNode<SharedFunctionInfo> sfi) {
+  TNode<WasmFunctionData> function_data =
+      LoadSharedFunctionInfoWasmFunctionData(sfi);
+  // TODO(saelo): it would be nice if we could use LoadTrustedPointerFromObject
+  // with a kWasmJSFunctionDataIndirectPointerTag to avoid the SBXCHECK, but
+  // for that our tagging scheme first needs to support type hierarchies.
+  CSA_SBXCHECK(this,
+               HasInstanceType(function_data, WASM_JS_FUNCTION_DATA_TYPE));
+  return CAST(function_data);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 TNode<Int32T> CodeStubAssembler::LoadBytecodeArrayParameterCount(
     TNode<BytecodeArray> bytecode_array) {
   return LoadObjectField<Uint16T>(bytecode_array,
