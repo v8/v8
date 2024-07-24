@@ -4012,7 +4012,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 
   LookupIterator it(isolate, receiver, name, receiver);
   // Skip past any access check on the receiver.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     DCHECK(it.HasAccess());
     it.Next();
   }

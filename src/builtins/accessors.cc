@@ -91,7 +91,7 @@ Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     CHECK(it.HasAccess());
     it.Next();
   }

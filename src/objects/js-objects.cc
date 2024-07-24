@@ -1831,7 +1831,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                                  PropertyDescriptor* desc) {
   Handle<InterceptorInfo> interceptor;
 
-  if (it->state() == LookupIterator::ACCESS_CHECK) {
+  while (it->state() == LookupIterator::ACCESS_CHECK) {
     if (it->HasAccess()) {
       it->Next();
     } else {
@@ -1841,6 +1841,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
         return Just(false);
       }
       CHECK(!interceptor.is_null());
+      break;
     }
   }
   if (it->state() == LookupIterator::INTERCEPTOR) {
@@ -4734,7 +4735,7 @@ MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
 
   it->UpdateProtector();
 
-  if (it->state() == LookupIterator::ACCESS_CHECK) {
+  while (it->state() == LookupIterator::ACCESS_CHECK) {
     if (!it->HasAccess()) {
       RETURN_ON_EXCEPTION(
           isolate, isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>()));
@@ -4769,7 +4770,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Duplicate ACCESS_CHECK outside of GetPropertyAttributes for the case that
   // the FailedAccessCheckCallbackFunction doesn't throw an exception.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
+  while (it.state() == LookupIterator::ACCESS_CHECK) {
     if (!it.HasAccess()) {
       RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(object));
       UNREACHABLE();
