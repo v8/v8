@@ -427,6 +427,10 @@ class GraphBuilder {
         case maglev::ValueRepresentation::kInt32:
           __ SetVariable(var, __ ConvertInt32ToNumber(V<Word32>::Cast(ts_idx)));
           break;
+        case maglev::ValueRepresentation::kUint32:
+          __ SetVariable(var,
+                         __ ConvertUint32ToNumber(V<Word32>::Cast(ts_idx)));
+          break;
         case maglev::ValueRepresentation::kFloat64:
           __ SetVariable(
               var,
@@ -440,7 +444,6 @@ class GraphBuilder {
                                         maglev::HoleyFloat64ToTagged::
                                             ConversionMode::kCanonicalizeSmi));
           break;
-        case maglev::ValueRepresentation::kUint32:
         case maglev::ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
