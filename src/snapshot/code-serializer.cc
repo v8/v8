@@ -402,8 +402,7 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate,
     SharedFunctionInfo::ScriptIterator iter(isolate, script);
     for (Tagged<SharedFunctionInfo> info = iter.Next(); !info.is_null();
          info = iter.Next()) {
-      if (info->cached_tiering_decision() != CachedTieringDecision::kPending &&
-          CanCompileWithBaseline(isolate, info)) {
+      if (info->sparkplug_compiled() && CanCompileWithBaseline(isolate, info)) {
         isolate->baseline_batch_compiler()->EnqueueSFI(info);
       }
     }

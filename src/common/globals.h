@@ -2369,31 +2369,24 @@ inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
 
 // State machine:
 // S(tate)0: kPending
-// S1: kEarlySparkplug,
-// S2: kEarlyMaglevPending,
-// S3: kEarlyMaglev
-// S4: kEarlyTurbofan
-// S5: kNormal
+// S1: kEarlyMaglev
+// S2: kEarlyTurbofan
+// S3: kNormal
 //
-// C(ondition)0: sparkplug compile
-// C1: maglev compile
-// C2: ic was stable early
-// C3: new closure
-// C4: turbofan compile
-// C5: ic change or deopt
+// C(ondition)0: maglev compile
+// C1: ic was stable early
+// C2: turbofan compile
+// C3: ic change or deopt
 //
-// S0 - C0 -> S1 - C1 - C2 -> S2 ------------- C4 -> S4 -|
-//                      |     | - C3 -> S3 -|            |
-//                      |     |          |               |
-//                      |--------------------------------|
-//                      |                |
-//                      |                C5
-//                      |                |
-//                      |-------------------> S5
+// S0 -- C0 -- C1 --> S1 -- C2 -- C3 --> S2 --|
+//             |      |                       |
+//             |      |-----------------------|
+//             |                 |
+//             |                 C3
+//             |                 |
+//             |-----------------------> S3
 enum class CachedTieringDecision : int32_t {
   kPending,
-  kEarlySparkplug,
-  kEarlyMaglevPending,
   kEarlyMaglev,
   kEarlyTurbofan,
   kNormal,

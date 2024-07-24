@@ -615,10 +615,8 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
       static_cast<int>(time_foreground.InMicroseconds()));
 
   if (v8_flags.profile_guided_optimization &&
-      (shared->cached_tiering_decision() ==
-           CachedTieringDecision::kEarlyMaglevPending ||
-       shared->cached_tiering_decision() ==
-           CachedTieringDecision::kEarlyMaglev)) {
+      shared->cached_tiering_decision() ==
+          CachedTieringDecision::kEarlyMaglev) {
     shared->set_cached_tiering_decision(CachedTieringDecision::kEarlyTurbofan);
   }
 }
@@ -4376,10 +4374,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                     Cast<AbstractCode>(code));
     job->RecordCompilationStats(isolate);
     if (v8_flags.profile_guided_optimization &&
-        shared->cached_tiering_decision() <
-            CachedTieringDecision::kEarlyMaglevPending) {
-      shared->set_cached_tiering_decision(
-          CachedTieringDecision::kEarlyMaglevPending);
+        shared->cached_tiering_decision() == CachedTieringDecision::kPending) {
+      shared->set_cached_tiering_decision(CachedTieringDecision::kEarlyMaglev);
     }
     CompilerTracer::TraceFinishMaglevCompile(
         isolate, function, job->is_osr(), job->prepare_in_ms(),
