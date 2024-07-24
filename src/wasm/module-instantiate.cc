@@ -1928,8 +1928,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
-      imported_entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
-                                 expected_sig);
+      imported_entry.SetGenericWasmToJs(isolate_, js_receiver,
+                                        resolved.suspend(), expected_sig);
       break;
     case ImportCallKind::kLinkError:
       thrower_->LinkError(
@@ -1979,10 +1979,10 @@ bool InstanceBuilder::ProcessImportedFunction(
             wasm_code->reloc_info().length());
       }
 
-      // We re-use the SetWasmToJs infrastructure because it passes the
+      // We re-use the SetCompiledWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
-      imported_entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend,
-                                 expected_sig);
+      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                         kNoSuspend, expected_sig);
       break;
     }
     case ImportCallKind::kWasmToJSFastApi: {
@@ -1991,8 +1991,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
           native_module, expected_sig, js_receiver);
-      imported_entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend,
-                                 expected_sig);
+      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                         kNoSuspend, expected_sig);
       break;
     }
     default: {
@@ -2000,8 +2000,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
         DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
                kind == ImportCallKind::kJSFunctionArityMismatch);
-        imported_entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
-                                   expected_sig);
+        imported_entry.SetGenericWasmToJs(isolate_, js_receiver,
+                                          resolved.suspend(), expected_sig);
         break;
       }
       int suspender_count = resolved.suspend() == kSuspendWithSuspender ? 1 : 0;
@@ -2024,8 +2024,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (v8_flags.wasm_jitless ||
           wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
-        imported_entry.SetWasmToJs(isolate_, js_receiver, wasm_code,
-                                   resolved.suspend(), expected_sig);
+        imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                           resolved.suspend(), expected_sig);
       } else {
         // Wasm math intrinsics are compiled as regular Wasm functions.
         DCHECK(kind >= ImportCallKind::kFirstMathIntrinsic &&

@@ -1121,10 +1121,9 @@ FunctionTargetAndRef::FunctionTargetAndRef(
   call_target_ = target_instance_data->GetCallTarget(target_func_index);
 }
 
-void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
-                                        DirectHandle<JSReceiver> callable,
-                                        wasm::Suspend suspend,
-                                        const wasm::FunctionSig* sig) {
+void ImportedFunctionEntry::SetGenericWasmToJs(
+    Isolate* isolate, DirectHandle<JSReceiver> callable, wasm::Suspend suspend,
+    const wasm::FunctionSig* sig) {
   Address wrapper_entry;
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
@@ -1151,7 +1150,7 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
 #endif  // V8_ENABLE_DRUMBRAKE
 }
 
-void ImportedFunctionEntry::SetWasmToJs(
+void ImportedFunctionEntry::SetCompiledWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
     const wasm::FunctionSig* sig) {
@@ -1653,11 +1652,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
 
   if (setup_new_ref_with_generic_wrapper) {
     auto wafr = Cast<WasmApiFunctionRef>(ref);
-    ref = isolate->factory()->NewWasmApiFunctionRef(
-        direct_handle(wafr->callable(), isolate),
-        static_cast<wasm::Suspend>(wafr->suspend()),
-        direct_handle(wafr->instance_data(), isolate),
-        direct_handle(wafr->sig(), isolate));
+    ref = isolate->factory()->NewWasmApiFunctionRef(wafr);
   }
 
   // TODO(14034): Create funcref RTTs lazily?

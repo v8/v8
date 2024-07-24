@@ -105,8 +105,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend(),
-                     sig);
+        .SetCompiledWasmToJs(isolate_, callable, import_wrapper,
+                             resolved.suspend(), sig);
   }
 }
 

@@ -115,14 +115,13 @@ class ImportedFunctionEntry {
   inline ImportedFunctionEntry(Handle<WasmTrustedInstanceData>, int index);
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
-  // parameter, since it must allocate a tuple.
-  void SetWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
-                   wasm::Suspend suspend, const wasm::FunctionSig* sig);
-  V8_EXPORT_PRIVATE void SetWasmToJs(Isolate*,
-                                     DirectHandle<JSReceiver> callable,
-                                     const wasm::WasmCode* wasm_to_js_wrapper,
-                                     wasm::Suspend suspend,
-                                     const wasm::FunctionSig* sig);
+  // parameter since it allocates a WasmApiFunctionRef.
+  void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
+                          wasm::Suspend suspend, const wasm::FunctionSig* sig);
+  V8_EXPORT_PRIVATE void SetCompiledWasmToJs(
+      Isolate*, DirectHandle<JSReceiver> callable,
+      const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
+      const wasm::FunctionSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
