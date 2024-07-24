@@ -33,10 +33,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   if (result.succeeded() && counters) {
-    // TODO(mliedtke): Add counter for deopt data size.
     counters->wasm_generated_code_size()->Increment(
         result.code_desc.instr_size);
     counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
+    counters->wasm_deopt_data_size()->Increment(
+        static_cast<int>(result.deopt_data.size()));
   }
 
   result.func_index = func_index_;
