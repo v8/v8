@@ -1023,6 +1023,11 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   auto function = Cast<JSFunction>(function_object);
   Tagged<SharedFunctionInfo> sfi = function->shared(isolate);
 
+  // Don't try to flush functions that cannot be flushed.
+  if (!sfi->CanDiscardCompiled()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
   // Don't flush functions that are active on the stack.
   for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
     std::vector<Tagged<SharedFunctionInfo>> infos;
