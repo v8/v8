@@ -2660,6 +2660,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                     Value returns[]) {
     if (v8_flags.wasm_inlining_call_indirect) {
       feedback_slot_++;
+      // In case of being unreachable, skip it because it tries to accesss nodes
+      // which might be non-existent (OpIndex::Invalid()) in unreachable code.
+      if (__ generating_unreachable_operations()) return;
 
       if (should_inline(decoder, feedback_slot_,
                         std::numeric_limits<int>::max())) {
@@ -2959,7 +2962,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
+    // TODO(14108): As the slot needs to be aligned with Liftoff, ideally the
+    // stack slot index would be provided by the decoder and passed to both
+    // Liftoff and Turbofan.
     feedback_slot_++;
+    // In case of being unreachable, skip it because it tries to accesss nodes
+    // which might be non-existent (OpIndex::Invalid()) in unreachable code.
     if (__ generating_unreachable_operations()) return;
 
 #if V8_ENABLE_SANDBOX
