@@ -393,6 +393,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->SetConstantLocation();
     USE(address);
   }
+  for (const auto& [ref, constant] : graph_->trusted_constants()) {
+    constant->SetConstantLocation();
+    USE(ref);
+  }
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;

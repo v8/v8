@@ -140,7 +140,8 @@ class ExceptionHandlerInfo;
   V(Uint32Constant)                 \
   V(RootConstant)                   \
   V(SmiConstant)                    \
-  V(TaggedIndexConstant)
+  V(TaggedIndexConstant)            \
+  V(TrustedConstant)
 
 #define INLINE_BUILTIN_NODE_LIST(V) \
   V(BuiltinStringFromCharCode)      \
@@ -287,61 +288,62 @@ class ExceptionHandlerInfo;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)                        \
-  V(AssertInt32)                            \
-  V(CheckConstTrackingLetCell)              \
-  V(CheckConstTrackingLetCellTagged)        \
-  V(CheckDynamicValue)                      \
-  V(CheckInt32IsSmi)                        \
-  V(CheckUint32IsSmi)                       \
-  V(CheckHoleyFloat64IsSmi)                 \
-  V(CheckHeapObject)                        \
-  V(CheckInt32Condition)                    \
-  V(CheckCacheIndicesNotCleared)            \
-  V(CheckFloat64IsNan)                      \
-  V(CheckJSDataViewBounds)                  \
-  V(CheckTypedArrayBounds)                  \
-  V(CheckTypedArrayNotDetached)             \
-  V(CheckMaps)                              \
-  V(CheckMapsWithMigration)                 \
-  V(CheckDetectableCallable)                \
-  V(CheckNumber)                            \
-  V(CheckSmi)                               \
-  V(CheckString)                            \
-  V(CheckSymbol)                            \
-  V(CheckValue)                             \
-  V(CheckValueEqualsInt32)                  \
-  V(CheckValueEqualsFloat64)                \
-  V(CheckValueEqualsString)                 \
-  V(CheckInstanceType)                      \
-  V(DebugBreak)                             \
-  V(FunctionEntryStackCheck)                \
-  V(GeneratorStore)                         \
-  V(TryOnStackReplacement)                  \
-  V(StoreMap)                               \
-  V(StoreDoubleField)                       \
-  V(StoreFixedArrayElementWithWriteBarrier) \
-  V(StoreFixedArrayElementNoWriteBarrier)   \
-  V(StoreFixedDoubleArrayElement)           \
-  V(StoreFloat64)                           \
-  V(StoreIntTypedArrayElement)              \
-  V(StoreDoubleTypedArrayElement)           \
-  V(StoreSignedIntDataViewElement)          \
-  V(StoreDoubleDataViewElement)             \
-  V(StoreTaggedFieldNoWriteBarrier)         \
-  V(StoreTaggedFieldWithWriteBarrier)       \
-  V(HandleNoHeapWritesInterrupt)            \
-  V(ReduceInterruptBudgetForLoop)           \
-  V(ReduceInterruptBudgetForReturn)         \
-  V(ThrowReferenceErrorIfHole)              \
-  V(ThrowSuperNotCalledIfHole)              \
-  V(ThrowSuperAlreadyCalledIfNotHole)       \
-  V(ThrowIfNotCallable)                     \
-  V(ThrowIfNotSuperConstructor)             \
-  V(TransitionElementsKind)                 \
-  V(TransitionElementsKindOrCheckMap)       \
-  V(SetContinuationPreservedEmbedderData)   \
-  GAP_MOVE_NODE_LIST(V)                     \
+#define NODE_LIST(V)                          \
+  V(AssertInt32)                              \
+  V(CheckConstTrackingLetCell)                \
+  V(CheckConstTrackingLetCellTagged)          \
+  V(CheckDynamicValue)                        \
+  V(CheckInt32IsSmi)                          \
+  V(CheckUint32IsSmi)                         \
+  V(CheckHoleyFloat64IsSmi)                   \
+  V(CheckHeapObject)                          \
+  V(CheckInt32Condition)                      \
+  V(CheckCacheIndicesNotCleared)              \
+  V(CheckFloat64IsNan)                        \
+  V(CheckJSDataViewBounds)                    \
+  V(CheckTypedArrayBounds)                    \
+  V(CheckTypedArrayNotDetached)               \
+  V(CheckMaps)                                \
+  V(CheckMapsWithMigration)                   \
+  V(CheckDetectableCallable)                  \
+  V(CheckNumber)                              \
+  V(CheckSmi)                                 \
+  V(CheckString)                              \
+  V(CheckSymbol)                              \
+  V(CheckValue)                               \
+  V(CheckValueEqualsInt32)                    \
+  V(CheckValueEqualsFloat64)                  \
+  V(CheckValueEqualsString)                   \
+  V(CheckInstanceType)                        \
+  V(DebugBreak)                               \
+  V(FunctionEntryStackCheck)                  \
+  V(GeneratorStore)                           \
+  V(TryOnStackReplacement)                    \
+  V(StoreMap)                                 \
+  V(StoreDoubleField)                         \
+  V(StoreFixedArrayElementWithWriteBarrier)   \
+  V(StoreFixedArrayElementNoWriteBarrier)     \
+  V(StoreFixedDoubleArrayElement)             \
+  V(StoreFloat64)                             \
+  V(StoreIntTypedArrayElement)                \
+  V(StoreDoubleTypedArrayElement)             \
+  V(StoreSignedIntDataViewElement)            \
+  V(StoreDoubleDataViewElement)               \
+  V(StoreTaggedFieldNoWriteBarrier)           \
+  V(StoreTaggedFieldWithWriteBarrier)         \
+  V(StoreTrustedPointerFieldWithWriteBarrier) \
+  V(HandleNoHeapWritesInterrupt)              \
+  V(ReduceInterruptBudgetForLoop)             \
+  V(ReduceInterruptBudgetForReturn)           \
+  V(ThrowReferenceErrorIfHole)                \
+  V(ThrowSuperNotCalledIfHole)                \
+  V(ThrowSuperAlreadyCalledIfNotHole)         \
+  V(ThrowIfNotCallable)                       \
+  V(ThrowIfNotSuperConstructor)               \
+  V(TransitionElementsKind)                   \
+  V(TransitionElementsKindOrCheckMap)         \
+  V(SetContinuationPreservedEmbedderData)     \
+  GAP_MOVE_NODE_LIST(V)                       \
   VALUE_NODE_LIST(V)
 
 #define BRANCH_CONTROL_NODE_LIST(V) \
@@ -508,7 +510,8 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
-         opcode == Opcode::kStoreFixedDoubleArrayElement;
+         opcode == Opcode::kStoreFixedDoubleArrayElement ||
+         opcode == Opcode::kStoreTrustedPointerFieldWithWriteBarrier;
 }
 constexpr bool IsElementsArrayWrite(Opcode opcode) {
   return opcode == Opcode::kMaybeGrowFastElements ||
@@ -1031,6 +1034,10 @@ class OpProperties {
         kValueRepresentationBits::encode(ValueRepresentation::kHoleyFloat64));
   }
   static constexpr OpProperties IntPtr() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
+  }
+  static constexpr OpProperties TrustedPointer() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
   }
@@ -4818,6 +4825,35 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   const RootIndex index_;
 };
 
+class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
+  using Base = FixedInputValueNodeT<0, TrustedConstant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit TrustedConstant(uint64_t bitfield, compiler::HeapObjectRef object,
+                           IndirectPointerTag tag)
+      : Base(bitfield), object_(object), tag_(tag) {}
+
+  static constexpr OpProperties kProperties = OpProperties::TrustedPointer();
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  compiler::HeapObjectRef object() const { return object_; }
+  IndirectPointerTag tag() const { return tag_; }
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
+
+ private:
+  const compiler::HeapObjectRef object_;
+  const IndirectPointerTag tag_;
+};
+
 class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   using Base = FixedInputValueNodeT<0, CreateArrayLiteral>;
 
@@ -7492,6 +7528,55 @@ class StoreTaggedFieldWithWriteBarrier
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
+};
+
+class StoreTrustedPointerFieldWithWriteBarrier
+    : public FixedInputNodeT<2, StoreTrustedPointerFieldWithWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreTrustedPointerFieldWithWriteBarrier>;
+
+ public:
+  explicit StoreTrustedPointerFieldWithWriteBarrier(uint64_t bitfield,
+                                                    int offset,
+                                                    IndirectPointerTag tag,
+                                                    StoreTaggedMode store_mode)
+      : Base(bitfield | InitializingOrTransitioningField::encode(
+                            IsInitializingOrTransitioning(store_mode))),
+        offset_(offset),
+        tag_(tag) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kIntPtr};
+
+  int offset() const { return offset_; }
+  IndirectPointerTag tag() const { return tag_; }
+  bool initializing_or_transitioning() const {
+    return InitializingOrTransitioningField::decode(bitfield());
+  }
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    object_input().node()->SetTaggedResultNeedsDecompress();
+    // value is never compressed.
+  }
+#endif
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  using InitializingOrTransitioningField = NextBitField<bool, 1>;
+
+  const int offset_;
+  const IndirectPointerTag tag_;
 };
 
 class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {

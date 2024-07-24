@@ -231,6 +231,10 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                         ValueIsCompressed value_is_compressed,
                                         ValueCanBeSmi value_can_be_smi);
 
+  void CheckAndEmitDeferredIndirectPointerWriteBarrier(
+      Register object, int offset, Register value,
+      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+
   // Preserves all registers that are in the register snapshot, but is otherwise
   // allowed to clobber both input registers if they are not in the snapshot.
   //
@@ -253,6 +257,17 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                      Tagged<Smi> value);
 
   inline void StoreInt32Field(Register object, int offset, int32_t value);
+
+#ifdef V8_ENABLE_SANDBOX
+
+  void StoreTrustedPointerFieldWithWriteBarrier(
+      Register object, int offset, Register value,
+      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+  inline void StoreTrustedPointerFieldNoWriteBarrier(Register object,
+                                                     int offset,
+                                                     Register value);
+#endif  // V8_ENABLE_SANDBOX
+
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 
@@ -402,6 +417,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Tagged<TaggedIndex> i);
   inline void Move(Register dst, int32_t i);
   inline void Move(Register dst, uint32_t i);
+  inline void Move(Register dst, IndirectPointerTag i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);

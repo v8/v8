@@ -42,6 +42,7 @@ class Graph final : public ZoneObject {
         allocations_(zone),
         register_inputs_(),
         constants_(zone),
+        trusted_constants_(zone),
         inlined_functions_(zone),
         is_osr_(is_osr),
         scope_infos_(zone) {}
@@ -116,6 +117,12 @@ class Graph final : public ZoneObject {
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
   }
+
+  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
+  trusted_constants() {
+    return trusted_constants_;
+  }
+
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>&
   inlined_functions() {
     return inlined_functions_;
@@ -209,6 +216,8 @@ class Graph final : public ZoneObject {
   ZoneMap<InlinedAllocation*, AllocationDependencies> allocations_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>
+      trusted_constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
   bool has_recursive_calls_ = false;

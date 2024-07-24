@@ -18,6 +18,7 @@ constexpr bool CanBeStoreToNonEscapedObject() {
   return std::is_same_v<NodeT, StoreMap> ||
          std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
          std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
+         std::is_same_v<NodeT, StoreTrustedPointerFieldWithWriteBarrier> ||
          std::is_same_v<NodeT, StoreFloat64>;
 }
 

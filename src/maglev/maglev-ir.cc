@@ -935,6 +935,10 @@ Handle<Object> Constant::DoReify(LocalIsolate* isolate) const {
   return object_.object();
 }
 
+Handle<Object> TrustedConstant::DoReify(LocalIsolate* isolate) const {
+  return object_.object();
+}
+
 Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) const {
   return isolate->root_handle(index());
 }
@@ -1046,6 +1050,10 @@ void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ LoadRoot(reg, index());
 }
 
+void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, object_.object());
+}
+
 // ---
 // Arch agnostic nodes
 // ---
@@ -1079,6 +1087,14 @@ void Float64Constant::GenerateCode(MaglevAssembler* masm,
 void Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Constant::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {}
+
+void TrustedConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
+void TrustedConstant::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+#ifndef V8_ENABLE_SANDBOX
+  UNREACHABLE();
+#endif
+}
 
 void RootConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void RootConstant::GenerateCode(MaglevAssembler* masm,
@@ -2615,6 +2631,28 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
           ? MaglevAssembler::kValueIsDecompressed
           : MaglevAssembler::kValueIsCompressed,
       MaglevAssembler::kValueCanBeSmi);
+}
+
+int StoreTrustedPointerFieldWithWriteBarrier::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void StoreTrustedPointerFieldWithWriteBarrier::SetValueLocationConstraints() {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+  UseRegister(value_input());
+}
+void StoreTrustedPointerFieldWithWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+#ifdef V8_ENABLE_SANDBOX
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+  Register value = ToRegister(value_input());
+  __ StoreTrustedPointerFieldWithWriteBarrier(object, offset(), value,
+                                              register_snapshot(), tag());
+#else
+  UNREACHABLE();
+#endif
 }
 
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
@@ -6781,6 +6819,11 @@ void Constant::PrintParams(std::ostream& os,
   os << "(" << *object_.object() << ")";
 }
 
+void TrustedConstant::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *object_.object() << ")";
+}
+
 void DeleteProperty::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << LanguageMode2String(mode()) << ")";
@@ -7042,6 +7085,11 @@ void StoreMap::PrintParams(std::ostream& os,
 }
 
 void StoreTaggedFieldWithWriteBarrier::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreTrustedPointerFieldWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }

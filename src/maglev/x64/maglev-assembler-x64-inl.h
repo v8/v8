@@ -499,6 +499,15 @@ inline void MaglevAssembler::StoreField(Operand operand, Register value,
   }
 }
 
+#ifdef V8_ENABLE_SANDBOX
+
+inline void MaglevAssembler::StoreTrustedPointerFieldNoWriteBarrier(
+    Register object, int offset, Register value) {
+  MacroAssembler::StoreTrustedPointerField(FieldOperand(object, offset), value);
+}
+
+#endif  // V8_ENABLE_SANDBOX
+
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   if (size == 2) {
     bswapl(value);
@@ -602,6 +611,10 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
 
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   // Move as a uint32 to avoid sign extension.
+  MacroAssembler::Move(dst, i);
+}
+
+inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
   MacroAssembler::Move(dst, i);
 }
 

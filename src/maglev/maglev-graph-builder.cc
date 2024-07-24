@@ -4087,16 +4087,26 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   return false;
 }
 
-void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
-    InlinedAllocation* object, ValueNode* value, int offset) {
-  DCHECK(value->is_tagged());
+void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
+                                              ValueNode* value, int offset) {
+  const bool value_is_trusted = value->Is<TrustedConstant>();
+  DCHECK_IMPLIES(!value_is_trusted, value->is_tagged());
+  DCHECK_IMPLIES(value_is_trusted,
+                 value->value_representation() == ValueRepresentation::kIntPtr);
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
     auto deps = graph()->allocations().find(object);
     CHECK(deps != graph()->allocations().end());
     deps->second.push_back(inlined_value);
     inlined_value->AddNonEscapingUses();
   }
-  BuildStoreTaggedField(object, value, offset, StoreTaggedMode::kInitializing);
+  if (value_is_trusted) {
+    BuildStoreTrustedPointerField(object, value, offset,
+                                  value->Cast<TrustedConstant>()->tag(),
+                                  StoreTaggedMode::kInitializing);
+  } else {
+    BuildStoreTaggedField(object, value, offset,
+                          StoreTaggedMode::kInitializing);
+  }
 }
 
 bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
@@ -4200,6 +4210,17 @@ void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   }
   AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                              store_mode);
+}
+
+void MaglevGraphBuilder::BuildStoreTrustedPointerField(
+    ValueNode* object, ValueNode* value, int offset, IndirectPointerTag tag,
+    StoreTaggedMode store_mode) {
+#ifdef V8_ENABLE_SANDBOX
+  AddNewNode<StoreTrustedPointerFieldWithWriteBarrier>({object, value}, offset,
+                                                       tag, store_mode);
+#else
+  BuildStoreTaggedField(object, value, offset, store_mode);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
@@ -5876,6 +5897,22 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
     return node;
   }
   return it->second;
+}
+
+ValueNode* MaglevGraphBuilder::GetTrustedConstant(compiler::HeapObjectRef ref,
+                                                  IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  auto it = graph_->trusted_constants().find(ref);
+  if (it == graph_->trusted_constants().end()) {
+    TrustedConstant* node = CreateNewConstantNode<TrustedConstant>(0, ref, tag);
+    graph_->trusted_constants().emplace(ref, node);
+    return node;
+  }
+  SBXCHECK_EQ(it->second->tag(), tag);
+  return it->second;
+#else
+  return GetConstant(ref);
+#endif
 }
 
 void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
@@ -11131,7 +11168,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
       node = BuildInlinedAllocationForHeapNumber(
           CreateHeapNumber(node->Cast<Float64Constant>()->value()),
           allocation_type);
-    } else {
+    } else if (!node->Is<TrustedConstant>()) {
       node = GetTaggedValue(node);
     }
     values[i] = node;
@@ -11142,8 +11179,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
   BuildStoreMap(allocation, vobject->map(),
                 StoreMap::initializing_kind(allocation_type));
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    BuildInitializeStoreTaggedField(allocation, values[i],
-                                    (i + 1) * kTaggedSize);
+    BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);
   }
   return allocation;
 }

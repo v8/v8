@@ -1353,6 +1353,9 @@ class MaglevGraphBuilder {
 
   ValueNode* GetConstant(compiler::ObjectRef ref);
 
+  ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
+                                IndirectPointerTag tag);
+
   ValueNode* GetRegisterInput(Register reg) {
     DCHECK(!graph_->register_inputs().has(reg));
     graph_->register_inputs().set(reg);
@@ -2097,8 +2100,8 @@ class MaglevGraphBuilder {
 
   bool CanTrackObjectChanges(ValueNode* object, int offset);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
-  void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
-                                       ValueNode* value, int offset);
+  void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,
+                            int offset);
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   ValueNode* BuildLoadTaggedField(ValueNode* object, int offset);
@@ -2107,6 +2110,9 @@ class MaglevGraphBuilder {
   void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
                                            int offset,
                                            StoreTaggedMode store_mode);
+  void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
+                                     int offset, IndirectPointerTag tag,
+                                     StoreTaggedMode store_mode);
   void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
                                    ValueNode* value);
 
