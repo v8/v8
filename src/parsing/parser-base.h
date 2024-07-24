@@ -4682,7 +4682,7 @@ void ParserBase<Impl>::ParseFunctionBody(
     if (has_error()) return;
 
     inner_scope = NewVarblockScope();
-    inner_scope->set_start_position(end_position());
+    inner_scope->set_start_position(position());
   }
 
   StatementListT inner_body(pointer_buffer());

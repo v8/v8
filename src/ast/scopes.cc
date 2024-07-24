@@ -2691,7 +2691,7 @@ void Scope::AllocateScopeInfosRecursively(
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
   auto it = scope_infos_to_reuse.find(UniqueIdInScript());
-  if (it != scope_infos_to_reuse.end()) {
+  if (it != scope_infos_to_reuse.end() && !is_hidden_catch_scope()) {
     scope_info_ = it->second;
     CHECK(NeedsContext());
     // The ScopeInfo chain mirrors the context chain, so we only link to the
@@ -2723,8 +2723,10 @@ void Scope::AllocateScopeInfosRecursively(
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     DCHECK_GT(scope->UniqueIdInScript(), UniqueIdInScript());
-    DCHECK_IMPLIES(scope->sibling_, scope->sibling_->UniqueIdInScript() !=
-                                        scope->UniqueIdInScript());
+    DCHECK_IMPLIES(
+        scope->sibling_ && !scope->is_hidden_catch_scope() &&
+            !scope->sibling_->is_hidden_catch_scope(),
+        scope->sibling_->UniqueIdInScript() != scope->UniqueIdInScript());
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
       scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
