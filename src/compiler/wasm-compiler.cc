@@ -8286,11 +8286,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Handle<JSFunction> target;
     Node* target_node;
     Node* receiver_node;
+    Isolate* isolate = callable->GetIsolate();
     if (IsJSBoundFunction(*callable)) {
       target =
           handle(Cast<JSFunction>(
                      Cast<JSBoundFunction>(callable)->bound_target_function()),
-                 callable->GetIsolate());
+                 isolate);
       target_node =
           gasm_->Load(MachineType::TaggedPointer(), callable_node,
                       wasm::ObjectAccess::ToTagged(
@@ -8308,8 +8309,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
-    const Address c_address = api_func_data->GetCFunction(0);
-    const v8::CFunctionInfo* c_signature = api_func_data->GetCSignature(0);
+    const Address c_address = api_func_data->GetCFunction(isolate, 0);
+    const v8::CFunctionInfo* c_signature =
+        api_func_data->GetCSignature(target->GetIsolate(), 0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     Address c_functions[] = {c_address};

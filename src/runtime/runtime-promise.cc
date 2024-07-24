@@ -86,8 +86,10 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   Tagged<Object> microtask_callback = args[0];
   Tagged<Object> microtask_data = args[1];
   MicrotaskCallback callback =
-      ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(microtask_callback);
-  void* data = ToCData<void*, kMicrotaskCallbackDataTag>(microtask_data);
+      ToCData<MicrotaskCallback, kMicrotaskCallbackTag>(isolate,
+                                                        microtask_callback);
+  void* data =
+      ToCData<void*, kMicrotaskCallbackDataTag>(isolate, microtask_data);
   callback(data);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();

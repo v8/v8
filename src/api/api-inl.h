@@ -18,18 +18,21 @@
 namespace v8 {
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
+inline T ToCData(i::Isolate* isolate,
+                 v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>());
+      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
+          isolate));
 }
 
 template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
-    v8::internal::Tagged<v8::internal::Object> obj) {
+    i::Isolate* isolate, v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>();
+  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>(
+      isolate);
 }
 
 template <internal::ExternalPointerTag tag, typename T>

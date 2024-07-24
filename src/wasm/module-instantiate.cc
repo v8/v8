@@ -274,7 +274,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
   for (int c_func_id = 0, end = shared->api_func_data()->GetCFunctionsCount();
        c_func_id < end; ++c_func_id) {
     const CFunctionInfo* info =
-        shared->api_func_data()->GetCSignature(c_func_id);
+        shared->api_func_data()->GetCSignature(isolate, c_func_id);
     if (!compiler::IsFastCallSupportedSignature(info)) {
       log_imported_function_mismatch(c_func_id,
                                      "signature not supported by the fast API");
@@ -494,13 +494,14 @@ WellKnownImport CheckForWellKnownImport(
     Tagged<FunctionTemplateInfo> func_data = sfi->api_func_data();
     NativeModule* native_module = trusted_instance_data->native_module();
     if (!native_module->TrySetFastApiCallTarget(
-            func_index, func_data->GetCFunction(out_api_function_index))) {
+            func_index,
+            func_data->GetCFunction(isolate, out_api_function_index))) {
       return kGeneric;
     }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    Address c_functions[] = {func_data->GetCFunction(0)};
+    Address c_functions[] = {func_data->GetCFunction(isolate, 0)};
     const v8::CFunctionInfo* const c_signatures[] = {
-        func_data->GetCSignature(0)};
+        func_data->GetCSignature(isolate, 0)};
     isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
                                                               c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -514,9 +515,10 @@ WellKnownImport CheckForWellKnownImport(
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
       native_module->set_fast_api_signature(
-          func_index, GetFunctionSigForFastApiImport(
-                          &native_module->module()->signature_zone,
-                          func_data->GetCSignature(out_api_function_index)));
+          func_index,
+          GetFunctionSigForFastApiImport(
+              &native_module->module()->signature_zone,
+              func_data->GetCSignature(isolate, out_api_function_index)));
     }
 
     DirectHandle<HeapObject> js_signature(sfi->api_func_data()->signature(),

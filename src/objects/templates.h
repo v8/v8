@@ -220,8 +220,8 @@ class FunctionTemplateInfo
       Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;
-  Address GetCFunction(int index) const;
-  const CFunctionInfo* GetCSignature(int index) const;
+  Address GetCFunction(Isolate* isolate, int index) const;
+  const CFunctionInfo* GetCSignature(Isolate* isolate, int index) const;
 
   // CFunction data for a set of overloads is stored into a FixedArray, as
   // [address_0, signature_0, ... address_n-1, signature_n-1].

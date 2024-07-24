@@ -49,10 +49,11 @@ class EphemeronTable;
 }  // namespace debug
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj);
-
+inline T ToCData(i::Isolate* isolate,
+                 v8::internal::Tagged<v8::internal::Object> obj);
 template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
+    v8::internal::Isolate* isolate,
     v8::internal::Tagged<v8::internal::Object> obj);
 
 template <internal::ExternalPointerTag tag, typename T>

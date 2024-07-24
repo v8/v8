@@ -2661,7 +2661,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       int c_functions_count = fun_data->GetCFunctionsCount();
       for (int i = 0; i < c_functions_count; i++) {
         CALL_CODE_EVENT_HANDLER(
-            CallbackEvent(fun_name, fun_data->GetCFunction(i)))
+            CallbackEvent(fun_name, fun_data->GetCFunction(isolate_, i)))
       }
     }
 #if V8_ENABLE_WEBASSEMBLY

@@ -164,18 +164,19 @@ int FunctionTemplateInfo::GetCFunctionsCount() const {
          kFunctionOverloadEntrySize;
 }
 
-Address FunctionTemplateInfo::GetCFunction(int index) const {
+Address FunctionTemplateInfo::GetCFunction(Isolate* isolate, int index) const {
   i::DisallowHeapAllocation no_gc;
   return v8::ToCData<kCFunctionTag>(
-      Cast<FixedArray>(GetCFunctionOverloads())
-          ->get(index * kFunctionOverloadEntrySize));
+      isolate, Cast<FixedArray>(GetCFunctionOverloads())
+                   ->get(index * kFunctionOverloadEntrySize));
 }
 
-const CFunctionInfo* FunctionTemplateInfo::GetCSignature(int index) const {
+const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
+                                                         int index) const {
   i::DisallowHeapAllocation no_gc;
   return v8::ToCData<CFunctionInfo*, kCFunctionInfoTag>(
-      Cast<FixedArray>(GetCFunctionOverloads())
-          ->get(index * kFunctionOverloadEntrySize + 1));
+      isolate, Cast<FixedArray>(GetCFunctionOverloads())
+                   ->get(index * kFunctionOverloadEntrySize + 1));
 }
 
 // static
