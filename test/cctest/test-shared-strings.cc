@@ -662,6 +662,7 @@ UNINITIALIZED_TEST(StringShare) {
 
   v8_flags.shared_string_table = true;
 
+  ManualGCScope manual_gc_scope;
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -2134,6 +2135,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
     Isolate* i_client = reinterpret_cast<Isolate*>(client);
     Factory* factory = i_client->factory();
     Heap* heap = i_client->heap();
+    ManualGCScope manual_gc_scope(i_client);
 
     {
       v8::Isolate::Scope isolate_scope(client);
@@ -2290,6 +2292,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     Isolate* i_client = reinterpret_cast<Isolate*>(client_isolate_);
     Factory* factory = i_client->factory();
     Heap* heap = i_client->heap();
+    ManualGCScope manual_gc_scope(i_client);
 
     {
       v8::Isolate::Scope isolate_scope(client_isolate_);
