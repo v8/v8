@@ -83,6 +83,8 @@ int StaticInputCount(NodeBase*) { UNREACHABLE(); }
 
 void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
                                      OpProperties new_properties) {
+  if (new_opcode == Opcode::kDead) return;
+
   DCHECK_IMPLIES(new_properties.can_eager_deopt(),
                  properties().can_eager_deopt());
   DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
@@ -385,6 +387,11 @@ size_t ValueNode::GetInputLocationsArraySize() const {
     return vobj->InputLocationSizeNeeded() + 1;
   }
   return 1;
+}
+
+void Input::clear() {
+  node_->remove_use();
+  node_ = nullptr;
 }
 
 size_t DeoptFrame::GetInputLocationsArraySize() const {

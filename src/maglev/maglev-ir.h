@@ -315,6 +315,7 @@ class ExceptionHandlerInfo;
   V(CheckValueEqualsFloat64)                  \
   V(CheckValueEqualsString)                   \
   V(CheckInstanceType)                        \
+  V(Dead)                                     \
   V(DebugBreak)                               \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
@@ -1192,6 +1193,7 @@ class Input : public InputLocation {
  public:
   explicit Input(ValueNode* node) : node_(node) {}
   ValueNode* node() const { return node_; }
+  void clear();
 
  private:
   ValueNode* node_;
@@ -6358,6 +6360,20 @@ class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Dead : public NodeT<Dead> {
+  using Base = NodeT<Dead>;
+
+ public:
+  void SetValueLocationConstraints() {}
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void VerifyInputs(MaglevGraphLabeller*) const {}
+  void MarkTaggedInputsAsDecompressing() { UNREACHABLE(); }
+
+ private:
+  explicit Dead(uint64_t bitfield) : Base(bitfield) {}
 };
 
 class FunctionEntryStackCheck

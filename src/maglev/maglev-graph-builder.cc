@@ -904,7 +904,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
       inlining_id_(inlining_id),
-      catch_block_stack_(zone()) {
+      catch_block_stack_(zone()),
+      unobserved_context_slot_stores_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
   // Default construct basic block refs.
@@ -2742,7 +2743,8 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
   DCHECK_EQ(
       known_node_aspects().loaded_context_constants.count({context, offset}),
       0);
-  BuildStoreTaggedField(context, value, offset, StoreTaggedMode::kDefault);
+  Node* store =
+      BuildStoreTaggedField(context, value, offset, StoreTaggedMode::kDefault);
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  * Recording context slot store "
@@ -2779,16 +2781,29 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
     }
   }
   KnownNodeAspects::LoadedContextSlotsKey key{context, offset};
-  if (WithinAnEffectRecordingPeelingIteration()) {
-    auto updated = loaded_context_slots.emplace(key, value);
-    if (updated.second) {
-      GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
-    } else if (updated.first->second != value) {
-      updated.first->second = value;
+  auto updated = loaded_context_slots.emplace(key, value);
+  if (updated.second) {
+    if (WithinAnEffectRecordingPeelingIteration()) {
       GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
     }
+    unobserved_context_slot_stores_[key] = store;
   } else {
-    loaded_context_slots[key] = value;
+    if (updated.first->second != value) {
+      updated.first->second = value;
+      if (WithinAnEffectRecordingPeelingIteration()) {
+        GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
+      }
+    }
+    if (known_node_aspects().may_have_aliasing_contexts !=
+        KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
+      auto last_store = unobserved_context_slot_stores_.find(key);
+      if (last_store != unobserved_context_slot_stores_.end()) {
+        MarkNodeDead(last_store->second);
+        last_store->second = store;
+      } else {
+        unobserved_context_slot_stores_[key] = store;
+      }
+    }
   }
 }
 
@@ -4178,9 +4193,9 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   }
 }
 
-void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
-                                               ValueNode* value, int offset,
-                                               StoreTaggedMode store_mode) {
+Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
+                                                ValueNode* value, int offset,
+                                                StoreTaggedMode store_mode) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4191,11 +4206,11 @@ void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   if (CanElideWriteBarrier(object, value)) {
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                               store_mode);
+    return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                                      store_mode);
   } else {
-    AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset,
-                                                 store_mode);
+    return AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset,
+                                                        store_mode);
   }
 }
 

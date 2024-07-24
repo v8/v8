@@ -59,6 +59,10 @@ class MaglevPhiRepresentationSelector {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult Process(Dead* node, const ProcessingState& state) {
+    return ProcessResult::kRemove;
+  }
+
   template <class NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     return UpdateNodeInputs(node, state);

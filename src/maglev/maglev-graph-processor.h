@@ -200,7 +200,8 @@ class NodeMultiProcessor<> {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+  V8_INLINE ProcessResult Process(NodeBase* node,
+                                  const ProcessingState& state) {
     return ProcessResult::kContinue;
   }
 };
