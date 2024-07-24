@@ -107,31 +107,6 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-class DummyResultCollector {
- public:
-  void AddParamAt(size_t index, LinkageLocation location) {}
-  void AddReturnAt(size_t index, LinkageLocation location) {}
-};
-
-void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
-                             int* parameter_stack_slots,
-                             int* return_stack_slots) {
-  int untagged_slots, untagged_return_slots;
-  DummyResultCollector result_collector;
-  base::Optional<AccountingAllocator> alloc;
-  base::Optional<Zone> zone;
-  if constexpr (!Is64()) {
-    alloc.emplace();
-    zone.emplace(&*alloc, "deoptimizer i32sig lowering");
-    sig = GetI32Sig(&*zone, sig);
-  }
-  wasm::IterateSignatureImpl(sig, false, result_collector, &untagged_slots,
-                             parameter_stack_slots, &untagged_return_slots,
-                             return_stack_slots);
-}
-#endif
-
 }  // namespace
 
 // {FrameWriter} offers a stack writer abstraction for writing
@@ -1345,6 +1320,30 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
+}
+
+void Deoptimizer::GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
+                                          int* parameter_stack_slots,
+                                          int* return_stack_slots) {
+  class DummyResultCollector {
+   public:
+    void AddParamAt(size_t index, LinkageLocation location) {}
+    void AddReturnAt(size_t index, LinkageLocation location) {}
+  } result_collector;
+
+  // On 32 bits we need to perform the int64 lowering for the signature.
+#if V8_TARGET_ARCH_32_BIT
+  if (!alloc_) {
+    DCHECK(!zone_);
+    alloc_.emplace();
+    zone_.emplace(&*alloc_, "deoptimizer i32sig lowering");
+  }
+  sig = GetI32Sig(&*zone_, sig);
+#endif
+  int untagged_slots, untagged_return_slots;  // Unused.
+  wasm::IterateSignatureImpl(sig, false, result_collector, &untagged_slots,
+                             parameter_stack_slots, &untagged_return_slots,
+                             return_stack_slots);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -174,6 +174,10 @@ class Deoptimizer : public Malloced {
   FrameDescription* DoComputeWasmLiftoffFrame(
       TranslatedFrame& frame, wasm::NativeModule* native_module,
       Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index);
+
+  void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
+                               int* parameter_stack_slots,
+                               int* return_stack_slots);
 #endif
 
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
@@ -271,6 +275,13 @@ class Deoptimizer : public Malloced {
   // Note: This is intentionally not a unique_ptr s.t. the Deoptimizer
   // satisfies is_standard_layout, needed for offsetof().
   CodeTracer::Scope* const trace_scope_;
+
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_32_BIT
+  // Needed by webassembly for lowering signatures containing i64 types. Stored
+  // as members for re-use for multiple signatures during one de-optimization.
+  base::Optional<AccountingAllocator> alloc_;
+  base::Optional<Zone> zone_;
+#endif
 
   friend class DeoptimizedFrameInfo;
   friend class FrameDescription;
