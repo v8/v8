@@ -3420,8 +3420,17 @@ struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
       case Kind::kFunctionEntry:
         return OpEffects().CanCallAnything();
       case Kind::kLoop:
-        // Loop body iteration stack checks can't write memory or allocate.
-        return OpEffects().CanDependOnChecks().CanDeopt().CanReadHeapMemory();
+        // Loop body iteration stack checks can't write memory.
+        // TODO(dmercadier): we could prevent this from allocating. In
+        // particular, we'd need to:
+        //   - forbid GC interrupts from being processed in loop stack checks.
+        //   - make sure that the debugger always deopts the current function
+        //     when it triggers a loop interrupt.
+        return OpEffects()
+            .CanDependOnChecks()
+            .CanDeopt()
+            .CanReadHeapMemory()
+            .CanAllocate();
     }
   }
 
