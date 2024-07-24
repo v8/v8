@@ -2368,6 +2368,101 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
+bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_neg(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  return false;
+}
+bool LiftoffAssembler::emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  return false;
+}
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_

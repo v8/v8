@@ -1202,9 +1202,9 @@ template <bool USE_SCRATCH>
 static void ByteSwapHelper() {
   Func fn;
   if (USE_SCRATCH) {
-    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, NBYTES, t0); };
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4, t0); };
   } else {
-    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, NBYTES); };
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4); };
   }
 
   CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn));
