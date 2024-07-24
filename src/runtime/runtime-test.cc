@@ -1110,9 +1110,8 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
 
 RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   function->ClearAllTypeFeedbackInfoForTesting();
   return ReadOnlyRoots(isolate).undefined_value();
