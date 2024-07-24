@@ -557,6 +557,7 @@ def build_config_content(cpu, icu):
         ("has_maglev", "true"),
         ("has_turbofan", "true"),
         ("has_webassembly", "false"),
+        ("has_wasm_interpreter", "false"),
         ("i18n", icu),
         ("is_android", "false"),
         ("is_ios", "false"),
