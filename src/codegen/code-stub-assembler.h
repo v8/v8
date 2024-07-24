@@ -1072,6 +1072,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset,
                                                        CodeEntrypointTag tag);
+  TNode<RawPtrT> LoadCodeEntryFromIndirectPointerHandle(
+      TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag);
 #endif
 
   TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
@@ -1786,6 +1788,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreTrustedPointerFieldNoWriteBarrier(
       TNode<HeapObject> object, int offset, IndirectPointerTag tag,
       TNode<ExposedTrustedObject> value);
+
+  void ClearTrustedPointerField(TNode<HeapObject> object, int offset);
 
   // Store a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is

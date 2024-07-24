@@ -1951,6 +1951,11 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
     CodeEntrypointTag tag) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
+  return LoadCodeEntryFromIndirectPointerHandle(handle, tag);
+}
+
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
+    TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag) {
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
@@ -1960,6 +1965,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
   }
   return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 }
+
 #endif  // V8_ENABLE_SANDBOX
 
 
@@ -3663,6 +3669,16 @@ void CodeStubAssembler::StoreTrustedPointerFieldNoWriteBarrier(
 #else
   StoreObjectFieldNoWriteBarrier(object, offset, value);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+void CodeStubAssembler::ClearTrustedPointerField(TNode<HeapObject> object,
+                                                 int offset) {
+#ifdef V8_ENABLE_SANDBOX
+  StoreObjectFieldNoWriteBarrier(object, offset,
+                                 Uint32Constant(kNullTrustedPointerHandle));
+#else
+  StoreObjectFieldNoWriteBarrier(object, offset, SmiConstant(0));
+#endif
 }
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
