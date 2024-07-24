@@ -4056,12 +4056,7 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
       result_reg == object || result_reg == old_property_array ? temps.Acquire()
                                                                : result_reg;
   Register scratch = temps.Acquire();
-  DCHECK_NE(object, old_property_array);
-  DCHECK_NE(object, new_property_array);
-  DCHECK_NE(object, scratch);
-  DCHECK_NE(old_property_array, new_property_array);
-  DCHECK_NE(old_property_array, scratch);
-  DCHECK_NE(new_property_array, scratch);
+  DCHECK(!AreAliased(object, old_property_array, new_property_array, scratch));
 
   int new_length = old_length_ + JSObject::kFieldsAdded;
 
@@ -4083,12 +4078,24 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
   }
 
   // Copy existing properties over.
-  for (int i = 0; i < old_length_; ++i) {
-    __ LoadTaggedField(scratch, old_property_array,
-                       PropertyArray::OffsetOfElementAt(i));
+  {
+    RegisterSnapshot snapshot = register_snapshot();
+    snapshot.live_registers.set(object);
+    snapshot.live_registers.set(old_property_array);
+    snapshot.live_registers.set(new_property_array);
+    snapshot.live_tagged_registers.set(object);
+    snapshot.live_tagged_registers.set(old_property_array);
+    snapshot.live_tagged_registers.set(new_property_array);
 
-    __ StoreTaggedFieldNoWriteBarrier(
-        new_property_array, PropertyArray::OffsetOfElementAt(i), scratch);
+    for (int i = 0; i < old_length_; ++i) {
+      __ LoadTaggedFieldWithoutDecompressing(
+          scratch, old_property_array, PropertyArray::OffsetOfElementAt(i));
+
+      __ StoreTaggedFieldWithWriteBarrier(
+          new_property_array, PropertyArray::OffsetOfElementAt(i), scratch,
+          snapshot, MaglevAssembler::kValueIsCompressed,
+          MaglevAssembler::kValueCanBeSmi);
+    }
   }
 
   // Initialize new properties to undefined.
