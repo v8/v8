@@ -721,8 +721,8 @@ bool String::LooksValid() {
 
 // static
 Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  return isolate->factory()->NewNumber(StringToDouble(isolate, subject, flags));
+  return isolate->factory()->NewNumber(
+      StringToDouble(isolate, subject, ALLOW_NON_DECIMAL_PREFIX));
 }
 
 String::FlatContent String::SlowGetFlatContent(

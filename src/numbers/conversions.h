@@ -121,23 +121,21 @@ inline uint32_t DoubleToUint32(double x);
 inline int64_t DoubleToInt64(double x);
 inline uint64_t DoubleToUint64(double x);
 
-// Enumeration for allowing octals and ignoring junk when converting
-// strings to numbers.
-enum ConversionFlags {
-  NO_CONVERSION_FLAGS = 0,
-  ALLOW_HEX = 1,
-  ALLOW_OCTAL = 2,
-  ALLOW_BINARY = 4,
-  ALLOW_TRAILING_JUNK = 8
+// Enumeration for allowing radix prefixes or ignoring junk when converting
+// strings to numbers. We never need to be able to allow both.
+enum ConversionFlag {
+  NO_CONVERSION_FLAG,
+  ALLOW_NON_DECIMAL_PREFIX,
+  ALLOW_TRAILING_JUNK
 };
 
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(base::Vector<const uint8_t> str, int flags,
+double StringToDouble(base::Vector<const uint8_t> str, ConversionFlag flag,
                       double empty_string_val = 0);
-double StringToDouble(base::Vector<const base::uc16> str, int flags,
+double StringToDouble(base::Vector<const base::uc16> str, ConversionFlag flag,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
-double V8_EXPORT_PRIVATE StringToDouble(const char* str, int flags,
+double V8_EXPORT_PRIVATE StringToDouble(const char* str, ConversionFlag flag,
                                         double empty_string_val = 0);
 
 // Converts a binary string (of the form `0b[0-1]*`) into a double value
@@ -228,9 +226,9 @@ inline uint32_t NumberToUint32(Tagged<Object> number);
 inline int64_t NumberToInt64(Tagged<Object> number);
 inline uint64_t PositiveNumberToUint64(Tagged<Object> number);
 
-double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
-                      double empty_string_val = 0.0);
-double FlatStringToDouble(Tagged<String> string, int flags,
+double StringToDouble(Isolate* isolate, Handle<String> string,
+                      ConversionFlag flags, double empty_string_val = 0.0);
+double FlatStringToDouble(Tagged<String> string, ConversionFlag flags,
                           double empty_string_val);
 
 // String to double helper without heap allocation.

@@ -316,14 +316,39 @@ void AsmJsScanner::ConsumeNumber(base::uc32 ch) {
     token_ = '.';
     return;
   }
-  // Decode numbers, with a seperate path for implicit octals.
-  if (number[0] == '0' && !has_prefix && IsValidImplicitOctal(number)) {
+  // Decode numbers, with seperate paths for prefixes and implicit octals.
+  if (has_prefix && number[0] == '0') {
+    // "0[xob]" by itself is a parse error.
+    if (number.size() <= 2) {
+      token_ = kParseError;
+      return;
+    }
+    switch (number[1]) {
+      case 'b':
+        double_value_ = BinaryStringToDouble(
+            base::Vector<const uint8_t>::cast(base::VectorOf(number)));
+        break;
+      case 'o':
+        double_value_ = OctalStringToDouble(
+            base::Vector<const uint8_t>::cast(base::VectorOf(number)));
+        break;
+      case 'x':
+        double_value_ = HexStringToDouble(
+            base::Vector<const uint8_t>::cast(base::VectorOf(number)));
+        break;
+      default:
+        // If there is a prefix character, but it's not the second character,
+        // then there's a parse error somewhere.
+        token_ = kParseError;
+        break;
+    }
+  } else if (number[0] == '0' && !has_prefix && IsValidImplicitOctal(number)) {
     double_value_ = ImplicitOctalStringToDouble(
         base::Vector<const uint8_t>::cast(base::VectorOf(number)));
   } else {
     double_value_ = StringToDouble(
         base::Vector<const uint8_t>::cast(base::VectorOf(number)),
-        ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY);
+        NO_CONVERSION_FLAG);
   }
   if (std::isnan(double_value_)) {
     // Check if string to number conversion didn't consume all the characters.

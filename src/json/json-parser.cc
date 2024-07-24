@@ -1961,10 +1961,9 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     base::Vector<const Char> chars(start, cursor_ - start);
-    number =
-        StringToDouble(chars,
-                       NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
-                       std::numeric_limits<double>::quiet_NaN());
+    number = StringToDouble(chars,
+                            NO_CONVERSION_FLAG,  // Hex, octal or trailing junk.
+                            std::numeric_limits<double>::quiet_NaN());
 
     DCHECK(!std::isnan(number));
   }

@@ -38,12 +38,12 @@ class ConversionsTest : public TestWithIsolate {
 };
 
 TEST_F(ConversionsTest, Hex) {
-  CHECK_EQ(0.0, StringToDouble("0x0", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0X0", ALLOW_HEX));
-  CHECK_EQ(1.0, StringToDouble("0x1", ALLOW_HEX));
-  CHECK_EQ(16.0, StringToDouble("0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble("0xFF", ALLOW_HEX));
-  CHECK_EQ(175.0, StringToDouble("0xAF", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0x0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0X0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(1.0, StringToDouble("0x1", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(16.0, StringToDouble("0x10", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(255.0, StringToDouble("0xFF", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(175.0, StringToDouble("0xAF", ALLOW_NON_DECIMAL_PREFIX));
 
   CHECK_EQ(0.0, HexStringToDouble(base::OneByteVector("0x0")));
   CHECK_EQ(0.0, HexStringToDouble(base::OneByteVector("0X0")));
@@ -54,12 +54,12 @@ TEST_F(ConversionsTest, Hex) {
 }
 
 TEST_F(ConversionsTest, Octal) {
-  CHECK_EQ(0.0, StringToDouble("0o0", ALLOW_OCTAL));
-  CHECK_EQ(0.0, StringToDouble("0O0", ALLOW_OCTAL));
-  CHECK_EQ(1.0, StringToDouble("0o1", ALLOW_OCTAL));
-  CHECK_EQ(7.0, StringToDouble("0o7", ALLOW_OCTAL));
-  CHECK_EQ(8.0, StringToDouble("0o10", ALLOW_OCTAL));
-  CHECK_EQ(63.0, StringToDouble("0o77", ALLOW_OCTAL));
+  CHECK_EQ(0.0, StringToDouble("0o0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0O0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(1.0, StringToDouble("0o1", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(7.0, StringToDouble("0o7", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(8.0, StringToDouble("0o10", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(63.0, StringToDouble("0o77", ALLOW_NON_DECIMAL_PREFIX));
 
   CHECK_EQ(0.0, OctalStringToDouble(base::OneByteVector("0o0")));
   CHECK_EQ(0.0, OctalStringToDouble(base::OneByteVector("0O0")));
@@ -86,12 +86,12 @@ TEST_F(ConversionsTest, ImplicitOctal) {
   CHECK_EQ(8.0, ImplicitOctalStringToDouble(base::OneByteVector("010")));
   CHECK_EQ(63.0, ImplicitOctalStringToDouble(base::OneByteVector("077")));
 
-  CHECK_EQ(0.0, StringToDouble("0", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("00", ALLOW_HEX));
-  CHECK_EQ(1.0, StringToDouble("01", ALLOW_HEX));
-  CHECK_EQ(7.0, StringToDouble("07", ALLOW_HEX));
-  CHECK_EQ(10.0, StringToDouble("010", ALLOW_HEX));
-  CHECK_EQ(77.0, StringToDouble("077", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("00", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(1.0, StringToDouble("01", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(7.0, StringToDouble("07", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(10.0, StringToDouble("010", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(77.0, StringToDouble("077", ALLOW_NON_DECIMAL_PREFIX));
 
   const double x = 010000000000;  // Power of 2, no rounding errors.
   CHECK_EQ(x * x * x * x * x,
@@ -104,11 +104,11 @@ TEST_F(ConversionsTest, ImplicitOctal) {
 }
 
 TEST_F(ConversionsTest, Binary) {
-  CHECK_EQ(0.0, StringToDouble("0b0", ALLOW_BINARY));
-  CHECK_EQ(0.0, StringToDouble("0B0", ALLOW_BINARY));
-  CHECK_EQ(1.0, StringToDouble("0b1", ALLOW_BINARY));
-  CHECK_EQ(2.0, StringToDouble("0b10", ALLOW_BINARY));
-  CHECK_EQ(3.0, StringToDouble("0b11", ALLOW_BINARY));
+  CHECK_EQ(0.0, StringToDouble("0b0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0B0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(1.0, StringToDouble("0b1", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(2.0, StringToDouble("0b10", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(3.0, StringToDouble("0b11", ALLOW_NON_DECIMAL_PREFIX));
 
   CHECK_EQ(0.0, BinaryStringToDouble(base::OneByteVector("0b0")));
   CHECK_EQ(0.0, BinaryStringToDouble(base::OneByteVector("0B0")));
@@ -118,20 +118,20 @@ TEST_F(ConversionsTest, Binary) {
 }
 
 TEST_F(ConversionsTest, MalformedOctal) {
-  CHECK_EQ(8.0, StringToDouble("08", ALLOW_HEX));
-  CHECK_EQ(81.0, StringToDouble("081", ALLOW_HEX));
-  CHECK_EQ(78.0, StringToDouble("078", ALLOW_HEX));
+  CHECK_EQ(8.0, StringToDouble("08", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(81.0, StringToDouble("081", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(78.0, StringToDouble("078", ALLOW_NON_DECIMAL_PREFIX));
 
-  CHECK_EQ(7.7, StringToDouble("07.7", ALLOW_HEX));
-  CHECK_EQ(7.8, StringToDouble("07.8", ALLOW_HEX));
-  CHECK_EQ(7e8, StringToDouble("07e8", ALLOW_HEX));
-  CHECK_EQ(7e7, StringToDouble("07e7", ALLOW_HEX));
+  CHECK_EQ(7.7, StringToDouble("07.7", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(7.8, StringToDouble("07.8", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(7e8, StringToDouble("07e8", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(7e7, StringToDouble("07e7", ALLOW_NON_DECIMAL_PREFIX));
 
-  CHECK_EQ(8.7, StringToDouble("08.7", ALLOW_HEX));
-  CHECK_EQ(8e7, StringToDouble("08e7", ALLOW_HEX));
+  CHECK_EQ(8.7, StringToDouble("08.7", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(8e7, StringToDouble("08e7", ALLOW_NON_DECIMAL_PREFIX));
 
-  CHECK_EQ(0.001, StringToDouble("0.001", ALLOW_HEX));
-  CHECK_EQ(0.713, StringToDouble("0.713", ALLOW_HEX));
+  CHECK_EQ(0.001, StringToDouble("0.001", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.713, StringToDouble("0.713", ALLOW_NON_DECIMAL_PREFIX));
 }
 
 TEST_F(ConversionsTest, TrailingJunk) {
@@ -141,44 +141,44 @@ TEST_F(ConversionsTest, TrailingJunk) {
 }
 
 TEST_F(ConversionsTest, NonStrDecimalLiteral) {
-  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAGS,
+  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAG,
                                   std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(StringToDouble("", NO_CONVERSION_FLAGS,
+  CHECK(std::isnan(StringToDouble("", NO_CONVERSION_FLAG,
                                   std::numeric_limits<double>::quiet_NaN())));
-  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAGS,
+  CHECK(std::isnan(StringToDouble(" ", NO_CONVERSION_FLAG,
                                   std::numeric_limits<double>::quiet_NaN())));
-  CHECK_EQ(0.0, StringToDouble("", NO_CONVERSION_FLAGS));
-  CHECK_EQ(0.0, StringToDouble(" ", NO_CONVERSION_FLAGS));
+  CHECK_EQ(0.0, StringToDouble("", NO_CONVERSION_FLAG));
+  CHECK_EQ(0.0, StringToDouble(" ", NO_CONVERSION_FLAG));
 }
 
 TEST_F(ConversionsTest, IntegerStrLiteral) {
-  CHECK_EQ(0.0, StringToDouble("0.0", NO_CONVERSION_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("0", NO_CONVERSION_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("00", NO_CONVERSION_FLAGS));
-  CHECK_EQ(0.0, StringToDouble("000", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1.0, StringToDouble("1", NO_CONVERSION_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble("-1", NO_CONVERSION_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_CONVERSION_FLAGS));
-  CHECK(std::isnan(StringToDouble("  -  1  ", NO_CONVERSION_FLAGS)));
-  CHECK(std::isnan(StringToDouble("  +  1  ", NO_CONVERSION_FLAGS)));
+  CHECK_EQ(0.0, StringToDouble("0.0", NO_CONVERSION_FLAG));
+  CHECK_EQ(0.0, StringToDouble("0", NO_CONVERSION_FLAG));
+  CHECK_EQ(0.0, StringToDouble("00", NO_CONVERSION_FLAG));
+  CHECK_EQ(0.0, StringToDouble("000", NO_CONVERSION_FLAG));
+  CHECK_EQ(1.0, StringToDouble("1", NO_CONVERSION_FLAG));
+  CHECK_EQ(-1.0, StringToDouble("-1", NO_CONVERSION_FLAG));
+  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_CONVERSION_FLAG));
+  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_CONVERSION_FLAG));
+  CHECK(std::isnan(StringToDouble("  -  1  ", NO_CONVERSION_FLAG)));
+  CHECK(std::isnan(StringToDouble("  +  1  ", NO_CONVERSION_FLAG)));
 
-  CHECK_EQ(0.0, StringToDouble("0e0", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0e1", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0e-1", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0e-100000", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0e+100000", ALLOW_HEX));
-  CHECK_EQ(0.0, StringToDouble("0.", ALLOW_HEX));
+  CHECK_EQ(0.0, StringToDouble("0e0", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0e1", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0e-1", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0e-100000", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0e+100000", ALLOW_NON_DECIMAL_PREFIX));
+  CHECK_EQ(0.0, StringToDouble("0.", ALLOW_NON_DECIMAL_PREFIX));
 }
 
 TEST_F(ConversionsTest, LongNumberStr) {
   CHECK_EQ(1e10, StringToDouble("1"
                                 "0000000000",
-                                NO_CONVERSION_FLAGS));
+                                NO_CONVERSION_FLAG));
   CHECK_EQ(1e20, StringToDouble("1"
                                 "0000000000"
                                 "0000000000",
-                                NO_CONVERSION_FLAGS));
+                                NO_CONVERSION_FLAG));
 
   CHECK_EQ(1e60, StringToDouble("1"
                                 "0000000000"
@@ -187,21 +187,21 @@ TEST_F(ConversionsTest, LongNumberStr) {
                                 "0000000000"
                                 "0000000000"
                                 "0000000000",
-                                NO_CONVERSION_FLAGS));
+                                NO_CONVERSION_FLAG));
 
   CHECK_EQ(1e-2, StringToDouble("."
                                 "0"
                                 "1",
-                                NO_CONVERSION_FLAGS));
+                                NO_CONVERSION_FLAG));
   CHECK_EQ(1e-11, StringToDouble("."
                                  "0000000000"
                                  "1",
-                                 NO_CONVERSION_FLAGS));
+                                 NO_CONVERSION_FLAG));
   CHECK_EQ(1e-21, StringToDouble("."
                                  "0000000000"
                                  "0000000000"
                                  "1",
-                                 NO_CONVERSION_FLAGS));
+                                 NO_CONVERSION_FLAG));
 
   CHECK_EQ(1e-61, StringToDouble("."
                                  "0000000000"
@@ -211,16 +211,16 @@ TEST_F(ConversionsTest, LongNumberStr) {
                                  "0000000000"
                                  "0000000000"
                                  "1",
-                                 NO_CONVERSION_FLAGS));
+                                 NO_CONVERSION_FLAG));
 
   // x = 24414062505131248.0 and y = 24414062505131252.0 are representable in
   // double. Check chat z = (x + y) / 2 is rounded to x...
   CHECK_EQ(24414062505131248.0,
-           StringToDouble("24414062505131250.0", NO_CONVERSION_FLAGS));
+           StringToDouble("24414062505131250.0", NO_CONVERSION_FLAG));
 
   // ... and z = (x + y) / 2 + delta is rounded to y.
   CHECK_EQ(24414062505131252.0,
-           StringToDouble("24414062505131250.000000001", NO_CONVERSION_FLAGS));
+           StringToDouble("24414062505131250.000000001", NO_CONVERSION_FLAG));
 }
 
 TEST_F(ConversionsTest, MaximumSignificantDigits) {
@@ -240,13 +240,13 @@ TEST_F(ConversionsTest, MaximumSignificantDigits) {
       "6998291015625000000000000000000000000000000000e-308";
 
   CHECK_EQ(4.4501477170144017780491e-308,
-           StringToDouble(num, NO_CONVERSION_FLAGS));
+           StringToDouble(num, NO_CONVERSION_FLAG));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
   CHECK_EQ(4.4501477170144022721148e-308,
-           StringToDouble(num, NO_CONVERSION_FLAGS));
+           StringToDouble(num, NO_CONVERSION_FLAG));
 }
 
 TEST_F(ConversionsTest, MinimumExponent) {
@@ -267,29 +267,29 @@ TEST_F(ConversionsTest, MinimumExponent) {
       "998291015625000000000000000000000000000000000e-1108";
 
   CHECK_EQ(4.4501477170144017780491e-308,
-           StringToDouble(num, NO_CONVERSION_FLAGS));
+           StringToDouble(num, NO_CONVERSION_FLAG));
 
   // Changes the result of strtod (at least in glibc implementation).
   num[sizeof(num) - 8] = '1';
 
   CHECK_EQ(4.4501477170144022721148e-308,
-           StringToDouble(num, NO_CONVERSION_FLAGS));
+           StringToDouble(num, NO_CONVERSION_FLAG));
 }
 
 TEST_F(ConversionsTest, MaximumExponent) {
   char num[] = "0.16e309";
 
   CHECK_EQ(1.59999999999999997765e+308,
-           StringToDouble(num, NO_CONVERSION_FLAGS));
+           StringToDouble(num, NO_CONVERSION_FLAG));
 }
 
 TEST_F(ConversionsTest, ExponentNumberStr) {
-  CHECK_EQ(1e1, StringToDouble("1e1", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1e1, StringToDouble("1e+1", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1e-1, StringToDouble("1e-1", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1e100, StringToDouble("1e+100", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1e-100, StringToDouble("1e-100", NO_CONVERSION_FLAGS));
-  CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_CONVERSION_FLAGS));
+  CHECK_EQ(1e1, StringToDouble("1e1", NO_CONVERSION_FLAG));
+  CHECK_EQ(1e1, StringToDouble("1e+1", NO_CONVERSION_FLAG));
+  CHECK_EQ(1e-1, StringToDouble("1e-1", NO_CONVERSION_FLAG));
+  CHECK_EQ(1e100, StringToDouble("1e+100", NO_CONVERSION_FLAG));
+  CHECK_EQ(1e-100, StringToDouble("1e-100", NO_CONVERSION_FLAG));
+  CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_CONVERSION_FLAG));
 }
 
 using OneBit1 = base::BitField<uint32_t, 0, 1>;

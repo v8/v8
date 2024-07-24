@@ -1086,7 +1086,7 @@ double Scanner::DoubleValue() {
       return HexStringToDouble(literal_one_byte_string());
     case DECIMAL:
     case DECIMAL_WITH_LEADING_ZERO:
-      return StringToDouble(literal_one_byte_string(), NO_CONVERSION_FLAGS);
+      return StringToDouble(literal_one_byte_string(), NO_CONVERSION_FLAG);
   }
 }
 
