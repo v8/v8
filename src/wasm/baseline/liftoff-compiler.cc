@@ -8391,13 +8391,6 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
-        if (v8_flags.wasm_deopt &&
-            env_->deopt_info_bytecode_offset == decoder->pc_offset()) {
-          DCHECK_EQ(env_->deopt_location_kind,
-                    LocationKindForDeopt::kInlinedCall);
-          // TODO(mliedtke): Should we do this in `FinishCall` instead?
-          StoreFrameDescriptionForDeopt(decoder);
-        }
         FinishCall(decoder, &sig, call_descriptor);
       }
     }
@@ -8737,13 +8730,6 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(&sig, call_descriptor, target);
-
-        if (v8_flags.wasm_deopt &&
-            env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
-            env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
-          StoreFrameDescriptionForDeopt(decoder);
-        }
-
         FinishCall(decoder, &sig, call_descriptor);
       }
     }
@@ -8897,13 +8883,6 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(&sig, call_descriptor, target_reg);
-
-      if (v8_flags.wasm_deopt &&
-          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
-          env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
-        StoreFrameDescriptionForDeopt(decoder);
-      }
-
       FinishCall(decoder, &sig, call_descriptor);
     }
   }
@@ -9064,6 +9043,12 @@ class LiftoffCompiler {
 
   void FinishCall(FullDecoder* decoder, ValueKindSig* sig,
                   compiler::CallDescriptor* call_descriptor) {
+    if (v8_flags.wasm_deopt &&
+        env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
+        env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
+      StoreFrameDescriptionForDeopt(decoder);
+    }
+
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     int pc_offset = __ pc_offset();
