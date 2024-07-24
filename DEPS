@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '68aacc83a2d045e8477a3782336f8e940824e12e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e08f43d09266e18c47fa98894e275f8e4bdf7c09',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4a765c86187d02e0bb11dcce19f3094368bb269e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c048d3159f506530980b9b1f69053d4e66430c3d',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7ec04942633ac95cb0c71108d6d55600aa84b5c8',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8552a2790064f098dc2347f91b60e7cf2b9f597c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -460,7 +460,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2469fdd73f192383d2d94288da0ff5b9a3869f5',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '31a230839a46ea9021c92d3abe56894d38ef1469',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2f3ab4339edbf023b6bd27d91e976dd566464037',
   'tools/luci-go': {
       'packages': [
         {
@@ -478,7 +478,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9d1552f25c3d9e9114b7d7aed55790570a99bc4d',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'c04acbd460b679a66c5670b88d1500b705c84400',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
