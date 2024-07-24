@@ -597,8 +597,7 @@ class TestOneByteResource : public String::ExternalOneByteStringResource {
   int* counter_;
 };
 
-
-THREADED_TEST(ScriptUsingStringResource) {
+TEST(ScriptUsingStringResource) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   uint16_t* two_byte_source = AsciiToTwoByteString(c_source);
@@ -635,8 +634,7 @@ THREADED_TEST(ScriptUsingStringResource) {
   CHECK_EQ(1, dispose_count);
 }
 
-
-THREADED_TEST(ScriptUsingOneByteStringResource) {
+TEST(ScriptUsingOneByteStringResource) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -674,8 +672,7 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
   CHECK_EQ(1, dispose_count);
 }
 
-
-THREADED_TEST(ScriptMakingExternalString) {
+TEST(ScriptMakingExternalString) {
   int dispose_count = 0;
   uint16_t* two_byte_source = AsciiToTwoByteString(u"1 + 2 * 3 /* π */");
   {
@@ -713,8 +710,7 @@ THREADED_TEST(ScriptMakingExternalString) {
   CHECK_EQ(1, dispose_count);
 }
 
-
-THREADED_TEST(ScriptMakingExternalOneByteString) {
+TEST(ScriptMakingExternalOneByteString) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -743,7 +739,6 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
   }
   CHECK_EQ(1, dispose_count);
 }
-
 
 TEST(MakingExternalStringConditions) {
   LocalContext env;
@@ -8171,7 +8166,7 @@ void InternalFieldCallback(bool global_gc) {
   delete t2;
 }
 
-THREADED_TEST(InternalFieldCallback) {
+TEST(InternalFieldCallback) {
   InternalFieldCallback(false);
   InternalFieldCallback(true);
 }
@@ -8233,7 +8228,7 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
   CHECK(object_b.flag);
 }
 
-THREADED_HEAP_TEST(ResetWeakHandle) {
+TEST(ResetWeakHandle) {
   i::heap::HeapTester::ResetWeakHandle(false);
   i::heap::HeapTester::ResetWeakHandle(true);
 }
@@ -8258,7 +8253,7 @@ static void ForceFullGC1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.SetSecondPassCallback(ForceFullGC2);
 }
 
-THREADED_TEST(GCFromWeakCallbacks) {
+TEST(GCFromWeakCallbacks) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Locker locker(CcTest::isolate());
   LocalContext env;
@@ -8310,7 +8305,6 @@ THREADED_TEST(GCFromWeakCallbacks) {
     }
   }
 }
-
 
 static void ArgumentsTestCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -13752,8 +13746,7 @@ void NewPersistentHandleCallback1(
   data.SetSecondPassCallback(NewPersistentHandleCallback2);
 }
 
-
-THREADED_TEST(NewPersistentHandleFromWeakCallback) {
+TEST(NewPersistentHandleFromWeakCallback) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
 
@@ -13782,7 +13775,6 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   }
 }
 
-
 v8::Persistent<v8::Object> to_be_disposed;
 
 
@@ -13799,8 +13791,7 @@ void DisposeAndForceGcCallback1(
   data.SetSecondPassCallback(DisposeAndForceGcCallback2);
 }
 
-
-THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
+TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
 
@@ -13842,8 +13833,7 @@ void HandleCreatingCallback1(
   data.SetSecondPassCallback(HandleCreatingCallback2);
 }
 
-
-THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
+TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   v8::Locker locker(CcTest::isolate());
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -19811,7 +19801,7 @@ static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
   return count;
 }
 
-THREADED_TEST(Regress1516) {
+TEST(Regress1516) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -19841,7 +19831,6 @@ THREADED_TEST(Regress1516) {
 
   CHECK_GT(elements, CountLiveMapsInMapCache(CcTest::i_isolate()->context()));
 }
-
 
 static void TestReceiver(Local<Value> expected_result,
                          Local<Value> expected_receiver,
@@ -29613,7 +29602,7 @@ TEST(FastApiOverloadResolution) {
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
-THREADED_TEST(Recorder_GetContext) {
+TEST(Recorder_GetContext) {
   using v8::Context;
   using v8::Local;
   using v8::MaybeLocal;
