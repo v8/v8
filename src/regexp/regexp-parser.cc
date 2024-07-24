@@ -2382,7 +2382,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
       if (IsUnicodeMode()) {
         // With /u or /v, decimal escape is not interpreted as octal character
         // code.
-        ReportError(RegExpError::kInvalidClassEscape);
+        ReportError(RegExpError::kInvalidDecimalEscape);
         return 0;
       }
       return ParseOctalLiteral();
