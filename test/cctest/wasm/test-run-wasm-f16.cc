@@ -4,6 +4,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -202,6 +203,151 @@ BIN_OP_LIST(TEST_BIN_OP)
 
 #undef TEST_BIN_OP
 #undef BIN_OP_LIST
+
+TEST(F16x8ConvertI16x8) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kLiftoff);
+  // Create two output vectors to hold signed and unsigned results.
+  uint16_t* g0 = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  uint16_t* g1 = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  // Build fn to splat test value, perform conversions, and write the results.
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprF16x8SConvertI16x8,
+                                             WASM_LOCAL_GET(temp1))),
+           WASM_GLOBAL_SET(1, WASM_SIMD_UNOP(kExprF16x8UConvertI16x8,
+                                             WASM_LOCAL_GET(temp1))),
+           WASM_ONE});
+
+  FOR_INT16_INPUTS(x) {
+    r.Call(x);
+    uint16_t expected_signed = fp16_ieee_from_fp32_value(x);
+    uint16_t expected_unsigned =
+        fp16_ieee_from_fp32_value(static_cast<uint16_t>(x));
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_unsigned, LANE(g1, i));
+    }
+  }
+}
+
+int16_t ConvertToInt(uint16_t f16, bool unsigned_result) {
+  float f32 = fp16_ieee_to_fp32_value(f16);
+  if (isnan(f16)) return 0;
+  if (std::isinf(f32)) {
+    if (unsigned_result) {
+      return static_cast<uint16_t>(std::signbit(f32) ? 0 : kMaxUInt16);
+    } else {
+      return static_cast<int16_t>(std::signbit(f32) ? kMinInt16 : kMaxInt16);
+    }
+  }
+  int int_val = static_cast<int>(f32);
+  if (unsigned_result) {
+    if (int_val > kMaxUInt16) return static_cast<uint16_t>(kMaxUInt16);
+    if (int_val < 0) return 0;
+    return static_cast<uint16_t>(f32);
+  } else {
+    if (int_val > kMaxInt16) return static_cast<int16_t>(kMaxInt16);
+    if (int_val < kMinInt16) return static_cast<int16_t>(kMinInt16);
+    return static_cast<int>(f32);
+  }
+}
+
+// Tests both signed and unsigned conversion.
+TEST(I16x8ConvertF16x8) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  // Create two output vectors to hold signed and unsigned results.
+  int16_t* g0 = r.builder().AddGlobal<int16_t>(kWasmS128);
+  int16_t* g1 = r.builder().AddGlobal<int16_t>(kWasmS128);
+  // Build fn to splat test value, perform conversions, and write the results.
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value))),
+           WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI16x8SConvertF16x8,
+                                             WASM_LOCAL_GET(temp1))),
+           WASM_GLOBAL_SET(1, WASM_SIMD_UNOP(kExprI16x8UConvertF16x8,
+                                             WASM_LOCAL_GET(temp1))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    r.Call(x);
+    int16_t expected_signed = ConvertToInt(fp16_ieee_from_fp32_value(x), false);
+    int16_t expected_unsigned =
+        ConvertToInt(fp16_ieee_from_fp32_value(x), true);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_unsigned, LANE(g1, i));
+    }
+  }
+}
+
+TEST(F16x8DemoteF32x4Zero) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  r.Build({WASM_GLOBAL_SET(
+               0, WASM_SIMD_UNOP(kExprF16x8DemoteF32x4Zero,
+                                 WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    r.Call(x);
+    uint16_t expected = fp16_ieee_from_fp32_value(x);
+    for (int i = 0; i < 4; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, expected, actual, true);
+    }
+    for (int i = 4; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, 0, actual, true);
+    }
+  }
+}
+
+TEST(F16x8DemoteF64x2Zero) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoff);
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  r.Build({WASM_GLOBAL_SET(
+               0, WASM_SIMD_UNOP(kExprF16x8DemoteF64x2Zero,
+                                 WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(0)))),
+           WASM_ONE});
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    uint16_t expected = DoubleToFloat16(x);
+    for (int i = 0; i < 2; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, expected, actual, true);
+    }
+    for (int i = 2; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x, x, 0, actual, true);
+    }
+  }
+}
+
+TEST(F32x4PromoteLowF16x8) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  r.Build({WASM_GLOBAL_SET(
+               0, WASM_SIMD_UNOP(kExprF32x4PromoteLowF16x8,
+                                 WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(0)))),
+           WASM_ONE});
+
+  FOR_FLOAT32_INPUTS(x) {
+    r.Call(x);
+    float expected = fp16_ieee_to_fp32_value(fp16_ieee_from_fp32_value(x));
+    for (int i = 0; i < 4; i++) {
+      float actual = LANE(g, i);
+      CheckFloatResult(x, x, expected, actual, true);
+    }
+  }
+}
 
 }  // namespace test_run_wasm_f16
 }  // namespace wasm

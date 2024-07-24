@@ -12,6 +12,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
+#include "src/numbers/conversions.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/float16.h"
@@ -566,6 +567,89 @@ Float16 f16_pmax(Float16 a, Float16 b) {
 
 void f16x8_pmax_wrapper(Address data) {
   simd_float16_bin_wrapper<Float16, &f16_pmax>(data);
+}
+
+template <typename T, typename R, R (*float_un_op)(T)>
+void simd_float_un_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(T);
+  for (int i = 0; i < n; i++) {
+    T input = ReadUnalignedValue<T>(data + (i * sizeof(T)));
+    R value = float_un_op(input);
+    WriteUnalignedValue<R>(data + (i * sizeof(T)), value);
+  }
+}
+
+int16_t ConvertToIntS(Float16 val) {
+  float f32 = val.ToFloat32();
+  if (std::isnan(f32)) return 0;
+  if (f32 > float{kMaxInt16}) return kMaxInt16;
+  if (f32 < float{kMinInt16}) return kMinInt16;
+  return static_cast<int16_t>(f32);
+}
+
+uint16_t ConvertToIntU(Float16 val) {
+  float f32 = val.ToFloat32();
+  if (std::isnan(f32)) return 0;
+  if (f32 > float{kMaxUInt16}) return kMaxUInt16;
+  if (f32 < float{0}) return 0;
+  return static_cast<uint16_t>(f32);
+}
+
+void i16x8_sconvert_f16x8_wrapper(Address data) {
+  simd_float_un_wrapper<Float16, int16_t, &ConvertToIntS>(data);
+}
+
+void i16x8_uconvert_f16x8_wrapper(Address data) {
+  simd_float_un_wrapper<Float16, uint16_t, &ConvertToIntU>(data);
+}
+
+Float16 ConvertToF16S(int16_t val) { return Float16::FromFloat32(val); }
+
+void f16x8_sconvert_i16x8_wrapper(Address data) {
+  simd_float_un_wrapper<int16_t, Float16, &ConvertToF16S>(data);
+}
+
+Float16 ConvertToF16U(uint16_t val) { return Float16::FromFloat32(val); }
+
+void f16x8_uconvert_i16x8_wrapper(Address data) {
+  simd_float_un_wrapper<uint16_t, Float16, &ConvertToF16U>(data);
+}
+
+void f32x4_promote_low_f16x8_wrapper(Address data) {
+  // Result is stored in the same buffer, so read all values to local
+  // stack variables first.
+  Float16 a = Float16::Read(data);
+  Float16 b = Float16::Read(data + sizeof(Float16));
+  Float16 c = Float16::Read(data + 2 * sizeof(Float16));
+  Float16 d = Float16::Read(data + 3 * sizeof(Float16));
+
+  WriteUnalignedValue<float>(data, a.ToFloat32());
+  WriteUnalignedValue<float>(data + sizeof(float), b.ToFloat32());
+  WriteUnalignedValue<float>(data + (2 * sizeof(float)), c.ToFloat32());
+  WriteUnalignedValue<float>(data + (3 * sizeof(float)), d.ToFloat32());
+}
+
+void f16x8_demote_f32x4_zero_wrapper(Address data) {
+  for (int i = 0; i < 4; i++) {
+    float input = ReadUnalignedValue<float>(data + (i * sizeof(float)));
+    Float16::FromFloat32(input).Write(data + (i * sizeof(Float16)));
+  }
+  for (int i = 4; i < 8; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+}
+
+void f16x8_demote_f64x2_zero_wrapper(Address data) {
+  for (int i = 0; i < 2; i++) {
+    double input = ReadUnalignedValue<double>(data + (i * sizeof(double)));
+    WriteUnalignedValue<uint16_t>(data + (i * sizeof(uint16_t)),
+                                  DoubleToFloat16(input));
+  }
+  for (int i = 2; i < 8; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
 }
 
 namespace {

@@ -4701,7 +4701,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprF16x8Min:
       case kExprF16x8Max:
       case kExprF16x8Pmin:
-      case kExprF16x8Pmax: {
+      case kExprF16x8Pmax:
+      case kExprI16x8SConvertF16x8:
+      case kExprI16x8UConvertF16x8:
+      case kExprF16x8SConvertI16x8:
+      case kExprF16x8UConvertI16x8:
+      case kExprF16x8DemoteF32x4Zero:
+      case kExprF16x8DemoteF64x2Zero:
+      case kExprF32x4PromoteLowF16x8: {
         if (!v8_flags.experimental_wasm_fp16) {
           this->DecodeError(
               "invalid simd opcode: 0x%x, "

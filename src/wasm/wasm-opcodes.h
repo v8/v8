@@ -571,7 +571,14 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(F16x8Min, 0xfd141, s_ss, "f16x8.min")                                  \
   V(F16x8Max, 0xfd142, s_ss, "f16x8.max")                                  \
   V(F16x8Pmin, 0xfd143, s_ss, "f16x8.pmin")                                \
-  V(F16x8Pmax, 0xfd144, s_ss, "f16x8.pmax")
+  V(F16x8Pmax, 0xfd144, s_ss, "f16x8.pmax")                                \
+  V(I16x8SConvertF16x8, 0xfd145, s_s, "i16x8.trunc_sat_f16x8_s")           \
+  V(I16x8UConvertF16x8, 0xfd146, s_s, "i16x8.trunc_sat_f16x8_u")           \
+  V(F16x8SConvertI16x8, 0xfd147, s_s, "f16x8.convert_i16x8_s")             \
+  V(F16x8UConvertI16x8, 0xfd148, s_s, "f16x8.convert_i16x8_u")             \
+  V(F16x8DemoteF32x4Zero, 0xfd149, s_s, "f16x8.demote_f32x4_zero")         \
+  V(F16x8DemoteF64x2Zero, 0xfd14a, s_s, "f16x8.demote_f64x2_zero")         \
+  V(F32x4PromoteLowF16x8, 0xfd14b, s_s, "f32x4.promote_low_f16x8")
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V)          \
   V(I8x16ExtractLaneS, 0xfd15, _, "i8x16.extract_lane_s") \

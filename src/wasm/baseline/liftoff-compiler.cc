@@ -4863,6 +4863,34 @@ class LiftoffCompiler {
       case wasm::kExprF32x4UConvertI32x4:
         return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_f32x4_uconvert_i32x4);
+      case wasm::kExprF32x4PromoteLowF16x8:
+        return EmitSimdFloatRoundingOpWithCFallback<kF32>(
+            &LiftoffAssembler::emit_f32x4_promote_low_f16x8,
+            &ExternalReference::wasm_f32x4_promote_low_f16x8);
+      case wasm::kExprF16x8DemoteF32x4Zero:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_demote_f32x4_zero,
+            &ExternalReference::wasm_f16x8_demote_f32x4_zero);
+      case wasm::kExprF16x8DemoteF64x2Zero:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_demote_f64x2_zero,
+            &ExternalReference::wasm_f16x8_demote_f64x2_zero);
+      case wasm::kExprI16x8SConvertF16x8:
+        return EmitSimdFloatRoundingOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_i16x8_sconvert_f16x8,
+            &ExternalReference::wasm_i16x8_sconvert_f16x8);
+      case wasm::kExprI16x8UConvertF16x8:
+        return EmitSimdFloatRoundingOpWithCFallback<kI16>(
+            &LiftoffAssembler::emit_i16x8_uconvert_f16x8,
+            &ExternalReference::wasm_i16x8_uconvert_f16x8);
+      case wasm::kExprF16x8SConvertI16x8:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_sconvert_i16x8,
+            &ExternalReference::wasm_f16x8_sconvert_i16x8);
+      case wasm::kExprF16x8UConvertI16x8:
+        return EmitSimdFloatRoundingOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_uconvert_i16x8,
+            &ExternalReference::wasm_f16x8_uconvert_i16x8);
       case wasm::kExprI8x16SConvertI16x8:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i8x16_sconvert_i16x8);

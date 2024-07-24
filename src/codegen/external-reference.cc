@@ -607,6 +607,20 @@ FUNCTION_REFERENCE(wasm_f16x8_min, wasm::f16x8_min_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_max, wasm::f16x8_max_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_pmin, wasm::f16x8_pmin_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_pmax, wasm::f16x8_pmax_wrapper)
+FUNCTION_REFERENCE(wasm_i16x8_sconvert_f16x8,
+                   wasm::i16x8_sconvert_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_i16x8_uconvert_f16x8,
+                   wasm::i16x8_uconvert_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_sconvert_i16x8,
+                   wasm::f16x8_sconvert_i16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_uconvert_i16x8,
+                   wasm::f16x8_uconvert_i16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_promote_low_f16x8,
+                   wasm::f32x4_promote_low_f16x8_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_demote_f32x4_zero,
+                   wasm::f16x8_demote_f32x4_zero_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_demote_f64x2_zero,
+                   wasm::f16x8_demote_f64x2_zero_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
