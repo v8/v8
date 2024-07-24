@@ -4404,6 +4404,16 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
                               const FunctionSig* target_sig,
                               uint32_t target_sig_index, uint32_t global_index,
                               uint32_t table_index, DataRange* data) {
+  base::Vector<const ValueType> return_types = base::VectorOf(
+      f->signature()->returns().begin(), f->signature()->return_count());
+  // Split the return types randomly and generate some values before the
+  // deopting call and some afterwards. (This makes sure that we have deopts
+  // where there are values on the wasm value stack which are not used by the
+  // deopting call itself.)
+  uint32_t returns_split = data->get<uint8_t>() % (return_types.size() + 1);
+  if (returns_split) {
+    gen_body.Generate(return_types.SubVector(0, returns_split), data);
+  }
   gen_body.Generate(base::VectorOf(target_sig->parameters().begin(),
                                    target_sig->parameters().size()),
                     data);
@@ -4443,9 +4453,7 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
   }
   gen_body.ConsumeAndGenerate(base::VectorOf(target_sig->returns().begin(),
                                              target_sig->returns().size()),
-                              base::VectorOf(f->signature()->returns().begin(),
-                                             f->signature()->return_count()),
-                              data);
+                              return_types.SubVectorFrom(returns_split), data);
 }
 
 template <WasmModuleGenerationOptions options>
@@ -4455,6 +4463,15 @@ void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
   const FunctionSig* callee_sig = callee->signature();
   uint32_t callee_index =
       callee->func_index() + gen_body.NumImportedFunctions();
+
+  base::Vector<const ValueType> return_types = base::VectorOf(
+      f->signature()->returns().begin(), f->signature()->return_count());
+  // Split the return types randomly and generate some values before the
+  // deopting call and some afterwards to create more interesting test cases.
+  uint32_t returns_split = data->get<uint8_t>() % (return_types.size() + 1);
+  if (returns_split) {
+    gen_body.Generate(return_types.SubVector(0, returns_split), data);
+  }
   gen_body.Generate(base::VectorOf(callee_sig->parameters().begin(),
                                    callee_sig->parameters().size()),
                     data);
@@ -4495,9 +4512,7 @@ void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
   }
   gen_body.ConsumeAndGenerate(base::VectorOf(callee_sig->returns().begin(),
                                              callee_sig->returns().size()),
-                              base::VectorOf(f->signature()->returns().begin(),
-                                             f->signature()->return_count()),
-                              data);
+                              return_types.SubVectorFrom(returns_split), data);
 }
 }  // anonymous namespace
 
