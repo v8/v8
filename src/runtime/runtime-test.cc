@@ -1631,7 +1631,7 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   Tagged<JSObject> object = Cast<JSObject>(arg);
 
   Heap* heap = object->GetHeap();
-  if (!heap->InYoungGeneration(object)) {
+  if (!v8_flags.sticky_mark_bits && !heap->InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }

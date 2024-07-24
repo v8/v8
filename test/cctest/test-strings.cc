@@ -1339,6 +1339,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 
 TEST(InternalizeExternal) {
   v8_flags.stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
