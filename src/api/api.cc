@@ -5299,12 +5299,17 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
       static_cast<PropertyAttribute>(result.FromJust()));
 }
 
-Local<v8::Object> v8::Object::Clone() {
+Local<v8::Object> v8::Object::Clone(Isolate* isolate) {
   auto self = i::Cast<i::JSObject>(Utils::OpenHandle(this));
-  auto i_isolate = self->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSObject> result = i_isolate->factory()->CopyJSObject(self);
   return Utils::ToLocal(result);
+}
+
+Local<v8::Object> v8::Object::Clone() {
+  auto self = i::Cast<i::JSObject>(Utils::OpenHandle(this));
+  return Clone(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
 }
 
 namespace {
@@ -5552,10 +5557,11 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   RETURN_ESCAPED(result);
 }
 
-MaybeLocal<v8::Value> Function::Call(Local<Context> context,
+MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
+                                     Local<Context> context,
                                      v8::Local<v8::Value> recv, int argc,
                                      v8::Local<v8::Value> argv[]) {
-  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   ENTER_V8(i_isolate, context, Function, Call, InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(i_isolate);
@@ -5573,6 +5579,12 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
+}
+
+MaybeLocal<v8::Value> Function::Call(Local<Context> context,
+                                     v8::Local<v8::Value> recv, int argc,
+                                     v8::Local<v8::Value> argv[]) {
+  return Call(context->GetIsolate(), context, recv, argc, argv);
 }
 
 void Function::SetName(v8::Local<v8::String> name) {
