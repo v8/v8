@@ -452,5 +452,70 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   return regexp;
 }
 
+bool RegExpData::HasCompiledCode() const {
+  if (type_tag() != Type::IRREGEXP) return false;
+  Tagged<IrRegExpData> re_data = Cast<IrRegExpData>(*this);
+  return re_data->has_latin1_code() || re_data->has_uc16_code();
+}
+
+// Only irregexps are subject to tier-up.
+bool IrRegExpData::CanTierUp() {
+  return v8_flags.regexp_tier_up && type_tag() == Type::IRREGEXP;
+}
+
+// An irregexp is considered to be marked for tier up if the tier-up ticks
+// value reaches zero.
+bool IrRegExpData::MarkedForTierUp() {
+  if (!CanTierUp()) {
+    return false;
+  }
+
+  return ticks_until_tier_up() == 0;
+}
+
+void IrRegExpData::ResetLastTierUpTick() {
+  DCHECK(v8_flags.regexp_tier_up);
+  int tier_up_ticks = ticks_until_tier_up();
+  set_ticks_until_tier_up(tier_up_ticks + 1);
+}
+
+void IrRegExpData::TierUpTick() {
+  int tier_up_ticks = ticks_until_tier_up();
+  if (tier_up_ticks == 0) {
+    return;
+  }
+
+  set_ticks_until_tier_up(tier_up_ticks - 1);
+}
+
+void IrRegExpData::MarkTierUpForNextExec() {
+  DCHECK(v8_flags.regexp_tier_up);
+  set_ticks_until_tier_up(0);
+}
+
+bool IrRegExpData::ShouldProduceBytecode() {
+  return v8_flags.regexp_interpret_all ||
+         (v8_flags.regexp_tier_up && !MarkedForTierUp());
+}
+
+void IrRegExpData::DiscardCompiledCodeForSerialization() {
+  DCHECK(HasCompiledCode());
+  clear_latin1_code();
+  clear_uc16_code();
+  clear_latin1_bytecode();
+  clear_uc16_bytecode();
+}
+
+void IrRegExpData::SetBytecodeForExperimental(
+    Isolate* isolate, Tagged<TrustedByteArray> bytecode) {
+  set_latin1_bytecode(bytecode);
+  set_uc16_bytecode(bytecode);
+
+  Tagged<Code> trampoline =
+      *BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  set_latin1_code(trampoline);
+  set_uc16_code(trampoline);
+}
+
 }  // namespace internal
 }  // namespace v8

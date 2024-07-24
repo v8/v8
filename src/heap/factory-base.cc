@@ -20,6 +20,7 @@
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -651,6 +652,16 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
   result->set_elements_kind(elements_kind);
   result->set_constant_elements(*constant_values);
   return handle(result, isolate());
+}
+
+template <typename Impl>
+Handle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
+  Handle<RegExpDataWrapper> wrapper(
+      Cast<RegExpDataWrapper>(NewWithImmortalMap(
+          read_only_roots().regexp_data_wrapper_map(), AllocationType::kOld)),
+      isolate());
+  wrapper->clear_data();
+  return wrapper;
 }
 
 template <typename Impl>

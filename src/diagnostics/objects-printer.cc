@@ -858,6 +858,61 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void RegExpData::RegExpDataPrint(std::ostream& os) {
+  switch (type_tag()) {
+    case RegExpData::Type::ATOM:
+      PrintHeader(os, "AtomRegExpData");
+      break;
+    case RegExpData::Type::IRREGEXP:
+      PrintHeader(os, "IrRegExpData");
+      break;
+    case RegExpData::Type::EXPERIMENTAL:
+      PrintHeader(os, "IrRegExpData");
+      break;
+    default:
+      UNREACHABLE();
+  }
+  os << "\n - source: " << source();
+  JSRegExp::FlagsBuffer buffer;
+  os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
+}
+
+void AtomRegExpData::AtomRegExpDataPrint(std::ostream& os) {
+  RegExpDataPrint(os);
+  os << "\n - pattern: " << pattern();
+  os << "\n";
+}
+
+void IrRegExpData::IrRegExpDataPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  RegExpDataPrint(os);
+  if (has_latin1_bytecode()) {
+    os << "\n - latin1_bytecode: " << Brief(latin1_bytecode());
+  }
+  if (has_uc16_bytecode()) {
+    os << "\n - uc16_bytecode: " << Brief(uc16_bytecode());
+  }
+  if (has_latin1_code()) {
+    os << "\n - latin1_code: " << Brief(latin1_code(isolate));
+  }
+  if (has_uc16_code()) {
+    os << "\n - uc16_code: " << Brief(uc16_code(isolate));
+  }
+  os << "\n - capture_name_map: " << Brief(capture_name_map());
+  os << "\n - max_register_count: " << max_register_count();
+  os << "\n - capture_count: " << max_register_count();
+  os << "\n - ticks_until_tier_up: " << max_register_count();
+  os << "\n - backtrack_limit: " << max_register_count();
+  os << "\n";
+}
+
+void RegExpDataWrapper::RegExpDataWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "RegExpDataWrapper");
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n    data: " << Brief(data(isolate));
+  os << "\n";
+}
+
 void JSRegExpStringIterator::JSRegExpStringIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRegExpStringIterator");
   os << "\n - regex: " << Brief(iterating_reg_exp());

@@ -2062,6 +2062,62 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   }
 }
 
+void RegExpData::RegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
+  CHECK(IsString(source()));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+}
+
+void AtomRegExpData::AtomRegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  RegExpDataVerify(isolate);
+  CHECK(IsString(pattern()));
+}
+
+void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
+  RegExpDataVerify(isolate);
+
+  VerifyProtectedPointerField(isolate, kLatin1BytecodeOffset);
+  VerifyProtectedPointerField(isolate, kUc16BytecodeOffset);
+
+  CHECK_IMPLIES(!has_latin1_code(), !has_latin1_bytecode());
+  CHECK_IMPLIES(!has_uc16_code(), !has_uc16_bytecode());
+
+  CHECK_IMPLIES(has_latin1_code(), Is<Code>(latin1_code(isolate)));
+  CHECK_IMPLIES(has_uc16_code(), Is<Code>(uc16_code(isolate)));
+  CHECK_IMPLIES(has_latin1_bytecode(), Is<TrustedByteArray>(latin1_bytecode()));
+  CHECK_IMPLIES(has_uc16_bytecode(), Is<TrustedByteArray>(uc16_bytecode()));
+
+  CHECK_IMPLIES(
+      IsSmi(capture_name_map()),
+      Smi::ToInt(capture_name_map()) == JSRegExp::kUninitializedValue ||
+          capture_name_map() == Smi::zero());
+  CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kMaxRegisterCountOffset)));
+  static_assert(JSRegExp::kUninitializedValue == -1);
+  CHECK_GE(max_register_count(), JSRegExp::kUninitializedValue);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kCaptureCountOffset)));
+  CHECK_GE(capture_count(), 0);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kTicksUntilTierUpOffset)));
+  if (v8_flags.regexp_tier_up) {
+    CHECK_GE(ticks_until_tier_up(), 0);
+    CHECK_LE(ticks_until_tier_up(), v8_flags.regexp_tier_up_ticks);
+  } else {
+    CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+  }
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kBacktrackLimitOffset)));
+  CHECK_GE(backtrack_limit(), 0);
+}
+
+void RegExpDataWrapper::RegExpDataWrapperVerify(Isolate* isolate) {
+  if (!this->has_data()) return;
+  auto data = this->data(isolate);
+  Object::VerifyPointer(isolate, data);
+  CHECK_EQ(data->wrapper(), *this);
+}
+
 void JSProxy::JSProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSProxyVerify(*this, isolate);
   CHECK(IsJSFunction(map()->GetConstructor()));

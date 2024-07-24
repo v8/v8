@@ -52,6 +52,7 @@ namespace internal {
   V(PropertyArray)                   \
   V(PropertyCell)                    \
   V(PrototypeInfo)                   \
+  V(RegExpDataWrapper)               \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
   V(SharedFunctionInfo)              \
@@ -130,6 +131,7 @@ namespace internal {
   V(PropertyArray)                                        \
   V(PropertyCell)                                         \
   V(PrototypeInfo)                                        \
+  V(RegExpDataWrapper)                                    \
   V(ScopeInfo)                                            \
   V(SeqOneByteString)                                     \
   V(SeqTwoByteString)                                     \

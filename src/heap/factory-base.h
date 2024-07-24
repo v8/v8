@@ -221,6 +221,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values);
 
+  Handle<RegExpDataWrapper> NewRegExpDataWrapper();
+
   Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
       DirectHandle<FixedArray> data, DirectHandle<String> source,
       Tagged<Smi> flags);

@@ -348,6 +348,75 @@ class JSDate::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kWrapperOffset, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return kSize;
+  }
+};
+
+class AtomRegExpData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+
+    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kWrapperOffset, v);
+
+    IteratePointer(obj, kPatternOffset, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return kSize;
+  }
+};
+
+class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+
+    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kWrapperOffset, v);
+
+    IterateCodePointer(obj, kLatin1CodeOffset, v, IndirectPointerMode::kStrong);
+    IterateCodePointer(obj, kUc16CodeOffset, v, IndirectPointerMode::kStrong);
+    IterateProtectedPointer(obj, kLatin1BytecodeOffset, v);
+    IterateProtectedPointer(obj, kUc16BytecodeOffset, v);
+    IteratePointer(obj, kCaptureNameMapOffset, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return kSize;
+  }
+};
+
+class RegExpDataWrapper::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateTrustedPointer(obj, kDataOffset, v, IndirectPointerMode::kStrong,
+                          kRegExpDataIndirectPointerTag);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return kSize;
+  }
+};
+
 class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

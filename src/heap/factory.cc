@@ -3979,14 +3979,14 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
 void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
                                 DirectHandle<String> source,
                                 JSRegExp::Flags flags,
-                                DirectHandle<Object> data) {
+                                DirectHandle<String> pattern) {
   Tagged<FixedArray> store =
       *NewFixedArray(JSRegExp::kAtomDataSize, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::ATOM));
   store->set(JSRegExp::kSourceIndex, *source, SKIP_WRITE_BARRIER);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
-  store->set(JSRegExp::kAtomPatternIndex, *data, SKIP_WRITE_BARRIER);
+  store->set(JSRegExp::kAtomPatternIndex, *pattern, SKIP_WRITE_BARRIER);
   regexp->set_data(store);
 }
 
@@ -4039,6 +4039,92 @@ void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, uninitialized);
   store->set(JSRegExp::kIrregexpBacktrackLimit, uninitialized);
   regexp->set_data(store);
+}
+
+Handle<RegExpData> Factory::NewAtomRegExpData(DirectHandle<String> source,
+                                              JSRegExp::Flags flags,
+                                              DirectHandle<String> pattern) {
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  int size = AtomRegExpData::kSize;
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
+  DisallowGarbageCollection no_gc;
+  Tagged<AtomRegExpData> instance = Cast<AtomRegExpData>(result);
+  instance->init_self_indirect_pointer(isolate());
+  instance->set_type_tag(RegExpData::Type::ATOM);
+  instance->set_source(*source);
+  instance->set_flags(flags);
+  instance->set_pattern(*pattern);
+  Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
+  instance->set_wrapper(raw_wrapper);
+  raw_wrapper->set_data(instance);
+  return handle(instance, isolate());
+}
+
+Handle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
+                                            JSRegExp::Flags flags,
+                                            int capture_count,
+                                            uint32_t backtrack_limit) {
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  int size = IrRegExpData::kSize;
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
+  DisallowGarbageCollection no_gc;
+  Tagged<IrRegExpData> instance = Cast<IrRegExpData>(result);
+  instance->init_self_indirect_pointer(isolate());
+  instance->set_type_tag(RegExpData::Type::IRREGEXP);
+  instance->set_source(*source);
+  instance->set_flags(flags);
+  instance->clear_latin1_code();
+  instance->clear_uc16_code();
+  instance->clear_latin1_bytecode();
+  instance->clear_uc16_bytecode();
+  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->set_max_register_count(JSRegExp::kUninitializedValue);
+  instance->set_capture_count(capture_count);
+  int ticks_until_tier_up = v8_flags.regexp_tier_up
+                                ? v8_flags.regexp_tier_up_ticks
+                                : JSRegExp::kUninitializedValue;
+  instance->set_ticks_until_tier_up(ticks_until_tier_up);
+  instance->set_backtrack_limit(backtrack_limit);
+  Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
+  instance->set_wrapper(raw_wrapper);
+  raw_wrapper->set_data(instance);
+  return handle(instance, isolate());
+}
+
+Handle<RegExpData> Factory::NewExperimentalRegExpData(
+    DirectHandle<String> source, JSRegExp::Flags flags, int capture_count) {
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  int size = IrRegExpData::kSize;
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
+  DisallowGarbageCollection no_gc;
+  Tagged<IrRegExpData> instance = Cast<IrRegExpData>(result);
+  // TODO(mbid,v8:10765): At the moment the ExperimentalRegExpData is just an
+  // alias of IrRegExpData, with most fields set to some default/uninitialized
+  // value. This is because EXPERIMENTAL and IRREGEXP regexps take the same code
+  // path in `RegExpExecInternal`, which reads off various fields from this
+  // struct. `RegExpExecInternal` should probably distinguish between
+  // EXPERIMENTAL and IRREGEXP, and then we can get rid of all the IRREGEXP only
+  // fields.
+  instance->init_self_indirect_pointer(isolate());
+  instance->set_type_tag(RegExpData::Type::EXPERIMENTAL);
+  instance->set_source(*source);
+  instance->set_flags(flags);
+  instance->clear_latin1_code();
+  instance->clear_uc16_code();
+  instance->clear_latin1_bytecode();
+  instance->clear_uc16_bytecode();
+  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->set_max_register_count(JSRegExp::kUninitializedValue);
+  instance->set_capture_count(capture_count);
+  instance->set_ticks_until_tier_up(JSRegExp::kUninitializedValue);
+  instance->set_backtrack_limit(JSRegExp::kUninitializedValue);
+  Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
+  instance->set_wrapper(raw_wrapper);
+  raw_wrapper->set_data(instance);
+  return handle(instance, isolate());
 }
 
 Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {

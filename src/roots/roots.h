@@ -127,6 +127,9 @@ class RootVisitor;
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, accessor_info_map, AccessorInfoMap)                                   \
   V(Map, regexp_match_info_map, RegExpMatchInfoMap)                            \
+  V(Map, regexp_data_map, RegExpDataMap)                                       \
+  V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \
+  V(Map, ir_regexp_data_map, IrRegExpDataMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \

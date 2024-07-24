@@ -386,6 +386,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       if (instance_type == INTERPRETER_DATA_TYPE) {
         return kVisitInterpreterData;
       }
+      if (instance_type == REG_EXP_DATA_WRAPPER_TYPE) {
+        return kVisitRegExpDataWrapper;
+      }
       return kVisitStruct;
 
     case LOAD_HANDLER_TYPE:

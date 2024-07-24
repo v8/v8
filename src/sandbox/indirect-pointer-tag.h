@@ -55,11 +55,12 @@ constexpr uint64_t kIndirectPointerTagMaskWithoutFreeEntryBit =
   V(kCodeIndirectPointerTag, CODE_TYPE, 1)                        \
   V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE, 2)     \
   V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE, 3) \
+  V(kRegExpDataIndirectPointerTag, REG_EXP_DATA_TYPE, 4)          \
   IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,          \
-          WASM_TRUSTED_INSTANCE_DATA_TYPE, 4)                     \
+          WASM_TRUSTED_INSTANCE_DATA_TYPE, 5)                     \
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag,             \
-          WASM_INTERNAL_FUNCTION_TYPE, 5)                         \
-  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WASM_FUNCTION_DATA_TYPE, 6)
+          WASM_INTERNAL_FUNCTION_TYPE, 6)                         \
+  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WASM_FUNCTION_DATA_TYPE, 7)
 
 #define MAKE_TAG(i) \
   (kAllTagsForAndBasedTypeChecking[i] << kIndirectPointerTagShift)
@@ -160,6 +161,12 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type) {
     break;
     INDIRECT_POINTER_TAG_LIST(CASE)
 #undef CASE
+    case ATOM_REG_EXP_DATA_TYPE:
+    case IR_REG_EXP_DATA_TYPE:
+      // TODO(saelo): Consider adding support for inheritance hierarchies in
+      // our tag checking mechanism.
+      raw = kRegExpDataIndirectPointerTag;
+      break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case WASM_JS_FUNCTION_DATA_TYPE:

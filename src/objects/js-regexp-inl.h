@@ -25,6 +25,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
 
+OBJECT_CONSTRUCTORS_IMPL(RegExpData, ExposedTrustedObject)
+OBJECT_CONSTRUCTORS_IMPL(AtomRegExpData, RegExpData)
+OBJECT_CONSTRUCTORS_IMPL(IrRegExpData, RegExpData)
+OBJECT_CONSTRUCTORS_IMPL(RegExpDataWrapper, Struct)
+
 ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::type_tag() const {
@@ -134,6 +139,99 @@ void JSRegExp::DiscardCompiledCodeForSerialization() {
   SetDataAt(kIrregexpLatin1BytecodeIndex, uninitialized);
   SetDataAt(kIrregexpUC16BytecodeIndex, uninitialized);
 }
+
+RegExpData::Type RegExpData::type_tag() const {
+  Tagged<Smi> value = TaggedField<Smi, kTypeTagOffset>::load(*this);
+  return Type(value.value());
+}
+
+void RegExpData::set_type_tag(Type type) {
+  TaggedField<Smi, kTypeTagOffset>::store(
+      *this, Smi::FromInt(static_cast<uint8_t>(type)));
+}
+
+ACCESSORS(RegExpData, source, Tagged<String>, kSourceOffset)
+
+JSRegExp::Flags RegExpData::flags() const {
+  Tagged<Smi> value = TaggedField<Smi, kFlagsOffset>::load(*this);
+  return JSRegExp::Flags(value.value());
+}
+
+void RegExpData::set_flags(JSRegExp::Flags flags) {
+  TaggedField<Smi, kFlagsOffset>::store(*this, Smi::FromInt(flags));
+}
+
+ACCESSORS(RegExpData, wrapper, Tagged<RegExpDataWrapper>, kWrapperOffset)
+
+int RegExpData::capture_count() const {
+  switch (type_tag()) {
+    case Type::ATOM:
+      return 0;
+    case Type::EXPERIMENTAL:
+    case Type::IRREGEXP:
+      return Cast<IrRegExpData>(*this)->capture_count();
+  }
+}
+
+TRUSTED_POINTER_ACCESSORS(RegExpDataWrapper, data, RegExpData, kDataOffset,
+                          kRegExpDataIndirectPointerTag)
+
+ACCESSORS(AtomRegExpData, pattern, Tagged<String>, kPatternOffset)
+
+CODE_POINTER_ACCESSORS(IrRegExpData, latin1_code, kLatin1CodeOffset)
+CODE_POINTER_ACCESSORS(IrRegExpData, uc16_code, kUc16CodeOffset)
+bool IrRegExpData::has_code(bool is_one_byte) const {
+  return is_one_byte ? has_latin1_code() : has_uc16_code();
+}
+void IrRegExpData::set_code(bool is_one_byte, Tagged<Code> code) {
+  if (is_one_byte) {
+    set_latin1_code(code);
+  } else {
+    set_uc16_code(code);
+  }
+}
+Tagged<Code> IrRegExpData::code(IsolateForSandbox isolate,
+                                bool is_one_byte) const {
+  return is_one_byte ? latin1_code(isolate) : uc16_code(isolate);
+}
+PROTECTED_POINTER_ACCESSORS(IrRegExpData, latin1_bytecode, TrustedByteArray,
+                            kLatin1BytecodeOffset)
+PROTECTED_POINTER_ACCESSORS(IrRegExpData, uc16_bytecode, TrustedByteArray,
+                            kUc16BytecodeOffset)
+bool IrRegExpData::has_bytecode(bool is_one_byte) const {
+  return is_one_byte ? has_latin1_bytecode() : has_uc16_bytecode();
+}
+void IrRegExpData::clear_bytecode(bool is_one_byte) {
+  if (is_one_byte) {
+    clear_latin1_bytecode();
+  } else {
+    clear_uc16_bytecode();
+  }
+}
+void IrRegExpData::set_bytecode(bool is_one_byte,
+                                Tagged<TrustedByteArray> bytecode) {
+  if (is_one_byte) {
+    set_latin1_bytecode(bytecode);
+  } else {
+    set_uc16_bytecode(bytecode);
+  }
+}
+Tagged<TrustedByteArray> IrRegExpData::bytecode(bool is_one_byte) const {
+  return is_one_byte ? latin1_bytecode() : uc16_bytecode();
+}
+ACCESSORS(IrRegExpData, capture_name_map, Tagged<Object>, kCaptureNameMapOffset)
+void IrRegExpData::set_capture_name_map(Handle<FixedArray> capture_name_map) {
+  if (capture_name_map.is_null()) {
+    set_capture_name_map(Smi::zero());
+  } else {
+    set_capture_name_map(*capture_name_map);
+  }
+}
+
+SMI_ACCESSORS(IrRegExpData, max_register_count, kMaxRegisterCountOffset)
+SMI_ACCESSORS(IrRegExpData, capture_count, kCaptureCountOffset)
+SMI_ACCESSORS(IrRegExpData, ticks_until_tier_up, kTicksUntilTierUpOffset)
+SMI_ACCESSORS(IrRegExpData, backtrack_limit, kBacktrackLimitOffset)
 
 }  // namespace internal
 }  // namespace v8

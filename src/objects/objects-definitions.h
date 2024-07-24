@@ -169,6 +169,7 @@ namespace internal {
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
   V(_, REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, RegExpBoilerplateDescription,    \
     regexp_boilerplate_description)                                           \
+  V(_, REG_EXP_DATA_WRAPPER_TYPE, RegExpDataWrapper, regexp_data_wrapper)     \
   V(_, SCRIPT_TYPE, Script, script)                                           \
   V(_, SCRIPT_OR_MODULE_TYPE, ScriptOrModule, script_or_module)               \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,         \

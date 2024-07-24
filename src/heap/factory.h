@@ -1004,7 +1004,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // atom regexp and stores it in the regexp.
   void SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
                          DirectHandle<String> source, JSRegExp::Flags flags,
-                         DirectHandle<Object> match_pattern);
+                         DirectHandle<String> match_pattern);
 
   // Creates a new FixedArray that holds the data associated with the
   // irregexp regexp and stores it in the regexp.
@@ -1017,6 +1017,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   void SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
                                  DirectHandle<String> source,
                                  JSRegExp::Flags flags, int capture_count);
+
+  Handle<RegExpData> NewAtomRegExpData(DirectHandle<String> source,
+                                       JSRegExp::Flags flags,
+                                       DirectHandle<String> pattern);
+  Handle<RegExpData> NewIrRegExpData(DirectHandle<String> source,
+                                     JSRegExp::Flags flags, int capture_count,
+                                     uint32_t backtrack_limit);
+  Handle<RegExpData> NewExperimentalRegExpData(DirectHandle<String> source,
+                                               JSRegExp::Flags flags,
+                                               int capture_count);
 
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.

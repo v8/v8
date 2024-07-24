@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+class RegExpData;
+
 #include "torque-generated/src/objects/js-regexp-tq.inc"
 
 // Regular expressions
@@ -225,9 +227,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kInObjectFieldCount = 1;
 
   // The actual object size including in-object fields.
-  static constexpr int Size() {
-    return kHeaderSize + kInObjectFieldCount * kTaggedSize;
-  }
+  static constexpr int kSize = kHeaderSize + kInObjectFieldCount * kTaggedSize;
+  static constexpr int Size() { return kSize; }
 
   // Descriptor array index to important methods in the prototype.
   static constexpr int kExecFunctionDescriptorIndex = 1;
@@ -257,10 +258,161 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline Tagged<Object> DataAt(int index) const;
   inline void SetDataAt(int index, Tagged<Object> value);
 
+  friend class RegExpData;
+
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
+
+class RegExpDataWrapper;
+
+class RegExpData : public ExposedTrustedObject {
+ public:
+  enum class Type : uint8_t {
+    ATOM,          // A simple string match.
+    IRREGEXP,      // Compiled with Irregexp (code or bytecode).
+    EXPERIMENTAL,  // Compiled to use the experimental linear time engine.
+  };
+
+  inline Type type_tag() const;
+  inline void set_type_tag(Type);
+
+  DECL_ACCESSORS(source, Tagged<String>)
+
+  inline JSRegExp::Flags flags() const;
+  inline void set_flags(JSRegExp::Flags flags);
+
+  DECL_ACCESSORS(wrapper, Tagged<RegExpDataWrapper>)
+
+  inline int capture_count() const;
+
+  static constexpr bool TypeSupportsCaptures(Type t) {
+    return t == Type::IRREGEXP || t == Type::EXPERIMENTAL;
+  }
+
+  V8_EXPORT_PRIVATE bool HasCompiledCode() const;
+
+  DECL_PRINTER(RegExpData)
+  DECL_VERIFIER(RegExpData)
+
+#define FIELD_LIST(V)            \
+  V(kTypeTagOffset, kTaggedSize) \
+  V(kSourceOffset, kTaggedSize)  \
+  V(kFlagsOffset, kTaggedSize)   \
+  V(kWrapperOffset, kTaggedSize) \
+  V(kHeaderSize, 0)              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
+
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(RegExpData, ExposedTrustedObject);
+};
+
+class RegExpDataWrapper : public Struct {
+ public:
+  DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
+
+  DECL_PRINTER(RegExpDataWrapper)
+  DECL_VERIFIER(RegExpDataWrapper)
+
+#define FIELD_LIST(V)                 \
+  V(kDataOffset, kTrustedPointerSize) \
+  V(kHeaderSize, 0)                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(RegExpDataWrapper, Struct);
+};
+
+class AtomRegExpData : public RegExpData {
+ public:
+  DECL_ACCESSORS(pattern, Tagged<String>)
+
+  DECL_PRINTER(AtomRegExpData)
+  DECL_VERIFIER(AtomRegExpData)
+
+#define FIELD_LIST(V)            \
+  V(kPatternOffset, kTaggedSize) \
+  V(kHeaderSize, 0)              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(RegExpData::kHeaderSize, FIELD_LIST)
+
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(AtomRegExpData, RegExpData);
+};
+
+class IrRegExpData : public RegExpData {
+ public:
+  DECL_CODE_POINTER_ACCESSORS(latin1_code)
+  DECL_CODE_POINTER_ACCESSORS(uc16_code)
+  inline bool has_code(bool is_one_byte) const;
+  inline void set_code(bool is_one_byte, Tagged<Code> code);
+  inline Tagged<Code> code(IsolateForSandbox isolate, bool is_one_byte) const;
+  DECL_PROTECTED_POINTER_ACCESSORS(latin1_bytecode, TrustedByteArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(uc16_bytecode, TrustedByteArray)
+  inline bool has_bytecode(bool is_one_byte) const;
+  inline void clear_bytecode(bool is_one_byte);
+  inline void set_bytecode(bool is_one_byte, Tagged<TrustedByteArray> bytecode);
+  inline Tagged<TrustedByteArray> bytecode(bool is_one_byte) const;
+  DECL_ACCESSORS(capture_name_map, Tagged<Object>)
+  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
+  DECL_INT_ACCESSORS(max_register_count)
+  // Number of captures (without the match itself).
+  DECL_INT_ACCESSORS(capture_count)
+  DECL_INT_ACCESSORS(ticks_until_tier_up)
+  DECL_INT_ACCESSORS(backtrack_limit)
+
+  bool CanTierUp();
+  bool MarkedForTierUp();
+  void ResetLastTierUpTick();
+  void TierUpTick();
+  void MarkTierUpForNextExec();
+  bool ShouldProduceBytecode();
+
+  void DiscardCompiledCodeForSerialization();
+
+  // Sets the bytecode as well as initializing trampoline slots to the
+  // RegExpExperimentalTrampoline.
+  void SetBytecodeForExperimental(Isolate* isolate,
+                                  Tagged<TrustedByteArray> bytecode);
+
+  DECL_PRINTER(IrRegExpData)
+  DECL_VERIFIER(IrRegExpData)
+
+#define FIELD_LIST(V)                             \
+  V(kLatin1BytecodeOffset, kProtectedPointerSize) \
+  V(kUc16BytecodeOffset, kProtectedPointerSize)   \
+  V(kLatin1CodeOffset, kCodePointerSize)          \
+  V(kUc16CodeOffset, kCodePointerSize)            \
+  V(kCaptureNameMapOffset, kTaggedSize)           \
+  V(kMaxRegisterCountOffset, kTaggedSize)         \
+  V(kCaptureCountOffset, kTaggedSize)             \
+  V(kTicksUntilTierUpOffset, kTaggedSize)         \
+  V(kBacktrackLimitOffset, kTaggedSize)           \
+  V(kHeaderSize, 0)                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(RegExpData::kHeaderSize, FIELD_LIST)
+
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(IrRegExpData, RegExpData);
+};
 
 // JSRegExpResult is just a JSArray with a specific initial map.
 // This initial map adds in-object properties for "index" and "input"
