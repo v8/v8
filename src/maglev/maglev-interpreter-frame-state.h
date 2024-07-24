@@ -369,18 +369,27 @@ struct KnownNodeAspects {
       // kName must be zero so that pointers are unaffected.
       kName = 0,
       kElements,
-      kTypedArrayLength
+      kTypedArrayLength,
+      // TODO(leszeks): We could probably share kStringLength with
+      // kTypedArrayLength if needed.
+      kStringLength
     };
     static constexpr int kTypeMask = 0x3;
     static_assert((kName & ~kTypeMask) == 0);
+    static_assert((kElements & ~kTypeMask) == 0);
     static_assert((kTypedArrayLength & ~kTypeMask) == 0);
+    static_assert((kStringLength & ~kTypeMask) == 0);
+
+    static LoadedPropertyMapKey Elements() {
+      return LoadedPropertyMapKey(kElements);
+    }
 
     static LoadedPropertyMapKey TypedArrayLength() {
       return LoadedPropertyMapKey(kTypedArrayLength);
     }
 
-    static LoadedPropertyMapKey Elements() {
-      return LoadedPropertyMapKey(kElements);
+    static LoadedPropertyMapKey StringLength() {
+      return LoadedPropertyMapKey(kStringLength);
     }
 
     // Allow implicit conversion from NameRef to key, so that callers in the
