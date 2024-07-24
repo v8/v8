@@ -591,9 +591,8 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       return std::numeric_limits<int32_t>::min() < value &&
              value <= std::numeric_limits<int32_t>::max();
     }
-    if (constant.is_number()) {
-      const double value = constant.number_value();
-      return base::bit_cast<int64_t>(value) == 0;
+    if (constant.is_number_zero()) {
+      return true;
     }
     return false;
   }
@@ -605,8 +604,8 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     if (constant.is_int64()) {
       return static_cast<int32_t>(constant.int64_value());
     }
-    DCHECK(constant.is_number());
-    return static_cast<int32_t>(constant.number_value());
+    DCHECK(constant.is_number_zero());
+    return 0;
   }
 
   bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,

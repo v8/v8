@@ -645,7 +645,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         return g->UseImmediate(input);
       case Kind::kNumber:
         if (rep == MachineRepresentation::kWord32) {
-          const double d = constant->number();
+          const double d = constant->number().get_scalar();
           Tagged<Smi> smi = Smi::FromInt(static_cast<int32_t>(d));
           CHECK_EQ(smi.value(), d);
           return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
@@ -4749,7 +4749,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           MarkAsCompressed(node);
           break;
         case ConstantOp::Kind::kNumber:
-          if (!IsSmiDouble(constant.number())) MarkAsTagged(node);
+          if (!IsSmiDouble(constant.number().get_scalar())) MarkAsTagged(node);
           break;
         case ConstantOp::Kind::kRelocatableWasmCall:
         case ConstantOp::Kind::kRelocatableWasmStubCall:

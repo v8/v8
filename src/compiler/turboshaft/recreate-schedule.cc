@@ -1060,13 +1060,13 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
     case ConstantOp::Kind::kCompressedHeapObject:
       return AddNode(common.CompressedHeapConstant(op.handle()), {});
     case ConstantOp::Kind::kNumber:
-      return AddNode(common.NumberConstant(op.number()), {});
+      return AddNode(common.NumberConstant(op.number().get_scalar()), {});
     case ConstantOp::Kind::kTaggedIndex:
       return AddNode(common.TaggedIndexConstant(op.tagged_index()), {});
     case ConstantOp::Kind::kFloat64:
-      return AddNode(common.Float64Constant(op.float64()), {});
+      return AddNode(common.Float64Constant(op.float64().get_scalar()), {});
     case ConstantOp::Kind::kFloat32:
-      return AddNode(common.Float32Constant(op.float32()), {});
+      return AddNode(common.Float32Constant(op.float32().get_scalar()), {});
     case ConstantOp::Kind::kRelocatableWasmCall:
       return RelocatableIntPtrConstant(op.integral(), RelocInfo::WASM_CALL);
     case ConstantOp::Kind::kRelocatableWasmStubCall:

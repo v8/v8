@@ -209,9 +209,9 @@ class MachineOptimizationReducer : public Next {
           return __ Word64Constant(uint64_t{static_cast<uint32_t>(value)});
         case multi(Kind::kBitcast, Rep::Word32(), Rep::Float32()):
           return __ Float32Constant(
-              base::bit_cast<float>(static_cast<uint32_t>(value)));
+              i::Float32::FromBits(static_cast<uint32_t>(value)));
         case multi(Kind::kBitcast, Rep::Word64(), Rep::Float64()):
-          return __ Float64Constant(base::bit_cast<double>(value));
+          return __ Float64Constant(i::Float64::FromBits(value));
         case multi(Kind::kSignedToFloat, Rep::Word32(), Rep::Float64()):
           return __ Float64Constant(
               static_cast<double>(static_cast<int32_t>(value)));
@@ -227,27 +227,27 @@ class MachineOptimizationReducer : public Next {
           break;
       }
     }
-    if (float value; from == RegisterRepresentation::Float32() &&
-                     matcher.MatchFloat32Constant(input, &value)) {
+    if (i::Float32 value; from == RegisterRepresentation::Float32() &&
+                          matcher.MatchFloat32Constant(input, &value)) {
       if (kind == Kind::kFloatConversion &&
           to == RegisterRepresentation::Float64()) {
-        return __ Float64Constant(value);
+        return __ Float64Constant(value.get_scalar());
       }
       if (kind == Kind::kBitcast && to == WordRepresentation::Word32()) {
-        return __ Word32Constant(base::bit_cast<uint32_t>(value));
+        return __ Word32Constant(value.get_bits());
       }
     }
-    if (double value; from == RegisterRepresentation::Float64() &&
-                      matcher.MatchFloat64Constant(input, &value)) {
+    if (i::Float64 value; from == RegisterRepresentation::Float64() &&
+                          matcher.MatchFloat64Constant(input, &value)) {
       if (kind == Kind::kFloatConversion &&
           to == RegisterRepresentation::Float32()) {
-        return __ Float32Constant(DoubleToFloat32_NoInline(value));
+        return __ Float32Constant(DoubleToFloat32_NoInline(value.get_scalar()));
       }
       if (kind == Kind::kBitcast && to == WordRepresentation::Word64()) {
         return __ Word64Constant(base::bit_cast<uint64_t>(value));
       }
       if (kind == Kind::kSignedFloatTruncateOverflowToMin) {
-        double truncated = std::trunc(value);
+        double truncated = std::trunc(value.get_scalar());
         if (to == WordRepresentation::Word64()) {
           int64_t result = std::numeric_limits<int64_t>::min();
           if (truncated >= std::numeric_limits<int64_t>::min() &&
@@ -267,17 +267,15 @@ class MachineOptimizationReducer : public Next {
       }
       if (kind == Kind::kJSFloatTruncate &&
           to == WordRepresentation::Word32()) {
-        return __ Word32Constant(DoubleToInt32_NoInline(value));
+        return __ Word32Constant(DoubleToInt32_NoInline(value.get_scalar()));
       }
       if (kind == Kind::kExtractHighHalf) {
         DCHECK_EQ(to, RegisterRepresentation::Word32());
-        return __ Word32Constant(
-            static_cast<uint32_t>(base::bit_cast<uint64_t>(value) >> 32));
+        return __ Word32Constant(static_cast<uint32_t>(value.get_bits() >> 32));
       }
       if (kind == Kind::kExtractLowHalf) {
         DCHECK_EQ(to, RegisterRepresentation::Word32());
-        return __ Word32Constant(
-            static_cast<uint32_t>(base::bit_cast<uint64_t>(value)));
+        return __ Word32Constant(static_cast<uint32_t>(value.get_bits()));
       }
     }
     if (float value; from == RegisterRepresentation::Float32() &&

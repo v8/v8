@@ -399,9 +399,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         constant.is_relocatable_int64()) {
       return true;
     }
-    if (constant.is_number()) {
-      const double value = constant.number_value();
-      return base::bit_cast<int64_t>(value) == 0;
+    if (constant.is_number_zero()) {
+      return true;
     }
     // If we want to support HeapConstant nodes here, we must find a way
     // to check that they're not in new-space without dereferencing the
@@ -413,8 +412,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     DCHECK(CanBeImmediate(node));
     auto constant = this->constant_view(node);
     if (constant.is_int32()) return constant.int32_value();
-    DCHECK(constant.is_number());
-    return static_cast<int32_t>(constant.number_value());
+    DCHECK(constant.is_number_zero());
+    return 0;
   }
 
   bool ValueFitsIntoImmediate(int64_t value) const {

@@ -58,8 +58,7 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
-          (constant.is_float() &&
-           base::bit_cast<uint64_t>(constant.float_value()) == 0)) {
+          constant.is_float_zero()) {
         return true;
       }
     }

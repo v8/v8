@@ -557,8 +557,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::Float64Constant* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Float64Constant(
-                     base::bit_cast<double>(node->value().get_bits())));
+    SetMap(node, __ Float64Constant(node->value()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::SmiConstant* node,

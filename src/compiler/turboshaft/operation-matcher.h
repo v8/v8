@@ -45,9 +45,9 @@ class OperationMatcher {
       case ConstantOp::Kind::kWord64:
         return op->integral() == 0;
       case ConstantOp::Kind::kFloat32:
-        return op->float32() == 0;
+        return op->float32().get_scalar() == 0;
       case ConstantOp::Kind::kFloat64:
-        return op->float64() == 0;
+        return op->float64().get_scalar() == 0;
       case ConstantOp::Kind::kSmi:
         return op->smi().value() == 0;
       default:
@@ -71,11 +71,27 @@ class OperationMatcher {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kFloat32) return false;
+    *constant = op->storage.float32.get_scalar();
+    return true;
+  }
+
+  bool MatchFloat32Constant(OpIndex matched, i::Float32* constant) const {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kFloat32) return false;
     *constant = op->storage.float32;
     return true;
   }
 
   bool MatchFloat64Constant(OpIndex matched, double* constant) const {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kFloat64) return false;
+    *constant = op->storage.float64.get_scalar();
+    return true;
+  }
+
+  bool MatchFloat64Constant(OpIndex matched, i::Float64* constant) const {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kFloat64) return false;
@@ -87,10 +103,10 @@ class OperationMatcher {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind == ConstantOp::Kind::kFloat64) {
-      *value = op->storage.float64;
+      *value = op->storage.float64.get_scalar();
       return true;
     } else if (op->kind == ConstantOp::Kind::kFloat32) {
-      *value = op->storage.float32;
+      *value = op->storage.float32.get_scalar();
       return true;
     }
     return false;

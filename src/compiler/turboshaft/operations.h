@@ -2493,17 +2493,15 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   RegisterRepresentation rep = Representation(kind);
   union Storage {
     uint64_t integral;
-    // TODO(42204049): To prevent signaling NaNs converting to quiet NaNs we
-    // should use Float32 and Float64.
-    float float32;
-    double float64;
+    i::Float32 float32;
+    i::Float64 float64;
     ExternalReference external;
     Handle<HeapObject> handle;
 
     Storage(uint64_t integral = 0) : integral(integral) {}
     Storage(i::Tagged<Smi> smi) : integral(smi.ptr()) {}
-    Storage(double constant) : float64(constant) {}
-    Storage(float constant) : float32(constant) {}
+    Storage(i::Float64 constant) : float64(constant) {}
+    Storage(i::Float32 constant) : float32(constant) {}
     Storage(ExternalReference constant) : external(constant) {}
     Storage(Handle<HeapObject> constant) : handle(constant) {}
 
@@ -2594,31 +2592,19 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return i::Tagged<Smi>(storage.integral);
   }
 
-  double number() const {
+  i::Float64 number() const {
     DCHECK_EQ(kind, Kind::kNumber);
     return storage.float64;
   }
 
-  float float32() const {
+  i::Float32 float32() const {
     DCHECK_EQ(kind, Kind::kFloat32);
     return storage.float32;
   }
 
-  internal::Float32 float32_preserve_nan() const {
-    DCHECK_EQ(kind, Kind::kFloat32);
-    return internal::Float32::FromBits(
-        base::bit_cast<uint32_t>(storage.float32));
-  }
-
-  double float64() const {
+  i::Float64 float64() const {
     DCHECK_EQ(kind, Kind::kFloat64);
     return storage.float64;
-  }
-
-  internal::Float64 float64_preserve_nan() const {
-    DCHECK_EQ(kind, Kind::kFloat64);
-    return internal::Float64::FromBits(
-        base::bit_cast<uint64_t>(storage.float64));
   }
 
   int32_t tagged_index() const {
@@ -2669,10 +2655,10 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmCanonicalSignatureId:
         return HashWithOptions(storage.integral);
       case Kind::kFloat32:
-        return HashWithOptions(storage.float32);
+        return HashWithOptions(storage.float32.get_bits());
       case Kind::kFloat64:
       case Kind::kNumber:
-        return HashWithOptions(storage.float64);
+        return HashWithOptions(storage.float64.get_bits());
       case Kind::kExternal:
         return HashWithOptions(strategy == HashingStrategy::kMakeSnapshotStable
                                    ? 0

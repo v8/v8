@@ -45,8 +45,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
-          (constant.is_float() &&
-           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+          constant.is_float_zero()) {
         return UseImmediate(node);
       }
     }
@@ -97,8 +96,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
-          (constant.is_float() &&
-           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+          constant.is_float_zero()) {
         return true;
       }
     }
