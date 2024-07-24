@@ -181,7 +181,6 @@ bool EphemeronHashTableContainsKey(Tagged<EphemeronHashTable> table,
 
 TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
   Isolate* isolate = i_isolate();
-  ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -217,7 +216,6 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   if (i::v8_flags.single_generation) return;
   if (i::v8_flags.stress_incremental_marking) return;
   Isolate* isolate = i_isolate();
-  ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -258,7 +256,6 @@ TEST_F(WeakMapsTest, Regress2060a) {
   v8_flags.compact_on_every_full_gc = true;
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   Isolate* isolate = i_isolate();
-  ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
@@ -301,7 +298,6 @@ TEST_F(WeakMapsTest, Regress2060b) {
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
   Isolate* isolate = i_isolate();
-  ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);

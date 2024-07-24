@@ -28,7 +28,6 @@ Handle<LoadHandler> CreateLoadHandlerForTest(
 }
 
 TEST(WeakReferencesBasic) {
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -113,7 +112,6 @@ TEST(WeakReferencesOldToNew) {
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object.
   if (v8_flags.single_generation) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -140,7 +138,6 @@ TEST(WeakReferencesOldToNewScavenged) {
   if (v8_flags.single_generation) return;
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object, which is then scavenged.
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -262,7 +259,6 @@ TEST(ObjectWithWeakFieldDies) {
 
 TEST(ObjectWithWeakReferencePromoted) {
   if (v8_flags.single_generation) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -288,7 +284,6 @@ TEST(ObjectWithWeakReferencePromoted) {
 
 TEST(ObjectWithClearedWeakReferencePromoted) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

@@ -2309,7 +2309,6 @@ TEST(TestAlignedOverAllocation) {
 
 TEST(HeapNumberAlignment) {
   if (!v8_flags.allocation_site_pretenuring) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -2742,7 +2741,6 @@ HEAP_TEST(Regress845060) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.stress_incremental_marking = false;
   v8_flags.stress_compaction = false;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
@@ -3182,7 +3180,6 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 // Test regular array literals allocation.
 TEST(OptimizedAllocationArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
@@ -4118,7 +4115,6 @@ TEST(PersistentHandles) {
 
 static void TestFillersFromPersistentHandles(bool promote) {
   // We assume that the fillers can only arise when left-trimming arrays.
-  ManualGCScope manual_gc_scope;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
@@ -4523,7 +4519,6 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 TEST(NewSpaceObjectsInOptimizedCode) {
   if (v8_flags.always_turbofan || v8_flags.single_generation) return;
   v8_flags.allow_natives_syntax = true;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -5154,7 +5149,6 @@ TEST(Regress357137) {
 
 TEST(Regress507979) {
   const int kFixedArrayLen = 10;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
@@ -5475,7 +5469,6 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
 
 TEST(NewSpaceAllocationCounter) {
   if (v8_flags.single_generation) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -6177,7 +6170,6 @@ TEST(Regress618958) {
 
 TEST(YoungGenerationLargeObjectAllocationScavenge) {
   if (v8_flags.minor_ms) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6210,7 +6202,6 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 
 TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   if (v8_flags.minor_ms) return;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6772,7 +6763,6 @@ HEAP_TEST(Regress779503) {
   if (v8_flags.single_generation) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   const int kArraySize = 2048;
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();

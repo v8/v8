@@ -18,7 +18,6 @@
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "test/cctest/heap/heap-utils.h"
 #include "test/common/code-assembler-tester.h"
 
 namespace v8 {
@@ -855,7 +854,6 @@ TEST(TestGeneratedCastOperators) {
 }
 
 TEST(TestNewPretenured) {
-  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
