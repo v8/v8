@@ -67,7 +67,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
       v8_flags.trace_maglev_graph_building ||
       v8_flags.trace_maglev_escape_analysis ||
-      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
+      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc ||
+      v8_flags.trace_maglev_object_tracking) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 

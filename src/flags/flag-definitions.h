@@ -1294,10 +1294,14 @@ DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
 DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
-DEFINE_EXPERIMENTAL_FEATURE(maglev_track_object_changes,
-                            "track object changes to avoid escaping them")
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_track_object_changes)
 DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
+DEFINE_EXPERIMENTAL_FEATURE(maglev_object_tracking,
+                            "track object changes to avoid escaping them")
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_object_tracking)
+DEFINE_BOOL(trace_maglev_object_tracking, false,
+            "trace load/stores from maglev virtual objects")
+DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building,
+                        trace_maglev_object_tracking)
 
 // TODO(dmercadier): fix and re-enable string builder.
 DEFINE_BOOL_READONLY(turbo_string_builder, false,

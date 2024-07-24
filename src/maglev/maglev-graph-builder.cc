@@ -4112,7 +4112,7 @@ void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
 bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
                                                int offset) {
   DCHECK(!receiver->Is<VirtualObject>());
-  if (!v8_flags.maglev_track_object_changes) return false;
+  if (!v8_flags.maglev_object_tracking) return false;
   if (offset == HeapObject::kMapOffset) return false;
   // We don't support loop phis inside VirtualObjects, so any access inside a
   // loop should escape the object.
@@ -4143,9 +4143,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
           allocation);
     }
     ValueNode* value = vobj->get(offset);
-    TRACE("  * Reusing value in virtual object "
-          << PrintNodeLabel(graph_labeller(), vobj) << "[" << offset
-          << "]: " << PrintNode(graph_labeller(), value));
+    if (v8_flags.trace_maglev_object_tracking) {
+      std::cout << "  * Reusing value in virtual object "
+                << PrintNodeLabel(graph_labeller(), vobj) << "[" << offset
+                << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+    }
     return value;
   }
   return AddNewNode<LoadTaggedField>({object}, offset);
@@ -4169,9 +4171,11 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   CHECK_NOT_NULL(vobject);
   vobject->set(offset, value);
   AddNonEscapingUses(allocation, 1);
-  TRACE("  * Setting value in virtual object "
-        << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
-        << "]: " << PrintNode(graph_labeller(), value));
+  if (v8_flags.trace_maglev_object_tracking) {
+    std::cout << "  * Setting value in virtual object "
+              << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
+              << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+  }
 }
 
 void MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
