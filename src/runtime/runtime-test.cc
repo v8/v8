@@ -1021,9 +1021,18 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   auto function = Cast<JSFunction>(function_object);
+  Tagged<SharedFunctionInfo> sfi = function->shared(isolate);
 
-  SharedFunctionInfo::DiscardCompiled(
-      isolate, handle(function->shared(isolate), isolate));
+  // Don't flush functions that are active on the stack.
+  for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    std::vector<Tagged<SharedFunctionInfo>> infos;
+    it.frame()->GetFunctions(&infos);
+    for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
+      if ((*it) == sfi) return CrashUnlessFuzzing(isolate);
+    }
+  }
+
+  SharedFunctionInfo::DiscardCompiled(isolate, handle(sfi, isolate));
   function->ResetIfCodeFlushed(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
