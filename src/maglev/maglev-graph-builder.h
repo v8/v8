@@ -1676,8 +1676,8 @@ class MaglevGraphBuilder {
 
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       node->ClearElementsProperties(known_node_aspects());
-      if (WithinAnEffectRecordingPeelingIteration()) {
-        GetCurrentPeeledLoopEffects().keys_cleared.insert(
+      if (within_effect_tracking_peeling_iteration()) {
+        peeled_loop_effects_->keys_cleared.insert(
             KnownNodeAspects::LoadedPropertyMapKey::Elements());
       }
     } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
@@ -1687,8 +1687,8 @@ class MaglevGraphBuilder {
       // loaded properties and context slots, and we invalidate these already as
       // part of emitting the store.
       node->ClearUnstableNodeAspects(known_node_aspects());
-      if (WithinAnEffectRecordingPeelingIteration()) {
-        GetCurrentPeeledLoopEffects().unstable_aspects_cleared = true;
+      if (within_effect_tracking_peeling_iteration()) {
+        peeled_loop_effects_->unstable_aspects_cleared = true;
       }
     }
 
@@ -2780,26 +2780,10 @@ class MaglevGraphBuilder {
     return v8_flags.maglev_optimistic_peeled_loops &&
            peeled_iteration_count_ == 1;
   }
-
-  // When loop SPeeling is enabled then peeling iteration 2 (counting backwards)
-  // is used to record effects.
-  bool in_effect_recording_peeling_iteration() {
-    return v8_flags.maglev_optimistic_peeled_loops &&
-           peeled_iteration_count_ > 1;
-  }
-  bool WithinAnEffectRecordingPeelingIteration() {
-    if (in_effect_recording_peeling_iteration()) return true;
-    if (is_inline()) return parent_->WithinAnEffectRecordingPeelingIteration();
-    return false;
-  }
-  LoopEffects& GetCurrentPeeledLoopEffects() {
-    DCHECK(WithinAnEffectRecordingPeelingIteration());
-    if (!in_peeled_iteration()) {
-      return parent_->GetCurrentPeeledLoopEffects();
-    }
+  bool within_effect_tracking_peeling_iteration() {
     return peeled_loop_effects_;
   }
-  LoopEffects peeled_loop_effects_;
+  LoopEffects* peeled_loop_effects_ = nullptr;
 
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the

@@ -880,7 +880,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           !compilation_unit->is_osr() &&
           (is_inline() ? parent_->allow_loop_peeling_
                        : v8_flags.maglev_loop_peeling)),
-      peeled_loop_effects_(zone()),
+      peeled_loop_effects_(is_inline() ? parent_->peeled_loop_effects_
+                                       : nullptr),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
@@ -2772,9 +2773,8 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
                       << std::endl;
           }
           cache.second = nullptr;
-          if (WithinAnEffectRecordingPeelingIteration()) {
-            GetCurrentPeeledLoopEffects().context_slot_written.insert(
-                cache.first);
+          if (within_effect_tracking_peeling_iteration()) {
+            peeled_loop_effects_->context_slot_written.insert(cache.first);
           }
         }
       }
@@ -2783,15 +2783,15 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
   KnownNodeAspects::LoadedContextSlotsKey key{context, offset};
   auto updated = loaded_context_slots.emplace(key, value);
   if (updated.second) {
-    if (WithinAnEffectRecordingPeelingIteration()) {
-      GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
+    if (within_effect_tracking_peeling_iteration()) {
+      peeled_loop_effects_->context_slot_written.insert(key);
     }
     unobserved_context_slot_stores_[key] = store;
   } else {
     if (updated.first->second != value) {
       updated.first->second = value;
-      if (WithinAnEffectRecordingPeelingIteration()) {
-        GetCurrentPeeledLoopEffects().context_slot_written.insert(key);
+      if (within_effect_tracking_peeling_iteration()) {
+        peeled_loop_effects_->context_slot_written.insert(key);
       }
     }
     if (known_node_aspects().may_have_aliasing_contexts !=
@@ -5765,8 +5765,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
       loaded_properties.try_emplace(key, zone()).first->second;
 
   if (!is_const && IsAnyStore(access_mode)) {
-    if (WithinAnEffectRecordingPeelingIteration()) {
-      GetCurrentPeeledLoopEffects().keys_cleared.insert(key);
+    if (within_effect_tracking_peeling_iteration()) {
+      peeled_loop_effects_->keys_cleared.insert(key);
     }
     // We don't do any aliasing analysis, so stores clobber all other cached
     // loads of a property with that key. We only need to do this for
@@ -5819,13 +5819,13 @@ void MaglevGraphBuilder::RecordKnownProperty(
   }
 
   if (IsAnyStore(access_mode) && !is_const &&
-      WithinAnEffectRecordingPeelingIteration()) {
+      within_effect_tracking_peeling_iteration()) {
     auto updated = props_for_key.emplace(lookup_start_object, value);
     if (updated.second) {
-      GetCurrentPeeledLoopEffects().objects_written.insert(lookup_start_object);
+      peeled_loop_effects_->objects_written.insert(lookup_start_object);
     } else if (updated.first->second != value) {
       updated.first->second = value;
-      GetCurrentPeeledLoopEffects().objects_written.insert(lookup_start_object);
+      peeled_loop_effects_->objects_written.insert(lookup_start_object);
     }
   } else {
     props_for_key[lookup_start_object] = value;
@@ -11700,11 +11700,16 @@ void MaglevGraphBuilder::PeelLoop() {
     BuildLoopForPeeling();
   }
   allow_loop_peeling_ = true;
+  peeled_loop_effects_ = nullptr;
 }
 
 void MaglevGraphBuilder::BuildLoopForPeeling() {
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));
+
+  if (v8_flags.maglev_optimistic_peeled_loops && peeled_iteration_count_ == 2) {
+    peeled_loop_effects_ = zone()->New<LoopEffects>(zone());
+  }
 
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
@@ -11785,7 +11790,7 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
                  v8_flags.maglev_optimistic_peeled_loops);
   merge_states_[loop_header]->InitializeLoop(
       this, *compilation_unit_, current_interpreter_frame_, block,
-      in_peeled_iteration(), &peeled_loop_effects_);
+      in_peeled_iteration(), peeled_loop_effects_);
 
   DCHECK_NE(iterator_.current_offset(), loop_header);
   iterator_.SetOffset(loop_header);
@@ -11849,7 +11854,6 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
     if (is_peeled_loop) {
       DCHECK(!in_peeled_iteration());
-      allow_loop_peeling_ = true;
     }
   }
 }
