@@ -533,7 +533,8 @@ class WeakFixedArray
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
       IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      MaybeHandle<Object> initial_value = {});
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)

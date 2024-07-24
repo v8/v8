@@ -985,18 +985,63 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
 
   ReadOnlyRoots roots(isolate);
   Tagged<Map> owner;
+
+  // Check all entries have the same owner
   for (int i = 0; i < number_of_transitions(); ++i) {
-    // Only sidestep transitions are allowed to cross between unrelated branches
-    // of the transition tree. All other transitions must originate from the
-    // same source map.
-    if (!TransitionsAccessor::IsSpecialSidestepTransition(roots, GetKey(i))) {
-      Tagged<Map> parent =
-          Cast<Map>(GetTarget(i)->constructor_or_back_pointer());
-      if (owner.is_null()) {
-        parent = owner;
-      } else {
-        CHECK_EQ(parent, owner);
+    Tagged<Map> target = GetTarget(i);
+    Tagged<Map> parent = Cast<Map>(target->constructor_or_back_pointer());
+    if (owner.is_null()) {
+      parent = owner;
+    } else {
+      CHECK_EQ(parent, owner);
+    }
+  }
+  // Check all entries have the same owner
+  if (HasPrototypeTransitions()) {
+    Tagged<WeakFixedArray> proto_trans = GetPrototypeTransitions();
+    int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
+    for (int i = 0; i < length; ++i) {
+      int index = TransitionArray::kProtoTransitionHeaderSize + i;
+      Tagged<MaybeObject> maybe_target = proto_trans->get(index);
+      Tagged<HeapObject> target;
+      if (maybe_target.GetHeapObjectIfWeak(&target)) {
+        if (v8_flags.move_prototype_transitions_first) {
+          Tagged<Map> parent =
+              Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
+          if (owner.is_null()) {
+            parent = Cast<Map>(target);
+          } else {
+            CHECK_EQ(parent, owner);
+          }
+        } else {
+          CHECK(IsUndefined(Cast<Map>(target)->GetBackPointer()));
+        }
       }
+    }
+  }
+  // Check all entries are valid
+  if (HasSideStepTransitions()) {
+    Tagged<WeakFixedArray> side_trans = GetSideStepTransitions();
+    for (uint32_t index = SideStepTransition::kFirstMapIdx;
+         index <= SideStepTransition::kLastMapIdx; ++index) {
+      Tagged<MaybeObject> maybe_target = side_trans->get(index);
+      Tagged<HeapObject> target;
+      if (maybe_target.GetHeapObjectIfWeak(&target)) {
+        CHECK(IsMap(target));
+      } else {
+        CHECK(maybe_target == SideStepTransition::Unreachable ||
+              maybe_target == SideStepTransition::Empty ||
+              maybe_target.IsCleared());
+      }
+    }
+    Tagged<MaybeObject> maybe_cell =
+        side_trans->get(SideStepTransition::index_of(
+            SideStepTransition::Kind::kObjectAssignValidityCell));
+    Tagged<HeapObject> cell;
+    if (maybe_cell.GetHeapObjectIfWeak(&cell)) {
+      CHECK(IsCell(cell));
+    } else {
+      CHECK(maybe_cell == SideStepTransition::Empty || maybe_cell.IsCleared());
     }
   }
 }
@@ -2778,6 +2823,8 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
   DisallowGarbageCollection no_gc;
   bool success = true;
   ReadOnlyRoots roots(isolate_);
+  DCHECK_IMPLIES(map_->IsInobjectSlackTrackingInProgress(),
+                 !HasSideStepTransitions());
   auto CheckTarget =
       [&](Tagged<Map> target) {
 #ifdef DEBUG
@@ -2793,12 +2840,20 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
           success = false;
         }
       };
-  ForEachTransitionWithKey(
-      &no_gc,
-      [&](Tagged<Name> key, Tagged<Map> target) { CheckTarget(target); },
-      [&](Tagged<Map> target) {
+  ForEachTransition(
+      &no_gc, [&](Tagged<Map> target) { CheckTarget(target); },
+      [&](Tagged<Map> proto_target) {
         if (v8_flags.move_prototype_transitions_first) {
-          CheckTarget(target);
+          CheckTarget(proto_target);
+        }
+      },
+      [&](Tagged<Object> side_step) {
+        if (!side_step.IsSmi()) {
+          DCHECK(!Cast<Map>(side_step)->IsInobjectSlackTrackingInProgress());
+          DCHECK_EQ(
+              Cast<Map>(side_step)->GetInObjectProperties() -
+                  Cast<Map>(side_step)->UnusedInObjectProperties(),
+              map_->GetInObjectProperties() - map_->UnusedInObjectProperties());
         }
       });
   return success;

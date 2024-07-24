@@ -605,16 +605,14 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate);
   TransitionsAccessor transitions(isolate, *this);
-  transitions.ForEachTransitionWithKey(
-      &no_gc,
-      [&](Tagged<Name> key, Tagged<Map> map) {
-        map->DeprecateTransitionTree(isolate);
-      },
+  transitions.ForEachTransition(
+      &no_gc, [&](Tagged<Map> map) { map->DeprecateTransitionTree(isolate); },
       [&](Tagged<Map> map) {
         if (v8_flags.move_prototype_transitions_first) {
           map->DeprecateTransitionTree(isolate);
         }
-      });
+      },
+      nullptr);
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
@@ -1705,9 +1703,10 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
   DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
-  if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
-          isolate, initial_map, *transition_symbol)) {
-    return *maybe_transition;
+  MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
+      isolate, initial_map, *transition_symbol);
+  if (!maybe_transition.is_null()) {
+    return maybe_transition.ToHandleChecked();
   }
   initial_map->NotifyLeafMapLayoutChange(isolate);
 

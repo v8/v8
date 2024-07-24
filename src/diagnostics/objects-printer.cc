@@ -3812,10 +3812,6 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   } else if (key == roots.elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
-  } else if (key == roots.clone_object_ic_transition_symbol()) {
-    os << "(clone object ic dependency transition)";
-  } else if (key == roots.object_assign_clone_transition_symbol()) {
-    os << "(object assign clone cache transition)";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
@@ -3892,10 +3888,9 @@ void TransitionsAccessor::PrintTransitionTree(
   ReadOnlyRoots roots = ReadOnlyRoots(isolate_);
   int pos = 0;
   int proto_pos = 0;
-  ForEachTransition(
+  ForEachTransitionWithKey(
       no_gc,
-      [&](Tagged<Map> target) {
-        Tagged<Name> key = GetKey(pos);
+      [&](Tagged<Name> key, Tagged<Map> target) {
         os << std::endl
            << "  " << level << "/" << pos << ":" << std::setw(level * 2 + 2)
            << " ";
@@ -3914,10 +3909,6 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
-        } else if (key == roots.clone_object_ic_transition_symbol()) {
-          os << "clone object ic dependency";
-        } else if (key == roots.object_assign_clone_transition_symbol()) {
-          os << "object assign clone cache";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);
@@ -3948,7 +3939,17 @@ void TransitionsAccessor::PrintTransitionTree(
         TransitionsAccessor transitions(isolate_, target);
         transitions.PrintTransitionTree(os, level + 1, no_gc);
       },
-      TransitionsAccessor::IterationMode::kIncludeClearedSideStepTransitions);
+      [&](SideStepTransition::Kind kind, Tagged<Object> side_step) {
+        os << std::endl
+           << "  " << level << "/s:" << std::setw(level * 2 + 2) << " ";
+        std::stringstream ss;
+        ss << Brief(side_step);
+        os << std::left << std::setw(50) << ss.str() << ": sidestep " << kind;
+        if (!side_step.IsSmi()) {
+          TransitionsAccessor transitions(isolate_, Cast<Map>(side_step));
+          transitions.PrintTransitionTree(os, level + 1, no_gc);
+        }
+      });
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {

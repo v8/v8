@@ -4,8 +4,6 @@
 
 #include "src/objects/transitions.h"
 
-#include <optional>
-
 #include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -43,39 +41,24 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 // static
 void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
                                        DirectHandle<Name> name,
-                                       std::optional<DirectHandle<Map>> target,
+                                       DirectHandle<Map> target,
                                        TransitionKindFlag flag) {
   DCHECK_NE(flag, PROTOTYPE_TRANSITION);
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
   ReadOnlyRoots roots(isolate);
-  DCHECK_IMPLIES(IsSpecialSidestepTransition(roots, *name),
-                 v8_flags.clone_object_sidestep_transitions);
-  DCHECK_IMPLIES(IsSpecialSidestepTransition(roots, *name),
-                 flag == SPECIAL_TRANSITION);
-  DCHECK_IMPLIES(!target.has_value(),
-                 IsSpecialSidestepTransition(roots, *name));
-  if (flag != SPECIAL_TRANSITION ||
-      !IsSpecialSidestepTransition(roots, *name)) {
-    (*target)->SetBackPointer(*map);
-  }
+  (*target)->SetBackPointer(*map);
 
-  auto GetWeakRef = [&]() -> Tagged<MaybeObject> {
-    if (!target.has_value()) {
-      return ClearedValue(isolate);
-    }
-    return MakeWeak(**target);
-  };
   // If the map doesn't have any transitions at all yet, install the new one.
   if (encoding == kUninitialized || encoding == kMigrationTarget) {
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
-      ReplaceTransitions(isolate, map, MakeWeak(**target));
+      ReplaceTransitions(isolate, map, MakeWeak(*target));
       return;
     }
     // If the flag requires a full TransitionArray, allocate one.
     DirectHandle<TransitionArray> result =
         isolate->factory()->NewTransitionArray(1, 0);
-    result->Set(0, *name, GetWeakRef());
+    result->Set(0, *name, MakeWeak(*target));
     ReplaceTransitions(isolate, map, result);
     DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, *result));
     return;
@@ -92,7 +75,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
       PropertyDetails new_details = GetTargetDetails(*name, **target);
       if (key->Equals(*name) && old_details.kind() == new_details.kind() &&
           old_details.attributes() == new_details.attributes()) {
-        ReplaceTransitions(isolate, map, MakeWeak(**target));
+        ReplaceTransitions(isolate, map, MakeWeak(*target));
         return;
       }
     }
@@ -105,7 +88,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
     // cleared.
     simple_transition = GetSimpleTransition(isolate, map);
     if (simple_transition.is_null()) {
-      result->Set(0, *name, GetWeakRef());
+      result->Set(0, *name, MakeWeak(*target));
       ReplaceTransitions(isolate, map, result);
       DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, *result));
       return;
@@ -137,7 +120,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
                   MakeWeak(simple_transition));
     }
     result->SetKey(insertion_index, *name);
-    result->SetRawTarget(insertion_index, GetWeakRef());
+    result->SetRawTarget(insertion_index, MakeWeak(*target));
 
     SLOW_DCHECK(result->IsSortedNoDuplicates());
     ReplaceTransitions(isolate, map, result);
@@ -171,7 +154,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
     if (index != kNotFound) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
           isolate->full_transition_array_access());
-      array->SetRawTarget(index, GetWeakRef());
+      array->SetRawTarget(index, MakeWeak(*target));
       return;
     }
 
@@ -190,7 +173,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
         array->SetRawTarget(i, array->GetRawTarget(i - 1));
       }
       array->SetKey(insertion_index, *name);
-      array->SetRawTarget(insertion_index, GetWeakRef());
+      array->SetRawTarget(insertion_index, MakeWeak(*target));
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -232,7 +215,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
   for (int i = 0; i < insertion_index; ++i) {
     result->Set(i, array->GetKey(i), array->GetRawTarget(i));
   }
-  result->Set(insertion_index, *name, GetWeakRef());
+  result->Set(insertion_index, *name, MakeWeak(*target));
   for (int i = insertion_index; i < number_of_transitions; ++i) {
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
@@ -263,18 +246,13 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
   UNREACHABLE();
 }
 
-std::optional<Tagged<Map>> TransitionsAccessor::SearchSpecial(
-    Tagged<Symbol> name) {
+Tagged<Map> TransitionsAccessor::SearchSpecial(Tagged<Symbol> name) {
   if (encoding() != kFullTransitionArray) return {};
   base::SharedMutexGuardIf<base::kShared> scope(
       isolate_->full_transition_array_access(), concurrent_access_);
   int transition = transitions()->SearchSpecial(name, concurrent_access_);
   if (transition == kNotFound) return {};
-  Tagged<MaybeObject> res = transitions()->GetRawTarget(transition);
-  if (res.IsCleared()) {
-    return Map();
-  }
-  return GetTargetFromRaw(res);
+  return transitions()->GetTarget(transition);
 }
 
 // static
@@ -284,15 +262,7 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol() ||
-         IsSpecialSidestepTransition(roots, name);
-}
-
-// static
-bool TransitionsAccessor::IsSpecialSidestepTransition(ReadOnlyRoots roots,
-                                                      Tagged<Name> name) {
-  return name == roots.object_assign_clone_transition_symbol() ||
-         name == roots.clone_object_ic_transition_symbol();
+         name == roots.strict_function_transition_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(
@@ -632,10 +602,7 @@ void TransitionsAccessor::EnsureHasFullTransitionArray(Isolate* isolate,
 }
 
 void TransitionsAccessor::TraverseTransitionTreeInternal(
-    const TraverseCallback& callback, DisallowGarbageCollection* no_gc,
-    IterationMode filter) {
-  DCHECK_NE(filter, IterationMode::kIncludeClearedSideStepTransitions);
-
+    const TraverseCallback& callback, DisallowGarbageCollection* no_gc) {
   // Mostly arbitrary but more than enough to run the test suite in static
   // memory.
   static constexpr int kStaticStackSize = 16;
@@ -684,17 +651,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
         }
         ReadOnlyRoots roots(isolate_);
         for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-          if (TransitionsAccessor::IsSpecialSidestepTransition(
-                  roots, transitions->GetKey(i))) {
-            if (filter == IterationMode::kIncludeSideStepTransitions) {
-              Tagged<Map> target;
-              if (transitions->GetTargetIfExists(i, isolate_, &target)) {
-                stack.emplace_back(target);
-              }
-            }
-          } else {
-            stack.emplace_back(transitions->GetTarget(i));
-          }
+          stack.emplace_back(transitions->GetTarget(i));
         }
         break;
       }
@@ -880,6 +837,21 @@ bool TransitionsAccessor::HasIntegrityLevelTransitionTo(
     return false;
   }
   return true;
+}
+
+std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {
+  switch (sidestep) {
+    case SideStepTransition::Kind::kObjectAssignValidityCell:
+      os << "Object.assign-validity-cell";
+      break;
+    case SideStepTransition::Kind::kObjectAssign:
+      os << "Object.assign-map";
+      break;
+    case SideStepTransition::Kind::kCloneObject:
+      os << "Clone-object-IC-map";
+      break;
+  }
+  return os;
 }
 
 }  // namespace internal

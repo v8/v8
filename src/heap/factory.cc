@@ -2144,6 +2144,8 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
   }
   array->WeakFixedArray::set(TransitionArray::kPrototypeTransitionsIndex,
                              Smi::zero());
+  array->WeakFixedArray::set(TransitionArray::kSideStepTransitionsIndex,
+                             Smi::zero());
   array->WeakFixedArray::set(TransitionArray::kTransitionLengthIndex,
                              Smi::FromInt(number_of_transitions));
   return array;

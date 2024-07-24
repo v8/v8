@@ -470,8 +470,9 @@ void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
     };
   } else {
     // Stop slack tracking for this map.
-    callback = [](Tagged<Map> map) {
+    callback = [&](Tagged<Map> map) {
       map->set_construction_counter(Map::kNoSlackTracking);
+      DCHECK(!TransitionsAccessor(isolate, map).HasSideStepTransitions());
     };
   }
 
@@ -777,9 +778,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 
     // We try to replay the integrity level transition here.
-    if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
-            isolate_, target_map_, *integrity_level_symbol_)) {
-      result_map_ = *maybe_transition;
+    MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
+        isolate_, target_map_, *integrity_level_symbol_);
+    if (maybe_transition.ToHandle(&result_map_)) {
       state_ = kEnd;
       return state_;  // Done.
     }
@@ -1230,23 +1231,18 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     backlog.pop();
 
     TransitionsAccessor transitions(isolate, current);
-    transitions.ForEachTransitionWithKey(
-        &no_gc,
-        [&](Tagged<Name> key, Tagged<Map> target) {
-          if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
-            if (!target->is_deprecated()) {
-              sidestep_transition.push_back(target);
-            }
-          } else {
-            backlog.push(target);
-          }
-        },
+    transitions.ForEachTransition(
+        &no_gc, [&](Tagged<Map> target) { backlog.push(target); },
         [&](Tagged<Map> target) {
           if (v8_flags.move_prototype_transitions_first) {
             backlog.push(target);
           }
         },
-        TransitionsAccessor::IterationMode::kIncludeSideStepTransitions);
+        [&](Tagged<Object> target) {
+          if (!target.IsSmi() && !Cast<Map>(target)->is_deprecated()) {
+            sidestep_transition.push_back(Cast<Map>(target));
+          }
+        });
 
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);

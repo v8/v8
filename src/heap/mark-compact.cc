@@ -3403,20 +3403,11 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   while (local_weak_objects()->transition_arrays_local.Pop(&array)) {
     int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
-      int first = 0;
-      // Search for the owner of this transition array by scanning over sidestep
-      // transitions.
-      while (first < num_transitions &&
-             TransitionsAccessor::IsSpecialSidestepTransition(
-                 roots, array->GetKey(first))) {
-        first++;
-      }
-      if (first < num_transitions) {
         Tagged<Map> map;
         // The array might contain "undefined" elements because it's not yet
         // filled. Allow it.
-        if (array->GetTargetIfExists(first, isolate, &map)) {
-          DCHECK(!map.is_null());
+        if (array->GetTargetIfExists(0, isolate, &map)) {
+          DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
           Tagged<Object> constructor_or_back_pointer =
               map->constructor_or_back_pointer();
           if (IsSmi(constructor_or_back_pointer)) {
@@ -3437,7 +3428,6 @@ void MarkCompactCollector::ClearFullMapTransitions() {
           }
         }
       }
-    }
   }
 }
 
@@ -3461,23 +3451,15 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
       }
 #endif
       return false;
-    }
-    Tagged<Map> map;
-    if (transitions->GetTargetIfExists(i, heap_->isolate(), &map)) {
-      if (non_atomic_marking_state_->IsUnmarked(map)) {
+    } else if (non_atomic_marking_state_->IsUnmarked(
+                   TransitionsAccessor::GetTargetFromRaw(raw_target))) {
 #ifdef DEBUG
-        // Targets can only be dead iff this array is fully deserialized.
-        for (int j = 0; j < num_transitions; ++j) {
-          DCHECK(!transitions->GetRawTarget(j).IsSmi());
-        }
-#endif
-        return true;
+      // Targets can only be dead iff this array is fully deserialized.
+      for (int j = 0; j < num_transitions; ++j) {
+        DCHECK(!transitions->GetRawTarget(j).IsSmi());
       }
-    } else {
-      // Cleared entries are used as sentinels in sidestep transitions. In all
-      // other cases the transition array is always compacted.
-      DCHECK(TransitionsAccessor::IsSpecialSidestepTransition(
-          roots, transitions->GetKey(i)));
+#endif
+      return true;
     }
   }
   return false;
@@ -3496,30 +3478,16 @@ bool MarkCompactCollector::CompactTransitionArray(
   int transition_index = 0;
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    {
-      Tagged<Map> target;
-      if (transitions->GetTargetIfExists(i, heap_->isolate(), &target)) {
-        if (non_atomic_marking_state_->IsUnmarked(target)) {
-          if (TransitionsAccessor::IsSpecialSidestepTransition(
-                  roots, transitions->GetKey(i))) {
-            // In case of side-step transition the back pointer might not be
-            // equal to the descriptor owner.
-            continue;
-          }
-          if (!descriptors.is_null() &&
-              target->instance_descriptors(heap_->isolate()) == descriptors) {
-            DCHECK(!target->is_prototype_map());
-            descriptors_owner_died = true;
-          }
-          continue;
-        }
-      } else {
-        // In sidestep transitions we use cleared entries as sentinels. Thus we
-        // keep them in the transition array to remember the absence of a
-        // particular sidestep transition.
-        DCHECK(TransitionsAccessor::IsSpecialSidestepTransition(
-            roots, transitions->GetKey(i)));
+    Tagged<Map> target = transitions->GetTarget(i);
+    DCHECK_EQ(target->constructor_or_back_pointer(), map);
+
+    if (non_atomic_marking_state_->IsUnmarked(target)) {
+      if (!descriptors.is_null() &&
+          target->instance_descriptors(heap_->isolate()) == descriptors) {
+        DCHECK(!target->is_prototype_map());
+        descriptors_owner_died = true;
       }
+      continue;
     }
 
     if (i != transition_index) {
@@ -3529,11 +3497,8 @@ bool MarkCompactCollector::CompactTransitionArray(
       RecordSlot(transitions, key_slot, key);
       Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
       transitions->SetRawTarget(transition_index, raw_target);
-      if (!raw_target.IsCleared()) {
-        HeapObjectSlot target_slot =
-            transitions->GetTargetSlot(transition_index);
-        RecordSlot(transitions, target_slot, raw_target.GetHeapObject());
-      }
+      HeapObjectSlot target_slot = transitions->GetTargetSlot(transition_index);
+      RecordSlot(transitions, target_slot, raw_target.GetHeapObject());
     }
     transition_index++;
   }

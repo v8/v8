@@ -4488,9 +4488,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   Handle<Map> old_map(object->map(), isolate);
   old_map = Map::Update(isolate, old_map);
   Handle<Map> transition_map;
-  if (auto maybe_transition_map = TransitionsAccessor::SearchSpecial(
-          isolate, old_map, *transition_marker)) {
-    transition_map = *maybe_transition_map;
+  MaybeHandle<Map> maybe_transition_map =
+      TransitionsAccessor::SearchSpecial(isolate, old_map, *transition_marker);
+  if (maybe_transition_map.ToHandle(&transition_map)) {
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_typed_array_or_rab_gsab_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||

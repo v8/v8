@@ -801,7 +801,8 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 // static
 template <class IsolateT>
 Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
-                                           AllocationType allocation) {
+                                           AllocationType allocation,
+                                           MaybeHandle<Object> initial_value) {
   CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
   if (V8_UNLIKELY(capacity == 0)) {
@@ -812,7 +813,9 @@ Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
   Handle<WeakFixedArray> result =
       Cast<WeakFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
-  MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               initial_value.is_null() ? roots.undefined_value()
+                                       : *initial_value.ToHandleChecked(),
                capacity);
   return result;
 }
