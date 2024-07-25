@@ -309,7 +309,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register instance_type, Register scratch2,
+    Register index, Register scratch1, Register scratch2,
     Label* result_fits_one_byte) {
   ZoneLabelRef done(this);
   Label seq_string;
@@ -352,24 +352,59 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&loop);
 
   if (v8_flags.debug_code) {
-    Register scratch = instance_type;
-
     // Check if {string} is a string.
     AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+    LoadMap(scratch1, string);
+    CompareInstanceTypeRange(scratch1, scratch1, FIRST_STRING_TYPE,
                              LAST_STRING_TYPE);
     Check(ls, AbortReason::kUnexpectedValue);
 
-    Ldr(scratch.W(), FieldMemOperand(string, offsetof(String, length_)));
-    Cmp(index.W(), scratch.W());
+    Ldr(scratch1.W(), FieldMemOperand(string, offsetof(String, length_)));
+    Cmp(index.W(), scratch1.W());
     Check(lo, AbortReason::kUnexpectedValue);
   }
 
+#if V8_STATIC_ROOTS_BOOL
+  Register map = scratch1.W();
+  LoadMapForCompare(map, string);
+#else
+  Register instance_type = scratch1;
   // Get instance type.
   LoadInstanceType(instance_type, string);
+#endif
 
   {
+#if V8_STATIC_ROOTS_BOOL
+    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
+    // Check the string map ranges in dense increasing order, to avoid needing
+    // to subtract away the lower bound.
+    static_assert(StringTypeRange::kSeqString.first == 0);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSeqString.second,
+                          kUnsignedLessThanEqual, &seq_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
+                  StringTypeRange::kExternalString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kExternalString.second,
+                          kUnsignedLessThanEqual, deferred_runtime_call);
+    // TODO(victorgomes): Add fast path for external strings.
+
+    static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
+                  StringTypeRange::kConsString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kConsString.second,
+                          kUnsignedLessThanEqual, &cons_string, Label::kNear);
+
+    static_assert(StringTypeRange::kConsString.second + Map::kSize ==
+                  StringTypeRange::kSlicedString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSlicedString.second,
+                          kUnsignedLessThanEqual, &sliced_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
+                  StringTypeRange::kThinString.first);
+    // No need to check for thin strings, they're the last string map.
+    static_assert(StringTypeRange::kThinString.second ==
+                  InstanceTypeChecker::kStringMapUpperBound);
+    // Fallthrough to thin string.
+#else
     ScratchRegisterScope temps(this);
     Register representation = temps.Acquire().W();
 
@@ -385,6 +420,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareAndBranch(representation, Immediate(kThinStringTag), kNotEqual,
                      deferred_runtime_call);
     // Fallthrough to thin string.
+#endif
   }
 
   // Is a thin string.
@@ -409,7 +445,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   {
     // Reuse {instance_type} register here, since CompareRoot requires a scratch
     // register as well.
-    Register second_string = instance_type;
+    Register second_string = scratch1;
     LoadTaggedFieldWithoutDecompressing(second_string, string,
                                         offsetof(ConsString, second_));
     CompareRoot(second_string, RootIndex::kempty_string);
@@ -421,7 +457,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&seq_string);
   {
     Label two_byte_string;
+#if V8_STATIC_ROOTS_BOOL
+    if (InstanceTypeChecker::kTwoByteStringMapBit == 0) {
+      TestInt32AndJumpIfAllClear(map,
+                                 InstanceTypeChecker::kStringMapEncodingMask,
+                                 &two_byte_string, Label::kNear);
+    } else {
+      TestInt32AndJumpIfAnySet(map, InstanceTypeChecker::kStringMapEncodingMask,
+                               &two_byte_string, Label::kNear);
+    }
+#else
     TestAndBranchIfAllClear(instance_type, kOneByteStringTag, &two_byte_string);
+#endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
@@ -431,7 +478,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
-    Register scratch = instance_type;
+    Register scratch = scratch1;
     Lsl(scratch, index, 1);
     Add(scratch, scratch,
         OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);

@@ -8388,35 +8388,43 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   BIND(&dispatch);
   {
 #if V8_STATIC_ROOTS_BOOL
-    // There are too many sequential string maps to check in a switch, do a
-    // range check instead.
-    GotoIf(IsSequentialStringMap(var_map_.value()), &out);
-
-    Label check_external(this);
-    // TODO(leszeks): Compact these values, we can probably do some bit magic
-    // on them to reduce the size of the jump table.
-    int32_t values[] = {
-        StaticReadOnlyRoot::kConsTwoByteStringMap,
-        StaticReadOnlyRoot::kConsOneByteStringMap,
-        StaticReadOnlyRoot::kSlicedTwoByteStringMap,
-        StaticReadOnlyRoot::kSlicedOneByteStringMap,
-        StaticReadOnlyRoot::kThinTwoByteStringMap,
-        StaticReadOnlyRoot::kThinOneByteStringMap,
-    };
-    Label* labels[] = {
-        &if_iscons,   &if_iscons, &if_issliced,
-        &if_issliced, &if_isthin, &if_isthin,
-    };
-    static_assert(arraysize(values) == arraysize(labels));
-
-    const TNode<Int32T> map_bits =
+    TNode<Int32T> map_bits =
         TruncateIntPtrToInt32(BitcastTaggedToWord(var_map_.value()));
-    Switch(map_bits, &check_external, values, labels, arraysize(values));
 
-    // There are too many sequential string maps to check in a switch, do a
-    // range check instead.
-    BIND(&check_external);
-    Branch(IsExternalStringMap(var_map_.value()), &if_isexternal, if_bailout);
+    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
+    // Check the string map ranges in dense increasing order, to avoid needing
+    // to subtract away the lower bound. Do these couple of range checks instead
+    // of a switch, since we can make them all single dense compares.
+    static_assert(StringTypeRange::kSeqString.first == 0);
+    GotoIf(Uint32LessThanOrEqual(
+               map_bits, Int32Constant(StringTypeRange::kSeqString.second)),
+           &out);
+
+    static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
+                  StringTypeRange::kExternalString.first);
+    GotoIf(
+        Uint32LessThanOrEqual(
+            map_bits, Int32Constant(StringTypeRange::kExternalString.second)),
+        &if_isexternal);
+
+    static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
+                  StringTypeRange::kConsString.first);
+    GotoIf(Uint32LessThanOrEqual(
+               map_bits, Int32Constant(StringTypeRange::kConsString.second)),
+           &if_iscons);
+
+    static_assert(StringTypeRange::kConsString.second + Map::kSize ==
+                  StringTypeRange::kSlicedString.first);
+    GotoIf(Uint32LessThanOrEqual(
+               map_bits, Int32Constant(StringTypeRange::kSlicedString.second)),
+           &if_issliced);
+
+    static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
+                  StringTypeRange::kThinString.first);
+    // No need to check for thin strings, they're the last string map.
+    static_assert(StringTypeRange::kThinString.second ==
+                  InstanceTypeChecker::kStringMapUpperBound);
+    Goto(&if_isthin);
 #else
     int32_t values[] = {
         kSeqStringTag,    kConsStringTag, kExternalStringTag,
