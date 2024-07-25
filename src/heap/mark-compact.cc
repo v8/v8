@@ -1309,8 +1309,14 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           // references we want to use the OLD_TO_OLD remembered set, so here
           // we need to check that both the value chunk and the host chunk are
           // trusted space chunks.
-          RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
+          if (value_chunk->InWritableSharedSpace()) {
+            RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
+                AccessMode::NON_ATOMIC>(host_metadata,
+                                        host_chunk->Offset(slot));
+          } else {
+            RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+                host_metadata, host_chunk->Offset(slot));
+          }
         } else {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               host_metadata, host_chunk->Offset(slot));
@@ -1319,8 +1325,14 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
                  !InWritableSharedSpace(host)) {
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
-        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-            host_metadata, host_chunk->Offset(slot));
+        if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+            host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+          RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
+              AccessMode::NON_ATOMIC>(host_metadata, host_chunk->Offset(slot));
+        } else {
+          RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+              host_metadata, host_chunk->Offset(slot));
+        }
       }
     }
   }
@@ -5343,6 +5355,14 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     CollectRememberedSetUpdatingItems(&updating_items, heap_->trusted_space());
     CollectRememberedSetUpdatingItems(&updating_items,
                                       heap_->trusted_lo_space());
+    if (heap_->shared_trusted_space()) {
+      CollectRememberedSetUpdatingItems(&updating_items,
+                                        heap_->shared_trusted_space());
+    }
+    if (heap_->shared_trusted_lo_space()) {
+      CollectRememberedSetUpdatingItems(&updating_items,
+                                        heap_->shared_trusted_lo_space());
+    }
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
