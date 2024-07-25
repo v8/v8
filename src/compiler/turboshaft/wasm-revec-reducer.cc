@@ -1042,8 +1042,15 @@ bool WasmRevecAnalyzer::DecideVectorize() {
           return;
         }
 
+#ifdef V8_TARGET_ARCH_X64
+        // On x64 platform, we dont emit extract for lane 0 as the source ymm
+        // register is alias to the corresponding xmm register in lower 128-bit.
+        for (int i = 1; i < static_cast<int>(nodes.size()); i++) {
+          if (nodes[i] == nodes[0]) continue;
+#else
         for (int i = 0; i < static_cast<int>(nodes.size()); i++) {
           if (i > 0 && nodes[i] == nodes[0]) continue;
+#endif  // V8_TARGET_ARCH_X64
 
           for (auto use : use_map_->uses(nodes[i])) {
             if (!GetPackNode(use)) {
