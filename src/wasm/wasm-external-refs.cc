@@ -630,6 +630,16 @@ void f32x4_promote_low_f16x8_wrapper(Address data) {
 }
 
 void f16x8_demote_f32x4_zero_wrapper(Address data) {
+#if V8_TARGET_BIG_ENDIAN
+  for (int i = 3, j = 7; i >= 0; i--, j--) {
+    float input = ReadUnalignedValue<float>(data + (i * sizeof(float)));
+    Float16::FromFloat32(input).Write(data + (j * sizeof(Float16)));
+  }
+  for (int i = 0; i < 4; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#else
   for (int i = 0; i < 4; i++) {
     float input = ReadUnalignedValue<float>(data + (i * sizeof(float)));
     Float16::FromFloat32(input).Write(data + (i * sizeof(Float16)));
@@ -638,9 +648,21 @@ void f16x8_demote_f32x4_zero_wrapper(Address data) {
     WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
                                  Float16::FromFloat32(0));
   }
+#endif
 }
 
 void f16x8_demote_f64x2_zero_wrapper(Address data) {
+#if V8_TARGET_BIG_ENDIAN
+  for (int i = 1, j = 7; i >= 0; i--, j--) {
+    double input = ReadUnalignedValue<double>(data + (i * sizeof(double)));
+    WriteUnalignedValue<uint16_t>(data + (j * sizeof(uint16_t)),
+                                  DoubleToFloat16(input));
+  }
+  for (int i = 0; i < 6; i++) {
+    WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
+                                 Float16::FromFloat32(0));
+  }
+#else
   for (int i = 0; i < 2; i++) {
     double input = ReadUnalignedValue<double>(data + (i * sizeof(double)));
     WriteUnalignedValue<uint16_t>(data + (i * sizeof(uint16_t)),
@@ -650,6 +672,7 @@ void f16x8_demote_f64x2_zero_wrapper(Address data) {
     WriteUnalignedValue<Float16>(data + (i * sizeof(Float16)),
                                  Float16::FromFloat32(0));
   }
+#endif
 }
 
 template <float (*float_fma_op)(float, float, float)>
