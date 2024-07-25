@@ -1254,11 +1254,21 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     Counters* counters = isolate->counters();
     WasmEngine* engine = GetWasmEngine();
-    base::MutexGuard lock(&engine->mutex_);
-    DCHECK_EQ(1, engine->isolates_.count(isolate));
-    for (auto* native_module : engine->isolates_[isolate]->native_modules) {
-      native_module->SampleCodeSize(counters);
+    {
+      base::MutexGuard lock(&engine->mutex_);
+      DCHECK_EQ(1, engine->isolates_.count(isolate));
+      for (auto* native_module : engine->isolates_[isolate]->native_modules) {
+        native_module->SampleCodeSize(counters);
+      }
     }
+    // Also sample overall metadata size (this includes the metadata size of
+    // individual NativeModules; we are summing that up twice, which could be
+    // improved performance-wise).
+    // The engine-wide metadata also includes global storage e.g. for the type
+    // canonicalizer.
+    size_t engine_meta_data = engine->EstimateCurrentMemoryConsumption();
+    counters->wasm_engine_metadata_size_kb()->AddSample(
+        static_cast<int>(engine_meta_data / KB));
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);

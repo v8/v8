@@ -2350,7 +2350,7 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
   int code_size_kb = static_cast<int>(code_size / KB);
   counters->wasm_module_code_size_kb()->AddSample(code_size_kb);
-  // Record the size of meta data.
+  // Record the size of metadata.
   int metadata_size_kb =
       static_cast<int>(EstimateCurrentMemoryConsumption() / KB);
   counters->wasm_module_metadata_size_kb()->AddSample(metadata_size_kb);

@@ -236,7 +236,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::Vector<const char> source_url);
 
   // Flushes all Liftoff code and returns the sizes of the removed
-  // (executable) code and the removed meta data.
+  // (executable) code and the removed metadata.
   std::pair<size_t, size_t> FlushLiftoffCode();
 
   // Returns the code size of all Liftoff compiled functions in all modules.

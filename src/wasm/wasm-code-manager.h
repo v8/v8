@@ -751,7 +751,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
   // Remove all compiled code based on the `filter` from the {NativeModule},
   // replace it with {CompileLazy} builtins and return the sizes of the removed
-  // (executable) code and the removed meta data.
+  // (executable) code and the removed metadata.
   std::pair<size_t, size_t> RemoveCompiledCode(RemoveFilter filter);
 
   // Returns the code size of all Liftoff compiled functions.
@@ -1084,8 +1084,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
                                              int code_section_length,
                                              bool include_liftoff,
                                              DynamicTiering dynamic_tiering);
-  // Estimate the size of meta data needed for the NativeModule, excluding
-  // generated code. This data still be stored on the C++ heap.
+  // Estimate the size of metadata needed for the NativeModule, excluding
+  // generated code. This data is stored on the C++ heap.
   static size_t EstimateNativeModuleMetaDataSize(const WasmModule* module);
 
   // Returns true if there is hardware support for PKU. Use
