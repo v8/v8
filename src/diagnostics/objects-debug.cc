@@ -2414,13 +2414,13 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
   int len = length();
   CHECK_LE(len, capacity());
   for (int i = 0; i < len; ++i) {
-    Tagged<Object> call_ref = ref(i);
-    Object::VerifyPointer(isolate, call_ref);
-    CHECK(IsWasmTrustedInstanceData(call_ref) || IsWasmImportData(call_ref) ||
-          call_ref == Smi::zero());
+    Tagged<Object> arg = implicit_arg(i);
+    Object::VerifyPointer(isolate, arg);
+    CHECK(IsWasmTrustedInstanceData(arg) || IsWasmImportData(arg) ||
+          arg == Smi::zero());
     if (!v8_flags.wasm_jitless) {
       // call_target always null with the interpreter.
-      CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
+      CHECK_EQ(arg == Smi::zero(), target(i) == kNullAddress);
     }
   }
 }

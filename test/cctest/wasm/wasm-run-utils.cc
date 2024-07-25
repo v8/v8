@@ -299,14 +299,14 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
-      FunctionTargetAndRef entry(isolate_, trusted_instance_data_,
-                                 function.func_index);
+      FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
+                                         function.func_index);
 #if !V8_ENABLE_DRUMBRAKE
       trusted_instance_data_->dispatch_table(table_index)
-          ->Set(i, *entry.ref(), entry.call_target(), sig_id);
+          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
       trusted_instance_data_->dispatch_table(table_index)
-          ->Set(i, *entry.ref(), entry.call_target(), sig_id,
+          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id,
                 function.func_index);
 #endif  // !V8_ENABLE_DRUMBRAKE
       WasmTableObject::SetFunctionTablePlaceholder(

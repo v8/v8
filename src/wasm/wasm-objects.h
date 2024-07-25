@@ -73,13 +73,13 @@ class TrustedManaged;
   DECL_GETTER(has_##name, bool)             \
   DECL_ACCESSORS(name, type)
 
-class V8_EXPORT_PRIVATE FunctionTargetAndRef {
+class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
  public:
-  FunctionTargetAndRef(Isolate* isolate,
-                       Handle<WasmTrustedInstanceData> target_instance_data,
-                       int target_func_index);
-  // The "ref" will be a WasmTrustedInstanceData or a WasmImportData.
-  Handle<TrustedObject> ref() { return ref_; }
+  FunctionTargetAndImplicitArg(
+      Isolate* isolate, Handle<WasmTrustedInstanceData> target_instance_data,
+      int target_func_index);
+  // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
+  Handle<TrustedObject> implicit_arg() { return implicit_arg_; }
   Address call_target() { return call_target_; }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
 #endif  // V8_ENABLE_DRUMBRAKE
 
  private:
-  Handle<TrustedObject> ref_;
+  Handle<TrustedObject> implicit_arg_;
   Address call_target_;
 
 #if V8_ENABLE_DRUMBRAKE
@@ -135,7 +135,7 @@ class ImportedFunctionEntry {
 
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
-  Tagged<Object> object_ref();
+  Tagged<Object> implicit_arg();
   Address target();
   void set_target(Address new_target);
 
@@ -704,8 +704,6 @@ class WasmTagObject
 // The dispatch table is referenced from a WasmTableObject and from every
 // WasmTrustedInstanceData which uses the table. It is used from generated code
 // for executing indirect calls.
-// The WasmDispatchTable lives in trusted space and holds tuples of
-// <ref, target, sig>.
 class WasmDispatchTable : public TrustedObject {
  public:
 #if V8_ENABLE_DRUMBRAKE
@@ -722,7 +720,7 @@ class WasmDispatchTable : public TrustedObject {
 #if V8_ENABLE_DRUMBRAKE
   // - function_index (uint32_t) (located in place of target pointer).
 #endif  // V8_ENABLE_DRUMBRAKE
-  // - ref (protected pointer, tagged sized)
+  // - implicit_arg (protected pointer, tagged sized)
   // - sig (int32_t); unused for imports which check the signature statically.
   static constexpr size_t kTargetBias = 0;
 #if V8_ENABLE_DRUMBRAKE
@@ -730,8 +728,8 @@ class WasmDispatchTable : public TrustedObject {
   // function index.
   static constexpr size_t kFunctionIndexBias = kTargetBias;
 #endif  // V8_ENABLE_DRUMBRAKE
-  static constexpr size_t kRefBias = kTargetBias + kSystemPointerSize;
-  static constexpr size_t kSigBias = kRefBias + kTaggedSize;
+  static constexpr size_t kImplicitArgBias = kTargetBias + kSystemPointerSize;
+  static constexpr size_t kSigBias = kImplicitArgBias + kTaggedSize;
   static constexpr size_t kEntryPaddingOffset = kSigBias + kInt32Size;
   static constexpr size_t kEntryPaddingBytes =
       kEntryPaddingOffset % kTaggedSize;
@@ -742,7 +740,7 @@ class WasmDispatchTable : public TrustedObject {
   static_assert(IsAligned(kEntriesOffset, kTaggedSize));
   static_assert(IsAligned(kEntrySize, kTaggedSize));
   static_assert(IsAligned(kTargetBias, kTaggedSize));
-  static_assert(IsAligned(kRefBias, kTaggedSize));
+  static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
 
   // TODO(clemensb): If we ever enable allocation alignment we will needs to add
   // more padding to make the "target" fields system-pointer-size aligned.
@@ -773,16 +771,17 @@ class WasmDispatchTable : public TrustedObject {
   inline int capacity() const;
 
   // Accessors.
-  // {ref} will be a WasmImportData, a WasmInstanceObject, or Smi::zero()
-  // (if the entry was cleared).
-  inline Tagged<Object> ref(int index) const;
+  // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
+  // Smi::zero() (if the entry was cleared).
+  inline Tagged<Object> implicit_arg(int index) const;
   inline Address target(int index) const;
   inline int sig(int index) const;
 
   // Set an entry for indirect calls.
-  // {ref} has to be a WasmImportData, a WasmInstanceObject, or Smi::zero().
-  void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> ref, Address call_target,
-                             int sig_id
+  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
+  // Smi::zero().
+  void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> implicit_arg,
+                             Address call_target, int sig_id
 #if V8_ENABLE_DRUMBRAKE
                              ,
                              uint32_t function_index
@@ -794,8 +793,9 @@ class WasmDispatchTable : public TrustedObject {
 
   // Set an entry for an import. We check signatures statically there, so the
   // signature is not updated in the dispatch table.
-  // {ref} has to be a WasmImportData or a WasmInstanceObject.
-  void V8_EXPORT_PRIVATE SetForImport(int index, Tagged<TrustedObject> ref,
+  // {implicit_arg} has to be a WasmImportData or a WasmTrustedInstanceData.
+  void V8_EXPORT_PRIVATE SetForImport(int index,
+                                      Tagged<TrustedObject> implicit_arg,
                                       Address call_target);
 
   void Clear(int index);

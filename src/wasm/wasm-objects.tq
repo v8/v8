@@ -57,6 +57,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
   // Torque code should use the '.ref' macro to access the value.
+  // TODO(clemensb): Rename this to "implicit_arg".
   protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;

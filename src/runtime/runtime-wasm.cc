@@ -611,25 +611,26 @@ RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmImportData> ref(Cast<WasmImportData>(args[0]), isolate);
+  DirectHandle<WasmImportData> import_data(Cast<WasmImportData>(args[0]),
+                                           isolate);
 
   DCHECK(isolate->context().is_null());
-  isolate->set_context(ref->native_context());
+  isolate->set_context(import_data->native_context());
 
   std::unique_ptr<wasm::ValueType[]> reps;
-  wasm::FunctionSig sig =
-      wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
-  DirectHandle<Object> origin(ref->call_origin(), isolate);
+  wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
+      import_data->sig(), &reps);
+  DirectHandle<Object> origin(import_data->call_origin(), isolate);
 
   if (IsWasmFuncRef(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there may not be an
     // instance.
-    int suspender_count = ref->suspend() == wasm::kSuspendWithSuspender;
+    int suspender_count = import_data->suspend() == wasm::kSuspendWithSuspender;
     size_t expected_arity = sig.parameter_count() - suspender_count;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
-    if (IsJSFunction(ref->callable())) {
+    if (IsJSFunction(import_data->callable())) {
       Tagged<SharedFunctionInfo> shared =
-          Cast<JSFunction>(ref->callable())->shared();
+          Cast<JSFunction>(import_data->callable())->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
       if (expected_arity != sig.parameter_count() - suspender_count) {
@@ -637,25 +638,28 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       }
     }
     const wasm::WasmModule* module =
-        ref->has_instance_data() ? ref->instance_data()->module() : nullptr;
+        import_data->has_instance_data()
+            ? import_data->instance_data()->module()
+            : nullptr;
 
     DirectHandle<Code> wasm_to_js_wrapper_code =
         compiler::CompileWasmToJSWrapper(
             isolate, module, &sig, kind, static_cast<int>(expected_arity),
-            static_cast<wasm::Suspend>(ref->suspend()))
+            static_cast<wasm::Suspend>(import_data->suspend()))
             .ToHandleChecked();
 
     // We have to install the optimized wrapper as `code`, as the generated
     // code may move. `call_target` would become stale then.
     DirectHandle<WasmInternalFunction> internal_function{
         Cast<WasmFuncRef>(*origin)->internal(isolate), isolate};
-    ref->set_code(*wasm_to_js_wrapper_code);
+    import_data->set_code(*wasm_to_js_wrapper_code);
     internal_function->set_call_target(
         Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<WasmTrustedInstanceData> trusted_data(ref->instance_data(), isolate);
+  Handle<WasmTrustedInstanceData> trusted_data(import_data->instance_data(),
+                                               isolate);
   if (IsTuple2(*origin)) {
     auto tuple = Cast<Tuple2>(origin);
     trusted_data =
@@ -685,7 +689,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       if (!maybe_shared_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
           maybe_shared_data->dispatch_table(table_index);
-      if (entry_index < table->length() && table->ref(entry_index) == *ref) {
+      if (entry_index < table->length() &&
+          table->implicit_arg(entry_index) == *import_data) {
         canonical_sig_index = table->sig(entry_index);
         break;
       }
@@ -694,8 +699,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   DCHECK_NE(canonical_sig_index, std::numeric_limits<uint32_t>::max());
 
   // Compile a wrapper for the target callable.
-  Handle<JSReceiver> callable(Cast<JSReceiver>(ref->callable()), isolate);
-  wasm::Suspend suspend = static_cast<wasm::Suspend>(ref->suspend());
+  Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
+                              isolate);
+  wasm::Suspend suspend = static_cast<wasm::Suspend>(import_data->suspend());
   wasm::WasmCodeRefScope code_ref_scope;
 
   wasm::NativeModule* native_module = trusted_data->native_module();
@@ -760,7 +766,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       if (!trusted_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
           trusted_data->dispatch_table(table_index);
-      if (entry_index < table->length() && table->ref(entry_index) == *ref) {
+      if (entry_index < table->length() &&
+          table->implicit_arg(entry_index) == *import_data) {
         table->SetTarget(entry_index, wasm_code->instruction_start());
         // {ref} is used in at most one table.
         break;

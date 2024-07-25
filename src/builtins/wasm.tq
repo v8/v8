@@ -697,14 +697,14 @@ macro UpdateCallRefOrIndirectIC(
 
 // This is the return type of "CallRefIC" and "CallIndirectIC". The type is not
 // used anywhere else; Liftoff uses the two returned values directly.
-struct TargetAndRef {
+struct TargetAndImplicitArg {
   target: RawPtr;
-  ref: WasmTrustedInstanceData|WasmImportData;
+  implicit_arg: WasmTrustedInstanceData|WasmImportData;
 }
 
 builtin CallRefIC(
     vector: FixedArray, vectorIndex: int32, signatureHash: uintptr,
-    funcref: WasmFuncRef): TargetAndRef {
+    funcref: WasmFuncRef): TargetAndImplicitArg {
   dcheck(Is<WasmFuncRef>(funcref));
   UpdateCallRefOrIndirectIC(vector, Convert<intptr>(vectorIndex), funcref);
 
@@ -717,17 +717,20 @@ builtin CallRefIC(
   @ifnot(V8_ENABLE_SANDBOX) {
     dcheck(signatureHash == 0);  // Avoids "unused variable" warning.
   }
-  return TargetAndRef{target: internal.call_target, ref: internal.ref};
+  return TargetAndImplicitArg{
+    target: internal.call_target,
+    implicit_arg: internal.ref
+  };
 }
 
 builtin CallIndirectIC(
     vector: FixedArray, vectorIndex: int32, target: RawPtr,
-    ref: WasmTrustedInstanceData|WasmImportData): TargetAndRef {
+    implicitArg: WasmTrustedInstanceData|WasmImportData): TargetAndImplicitArg {
   const truncatedTarget = SmiTag(Signed(Unsigned(target) & kSmiMaxValue));
   UpdateCallRefOrIndirectIC(
       vector, Convert<intptr>(vectorIndex), truncatedTarget);
 
-  return TargetAndRef{target: target, ref: ref};
+  return TargetAndImplicitArg{target: target, implicit_arg: implicitArg};
 }
 
 extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never

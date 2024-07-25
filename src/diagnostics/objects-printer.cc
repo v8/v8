@@ -2706,7 +2706,7 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
   for (int i = 0; i < printed; ++i) {
     os << "\n " << std::setw(8) << i << ": sig: " << sig(i)
        << "; target: " << AsHex::Address(target(i))
-       << "; ref: " << Brief(ref(i));
+       << "; implicit_arg: " << Brief(implicit_arg(i));
   }
   if (printed != len) os << "\n  [...]";
   os << "\n";

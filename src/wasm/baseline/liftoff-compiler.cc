@@ -8329,7 +8329,7 @@ class LiftoffCompiler {
       // A direct call to an imported function.
       FUZZER_HEAVY_INSTRUCTION;
       LiftoffRegList pinned;
-      Register imported_function_ref =
+      Register implicit_arg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
@@ -8339,9 +8339,9 @@ class LiftoffCompiler {
         LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table,
                                           DispatchTableForImports, pinned);
         __ LoadProtectedPointer(
-            imported_function_ref, dispatch_table,
+            implicit_arg, dispatch_table,
             ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
-                                   WasmDispatchTable::kRefBias));
+                                   WasmDispatchTable::kImplicitArgBias));
 
         __ LoadFullPointer(
             target, dispatch_table,
@@ -8349,7 +8349,7 @@ class LiftoffCompiler {
                                    WasmDispatchTable::kTargetBias));
       }
 
-      __ PrepareCall(&sig, call_descriptor, &target, imported_function_ref);
+      __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -8658,14 +8658,14 @@ class LiftoffCompiler {
 
       // The first parameter will be either a WasmTrustedInstanceData or a
       // WasmImportData.
-      Register first_param = temps.Acquire(kGpReg).gp();
+      Register implicit_arg = temps.Acquire(kGpReg).gp();
       Register target = temps.Acquire(kGpReg).gp();
 
       {
-        SCOPED_CODE_COMMENT("Load ref and target from dispatch table");
+        SCOPED_CODE_COMMENT("Load implicit arg and target from dispatch table");
         __ LoadProtectedPointer(
-            first_param, dispatch_table_base.gp_reg(),
-            dispatch_table_offset + WasmDispatchTable::kRefBias);
+            implicit_arg, dispatch_table_base.gp_reg(),
+            dispatch_table_offset + WasmDispatchTable::kImplicitArgBias);
         __ Load(LiftoffRegister(target), dispatch_table_base.gp_reg(), no_reg,
                 dispatch_table_offset + WasmDispatchTable::kTargetBias,
                 LoadType::ForValueKind(kIntPtrKind));
@@ -8706,25 +8706,25 @@ class LiftoffCompiler {
         // All in all, let's keep it simple at first, i.e., share the maximum
         // amount of code when inlining is enabled vs. not.
         VarState target_var(kIntPtrKind, LiftoffRegister(target), 0);
-        VarState first_param_var(kRef, LiftoffRegister(first_param), 0);
+        VarState implicit_arg_var(kRef, LiftoffRegister(implicit_arg), 0);
 
         // CallIndirectIC(vector: FixedArray, vectorIndex: int32,
         //                target: RawPtr,
         //                ref: WasmTrustedInstanceData|WasmImportData)
-        //               -> <target, ref>
+        //               -> <target, implicit_arg>
         CallBuiltin(Builtin::kCallIndirectIC,
                     MakeSig::Returns(kIntPtrKind, kIntPtrKind)
                         .Params(kRef, kI32, kIntPtrKind, kRef),
-                    {vector_var, index_var, target_var, first_param_var},
+                    {vector_var, index_var, target_var, implicit_arg_var},
                     decoder->position());
         target = kReturnRegister0;
-        first_param = kReturnRegister1;
+        implicit_arg = kReturnRegister1;
       }
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-      __ PrepareCall(&sig, call_descriptor, &target, first_param);
+      __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -8840,7 +8840,7 @@ class LiftoffCompiler {
 
       // CallRefIC(vector: FixedArray, vectorIndex: int32,
       //           signatureHash: uintptr,
-      //           funcref: WasmFuncRef) -> <target, ref>
+      //           funcref: WasmFuncRef) -> <target, implicit_arg>
       CallBuiltin(Builtin::kCallRefIC,
                   MakeSig::Returns(kIntPtrKind, kIntPtrKind)
                       .Params(kRef, kI32, kIntPtrKind, kRef),

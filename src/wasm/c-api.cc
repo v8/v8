@@ -1768,9 +1768,10 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 
   i::Handle<i::Object> object_ref;
   if (function_index < static_cast<int>(module->num_imported_functions)) {
-    object_ref = i::handle(
-        instance_data->dispatch_table_for_imports()->ref(function_index),
-        isolate);
+    object_ref =
+        i::handle(instance_data->dispatch_table_for_imports()->implicit_arg(
+                      function_index),
+                  isolate);
     if (IsWasmImportData(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
           i::Cast<i::WasmImportData>(*object_ref)->callable());

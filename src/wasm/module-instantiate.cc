@@ -2082,18 +2082,20 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     const WasmModule* target_module = target_instance_data->module();
     const WasmFunction& function = target_module->functions[function_index];
 
-    FunctionTargetAndRef entry(isolate_, target_instance_data, function_index);
-    Handle<Object> ref = entry.ref();
-    if (v8_flags.wasm_to_js_generic_wrapper && IsWasmImportData(*ref)) {
-      auto orig_ref = Cast<WasmImportData>(ref);
-      Handle<WasmImportData> new_ref =
-          isolate_->factory()->NewWasmImportData(orig_ref);
+    FunctionTargetAndImplicitArg entry(isolate_, target_instance_data,
+                                       function_index);
+    Handle<Object> implicit_arg = entry.implicit_arg();
+    if (v8_flags.wasm_to_js_generic_wrapper &&
+        IsWasmImportData(*implicit_arg)) {
+      auto orig_import_data = Cast<WasmImportData>(implicit_arg);
+      Handle<WasmImportData> new_import_data =
+          isolate_->factory()->NewWasmImportData(orig_import_data);
       // TODO(42204563): Avoid crashing if the instance object is not available.
       CHECK(trusted_instance_data->has_instance_object());
       WasmImportData::SetCrossInstanceTableIndexAsCallOrigin(
-          isolate_, new_ref,
+          isolate_, new_import_data,
           direct_handle(trusted_instance_data->instance_object(), isolate_), i);
-      ref = new_ref;
+      implicit_arg = new_import_data;
     }
 
     uint32_t canonical_sig_index =
@@ -2103,10 +2105,10 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
         canonical_sig_index, trusted_instance_data->module(), table_index));
 
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(i, *ref, entry.call_target(), canonical_sig_index);
+        ->Set(i, *implicit_arg, entry.call_target(), canonical_sig_index);
 #else   // !V8_ENABLE_DRUMBRAKE
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(i, *ref, entry.call_target(), canonical_sig_index,
+        ->Set(i, *implicit_arg, entry.call_target(), canonical_sig_index,
               entry.target_func_index());
 #endif  // !V8_ENABLE_DRUMBRAKE
   }

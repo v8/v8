@@ -360,12 +360,13 @@ int WasmDispatchTable::capacity() const {
   return ReadField<int>(kCapacityOffset);
 }
 
-inline Tagged<Object> WasmDispatchTable::ref(int index) const {
+inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
   DCHECK_LT(index, length());
-  Tagged<Object> ref = ReadProtectedPointerField(OffsetOf(index) + kRefBias);
-  DCHECK(IsWasmTrustedInstanceData(ref) || IsWasmImportData(ref) ||
-         ref == Smi::zero());
-  return ref;
+  Tagged<Object> implicit_arg =
+      ReadProtectedPointerField(OffsetOf(index) + kImplicitArgBias);
+  DCHECK(IsWasmTrustedInstanceData(implicit_arg) ||
+         IsWasmImportData(implicit_arg) || implicit_arg == Smi::zero());
+  return implicit_arg;
 }
 
 inline Address WasmDispatchTable::target(int index) const {

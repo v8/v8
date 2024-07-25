@@ -382,9 +382,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
               function_data, LoadOp::Kind::TaggedBase().Immutable(),
               WasmExportedFunctionData::kProtectedInternalOffset));
-      auto [target, ref] =
-          BuildFunctionTargetAndRef(internal, expected_sig_hash);
-      BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, ref, args, rets);
+      auto [target, implicit_arg] =
+          BuildFunctionTargetAndImplicitArg(internal, expected_sig_hash);
+      BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg,
+                               args, rets);
     }
 
     V<Object> jsval;

@@ -2884,12 +2884,12 @@ Node* WasmGraphBuilder::BuildImportCall(
   Node* func_index_intptr = gasm_->BuildChangeUint32ToUintPtr(func_index);
   Node* dispatch_table_entry_offset = gasm_->IntMul(
       func_index_intptr, gasm_->IntPtrConstant(WasmDispatchTable::kEntrySize));
-  Node* ref = gasm_->LoadProtectedPointerFromObject(
+  Node* implicit_arg = gasm_->LoadProtectedPointerFromObject(
       dispatch_table,
       gasm_->IntAdd(dispatch_table_entry_offset,
                     gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
                         WasmDispatchTable::kEntriesOffset +
-                        WasmDispatchTable::kRefBias))));
+                        WasmDispatchTable::kImplicitArgBias))));
 
   Node* target = gasm_->LoadFromObject(
       MachineType::Pointer(), dispatch_table,
@@ -2902,10 +2902,11 @@ Node* WasmGraphBuilder::BuildImportCall(
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, ref, frame_state);
+      return BuildWasmCall(sig, args, rets, position, implicit_arg,
+                           frame_state);
     case kReturnCall:
       DCHECK(rets.empty());
-      return BuildWasmReturnCall(sig, args, position, ref);
+      return BuildWasmReturnCall(sig, args, position, implicit_arg);
   }
 }
 
@@ -3066,10 +3067,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
   }
 
-  Node* target_ref = gasm_->LoadProtectedPointerFromObject(
-      dispatch_table,
-      gasm_->IntAdd(dispatch_table_entry_offset,
-                    gasm_->IntPtrConstant(WasmDispatchTable::kRefBias)));
+  Node* implicit_arg = gasm_->LoadProtectedPointerFromObject(
+      dispatch_table, gasm_->IntAdd(dispatch_table_entry_offset,
+                                    gasm_->IntPtrConstant(
+                                        WasmDispatchTable::kImplicitArgBias)));
 
   Node* target = gasm_->LoadFromObject(
       MachineType::Pointer(), dispatch_table,
@@ -3081,9 +3082,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, target_ref);
+      return BuildWasmCall(sig, args, rets, position, implicit_arg);
     case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, target_ref);
+      return BuildWasmReturnCall(sig, args, position, implicit_arg);
   }
 }
 

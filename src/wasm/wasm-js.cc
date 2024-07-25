@@ -2220,7 +2220,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
   } else {
     ref = i_isolate->factory()->NewWasmImportData(direct_handle(
         i::Cast<i::WasmImportData>(
-            trusted_instance_data->dispatch_table_for_imports()->ref(
+            trusted_instance_data->dispatch_table_for_imports()->implicit_arg(
                 func_index)),
         i_isolate));
   }

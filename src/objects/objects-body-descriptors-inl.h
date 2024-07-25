@@ -1061,7 +1061,7 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     int length = Cast<WasmDispatchTable>(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
-      IterateProtectedPointer(obj, OffsetOf(i) + kRefBias, v);
+      IterateProtectedPointer(obj, OffsetOf(i) + kImplicitArgBias, v);
     }
   }
 

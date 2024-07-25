@@ -194,7 +194,7 @@ V<BigInt> WasmGraphBuilderBase::BuildChangeInt64ToBigInt(
 }
 
 std::pair<V<WordPtr>, V<HeapObject>>
-WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
+WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
     ConstOrV<Word32> func_index,
     V<WasmTrustedInstanceData> trusted_instance_data) {
   V<WasmDispatchTable> dispatch_table = LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
@@ -206,10 +206,11 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
     V<WordPtr> target = __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
                                 MemoryRepresentation::UintPtr(),
                                 offset + WasmDispatchTable::kTargetBias);
-    V<ExposedTrustedObject> ref = V<ExposedTrustedObject>::Cast(
-        __ LoadProtectedPointerField(dispatch_table, LoadOp::Kind::TaggedBase(),
-                                     offset + WasmDispatchTable::kRefBias));
-    return {target, ref};
+    V<ExposedTrustedObject> implicit_arg =
+        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+            dispatch_table, LoadOp::Kind::TaggedBase(),
+            offset + WasmDispatchTable::kImplicitArgBias));
+    return {target, implicit_arg};
   }
 
   V<WordPtr> dispatch_table_entry_offset =
@@ -219,18 +220,19 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
       dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
       MemoryRepresentation::UintPtr(),
       WasmDispatchTable::kEntriesOffset + WasmDispatchTable::kTargetBias);
-  V<ExposedTrustedObject> ref =
-      V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-          dispatch_table, dispatch_table_entry_offset,
-          LoadOp::Kind::TaggedBase(),
-          WasmDispatchTable::kEntriesOffset + WasmDispatchTable::kRefBias, 0));
-  return {target, ref};
+  V<ExposedTrustedObject> implicit_arg = V<ExposedTrustedObject>::Cast(
+      __ LoadProtectedPointerField(dispatch_table, dispatch_table_entry_offset,
+                                   LoadOp::Kind::TaggedBase(),
+                                   WasmDispatchTable::kEntriesOffset +
+                                       WasmDispatchTable::kImplicitArgBias,
+                                   0));
+  return {target, implicit_arg};
 }
 
 std::pair<V<WordPtr>, V<ExposedTrustedObject>>
-WasmGraphBuilderBase::BuildFunctionTargetAndRef(
+WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
     V<WasmInternalFunction> internal_function, uint64_t expected_sig_hash) {
-  V<ExposedTrustedObject> ref =
+  V<ExposedTrustedObject> implicit_arg =
       V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
           internal_function, LoadOp::Kind::TaggedBase().Immutable(),
           WasmInternalFunction::kProtectedRefOffset));
@@ -253,7 +255,7 @@ WasmGraphBuilderBase::BuildFunctionTargetAndRef(
                               MemoryRepresentation::UintPtr(),
                               WasmInternalFunction::kCallTargetOffset);
 
-  return {target, ref};
+  return {target, implicit_arg};
 }
 
 RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
@@ -2204,8 +2206,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     Label<> done(&asm_);
     GOTO(done);
     BIND(value_out_of_range);
-    auto [target, ref] = BuildImportedFunctionTargetAndRef(decoder, imm.index);
-    BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+    auto [target, implicit_arg] =
+        BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
     __ Unreachable();
     BIND(done);
     if (sig->return_count()) {
@@ -2602,9 +2605,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (HandleWellKnownImport(decoder, imm, args, returns)) {
         return;
       }
-      auto [target, ref] =
-          BuildImportedFunctionTargetAndRef(decoder, imm.index);
-      BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+      auto [target, implicit_arg] =
+          BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+      BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
     } else {
       // Locally defined function.
       if (inlining_enabled(decoder) &&
@@ -2631,9 +2634,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   const Value args[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      auto [target, ref] =
-          BuildImportedFunctionTargetAndRef(decoder, imm.index);
-      BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
+      auto [target, implicit_arg] =
+          BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+      BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
     } else {
       // Locally defined function.
       if (inlining_enabled(decoder) &&
@@ -2677,7 +2680,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // we know already from the static check on the inlinee (see below) that
         // the inlined code has the right signature.
         constexpr bool kNeedsTypeOrNullCheck = false;
-        auto [target, _ref] = BuildIndirectCallTargetAndRef(
+        auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
@@ -2724,9 +2727,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // Ensure that we only inline if the inlinee's signature is compatible
           // with the call_indirect. In other words, perform the type check that
           // would normally be done dynamically (see above
-          // `BuildIndirectCallTargetAndRef`) statically on the inlined target.
-          // This can fail, e.g., because the mapping of feedback back to
-          // function indices may produce spurious targets, or because the
+          // `BuildIndirectCallTargetAndImplicitArg`) statically on the inlined
+          // target. This can fail, e.g., because the mapping of feedback back
+          // to function indices may produce spurious targets, or because the
           // feedback in the JS heap has been corrupted by a vulnerability.
           if (!InlineTargetIsTypeCompatible(
                   decoder->module_, imm.sig,
@@ -2821,11 +2824,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           TSBlock* no_inline_block = case_blocks.back();
           __ Bind(no_inline_block);
           instance_cache_.RestoreFromSnapshot(saved_cache);
-          auto [target, ref] =
-              BuildIndirectCallTargetAndRef(decoder, index_wordptr, imm);
+          auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
+              decoder, index_wordptr, imm);
           SmallZoneVector<Value, 4> indirect_returns(return_count,
                                                      decoder->zone_);
-          BuildWasmCall(decoder, imm.sig, target, ref, args,
+          BuildWasmCall(decoder, imm.sig, target, implicit_arg, args,
                         indirect_returns.data());
           for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
             case_returns[ret].push_back(indirect_returns[ret].op);
@@ -2852,9 +2855,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Didn't inline.
     V<WordPtr> index_wordptr =
         TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
-    auto [target, ref] =
-        BuildIndirectCallTargetAndRef(decoder, index_wordptr, imm);
-    BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+    auto [target, implicit_arg] =
+        BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
@@ -2874,7 +2877,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // we know already from the static check on the inlinee (see below) that
         // the inlined code has the right signature.
         constexpr bool kNeedsTypeOrNullCheck = false;
-        auto [target, _ref] = BuildIndirectCallTargetAndRef(
+        auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         base::Vector<InliningTree*> feedback_cases =
@@ -2899,9 +2902,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // Ensure that we only inline if the inlinee's signature is compatible
           // with the call_indirect. In other words, perform the type check that
           // would normally be done dynamically (see above
-          // `BuildIndirectCallTargetAndRef`) statically on the inlined target.
-          // This can fail, e.g., because the mapping of feedback back to
-          // function indices may produce spurious targets, or because the
+          // `BuildIndirectCallTargetAndImplicitArg`) statically on the inlined
+          // target. This can fail, e.g., because the mapping of feedback back
+          // to function indices may produce spurious targets, or because the
           // feedback in the JS heap has been corrupted by a vulnerability.
           if (!InlineTargetIsTypeCompatible(
                   decoder->module_, imm.sig,
@@ -2957,9 +2960,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Didn't inline.
     V<WordPtr> index_wordptr =
         TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
-    auto [target, ref] =
-        BuildIndirectCallTargetAndRef(decoder, index_wordptr, imm);
-    BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
+    auto [target, implicit_arg] =
+        BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
+    BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -3101,10 +3104,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
         instance_cache_.RestoreFromSnapshot(saved_cache);
-        auto [target, ref] = BuildFunctionReferenceTargetAndRef(
-            func_ref.op, func_ref.type, signature_hash);
+        auto [target, implicit_arg] =
+            BuildFunctionReferenceTargetAndImplicitArg(
+                func_ref.op, func_ref.type, signature_hash);
         SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
-        BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
+        BuildWasmCall(decoder, sig, target, implicit_arg, args,
+                      ref_returns.data());
         for (size_t ret = 0; ret < ref_returns.size(); ret++) {
           case_returns[ret].push_back(ref_returns[ret].op);
         }
@@ -3123,9 +3128,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         instance_cache_.set_mutable_field_value(i, phi);
       }
     } else {
-      auto [target, ref] = BuildFunctionReferenceTargetAndRef(
+      auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
           func_ref.op, func_ref.type, signature_hash);
-      BuildWasmCall(decoder, sig, target, ref, args, returns);
+      BuildWasmCall(decoder, sig, target, implicit_arg, args, returns);
     }
   }
 
@@ -3199,9 +3204,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       TSBlock* no_inline_block = case_blocks.back();
       __ Bind(no_inline_block);
     }
-    auto [target, ref] = BuildFunctionReferenceTargetAndRef(
+    auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
         func_ref.op, func_ref.type, signature_hash);
-    BuildWasmMaybeReturnCall(decoder, sig, target, ref, args);
+    BuildWasmMaybeReturnCall(decoder, sig, target, implicit_arg, args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -7127,19 +7132,22 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
  private:
-  std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
-      FullDecoder* decoder, uint32_t function_index) {
+  std::pair<V<WordPtr>, V<HeapObject>>
+  BuildImportedFunctionTargetAndImplicitArg(FullDecoder* decoder,
+                                            uint32_t function_index) {
     uint32_t sig_index = decoder->module_->functions[function_index].sig_index;
     bool shared = decoder->module_->types[sig_index].is_shared;
-    return WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
+    return WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
         function_index, trusted_instance_data(shared));
   }
 
-  // Returns the call target and the ref (WasmTrustedInstanceData or
-  // WasmImportData) for an indirect call.
-  std::pair<V<WordPtr>, V<ExposedTrustedObject>> BuildIndirectCallTargetAndRef(
-      FullDecoder* decoder, V<WordPtr> index_wordptr, CallIndirectImmediate imm,
-      bool needs_type_or_null_check = true) {
+  // Returns the call target and the implicit argument (WasmTrustedInstanceData
+  // or WasmImportData) for an indirect call.
+  std::pair<V<WordPtr>, V<ExposedTrustedObject>>
+  BuildIndirectCallTargetAndImplicitArg(FullDecoder* decoder,
+                                        V<WordPtr> index_wordptr,
+                                        CallIndirectImmediate imm,
+                                        bool needs_type_or_null_check = true) {
     static_assert(kV8MaxWasmTableSize < size_t{kMaxInt});
     const WasmTable* table = imm.table_imm.table;
 
@@ -7270,19 +7278,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> target = __ Load(
         dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
         MemoryRepresentation::UintPtr(), WasmDispatchTable::kTargetBias);
-    V<ExposedTrustedObject> ref =
+    V<ExposedTrustedObject> implicit_arg =
         V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
             dispatch_table, dispatch_table_entry_offset,
-            LoadOp::Kind::TaggedBase(), WasmDispatchTable::kRefBias, 0));
+            LoadOp::Kind::TaggedBase(), WasmDispatchTable::kImplicitArgBias,
+            0));
 
-    return {target, ref};
+    return {target, implicit_arg};
   }
 
-  // Load the call target and ref (WasmTrustedInstanceData or
+  // Load the call target and implicit arg (WasmTrustedInstanceData or
   // WasmImportData) from a function reference.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>>
-  BuildFunctionReferenceTargetAndRef(V<WasmFuncRef> func_ref, ValueType type,
-                                     uint64_t expected_sig_hash) {
+  BuildFunctionReferenceTargetAndImplicitArg(V<WasmFuncRef> func_ref,
+                                             ValueType type,
+                                             uint64_t expected_sig_hash) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
       func_ref = V<WasmFuncRef>::Cast(
@@ -7300,7 +7310,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
             WasmFuncRef::kTrustedInternalOffset));
 
-    return BuildFunctionTargetAndRef(internal_function, expected_sig_hash);
+    return BuildFunctionTargetAndImplicitArg(internal_function,
+                                             expected_sig_hash);
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
