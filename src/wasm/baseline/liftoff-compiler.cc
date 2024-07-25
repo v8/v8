@@ -4336,6 +4336,30 @@ class LiftoffCompiler {
     __ PushRegister(kS128, dst);
   }
 
+  template <ValueKind result_lane_kind, typename EmitFn>
+  void EmitSimdFmaOpWithCFallback(EmitFn emit_fn,
+                                  ExternalReference (*ext_ref)()) {
+    LiftoffRegList pinned;
+    LiftoffRegister src3 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src2 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src1 = pinned.set(__ PopToRegister(pinned));
+    static constexpr RegClass dst_rc = reg_class_for(kS128);
+    LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
+    if (!(asm_.*emit_fn)(dst, src1, src2, src3)) {
+      // Return v128 via stack for ARM.
+      GenerateCCallWithStackBuffer(
+          &dst, kVoid, kS128,
+          {VarState{kS128, src1, 0}, VarState{kS128, src2, 0},
+           VarState{kS128, src3, 0}},
+          ext_ref());
+    }
+    if (V8_UNLIKELY(nondeterminism_)) {
+      LiftoffRegList pinned{dst};
+      CheckS128Nan(dst, pinned, result_lane_kind);
+    }
+    __ PushRegister(kS128, dst);
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* /* args */,
               Value* /* result */) {
     CHECK(CpuFeatures::SupportsWasmSimd128());
@@ -4961,6 +4985,14 @@ class LiftoffCompiler {
       case wasm::kExprI32x4TruncSatF64x2UZero:
         return EmitUnOp<kS128, kS128>(
             &LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero);
+      case wasm::kExprF16x8Qfma:
+        return EmitSimdFmaOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_qfma,
+            &ExternalReference::wasm_f16x8_qfma);
+      case wasm::kExprF16x8Qfms:
+        return EmitSimdFmaOpWithCFallback<kF16>(
+            &LiftoffAssembler::emit_f16x8_qfms,
+            &ExternalReference::wasm_f16x8_qfms);
       case wasm::kExprF32x4Qfma:
         return EmitSimdFmaOp<kF32>(&LiftoffAssembler::emit_f32x4_qfma);
       case wasm::kExprF32x4Qfms:

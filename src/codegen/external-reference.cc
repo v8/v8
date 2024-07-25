@@ -621,6 +621,8 @@ FUNCTION_REFERENCE(wasm_f16x8_demote_f32x4_zero,
                    wasm::f16x8_demote_f32x4_zero_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_demote_f64x2_zero,
                    wasm::f16x8_demote_f64x2_zero_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_qfma, wasm::f16x8_qfma_wrapper)
+FUNCTION_REFERENCE(wasm_f16x8_qfms, wasm::f16x8_qfms_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)

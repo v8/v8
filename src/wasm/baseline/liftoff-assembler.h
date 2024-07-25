@@ -1490,6 +1490,10 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_f64x2_replace_lane(LiftoffRegister dst, LiftoffRegister src1,
                                       LiftoffRegister src2,
                                       uint8_t imm_lane_idx);
+  inline bool emit_f16x8_qfma(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
+  inline bool emit_f16x8_qfms(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
   inline void emit_f32x4_qfma(LiftoffRegister dst, LiftoffRegister src1,
                               LiftoffRegister src2, LiftoffRegister src3);
   inline void emit_f32x4_qfms(LiftoffRegister dst, LiftoffRegister src1,

@@ -578,7 +578,9 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(F16x8UConvertI16x8, 0xfd148, s_s, "f16x8.convert_i16x8_u")             \
   V(F16x8DemoteF32x4Zero, 0xfd149, s_s, "f16x8.demote_f32x4_zero")         \
   V(F16x8DemoteF64x2Zero, 0xfd14a, s_s, "f16x8.demote_f64x2_zero")         \
-  V(F32x4PromoteLowF16x8, 0xfd14b, s_s, "f32x4.promote_low_f16x8")
+  V(F32x4PromoteLowF16x8, 0xfd14b, s_s, "f32x4.promote_low_f16x8")         \
+  V(F16x8Qfma, 0xfd14e, s_sss, "f16x8.madd")                               \
+  V(F16x8Qfms, 0xfd14f, s_sss, "f16x8.nmadd")
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V)          \
   V(I8x16ExtractLaneS, 0xfd15, _, "i8x16.extract_lane_s") \

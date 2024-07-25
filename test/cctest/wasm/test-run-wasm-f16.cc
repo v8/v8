@@ -234,23 +234,15 @@ TEST(F16x8ConvertI16x8) {
 
 int16_t ConvertToInt(uint16_t f16, bool unsigned_result) {
   float f32 = fp16_ieee_to_fp32_value(f16);
-  if (isnan(f16)) return 0;
-  if (std::isinf(f32)) {
-    if (unsigned_result) {
-      return static_cast<uint16_t>(std::signbit(f32) ? 0 : kMaxUInt16);
-    } else {
-      return static_cast<int16_t>(std::signbit(f32) ? kMinInt16 : kMaxInt16);
-    }
-  }
-  int int_val = static_cast<int>(f32);
+  if (std::isnan(f32)) return 0;
   if (unsigned_result) {
-    if (int_val > kMaxUInt16) return static_cast<uint16_t>(kMaxUInt16);
-    if (int_val < 0) return 0;
+    if (f32 > float{kMaxUInt16}) return static_cast<uint16_t>(kMaxUInt16);
+    if (f32 < 0) return 0;
     return static_cast<uint16_t>(f32);
   } else {
-    if (int_val > kMaxInt16) return static_cast<int16_t>(kMaxInt16);
-    if (int_val < kMinInt16) return static_cast<int16_t>(kMinInt16);
-    return static_cast<int>(f32);
+    if (f32 > float{kMaxInt16}) return static_cast<int16_t>(kMaxInt16);
+    if (f32 < float{kMinInt16}) return static_cast<int16_t>(kMinInt16);
+    return static_cast<int16_t>(f32);
   }
 }
 
@@ -345,6 +337,98 @@ TEST(F32x4PromoteLowF16x8) {
     for (int i = 0; i < 4; i++) {
       float actual = LANE(g, i);
       CheckFloatResult(x, x, expected, actual, true);
+    }
+  }
+}
+
+struct FMOperation {
+  const float a;
+  const float b;
+  const float c;
+  const float fused_result;
+};
+
+constexpr float large_n = 1e4;
+constexpr float finf = std::numeric_limits<float>::infinity();
+constexpr float qNan = std::numeric_limits<float>::quiet_NaN();
+
+// Fused Multiply-Add performs a * b + c.
+static FMOperation qfma_array[] = {
+    {2.0f, 3.0f, 1.0f, 7.0f},
+    // fused: a * b + c = (positive overflow) + -inf = -inf
+    // unfused: a * b + c = inf + -inf = NaN
+    {large_n, large_n, -finf, -finf},
+    // fused: a * b + c = (negative overflow) + inf = inf
+    // unfused: a * b + c = -inf + inf = NaN
+    {-large_n, large_n, finf, finf},
+    // NaN
+    {2.0f, 3.0f, qNan, qNan},
+    // -NaN
+    {2.0f, 3.0f, -qNan, qNan}};
+
+base::Vector<const FMOperation> qfma_vector() {
+  return base::ArrayVector(qfma_array);
+}
+
+// Fused Multiply-Subtract performs -(a * b) + c.
+static FMOperation qfms_array[]{
+    {2.0f, 3.0f, 1.0f, -5.0f},
+    // fused: -(a * b) + c = - (positive overflow) + inf = inf
+    // unfused: -(a * b) + c = - inf + inf = NaN
+    {large_n, large_n, finf, finf},
+    // fused: -(a * b) + c = (negative overflow) + -inf = -inf
+    // unfused: -(a * b) + c = -inf - -inf = NaN
+    {-large_n, large_n, -finf, -finf},
+    // NaN
+    {2.0f, 3.0f, qNan, qNan},
+    // -NaN
+    {2.0f, 3.0f, -qNan, qNan}};
+
+base::Vector<const FMOperation> qfms_vector() {
+  return base::ArrayVector(qfms_array);
+}
+
+TEST(F16x8Qfma) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kLiftoff);
+  // Set up global to hold output.
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  uint8_t value1 = 0, value2 = 1, value3 = 2;
+  r.Build(
+      {WASM_GLOBAL_SET(0, WASM_SIMD_F16x8_QFMA(
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value1)),
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value2)),
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value3)))),
+       WASM_ONE});
+  for (FMOperation x : qfma_vector()) {
+    r.Call(x.a, x.b, x.c);
+    uint16_t expected = fp16_ieee_from_fp32_value(x.fused_result);
+    for (int i = 0; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual, true /* exact */);
+    }
+  }
+}
+
+TEST(F16x8Qfms) {
+  i::v8_flags.experimental_wasm_fp16 = true;
+  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kLiftoff);
+  // Set up global to hold output.
+  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  uint8_t value1 = 0, value2 = 1, value3 = 2;
+  r.Build(
+      {WASM_GLOBAL_SET(0, WASM_SIMD_F16x8_QFMS(
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value1)),
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value2)),
+                              WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(value3)))),
+       WASM_ONE});
+
+  for (FMOperation x : qfms_vector()) {
+    r.Call(x.a, x.b, x.c);
+    uint16_t expected = fp16_ieee_from_fp32_value(x.fused_result);
+    for (int i = 0; i < 8; i++) {
+      uint16_t actual = LANE(g, i);
+      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual, true /* exact */);
     }
   }
 }

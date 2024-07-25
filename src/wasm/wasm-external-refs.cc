@@ -652,6 +652,31 @@ void f16x8_demote_f64x2_zero_wrapper(Address data) {
   }
 }
 
+template <float (*float_fma_op)(float, float, float)>
+void simd_float16_fma_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(Float16);
+  for (int i = 0; i < n; i++) {
+    Address offset = data + i * sizeof(Float16);
+    Float16 a = Float16::Read(offset);
+    Float16 b = Float16::Read(offset + kSimd128Size);
+    Float16 c = Float16::Read(offset + 2 * kSimd128Size);
+    float value = float_fma_op(a.ToFloat32(), b.ToFloat32(), c.ToFloat32());
+    Float16::FromFloat32(value).Write(offset);
+  }
+}
+
+float Qfma(float a, float b, float c) { return a * b + c; }
+
+void f16x8_qfma_wrapper(Address data) {
+  return simd_float16_fma_wrapper<&Qfma>(data);
+}
+
+float Qfms(float a, float b, float c) { return -(a * b) + c; }
+
+void f16x8_qfms_wrapper(Address data) {
+  return simd_float16_fma_wrapper<&Qfms>(data);
+}
+
 namespace {
 class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

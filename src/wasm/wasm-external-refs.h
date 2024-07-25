@@ -152,6 +152,10 @@ V8_EXPORT_PRIVATE void f16x8_demote_f32x4_zero_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f16x8_demote_f64x2_zero_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void f16x8_qfma_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f16x8_qfms_wrapper(Address data);
+
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
 int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,
