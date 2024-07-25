@@ -1051,7 +1051,7 @@ TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment,
 }
 
 Node* GraphAssembler::AdaptLocalArgument(Node* argument) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // With direct locals, the argument can be passed directly.
   return BitcastTaggedToWord(argument);
 #else

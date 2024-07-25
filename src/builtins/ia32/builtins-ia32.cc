@@ -4682,7 +4682,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
                      callback));
 
   __ RecordComment("Local<Name>");
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), name);
 #else

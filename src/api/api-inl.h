@@ -55,22 +55,21 @@ inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
 
 template <class From, class To>
 inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
-  DCHECK(obj.is_null() || (IsSmi(*obj) || !IsTheHole(*obj)));
-#ifdef V8_ENABLE_DIRECT_LOCAL
+  DCHECK(obj.is_null() || IsSmi(*obj) || !IsTheHole(*obj));
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (obj.is_null()) return Local<To>();
 #endif
   return Local<To>::FromSlot(obj.location());
 }
 
+// TODO(42203211): The second parameter (isolate) is not necessary anymore. It
+// will be removed in a subsequent CL.
 template <class From, class To>
 inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
                                 v8::internal::Isolate* isolate) {
-#if defined(V8_ENABLE_DIRECT_LOCAL)
-  DCHECK(obj.is_null() || (IsSmi(*obj) || !IsTheHole(*obj)));
+#if defined(V8_ENABLE_DIRECT_HANDLE)
+  DCHECK(obj.is_null() || IsSmi(*obj) || !IsTheHole(*obj));
   return Local<To>::FromAddress(obj.address());
-#elif defined(V8_ENABLE_DIRECT_HANDLE)
-  if (obj.is_null()) return Local<To>();
-  return Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
 #else
   return Convert<From, To>(obj);
 #endif
@@ -113,7 +112,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 // Implementations of OpenHandle
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
@@ -145,7 +144,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
-#else  // !V8_ENABLE_DIRECT_LOCAL
+#else  // !V8_ENABLE_DIRECT_HANDLE
 
 #define MAKE_OPEN_HANDLE(From, To)                                           \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                  \
@@ -169,7 +168,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
@@ -254,7 +253,7 @@ class V8_NODISCARD InternalEscapableScope : public EscapableHandleScopeBase {
    */
   template <class T>
   V8_INLINE Local<T> Escape(Local<T> value) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     return value;
 #else
     DCHECK(!value.IsEmpty());

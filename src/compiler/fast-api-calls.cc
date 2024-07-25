@@ -14,7 +14,7 @@ namespace v8 {
 // reasons: better performance and a simpler ABI for generated code and fast
 // API calls.
 ASSERT_TRIVIALLY_COPYABLE(api_internal::IndirectHandleBase);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 ASSERT_TRIVIALLY_COPYABLE(api_internal::DirectHandleBase);
 #endif
 ASSERT_TRIVIALLY_COPYABLE(LocalBase<Object>);

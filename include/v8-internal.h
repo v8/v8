@@ -1557,12 +1557,12 @@ constexpr WrappedIterator<Iterator> operator+(
 // whether direct local support is enabled.
 class ValueHelper final {
  public:
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   static constexpr Address kTaggedNullAddress = 1;
   static constexpr Address kEmpty = kTaggedNullAddress;
 #else
   static constexpr Address kEmpty = kNullAddress;
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
   V8_INLINE static bool IsEmpty(T* value) {
@@ -1578,7 +1578,7 @@ class ValueHelper final {
     return handle.template value<T>();
   }
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
   V8_INLINE static Address ValueAsAddress(const T* value) {
@@ -1593,7 +1593,7 @@ class ValueHelper final {
     return *reinterpret_cast<T**>(slot);
   }
 
-#else  // !V8_ENABLE_DIRECT_LOCAL
+#else  // !V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
   V8_INLINE static Address ValueAsAddress(const T* value) {
@@ -1605,7 +1605,7 @@ class ValueHelper final {
     return reinterpret_cast<T*>(slot);
   }
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 };
 
 /**

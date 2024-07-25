@@ -896,7 +896,7 @@ external_v8_defines = [
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
-  "V8_ENABLE_DIRECT_LOCAL",
+  "V8_ENABLE_DIRECT_HANDLE",
   "V8_MINORMS_STRING_SHORTCUTTING",
   "V8_HAVE_TARGET_OS",
   "V8_TARGET_OS_ANDROID",
@@ -950,8 +950,8 @@ if (is_tsan) {
 if (v8_enable_conservative_stack_scanning) {
   enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
-if (v8_enable_direct_local) {
-  enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_LOCAL" ]
+if (v8_enable_direct_handle) {
+  enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
 }
 if (v8_shortcut_strings_in_minor_ms) {
   enabled_external_v8_defines += [ "V8_MINORMS_STRING_SHORTCUTTING" ]
@@ -1309,9 +1309,6 @@ config("features") {
   }
   if (v8_enable_builtin_jump_table_switch) {
     defines += [ "V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH" ]
-  }
-  if (v8_enable_direct_handle) {
-    defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
   }
   if (v8_enable_extensible_ro_snapshot) {
     defines += [ "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT" ]
@@ -2742,7 +2739,6 @@ action("v8_dump_build_config") {
     "debugging_features=$v8_enable_debugging_features",
     "dict_property_const_tracking=$v8_dict_property_const_tracking",
     "direct_handle=$v8_enable_direct_handle",
-    "direct_local=$v8_enable_direct_local",
     "disassembler=$v8_enable_disassembler",
     "full_debug=$is_full_debug",
     "gdbjit=$v8_enable_gdbjit",
@@ -2800,7 +2796,6 @@ generated_file("v8_generate_features_json") {
     v8_enable_conservative_stack_scanning =
         v8_enable_conservative_stack_scanning
     v8_enable_direct_handle = v8_enable_direct_handle
-    v8_enable_direct_local = v8_enable_direct_local
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit
     v8_enable_hugepage = v8_enable_hugepage

@@ -923,14 +923,14 @@ i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
   i::Isolate* i_isolate = i::Isolate::Current();
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 EscapableHandleScopeBase::EscapableHandleScopeBase(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -5441,7 +5441,7 @@ bool v8::Object::IsUndetectable() const {
 }
 
 namespace {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 // A newly allocated vector is required to convert from an array of direct
 // locals to an array of indirect handles.
 std::vector<i::Handle<i::Object>> PrepareArguments(int argc,
@@ -5452,7 +5452,7 @@ std::vector<i::Handle<i::Object>> PrepareArguments(int argc,
   }
   return args;
 }
-#else   // !V8_ENABLE_DIRECT_LOCAL
+#else   // !V8_ENABLE_DIRECT_HANDLE
 // A simple cast is used to convert from an array of indirect locals to an
 // array of indirect handles. A MemorySpan object is returned, as no
 // deallocation is necessary.
@@ -5461,7 +5461,7 @@ v8::MemorySpan<i::Handle<i::Object>> PrepareArguments(int argc,
   return {reinterpret_cast<i::Handle<i::Object>*>(argv),
           static_cast<size_t>(argc)};
 }
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 }  // namespace
 
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
@@ -8412,7 +8412,7 @@ Maybe<void> v8::Array::Iterate(Local<Context> context,
 }
 
 v8::TypecheckWitness::TypecheckWitness(Isolate* isolate)
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     // An empty local suffices.
     : cached_map_()
 #else
@@ -8425,7 +8425,7 @@ v8::TypecheckWitness::TypecheckWitness(Isolate* isolate)
 
 void v8::TypecheckWitness::Update(Local<Value> baseline) {
   i::Tagged<i::Object> obj = *Utils::OpenDirectHandle(*baseline);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (IsSmi(obj)) {
     cached_map_ = Local<Data>();
   } else {

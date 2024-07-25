@@ -2810,7 +2810,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<WordPtr> AdaptLocalArgument(V<Object> argument) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
     // With direct locals, the argument can be passed directly.
     return BitcastTaggedToWordPtr(argument);
 #else

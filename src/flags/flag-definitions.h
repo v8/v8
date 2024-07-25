@@ -509,15 +509,6 @@ DEFINE_BOOL_READONLY(direct_handle, V8_ENABLE_DIRECT_HANDLE_BOOL,
 // break the correctness of the GC.
 DEFINE_NEG_NEG_IMPLICATION(conservative_stack_scanning, direct_handle)
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
-#define V8_ENABLE_DIRECT_LOCAL_BOOL true
-#else
-#define V8_ENABLE_DIRECT_LOCAL_BOOL false
-#endif
-DEFINE_BOOL_READONLY(direct_local, V8_ENABLE_DIRECT_LOCAL_BOOL,
-                     "use direct local handles")
-DEFINE_IMPLICATION(direct_local, conservative_stack_scanning)
-
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else

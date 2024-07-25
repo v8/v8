@@ -4511,7 +4511,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ AddWord(property_callback_info_arg, fp, Operand(FC::kArgsArrayOffset));
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch));
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   // |name_arg| is already initialized above.
 #else

@@ -118,11 +118,8 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
-  # Use direct pointers in internal (direct) handles.
+  # Use direct pointers in handles (v8::internal::Handle and v8::Local).
   v8_enable_direct_handle = ""
-
-  # Use direct pointers in local handles.
-  v8_enable_direct_local = ""
 
   # Check for off-stack allocated local handles.
   v8_enable_local_off_stack_check = false
@@ -237,9 +234,6 @@ assert(v8_enable_turbofan || !v8_enable_webassembly,
 # conservative stack scanning is enabled.
 if (v8_enable_direct_handle == "") {
   v8_enable_direct_handle = v8_enable_conservative_stack_scanning
-}
-if (v8_enable_direct_local == "") {
-  v8_enable_direct_local = v8_enable_conservative_stack_scanning
 }
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute

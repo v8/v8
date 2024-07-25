@@ -442,7 +442,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
       Tagged<Object> old_slot_value_obj = slot.load(isolate_);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
       if (old_slot_value_obj.ptr() == kTaggedNullAddress) return;
 #endif
       if (!IsHeapObject(old_slot_value_obj)) return;

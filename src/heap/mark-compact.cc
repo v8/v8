@@ -193,7 +193,7 @@ class FullMarkingVerifier : public MarkingVerifierBase {
         GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
       if (object.ptr() == kTaggedNullAddress) continue;
 #endif
       Tagged<HeapObject> heap_object;
@@ -4044,7 +4044,7 @@ static inline SlotCallbackResult UpdateOldToSharedSlot(
 template <typename TSlot>
 static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (obj.ptr() == kTaggedNullAddress) return;
 #endif
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
@@ -4057,7 +4057,7 @@ static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
 static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
     PtrComprCageBase cage_base, FullMaybeObjectSlot slot) {
   Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   if (obj.ptr() == kTaggedNullAddress) return REMOVE_SLOT;
 #endif
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
