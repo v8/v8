@@ -1569,6 +1569,13 @@ class MaglevGraphBuilder {
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
   }
 
+  void ClobberAccumulator() {
+    DCHECK(interpreter::Bytecodes::ClobbersAccumulator(
+        iterator_.current_bytecode()));
+    current_interpreter_frame_.set_accumulator(
+        GetRootConstant(RootIndex::kOptimizedOut));
+  }
+
   ValueNode* GetSecondValue(ValueNode* result) {
     // GetSecondReturnedValue must be added just after a node that calls a
     // builtin that expects 2 returned values. It simply binds kReturnRegister1

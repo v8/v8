@@ -11841,6 +11841,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     return FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
   };
   if (is_peeled_loop && in_peeled_iteration()) {
+    ClobberAccumulator();
     if (in_optimistic_peeling_iteration()) {
       // Let's see if we can finish this loop without peeling it.
       if (!merge_states_[target]->TryMergeLoop(this, current_interpreter_frame_,
