@@ -1618,10 +1618,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CompareInstanceType(Register map, Register type_reg, InstanceType type) {
     static_assert(Map::kInstanceTypeOffset < 4096);
     static_assert(LAST_TYPE <= 0xFFFF);
-    LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
     if (use_unsigned_cmp) {
+      LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
       CmpU64(type_reg, Operand(type));
     } else {
+      LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
       CmpS64(type_reg, Operand(type));
     }
   }
