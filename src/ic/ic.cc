@@ -3599,7 +3599,6 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
   // generalizes, we also generalize the target map.
   DCHECK(IsSmiOrObjectElementsKind(new_target_map->elements_kind()));
 
-  TransitionsAccessor::EnsureHasSideStepTransitions(source_map, isolate);
   constexpr bool need_validity_cell =
       kind == SideStepTransition::Kind::kObjectAssign;
   Handle<Cell> validity_cell;
@@ -3610,6 +3609,7 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
     validity_cell = Cast<Cell>(
         Map::GetOrCreatePrototypeChainValidityCell(override_map, isolate));
   }
+  TransitionsAccessor::EnsureHasSideStepTransitions(isolate, source_map);
   TransitionsAccessor transitions(isolate, *source_map);
   transitions.SetSideStepTransition(kind, *new_target_map);
   if constexpr (need_validity_cell) {
@@ -3629,7 +3629,7 @@ void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map,
   DCHECK(CanCacheCloneTargetMapTransition(source_map, {}, false, isolate));
   // Adding this transition also ensures that when the source map field
   // generalizes, we also generalize the target map.
-  TransitionsAccessor::EnsureHasSideStepTransitions(source_map, isolate);
+  TransitionsAccessor::EnsureHasSideStepTransitions(isolate, source_map);
   TransitionsAccessor(isolate, *source_map)
       .SetSideStepTransition(kind, SideStepTransition::Unreachable);
   DCHECK_EQ(GetCloneTargetMap<kind>(isolate, source_map, override_map),

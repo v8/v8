@@ -199,8 +199,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   Tagged<Map> GetMigrationTarget();
 
   inline bool HasSideStepTransitions();
-  inline static void EnsureHasSideStepTransitions(Handle<Map> map,
-                                                  Isolate* isolate);
+  static void EnsureHasSideStepTransitions(Isolate* isolate, Handle<Map> map);
   inline Tagged<Object> GetSideStepTransition(SideStepTransition::Kind i);
   inline void SetSideStepTransition(SideStepTransition::Kind i,
                                     Tagged<Object> target);
@@ -372,7 +371,8 @@ class TransitionArray : public WeakFixedArray {
 
   // Accessors for side-step transitions.
   inline bool HasSideStepTransitions();
-  inline void CreateSideStepTransitions(Isolate* isolate);
+  static void CreateSideStepTransitions(Isolate* isolate,
+                                        Handle<TransitionArray> transitions);
 
  private:
   friend class Factory;

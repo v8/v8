@@ -56,14 +56,6 @@ bool TransitionArray::HasSideStepTransitions() {
   return get(kSideStepTransitionsIndex) != Smi::zero();
 }
 
-void TransitionArray::CreateSideStepTransitions(Isolate* isolate) {
-  DCHECK(!HasSideStepTransitions());  // Callers must check first.
-  Handle<WeakFixedArray> result = WeakFixedArray::New(
-      isolate, SideStepTransition::kSize, AllocationType::kYoung,
-      handle(SideStepTransition::Empty, isolate));
-  set(kSideStepTransitionsIndex, *result);
-}
-
 bool TransitionsAccessor::HasSideStepTransitions() {
   if (encoding() != kFullTransitionArray) {
     return false;
@@ -99,16 +91,6 @@ void TransitionsAccessor::SetSideStepTransition(SideStepTransition::Kind kind,
   transitions()->GetSideStepTransitions()->set(
       SideStepTransition::index_of(kind),
       object.IsSmi() ? object : MakeWeak(object));
-}
-
-// static
-void TransitionsAccessor::EnsureHasSideStepTransitions(Handle<Map> map,
-                                                       Isolate* isolate) {
-  EnsureHasFullTransitionArray(isolate, map);
-  Tagged<TransitionArray> transitions =
-      GetTransitionArray(isolate, map->raw_transitions());
-  if (transitions->HasSideStepTransitions()) return;
-  transitions->CreateSideStepTransitions(isolate);
 }
 
 Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {

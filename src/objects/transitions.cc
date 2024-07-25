@@ -839,6 +839,27 @@ bool TransitionsAccessor::HasIntegrityLevelTransitionTo(
   return true;
 }
 
+// static
+void TransitionsAccessor::EnsureHasSideStepTransitions(Isolate* isolate,
+                                                       Handle<Map> map) {
+  EnsureHasFullTransitionArray(isolate, map);
+  Tagged<TransitionArray> transitions =
+      GetTransitionArray(isolate, map->raw_transitions());
+  if (transitions->HasSideStepTransitions()) return;
+  TransitionArray::CreateSideStepTransitions(isolate,
+                                             handle(transitions, isolate));
+}
+
+// static
+void TransitionArray::CreateSideStepTransitions(
+    Isolate* isolate, Handle<TransitionArray> transitions) {
+  DCHECK(!transitions->HasSideStepTransitions());  // Callers must check first.
+  Handle<WeakFixedArray> result = WeakFixedArray::New(
+      isolate, SideStepTransition::kSize, AllocationType::kYoung,
+      handle(SideStepTransition::Empty, isolate));
+  transitions->set(kSideStepTransitionsIndex, *result);
+}
+
 std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {
   switch (sidestep) {
     case SideStepTransition::Kind::kObjectAssignValidityCell:
