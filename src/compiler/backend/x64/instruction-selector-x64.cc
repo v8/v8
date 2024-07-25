@@ -1003,6 +1003,83 @@ X64OperandGeneratorT<TurbofanAdapter>::GetEffectiveAddressMemoryOperand(
 
 namespace {
 
+ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
+                         turboshaft::RegisterRepresentation result_rep) {
+  // NOTE: The meaning of `loaded_rep` = `MemoryRepresentation::AnyTagged()` is
+  // we are loading a compressed tagged field, while `result_rep` =
+  // `RegisterRepresentation::Tagged()` refers to an uncompressed tagged value.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (loaded_rep) {
+    case MemoryRepresentation::Int8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kX64Movsxbl;
+    case MemoryRepresentation::Uint8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kX64Movzxbl;
+    case MemoryRepresentation::Int16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kX64Movsxwl;
+    case MemoryRepresentation::Uint16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kX64Movzxwl;
+    case MemoryRepresentation::Int32():
+    case MemoryRepresentation::Uint32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kX64Movl;
+    case MemoryRepresentation::Int64():
+    case MemoryRepresentation::Uint64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
+      return kX64Movq;
+    case MemoryRepresentation::Float16():
+      UNIMPLEMENTED();
+    case MemoryRepresentation::Float32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
+      return kX64Movss;
+    case MemoryRepresentation::Float64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float64());
+      return kX64Movsd;
+#ifdef V8_COMPRESS_POINTERS
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kX64Movl;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kX64MovqDecompressTagged;
+    case MemoryRepresentation::TaggedSigned():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kX64Movl;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kX64MovqDecompressTaggedSigned;
+#else
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kX64Movq;
+#endif
+    case MemoryRepresentation::AnyUncompressedTagged():
+    case MemoryRepresentation::UncompressedTaggedPointer():
+    case MemoryRepresentation::UncompressedTaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kX64Movq;
+    case MemoryRepresentation::ProtectedPointer():
+      CHECK(V8_ENABLE_SANDBOX_BOOL);
+      return kX64MovqDecompressProtected;
+    case MemoryRepresentation::IndirectPointer():
+      UNREACHABLE();
+    case MemoryRepresentation::SandboxedPointer():
+      return kX64MovqDecodeSandboxedPointer;
+    case MemoryRepresentation::Simd128():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
+      return kX64Movdqu;
+    case MemoryRepresentation::Simd256():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Simd256());
+      return kX64Movdqu256;
+  }
+}
+
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode;
   switch (load_rep.representation()) {
@@ -1069,6 +1146,49 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   return opcode;
 }
 
+ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (stored_rep) {
+    case MemoryRepresentation::Int8():
+    case MemoryRepresentation::Uint8():
+      return kX64Movb;
+    case MemoryRepresentation::Int16():
+    case MemoryRepresentation::Uint16():
+      return kX64Movw;
+    case MemoryRepresentation::Int32():
+    case MemoryRepresentation::Uint32():
+      return kX64Movl;
+    case MemoryRepresentation::Int64():
+    case MemoryRepresentation::Uint64():
+      return kX64Movq;
+    case MemoryRepresentation::Float16():
+      UNIMPLEMENTED();
+    case MemoryRepresentation::Float32():
+      return kX64Movss;
+    case MemoryRepresentation::Float64():
+      return kX64Movsd;
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
+      return kX64MovqCompressTagged;
+    case MemoryRepresentation::AnyUncompressedTagged():
+    case MemoryRepresentation::UncompressedTaggedPointer():
+    case MemoryRepresentation::UncompressedTaggedSigned():
+      return kX64Movq;
+    case MemoryRepresentation::ProtectedPointer():
+      // We never store directly to protected pointers from generated code.
+      UNREACHABLE();
+    case MemoryRepresentation::IndirectPointer():
+      return kX64MovqStoreIndirectPointer;
+    case MemoryRepresentation::SandboxedPointer():
+      return kX64MovqEncodeSandboxedPointer;
+    case MemoryRepresentation::Simd128():
+      return kX64Movdqu;
+    case MemoryRepresentation::Simd256():
+      return kX64Movdqu256;
+  }
+}
+
 ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -1107,8 +1227,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       UNIMPLEMENTED();
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
-      // We never store directly to protected pointers from generated code.
     case MachineRepresentation::kProtectedPointer:
+      // We never store directly to protected pointers from generated code.
       UNREACHABLE();
   }
 }
@@ -1684,11 +1804,19 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoad(node_t node) {
   LoadRepresentation load_rep = this->load_view(node).loaded_rep();
   DCHECK(!load_rep.IsMapWord());
   VisitLoad(node, node, GetLoadOpcode(load_rep));
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoad(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  TurboshaftAdapter::LoadView view = this->load_view(node);
+  VisitLoad(node, node,
+            GetLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
 
 template <typename Adapter>
@@ -1733,7 +1861,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   base::Optional<AtomicMemoryOrder> atomic_order = store.memory_order();
   MemoryAccessKind acs_kind = store.access_kind();
 
-  StoreRepresentation store_rep = store.stored_rep();
+  const StoreRepresentation store_rep = store.stored_rep();
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   const bool is_seqcst =
@@ -1755,6 +1883,16 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
       !v8_flags.disable_write_barriers) {
     DCHECK(
         CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      // Uncompressed stores should not happen if we need a write barrier.
+      CHECK((store.ts_stored_rep() !=
+             MemoryRepresentation::AnyUncompressedTagged()) &&
+            (store.ts_stored_rep() !=
+             MemoryRepresentation::UncompressedTaggedPointer()) &&
+            (store.ts_stored_rep() !=
+             MemoryRepresentation::UncompressedTaggedPointer()));
+    }
     AddressingMode addressing_mode;
     InstructionOperand inputs[5];
     size_t input_count = 0;
@@ -1840,7 +1978,11 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
                                              ? g.UseImmediate(value)
                                              : g.UseRegister(value, reg_kind);
       inputs[input_count++] = value_operand;
-      opcode = GetStoreOpcode(store_rep);
+      if constexpr (Adapter::IsTurboshaft) {
+        opcode = GetStoreOpcode(store.ts_stored_rep());
+      } else {
+        opcode = GetStoreOpcode(store_rep);
+      }
     }
 
     InstructionCode code = opcode

@@ -17,6 +17,7 @@
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/use-map.h"
 
 
@@ -866,6 +867,14 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       DCHECK_NOT_NULL(load_);
       return load_->machine_type();
     }
+    turboshaft::MemoryRepresentation ts_loaded_rep() const {
+      DCHECK_NOT_NULL(load_);
+      return load_->loaded_rep;
+    }
+    turboshaft::RegisterRepresentation ts_result_rep() const {
+      DCHECK_NOT_NULL(load_);
+      return load_->result_rep;
+    }
     bool is_protected(bool* traps_on_null) const {
       if (kind().with_trap_handler) {
         if (load_) {
@@ -983,6 +992,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     StoreRepresentation stored_rep() const {
       return {op_->stored_rep.ToMachineType().representation(),
               op_->write_barrier};
+    }
+    turboshaft::MemoryRepresentation ts_stored_rep() const {
+      return op_->stored_rep;
     }
     base::Optional<AtomicMemoryOrder> memory_order() const {
       // TODO(nicohartmann@): Currently we don't support memory orders.

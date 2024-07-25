@@ -507,7 +507,9 @@ class MemoryRepresentation {
     kAnyTagged,
     kTaggedPointer,
     kTaggedSigned,
+    kAnyUncompressedTagged,
     kUncompressedTaggedPointer,
+    kUncompressedTaggedSigned,
     kProtectedPointer,
     kIndirectPointer,
     kSandboxedPointer,
@@ -575,8 +577,14 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation TaggedSigned() {
     return MemoryRepresentation(Enum::kTaggedSigned);
   }
+  static constexpr MemoryRepresentation AnyUncompressedTagged() {
+    return MemoryRepresentation(Enum::kAnyUncompressedTagged);
+  }
   static constexpr MemoryRepresentation UncompressedTaggedPointer() {
     return MemoryRepresentation(Enum::kUncompressedTaggedPointer);
+  }
+  static constexpr MemoryRepresentation UncompressedTaggedSigned() {
+    return MemoryRepresentation(Enum::kUncompressedTaggedSigned);
   }
   static constexpr MemoryRepresentation ProtectedPointer() {
     return MemoryRepresentation(Enum::kProtectedPointer);
@@ -612,7 +620,9 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
+      case UncompressedTaggedSigned():
       case ProtectedPointer():
       case IndirectPointer():
       case SandboxedPointer():
@@ -643,7 +653,9 @@ class MemoryRepresentation {
       case Float16():
       case Float32():
       case Float64():
+      case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
+      case UncompressedTaggedSigned():
       case IndirectPointer():
       case ProtectedPointer():
       case SandboxedPointer():
@@ -673,7 +685,9 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
+      case UncompressedTaggedSigned():
       case IndirectPointer():
       case ProtectedPointer():
         return RegisterRepresentation::Tagged();
@@ -750,8 +764,12 @@ class MemoryRepresentation {
         return MachineType::TaggedPointer();
       case TaggedSigned():
         return MachineType::TaggedSigned();
+      case AnyUncompressedTagged():
+        return MachineType::AnyTagged();
       case UncompressedTaggedPointer():
-        return MachineType::UintPtr();
+        return MachineType::TaggedPointer();
+      case UncompressedTaggedSigned():
+        return MachineType::TaggedSigned();
       case ProtectedPointer():
         return MachineType::ProtectedPointer();
       case IndirectPointer():
@@ -877,7 +895,9 @@ class MemoryRepresentation {
       case TaggedSigned():
       case ProtectedPointer():
         return kTaggedSizeLog2;
+      case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
+      case UncompressedTaggedSigned():
         return kSystemPointerSizeLog2;
       case Simd128():
         return 4;
