@@ -460,6 +460,8 @@
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
 
+  'maglev/regress-355256380': [SKIP],
+
   'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
