@@ -1819,9 +1819,9 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       return {kArm64LdrDecompressTaggedSigned, kLoadStoreImm32};
 #else
-    case MachineRepresentation::kTaggedSigned:
-    case MachineRepresentation::kTaggedPointer:
-    case MachineRepresentation::kTagged:
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
       return {kArm64Ldr, kLoadStoreImm64};
 #endif
     case MemoryRepresentation::AnyUncompressedTagged():
