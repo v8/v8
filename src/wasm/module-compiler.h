@@ -12,9 +12,9 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "include/v8-metrics.h"
-#include "src/base/optional.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/tasks/cancelable-task.h"
@@ -103,8 +103,8 @@ class WrapperQueue {
   // Removes an arbitrary key from the queue and returns it.
   // If the queue is empty, returns nullopt.
   // Thread-safe.
-  base::Optional<std::pair<Key, KeyInfo>> pop() {
-    base::Optional<std::pair<Key, KeyInfo>> key = base::nullopt;
+  std::optional<std::pair<Key, KeyInfo>> pop() {
+    std::optional<std::pair<Key, KeyInfo>> key = base::nullopt;
     base::MutexGuard lock(&mutex_);
     auto it = queue_.begin();
     if (it != queue_.end()) {

@@ -5,6 +5,8 @@
 #ifndef V8_WASM_BASELINE_X64_LIFTOFF_ASSEMBLER_X64_INL_H_
 #define V8_WASM_BASELINE_X64_LIFTOFF_ASSEMBLER_X64_INL_H_
 
+#include <optional>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
@@ -2392,14 +2394,14 @@ template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
           void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
 void EmitSimdCommutativeBinOp(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister lhs,
-    LiftoffRegister rhs, base::Optional<CpuFeature> feature = base::nullopt) {
+    LiftoffRegister rhs, std::optional<CpuFeature> feature = base::nullopt) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
     (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
     return;
   }
 
-  base::Optional<CpuFeatureScope> sse_scope;
+  std::optional<CpuFeatureScope> sse_scope;
   if (feature.has_value()) sse_scope.emplace(assm, *feature);
 
   if (dst.fp() == rhs.fp()) {
@@ -2414,14 +2416,14 @@ template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
           void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
 void EmitSimdNonCommutativeBinOp(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister lhs,
-    LiftoffRegister rhs, base::Optional<CpuFeature> feature = base::nullopt) {
+    LiftoffRegister rhs, std::optional<CpuFeature> feature = base::nullopt) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
     (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
     return;
   }
 
-  base::Optional<CpuFeatureScope> sse_scope;
+  std::optional<CpuFeatureScope> sse_scope;
   if (feature.has_value()) sse_scope.emplace(assm, *feature);
 
   if (dst.fp() == rhs.fp()) {
@@ -2476,8 +2478,8 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 template <void (SharedMacroAssemblerBase::*pcmp)(XMMRegister, XMMRegister)>
 inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src,
-                        base::Optional<CpuFeature> feature = base::nullopt) {
-  base::Optional<CpuFeatureScope> sse_scope;
+                        std::optional<CpuFeature> feature = base::nullopt) {
+  std::optional<CpuFeatureScope> sse_scope;
   if (feature.has_value()) sse_scope.emplace(assm, *feature);
 
   XMMRegister tmp = kScratchDoubleReg;
@@ -3141,7 +3143,7 @@ void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsb, &Assembler::pminsb>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
@@ -3155,7 +3157,7 @@ void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxsb, &Assembler::pmaxsb>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
@@ -3285,7 +3287,7 @@ void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminuw, &Assembler::pminuw>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
@@ -3299,7 +3301,7 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxuw, &Assembler::pmaxuw>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
@@ -3454,35 +3456,35 @@ void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmulld, &Assembler::pmulld>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsd, &Assembler::pminsd>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminud, &Assembler::pminud>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxsd, &Assembler::pmaxsd>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxud, &Assembler::pmaxud>(
-      this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,

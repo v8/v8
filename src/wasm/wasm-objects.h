@@ -10,6 +10,7 @@
 #define V8_WASM_WASM_OBJECTS_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/base/bit-field.h"
 #include "src/debug/interface-types.h"
@@ -615,7 +616,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // Loads a range of elements from element segment into a table.
   // Returns the empty {Optional} if the operation succeeds, or an {Optional}
   // with the error {MessageTemplate} if it fails.
-  static base::Optional<MessageTemplate> InitTableEntries(
+  static std::optional<MessageTemplate> InitTableEntries(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
       Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,

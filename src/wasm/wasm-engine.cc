@@ -374,7 +374,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
     // so that it stays valid until the native module is freed and erased from
     // the map.
     [[maybe_unused]] auto [iterator, inserted] = map_.emplace(
-        key, base::Optional<std::weak_ptr<NativeModule>>(native_module));
+        key, std::optional<std::weak_ptr<NativeModule>>(native_module));
     DCHECK(inserted);
   }
   cache_cv_.NotifyAll();

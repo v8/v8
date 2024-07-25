@@ -11,8 +11,8 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
 #include "src/codegen/signature.h"
@@ -961,11 +961,11 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  base::Optional<uint32_t> max_size,
-                                  bool shared, bool is_memory64);
+                                  std::optional<uint32_t> max_size, bool shared,
+                                  bool is_memory64);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
-                                 base::Optional<uint32_t> max_size,
+                                 std::optional<uint32_t> max_size,
                                  bool is_table64);
 Handle<JSArray> GetImports(Isolate* isolate,
                            DirectHandle<WasmModuleObject> module);

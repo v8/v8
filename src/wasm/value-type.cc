@@ -7,11 +7,9 @@
 #include "src/codegen/signature.h"
 #include "src/utils/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
-base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
+std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) return {};
 
@@ -75,6 +73,4 @@ const wasm::FunctionSig* GetI32Sig(Zone* zone, const wasm::FunctionSig* sig) {
   return ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

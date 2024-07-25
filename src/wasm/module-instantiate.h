@@ -11,7 +11,8 @@
 
 #include <stdint.h>
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/common/message-template.h"
 #include "src/objects/code-kind.h"
 #include "src/wasm/wasm-value.h"
@@ -128,7 +129,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // {instance}. If successful, returns the empty {Optional}, otherwise an
 // {Optional} that contains the error message. Exits early if the segment is
 // already initialized.
-base::Optional<MessageTemplate> InitializeElementSegment(
+std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data,

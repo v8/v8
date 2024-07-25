@@ -4,6 +4,8 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include <optional>
+
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/turboshaft/wasm-turboshaft-compiler.h"
@@ -67,8 +69,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end(), is_shared};
 
-  base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
-  base::Optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
+  std::optional<TimedHistogramScope> wasm_compile_function_time_scope;
+  std::optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
   if (counters && base::TimeTicks::IsHighResolution()) {
     if (func_body.end - func_body.start >= 100 * KB) {
       auto huge_size_histogram = SELECT_WASM_COUNTER(

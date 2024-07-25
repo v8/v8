@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-objects.h"
 
+#include <optional>
+
 #include "src/base/iterator.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
@@ -947,7 +949,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   const bool try_grow_in_place =
       must_grow_in_place || !v8_flags.stress_wasm_memory_moving;
 
-  base::Optional<size_t> result_inplace =
+  std::optional<size_t> result_inplace =
       try_grow_in_place
           ? backing_store->GrowWasmMemoryInPlace(isolate, pages, max_pages)
           : base::nullopt;
@@ -1546,7 +1548,7 @@ bool WasmTrustedInstanceData::CopyTableEntries(
 }
 
 // static
-base::Optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
+std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
@@ -1570,7 +1572,7 @@ base::Optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
       isolate);
 
   // If needed, try to lazily initialize the element segment.
-  base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+  std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
       &zone, isolate, trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) return opt_error;

@@ -5,6 +5,8 @@
 #ifndef V8_WASM_BASELINE_ARM_LIFTOFF_ASSEMBLER_ARM_INL_H_
 #define V8_WASM_BASELINE_ARM_LIFTOFF_ASSEMBLER_ARM_INL_H_
 
+#include <optional>
+
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/arm/register-arm.h"
 #include "src/common/globals.h"
@@ -1081,7 +1083,7 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Register dst_addr,
 inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
                        Register offset_reg, uint32_t offset_imm,
                        LiftoffRegister value,
-                       base::Optional<LiftoffRegister> result,
+                       std::optional<LiftoffRegister> result,
                        void (*op)(LiftoffAssembler*, LiftoffRegister,
                                   LiftoffRegister, LiftoffRegister)) {
   // strexd loads a 64 bit word into two registers. The first register needs

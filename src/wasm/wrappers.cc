@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/small-vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -370,7 +372,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     // Set the ThreadInWasm flag before we do the actual call.
     {
-      base::Optional<ModifyThreadInWasmFlagScope>
+      std::optional<ModifyThreadInWasmFlagScope>
           modify_thread_in_wasm_flag_builder;
       if (set_in_wasm_flag) {
         modify_thread_in_wasm_flag_builder.emplace(this, Asm());

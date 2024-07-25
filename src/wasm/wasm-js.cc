@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 #include <cstring>
+#include <optional>
 
 #include "include/v8-function.h"
 #include "include/v8-persistent-handle.h"
@@ -2734,7 +2735,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ErrorThrower thrower(i_isolate, "WebAssembly.Table.type()");
 
   EXTRACT_THIS(table, WasmTableObject);
-  base::Optional<uint32_t> max_size;
+  std::optional<uint32_t> max_size;
   if (!IsUndefined(table->maximum_length())) {
     uint64_t max_size64 = i::Object::NumberValue(table->maximum_length());
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
@@ -2824,7 +2825,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
   uint32_t min_size = static_cast<uint32_t>(curr_size);
-  base::Optional<uint32_t> max_size;
+  std::optional<uint32_t> max_size;
   if (memory->has_maximum_pages()) {
     uint64_t max_size64 = memory->maximum_pages();
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());

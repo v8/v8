@@ -9,8 +9,9 @@
 #ifndef V8_WASM_VALUE_TYPE_H_
 #define V8_WASM_VALUE_TYPE_H_
 
+#include <optional>
+
 #include "src/base/bit-field.h"
-#include "src/base/optional.h"
 #include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-limits.h"
@@ -1146,7 +1147,7 @@ class StoreType {
   };
 };
 
-base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
+std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature);
 
 // Lowers a signature for 32 bit platforms by replacing i64 parameters and

@@ -74,8 +74,8 @@ class CompileImportWrapperJob final : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
-    while (base::Optional<std::pair<const WasmImportWrapperCache::CacheKey,
-                                    const FunctionSig*>>
+    while (std::optional<std::pair<const WasmImportWrapperCache::CacheKey,
+                                   const FunctionSig*>>
                key = queue_->pop()) {
       // TODO(wasm): Batch code publishing, to avoid repeated locking and
       // permission switching.
@@ -3053,7 +3053,7 @@ ValueOrError ConsumeElementSegmentEntry(
 
 }  // namespace
 
-base::Optional<MessageTemplate> InitializeElementSegment(
+std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data,

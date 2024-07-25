@@ -4,6 +4,8 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include <optional>
+
 #include "absl/container/btree_map.h"
 #include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
@@ -758,8 +760,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
-    base::Optional<uint32_t> default_target_;
-    base::Optional<uint32_t> primary_target_;
+    std::optional<uint32_t> default_target_;
+    std::optional<uint32_t> primary_target_;
     CaseVector primary_indices_;
     TargetMap other_targets_;
   };

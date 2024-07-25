@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
 
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
@@ -3065,7 +3066,7 @@ class BodyGen {
 
   void GenerateRef(HeapType type, DataRange* data,
                    Nullability nullability = kNullable) {
-    base::Optional<GeneratorRecursionScope> rec_scope;
+    std::optional<GeneratorRecursionScope> rec_scope;
     if (nullability) {
       rec_scope.emplace(this);
     }

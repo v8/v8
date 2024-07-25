@@ -321,8 +321,8 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 }
 
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  base::Optional<uint32_t> max_size,
-                                  bool shared, bool is_memory64) {
+                                  std::optional<uint32_t> max_size, bool shared,
+                                  bool is_memory64) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -349,7 +349,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
 
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
-                                 base::Optional<uint32_t> max_size,
+                                 std::optional<uint32_t> max_size,
                                  bool is_table64) {
   Factory* factory = isolate->factory();
 
@@ -434,7 +434,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
       case kExternalTable:
         if (enabled_features.has_type_reflection()) {
           auto& table = module->tables[import.index];
-          base::Optional<uint32_t> maximum_size;
+          std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
                                        maximum_size, table.is_table64);
@@ -444,7 +444,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
           auto& memory = module->memories[import.index];
-          base::Optional<uint32_t> maximum_size;
+          std::optional<uint32_t> maximum_size;
           if (memory.has_maximum_pages) {
             maximum_size.emplace(memory.maximum_pages);
           }
@@ -541,7 +541,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
       case kExternalTable:
         if (enabled_features.has_type_reflection()) {
           auto& table = module->tables[exp.index];
-          base::Optional<uint32_t> maximum_size;
+          std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
                                        maximum_size, table.is_table64);
@@ -551,7 +551,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
           auto& memory = module->memories[exp.index];
-          base::Optional<uint32_t> maximum_size;
+          std::optional<uint32_t> maximum_size;
           if (memory.has_maximum_pages) {
             maximum_size.emplace(memory.maximum_pages);
           }

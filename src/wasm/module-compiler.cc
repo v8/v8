@@ -11,7 +11,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/enum-set.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
@@ -173,8 +172,8 @@ class CompilationUnitQueues {
     return queues_[task_id].get();
   }
 
-  base::Optional<WasmCompilationUnit> GetNextUnit(Queue* queue,
-                                                  CompilationTier tier) {
+  std::optional<WasmCompilationUnit> GetNextUnit(Queue* queue,
+                                                 CompilationTier tier) {
     DCHECK_LT(tier, CompilationTier::kNumTiers);
     if (auto unit = GetNextUnitOfTier(queue, tier)) {
       [[maybe_unused]] size_t old_units_count =
@@ -204,7 +203,7 @@ class CompilationUnitQueues {
     }
 
     base::MutexGuard guard(&queue->mutex);
-    base::Optional<base::MutexGuard> big_units_guard;
+    std::optional<base::MutexGuard> big_units_guard;
     for (auto pair :
          {std::make_pair(CompilationTier::kBaseline, baseline_units),
           std::make_pair(CompilationTier::kTopTier, top_tier_units)}) {
@@ -345,8 +344,8 @@ class CompilationUnitQueues {
     return next == static_cast<int>(num_queues) ? 0 : next;
   }
 
-  base::Optional<WasmCompilationUnit> GetNextUnitOfTier(Queue* public_queue,
-                                                        int tier) {
+  std::optional<WasmCompilationUnit> GetNextUnitOfTier(Queue* public_queue,
+                                                       int tier) {
     QueueImpl* queue = static_cast<QueueImpl*>(public_queue);
 
     // First check whether there is a priority unit. Execute that first.
@@ -391,7 +390,7 @@ class CompilationUnitQueues {
     return {};
   }
 
-  base::Optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
+  std::optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
     // Fast path without locking.
     if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
       return {};
@@ -406,7 +405,7 @@ class CompilationUnitQueues {
     return unit;
   }
 
-  base::Optional<WasmCompilationUnit> GetTopTierPriorityUnit(QueueImpl* queue) {
+  std::optional<WasmCompilationUnit> GetTopTierPriorityUnit(QueueImpl* queue) {
     // Fast path without locking.
     if (num_priority_units_.load(std::memory_order_relaxed) == 0) {
       return {};
@@ -452,13 +451,13 @@ class CompilationUnitQueues {
   // first stolen unit (rest put in queue of {task_id}), or {nullopt} if
   // {steal_from_task_id} had no units of {wanted_tier}.
   // Hold a shared lock on {queues_mutex_} when calling this method.
-  base::Optional<WasmCompilationUnit> StealUnitsAndGetFirst(
+  std::optional<WasmCompilationUnit> StealUnitsAndGetFirst(
       QueueImpl* queue, int steal_from_task_id, int wanted_tier) {
     auto* steal_queue = queues_[steal_from_task_id].get();
     // Cannot steal from own queue.
     if (steal_queue == queue) return {};
     std::vector<WasmCompilationUnit> stolen;
-    base::Optional<WasmCompilationUnit> returned_unit;
+    std::optional<WasmCompilationUnit> returned_unit;
     {
       base::MutexGuard guard(&steal_queue->mutex);
       auto* steal_from_vector = &steal_queue->units[wanted_tier];
@@ -479,12 +478,12 @@ class CompilationUnitQueues {
   // Steal one priority unit from {steal_from_task_id} to {task_id}. Return
   // stolen unit, or {nullopt} if {steal_from_task_id} had no priority units.
   // Hold a shared lock on {queues_mutex_} when calling this method.
-  base::Optional<WasmCompilationUnit> StealTopTierPriorityUnit(
+  std::optional<WasmCompilationUnit> StealTopTierPriorityUnit(
       QueueImpl* queue, int steal_from_task_id) {
     auto* steal_queue = queues_[steal_from_task_id].get();
     // Cannot steal from own queue.
     if (steal_queue == queue) return {};
-    base::Optional<WasmCompilationUnit> returned_unit;
+    std::optional<WasmCompilationUnit> returned_unit;
     {
       base::MutexGuard guard(&steal_queue->mutex);
       while (true) {
@@ -635,7 +634,7 @@ class CompilationStateImpl {
 
   CompilationUnitQueues::Queue* GetQueueForCompileTask(int task_id);
 
-  base::Optional<WasmCompilationUnit> GetNextCompilationUnit(
+  std::optional<WasmCompilationUnit> GetNextCompilationUnit(
       CompilationUnitQueues::Queue*, CompilationTier tier);
 
   JSToWasmWrapperCompilationUnit* GetJSToWasmWrapperCompilationUnit(
@@ -1196,7 +1195,7 @@ bool CompileLazy(Isolate* isolate,
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
   // and its destruction, to measure complete overhead (apart from the runtime
   // function itself, which has constant overhead).
-  base::Optional<CompileLazyTimingScope> lazy_compile_time_scope;
+  std::optional<CompileLazyTimingScope> lazy_compile_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
     lazy_compile_time_scope.emplace(counters, native_module);
   }
@@ -1934,7 +1933,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
-  base::Optional<CompilationEnv> env;
+  std::optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
   // Task 0 is any main thread (there might be multiple from multiple isolates),
@@ -1943,7 +1942,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   int task_id = delegate ? (int{delegate->GetTaskId()} + 1) : kMainTaskId;
   DCHECK_LE(0, task_id);
   CompilationUnitQueues::Queue* queue;
-  base::Optional<WasmCompilationUnit> unit;
+  std::optional<WasmCompilationUnit> unit;
 
   WasmDetectedFeatures global_detected_features;
 
@@ -2469,7 +2468,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     return native_module;
   }
 
-  base::Optional<TimedHistogramScope> wasm_compile_module_time_scope;
+  std::optional<TimedHistogramScope> wasm_compile_module_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
     wasm_compile_module_time_scope.emplace(SELECT_WASM_COUNTER(
         isolate->counters(), module->origin, wasm_compile, module_time));
@@ -2982,7 +2981,7 @@ class AsyncCompileJob::CompilationStateCallback
 #ifdef DEBUG
   // This will be modified by different threads, but they externally
   // synchronize, so no explicit synchronization (currently) needed here.
-  base::Optional<CompilationEvent> last_event_;
+  std::optional<CompilationEvent> last_event_;
 #endif
 };
 
@@ -3607,7 +3606,7 @@ bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
     base::Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
-  base::Optional<TimedHistogramScope> time_scope;
+  std::optional<TimedHistogramScope> time_scope;
   if (base::TimeTicks::IsHighResolution()) {
     time_scope.emplace(job_->isolate()->counters()->wasm_deserialization_time(),
                        job_->isolate());
@@ -3948,7 +3947,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
                "num_lazy_functions", lazy_functions.size(),
                "num_eager_functions", eager_functions.size());
-  base::Optional<TimedHistogramScope> lazy_compile_time_scope;
+  std::optional<TimedHistogramScope> lazy_compile_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
     lazy_compile_time_scope.emplace(
         counters()->wasm_compile_after_deserialize());
@@ -4113,8 +4112,7 @@ CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(
   return compilation_unit_queues_.GetQueueForTask(task_id);
 }
 
-base::Optional<WasmCompilationUnit>
-CompilationStateImpl::GetNextCompilationUnit(
+std::optional<WasmCompilationUnit> CompilationStateImpl::GetNextCompilationUnit(
     CompilationUnitQueues::Queue* queue, CompilationTier tier) {
   return compilation_unit_queues_.GetNextUnit(queue, tier);
 }
@@ -4427,7 +4425,7 @@ void CompilationStateImpl::PublishCompilationResults(
   // For import wrapper compilation units, add result to the cache.
   int num_imported_functions = native_module_->num_imported_functions();
   {
-    base::Optional<WasmImportWrapperCache::ModificationScope>
+    std::optional<WasmImportWrapperCache::ModificationScope>
         import_wrapper_cache_modification_scope;
     for (const auto& code : unpublished_code) {
       int func_index = code->index();

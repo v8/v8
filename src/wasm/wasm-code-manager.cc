@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <numeric>
+#include <optional>
 
 #include "src/base/atomicops.h"
 #include "src/base/build_config.h"
@@ -1736,8 +1737,8 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
         .SubVector(ref.offset(), ref.end_offset());
   }
 
-  base::Optional<ModuleWireBytes> GetModuleBytes() const final {
-    return base::Optional<ModuleWireBytes>(
+  std::optional<ModuleWireBytes> GetModuleBytes() const final {
+    return std::optional<ModuleWireBytes>(
         std::atomic_load(&wire_bytes_)->as_vector());
   }
 

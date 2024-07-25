@@ -4,8 +4,9 @@
 
 #include "src/wasm/baseline/liftoff-compiler.h"
 
+#include <optional>
+
 #include "src/base/enum-set.h"
-#include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/external-reference.h"
@@ -1786,7 +1787,7 @@ class LiftoffCompiler {
   // Before emitting the conditional branch, {will_freeze} will be initialized
   // to prevent cache state changes in conditionally executed code.
   void JumpIfFalse(FullDecoder* decoder, Label* false_dst,
-                   base::Optional<FreezeCacheState>& will_freeze) {
+                   std::optional<FreezeCacheState>& will_freeze) {
     DCHECK(!will_freeze.has_value());
     Condition cond =
         test_and_reset_outstanding_op(kExprI32Eqz) ? kNotZero : kZero;
@@ -1839,7 +1840,7 @@ class LiftoffCompiler {
     if_block->else_state = zone_->New<ElseState>(zone_);
 
     // Test the condition on the value stack, jump to else if zero.
-    base::Optional<FreezeCacheState> frozen;
+    std::optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, if_block->else_state->label.get(), frozen);
     frozen.reset();
 
@@ -3190,7 +3191,7 @@ class LiftoffCompiler {
     Label cont_false;
 
     // Test the condition on the value stack, jump to {cont_false} if zero.
-    base::Optional<FreezeCacheState> frozen;
+    std::optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, &cont_false, frozen);
 
     BrOrRet(decoder, depth);

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -144,7 +145,7 @@ class NativeModuleCache {
   // before trying to get it from the cache.
   // By contrast, an expired {weak_ptr} indicates that the native module died
   // and will soon be cleaned up from the cache.
-  std::map<Key, base::Optional<std::weak_ptr<NativeModule>>> map_;
+  std::map<Key, std::optional<std::weak_ptr<NativeModule>>> map_;
 
   base::Mutex mutex_;
 
