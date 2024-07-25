@@ -31,6 +31,7 @@
 #include <csignal>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -28133,7 +28134,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
                const char* source_code, bool has_options = true,
                bool accept_any_receiver = true, bool setup_try_catch = true) {
   v8::Isolate* isolate = CcTest::isolate();
-  v8::base::Optional<v8::TryCatch> try_catch;
+  std::optional<v8::TryCatch> try_catch;
   if (setup_try_catch) {
     try_catch.emplace(isolate);
   }

@@ -30,6 +30,7 @@
 #include <ctype.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/v8-function.h"
@@ -63,8 +64,8 @@ using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::EntrySourceLocation;
 using i::heap::GrowNewSpaceToMaximumCapacity;
+using std::optional;
 using v8::base::ArrayVector;
-using v8::base::Optional;
 using v8::base::OS;
 using v8::base::Vector;
 using v8::base::VectorOf;
@@ -169,18 +170,18 @@ static const v8::HeapGraphNode* GetRootChild(const v8::HeapSnapshot* snapshot,
   return GetChildByName(snapshot->GetRoot(), name);
 }
 
-static Optional<EntrySourceLocation> GetLocation(
+static optional<EntrySourceLocation> GetLocation(
     const v8::HeapSnapshot* s, const v8::HeapGraphNode* node) {
   const i::HeapSnapshot* snapshot = reinterpret_cast<const i::HeapSnapshot*>(s);
   const std::vector<EntrySourceLocation>& locations = snapshot->locations();
   const i::HeapEntry* entry = reinterpret_cast<const i::HeapEntry*>(node);
   for (const auto& loc : locations) {
     if (loc.entry_index == entry->index()) {
-      return Optional<EntrySourceLocation>(loc);
+      return optional<EntrySourceLocation>(loc);
     }
   }
 
-  return Optional<EntrySourceLocation>();
+  return optional<EntrySourceLocation>();
 }
 
 static const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
@@ -343,7 +344,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "x");
   CHECK(x);
 
-  Optional<EntrySourceLocation> x_loc = GetLocation(snapshot, x);
+  optional<EntrySourceLocation> x_loc = GetLocation(snapshot, x);
   CHECK(x_loc);
   CHECK_EQ(0, x_loc->line);
   CHECK_EQ(31, x_loc->col);
@@ -352,7 +353,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "g");
   CHECK(x);
 
-  Optional<EntrySourceLocation> g_loc = GetLocation(snapshot, g);
+  optional<EntrySourceLocation> g_loc = GetLocation(snapshot, g);
   CHECK(g_loc);
   CHECK_EQ(1, g_loc->line);
   CHECK_EQ(15, g_loc->col);
@@ -361,7 +362,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "o");
   CHECK(x);
 
-  Optional<EntrySourceLocation> o_loc = GetLocation(snapshot, o);
+  optional<EntrySourceLocation> o_loc = GetLocation(snapshot, o);
   CHECK(o_loc);
   CHECK_EQ(2, o_loc->line);
   CHECK_EQ(0, o_loc->col);

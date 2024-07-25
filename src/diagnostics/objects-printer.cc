@@ -4,6 +4,7 @@
 
 #include <iomanip>
 #include <memory>
+#include <optional>
 
 #include "src/api/api-arguments.h"
 #include "src/common/globals.h"
@@ -4044,7 +4045,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
+  std::optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -4079,7 +4080,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
+  std::optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
