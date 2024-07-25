@@ -875,6 +875,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsInRange(TNode<Word32T> value, U lower_limit, U higher_limit) {
     DCHECK_LE(lower_limit, higher_limit);
     static_assert(sizeof(U) <= kInt32Size);
+    if (lower_limit == 0) {
+      return Uint32LessThanOrEqual(value, Int32Constant(higher_limit));
+    }
     return Uint32LessThanOrEqual(Int32Sub(value, Int32Constant(lower_limit)),
                                  Int32Constant(higher_limit - lower_limit));
   }
@@ -889,6 +892,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsInRange(TNode<WordT> value, intptr_t lower_limit,
                          intptr_t higher_limit) {
     DCHECK_LE(lower_limit, higher_limit);
+    if (lower_limit == 0) {
+      return UintPtrLessThanOrEqual(value, IntPtrConstant(higher_limit));
+    }
     return UintPtrLessThanOrEqual(IntPtrSub(value, IntPtrConstant(lower_limit)),
                                   IntPtrConstant(higher_limit - lower_limit));
   }
@@ -2891,6 +2897,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
 
+  TNode<BoolT> IsSequentialStringMap(TNode<Map> map);
+  TNode<BoolT> IsExternalStringMap(TNode<Map> map);
+  TNode<BoolT> IsUncachedExternalStringMap(TNode<Map> map);
+  TNode<BoolT> IsOneByteStringMap(TNode<Map> map);
+
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsSharedStringInstanceType(TNode<Int32T> instance_type);
@@ -4857,8 +4868,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
     return TryToSequential(PTR_TO_STRING, if_bailout);
   }
 
+  TNode<BoolT> IsOneByte();
+
   TNode<String> string() { return var_string_.value(); }
-  TNode<Int32T> instance_type() { return var_instance_type_.value(); }
   TNode<IntPtrT> offset() { return var_offset_.value(); }
   TNode<Word32T> is_external() { return var_is_external_.value(); }
 
@@ -4866,7 +4878,11 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   TNode<RawPtrT> TryToSequential(StringPointerKind ptr_kind, Label* if_bailout);
 
   TVariable<String> var_string_;
+#if V8_STATIC_ROOTS_BOOL
+  TVariable<Map> var_map_;
+#else
   TVariable<Int32T> var_instance_type_;
+#endif
   // TODO(v8:9880): Use UintPtrT here.
   TVariable<IntPtrT> var_offset_;
   TVariable<Word32T> var_is_external_;

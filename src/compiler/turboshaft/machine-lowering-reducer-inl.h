@@ -415,7 +415,7 @@ class MachineLoweringReducer : public Next {
         GOTO(done,
              __ Uint32LessThanOrEqual(
                  __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                 __ Word32Constant(InstanceTypeChecker::kLastStringMap)));
+                 __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound)));
 
         BIND(done, result);
         return result;
@@ -1231,7 +1231,7 @@ class MachineLoweringReducer : public Next {
 #if V8_STATIC_ROOTS_BOOL
             V<Word32> is_string_map = __ Uint32LessThanOrEqual(
                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                __ Word32Constant(InstanceTypeChecker::kLastStringMap));
+                __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound));
 #else
             V<Word32> instance_type = __ LoadInstanceTypeField(map);
             V<Word32> is_string_map =

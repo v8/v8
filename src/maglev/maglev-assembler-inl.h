@@ -811,7 +811,7 @@ inline void MaglevAssembler::JumpIfStringMap(Register map, Label* target,
   // All string maps are allocated at the start of the read only heap. Thus,
   // non-strings must have maps with larger (compressed) addresses.
   CompareInt32AndJumpIf(
-      map, InstanceTypeChecker::kLastStringMap,
+      map, InstanceTypeChecker::kStringMapUpperBound,
       jump_if_true ? kUnsignedLessThanEqual : kUnsignedGreaterThan, target,
       distance);
 #else
@@ -864,7 +864,7 @@ inline void MaglevAssembler::CheckJSAnyIsStringAndBranch(
 #else
   LoadMap(scratch, heap_object);
 #endif
-  CompareInt32AndBranch(scratch, InstanceTypeChecker::kLastStringMap,
+  CompareInt32AndBranch(scratch, InstanceTypeChecker::kStringMapUpperBound,
                         kUnsignedLessThanEqual, if_true, true_distance,
                         fallthrough_when_true, if_false, false_distance,
                         fallthrough_when_false);

@@ -482,8 +482,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<RawPtrT> direct_string_data = to_direct.PointerToData(&runtime);
 
     Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
-    Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
-           &if_isonebyte, &if_istwobyte);
+    Branch(to_direct.IsOneByte(), &if_isonebyte, &if_istwobyte);
 
     BIND(&if_isonebyte);
     {

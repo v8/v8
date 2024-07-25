@@ -1968,7 +1968,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
 
 #endif  // V8_ENABLE_SANDBOX
 
-
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
   return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
@@ -7494,6 +7493,74 @@ TNode<BoolT> CodeStubAssembler::IsJSReceiverInstanceType(
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
+TNode<BoolT> CodeStubAssembler::IsSequentialStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  // Both sequential string maps are allocated at the start of the read only
+  // heap, so we can use a single comparison to check for them.
+  static_assert(
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kSeqString.first == 0);
+  return IsInRange(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kSeqString.first,
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kSeqString.second);
+#else
+  return IsSequentialStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsExternalStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsInRange(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kExternalString.first,
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kExternalString.second);
+#else
+  return IsExternalStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsUncachedExternalStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsInRange(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kUncachedExternalString
+          .first,
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kUncachedExternalString
+          .second);
+#else
+  return IsUncachedExternalStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsOneByteStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  CSA_DCHECK(this, IsStringInstanceType(LoadMapInstanceType(map)));
+
+  // These static asserts make sure that the following bit magic on the map word
+  // is safe. See the definition of kStringMapEncodingMask for an explanation.
+#define VALIDATE_STRING_MAP_ENCODING_BIT(instance_type, size, name, Name) \
+  static_assert(                                                          \
+      ((instance_type & kStringEncodingMask) == kOneByteStringTag) ==     \
+      ((StaticReadOnlyRoot::k##Name##Map &                                \
+        InstanceTypeChecker::kStringMapEncodingMask) ==                   \
+       InstanceTypeChecker::kOneByteStringMapBit));                       \
+  static_assert(                                                          \
+      ((instance_type & kStringEncodingMask) == kTwoByteStringTag) ==     \
+      ((StaticReadOnlyRoot::k##Name##Map &                                \
+        InstanceTypeChecker::kStringMapEncodingMask) ==                   \
+       InstanceTypeChecker::kTwoByteStringMapBit));
+  STRING_TYPE_LIST(VALIDATE_STRING_MAP_ENCODING_BIT)
+#undef VALIDATE_STRING_TYPE_RANGES
+
+  return Word32Equal(
+      Word32And(TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+                Int32Constant(InstanceTypeChecker::kStringMapEncodingMask)),
+      Int32Constant(InstanceTypeChecker::kOneByteStringMapBit));
+#else
+  return IsOneByteStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSReceiverMap(TNode<Map> map) {
   return IsJSReceiverInstanceType(LoadMapInstanceType(map));
 }
@@ -7817,7 +7884,7 @@ TNode<BoolT> CodeStubAssembler::IsName(TNode<HeapObject> object) {
 #if V8_STATIC_ROOTS_BOOL
   TNode<Map> map = LoadMap(object);
   TNode<Word32T> map_as_word32 = ReinterpretCast<Word32T>(map);
-  static_assert(InstanceTypeChecker::kLastStringMap + Map::kSize ==
+  static_assert(InstanceTypeChecker::kStringMapUpperBound + Map::kSize ==
                 StaticReadOnlyRoot::kSymbolMap);
   return Uint32LessThanOrEqual(map_as_word32,
                                Int32Constant(StaticReadOnlyRoot::kSymbolMap));
@@ -7837,7 +7904,7 @@ TNode<BoolT> CodeStubAssembler::IsString(TNode<HeapObject> object) {
   TNode<Word32T> map_as_word32 =
       TruncateIntPtrToInt32(BitcastTaggedToWord(map));
   return Uint32LessThanOrEqual(
-      map_as_word32, Int32Constant(InstanceTypeChecker::kLastStringMap));
+      map_as_word32, Int32Constant(InstanceTypeChecker::kStringMapUpperBound));
 #else
   return IsStringInstanceType(LoadInstanceType(object));
 #endif
@@ -8212,12 +8279,11 @@ TNode<Uint16T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
   to_direct.TryToDirect(&if_runtime);
   const TNode<UintPtrT> offset =
       UintPtrAdd(index, Unsigned(to_direct.offset()));
-  const TNode<Int32T> instance_type = to_direct.instance_type();
+  const TNode<BoolT> is_one_byte = to_direct.IsOneByte();
   const TNode<RawPtrT> string_data = to_direct.PointerToData(&if_runtime);
 
   // Check if the {string} is a TwoByteSeqString or a OneByteSeqString.
-  Branch(IsOneByteStringInstanceType(instance_type), &if_stringisonebyte,
-         &if_stringistwobyte);
+  Branch(is_one_byte, &if_stringisonebyte, &if_stringistwobyte);
 
   BIND(&if_stringisonebyte);
   {
@@ -8286,25 +8352,72 @@ ToDirectStringAssembler::ToDirectStringAssembler(
     compiler::CodeAssemblerState* state, TNode<String> string, Flags flags)
     : CodeStubAssembler(state),
       var_string_(string, this),
+#if V8_STATIC_ROOTS_BOOL
+      var_map_(LoadMap(string), this),
+#else
       var_instance_type_(LoadInstanceType(string), this),
+#endif
       var_offset_(IntPtrConstant(0), this),
       var_is_external_(Int32Constant(0), this),
-      flags_(flags) {}
+      flags_(flags) {
+}
 
 TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
-  Label dispatch(this, {&var_string_, &var_offset_, &var_instance_type_});
+  Label dispatch(this, {&var_string_, &var_offset_,
+#if V8_STATIC_ROOTS_BOOL
+                        &var_map_
+#else
+                        &var_instance_type_
+#endif
+                       });
   Label if_iscons(this);
   Label if_isexternal(this);
   Label if_issliced(this);
   Label if_isthin(this);
   Label out(this);
 
+#if V8_STATIC_ROOTS_BOOL
+  // The seq string check is in the dispatch.
+  Goto(&dispatch);
+#else
   Branch(IsSequentialStringInstanceType(var_instance_type_.value()), &out,
          &dispatch);
+#endif
 
   // Dispatch based on string representation.
   BIND(&dispatch);
   {
+#if V8_STATIC_ROOTS_BOOL
+    // There are too many sequential string maps to check in a switch, do a
+    // range check instead.
+    GotoIf(IsSequentialStringMap(var_map_.value()), &out);
+
+    Label check_external(this);
+    // TODO(leszeks): Compact these values, we can probably do some bit magic
+    // on them to reduce the size of the jump table.
+    int32_t values[] = {
+        StaticReadOnlyRoot::kConsTwoByteStringMap,
+        StaticReadOnlyRoot::kConsOneByteStringMap,
+        StaticReadOnlyRoot::kSlicedTwoByteStringMap,
+        StaticReadOnlyRoot::kSlicedOneByteStringMap,
+        StaticReadOnlyRoot::kThinTwoByteStringMap,
+        StaticReadOnlyRoot::kThinOneByteStringMap,
+    };
+    Label* labels[] = {
+        &if_iscons,   &if_iscons, &if_issliced,
+        &if_issliced, &if_isthin, &if_isthin,
+    };
+    static_assert(arraysize(values) == arraysize(labels));
+
+    const TNode<Int32T> map_bits =
+        TruncateIntPtrToInt32(BitcastTaggedToWord(var_map_.value()));
+    Switch(map_bits, &check_external, values, labels, arraysize(values));
+
+    // There are too many sequential string maps to check in a switch, do a
+    // range check instead.
+    BIND(&check_external);
+    Branch(IsExternalStringMap(var_map_.value()), &if_isexternal, if_bailout);
+#else
     int32_t values[] = {
         kSeqStringTag,    kConsStringTag, kExternalStringTag,
         kSlicedStringTag, kThinStringTag,
@@ -8317,6 +8430,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     const TNode<Int32T> representation = Word32And(
         var_instance_type_.value(), Int32Constant(kStringRepresentationMask));
     Switch(representation, if_bailout, values, labels, arraysize(values));
+#endif
   }
 
   // Cons string.  Check whether it is flat, then fetch first part.
@@ -8331,7 +8445,11 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     const TNode<String> lhs =
         LoadObjectField<String>(string, offsetof(ConsString, first_));
     var_string_ = lhs;
+#if V8_STATIC_ROOTS_BOOL
+    var_map_ = LoadMap(lhs);
+#else
     var_instance_type_ = LoadInstanceType(lhs);
+#endif
 
     Goto(&dispatch);
   }
@@ -8350,7 +8468,11 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
       const TNode<String> parent =
           LoadObjectField<String>(string, offsetof(SlicedString, parent_));
       var_string_ = parent;
+#if V8_STATIC_ROOTS_BOOL
+      var_map_ = LoadMap(parent);
+#else
       var_instance_type_ = LoadInstanceType(parent);
+#endif
 
       Goto(&dispatch);
     }
@@ -8362,10 +8484,13 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     const TNode<String> string = var_string_.value();
     const TNode<String> actual_string =
         LoadObjectField<String>(string, offsetof(ThinString, actual_));
-    const TNode<Uint16T> actual_instance_type = LoadInstanceType(actual_string);
 
     var_string_ = actual_string;
-    var_instance_type_ = actual_instance_type;
+#if V8_STATIC_ROOTS_BOOL
+    var_map_ = LoadMap(actual_string);
+#else
+    var_instance_type_ = LoadInstanceType(actual_string);
+#endif
 
     Goto(&dispatch);
   }
@@ -8377,6 +8502,14 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
 
   BIND(&out);
   return var_string_.value();
+}
+
+TNode<BoolT> ToDirectStringAssembler::IsOneByte() {
+#if V8_STATIC_ROOTS_BOOL
+  return IsOneByteStringMap(var_map_.value());
+#else
+  return IsOneByteStringInstanceType(var_instance_type_.value());
+#endif
 }
 
 TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
@@ -8404,8 +8537,12 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
 
   BIND(&if_isexternal);
   {
+#if V8_STATIC_ROOTS_BOOL
+    GotoIf(IsUncachedExternalStringMap(var_map_.value()), if_bailout);
+#else
     GotoIf(IsUncachedExternalStringInstanceType(var_instance_type_.value()),
            if_bailout);
+#endif
 
     TNode<String> string = var_string_.value();
     TNode<RawPtrT> result = LoadExternalStringResourceDataPtr(CAST(string));
@@ -16760,8 +16897,9 @@ TNode<BoolT> CodeStubAssembler::IsContextPromiseHookEnabled(
 }
 #endif
 
-TNode<BoolT> CodeStubAssembler::
-    IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(TNode<Uint32T> flags) {
+TNode<BoolT>
+CodeStubAssembler::IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
+    TNode<Uint32T> flags) {
   uint32_t mask = Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
                   Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask;
   return IsSetWord32(flags, mask);

@@ -986,8 +986,9 @@ class Internals {
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
 
-    static constexpr Tagged_t kFirstStringMap = 0xe5;
-    static constexpr Tagged_t kLastStringMap = 0x47d;
+    // Use 0 for kStringMapLowerBound since string maps are the first maps.
+    static constexpr Tagged_t kStringMapLowerBound = 0;
+    static constexpr Tagged_t kStringMapUpperBound = 0x47d;
 
 #define PLUSONE(...) +1
     static constexpr size_t kNumberOfExportedStaticRoots =

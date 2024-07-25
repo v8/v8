@@ -31,30 +31,30 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kTrueValue = 0xc9;
   static constexpr Tagged_t kSeqTwoByteStringMap = 0xe5;
   static constexpr Tagged_t kSeqOneByteStringMap = 0x10d;
-  static constexpr Tagged_t kConsTwoByteStringMap = 0x135;
-  static constexpr Tagged_t kConsOneByteStringMap = 0x15d;
-  static constexpr Tagged_t kSlicedTwoByteStringMap = 0x185;
-  static constexpr Tagged_t kSlicedOneByteStringMap = 0x1ad;
-  static constexpr Tagged_t kExternalTwoByteStringMap = 0x1d5;
-  static constexpr Tagged_t kExternalOneByteStringMap = 0x1fd;
-  static constexpr Tagged_t kUncachedExternalTwoByteStringMap = 0x225;
-  static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0x24d;
-  static constexpr Tagged_t kSharedExternalTwoByteStringMap = 0x275;
-  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0x29d;
+  static constexpr Tagged_t kSharedSeqTwoByteStringMap = 0x135;
+  static constexpr Tagged_t kSharedSeqOneByteStringMap = 0x15d;
+  static constexpr Tagged_t kInternalizedTwoByteStringMap = 0x185;
+  static constexpr Tagged_t kInternalizedOneByteStringMap = 0x1ad;
+  static constexpr Tagged_t kExternalInternalizedTwoByteStringMap = 0x1d5;
+  static constexpr Tagged_t kExternalInternalizedOneByteStringMap = 0x1fd;
+  static constexpr Tagged_t kUncachedExternalInternalizedTwoByteStringMap =
+      0x225;
+  static constexpr Tagged_t kUncachedExternalInternalizedOneByteStringMap =
+      0x24d;
+  static constexpr Tagged_t kUncachedExternalTwoByteStringMap = 0x275;
+  static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0x29d;
   static constexpr Tagged_t kSharedUncachedExternalTwoByteStringMap = 0x2c5;
   static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0x2ed;
-  static constexpr Tagged_t kExternalInternalizedTwoByteStringMap = 0x315;
-  static constexpr Tagged_t kExternalInternalizedOneByteStringMap = 0x33d;
-  static constexpr Tagged_t kUncachedExternalInternalizedTwoByteStringMap =
-      0x365;
-  static constexpr Tagged_t kUncachedExternalInternalizedOneByteStringMap =
-      0x38d;
-  static constexpr Tagged_t kInternalizedTwoByteStringMap = 0x3b5;
-  static constexpr Tagged_t kInternalizedOneByteStringMap = 0x3dd;
-  static constexpr Tagged_t kThinTwoByteStringMap = 0x405;
-  static constexpr Tagged_t kThinOneByteStringMap = 0x42d;
-  static constexpr Tagged_t kSharedSeqTwoByteStringMap = 0x455;
-  static constexpr Tagged_t kSharedSeqOneByteStringMap = 0x47d;
+  static constexpr Tagged_t kExternalTwoByteStringMap = 0x315;
+  static constexpr Tagged_t kExternalOneByteStringMap = 0x33d;
+  static constexpr Tagged_t kSharedExternalTwoByteStringMap = 0x365;
+  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0x38d;
+  static constexpr Tagged_t kConsTwoByteStringMap = 0x3b5;
+  static constexpr Tagged_t kConsOneByteStringMap = 0x3dd;
+  static constexpr Tagged_t kSlicedTwoByteStringMap = 0x405;
+  static constexpr Tagged_t kSlicedOneByteStringMap = 0x42d;
+  static constexpr Tagged_t kThinTwoByteStringMap = 0x455;
+  static constexpr Tagged_t kThinOneByteStringMap = 0x47d;
   static constexpr Tagged_t kSymbolMap = 0x4a5;
   static constexpr Tagged_t kMetaMap = 0x4cd;
   static constexpr Tagged_t kUndefinedMap = 0x4f5;

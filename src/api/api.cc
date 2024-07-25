@@ -788,8 +788,8 @@ constexpr InstanceTypeChecker::TaggedAddressRange kStringMapRange =
   V(FalseValue, i::StaticReadOnlyRoot::kFalseValue)         \
   V(EmptyString, i::StaticReadOnlyRoot::kempty_string)      \
   V(TheHoleValue, i::StaticReadOnlyRoot::kTheHoleValue)     \
-  V(FirstStringMap, kStringMapRange.first)                  \
-  V(LastStringMap, kStringMapRange.second)
+  V(StringMapLowerBound, kStringMapRange.first)             \
+  V(StringMapUpperBound, kStringMapRange.second)
 
 static_assert(std::is_same<Internals::Tagged_t, Tagged_t>::value);
 // Ensure they have the correct value.

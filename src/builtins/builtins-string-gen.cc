@@ -1475,8 +1475,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     // The extracted direct string may be two-byte even though the wrapping
     // string is one-byte.
-    GotoIfNot(IsOneByteStringInstanceType(to_direct.instance_type()),
-              &call_runtime);
+    GotoIfNot(to_direct.IsOneByte(), &call_runtime);
 
     TNode<FixedArray> elements =
         CAST(AllocateFixedArray(PACKED_ELEMENTS, length));
@@ -1862,13 +1861,12 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
 template <typename T>
 TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
-    TNode<T> from, TNode<Int32T> from_instance_type, TNode<IntPtrT> from_index,
+    TNode<T> from, TNode<BoolT> from_is_one_byte, TNode<IntPtrT> from_index,
     TNode<IntPtrT> character_count) {
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   TVARIABLE(String, var_result);
 
-  Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
-         &two_byte_sequential);
+  Branch(from_is_one_byte, &one_byte_sequential, &two_byte_sequential);
 
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
@@ -2001,7 +1999,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
   TNode<String> direct_string = to_direct.TryToDirect(&runtime);
   TNode<IntPtrT> offset = IntPtrAdd(from, to_direct.offset());
-  const TNode<Int32T> instance_type = to_direct.instance_type();
+  const TNode<BoolT> is_one_byte = to_direct.IsOneByte();
 
   // The subject string can only be external or sequential string of either
   // encoding at this point.
@@ -2017,8 +2015,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
       // Allocate new sliced string.
       Label one_byte_slice(this), two_byte_slice(this);
-      Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
-             &one_byte_slice, &two_byte_slice);
+      Branch(is_one_byte, &one_byte_slice, &two_byte_slice);
 
       BIND(&one_byte_slice);
       {
@@ -2043,7 +2040,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
     // encoding at this point.
     GotoIf(to_direct.is_external(), &external_string);
 
-    var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
+    var_result = AllocAndCopyStringCharacters(direct_string, is_one_byte,
                                               offset, substr_length);
     Goto(&end);
   }
@@ -2055,7 +2052,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
         to_direct.PointerToString(&runtime);
 
     var_result = AllocAndCopyStringCharacters(
-        fake_sequential_string, instance_type, offset, substr_length);
+        fake_sequential_string, is_one_byte, offset, substr_length);
 
     Goto(&end);
   }
