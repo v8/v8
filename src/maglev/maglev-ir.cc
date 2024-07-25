@@ -289,25 +289,6 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
-size_t GetInputLocationArraySizeFor(base::Vector<ValueNode*> array) {
-  size_t size = 0;
-  for (ValueNode* value : array) {
-    size += value->GetInputLocationsArraySize();
-  }
-  return size;
-}
-
-size_t GetInputLocationArraySizeFor(const MaglevCompilationUnit& unit,
-                                    const CompactInterpreterFrameState* frame) {
-  size_t size = 0;
-  frame->ForEachValue(unit, [&size](ValueNode* value, interpreter::Register) {
-    if (value != nullptr) {
-      size += value->GetInputLocationsArraySize();
-    }
-  });
-  return size;
-}
-
 bool RootToBoolean(RootIndex index) {
   switch (index) {
     case RootIndex::kFalseValue:
@@ -346,23 +327,60 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 }
 #endif
 
-size_t NestedInputLocationSizeNeeded(ValueNode* node) {
+size_t GetInputLocationSizeForValueNode(VirtualObject::List virtual_objects,
+                                        ValueNode* value) {
+  // We allocate the space needed for the Virtual Object plus one location
+  // used if the allocation escapes.
+  DCHECK(!value->Is<VirtualObject>());
+  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+    VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+    CHECK_NOT_NULL(vobject);
+    return vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+  }
+  return 1;
+}
+
+size_t GetInputLocationSizeForArray(VirtualObject::List virtual_objects,
+                                    base::Vector<ValueNode*> array) {
+  size_t size = 0;
+  for (ValueNode* value : array) {
+    size += GetInputLocationSizeForValueNode(virtual_objects, value);
+  }
+  return size;
+}
+
+size_t GetInputLocationSizeForCompactFrame(
+    const MaglevCompilationUnit& unit, VirtualObject::List virtual_objects,
+    const CompactInterpreterFrameState* frame) {
+  size_t size = 0;
+  frame->ForEachValue(unit, [&](ValueNode* value, interpreter::Register) {
+    if (value != nullptr) {
+      size += GetInputLocationSizeForValueNode(virtual_objects, value);
+    }
+  });
+  return size;
+}
+
+size_t GetInputLocationSizeForVirtualObjectSlot(
+    VirtualObject::List virtual_objects, ValueNode* node) {
   if (IsConstantNode(node->opcode()) ||
       node->opcode() == Opcode::kArgumentsElements ||
       node->opcode() == Opcode::kArgumentsLength ||
       node->opcode() == Opcode::kRestLength) {
     return 0;
   }
-  return node->GetInputLocationsArraySize();
+  return GetInputLocationSizeForValueNode(virtual_objects, node);
 }
 
 }  // namespace
 
-size_t VirtualObject::InputLocationSizeNeeded() const {
+size_t VirtualObject::InputLocationSizeNeeded(
+    VirtualObject::List virtual_objects) const {
   if (type() != kDefault) return 0;
   size_t size = 0;
   for (uint32_t i = 0; i < slot_count(); i++) {
-    size += NestedInputLocationSizeNeeded(slots_.data[i]);
+    size += GetInputLocationSizeForVirtualObjectSlot(virtual_objects,
+                                                     slots_.data[i]);
   }
   return size;
 }
@@ -378,53 +396,38 @@ void VirtualObject::List::Print(std::ostream& os, const char* prefix,
   os << std::endl;
 }
 
-size_t ValueNode::GetInputLocationsArraySize() const {
-  // We allocate the space needed for the Virtual Object plus one location
-  // used if the allocation escapes.
-  if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
-    return alloc->object()->InputLocationSizeNeeded() + 1;
-  } else if (const VirtualObject* vobj = TryCast<VirtualObject>()) {
-    return vobj->InputLocationSizeNeeded() + 1;
-  }
-  return 1;
-}
-
-void Input::clear() {
-  node_->remove_use();
-  node_ = nullptr;
-}
-
 size_t DeoptFrame::GetInputLocationsArraySize() const {
   size_t size = 0;
   const DeoptFrame* frame = this;
+  VirtualObject::List virtual_objects = GetVirtualObjects(*this);
   do {
     switch (frame->type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
-        size +=
-            frame->as_interpreted().closure()->GetInputLocationsArraySize() +
-            GetInputLocationArraySizeFor(frame->as_interpreted().unit(),
-                                         frame->as_interpreted().frame_state());
+        size += GetInputLocationSizeForValueNode(
+                    virtual_objects, frame->as_interpreted().closure()) +
+                GetInputLocationSizeForCompactFrame(
+                    frame->as_interpreted().unit(), virtual_objects,
+                    frame->as_interpreted().frame_state());
         break;
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += frame->as_inlined_arguments()
-                    .closure()
-                    ->GetInputLocationsArraySize() +
-                GetInputLocationArraySizeFor(
-                    frame->as_inlined_arguments().arguments());
+        size += GetInputLocationSizeForValueNode(
+                    virtual_objects, frame->as_inlined_arguments().closure()) +
+                GetInputLocationSizeForArray(
+                    virtual_objects, frame->as_inlined_arguments().arguments());
         break;
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        size +=
-            frame->as_construct_stub()
-                .receiver()
-                ->GetInputLocationsArraySize() +
-            frame->as_construct_stub().context()->GetInputLocationsArraySize();
+        size += GetInputLocationSizeForValueNode(
+                    virtual_objects, frame->as_construct_stub().receiver()) +
+                GetInputLocationSizeForValueNode(
+                    virtual_objects, frame->as_construct_stub().context());
         break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        size += GetInputLocationArraySizeFor(
-                    frame->as_builtin_continuation().parameters()) +
-                frame->as_builtin_continuation()
-                    .context()
-                    ->GetInputLocationsArraySize();
+        size +=
+            GetInputLocationSizeForArray(
+                virtual_objects,
+                frame->as_builtin_continuation().parameters()) +
+            GetInputLocationSizeForValueNode(
+                virtual_objects, frame->as_builtin_continuation().context());
         break;
     }
     frame = frame->parent();
@@ -456,6 +459,11 @@ bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
     default:
       UNREACHABLE();
   }
+}
+
+void Input::clear() {
+  node_->remove_use();
+  node_ = nullptr;
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,

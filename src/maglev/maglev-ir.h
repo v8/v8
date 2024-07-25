@@ -5038,7 +5038,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  size_t InputLocationSizeNeeded() const;
+  size_t InputLocationSizeNeeded(VirtualObject::List) const;
 
   compiler::MapRef map() const { return map_; }
   Type type() const { return type_; }

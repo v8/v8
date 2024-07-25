@@ -1522,7 +1522,7 @@ class MaglevFrameTranslationBuilder {
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
-      input_location += object->InputLocationSizeNeeded();
+      input_location += object->InputLocationSizeNeeded(virtual_objects);
       return;
     }
     if (object->type() == VirtualObject::kFixedDoubleArray) {
@@ -1553,7 +1553,8 @@ class MaglevFrameTranslationBuilder {
         BuildVirtualObject(vobject, input_location, virtual_objects);
         return;
       }
-      input_locations_to_advance += vobject->InputLocationSizeNeeded();
+      input_locations_to_advance +=
+          vobject->InputLocationSizeNeeded(virtual_objects);
     }
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
