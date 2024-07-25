@@ -734,6 +734,32 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     return false;
   }
 
+  bool phis_can_merge = true;
+  frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
+                                                  interpreter::Register reg) {
+    if (!value->Is<Phi>()) return;
+    Phi* phi = value->Cast<Phi>();
+    if (!phi->is_loop_phi()) return;
+    if (phi->merge_state() != this) return;
+    NodeType old_type = GetNodeType(builder->broker(), builder->local_isolate(),
+                                    *known_node_aspects_, phi);
+    if (old_type != NodeType::kUnknown) {
+      NodeType new_type = GetNodeType(
+          builder->broker(), builder->local_isolate(),
+          *loop_end_state.known_node_aspects(), loop_end_state.get(reg));
+      if (!NodeTypeIs(new_type, old_type)) {
+        if (v8_flags.trace_maglev_loop_speeling) {
+          std::cout << "Cannot merge " << new_type << " into " << old_type
+                    << " for r" << reg.index() << "\n";
+        }
+        phis_can_merge = false;
+      }
+    }
+  });
+  if (!phis_can_merge) {
+    return false;
+  }
+
   BasicBlock* loop_end_block = FinishBlock();
   int input = predecessor_count_ - 1;
   loop_end_block->set_predecessor_id(input);
@@ -981,21 +1007,20 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
         // happened to be true before allowing the loop to conclude in
         // `TryMergeLoop`. Some types which are known to cause issues are
         // generalized here.
-        auto GetInitialOptimisticType = [](NodeType unmerged_type) {
-          if (unmerged_type == NodeType::kSmi) return NodeType::kNumber;
-          if (unmerged_type == NodeType::kInternalizedString)
-            return NodeType::kString;
-          return unmerged_type;
-        };
+        NodeType initial_optimistic_type =
+            (unmerged_type == NodeType::kInternalizedString) ? NodeType::kString
+                                                             : unmerged_type;
         known_node_aspects_
             ->GetOrCreateInfoFor(result, builder->broker(),
                                  builder->local_isolate())
-            ->CombineType(GetInitialOptimisticType(unmerged_type));
+            ->CombineType(initial_optimistic_type);
+        result->set_type(initial_optimistic_type);
       }
     } else {
       if (optimistic_loop_phis) {
         known_node_aspects_->TryGetInfoFor(result)->IntersectType(
             unmerged_type);
+        result->merge_type(unmerged_type);
       }
       result->merge_post_loop_type(unmerged_type);
     }
