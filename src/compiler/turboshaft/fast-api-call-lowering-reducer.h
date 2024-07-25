@@ -87,7 +87,7 @@ class FastApiCallLoweringReducer : public Next {
         // If this check fails, you've probably added new fields to
         // v8::FastApiCallbackOptions, which means you'll need to write code
         // that initializes and reads from them too.
-        static_assert(kSize == sizeof(uintptr_t) * 4);
+        static_assert(kSize == sizeof(uintptr_t) * 3);
         stack_slot = __ StackSlot(kSize, kAlign);
 
         // isolate
@@ -105,10 +105,6 @@ class FastApiCallLoweringReducer : public Next {
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
                         MemoryRepresentation::UintPtr(),
                         offsetof(v8::FastApiCallbackOptions, data));
-        // wasm_memory = 0
-        __ StoreOffHeap(stack_slot, __ IntPtrConstant(0),
-                        MemoryRepresentation::UintPtr(),
-                        offsetof(v8::FastApiCallbackOptions, wasm_memory));
 
         args.push_back(stack_slot);
         builder.AddParam(MachineType::Pointer());

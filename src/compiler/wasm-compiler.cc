@@ -8356,45 +8356,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         [](const CFunctionInfo* signature, Node* c_return_value) {
           return c_return_value;
         },
-        // Initialize wasm-specific callback options fields
-        [this](Node* options_stack_slot) {
-          Node* mem_start;
-          Node* mem_size;
-          if (module_->memories.empty()) {
-            mem_start = gasm_->UintPtrConstant(0);
-            mem_size = gasm_->UintPtrConstant(0);
-          } else if (module_->memories.size() == 1) {
-            mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-                Memory0Start, MachineType::Pointer());
-            mem_size = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-                Memory0Size, MachineType::UintPtr());
-          } else {
-            FATAL(
-                "Fast API does not support multiple memories yet "
-                "(https://crbug.com/v8/14260)");
-          }
-
-          START_ALLOW_USE_DEPRECATED()
-          constexpr int kSize = sizeof(FastApiTypedArray<uint8_t>);
-          constexpr int kAlign = alignof(FastApiTypedArray<uint8_t>);
-          END_ALLOW_USE_DEPRECATED()
-
-          Node* stack_slot = gasm_->StackSlot(kSize, kAlign);
-
-          gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                           kNoWriteBarrier),
-                       stack_slot, 0, mem_size);
-          gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                           kNoWriteBarrier),
-                       stack_slot, sizeof(size_t), mem_start);
-
-          gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                           kNoWriteBarrier),
-                       options_stack_slot,
-                       static_cast<int>(
-                           offsetof(v8::FastApiCallbackOptions, wasm_memory)),
-                       stack_slot);
-        },
+        [](Node* options_stack_slot) {},
         // Generate fallback slow call if fast call fails
         [this, callable_node, native_context, receiver_node]() -> Node* {
           int wasm_count = static_cast<int>(sig_->parameter_count());

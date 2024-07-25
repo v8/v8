@@ -610,16 +610,6 @@ struct FastApiCallbackOptions {
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
    */
   v8::Local<v8::Value> data;
-
-  /**
-   * When called from WebAssembly, a view of the calling module's memory.
-   */
-  V8_DEPRECATED(
-      "The wasm memory should either be provided as a field of the receiver, "
-      "the data object of the FunctionTemplate, or as a normal parameter of "
-      "the API function. Since regular API calls don't have this magic "
-      "`wasm_memory parameter, one of the options above should be possible.")
-  FastApiTypedArray<uint8_t>* const wasm_memory = nullptr;
 };
 
 namespace internal {
