@@ -1327,14 +1327,22 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
     interpreter::Register result_location, int result_size,
     DeoptFrameScope* scope, bool mark_accumulator_dead) {
   if (scope == nullptr) {
-    // Potentially copy the out liveness if we want to explicitly drop the
-    // accumulator.
-    const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
+    compiler::BytecodeLivenessState* liveness =
+        zone()->New<compiler::BytecodeLivenessState>(*GetOutLiveness(), zone());
+    // Remove result locations from liveness.
+    if (result_location == interpreter::Register::virtual_accumulator()) {
+      DCHECK_EQ(result_size, 1);
+      liveness->MarkAccumulatorDead();
+      mark_accumulator_dead = false;
+    } else {
+      DCHECK(!result_location.is_parameter());
+      for (int i = 0; i < result_size; i++) {
+        liveness->MarkRegisterDead(result_location.index() + i);
+      }
+    }
+    // Explicitly drop the accumulator if needed.
     if (mark_accumulator_dead && liveness->AccumulatorIsLive()) {
-      compiler::BytecodeLivenessState* liveness_copy =
-          zone()->New<compiler::BytecodeLivenessState>(*liveness, zone());
-      liveness_copy->MarkAccumulatorDead();
-      liveness = liveness_copy;
+      liveness->MarkAccumulatorDead();
     }
     current_interpreter_frame_.virtual_objects().Snapshot();
     InterpretedDeoptFrame ret(
@@ -1344,13 +1352,8 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
         current_source_position_, GetParentDeoptFrame());
     ret.frame_state()->ForEachValue(
-        *compilation_unit_, [this, result_location, result_size](
-                                ValueNode* node, interpreter::Register reg) {
-          if (result_size == 0 ||
-              !base::IsInRange(reg.index(), result_location.index(),
-                               result_location.index() + result_size - 1)) {
-            AddDeoptUse(node);
-          }
+        *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
+          AddDeoptUse(node);
         });
     AddDeoptUse(ret.closure());
     return ret;
