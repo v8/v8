@@ -2442,6 +2442,17 @@ void TranslatedState::InitializeJSObjectAt(
           .Relaxed_Store(value);
       INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
                                      kCodeIndirectPointerTag, value);
+    } else if (InstanceTypeChecker::IsJSRegExp(map->instance_type()) &&
+               offset == JSRegExp::kDataOffset) {
+      DirectHandle<HeapObject> field_value = slot->storage();
+      CHECK(IsRegExpDataWrapper(*field_value));
+      Tagged<RegExpData> value =
+          Cast<RegExpDataWrapper>(*field_value)->data(isolate());
+      object_storage
+          ->RawIndirectPointerField(offset, kRegExpDataIndirectPointerTag)
+          .Relaxed_Store(value);
+      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
+                                     kRegExpDataIndirectPointerTag, value);
     } else if (marker == kStoreHeapObject) {
 #else
     if (marker == kStoreHeapObject) {

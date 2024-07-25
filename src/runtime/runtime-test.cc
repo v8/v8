@@ -1681,11 +1681,12 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   }
   auto regexp = args.at<JSRegExp>(0);
   bool is_latin1 = args.at<Boolean>(1)->ToBool(isolate);
-  bool result;
-  if (regexp->type_tag() == JSRegExp::IRREGEXP) {
-    result = IsByteArray(regexp->bytecode(is_latin1));
-  } else {
-    result = false;
+  bool result = false;
+  if (regexp->has_data()) {
+    Tagged<RegExpData> data = regexp->data(isolate);
+    if (data->type_tag() == RegExpData::Type::IRREGEXP) {
+      result = Cast<IrRegExpData>(data)->has_bytecode(is_latin1);
+    }
   }
   return isolate->heap()->ToBoolean(result);
 }
@@ -1697,11 +1698,12 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   }
   auto regexp = args.at<JSRegExp>(0);
   bool is_latin1 = args.at<Boolean>(1)->ToBool(isolate);
-  bool result;
-  if (regexp->type_tag() == JSRegExp::IRREGEXP) {
-    result = IsCode(regexp->code(isolate, is_latin1));
-  } else {
-    result = false;
+  bool result = false;
+  if (regexp->has_data()) {
+    Tagged<RegExpData> data = regexp->data(isolate);
+    if (data->type_tag() == RegExpData::Type::IRREGEXP) {
+      result = Cast<IrRegExpData>(data)->has_code(is_latin1);
+    }
   }
   return isolate->heap()->ToBoolean(result);
 }
@@ -1713,19 +1715,22 @@ RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
   }
   auto regexp = Cast<JSRegExp>(args[0]);
   const char* type_str;
-  switch (regexp->type_tag()) {
-    case JSRegExp::NOT_COMPILED:
-      type_str = "NOT_COMPILED";
-      break;
-    case JSRegExp::ATOM:
-      type_str = "ATOM";
-      break;
-    case JSRegExp::IRREGEXP:
-      type_str = "IRREGEXP";
-      break;
-    case JSRegExp::EXPERIMENTAL:
-      type_str = "EXPERIMENTAL";
-      break;
+  if (regexp->has_data()) {
+    switch (regexp->data(isolate)->type_tag()) {
+      case RegExpData::Type::ATOM:
+        type_str = "ATOM";
+        break;
+      case RegExpData::Type::IRREGEXP:
+        type_str = "IRREGEXP";
+        break;
+      case RegExpData::Type::EXPERIMENTAL:
+        type_str = "EXPERIMENTAL";
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    type_str = "NOT_COMPILED";
   }
   return *isolate->factory()->NewStringFromAsciiChecked(type_str);
 }

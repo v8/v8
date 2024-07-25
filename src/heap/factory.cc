@@ -3982,65 +3982,27 @@ void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
                                 DirectHandle<String> source,
                                 JSRegExp::Flags flags,
                                 DirectHandle<String> pattern) {
-  Tagged<FixedArray> store =
-      *NewFixedArray(JSRegExp::kAtomDataSize, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::ATOM));
-  store->set(JSRegExp::kSourceIndex, *source, SKIP_WRITE_BARRIER);
-  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
-  store->set(JSRegExp::kAtomPatternIndex, *pattern, SKIP_WRITE_BARRIER);
-  regexp->set_data(store);
+  DirectHandle<RegExpData> regexp_data =
+      NewAtomRegExpData(source, flags, pattern);
+  regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
                                     DirectHandle<String> source,
                                     JSRegExp::Flags flags, int capture_count,
                                     uint32_t backtrack_limit) {
-  DCHECK(Smi::IsValid(backtrack_limit));
-  Tagged<FixedArray> store =
-      *NewFixedArray(JSRegExp::kIrregexpDataSize, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  Tagged<Smi> uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
-  Tagged<Smi> ticks_until_tier_up =
-      v8_flags.regexp_tier_up ? Smi::FromInt(v8_flags.regexp_tier_up_ticks)
-                              : uninitialized;
-  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::IRREGEXP));
-  store->set(JSRegExp::kSourceIndex, *source, SKIP_WRITE_BARRIER);
-  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
-  store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpLatin1BytecodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpUC16BytecodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::zero());
-  store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
-  store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, ticks_until_tier_up);
-  store->set(JSRegExp::kIrregexpBacktrackLimit, Smi::FromInt(backtrack_limit));
-  regexp->set_data(store);
+  DirectHandle<RegExpData> regexp_data =
+      NewIrRegExpData(source, flags, capture_count, backtrack_limit);
+  regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
                                         DirectHandle<String> source,
                                         JSRegExp::Flags flags,
                                         int capture_count) {
-  Tagged<FixedArray> store =
-      *NewFixedArray(JSRegExp::kExperimentalDataSize, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  Tagged<Smi> uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
-
-  store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::EXPERIMENTAL));
-  store->set(JSRegExp::kSourceIndex, *source, SKIP_WRITE_BARRIER);
-  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
-  store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpLatin1BytecodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpUC16BytecodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
-  store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpBacktrackLimit, uninitialized);
-  regexp->set_data(store);
+  DirectHandle<RegExpData> regexp_data =
+      NewExperimentalRegExpData(source, flags, capture_count);
+  regexp->set_data(*regexp_data);
 }
 
 Handle<RegExpData> Factory::NewAtomRegExpData(DirectHandle<String> source,

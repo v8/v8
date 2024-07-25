@@ -462,10 +462,11 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     StoreObjectFieldRoot(new_object, JSObject::kElementsOffset,
                          RootIndex::kEmptyFixedArray);
     // Initialize JSRegExp fields.
-    StoreObjectFieldNoWriteBarrier(
-        new_object, JSRegExp::kDataOffset,
-        LoadObjectField(boilerplate,
-                        RegExpBoilerplateDescription::kDataOffset));
+    StoreTrustedPointerField(
+        new_object, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag,
+        CAST(LoadTrustedPointerFromObject(
+            boilerplate, RegExpBoilerplateDescription::kDataOffset,
+            kRegExpDataIndirectPointerTag)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kSourceOffset,
         LoadObjectField(boilerplate,

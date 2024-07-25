@@ -15,8 +15,10 @@ extern class ArrayBoilerplateDescription extends Struct {
   constant_elements: FixedArrayBase;
 }
 
+@cppObjectDefinition
 extern class RegExpBoilerplateDescription extends Struct {
-  data: FixedArray;
+  @if(V8_ENABLE_SANDBOX) data: IndirectPointer<RegExpData>;
+  @ifnot(V8_ENABLE_SANDBOX) data: RegExpData;
   source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }

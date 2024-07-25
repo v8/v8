@@ -852,7 +852,8 @@ void JSPromise::JSPromisePrint(std::ostream& os) {
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRegExp");
-  os << "\n - data: " << Brief(data());
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n - data: " << Brief(data(isolate));
   os << "\n - source: " << Brief(source());
   FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
@@ -1020,6 +1021,16 @@ void ClassBoilerplate::ClassBoilerplatePrint(std::ostream& os) {
   os << "\n - instance_properties_template: " << instance_properties_template();
   os << "\n - instance_elements_template: " << instance_elements_template();
   os << "\n - instance_computed_properties: " << instance_computed_properties();
+  os << "\n";
+}
+
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
+    std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox((*this));
+  PrintHeader(os, "RegExpBoilerplate");
+  os << "\n - data: " << Brief(data(isolate));
+  os << "\n - source: " << source();
+  os << "\n - flags: " << flags();
   os << "\n";
 }
 

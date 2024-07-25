@@ -68,6 +68,7 @@ enum InstanceType : uint16_t;
   V(JSFunction)                      \
   V(JSObject)                        \
   V(JSObjectFast)                    \
+  V(JSRegExp)                        \
   V(JSSynchronizationPrimitive)      \
   V(JSTypedArray)                    \
   V(JSWeakCollection)                \
@@ -79,6 +80,7 @@ enum InstanceType : uint16_t;
   V(PropertyArray)                   \
   V(PropertyCell)                    \
   V(PrototypeInfo)                   \
+  V(RegExpBoilerplateDescription)    \
   V(RegExpDataWrapper)               \
   V(SharedFunctionInfo)              \
   V(ShortcutCandidate)               \

@@ -21,30 +21,11 @@ class RegExpData;
 
 #include "torque-generated/src/objects/js-regexp-tq.inc"
 
+class RegExpData;
+
 // Regular expressions
-// The regular expression holds a single reference to a FixedArray in
-// the kDataOffset field.
-// The FixedArray contains the following data:
-// - tag : type of regexp implementation (not compiled yet, atom or irregexp)
-// - reference to the original source string
-// - reference to the original flag string
-// If it is an atom regexp
-// - a reference to a literal string to search for
-// If it is an irregexp regexp:
-// - a reference to code for Latin1 inputs (bytecode or compiled), or a smi
-// used for tracking the last usage (used for regexp code flushing).
-// - a reference to code for UC16 inputs (bytecode or compiled), or a smi
-// used for tracking the last usage (used for regexp code flushing).
-// - max number of registers used by irregexp implementations.
-// - number of capture registers (output values) of the regexp.
 class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
-  enum Type {
-    NOT_COMPILED,  // Initial value. No data array has been set yet.
-    ATOM,          // A simple string match.
-    IRREGEXP,      // Compiled with Irregexp (code or bytecode).
-    EXPERIMENTAL,  // Compiled to use the experimental linear time engine.
-  };
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
@@ -64,26 +45,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline Tagged<String> source() const;
   inline Flags flags() const;
 
-  // Data array field accessors.
-
-  inline Type type_tag() const;
-  inline Tagged<String> atom_pattern() const;
-  // This could be a Smi kUninitializedValue or InstructionStream.
-  V8_EXPORT_PRIVATE Tagged<Object> code(IsolateForSandbox isolate,
-                                        bool is_latin1) const;
-  V8_EXPORT_PRIVATE void set_code(bool is_unicode, DirectHandle<Code> code);
-  // This could be a Smi kUninitializedValue or ByteArray.
-  V8_EXPORT_PRIVATE Tagged<Object> bytecode(bool is_latin1) const;
-  // Sets the bytecode as well as initializing trampoline slots to the
-  // RegExpInterpreterTrampoline.
-  void set_bytecode_and_trampoline(Isolate* isolate,
-                                   DirectHandle<ByteArray> bytecode);
-  inline int max_register_count() const;
-  // Number of captures (without the match itself).
-  inline int capture_count() const;
-  inline Tagged<Object> capture_name_map();
-  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
-  uint32_t backtrack_limit() const;
+  DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
   static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
     return static_cast<Flag>(f);
@@ -123,20 +85,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   inline Tagged<String> EscapedPattern();
 
-  bool CanTierUp();
-  bool MarkedForTierUp();
-  void ResetLastTierUpTick();
-  void TierUpTick();
-  void MarkTierUpForNextExec();
-
-  bool ShouldProduceBytecode();
-  inline bool HasCompiledCode() const;
-  inline void DiscardCompiledCodeForSerialization();
-
-  static constexpr bool TypeSupportsCaptures(Type t) {
-    return t == IRREGEXP || t == EXPERIMENTAL;
-  }
-
   // Each capture (including the match itself) needs two registers.
   static constexpr int RegistersForCaptureCount(int count) {
     return (count + 1) * 2;
@@ -145,15 +93,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     DCHECK_EQ(register_count % 2, 0);
     DCHECK_GE(register_count, 2);
     return (register_count - 2) / 2;
-  }
-
-  static constexpr int code_index(bool is_latin1) {
-    return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
-  }
-
-  static constexpr int bytecode_index(bool is_latin1) {
-    return is_latin1 ? kIrregexpLatin1BytecodeIndex
-                     : kIrregexpUC16BytecodeIndex;
   }
 
   // Dispatched behavior.
@@ -166,61 +105,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   // The initial value of the last_index field on a new JSRegExp instance.
   static constexpr int kInitialLastIndexValue = 0;
-
-  // Indices in the data array.
-  static constexpr int kTagIndex = 0;
-  static constexpr int kSourceIndex = kTagIndex + 1;
-  static constexpr int kFlagsIndex = kSourceIndex + 1;
-  static constexpr int kFirstTypeSpecificIndex = kFlagsIndex + 1;
-  static constexpr int kMinDataArrayLength = kFirstTypeSpecificIndex;
-
-  // The data fields are used in different ways depending on the
-  // value of the tag.
-  // Atom regexps (literal strings).
-  static constexpr int kAtomPatternIndex = kFirstTypeSpecificIndex;
-  static constexpr int kAtomDataSize = kAtomPatternIndex + 1;
-
-  // A InstructionStream object or a Smi marker value equal to
-  // kUninitializedValue.
-  static constexpr int kIrregexpLatin1CodeIndex = kFirstTypeSpecificIndex;
-  static constexpr int kIrregexpUC16CodeIndex = kIrregexpLatin1CodeIndex + 1;
-  // A ByteArray object or a Smi marker value equal to kUninitializedValue.
-  static constexpr int kIrregexpLatin1BytecodeIndex =
-      kIrregexpUC16CodeIndex + 1;
-  static constexpr int kIrregexpUC16BytecodeIndex =
-      kIrregexpLatin1BytecodeIndex + 1;
-  // Maximal number of registers used by either Latin1 or UC16.
-  // Only used to check that there is enough stack space
-  static constexpr int kIrregexpMaxRegisterCountIndex =
-      kIrregexpUC16BytecodeIndex + 1;
-  // Number of captures in the compiled regexp.
-  static constexpr int kIrregexpCaptureCountIndex =
-      kIrregexpMaxRegisterCountIndex + 1;
-  // Maps names of named capture groups (at indices 2i) to their corresponding
-  // (1-based) capture group indices (at indices 2i + 1).
-  static constexpr int kIrregexpCaptureNameMapIndex =
-      kIrregexpCaptureCountIndex + 1;
-  // Tier-up ticks are set to the value of the tier-up ticks flag. The value is
-  // decremented on each execution of the bytecode, so that the tier-up
-  // happens once the ticks reach zero.
-  // This value is ignored if the regexp-tier-up flag isn't turned on.
-  static constexpr int kIrregexpTicksUntilTierUpIndex =
-      kIrregexpCaptureNameMapIndex + 1;
-  // A smi containing either the backtracking limit or kNoBacktrackLimit.
-  // TODO(jgruber): If needed, this limit could be packed into other fields
-  // above to save space.
-  static constexpr int kIrregexpBacktrackLimit =
-      kIrregexpTicksUntilTierUpIndex + 1;
-  static constexpr int kIrregexpDataSize = kIrregexpBacktrackLimit + 1;
-
-  // TODO(mbid,v8:10765): At the moment the EXPERIMENTAL data array conforms
-  // to the format of an IRREGEXP data array, with most fields set to some
-  // default/uninitialized value. This is because EXPERIMENTAL and IRREGEXP
-  // regexps take the same code path in `RegExpExecInternal`, which reads off
-  // various fields from the data array. `RegExpExecInternal` should probably
-  // distinguish between EXPERIMENTAL and IRREGEXP, and then we can get rid of
-  // all the IRREGEXP only fields.
-  static constexpr int kExperimentalDataSize = kIrregexpDataSize;
 
   // In-object fields.
   static constexpr int kLastIndexFieldIndex = 0;
@@ -251,12 +135,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
 
+  class BodyDescriptor;
+
  private:
   using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
   inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
-
-  inline Tagged<Object> DataAt(int index) const;
-  inline void SetDataAt(int index, Tagged<Object> value);
 
   friend class RegExpData;
 

@@ -52,6 +52,7 @@ namespace internal {
   V(PropertyArray)                   \
   V(PropertyCell)                    \
   V(PrototypeInfo)                   \
+  V(RegExpBoilerplateDescription)    \
   V(RegExpDataWrapper)               \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
@@ -88,6 +89,7 @@ namespace internal {
   V(JSFinalizationRegistry)                 \
   V(JSFunction)                             \
   V(JSObject)                               \
+  V(JSRegExp)                               \
   V(JSSynchronizationPrimitive)             \
   V(JSTypedArray)                           \
   V(JSWeakCollection)                       \
@@ -131,6 +133,7 @@ namespace internal {
   V(PropertyArray)                                        \
   V(PropertyCell)                                         \
   V(PrototypeInfo)                                        \
+  V(RegExpBoilerplateDescription)                         \
   V(RegExpDataWrapper)                                    \
   V(ScopeInfo)                                            \
   V(SeqOneByteString)                                     \

@@ -51,7 +51,8 @@ extern class RegExpDataWrapper extends Struct {
 }
 
 extern class JSRegExp extends JSObject {
-  data: FixedArray|Undefined;
+  @if(V8_ENABLE_SANDBOX) data: IndirectPointer<RegExpData>;
+  @ifnot(V8_ENABLE_SANDBOX) data: RegExpData;
   source: String|Undefined;
   flags: SmiTagged<JSRegExpFlags>|Undefined;
 }

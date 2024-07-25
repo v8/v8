@@ -1870,7 +1870,7 @@ void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
 
 void V8HeapExplorer::ExtractRegExpBoilerplateDescriptionReferences(
     HeapEntry* entry, Tagged<RegExpBoilerplateDescription> value) {
-  TagObject(value->data(), "(RegExp data)", HeapEntry::kCode);
+  TagObject(value->data(isolate()), "(RegExpData)", HeapEntry::kCode);
 }
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {

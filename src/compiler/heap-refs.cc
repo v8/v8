@@ -1619,10 +1619,11 @@ int ObjectBoilerplateDescriptionRef::boilerplate_properties_count() const {
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
-FixedArrayRef RegExpBoilerplateDescriptionRef::data(
+HeapObjectRef RegExpBoilerplateDescriptionRef::data(
     JSHeapBroker* broker) const {
   // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->data());
+  return MakeRefAssumeMemoryFence(
+      broker, Cast<HeapObject>(object()->data(broker->isolate())));
 }
 
 StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {

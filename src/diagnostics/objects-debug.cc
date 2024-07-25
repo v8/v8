@@ -2017,94 +2017,23 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 }
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSRegExpVerify(*this, isolate);
-  switch (type_tag()) {
-    case JSRegExp::ATOM: {
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      CHECK(IsString(arr->get(JSRegExp::kAtomPatternIndex)));
-      break;
-    }
-    case JSRegExp::EXPERIMENTAL: {
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      Tagged<Smi> uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
+  Tagged<Object> source = TaggedField<Object>::load(*this, kSourceOffset);
+  Tagged<Object> flags = TaggedField<Object>::load(*this, kFlagsOffset);
+  CHECK(IsString(source) || IsUndefined(source));
+  CHECK(IsSmi(flags) || IsUndefined(flags));
+  if (!has_data()) return;
 
-      Tagged<Object> latin1_code = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      Tagged<Object> uc16_code = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      Tagged<Object> latin1_bytecode =
-          arr->get(JSRegExp::kIrregexpLatin1BytecodeIndex);
-      Tagged<Object> uc16_bytecode =
-          arr->get(JSRegExp::kIrregexpUC16BytecodeIndex);
-
-      bool is_compiled = IsCodeWrapper(latin1_code);
-      if (is_compiled) {
-        CHECK_EQ(Cast<CodeWrapper>(latin1_code)->code(isolate)->builtin_id(),
-                 Builtin::kRegExpExperimentalTrampoline);
-        CHECK_EQ(uc16_code, latin1_code);
-
-        CHECK(IsByteArray(latin1_bytecode));
-        CHECK_EQ(uc16_bytecode, latin1_bytecode);
-      } else {
-        CHECK_EQ(latin1_code, uninitialized);
-        CHECK_EQ(uc16_code, uninitialized);
-
-        CHECK_EQ(latin1_bytecode, uninitialized);
-        CHECK_EQ(uc16_bytecode, uninitialized);
-      }
-
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex),
-               uninitialized);
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpCaptureCountIndex)));
-      CHECK_GE(Smi::ToInt(arr->get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpTicksUntilTierUpIndex),
-               uninitialized);
-      CHECK_EQ(arr->get(JSRegExp::kIrregexpBacktrackLimit), uninitialized);
-      break;
-    }
-    case JSRegExp::IRREGEXP: {
-      bool can_be_interpreted = RegExp::CanGenerateBytecode();
-
-      Tagged<FixedArray> arr = Cast<FixedArray>(data());
-      Tagged<Object> one_byte_data =
-          arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      // Smi : Not compiled yet (-1).
-      // InstructionStream: Compiled irregexp code or trampoline to the
-      // interpreter.
-      CHECK((IsSmi(one_byte_data) &&
-             Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            IsCodeWrapper(one_byte_data));
-      Tagged<Object> uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      CHECK((IsSmi(uc16_data) &&
-             Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            IsCodeWrapper(uc16_data));
-
-      Tagged<Object> one_byte_bytecode =
-          arr->get(JSRegExp::kIrregexpLatin1BytecodeIndex);
-      // Smi : Not compiled yet (-1).
-      // ByteArray: Bytecode to interpret regexp.
-      CHECK((IsSmi(one_byte_bytecode) &&
-             Smi::ToInt(one_byte_bytecode) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && IsByteArray(one_byte_bytecode)));
-      Tagged<Object> uc16_bytecode =
-          arr->get(JSRegExp::kIrregexpUC16BytecodeIndex);
-      CHECK((IsSmi(uc16_bytecode) &&
-             Smi::ToInt(uc16_bytecode) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && IsByteArray(uc16_bytecode)));
-
-      CHECK_IMPLIES(IsSmi(one_byte_data), IsSmi(one_byte_bytecode));
-      CHECK_IMPLIES(IsSmi(uc16_data), IsSmi(uc16_bytecode));
-
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpCaptureCountIndex)));
-      CHECK_GE(Smi::ToInt(arr->get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)));
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpTicksUntilTierUpIndex)));
-      CHECK(IsSmi(arr->get(JSRegExp::kIrregexpBacktrackLimit)));
-      break;
-    }
-    default:
-      CHECK_EQ(JSRegExp::NOT_COMPILED, type_tag());
-      CHECK(IsUndefined(data(), isolate));
-      break;
+  Tagged<RegExpData> data = this->data(isolate);
+  switch (data->type_tag()) {
+    case RegExpData::Type::ATOM:
+      CHECK(Is<AtomRegExpData>(data));
+      return;
+    case RegExpData::Type::EXPERIMENTAL:
+    case RegExpData::Type::IRREGEXP:
+      CHECK(Is<IrRegExpData>(data));
+      return;
   }
+  UNREACHABLE();
 }
 
 void RegExpData::RegExpDataVerify(Isolate* isolate) {
@@ -2141,19 +2070,54 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
           capture_name_map() == Smi::zero());
   CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
   CHECK(IsSmi(TaggedField<Object>::load(*this, kMaxRegisterCountOffset)));
-  static_assert(JSRegExp::kUninitializedValue == -1);
-  CHECK_GE(max_register_count(), JSRegExp::kUninitializedValue);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kCaptureCountOffset)));
-  CHECK_GE(capture_count(), 0);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kTicksUntilTierUpOffset)));
-  if (v8_flags.regexp_tier_up) {
-    CHECK_GE(ticks_until_tier_up(), 0);
-    CHECK_LE(ticks_until_tier_up(), v8_flags.regexp_tier_up_ticks);
-  } else {
-    CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
-  }
   CHECK(IsSmi(TaggedField<Object>::load(*this, kBacktrackLimitOffset)));
-  CHECK_GE(backtrack_limit(), 0);
+
+  switch (type_tag()) {
+    case RegExpData::Type::EXPERIMENTAL: {
+      if (has_latin1_code()) {
+        CHECK_EQ(latin1_code(isolate)->builtin_id(),
+                 Builtin::kRegExpExperimentalTrampoline);
+        CHECK_EQ(latin1_code(isolate), uc16_code(isolate));
+        CHECK(Is<TrustedByteArray>(latin1_bytecode()));
+        CHECK_EQ(latin1_bytecode(), uc16_bytecode());
+      } else {
+        CHECK(!has_uc16_code());
+        CHECK(!has_latin1_bytecode());
+        CHECK(!has_uc16_bytecode());
+      }
+
+      CHECK_EQ(max_register_count(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(backtrack_limit(), JSRegExp::kUninitializedValue);
+
+      break;
+    }
+    case RegExpData::Type::IRREGEXP: {
+      bool can_be_interpreted = RegExp::CanGenerateBytecode();
+      CHECK_IMPLIES(has_latin1_bytecode(), can_be_interpreted);
+      CHECK_IMPLIES(has_uc16_bytecode(), can_be_interpreted);
+
+      static_assert(JSRegExp::kUninitializedValue == -1);
+      CHECK_GE(max_register_count(), JSRegExp::kUninitializedValue);
+      CHECK_GE(capture_count(), 0);
+      if (v8_flags.regexp_tier_up) {
+        // With tier-up enabled, ticks_until_tier_up should actually be >= 0.
+        // However FlagScopes in unittests can modify the flag and verification
+        // on Isolate deinitialization will fail.
+        CHECK_GE(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+        CHECK_LE(ticks_until_tier_up(), v8_flags.regexp_tier_up_ticks);
+      } else {
+        CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
+      }
+      CHECK_GE(backtrack_limit(), 0);
+
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void RegExpDataWrapper::RegExpDataWrapperVerify(Isolate* isolate) {
@@ -2383,6 +2347,21 @@ void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, instance_elements_template());
   Object::VerifyPointer(isolate, instance_computed_properties());
   CHECK(IsFixedArray(instance_computed_properties()));
+}
+
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  {
+    auto o = data(isolate);
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsRegExpData(o));
+  }
+  {
+    auto o = source();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsString(o));
+  }
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

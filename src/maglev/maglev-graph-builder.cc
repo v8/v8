@@ -11039,7 +11039,9 @@ VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
               GetRootConstant(RootIndex::kEmptyFixedArray));
   regexp->set(JSRegExp::kElementsOffset,
               GetRootConstant(RootIndex::kEmptyFixedArray));
-  regexp->set(JSRegExp::kDataOffset, GetConstant(literal.data(broker())));
+  regexp->set(JSRegExp::kDataOffset,
+              GetTrustedConstant(literal.data(broker()),
+                                 kRegExpDataIndirectPointerTag));
   regexp->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
   regexp->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
   regexp->set(JSRegExp::kLastIndexOffset,

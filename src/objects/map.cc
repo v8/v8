@@ -276,7 +276,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_PROMISE_PROTOTYPE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-    case JS_REG_EXP_TYPE:
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_PROTOTYPE_TYPE:
@@ -327,6 +326,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       CHECK_EQ(0, JSObject::GetEmbedderFieldCount(map));
       return kVisitJSObjectFast;
     }
+    case JS_REG_EXP_TYPE:
+      return kVisitJSRegExp;
 
     // Objects that are used as API wrapper objects and can have embedder
     // fields. Note that there's more of these kinds (e.g. JS_ARRAY_BUFFER_TYPE)
@@ -385,6 +386,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       }
       if (instance_type == INTERPRETER_DATA_TYPE) {
         return kVisitInterpreterData;
+      }
+      if (instance_type == REG_EXP_BOILERPLATE_DESCRIPTION_TYPE) {
+        return kVisitRegExpBoilerplateDescription;
       }
       if (instance_type == REG_EXP_DATA_WRAPPER_TYPE) {
         return kVisitRegExpDataWrapper;

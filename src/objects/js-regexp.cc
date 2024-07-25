@@ -118,11 +118,6 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   return indices;
 }
 
-uint32_t JSRegExp::backtrack_limit() const {
-  CHECK_EQ(type_tag(), IRREGEXP);
-  return static_cast<uint32_t>(Smi::ToInt(DataAt(kIrregexpBacktrackLimit)));
-}
-
 // static
 base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
     Isolate* isolate, Handle<String> flags) {
@@ -159,93 +154,11 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   Handle<JSRegExp> regexp =
       Cast<JSRegExp>(isolate->factory()->NewJSObject(constructor));
 
+  // Clear the data field, as a GC can be triggered before the field is set
+  // during compilation.
+  regexp->clear_data();
+
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
-}
-
-Tagged<Object> JSRegExp::code(IsolateForSandbox isolate, bool is_latin1) const {
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  Tagged<Object> value = DataAt(code_index(is_latin1));
-  DCHECK(IsSmi(value) || IsCodeWrapper(value));
-  // TODO(saelo): it would be nice if we could directly use a code pointer to
-  // reference our Code rather than use the CodeWrapper object. However, this
-  // is currently not possible since we use essentially a FixedArray to store
-  // all our fields, and a code pointer isn't a tagged pointer. Instead, we
-  // should consider adding a trusted pointer field that references either the
-  // bytecode or the native code in a sandbox-compatible way.
-  if (IsCodeWrapper(value)) {
-    value = Cast<CodeWrapper>(value)->code(isolate);
-  }
-  DCHECK(IsSmi(value) || IsCode(value));
-  return value;
-}
-
-void JSRegExp::set_code(bool is_latin1, DirectHandle<Code> code) {
-  SetDataAt(code_index(is_latin1), code->wrapper());
-}
-
-Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
-  DCHECK(type_tag() == JSRegExp::IRREGEXP ||
-         type_tag() == JSRegExp::EXPERIMENTAL);
-  return DataAt(bytecode_index(is_latin1));
-}
-
-void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
-                                           DirectHandle<ByteArray> bytecode) {
-  SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
-  SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
-
-  DirectHandle<Code> trampoline =
-      BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, trampoline->wrapper());
-  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, trampoline->wrapper());
-}
-
-bool JSRegExp::ShouldProduceBytecode() {
-  return v8_flags.regexp_interpret_all ||
-         (v8_flags.regexp_tier_up && !MarkedForTierUp());
-}
-
-// Only irregexps are subject to tier-up.
-bool JSRegExp::CanTierUp() {
-  return v8_flags.regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
-}
-
-// An irregexp is considered to be marked for tier up if the tier-up ticks
-// value reaches zero.
-bool JSRegExp::MarkedForTierUp() {
-  DCHECK(IsFixedArray(data()));
-
-  if (!CanTierUp()) {
-    return false;
-  }
-
-  return Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) == 0;
-}
-
-void JSRegExp::ResetLastTierUpTick() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
-  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::FromInt(tier_up_ticks));
-}
-
-void JSRegExp::TierUpTick() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
-  if (tier_up_ticks == 0) {
-    return;
-  }
-  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::FromInt(tier_up_ticks - 1));
-}
-
-void JSRegExp::MarkTierUpForNextExec() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  Cast<FixedArray>(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::zero());
 }
 
 // static

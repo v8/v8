@@ -896,6 +896,7 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
 
   // Test-appropriate equivalent of v8::Isolate::New.
   v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   {
     v8::Isolate::Scope i_scope(isolate1);
     v8::HandleScope h_scope(isolate1);
@@ -906,7 +907,7 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       // serialization.
       i::DirectHandle<i::JSRegExp> re =
           Utils::OpenDirectHandle(*CompileRun("re1").As<v8::RegExp>());
-      CHECK(!re->HasCompiledCode());
+      CHECK(!re->data(i_isolate1)->HasCompiledCode());
     }
     {
       v8::Maybe<int32_t> result =
@@ -927,8 +928,9 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       // Check that ATOM regexp remains valid.
       i::DirectHandle<i::JSRegExp> re =
           Utils::OpenDirectHandle(*CompileRun("re2").As<v8::RegExp>());
-      CHECK_EQ(re->type_tag(), JSRegExp::ATOM);
-      CHECK(!re->HasCompiledCode());
+      i::Tagged<i::RegExpData> data = re->data(i_isolate1);
+      CHECK_EQ(data->type_tag(), RegExpData::Type::ATOM);
+      CHECK(!data->HasCompiledCode());
     }
   }
   isolate1->Dispose();

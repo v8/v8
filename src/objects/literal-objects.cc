@@ -750,7 +750,9 @@ void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   static_assert(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
-  os << " " << Brief(data()) << ", " << Brief(source()) << ", " << flags();
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << " " << Brief(data(isolate)) << ", " << Brief(source()) << ", "
+     << flags();
 }
 
 }  // namespace internal

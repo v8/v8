@@ -224,7 +224,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<RegExpDataWrapper> NewRegExpDataWrapper();
 
   Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
-      DirectHandle<FixedArray> data, DirectHandle<String> source,
+      DirectHandle<RegExpData> data, DirectHandle<String> source,
       Tagged<Smi> flags);
 
   // Create a new TemplateObjectDescription struct.

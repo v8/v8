@@ -227,7 +227,7 @@ void CompilationCacheEval::Put(Handle<String> source,
                                       native_context, feedback_cell, position);
 }
 
-MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
+MaybeHandle<RegExpData> CompilationCacheRegExp::Lookup(Handle<String> source,
                                                        JSRegExp::Flags flags) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
@@ -238,10 +238,11 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
   for (generation = 0; generation < kGenerations; generation++) {
     DirectHandle<CompilationCacheTable> table = GetTable(generation);
     result = table->LookupRegExp(source, flags);
-    if (IsFixedArray(*result)) break;
+    if (IsRegExpDataWrapper(*result)) break;
   }
-  if (IsFixedArray(*result)) {
-    Handle<FixedArray> data = Cast<FixedArray>(result);
+  if (IsRegExpDataWrapper(*result)) {
+    Handle<RegExpData> data(Cast<RegExpDataWrapper>(result)->data(isolate()),
+                            isolate());
     if (generation != 0) {
       Put(source, flags, data);
     }
@@ -249,12 +250,12 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
     return scope.CloseAndEscape(data);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
-    return MaybeHandle<FixedArray>();
+    return MaybeHandle<RegExpData>();
   }
 }
 
 void CompilationCacheRegExp::Put(Handle<String> source, JSRegExp::Flags flags,
-                                 DirectHandle<FixedArray> data) {
+                                 DirectHandle<RegExpData> data) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable(0);
   tables_[0] =
@@ -306,7 +307,7 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
   return result;
 }
 
-MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
+MaybeHandle<RegExpData> CompilationCache::LookupRegExp(Handle<String> source,
                                                        JSRegExp::Flags flags) {
   return reg_exp_.Lookup(source, flags);
 }
@@ -345,7 +346,7 @@ void CompilationCache::PutEval(Handle<String> source,
 }
 
 void CompilationCache::PutRegExp(Handle<String> source, JSRegExp::Flags flags,
-                                 DirectHandle<FixedArray> data) {
+                                 DirectHandle<RegExpData> data) {
   reg_exp_.Put(source, flags, data);
 }
 

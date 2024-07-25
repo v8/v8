@@ -148,25 +148,27 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
         Cast<WeakFixedArray>(object)->get(ScriptCacheKey::kHash).ToSmi()));
   }
 
-  // Eval: See EvalCacheKey::ToHandle for the encoding.
-  Tagged<FixedArray> val = Cast<FixedArray>(object);
-  if (val->map() == roots.fixed_cow_array_map()) {
-    DCHECK_EQ(4, val->length());
-    Tagged<String> source = Cast<String>(val->get(1));
-    int language_unchecked = Smi::ToInt(val->get(2));
-    DCHECK(is_valid_language_mode(language_unchecked));
-    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int position = Smi::ToInt(val->get(3));
-    Tagged<Object> shared = val->get(0);
-    return EvalHash(source, Cast<SharedFunctionInfo>(shared), language_mode,
-                    position);
+  // RegExpData: The key field (and the value field) contains the RegExpData
+  // object.
+  if (IsRegExpDataWrapper(object)) {
+    Tagged<RegExpDataWrapper> re_wrapper = Cast<RegExpDataWrapper>(object);
+    Isolate* isolate = GetIsolateFromWritableObject(re_wrapper);
+    Tagged<RegExpData> data = re_wrapper->data(isolate);
+    return RegExpHash(data->source(), Smi::FromInt(data->flags()));
   }
 
-  // RegExp: The key field (and the value field) contains the
-  // JSRegExp::data fixed array.
-  DCHECK_GE(val->length(), JSRegExp::kMinDataArrayLength);
-  return RegExpHash(Cast<String>(val->get(JSRegExp::kSourceIndex)),
-                    Cast<Smi>(val->get(JSRegExp::kFlagsIndex)));
+  // Eval: See EvalCacheKey::ToHandle for the encoding.
+  Tagged<FixedArray> val = Cast<FixedArray>(object);
+  DCHECK_EQ(val->map(), roots.fixed_cow_array_map());
+  DCHECK_EQ(4, val->length());
+  Tagged<String> source = Cast<String>(val->get(1));
+  int language_unchecked = Smi::ToInt(val->get(2));
+  DCHECK(is_valid_language_mode(language_unchecked));
+  LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
+  int position = Smi::ToInt(val->get(3));
+  Tagged<Object> shared = val->get(0);
+  return EvalHash(source, Cast<SharedFunctionInfo>(shared), language_mode,
+                  position);
 }
 
 InfoCellPair::InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,

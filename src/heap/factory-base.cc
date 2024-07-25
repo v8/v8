@@ -667,7 +667,7 @@ Handle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
 template <typename Impl>
 Handle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
-    DirectHandle<FixedArray> data, DirectHandle<String> source,
+    DirectHandle<RegExpData> data, DirectHandle<String> source,
     Tagged<Smi> flags) {
   auto result = NewStructInternal<RegExpBoilerplateDescription>(
       REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);

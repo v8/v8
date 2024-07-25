@@ -348,6 +348,25 @@ class JSDate::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSRegExp::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
+    IterateTrustedPointer(obj, kDataOffset, v, IndirectPointerMode::kStrong,
+                          kRegExpDataIndirectPointerTag);
+    IteratePointer(obj, kSourceOffset, v);
+    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
+
 class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -1447,7 +1466,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_PROMISE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-    case JS_REG_EXP_TYPE:
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_PROTOTYPE_TYPE:
@@ -1580,6 +1598,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Oddball);
     case HOLE_TYPE:
       return CALL_APPLY(Hole);
+    case JS_REG_EXP_TYPE:
+      return CALL_APPLY(JSRegExp);
 
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \

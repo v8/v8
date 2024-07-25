@@ -6,7 +6,6 @@
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
 #include "src/objects/literal-objects.h"
-
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -120,7 +119,11 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription)
+OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription, Struct)
+TRUSTED_POINTER_ACCESSORS(RegExpBoilerplateDescription, data, RegExpData,
+                          kDataOffset, kRegExpDataIndirectPointerTag)
+ACCESSORS(RegExpBoilerplateDescription, source, Tagged<String>, kSourceOffset)
+SMI_ACCESSORS(RegExpBoilerplateDescription, flags, kFlagsOffset)
 
 }  // namespace internal
 }  // namespace v8

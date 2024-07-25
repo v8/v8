@@ -247,23 +247,17 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Preparations for named capture properties. Exit early if the result does
     // not have any named captures to minimize performance impact.
 
-    TNode<FixedArray> data =
-        CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
+    TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+        regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
 
     // We reach this point only if captures exist, implying that the assigned
     // regexp engine must be able to handle captures.
-    CSA_DCHECK(
-        this,
-        Word32Or(
-            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                     SmiConstant(JSRegExp::IRREGEXP)),
-            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                     SmiConstant(JSRegExp::EXPERIMENTAL))));
+    CSA_SBXCHECK(this, HasInstanceType(data, IR_REG_EXP_DATA_TYPE));
 
     // The names fixed array associates names at even indices with a capture
     // index at odd indices.
     TNode<Object> maybe_names =
-        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureNameMapIndex);
+        LoadObjectField(data, IrRegExpData::kCaptureNameMapOffset);
     GotoIf(TaggedEqual(maybe_names, SmiZero()), &maybe_build_indices);
 
     // One or more named captures exist, add a property for each one.
@@ -431,18 +425,22 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
   // Since the RegExp has been compiled, data contains a fixed array.
-  TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
+  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
   {
     // Dispatch on the type of the RegExp.
+    // Since the type tag is in trusted space, it is safe to interpret
+    // RegExpData as IrRegExpData/AtomRegExpData in the respective branches
+    // without checks.
     {
       Label next(this), unreachable(this, Label::kDeferred);
-      TNode<Int32T> tag = LoadAndUntagToWord32FixedArrayElement(
-          data, IntPtrConstant(JSRegExp::kTagIndex));
+      TNode<Int32T> tag =
+          SmiToInt32(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset));
 
       int32_t values[] = {
-          JSRegExp::IRREGEXP,
-          JSRegExp::ATOM,
-          JSRegExp::EXPERIMENTAL,
+          static_cast<uint8_t>(RegExpData::Type::IRREGEXP),
+          static_cast<uint8_t>(RegExpData::Type::ATOM),
+          static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL),
       };
       Label* labels[] = {&next, &atom, &next};
 
@@ -457,8 +455,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check (number_of_captures + 1) * 2 <= offsets vector size
     // Or              number_of_captures <= offsets vector size / 2 - 1
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
 
     const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
     static_assert(kOffsetsSize >= 2);
@@ -475,7 +473,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   TVARIABLE(RawPtrT, var_string_start);
   TVARIABLE(RawPtrT, var_string_end);
-  TVARIABLE(Object, var_code);
+#ifdef V8_ENABLE_SANDBOX
+  using kVarCodeT = IndirectPointerHandleT;
+#else
+  using kVarCodeT = Object;
+#endif
+  TVARIABLE(kVarCodeT, var_code);
   TVARIABLE(Object, var_bytecode);
 
   {
@@ -490,9 +493,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         int_string_length, String::ONE_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code =
-          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
-      var_bytecode = UnsafeLoadFixedArrayElement(
-          data, JSRegExp::kIrregexpLatin1BytecodeIndex);
+          LoadObjectField<kVarCodeT>(data, IrRegExpData::kLatin1CodeOffset);
+      var_bytecode = LoadObjectField(data, IrRegExpData::kLatin1BytecodeOffset);
       Goto(&next);
     }
 
@@ -502,9 +504,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         int_string_length, String::TWO_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code =
-          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
-      var_bytecode = UnsafeLoadFixedArrayElement(
-          data, JSRegExp::kIrregexpUC16BytecodeIndex);
+          LoadObjectField<kVarCodeT>(data, IrRegExpData::kUc16CodeOffset);
+      var_bytecode = LoadObjectField(data, IrRegExpData::kUc16BytecodeOffset);
       Goto(&next);
     }
 
@@ -512,23 +513,15 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   }
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object; and otherwise it
-  // contains the uninitialized sentinel as a smi.
-#ifdef DEBUG
-  {
-    Label next(this);
-    GotoIfNot(TaggedIsSmi(var_code.value()), &next);
-    CSA_DCHECK(this, SmiEqual(CAST(var_code.value()),
-                              SmiConstant(JSRegExp::kUninitializedValue)));
-    Goto(&next);
-    BIND(&next);
-  }
-#endif
+  // encoding.
 
+#ifdef V8_ENABLE_SANDBOX
+  GotoIf(
+      Word32Equal(var_code.value(), Int32Constant(kNullIndirectPointerHandle)),
+      &runtime);
+#else
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  TNode<CodeWrapper> code_wrapper = CAST(var_code.value());
-  TNode<Code> code =
-      LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
+#endif
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -568,8 +561,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Argument 5: Number of capture registers.
     // Setting this to the number of registers required to store all captures
     // forces global regexps to behave as non-global.
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // capture_count is the number of captures without the match itself.
     // Required registers = (capture_count + 1) * 2.
     static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
@@ -587,17 +580,19 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg7_type = type_ptr;
     TNode<ExternalReference> arg7 = isolate_address;
 
-    // Argument 8: Regular expression object. This argument is ignored in native
-    // irregexp code.
+    // Argument 8: Regular expression data object. This argument is ignored in
+    // native irregexp code.
     MachineType arg8_type = type_tagged;
-    TNode<JSRegExp> arg8 = regexp;
+    TNode<IrRegExpData> arg8 = CAST(data);
 
-    // TODO(saelo): if we refactor RegExp objects to contain a code pointer
-    // instead of referencing the CodeWrapper object, we could directly load
-    // the entrypoint from that via LoadCodeEntrypointViaCodePointerField. This
-    // will save an indirection when the sandbox is enabled.
+#ifdef V8_ENABLE_SANDBOX
+    TNode<RawPtrT> code_entry = LoadCodeEntryFromIndirectPointerHandle(
+        var_code.value(), kRegExpEntrypointTag);
+#else
+    TNode<Code> code = CAST(var_code.value());
     TNode<RawPtrT> code_entry =
         LoadCodeInstructionStart(code, kRegExpEntrypointTag);
+#endif
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not
@@ -646,8 +641,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check that the last match info has space for the capture registers.
     TNode<Smi> available_slots = LoadArrayCapacity(match_info);
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count =
+        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // Calculate number of register_count = (capture_count + 1) * 2.
     TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
@@ -906,11 +901,9 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 
   CSA_DCHECK(this, TaggedIsPositiveSmi(last_index));
 
-  TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
-  CSA_DCHECK(
-      this,
-      SmiEqual(CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-               SmiConstant(JSRegExp::ATOM)));
+  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  CSA_SBXCHECK(this, HasInstanceType(data, ATOM_REG_EXP_DATA_TYPE));
 
   // Callers ensure that last_index is in-bounds.
   CSA_DCHECK(this,
@@ -918,7 +911,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                     LoadStringLengthAsWord(subject_string)));
 
   const TNode<String> needle_string =
-      CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex));
+      LoadObjectField<String>(data, AtomRegExpData::kPatternOffset);
 
   // ATOM patterns are guaranteed to not be the empty string (these are
   // intercepted and replaced in JSRegExp::Initialize.
@@ -1251,6 +1244,10 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&next);
   }
+
+  // Clear data field, as a GC can be triggered before it is initialized with a
+  // correct trusted pointer handle.
+  ClearTrustedPointerField(var_regexp.value(), JSRegExp::kDataOffset);
 
   const TNode<Object> result = RegExpInitialize(
       context, var_regexp.value(), var_pattern.value(), var_flags.value());
