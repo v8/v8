@@ -3391,7 +3391,7 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   SwitchStacks(masm, active_continuation, promise, return_value, context);
 }
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the ref's type, and places the result in the input register.
 void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   __ Move(scratch, FieldOperand(ref, HeapObject::kMapOffset));
@@ -3399,7 +3399,7 @@ void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   Label instance;
   Label end;
   __ j(equal, &instance);
-  __ Move(ref, FieldOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ Move(ref, FieldOperand(ref, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ Move(ref,
@@ -4166,11 +4166,10 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
   Register code_object = edi;  // Not part of kGpParamRegisters.
-  __ mov(code_object,
-         FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ mov(code_object, FieldOperand(import_data, WasmImportData::kCodeOffset));
   __ jmp(FieldOperand(code_object, Code::kInstructionStartOffset));
 }
 

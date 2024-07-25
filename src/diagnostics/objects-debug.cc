@@ -2416,8 +2416,8 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
   for (int i = 0; i < len; ++i) {
     Tagged<Object> call_ref = ref(i);
     Object::VerifyPointer(isolate, call_ref);
-    CHECK(IsWasmTrustedInstanceData(call_ref) ||
-          IsWasmApiFunctionRef(call_ref) || call_ref == Smi::zero());
+    CHECK(IsWasmTrustedInstanceData(call_ref) || IsWasmImportData(call_ref) ||
+          call_ref == Smi::zero());
     if (!v8_flags.wasm_jitless) {
       // call_target always null with the interpreter.
       CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);

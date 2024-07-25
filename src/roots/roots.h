@@ -137,7 +137,7 @@ class RootVisitor;
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
-  IF_WASM(V, Map, wasm_api_function_ref_map, WasmApiFunctionRefMap)            \
+  IF_WASM(V, Map, wasm_import_data_map, WasmImportDataMap)                     \
   IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
   IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
   IF_WASM(V, Map, wasm_dispatch_table_map, WasmDispatchTableMap)               \

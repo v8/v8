@@ -20,9 +20,9 @@ extern class WasmInstanceObject extends JSObject {
   exports_object: JSObject;
 }
 
-// The WasmApiFunctionRef is passed to non-wasm imports in place of the
+// The WasmImportData is passed to non-wasm imports in place of the
 // WasmTrustedInstanceData.
-extern class WasmApiFunctionRef extends TrustedObject {
+extern class WasmImportData extends TrustedObject {
   // The instance data is used to load memory start/size for fast API calls, and
   // for tier-up of wasm-to-js wrappers.
   // Use the '.instance_data' macro to read this from torque code.
@@ -39,8 +39,8 @@ extern class WasmApiFunctionRef extends TrustedObject {
   @ifnot(V8_ENABLE_SANDBOX) code: Code;
 }
 
-extern operator '.instance_data' macro LoadInstanceDataFromWasmApiFunctionRef(
-    WasmApiFunctionRef): WasmTrustedInstanceData|Smi;
+extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
+    WasmImportData): WasmTrustedInstanceData|Smi;
 
 class WasmFastApiCallData extends HeapObject {
   signature: HeapObject;
@@ -51,13 +51,13 @@ class WasmFastApiCallData extends HeapObject {
 // This is the representation that is used internally by wasm to represent
 // function references. It is "exposed" via the WasmFuncRef.
 extern class WasmInternalFunction extends ExposedTrustedObject {
-  // This is the "reference" value that must be passed along in the "instance"
-  // register when calling the given function. It is either the target instance
-  // data (for wasm functions), or a WasmApiFunctionRef object (for functions
-  // defined through the JS or C APIs). For imported functions, this value
-  // equals the respective entry in the module's imported_function_refs array.
+  // This is the implicit first argument that must be passed along in the
+  // "instance" register when calling the given function. It is either the
+  // target instance data (for wasm functions), or a WasmImportData object (for
+  // non-wasm imports). For imported functions, this value equals the respective
+  // entry in the module's dispatch_table_for_imports.
   // Torque code should use the '.ref' macro to access the value.
-  protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmApiFunctionRef>;
+  protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
   // The function index if ref is a WasmTrustedInstanceData, -1 otherwise.
@@ -72,7 +72,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
 }
 
 extern operator '.ref' macro LoadRefFromWasmInternalFunction(
-    WasmInternalFunction): WasmTrustedInstanceData|WasmApiFunctionRef;
+    WasmInternalFunction): WasmTrustedInstanceData|WasmImportData;
 
 // WasmFuncRef is the type of function references. They are stored on-heap and
 // link to a WasmInternalFunction which contains the actual information.

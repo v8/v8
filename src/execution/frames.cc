@@ -3467,11 +3467,11 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
-  // WasmToJsFrames hold the {WasmApiFunctionRef} object in the instance slot.
+  // WasmToJsFrames hold the {WasmImportData} object in the instance slot.
   // Load the instance from there.
   const int offset = WasmFrameConstants::kWasmInstanceOffset;
   Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
-  Tagged<WasmApiFunctionRef> func_ref = Cast<WasmApiFunctionRef>(func_ref_obj);
+  Tagged<WasmImportData> func_ref = Cast<WasmImportData>(func_ref_obj);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(func_ref->instance_data()->has_instance_object());
   return func_ref->instance_data()->instance_object();

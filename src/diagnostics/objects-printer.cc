@@ -2744,8 +2744,8 @@ void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
   os << '\n';
 }
 
-void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
-  PrintHeader(os, "WasmApiFunctionRef");
+void WasmImportData::WasmImportDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmImportData");
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());

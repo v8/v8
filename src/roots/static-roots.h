@@ -242,7 +242,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kSourceTextModuleMap = 0x1e05;
   static constexpr Tagged_t kSyntheticModuleMap = 0x1e2d;
   static constexpr Tagged_t kGlobalConstTrackingLetCellMap = 0x1e55;
-  static constexpr Tagged_t kWasmApiFunctionRefMap = 0x1e7d;
+  static constexpr Tagged_t kWasmImportDataMap = 0x1e7d;
   static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1ea5;
   static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1ecd;
   static constexpr Tagged_t kWasmInternalFunctionMap = 0x1ef5;
@@ -876,7 +876,7 @@ static constexpr std::array<Tagged_t, 765> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSourceTextModuleMap,
     StaticReadOnlyRoot::kSwissNameDictionaryMap,
     StaticReadOnlyRoot::kSyntheticModuleMap,
-    StaticReadOnlyRoot::kWasmApiFunctionRefMap,
+    StaticReadOnlyRoot::kWasmImportDataMap,
     StaticReadOnlyRoot::kWasmCapiFunctionDataMap,
     StaticReadOnlyRoot::kWasmContinuationObjectMap,
     StaticReadOnlyRoot::kWasmDispatchTableMap,

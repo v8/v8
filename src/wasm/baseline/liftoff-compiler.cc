@@ -8656,7 +8656,7 @@ class LiftoffCompiler {
       SCOPED_CODE_COMMENT("Execute indirect call");
 
       // The first parameter will be either a WasmTrustedInstanceData or a
-      // WasmApiFunctionRef.
+      // WasmImportData.
       Register first_param = temps.Acquire(kGpReg).gp();
       Register target = temps.Acquire(kGpReg).gp();
 
@@ -8709,7 +8709,7 @@ class LiftoffCompiler {
 
         // CallIndirectIC(vector: FixedArray, vectorIndex: int32,
         //                target: RawPtr,
-        //                ref: WasmTrustedInstanceData|WasmApiFunctionRef)
+        //                ref: WasmTrustedInstanceData|WasmImportData)
         //               -> <target, ref>
         CallBuiltin(Builtin::kCallIndirectIC,
                     MakeSig::Returns(kIntPtrKind, kIntPtrKind)
@@ -8867,7 +8867,7 @@ class LiftoffCompiler {
           ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
           kWasmInternalFunctionIndirectPointerTag);
 
-      // Load "ref" (WasmTrustedInstanceData or WasmApiFunctionRef) and target.
+      // Load "ref" (WasmTrustedInstanceData or WasmImportData) and target.
       Register ref = first_param_reg;
       __ LoadProtectedPointer(ref, internal_function,
                               wasm::ObjectAccess::ToTagged(
@@ -8878,7 +8878,7 @@ class LiftoffCompiler {
                              WasmInternalFunction::kCallTargetOffset));
 
       // Now the call target is in {target_reg} and the first parameter
-      // (WasmTrustedInstanceData or WasmApiFunctionRef) is in
+      // (WasmTrustedInstanceData or WasmImportData) is in
       // {first_param_reg}.
     }  // inlining_enabled(decoder)
 

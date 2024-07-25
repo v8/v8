@@ -1519,7 +1519,7 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()),
       signature_hash);
-  i::Cast<i::WasmApiFunctionRef>(
+  i::Cast<i::WasmImportData>(
       function->shared()->wasm_capi_function_data()->internal()->ref())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
@@ -1771,9 +1771,9 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
     object_ref = i::handle(
         instance_data->dispatch_table_for_imports()->ref(function_index),
         isolate);
-    if (IsWasmApiFunctionRef(*object_ref)) {
+    if (IsWasmImportData(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
-          i::Cast<i::WasmApiFunctionRef>(*object_ref)->callable());
+          i::Cast<i::WasmImportData>(*object_ref)->callable());
       i::Tagged<i::Object> data = jsfunc->shared()->GetData(isolate);
       if (IsWasmCapiFunctionData(data)) {
         return CallWasmCapiFunction(i::Cast<i::WasmCapiFunctionData>(data),

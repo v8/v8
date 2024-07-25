@@ -14,9 +14,9 @@ extern runtime WasmAllocateSuspender(Context): JSAny;
 
 namespace wasm {
 extern builtin JSToWasmWrapperAsm(
-    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
-    RawPtr<intptr>, WasmApiFunctionRef|WasmTrustedInstanceData, JSAny): JSAny;
+    RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -496,8 +496,7 @@ macro JSToWasmWrapperHelper(
   }
 
   const sig = functionData.sig;
-  const ref: WasmApiFunctionRef|WasmTrustedInstanceData =
-      functionData.internal.ref;
+  const ref: WasmImportData|WasmTrustedInstanceData = functionData.internal.ref;
   const trustedInstanceData: WasmTrustedInstanceData =
       functionData.instance_data;
 

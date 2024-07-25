@@ -711,7 +711,7 @@ WellKnownImport CheckForWellKnownImport(
 
 }  // namespace
 
-WasmImportData::WasmImportData(
+ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
     uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
@@ -720,12 +720,12 @@ WasmImportData::WasmImportData(
                       expected_canonical_type_index, preknown_import);
 }
 
-void WasmImportData::SetCallable(Isolate* isolate,
-                                 Tagged<JSReceiver> callable) {
+void ResolvedWasmImport::SetCallable(Isolate* isolate,
+                                     Tagged<JSReceiver> callable) {
   SetCallable(isolate, handle(callable, isolate));
 }
-void WasmImportData::SetCallable(Isolate* isolate,
-                                 Handle<JSReceiver> callable) {
+void ResolvedWasmImport::SetCallable(Isolate* isolate,
+                                     Handle<JSReceiver> callable) {
   callable_ = callable;
   trusted_function_data_ = {};
   if (!IsJSFunction(*callable)) return;
@@ -735,7 +735,7 @@ void WasmImportData::SetCallable(Isolate* isolate,
   }
 }
 
-ImportCallKind WasmImportData::ComputeKind(
+ImportCallKind ResolvedWasmImport::ComputeKind(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     const wasm::FunctionSig* expected_sig,
     uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
@@ -1913,8 +1913,9 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t sig_index = module_->functions[func_index].sig_index;
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
-  WasmImportData resolved(trusted_instance_data, func_index, js_receiver,
-                          expected_sig, canonical_type_index, preknown_import);
+  ResolvedWasmImport resolved(trusted_instance_data, func_index, js_receiver,
+                              expected_sig, canonical_type_index,
+                              preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
@@ -2083,13 +2084,13 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     FunctionTargetAndRef entry(isolate_, target_instance_data, function_index);
     Handle<Object> ref = entry.ref();
-    if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
-      auto orig_ref = Cast<WasmApiFunctionRef>(ref);
-      Handle<WasmApiFunctionRef> new_ref =
-          isolate_->factory()->NewWasmApiFunctionRef(orig_ref);
+    if (v8_flags.wasm_to_js_generic_wrapper && IsWasmImportData(*ref)) {
+      auto orig_ref = Cast<WasmImportData>(ref);
+      Handle<WasmImportData> new_ref =
+          isolate_->factory()->NewWasmImportData(orig_ref);
       // TODO(42204563): Avoid crashing if the instance object is not available.
       CHECK(trusted_instance_data->has_instance_object());
-      WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
+      WasmImportData::SetCrossInstanceTableIndexAsCallOrigin(
           isolate_, new_ref,
           direct_handle(trusted_instance_data->instance_object(), isolate_), i);
       ref = new_ref;
@@ -2397,9 +2398,9 @@ void InstanceBuilder::CompileImportWrappers(
     uint32_t sig_index = module_->functions[func_index].sig_index;
     uint32_t canonical_type_index =
         module_->isorecursive_canonical_type_ids[sig_index];
-    WasmImportData resolved({}, func_index, js_receiver, sig,
-                            canonical_type_index,
-                            preknown_imports.get(func_index));
+    ResolvedWasmImport resolved({}, func_index, js_receiver, sig,
+                                canonical_type_index,
+                                preknown_imports.get(func_index));
     if (UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend())) {
       continue;
     }

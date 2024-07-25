@@ -611,8 +611,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmApiFunctionRef> ref(Cast<WasmApiFunctionRef>(args[0]),
-                                       isolate);
+  DirectHandle<WasmImportData> ref(Cast<WasmImportData>(args[0]), isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(ref->native_context());
@@ -668,14 +667,14 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   // Get the function's canonical signature index.
   uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
-  if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+  if (WasmImportData::CallOriginIsImportIndex(origin)) {
+    int func_index = WasmImportData::CallOriginAsIndex(origin);
     canonical_sig_index =
         module->isorecursive_canonical_type_ids[module->functions[func_index]
                                                     .sig_index];
   } else {
     // Indirect function table index.
-    int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+    int entry_index = WasmImportData::CallOriginAsIndex(origin);
     int table_count = trusted_data->dispatch_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
@@ -701,8 +700,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   wasm::NativeModule* native_module = trusted_data->native_module();
 
-  wasm::WasmImportData resolved({}, -1, callable, &sig, canonical_sig_index,
-                                wasm::WellKnownImport::kUninstantiated);
+  wasm::ResolvedWasmImport resolved({}, -1, callable, &sig, canonical_sig_index,
+                                    wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
@@ -748,13 +747,13 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     cache_scope[key] = wasm_code;
   }
 
-  if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+  if (WasmImportData::CallOriginIsImportIndex(origin)) {
+    int func_index = WasmImportData::CallOriginAsIndex(origin);
     ImportedFunctionEntry entry(trusted_data, func_index);
     entry.set_target(wasm_code->instruction_start());
   } else {
     // Indirect function table index.
-    int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+    int entry_index = WasmImportData::CallOriginAsIndex(origin);
     int table_count = trusted_data->dispatch_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {

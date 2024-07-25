@@ -85,9 +85,9 @@ constexpr ImportCallKind kDefaultImportCallKind =
 // suspender object if applicable. Note that some callables (e.g. a
 // {WasmExportedFunction} or {WasmJSFunction}) just wrap another target, which
 // is why the ultimate target is provided as well.
-class WasmImportData {
+class ResolvedWasmImport {
  public:
-  V8_EXPORT_PRIVATE WasmImportData(
+  V8_EXPORT_PRIVATE ResolvedWasmImport(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
       uint32_t expected_canonical_type_index, WellKnownImport preknown_import);

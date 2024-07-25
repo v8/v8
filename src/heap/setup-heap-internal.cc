@@ -742,8 +742,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_MAP(CONST_TRACKING_LET_CELL_TYPE, ConstTrackingLetCell::kSize,
                  global_const_tracking_let_cell)
 
-    IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
-            wasm_api_function_ref)
+    IF_WASM(ALLOCATE_MAP, WASM_IMPORT_DATA_TYPE, WasmImportData::kSize,
+            wasm_import_data)
     IF_WASM(ALLOCATE_MAP, WASM_CAPI_FUNCTION_DATA_TYPE,
             WasmCapiFunctionData::kSize, wasm_capi_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,

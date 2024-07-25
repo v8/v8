@@ -1126,13 +1126,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #if V8_ENABLE_WEBASSEMBLY
   // Returns WasmTrustedInstanceData|Smi.
-  TNode<Object> LoadInstanceDataFromWasmApiFunctionRef(
-      TNode<WasmApiFunctionRef> ref) {
+  TNode<Object> LoadInstanceDataFromWasmImportData(TNode<WasmImportData> ref) {
     return LoadProtectedPointerField(
-        ref, WasmApiFunctionRef::kProtectedInstanceDataOffset);
+        ref, WasmImportData::kProtectedInstanceDataOffset);
   }
 
-  // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
+  // Returns WasmImportData or WasmTrustedInstanceData.
   TNode<TrustedObject> LoadRefFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {
     TNode<Object> obj = LoadProtectedPointerField(
@@ -1141,7 +1140,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<HeapObject> ref = CAST(obj);
     CSA_DCHECK(this,
                Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
-                        HasInstanceType(ref, WASM_API_FUNCTION_REF_TYPE)));
+                        HasInstanceType(ref, WASM_IMPORT_DATA_TYPE)));
     return CAST(ref);
   }
 

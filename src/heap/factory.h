@@ -751,12 +751,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WasmInternalFunction> internal_function,
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
       int wrapper_budget, wasm::Promise promise);
-  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
+  Handle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
-  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
-      DirectHandle<WasmApiFunctionRef> ref);
+  Handle<WasmImportData> NewWasmImportData(DirectHandle<WasmImportData> ref);
 
   Handle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);

@@ -12,6 +12,7 @@
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
 
 namespace v8::internal::wasm {
@@ -542,9 +543,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       wasm_params[i] = (__ Parameter(1 + suspender_count + i, rep));
     }
 
-    V<Context> native_context = __ Load(
-        ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-        WasmApiFunctionRef::kNativeContextOffset);
+    V<Context> native_context = __ Load(ref, LoadOp::Kind::TaggedBase(),
+                                        MemoryRepresentation::TaggedPointer(),
+                                        WasmImportData::kNativeContextOffset);
 
     if (kind == wasm::ImportCallKind::kRuntimeTypeError) {
       // =======================================================================
@@ -571,7 +572,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     V<JSFunction> callable_node = __ Load(ref, LoadOp::Kind::TaggedBase(),
                                           MemoryRepresentation::TaggedPointer(),
-                                          WasmApiFunctionRef::kCallableOffset);
+                                          WasmImportData::kCallableOffset);
     OpIndex old_sp = BuildSwitchToTheCentralStackIfNeeded();
     BuildModifyThreadInWasmFlag(__ phase_zone(), false);
     OpIndex call = OpIndex::Invalid();
@@ -711,8 +712,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       offset += type.value_kind_size();
     }
 
-    V<Object> function_node = __ LoadTaggedField(
-        incoming_params[0], WasmApiFunctionRef::kCallableOffset);
+    V<Object> function_node =
+        __ LoadTaggedField(incoming_params[0], WasmImportData::kCallableOffset);
     V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
 #if V8_ENABLE_SANDBOX
     static constexpr int kOffset =
@@ -761,7 +762,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       V<Context> context =
           __ Load(incoming_params[0], LoadOp::Kind::TaggedBase(),
                   MemoryRepresentation::TaggedPointer(),
-                  WasmApiFunctionRef::kNativeContextOffset);
+                  WasmImportData::kNativeContextOffset);
       __ Call(call_target, {return_value, context}, ts_call_descriptor);
       __ Unreachable();
     }
@@ -1208,11 +1209,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildSuspend(OpIndex value, V<Object> suspender,
-                       V<Object> api_function_ref, OpIndex* old_sp) {
-    V<Context> native_context =
-        __ Load(api_function_ref, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::TaggedPointer(),
-                WasmApiFunctionRef::kNativeContextOffset);
+                       V<Object> import_data, OpIndex* old_sp) {
+    V<Context> native_context = __ Load(import_data, LoadOp::Kind::TaggedBase(),
+                                        MemoryRepresentation::TaggedPointer(),
+                                        WasmImportData::kNativeContextOffset);
     OpIndex active_suspender = LOAD_ROOT(ActiveSuspender);
 
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later

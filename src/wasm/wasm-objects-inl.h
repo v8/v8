@@ -41,7 +41,6 @@ namespace v8::internal {
 #include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(AsmWasmData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmApiFunctionRef)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
@@ -50,6 +49,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFuncRef)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmImportData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInternalFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
@@ -363,7 +363,7 @@ int WasmDispatchTable::capacity() const {
 inline Tagged<Object> WasmDispatchTable::ref(int index) const {
   DCHECK_LT(index, length());
   Tagged<Object> ref = ReadProtectedPointerField(OffsetOf(index) + kRefBias);
-  DCHECK(IsWasmTrustedInstanceData(ref) || IsWasmApiFunctionRef(ref) ||
+  DCHECK(IsWasmTrustedInstanceData(ref) || IsWasmImportData(ref) ||
          ref == Smi::zero());
   return ref;
 }
@@ -405,17 +405,17 @@ struct CastTraits<WasmExportedFunction> {
   }
 };
 
-// WasmApiFunctionRef
+// WasmImportData
 
-CODE_POINTER_ACCESSORS(WasmApiFunctionRef, code, kCodeOffset)
+CODE_POINTER_ACCESSORS(WasmImportData, code, kCodeOffset)
 
-PROTECTED_POINTER_ACCESSORS(WasmApiFunctionRef, instance_data,
+PROTECTED_POINTER_ACCESSORS(WasmImportData, instance_data,
                             WasmTrustedInstanceData,
                             kProtectedInstanceDataOffset)
 
 // WasmInternalFunction
 
-// {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
+// {ref} will be a WasmTrustedInstanceData or a WasmImportData.
 PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, TrustedObject,
                             kProtectedRefOffset)
 

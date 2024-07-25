@@ -318,7 +318,7 @@ class JSToWasmWrapperFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static constexpr int kResultArrayParamOffset = 2 * kSystemPointerSize;
-  // A WasmTrustedInstanceData or WasmApiFunctionRef depending on the callee.
+  // A WasmTrustedInstanceData or WasmImportData depending on the callee.
   static constexpr int kRefParamOffset = 3 * kSystemPointerSize;
 
   // Contains RawPtr to stack-allocated buffer.
@@ -377,7 +377,7 @@ class StackSwitchFrameConstants : public JSToWasmWrapperFrameConstants {
   // be scanned by the GC.
   static constexpr int kGCScanSlotCountOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  // Tagged pointer to WasmTrustedInstanceData or WasmApiFunctionRef.
+  // Tagged pointer to WasmTrustedInstanceData or WasmImportData.
   static constexpr int kRefOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   // Tagged pointer to a JS Array for result values.
   static constexpr int kResultArrayOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);

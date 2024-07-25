@@ -2975,21 +2975,19 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) { __ Trap(); }
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
   // Use t0 which is not in kGpParamRegisters.
   Register call_target = t0;
   UseScratchRegisterScope temps{masm};
   temps.Exclude(call_target);
 #ifdef V8_ENABLE_SANDBOX
   __ LoadCodeEntrypointViaCodePointer(
-      call_target,
-      FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset),
+      call_target, FieldMemOperand(import_data, WasmImportData::kCodeOffset),
       kWasmEntrypointTag);
 #else
   Register code = call_target;
-  __ Ld(code,
-        FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ Ld(code, FieldMemOperand(import_data, WasmImportData::kCodeOffset));
   __ Ld(call_target, FieldMemOperand(code, Code::kInstructionStartOffset));
 #endif
   __ Jump(call_target);

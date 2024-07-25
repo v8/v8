@@ -77,7 +77,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
   FunctionTargetAndRef(Isolate* isolate,
                        Handle<WasmTrustedInstanceData> target_instance_data,
                        int target_func_index);
-  // The "ref" will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
+  // The "ref" will be a WasmTrustedInstanceData or a WasmImportData.
   Handle<TrustedObject> ref() { return ref_; }
   Address call_target() { return call_target_; }
 
@@ -103,7 +103,7 @@ enum class OnResume : int { kContinue, kThrow };
 // call imported functions at runtime.
 // Each entry is either:
 //   - Wasm to JS, which has fields
-//      - object = a WasmApiFunctionRef
+//      - object = a WasmImportData
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
 //      - object = target instance data
@@ -115,7 +115,7 @@ class ImportedFunctionEntry {
   inline ImportedFunctionEntry(Handle<WasmTrustedInstanceData>, int index);
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
-  // parameter since it allocates a WasmApiFunctionRef.
+  // parameter since it allocates a WasmImportData.
   void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
                           wasm::Suspend suspend, const wasm::FunctionSig* sig);
   V8_EXPORT_PRIVATE void SetCompiledWasmToJs(
@@ -772,14 +772,14 @@ class WasmDispatchTable : public TrustedObject {
   inline int capacity() const;
 
   // Accessors.
-  // {ref} will be a WasmApiFunctionRef, a WasmInstanceObject, or Smi::zero()
+  // {ref} will be a WasmImportData, a WasmInstanceObject, or Smi::zero()
   // (if the entry was cleared).
   inline Tagged<Object> ref(int index) const;
   inline Address target(int index) const;
   inline int sig(int index) const;
 
   // Set an entry for indirect calls.
-  // {ref} has to be a WasmApiFunctionRef, a WasmInstanceObject, or Smi::zero().
+  // {ref} has to be a WasmImportData, a WasmInstanceObject, or Smi::zero().
   void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> ref, Address call_target,
                              int sig_id
 #if V8_ENABLE_DRUMBRAKE
@@ -793,7 +793,7 @@ class WasmDispatchTable : public TrustedObject {
 
   // Set an entry for an import. We check signatures statically there, so the
   // signature is not updated in the dispatch table.
-  // {ref} has to be a WasmApiFunctionRef or a WasmInstanceObject.
+  // {ref} has to be a WasmImportData or a WasmInstanceObject.
   void V8_EXPORT_PRIVATE SetForImport(int index, Tagged<TrustedObject> ref,
                                       Address call_target);
 
@@ -977,12 +977,11 @@ class WasmExportedFunctionData
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
 
-class WasmApiFunctionRef
-    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef,
-                                               TrustedObject> {
+class WasmImportData
+    : public TorqueGeneratedWasmImportData<WasmImportData, TrustedObject> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(WasmApiFunctionRef)
+  DECL_PRINTER(WasmImportData)
 
   DECL_CODE_POINTER_ACCESSORS(code)
 
@@ -990,7 +989,7 @@ class WasmApiFunctionRef
 
   static constexpr int kInvalidCallOrigin = 0;
 
-  static void SetImportIndexAsCallOrigin(DirectHandle<WasmApiFunctionRef> ref,
+  static void SetImportIndexAsCallOrigin(DirectHandle<WasmImportData> ref,
                                          int entry_index);
 
   static bool CallOriginIsImportIndex(DirectHandle<Object> call_origin);
@@ -999,22 +998,22 @@ class WasmApiFunctionRef
 
   static int CallOriginAsIndex(DirectHandle<Object> call_origin);
 
-  static void SetIndexInTableAsCallOrigin(DirectHandle<WasmApiFunctionRef> ref,
+  static void SetIndexInTableAsCallOrigin(DirectHandle<WasmImportData> ref,
                                           int entry_index);
 
   static void SetCrossInstanceTableIndexAsCallOrigin(
-      Isolate* isolate, DirectHandle<WasmApiFunctionRef> ref,
+      Isolate* isolate, DirectHandle<WasmImportData> ref,
       DirectHandle<WasmInstanceObject> instance_object, int entry_index);
 
-  static void SetFuncRefAsCallOrigin(DirectHandle<WasmApiFunctionRef> ref,
+  static void SetFuncRefAsCallOrigin(DirectHandle<WasmImportData> ref,
                                      DirectHandle<WasmFuncRef> func_ref);
 
   using BodyDescriptor =
-      StackedBodyDescriptor<FixedBodyDescriptorFor<WasmApiFunctionRef>,
+      StackedBodyDescriptor<FixedBodyDescriptorFor<WasmImportData>,
                             WithProtectedPointer<kProtectedInstanceDataOffset>,
                             WithStrongCodePointer<kCodeOffset>>;
 
-  TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
+  TQ_OBJECT_CONSTRUCTORS(WasmImportData)
 };
 
 class WasmInternalFunction

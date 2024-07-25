@@ -1660,12 +1660,12 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   return handle(result, isolate());
 }
 
-Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
+Handle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
-  Tagged<Map> map = *wasm_api_function_ref_map();
-  auto result = Cast<WasmApiFunctionRef>(AllocateRawWithImmortalMap(
+  Tagged<Map> map = *wasm_import_data_map();
+  auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(), AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   result->set_native_context(*isolate()->native_context());
@@ -1677,18 +1677,18 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     result->set_instance_data(*instance_data.ToHandleChecked());
   }
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
-  result->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
+  result->set_call_origin(Smi::FromInt(WasmImportData::kInvalidCallOrigin));
   result->set_sig(*serialized_sig);
   result->set_code(*BUILTIN_CODE(isolate(), Abort));
   return handle(result, isolate());
 }
 
-Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
-    DirectHandle<WasmApiFunctionRef> ref) {
-  return NewWasmApiFunctionRef(handle(ref->callable(), isolate()),
-                               static_cast<wasm::Suspend>(ref->suspend()),
-                               handle(ref->instance_data(), isolate()),
-                               handle(ref->sig(), isolate()));
+Handle<WasmImportData> Factory::NewWasmImportData(
+    DirectHandle<WasmImportData> ref) {
+  return NewWasmImportData(handle(ref->callable(), isolate()),
+                           static_cast<wasm::Suspend>(ref->suspend()),
+                           handle(ref->instance_data(), isolate()),
+                           handle(ref->sig(), isolate()));
 }
 
 Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
@@ -1713,7 +1713,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   {
     DisallowGarbageCollection no_gc;
     internal->set_call_target(kNullAddress);
-    DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
+    DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmImportData(*ref));
     internal->set_ref(*ref);
 #if V8_ENABLE_LEAPTIERING
     internal->set_signature_hash(signature_hash);
@@ -1745,14 +1745,14 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
-  DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+  DirectHandle<WasmImportData> ref = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(),
       serialized_sig);
 
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
-  WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
+  WasmImportData::SetFuncRefAsCallOrigin(ref, func_ref);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
       Cast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
@@ -1819,13 +1819,13 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     uintptr_t signature_hash) {
-  DirectHandle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+  DirectHandle<WasmImportData> ref = NewWasmImportData(
       undefined_value(), wasm::kNoSuspend,
       DirectHandle<WasmTrustedInstanceData>(), serialized_sig);
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(ref, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
-  WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
+  WasmImportData::SetFuncRefAsCallOrigin(ref, func_ref);
   internal->set_call_target(call_target);
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =

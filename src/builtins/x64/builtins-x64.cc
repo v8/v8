@@ -3324,7 +3324,7 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   SwitchStacks(masm, active_continuation, promise, return_value, context);
 }
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the ref's type, and places the result in the input register.
 void GetContextFromRef(MacroAssembler* masm, Register ref) {
   __ LoadTaggedField(kScratchRegister,
@@ -3333,8 +3333,8 @@ void GetContextFromRef(MacroAssembler* masm, Register ref) {
   Label instance;
   Label end;
   __ j(equal, &instance);
-  __ LoadTaggedField(
-      ref, FieldOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+  __ LoadTaggedField(ref,
+                     FieldOperand(ref, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
@@ -4085,19 +4085,18 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
 #ifdef V8_ENABLE_SANDBOX
   Register call_target = r11;  // Anything not in kGpParamRegisters.
   __ LoadCodeEntrypointViaCodePointer(
-      call_target,
-      FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset),
+      call_target, FieldOperand(import_data, WasmImportData::kCodeOffset),
       kWasmEntrypointTag);
   __ jmp(call_target);
 #else
   Register code = r11;  // Anything not in kGpParamRegisters.
-  __ LoadTaggedField(
-      code, FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ LoadTaggedField(code,
+                     FieldOperand(import_data, WasmImportData::kCodeOffset));
   __ jmp(FieldOperand(code, Code::kInstructionStartOffset));
 #endif
 }

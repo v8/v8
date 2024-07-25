@@ -699,7 +699,7 @@ macro UpdateCallRefOrIndirectIC(
 // used anywhere else; Liftoff uses the two returned values directly.
 struct TargetAndRef {
   target: RawPtr;
-  ref: WasmTrustedInstanceData|WasmApiFunctionRef;
+  ref: WasmTrustedInstanceData|WasmImportData;
 }
 
 builtin CallRefIC(
@@ -722,7 +722,7 @@ builtin CallRefIC(
 
 builtin CallIndirectIC(
     vector: FixedArray, vectorIndex: int32, target: RawPtr,
-    ref: WasmTrustedInstanceData|WasmApiFunctionRef): TargetAndRef {
+    ref: WasmTrustedInstanceData|WasmImportData): TargetAndRef {
   const truncatedTarget = SmiTag(Signed(Unsigned(target) & kSmiMaxValue));
   UpdateCallRefOrIndirectIC(
       vector, Convert<intptr>(vectorIndex), truncatedTarget);

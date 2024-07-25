@@ -7134,7 +7134,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   // Returns the call target and the ref (WasmTrustedInstanceData or
-  // WasmApiFunctionRef) for an indirect call.
+  // WasmImportData) for an indirect call.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, V<WordPtr> index_wordptr, CallIndirectImmediate imm,
       bool needs_type_or_null_check = true) {
@@ -7277,7 +7277,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   // Load the call target and ref (WasmTrustedInstanceData or
-  // WasmApiFunctionRef) from a function reference.
+  // WasmImportData) from a function reference.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>>
   BuildFunctionReferenceTargetAndRef(V<WasmFuncRef> func_ref, ValueType type,
                                      uint64_t expected_sig_hash) {

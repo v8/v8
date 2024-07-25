@@ -364,7 +364,7 @@ namespace internal {
   APPLY(V, AtomRegExpData, ATOM_REG_EXP_DATA)                              \
   APPLY(V, IrRegExpData, IR_REG_EXP_DATA)                                  \
   APPLY(V, RegExpData, REG_EXP_DATA)                                       \
-  IF_WASM(APPLY, V, WasmApiFunctionRef, WASM_API_FUNCTION_REF)             \
+  IF_WASM(APPLY, V, WasmImportData, WASM_IMPORT_DATA)                      \
   IF_WASM(APPLY, V, WasmCapiFunctionData, WASM_CAPI_FUNCTION_DATA)         \
   IF_WASM(APPLY, V, WasmDispatchTable, WASM_DISPATCH_TABLE)                \
   IF_WASM(APPLY, V, WasmExportedFunctionData, WASM_EXPORTED_FUNCTION_DATA) \

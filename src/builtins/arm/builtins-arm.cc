@@ -3231,7 +3231,7 @@ class RegisterAllocator {
 
 #define FREE_REG(Name) regs.Free(&Name);
 
-// Loads the context field of the WasmTrustedInstanceData or WasmApiFunctionRef
+// Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the ref's type, and places the result in the input register.
 void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
@@ -3240,7 +3240,7 @@ void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   Label end;
   __ b(eq, &instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmApiFunctionRef::kNativeContextOffset));
+      ref, FieldMemOperand(ref, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
@@ -4016,12 +4016,11 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 }  // namespace
 
 void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
-  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Load the code pointer from the WasmImportData and tail-call there.
+  Register import_data = wasm::kGpParamRegisters[0];
   UseScratchRegisterScope temps{masm};
   Register scratch = temps.Acquire();
-  __ Move(scratch,
-          FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ Move(scratch, FieldMemOperand(import_data, WasmImportData::kCodeOffset));
   __ Move(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
   __ Jump(scratch);
 }

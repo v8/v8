@@ -87,9 +87,9 @@ TestingModuleBuilder::TestingModuleBuilder(
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-    WasmImportData resolved({}, -1, maybe_import->js_function, sig,
-                            canonical_type_index,
-                            WellKnownImport::kUninstantiated);
+    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
+                                canonical_type_index,
+                                WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     WasmImportWrapperCache::ModificationScope cache_scope(
