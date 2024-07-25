@@ -1506,6 +1506,22 @@ void FunctionTemplate::SetClassName(Local<String> name) {
   info->set_class_name(*Utils::OpenDirectHandle(*name));
 }
 
+void FunctionTemplate::SetInterfaceName(Local<String> name) {
+  auto info = Utils::OpenDirectHandle(this);
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetInterfaceName");
+  i::Isolate* i_isolate = info->GetIsolateChecked();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  info->set_interface_name(*Utils::OpenDirectHandle(*name));
+}
+
+void FunctionTemplate::SetExceptionContext(ExceptionContext context) {
+  auto info = Utils::OpenDirectHandle(this);
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetExceptionContext");
+  i::Isolate* i_isolate = info->GetIsolateChecked();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  info->set_exception_context(static_cast<uint32_t>(context));
+}
+
 void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetAcceptAnyReceiver");

@@ -4469,6 +4469,7 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     ReadOnlyRoots roots(isolate());
     InitializeTemplate(raw, roots, do_not_cache);
     raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_interface_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_signature(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_rare_data(roots.undefined_value(), kReleaseStore,
                        SKIP_WRITE_BARRIER);
@@ -4479,6 +4480,8 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     raw->set_undetectable(false);
     raw->set_needs_access_check(false);
     raw->set_accept_any_receiver(true);
+    raw->set_exception_context(
+        static_cast<uint32_t>(ExceptionContext::kUnknown));
 
     raw->set_length(length);
     raw->SetInstanceType(0);

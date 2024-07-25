@@ -7,6 +7,7 @@
 
 #include <string_view>
 
+#include "include/v8-exception.h"
 #include "include/v8-memory-span.h"
 #include "src/handles/handles.h"
 #include "src/objects/contexts.h"

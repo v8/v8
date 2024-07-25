@@ -4778,7 +4778,13 @@ void Isolate::ReportExceptionFunctionCallback(
           ? factory()->empty_string()
           : Handle<String>(Cast<String>(function->class_name()), this);
   Handle<String> interface_name =
-      JSReceiver::GetConstructorName(this, receiver);
+      IsUndefined(function->interface_name(), this)
+          ? factory()->empty_string()
+          : Handle<String>(Cast<String>(function->interface_name()), this);
+  if (exception_context != ExceptionContext::kConstructor) {
+    exception_context =
+        static_cast<ExceptionContext>(function->exception_context());
+  }
 
   {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
