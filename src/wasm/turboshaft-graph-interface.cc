@@ -5483,7 +5483,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // Default ctor and later initialization for function returns.
     explicit BlockPhis(Zone* zone) : incoming_exceptions_(zone) {}
-    void InitReturnPhis(base::iterator_range<const ValueType*> return_types,
+    void InitReturnPhis(base::Vector<const ValueType> return_types,
                         InstanceCache& instance_cache) {
       // For `return_phis_`, nobody should have inserted into `this` before
       // calling `InitReturnPhis`.
