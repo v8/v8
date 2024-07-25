@@ -2275,13 +2275,6 @@
 }], # third_party_heap
 
 ##############################################################################
-['arch != x64 or gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
-  # TODO(nicohartmann@): Instruction selection on turboshaft graph is
-  # currently only supported on x64.
-  'turboshaft/turboshaft-instruction-selection': [SKIP],
-}],  # arch != x64 or gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
-
-##############################################################################
 ['(arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64) or (simulator_run and conservative_stack_scanning)', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'wasm/stack-switching': [SKIP],
