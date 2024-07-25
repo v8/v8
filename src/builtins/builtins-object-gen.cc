@@ -17,6 +17,7 @@
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -485,31 +486,78 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     GotoIfNot(TaggedEqual(LoadElements(CAST(to)), EmptyFixedArrayConstant()),
               &slow_path);
 
+    Label continue_fast_path(this), runtime_map_lookup(this, Label::kDeferred);
+
     // Check if our particular source->target combination is fast clonable.
     // E.g., this ensures that we only have fast properties and in general that
     // the binary layout is compatible for `FastCloneJSObject`.
-    // TODO(olivf): Add a fastcase to read the cached target map from the
-    // transition array without going through the runtime.
-    Label continue_fast_path(this);
+    // If suche a clone map exists then it can be found in the transition array
+    // with object_assign_clone_transition_symbol as a key. If this transition
+    // slot is cleared, then the map is not clonable. If the key is missing
+    // from the transitions we rely on the runtime function
+    // ObjectAssignTryFastcase that does the actual computation.
+    TVARIABLE(Map, clone_map);
+    {
+      // First check if we have a transition array.
+      TNode<MaybeObject> maybe_transitions = LoadMaybeWeakObjectField(
+          from_map, Map::kTransitionsOrPrototypeInfoOffset);
+      TNode<HeapObject> maybe_transitions2 =
+          GetHeapObjectIfStrong(maybe_transitions, &runtime_map_lookup);
+      GotoIfNot(IsTransitionArrayMap(LoadMap(maybe_transitions2)),
+                &runtime_map_lookup);
+      TNode<WeakFixedArray> transitions = CAST(maybe_transitions2);
+      TNode<Object> side_step_transitions = CAST(LoadWeakFixedArrayElement(
+          transitions,
+          IntPtrConstant(TransitionArray::kSideStepTransitionsIndex)));
+      GotoIf(TaggedIsSmi(side_step_transitions), &runtime_map_lookup);
+      TNode<MaybeObject> maybe_target_map = LoadWeakFixedArrayElement(
+          CAST(side_step_transitions),
+          IntPtrConstant(SideStepTransition::index_of(
+              SideStepTransition::Kind::kObjectAssign)));
+      GotoIf(TaggedEqual(maybe_target_map,
+                         SmiConstant(SideStepTransition::Unreachable)),
+             &slow_path);
+      GotoIf(
+          TaggedEqual(maybe_target_map, SmiConstant(SideStepTransition::Empty)),
+          &runtime_map_lookup);
+      TNode<Map> target_map =
+          CAST(GetHeapObjectAssumeWeak(maybe_target_map, &runtime_map_lookup));
+      GotoIf(IsDeprecatedMap(target_map), &runtime_map_lookup);
+      TNode<MaybeObject> maybe_validity_cell = LoadWeakFixedArrayElement(
+          CAST(side_step_transitions),
+          IntPtrConstant(SideStepTransition::index_of(
+              SideStepTransition::Kind::kObjectAssignValidityCell)));
+      TNode<Cell> validity_cell = CAST(
+          GetHeapObjectAssumeWeak(maybe_validity_cell, &runtime_map_lookup));
+      GotoIfNot(TaggedEqual(LoadCellValue(validity_cell),
+                            SmiConstant(Map::kPrototypeChainValid)),
+                &runtime_map_lookup);
+      clone_map = target_map;
+    }
+    Goto(&continue_fast_path);
+
+    BIND(&runtime_map_lookup);
     TNode<HeapObject> maybe_clone_map =
         CAST(CallRuntime(Runtime::kObjectAssignTryFastcase, context, from, to));
     GotoIf(TaggedEqual(maybe_clone_map, UndefinedConstant()), &slow_path);
     GotoIf(TaggedEqual(maybe_clone_map, TrueConstant()), &done_fast_path);
     CSA_DCHECK(this, IsMap(maybe_clone_map));
+    clone_map = CAST(maybe_clone_map);
     Goto(&continue_fast_path);
 
     BIND(&continue_fast_path);
-    TNode<Map> clone_map = CAST(maybe_clone_map);
-    CSA_DCHECK(this, IntPtrEqual(LoadMapInstanceSizeInWords(to_map),
-                                 LoadMapInstanceSizeInWords(clone_map)));
     CSA_DCHECK(this,
-               IntPtrEqual(LoadMapInobjectPropertiesStartInWords(to_map),
-                           LoadMapInobjectPropertiesStartInWords(clone_map)));
+               IntPtrEqual(LoadMapInstanceSizeInWords(to_map),
+                           LoadMapInstanceSizeInWords(clone_map.value())));
+    CSA_DCHECK(
+        this,
+        IntPtrEqual(LoadMapInobjectPropertiesStartInWords(to_map),
+                    LoadMapInobjectPropertiesStartInWords(clone_map.value())));
     FastCloneJSObject(
-        from, from_map, clone_map,
+        from, from_map, clone_map.value(),
         [&](TNode<Map> map, TNode<HeapObject> properties,
             TNode<FixedArray> elements) {
-          StoreMap(to, clone_map);
+          StoreMap(to, clone_map.value());
           StoreJSReceiverPropertiesOrHash(to, properties);
           StoreJSObjectElements(CAST(to), elements);
           return to;

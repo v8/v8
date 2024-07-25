@@ -53,6 +53,7 @@ struct SideStepTransition {
       static_cast<uint32_t>(Kind::kObjectAssign);
   friend class TransitionsAccessor;
   friend class TransitionArray;
+  friend class ObjectAssignAssembler;
 };
 
 std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep);
