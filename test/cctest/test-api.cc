@@ -27945,8 +27945,8 @@ struct BasicApiChecker {
     CHECK_EQ(Local<v8::Number>::Cast(options.data)->Value(), 42.5);
     return Impl::FastCallback(receiver, argument, options);
   }
-  static Ret FastCallbackNoFallback(v8::Local<v8::Object> receiver,
-                                    Value argument) {
+  static Ret FastCallbackNoOptions(v8::Local<v8::Object> receiver,
+                                   Value argument) {
     v8::FastApiCallbackOptions options =
         v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
     return Impl::FastCallback(receiver, argument, options);
@@ -27982,8 +27982,8 @@ static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
 }
 template <typename Value, typename Impl, typename Ret,
           typename = std::enable_if_t<!std::is_void<Ret>::value>>
-static v8::AnyCType FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
-                                                  v8::AnyCType argument) {
+static v8::AnyCType FastCallbackNoOptionsWrapper(v8::AnyCType receiver,
+                                                 v8::AnyCType argument) {
   v8::FastApiCallbackOptions options =
       v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
   v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
@@ -28000,8 +28000,8 @@ static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
 }
 template <typename Value, typename Impl, typename Ret,
           typename = std::enable_if_t<std::is_void<Ret>::value>>
-static void FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
-                                          v8::AnyCType argument) {
+static void FastCallbackNoOptionsWrapper(v8::AnyCType receiver,
+                                         v8::AnyCType argument) {
   v8::FastApiCallbackOptions options =
       v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
   return Impl::FastCallback(receiver.object_value,
@@ -28130,7 +28130,7 @@ struct ApiObjectChecker
 template <typename Value, typename Impl, typename Ret>
 bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
                BasicApiChecker<Value, Impl, Ret>* checker,
-               const char* source_code, bool supports_fallback = true,
+               const char* source_code, bool has_options = true,
                bool accept_any_receiver = true, bool setup_try_catch = true) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::base::Optional<v8::TryCatch> try_catch;
@@ -28139,7 +28139,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   }
 
   v8::CFunction c_func;
-  if (supports_fallback) {
+  if (has_options) {
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func =
         v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
@@ -28151,11 +28151,11 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   } else {
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func = v8::CFunction::Make(
-        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback,
-        FastCallbackNoFallbackWrapper<Value, Impl, Ret>);
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions,
+        FastCallbackNoOptionsWrapper<Value, Impl, Ret>);
 #else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func = v8::CFunction::Make(
-        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback);
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions);
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
@@ -28323,7 +28323,7 @@ void CallAndCheck(T expected_value, Behavior expected_behavior,
   }
   if (expected_path == ApiCheckerResult::kFastCalled) {
     if (checker.DidCallSlow()) {
-      error_msg << "Default path was called when no fallback was expected. ";
+      error_msg << "Default path was called when fast path was expected. ";
     }
   }
   if (error_msg.str().length() > 0) {
@@ -28596,7 +28596,7 @@ void CallAndDeopt() {
   CHECK(ifunction->HasAttachedOptimizedCode(CcTest::i_isolate()));
 }
 
-void CallNoFallback(int32_t expected_value) {
+void CallNoOptions(int32_t expected_value) {
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
   ApiNumberChecker<int32_t> checker(expected_value, Behavior::kNoException);
@@ -29394,24 +29394,18 @@ TEST(FastApiCalls) {
   // Check for the deopt loop protection
   CallAndDeopt();
 
-  // Test callbacks without a fallback support
-  CallNoFallback(42);
+  // Test callbacks without options
+  CallNoOptions(42);
 
   // Test callback requesting access checks
   CallNoConvertReceiver(42);
 
   CheckDynamicTypeInfo();
 
-  // Fallback to slow call and throw an exception.
+  // Throw an exception.
   CallAndCheck<int32_t>(42, Behavior::kException, ApiCheckerResult::kFastCalled,
                         v8_num(42), Behavior::kException);
 
-  // Fallback to slow call and don't throw an exception.
-  CallAndCheck<int32_t>(43, Behavior::kNoException,
-                        ApiCheckerResult::kFastCalled, v8_num(43),
-                        Behavior::kNoException);
-
-  // Doesn't fallback to slow call, so don't throw an exception.
   CallAndCheck<int32_t>(44, Behavior::kNoException,
                         ApiCheckerResult::kFastCalled, v8_num(44),
                         Behavior::kNoException);

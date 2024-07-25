@@ -348,14 +348,8 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    static_assert(kSize == sizeof(uintptr_t) * 3);
+    static_assert(kSize == sizeof(uintptr_t) * 2);
     stack_slot = __ StackSlot(kSize, kAlign);
-
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
@@ -405,25 +399,11 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  if (c_signature->HasOptions()) {
-    DCHECK_NOT_NULL(stack_slot);
-    Node* load = __ Load(
-        MachineType::Int32(), stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+  __ Goto(&if_success);
 
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    __ Branch(is_zero, &if_success, &if_error);
-  } else {
-    __ Goto(&if_success);
-  }
-
-  // We need to generate a fallback (both fast and slow call) in case:
-  // 1) the generated code might fail, in case e.g. a Smi was passed where
-  // a JSObject was expected and an error must be thrown or
-  // 2) the embedder requested fallback possibility via providing options arg.
-  // None of the above usually holds true for Wasm functions with primitive
-  // types only, so we avoid generating an extra branch here.
-  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
+  // We need to generate a fallback (both fast and slow call) in case
+  // the generated code might fail, in case e.g. a Smi was passed where
+  // a JSObject was expected and an error must be thrown
   if (if_error.IsUsed()) {
     // Generate direct slow call.
     __ Bind(&if_error);
