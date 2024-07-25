@@ -4434,9 +4434,13 @@ void Compiler::PostInstantiation(Isolate* isolate, Handle<JSFunction> function,
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
                  "ScriptCompiled", "data",
                  AddScriptCompiledTrace(isolate, shared));
-    TRACE_EVENT1(
+    bool tracing_enabled;
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(
         TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "ScriptCompiled", "data", AddScriptSourceTextTrace(isolate, shared));
+        &tracing_enabled);
+    if (tracing_enabled) {
+      EmitScriptSourceTextTrace(isolate, shared);
+    }
   }
 }
 
@@ -4480,19 +4484,45 @@ std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
   return value;
 }
 
-std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptSourceTextTrace(
+void Compiler::EmitScriptSourceTextTrace(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
-  auto value = v8::tracing::TracedValue::Create();
-  value->SetString("isolate",
-                   std::to_string(reinterpret_cast<size_t>(isolate)));
-  value->SetInteger("scriptId", script->id());
   if (IsString(script->source())) {
     Tagged<String> source = i::Cast<i::String>(script->source());
-    value->SetInteger("length", source->length());
-    value->SetString("sourceText", source->ToCString().get());
+    auto script_id = script->id();
+    auto isolate_string = std::to_string(reinterpret_cast<size_t>(isolate));
+    int32_t source_length = source->length();
+    const int32_t kSplitMaxLength = 1000000;
+    if (source_length <= kSplitMaxLength) {
+      auto value = v8::tracing::TracedValue::Create();
+      value->SetString("isolate", isolate_string);
+      value->SetInteger("scriptId", script_id);
+      value->SetInteger("length", source_length);
+      value->SetString("sourceText", source->ToCString().get());
+      TRACE_EVENT1(
+          TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+          "ScriptCompiled", "data", std::move(value));
+    } else {
+      Handle<String> handle_source(source, isolate);
+      int32_t split_count = source_length / kSplitMaxLength + 1;
+      for (int32_t i = 0; i < split_count; i++) {
+        int32_t begin = i * kSplitMaxLength;
+        int32_t end = std::min(begin + kSplitMaxLength, source_length);
+        Handle<String> partial_source =
+            isolate->factory()->NewSubString(handle_source, begin, end);
+        auto split_trace_value = v8::tracing::TracedValue::Create();
+        split_trace_value->SetInteger("splitIndex", i);
+        split_trace_value->SetInteger("splitCount", split_count);
+        split_trace_value->SetString("isolate", isolate_string);
+        split_trace_value->SetInteger("scriptId", script_id);
+        split_trace_value->SetString("sourceText",
+                                     partial_source->ToCString().get());
+        TRACE_EVENT1(
+            TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+            "LargeScriptCompiledSplits", "data", std::move(split_trace_value));
+      }
+    }
   }
-  return value;
 }
 
 // ----------------------------------------------------------------------------

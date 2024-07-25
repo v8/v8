@@ -276,7 +276,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  private:
   static std::unique_ptr<v8::tracing::TracedValue> AddScriptCompiledTrace(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
-  static std::unique_ptr<v8::tracing::TracedValue> AddScriptSourceTextTrace(
+  static void EmitScriptSourceTextTrace(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 };
 
