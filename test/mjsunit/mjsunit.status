@@ -459,6 +459,7 @@
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
 
+  'maglev/regress-355256380': [SKIP],
   'sandbox/regress/regress-334120897': [SKIP],
 
   # Tests tracing when generating wasm in TurboFan.
