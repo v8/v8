@@ -9618,7 +9618,9 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
       // might be a different object each time, so it's much simpler to include
       // {prototype}. That does, however, mean that we must check {prototype}'s
       // map stability.
-      if (!prototype.map(broker()).is_stable()) return kMayBeInPrototypeChain;
+      if (!prototype.IsJSObject() || !prototype.map(broker()).is_stable()) {
+        return kMayBeInPrototypeChain;
+      }
       last_prototype = prototype.AsJSObject();
     }
     broker()->dependencies()->DependOnStablePrototypeChains(
