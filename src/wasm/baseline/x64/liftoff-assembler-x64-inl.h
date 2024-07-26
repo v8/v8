@@ -4223,20 +4223,43 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
+    return false;
+  }
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtps2ph(dst.fp(), src.fp(), 0);
+  vpbroadcastw(dst.fp(), dst.fp());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
+    return false;
+  }
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  Pextrw(kScratchRegister, lhs.fp(), imm_lane_idx);
+  vmovd(dst.fp(), kScratchRegister);
+  vcvtph2ps(dst.fp(), dst.fp());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
+    return false;
+  }
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  vcvtps2ph(kScratchDoubleReg, src2.fp(), 0);
+  vmovd(kScratchRegister, kScratchDoubleReg);
+  vpinsrw(dst.fp(), src1.fp(), kScratchRegister, imm_lane_idx);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_abs(LiftoffRegister dst,
