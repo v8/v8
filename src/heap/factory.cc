@@ -1703,7 +1703,7 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<TrustedObject> ref, int function_index,
+    DirectHandle<TrustedObject> implicit_arg, int function_index,
     uintptr_t signature_hash) {
   Tagged<WasmInternalFunction> internal =
       Cast<WasmInternalFunction>(AllocateRawWithImmortalMap(
@@ -1713,8 +1713,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   {
     DisallowGarbageCollection no_gc;
     internal->set_call_target(kNullAddress);
-    DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmImportData(*ref));
-    internal->set_ref(*ref);
+    DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
+           IsWasmImportData(*implicit_arg));
+    internal->set_implicit_arg(*implicit_arg);
 #if V8_ENABLE_LEAPTIERING
     internal->set_signature_hash(signature_hash);
 #endif  // V8_ENABLE_LEAPTIERING

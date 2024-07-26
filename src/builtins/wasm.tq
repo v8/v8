@@ -719,7 +719,7 @@ builtin CallRefIC(
   }
   return TargetAndImplicitArg{
     target: internal.call_target,
-    implicit_arg: internal.ref
+    implicit_arg: internal.implicit_arg
   };
 }
 

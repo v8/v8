@@ -418,9 +418,9 @@ PROTECTED_POINTER_ACCESSORS(WasmImportData, instance_data,
 
 // WasmInternalFunction
 
-// {ref} will be a WasmTrustedInstanceData or a WasmImportData.
-PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, TrustedObject,
-                            kProtectedRefOffset)
+// {implicit_arg} will be a WasmTrustedInstanceData or a WasmImportData.
+PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, implicit_arg, TrustedObject,
+                            kProtectedImplicitArgOffset)
 
 // WasmFuncRef
 TRUSTED_POINTER_ACCESSORS(WasmFuncRef, internal, WasmInternalFunction,

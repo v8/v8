@@ -631,11 +631,13 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    Tagged<HeapObject> ref =
-        capi_function->shared()->wasm_capi_function_data()->internal()->ref();
+    Tagged<HeapObject> implicit_arg = capi_function->shared()
+                                          ->wasm_capi_function_data()
+                                          ->internal()
+                                          ->implicit_arg();
     Address call_target = wasm_code->instruction_start();
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, ref, call_target, canonical_type_index
+        ->Set(entry_index, implicit_arg, call_target, canonical_type_index
 #if V8_ENABLE_DRUMBRAKE
               ,
               WasmDispatchTable::kInvalidFunctionIndex
@@ -1716,16 +1718,17 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   }
 
   // {this} can either be:
-  // - a declared function, i.e. {ref()} is a WasmTrustedInstanceData,
-  // - or an imported callable, i.e. {ref()} is a WasmImportData which
+  // - a declared function, i.e. {implicit_arg()} is a WasmTrustedInstanceData,
+  // - or an imported callable, i.e. {implicit_arg()} is a WasmImportData which
   //   refers to the imported instance.
   // It cannot be a JS/C API function as for those, the external function is set
   // at creation.
-  DirectHandle<TrustedObject> ref{internal->ref(), isolate};
+  DirectHandle<TrustedObject> implicit_arg{internal->implicit_arg(), isolate};
   DirectHandle<WasmTrustedInstanceData> instance_data =
-      IsWasmTrustedInstanceData(*ref)
-          ? Cast<WasmTrustedInstanceData>(ref)
-          : direct_handle(Cast<WasmImportData>(*ref)->instance_data(), isolate);
+      IsWasmTrustedInstanceData(*implicit_arg)
+          ? Cast<WasmTrustedInstanceData>(implicit_arg)
+          : direct_handle(Cast<WasmImportData>(*implicit_arg)->instance_data(),
+                          isolate);
   const WasmModule* module = instance_data->module();
   const WasmFunction& function = module->functions[internal->function_index()];
   uint32_t canonical_sig_index =
@@ -2708,7 +2711,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                              expected_arity, suspend)
                 .ToHandleChecked();
         DirectHandle<WasmImportData> import_data{
-            Cast<WasmImportData>(internal_function->ref()), isolate};
+            Cast<WasmImportData>(internal_function->implicit_arg()), isolate};
         import_data->set_code(*wrapper_code);
         internal_function->set_call_target(Builtins::EntryOf(
             Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
@@ -2736,12 +2739,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 }
 
 Tagged<JSReceiver> WasmJSFunctionData::GetCallable() const {
-  return Cast<JSReceiver>(Cast<WasmImportData>(internal()->ref())->callable());
+  return Cast<JSReceiver>(
+      Cast<WasmImportData>(internal()->implicit_arg())->callable());
 }
 
 wasm::Suspend WasmJSFunctionData::GetSuspend() const {
   return static_cast<wasm::Suspend>(
-      Cast<WasmImportData>(internal()->ref())->suspend());
+      Cast<WasmImportData>(internal()->implicit_arg())->suspend());
 }
 
 const wasm::FunctionSig* WasmJSFunctionData::GetSignature() const {

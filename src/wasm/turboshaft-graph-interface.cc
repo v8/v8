@@ -235,7 +235,7 @@ WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
   V<ExposedTrustedObject> implicit_arg =
       V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
           internal_function, LoadOp::Kind::TaggedBase().Immutable(),
-          WasmInternalFunction::kProtectedRefOffset));
+          WasmInternalFunction::kProtectedImplicitArgOffset));
 
 #if V8_ENABLE_SANDBOX
   V<Word64> actual_sig_hash =

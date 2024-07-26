@@ -1520,7 +1520,7 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()),
       signature_hash);
   i::Cast<i::WasmImportData>(
-      function->shared()->wasm_capi_function_data()->internal()->ref())
+      function->shared()->wasm_capi_function_data()->internal()->implicit_arg())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;

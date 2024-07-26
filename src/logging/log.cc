@@ -2108,7 +2108,7 @@ EnumerateCompiledFunctions(Heap* heap) {
         Tagged<WasmInternalFunction> internal_function =
             function->shared()->wasm_js_function_data()->internal();
         Tagged<WasmImportData> import_data =
-            Cast<WasmImportData>(internal_function->ref());
+            Cast<WasmImportData>(internal_function->implicit_arg());
         record(function->shared(),
                Cast<AbstractCode>(import_data->code(isolate)));
 #endif  // V8_ENABLE_WEBASSEMBLY

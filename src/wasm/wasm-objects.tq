@@ -53,12 +53,13 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // target instance data (for wasm functions), or a WasmImportData object (for
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
-  // Torque code should use the '.ref' macro to access the value.
-  // TODO(clemensb): Rename this to "implicit_arg".
-  protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
+  // Torque code should use the '.implicit_arg' macro to access the value.
+  protected_implicit_arg:
+      ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
-  // The function index if ref is a WasmTrustedInstanceData, -1 otherwise.
+  // The function index if implicit_arg is a WasmTrustedInstanceData, -1
+  // otherwise.
   function_index: Smi;
   // The call target, stored as raw pointer in this trusted object.
   call_target: RawPtr;
@@ -69,7 +70,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   @if(V8_ENABLE_SANDBOX) signature_hash: uintptr;
 }
 
-extern operator '.ref' macro LoadRefFromWasmInternalFunction(
+extern operator '.implicit_arg' macro LoadImplicitArgFromWasmInternalFunction(
     WasmInternalFunction): WasmTrustedInstanceData|WasmImportData;
 
 // WasmFuncRef is the type of function references. They are stored on-heap and
@@ -102,7 +103,7 @@ extern operator '.internal' macro LoadWasmInternalFunctionFromFunctionData(
 extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of
   // imported and re-exported functions is different from the instance
-  // where the function is defined -- for the latter see WasmFunctionData::ref).
+  // where the function is defined).
   protected_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
   function_index: Smi;
   // Contains a Smi; boxed so that generated code can update the value.

@@ -515,7 +515,7 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
 
 struct Fp16Printer {
   uint16_t val;
-  Fp16Printer(float f) : val(fp16_ieee_from_fp32_value(f)) {}
+  explicit Fp16Printer(float f) : val(fp16_ieee_from_fp32_value(f)) {}
   operator float() const { return fp16_ieee_to_fp32_value(val); }
 };
 
@@ -531,7 +531,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
   }
 
   ElementType previous_value = data_ptr[0];
-  ElementType value = 0;
+  ElementType value{0};
   for (size_t i = 1; i <= length; i++) {
     if (i < length) value = data_ptr[i];
     if (i != length && previous_value == value) {
@@ -2778,7 +2778,7 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   os << "\n - call target: " << reinterpret_cast<void*>(call_target());
-  os << "\n - ref: " << Brief(ref());
+  os << "\n - implicit arg: " << Brief(implicit_arg());
   os << "\n - external: " << Brief(external());
   os << "\n";
 }

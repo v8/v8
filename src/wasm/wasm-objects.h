@@ -1030,7 +1030,7 @@ class WasmInternalFunction
   V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
       DirectHandle<WasmInternalFunction> internal);
 
-  DECL_PROTECTED_POINTER_ACCESSORS(ref, TrustedObject)
+  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
@@ -1038,7 +1038,7 @@ class WasmInternalFunction
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<
           WasmInternalFunction, kWasmInternalFunctionIndirectPointerTag>,
-      WithProtectedPointer<kProtectedRefOffset>>;
+      WithProtectedPointer<kProtectedImplicitArgOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
 };

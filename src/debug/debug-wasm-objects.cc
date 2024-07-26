@@ -1094,9 +1094,9 @@ Handle<WasmValueObject> WasmValueObject::New(
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            IsWasmTrustedInstanceData(internal_fct->ref())) {
+            IsWasmTrustedInstanceData(internal_fct->implicit_arg())) {
           module_object =
-              handle(Cast<WasmTrustedInstanceData>(internal_fct->ref())
+              handle(Cast<WasmTrustedInstanceData>(internal_fct->implicit_arg())
                          ->module_object(),
                      isolate);
         }

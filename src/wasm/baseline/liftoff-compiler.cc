@@ -8804,7 +8804,7 @@ class LiftoffCompiler {
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     Register target_reg = no_reg;
-    Register first_param_reg = no_reg;
+    Register implicit_arg_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
       if (v8_flags.wasm_deopt &&
@@ -8849,7 +8849,7 @@ class LiftoffCompiler {
                   {vector_var, index_var, sig_hash_var, func_ref_var},
                   decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
-      first_param_reg = kReturnRegister1;
+      implicit_arg_reg = kReturnRegister1;
     } else {  // inlining_enabled(decoder)
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
@@ -8860,7 +8860,7 @@ class LiftoffCompiler {
       LiftoffRegList pinned;
       Register func_ref = pinned.set(__ PopToModifiableRegister(pinned)).gp();
       MaybeEmitNullCheck(decoder, func_ref, pinned, func_ref_type);
-      first_param_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      implicit_arg_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       target_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
       // Load the WasmInternalFunction from the WasmFuncRef.
@@ -8870,11 +8870,12 @@ class LiftoffCompiler {
           ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
           kWasmInternalFunctionIndirectPointerTag);
 
-      // Load "ref" (WasmTrustedInstanceData or WasmImportData) and target.
-      Register ref = first_param_reg;
-      __ LoadProtectedPointer(ref, internal_function,
-                              wasm::ObjectAccess::ToTagged(
-                                  WasmInternalFunction::kProtectedRefOffset));
+      // Load the implicit argument (WasmTrustedInstanceData or WasmImportData)
+      // and target.
+      __ LoadProtectedPointer(
+          implicit_arg_reg, internal_function,
+          wasm::ObjectAccess::ToTagged(
+              WasmInternalFunction::kProtectedImplicitArgOffset));
 
       __ LoadFullPointer(target_reg, internal_function,
                          wasm::ObjectAccess::ToTagged(
@@ -8882,10 +8883,10 @@ class LiftoffCompiler {
 
       // Now the call target is in {target_reg} and the first parameter
       // (WasmTrustedInstanceData or WasmImportData) is in
-      // {first_param_reg}.
+      // {implicit_arg_reg}.
     }  // inlining_enabled(decoder)
 
-    __ PrepareCall(&sig, call_descriptor, &target_reg, first_param_reg);
+    __ PrepareCall(&sig, call_descriptor, &target_reg, implicit_arg_reg);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),

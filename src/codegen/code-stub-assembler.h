@@ -1138,16 +1138,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
-  TNode<TrustedObject> LoadRefFromWasmInternalFunction(
+  TNode<TrustedObject> LoadImplicitArgFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {
     TNode<Object> obj = LoadProtectedPointerField(
-        object, WasmInternalFunction::kProtectedRefOffset);
+        object, WasmInternalFunction::kProtectedImplicitArgOffset);
     CSA_DCHECK(this, TaggedIsNotSmi(obj));
-    TNode<HeapObject> ref = CAST(obj);
-    CSA_DCHECK(this,
-               Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
-                        HasInstanceType(ref, WASM_IMPORT_DATA_TYPE)));
-    return CAST(ref);
+    TNode<HeapObject> implicit_arg = CAST(obj);
+    CSA_DCHECK(
+        this,
+        Word32Or(HasInstanceType(implicit_arg, WASM_TRUSTED_INSTANCE_DATA_TYPE),
+                 HasInstanceType(implicit_arg, WASM_IMPORT_DATA_TYPE)));
+    return CAST(implicit_arg);
   }
 
   TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {

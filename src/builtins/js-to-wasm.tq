@@ -496,7 +496,8 @@ macro JSToWasmWrapperHelper(
   }
 
   const sig = functionData.sig;
-  const ref: WasmImportData|WasmTrustedInstanceData = functionData.internal.ref;
+  const implicitArg: WasmImportData|WasmTrustedInstanceData =
+      functionData.internal.implicit_arg;
   const trustedInstanceData: WasmTrustedInstanceData =
       functionData.instance_data;
 
@@ -736,9 +737,10 @@ macro JSToWasmWrapperHelper(
   // Torque builtin.
   let result: JSAny;
   if constexpr (switchStack) {
-    result = WasmReturnPromiseOnSuspendAsm(wrapperBuffer, ref, resultArray);
+    result =
+        WasmReturnPromiseOnSuspendAsm(wrapperBuffer, implicitArg, resultArray);
   } else {
-    result = JSToWasmWrapperAsm(wrapperBuffer, ref, resultArray);
+    result = JSToWasmWrapperAsm(wrapperBuffer, implicitArg, resultArray);
   }
 
   // The normal return sequence of Torque-generated JavaScript builtins does not

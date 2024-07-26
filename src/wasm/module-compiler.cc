@@ -1369,7 +1369,7 @@ class FeedbackMaker {
     Tagged<WasmInternalFunction> internal_function =
         Cast<WasmFuncRef>(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
-    if (internal_function->ref() != instance_data_) {
+    if (internal_function->implicit_arg() != instance_data_) {
       has_non_inlineable_targets_ = true;
       return;
     }
