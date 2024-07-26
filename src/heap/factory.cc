@@ -4555,7 +4555,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
     JSFunction::EnsureFeedbackVector(isolate_, result, &is_compiled_scope);
   }
 
-  Compiler::PostInstantiation(result, &is_compiled_scope);
+  Compiler::PostInstantiation(isolate_, result, &is_compiled_scope);
   return result;
 }
 

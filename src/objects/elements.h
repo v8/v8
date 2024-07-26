@@ -231,7 +231,7 @@ class ElementsAccessor {
   // raw pointer parameter |source_holder| in the function that allocates.
   // This is done intentionally to avoid ArrayConcat() builtin performance
   // degradation.
-  virtual void CopyElements(Tagged<JSObject> source_holder,
+  virtual void CopyElements(Isolate* isolate, Tagged<JSObject> source_holder,
                             uint32_t source_start, ElementsKind source_kind,
                             Handle<FixedArrayBase> destination,
                             uint32_t destination_start, int copy_size) = 0;

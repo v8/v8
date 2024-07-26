@@ -4389,9 +4389,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 }
 
 // static
-void Compiler::PostInstantiation(Handle<JSFunction> function,
+void Compiler::PostInstantiation(Isolate* isolate, Handle<JSFunction> function,
                                  IsCompiledScope* is_compiled_scope) {
-  Isolate* isolate = function->GetIsolate();
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
 
   // If code is compiled to bytecode (i.e., isn't asm.js), then allocate a

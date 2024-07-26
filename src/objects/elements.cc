@@ -1074,9 +1074,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  void CopyElements(Tagged<JSObject> from_holder, uint32_t from_start,
-                    ElementsKind from_kind, Handle<FixedArrayBase> to,
-                    uint32_t to_start, int copy_size) final {
+  void CopyElements(Isolate* isolate, Tagged<JSObject> from_holder,
+                    uint32_t from_start, ElementsKind from_kind,
+                    Handle<FixedArrayBase> to, uint32_t to_start,
+                    int copy_size) final {
     int packed_size = kPackedSizeNotKnown;
     bool is_packed =
         IsFastPackedElementsKind(from_kind) && IsJSArray(from_holder);
@@ -1096,8 +1097,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     // copying from object with fast double elements to object with object
     // elements. In all the other cases there are no allocations performed and
     // handle creation causes noticeable performance degradation of the builtin.
-    Subclass::CopyElementsImpl(from_holder->GetIsolate(), from, from_start, *to,
-                               from_kind, to_start, packed_size, copy_size);
+    Subclass::CopyElementsImpl(isolate, from, from_start, *to, from_kind,
+                               to_start, packed_size, copy_size);
   }
 
   void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
@@ -5716,7 +5717,8 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
     Object::ToArrayLength(array->length(), &len);
     if (len == 0) continue;
     ElementsKind from_kind = array->GetElementsKind();
-    accessor->CopyElements(array, 0, from_kind, storage, insertion_index, len);
+    accessor->CopyElements(isolate, array, 0, from_kind, storage,
+                           insertion_index, len);
     insertion_index += len;
   }
 
