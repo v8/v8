@@ -400,6 +400,20 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
 }
 
 template <typename Char>
+bool TransitionsAccessor::IsExpectedTransition(
+    Tagged<Name> transition_name, Tagged<Map> transition_target,
+    base::Vector<const Char> key_chars) {
+  if (transition_target->NumberOfOwnDescriptors() == 0) return false;
+  PropertyDetails details = GetSimpleTargetDetails(transition_target);
+  if (details.location() != PropertyLocation::kField) return false;
+  DCHECK_EQ(PropertyKind::kData, details.kind());
+  if (details.attributes() != NONE) return false;
+  if (!IsString(transition_name)) return false;
+  if (!Cast<String>(transition_name)->IsEqualTo(key_chars)) return false;
+  return true;
+}
+
+template <typename Char>
 std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
     base::Vector<const Char> key_chars) {
   DisallowGarbageCollection no_gc;
@@ -411,15 +425,8 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
     case kWeakRef: {
       Tagged<Map> target =
           Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
-      PropertyDetails details = GetSimpleTargetDetails(target);
-      if (details.location() != PropertyLocation::kField) {
-        return {Handle<String>::null(), Handle<Map>::null()};
-      }
-      DCHECK_EQ(PropertyKind::kData, details.kind());
-      if (details.attributes() != NONE)
-        return {Handle<String>::null(), Handle<Map>::null()};
       Tagged<Name> name = GetSimpleTransitionKey(target);
-      if (IsString(name) && Cast<String>(name)->IsEqualTo(key_chars)) {
+      if (IsExpectedTransition(name, target, key_chars)) {
         return {handle(Cast<String>(name), isolate_), handle(target, isolate_)};
       }
       return {Handle<String>::null(), Handle<Map>::null()};
@@ -434,7 +441,8 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
         return {Handle<String>::null(), Handle<Map>::null()};
       for (int i = entries - 1; i >= 0; i--) {
         Tagged<Name> name = array->GetKey(InternalIndex(i));
-        if (IsString(name) && Cast<String>(name)->IsEqualTo(key_chars)) {
+        Tagged<Map> target = array->GetTarget(i);
+        if (IsExpectedTransition(name, target, key_chars)) {
           return {handle(Cast<String>(name), isolate_),
                   handle(GetTarget(i), isolate_)};
         }
