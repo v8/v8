@@ -3168,9 +3168,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
-  if (HasLocalsBlockList()) {
-    os << "\n - locals blocklist: " << Brief(LocalsBlockList());
-  }
   if (HasFunctionName()) {
     os << "\n - function name: " << Brief(FunctionName());
   }

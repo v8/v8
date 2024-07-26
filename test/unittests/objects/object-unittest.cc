@@ -174,44 +174,6 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
             empty_function_scope_info->ContextLocalCount());
 }
 
-TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
-  // Create a JSFunction to get a {ScopeInfo} we can use for the test.
-  DirectHandle<JSFunction> function = RunJS<JSFunction>("(function foo() {})");
-  Handle<ScopeInfo> original_scope_info(function->shared()->scope_info(),
-                                        isolate());
-  ASSERT_FALSE(original_scope_info->HasLocalsBlockList());
-
-  DirectHandle<String> foo_string =
-      isolate()->factory()->NewStringFromStaticChars("foo");
-  DirectHandle<String> bar_string =
-      isolate()->factory()->NewStringFromStaticChars("bar");
-
-  Handle<StringSet> blocklist = StringSet::New(isolate());
-  StringSet::Add(isolate(), blocklist, foo_string);
-
-  DirectHandle<ScopeInfo> scope_info = ScopeInfo::RecreateWithBlockList(
-      isolate(), original_scope_info, blocklist);
-
-  DisallowGarbageCollection no_gc;
-  EXPECT_TRUE(scope_info->HasLocalsBlockList());
-  EXPECT_TRUE(scope_info->LocalsBlockList()->Has(isolate(), foo_string));
-  EXPECT_FALSE(scope_info->LocalsBlockList()->Has(isolate(), bar_string));
-
-  EXPECT_EQ(original_scope_info->length() + 1, scope_info->length());
-
-  // Check that all variable fields *before* the blocklist stayed the same.
-  for (int i = ScopeInfo::kVariablePartIndex;
-       i < scope_info->LocalsBlockListIndex(); ++i) {
-    EXPECT_EQ(original_scope_info->get(i), scope_info->get(i));
-  }
-
-  // Check that all variable fields *after* the blocklist stayed the same.
-  for (int i = scope_info->LocalsBlockListIndex() + 1; i < scope_info->length();
-       ++i) {
-    EXPECT_EQ(original_scope_info->get(i - 1), scope_info->get(i));
-  }
-}
-
 using ObjectTest = TestWithContext;
 
 static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
