@@ -248,6 +248,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
+        IsHiddenBit::encode(scope->is_hidden()) |
         HasLocalsBlockListBit::encode(false);
     scope_info->set_flags(flags);
 
@@ -449,7 +450,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(true) |
+      HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false) |
       HasLocalsBlockListBit::encode(false);
   scope_info->set_flags(flags);
 
@@ -543,7 +544,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context ||
                                          has_const_tracking_let_side_data) |
-      HasLocalsBlockListBit::encode(false);
+      IsHiddenBit::encode(false) | HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -729,6 +730,7 @@ int ScopeInfo::ContextLength() const {
 // Needs to be kept in sync with Scope::UniqueIdInScript and
 // SharedFunctionInfo::UniqueIdInScript.
 int ScopeInfo::UniqueIdInScript() const {
+  DCHECK(!IsHiddenCatchScope());
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
@@ -822,6 +824,10 @@ bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
 
 bool ScopeInfo::IsReplModeScope() const {
   return scope_type() == REPL_MODE_SCOPE;
+}
+
+bool ScopeInfo::IsHiddenCatchScope() const {
+  return IsHiddenBit::decode(Flags()) && scope_type() == CATCH_SCOPE;
 }
 
 bool ScopeInfo::HasLocalsBlockList() const {

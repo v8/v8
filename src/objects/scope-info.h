@@ -114,6 +114,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
 
+  bool IsHiddenCatchScope() const;
+
   // Return if contexts are allocated for this scope.
   bool HasContext() const;
 
