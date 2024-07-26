@@ -1035,10 +1035,6 @@ void HeapObject::ClearTrustedPointerField(size_t offset) {
 #endif
 }
 
-void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
-  return ClearTrustedPointerField(offset);
-}
-
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
   return Cast<Code>(

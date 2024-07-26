@@ -556,27 +556,20 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Assert(equal, AbortReason::kExpectedBaselineData);
 }
 
-static void GetSharedFunctionInfoBytecodeOrBaseline(
-    MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
-    Label* is_baseline, Label* is_unavailable) {
+static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
+                                                    Register sfi_data,
+                                                    Register scratch1,
+                                                    Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
-
-  Register data = bytecode;
-  __ mov(data,
-         FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  // If the trusted data field is empty, it will contain Smi::zero.
-  __ JumpIfSmi(data, is_unavailable);
-
-  __ LoadMap(scratch1, data);
+  __ LoadMap(scratch1, sfi_data);
 
 #ifndef V8_JITLESS
   __ CmpInstanceType(scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
-    AssertCodeIsBaseline(masm, data, scratch1);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
     __ j(equal, is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -587,7 +580,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, &done, Label::kNear);
 
-  __ mov(data, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
+  __ mov(sfi_data,
+         FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
 }
@@ -675,16 +669,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label is_baseline, is_unavailable, ok;
+    Label is_baseline, ok;
     __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
     __ Push(eax);
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, ecx, ecx, eax, &is_baseline,
-                                            &is_unavailable);
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, ecx, eax, &is_baseline);
     __ Pop(eax);
-    __ jmp(&ok);
 
-    __ bind(&is_unavailable);
-    __ Abort(AbortReason::kMissingBytecodeArray);
+    __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, ecx);
+    __ Assert(equal, AbortReason::kMissingBytecodeArray);
+    __ jmp(&ok);
 
     __ bind(&is_baseline);
     __ Pop(eax);
@@ -892,13 +886,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
   __ movd(xmm0, eax);  // Spill actual argument count.
 
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
-  Label is_baseline, compile_lazy;
-  GetSharedFunctionInfoBytecodeOrBaseline(masm, ecx, ecx, eax, &is_baseline,
-                                          &compile_lazy);
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
+
+  Label is_baseline;
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, ecx, eax, &is_baseline);
+
+  Label compile_lazy;
+  __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, eax);
+  __ j(not_equal, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = ecx;
@@ -950,7 +948,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, eax);
   __ mov(kInterpreterBytecodeArrayRegister,
-         FieldOperand(eax, SharedFunctionInfo::kTrustedFunctionDataOffset));
+         FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
 
   // Check function data field is actually a BytecodeArray object.
@@ -1720,7 +1718,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ mov(scratch, Operand(ebp, StandardFrameConstants::kFunctionOffset));
   __ mov(scratch, FieldOperand(scratch, JSFunction::kSharedFunctionInfoOffset));
   __ mov(scratch,
-         FieldOperand(scratch, SharedFunctionInfo::kTrustedFunctionDataOffset));
+         FieldOperand(scratch, SharedFunctionInfo::kFunctionDataOffset));
   __ Push(eax);
   __ CmpObjectType(scratch, INTERPRETER_DATA_TYPE, eax);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
@@ -3953,7 +3951,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
   Register function_data = sfi;
   __ Move(function_data,
-          FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
+          FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
   // The write barrier uses a fixed register for the host object (edi). The next
   // barrier is on the suspender, so load it in edi directly.
   Register suspender = edi;
@@ -5327,9 +5325,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register code_obj = esi;
   __ mov(code_obj,
          FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(
-      code_obj,
-      FieldOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset));
+  __ mov(code_obj,
+         FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

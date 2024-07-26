@@ -3456,9 +3456,11 @@ TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
   return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
 }
 
-TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
+TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
     TNode<SharedFunctionInfo> sfi) {
 #ifdef V8_ENABLE_SANDBOX
+  // Return the trusted_function_data part if it is non-empty, otherwise the
+  // regular function_data.
   TNode<IndirectPointerHandleT> trusted_data_handle =
       LoadObjectField<IndirectPointerHandleT>(
           sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
@@ -3466,30 +3468,17 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
   return Select<Object>(
       Word32Equal(trusted_data_handle,
                   Int32Constant(kNullIndirectPointerHandle)),
-      [=] { return SmiConstant(0); },
+      [=] {
+        return LoadObjectField<Object>(sfi,
+                                       SharedFunctionInfo::kFunctionDataOffset);
+      },
       [=] {
         return ResolveIndirectPointerHandle(trusted_data_handle,
                                             kUnknownIndirectPointerTag);
       });
 #else
-  return LoadObjectField<Object>(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
+  return LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
 #endif
-}
-
-TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
-    TNode<SharedFunctionInfo> sfi) {
-  return LoadObjectField<Object>(
-      sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset);
-}
-
-TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
-    TNode<SharedFunctionInfo> sfi) {
-  TNode<Object> trusted_data = LoadSharedFunctionInfoTrustedData(sfi);
-  return Select<Object>(
-      TaggedEqual(trusted_data, SmiConstant(0)),
-      [=] { return LoadSharedFunctionInfoUntrustedData(sfi); },
-      [=] { return trusted_data; });
 }
 
 TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
@@ -3500,15 +3489,21 @@ TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
 
 TNode<Smi> CodeStubAssembler::LoadSharedFunctionInfoBuiltinId(
     TNode<SharedFunctionInfo> sfi) {
-  return LoadObjectField<Smi>(sfi,
-                              SharedFunctionInfo::kUntrustedFunctionDataOffset);
+  return LoadObjectField<Smi>(sfi, SharedFunctionInfo::kFunctionDataOffset);
 }
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<SharedFunctionInfo> sfi) {
+#ifdef V8_ENABLE_SANDBOX
+  // In this case, the bytecode array must be referenced via a trusted pointer.
+  // Loading it from the tagged function_data field would not be safe.
   TNode<HeapObject> function_data = LoadTrustedPointerFromObject(
       sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
       kUnknownIndirectPointerTag);
+#else
+  TNode<HeapObject> function_data =
+      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+#endif  // V8_ENABLE_SANDBOX
 
   TVARIABLE(HeapObject, var_result, function_data);
 
@@ -3551,9 +3546,14 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 TNode<WasmFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmFunctionData(
     TNode<SharedFunctionInfo> sfi) {
+#ifdef V8_ENABLE_SANDBOX
   return CAST(LoadTrustedPointerFromObject(
       sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
       kWasmFunctionDataIndirectPointerTag));
+#else
+  return LoadObjectField<WasmFunctionData>(
+      sfi, SharedFunctionInfo::kFunctionDataOffset);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<WasmExportedFunctionData>

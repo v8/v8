@@ -367,7 +367,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // disabled, this will set the field to Smi::zero().
   inline bool IsTrustedPointerFieldCleared(size_t offset) const;
   inline void ClearTrustedPointerField(size_t offest);
-  inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
 
   // Code pointers.
   //

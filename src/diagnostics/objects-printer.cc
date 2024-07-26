@@ -2233,9 +2233,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - expected_nof_properties: "
      << static_cast<int>(expected_nof_properties());
   os << "\n - language_mode: " << language_mode();
-  os << "\n - trusted_function_data: "
-     << Brief(GetTrustedData(GetIsolateForSandbox(*this)));
-  os << "\n - untrusted_function_data: " << Brief(GetUntrustedData());
+  os << "\n - function_data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from function_data): ";
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {

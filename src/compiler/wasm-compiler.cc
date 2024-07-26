@@ -8322,10 +8322,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(target_node);
-    Node* function_template_info =
-        gasm_->Load(MachineType::TaggedPointer(), shared_function_info,
-                    wasm::ObjectAccess::ToTagged(
-                        SharedFunctionInfo::kUntrustedFunctionDataOffset));
+    Node* function_template_info = gasm_->Load(
+        MachineType::TaggedPointer(), shared_function_info,
+        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset));
     Node* api_data_argument =
         gasm_->Load(MachineType::TaggedPointer(), function_template_info,
                     wasm::ObjectAccess::ToTagged(

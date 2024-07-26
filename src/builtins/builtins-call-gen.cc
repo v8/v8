@@ -638,7 +638,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
           LoadObjectField<SharedFunctionInfo>(
               var_template.value(), JSFunction::kSharedFunctionInfoOffset);
       TNode<Object> template_data =
-          LoadSharedFunctionInfoUntrustedFunctionData(template_shared);
+          LoadSharedFunctionInfoFunctionData(template_shared);
       GotoIf(TaggedIsSmi(template_data), &holder_next);
       var_template = CAST(template_data);
       Goto(&template_loop);
@@ -880,7 +880,7 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
     TNode<SharedFunctionInfo> shared =
         LoadJSFunctionSharedFunctionInfo(CAST(target));
     TNode<FunctionTemplateInfo> function_template_info =
-        CAST(LoadSharedFunctionInfoUntrustedFunctionData(shared));
+        CAST(LoadSharedFunctionInfoFunctionData(shared));
 
     // The topmost script-having context is not guaranteed to be equal to
     // current context at this point. For example, if target function was

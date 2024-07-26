@@ -350,14 +350,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
                              SharedFunctionInfo::kTrustedFunctionDataOffset,
                              kUnknownIndirectPointerTag),
                          IndirectPointerMode::kStrong);
-#else
-    VisitPointer(
-        shared_info,
-        shared_info->RawField(SharedFunctionInfo::kTrustedFunctionDataOffset));
 #endif
-    VisitPointer(shared_info,
-                 shared_info->RawField(
-                     SharedFunctionInfo::kUntrustedFunctionDataOffset));
+    VisitPointer(shared_info, shared_info->RawField(
+                                  SharedFunctionInfo::kFunctionDataOffset));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
