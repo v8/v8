@@ -412,7 +412,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> args_length = args.GetLengthWithoutReceiver();
   GotoIf(UintPtrLessThanOrEqual(args_length, IntPtrConstant(1)), &done);
 
-#ifdef V8_OBJECT_ASSIGN_FASTCASE
   // First let's try a fastpath specifically for when the target objects is an
   // empty object literal.
   // TODO(olivf): For the cases where we could detect that the object literal
@@ -577,7 +576,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
            &done);
   }
   BIND(&slow_path);
-#endif  // V8_OBJECT_ASSIGN_FASTCASE
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
