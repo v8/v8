@@ -736,7 +736,9 @@ namespace internal {
   F(WasmTraceEnter, 0, 1)                                  \
   F(WasmTraceExit, 1, 1)                                   \
   F(WasmTraceMemory, 1, 1)                                 \
-  F(WasmNull, 0, 1)
+  F(WasmNull, 0, 1)                                        \
+  F(WasmArray, 0, 1)                                       \
+  F(WasmStruct, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \
   F(WasmTraceBeginExecution, 0, 1)                   \
