@@ -1759,6 +1759,11 @@ Tagged<Object> Isolate::StackOverflow() {
   // Allow for a bit more overflow in sanitizer builds, because C++ frames take
   // significantly more space there.
   DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 64 * KB);
+#elif (defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)) && \
+    defined(USE_SIMULATOR)
+  // Allow for more overflow on riscv simulator, because C++ frames take more
+  // there.
+  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 12 * KB);
 #else
   DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 8 * KB);
 #endif
