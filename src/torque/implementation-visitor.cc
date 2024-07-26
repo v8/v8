@@ -4457,7 +4457,7 @@ bool CanGenerateFieldAccessors(const Type* field_type) {
   return field_type != TypeOracle::GetVoidType() &&
          field_type != TypeOracle::GetFloat64OrHoleType() &&
          !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType()) &&
-         !field_type->IsSubtypeOf(TypeOracle::GetIndirectPointerType()) &&
+         !field_type->IsSubtypeOf(TypeOracle::GetTrustedPointerType()) &&
          !field_type->IsSubtypeOf(TypeOracle::GetProtectedPointerType());
 }
 }  // namespace

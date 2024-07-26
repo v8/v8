@@ -13,9 +13,7 @@ type ManagedWasmNativeModule extends Foreign
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
 
 extern class WasmInstanceObject extends JSObject {
-  @if(V8_ENABLE_SANDBOX) trusted_data:
-      IndirectPointer<WasmTrustedInstanceData>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData;
+  trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   module_object: WasmModuleObject;
   exports_object: JSObject;
 }
@@ -35,8 +33,7 @@ extern class WasmImportData extends TrustedObject {
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: PodArrayOfWasmValueType;
   // This field is used by the WasmToOnHeapWasmToJSTrampoline.
-  @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
-  @ifnot(V8_ENABLE_SANDBOX) code: Code;
+  code: TrustedPointer<Code>;
 }
 
 extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
@@ -79,9 +76,7 @@ extern operator '.ref' macro LoadRefFromWasmInternalFunction(
 // link to a WasmInternalFunction which contains the actual information.
 extern class WasmFuncRef extends HeapObject {
   // Note: Torque code uses the '.internal' macro below to access the reference.
-  @if(V8_ENABLE_SANDBOX) trusted_internal:
-      IndirectPointer<WasmInternalFunction>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_internal: WasmInternalFunction;
+  trusted_internal: TrustedPointer<WasmInternalFunction>;
 }
 
 extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
@@ -90,8 +85,7 @@ extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
 // Exposed via SharedFunctionInfo::trusted_function_data.
 extern class WasmFunctionData extends ExposedTrustedObject {
   // Used for calling this function from JavaScript.
-  @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
-  @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
+  wrapper_code: TrustedPointer<Code>;
   // The function reference for this function object. This is used when
   // converting a JS function back to the wasm-side func ref.
   func_ref: WasmFuncRef;
@@ -119,8 +113,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // The contract is that they are lazily populated, and either both will be
   // present or neither.
   packed_args_size: Smi;
-  @if(V8_ENABLE_SANDBOX) c_wrapper_code: IndirectPointer<Code>;
-  @ifnot(V8_ENABLE_SANDBOX) c_wrapper_code: Code;
+  c_wrapper_code: TrustedPointer<Code>;
 
   sig: RawPtr;  // wasm::FunctionSig*
 }
@@ -198,9 +191,7 @@ extern class WasmTableObject extends JSObject {
   // The instance in which this WasmTableObject is defined.
   // This field is undefined if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
-  @if(V8_ENABLE_SANDBOX) trusted_data:
-      IndirectPointer<WasmTrustedInstanceData>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
+  trusted_data: TrustedPointer<WasmTrustedInstanceData>;
 }
 
 extern class WasmMemoryObject extends JSObject {
@@ -214,9 +205,7 @@ extern class WasmGlobalObject extends JSObject {
   // The instance in which this WasmGlobalObject is defined.
   // This field is undefined if the global is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Global).
-  @if(V8_ENABLE_SANDBOX) trusted_data:
-      IndirectPointer<WasmTrustedInstanceData>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
+  trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   untagged_buffer: JSArrayBuffer|Undefined;
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;
@@ -230,9 +219,7 @@ extern class WasmTagObject extends JSObject {
   serialized_signature: PodArrayOfWasmValueType;
   tag: HeapObject;
   canonical_type_index: Smi;
-  @if(V8_ENABLE_SANDBOX) trusted_data:
-      IndirectPointer<WasmTrustedInstanceData>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
+  trusted_data: TrustedPointer<WasmTrustedInstanceData>;
 }
 
 type WasmExportedFunction extends JSFunction;
@@ -256,9 +243,7 @@ extern class WasmTypeInfo extends HeapObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   // Is undefined for WasmExternalFunctions referring to WasmJSFunctions.
-  @if(V8_ENABLE_SANDBOX) trusted_data:
-      IndirectPointer<WasmTrustedInstanceData>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData|Smi;
+  trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;
 }

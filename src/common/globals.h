@@ -577,8 +577,10 @@ constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
 // tagged pointers.
 #ifdef V8_ENABLE_SANDBOX
 constexpr int kTrustedPointerSize = kIndirectPointerSize;
+using TrustedPointer_t = TrustedPointerHandle;
 #else
 constexpr int kTrustedPointerSize = kTaggedSize;
+using TrustedPointer_t = Tagged_t;
 #endif
 constexpr int kCodePointerSize = kTrustedPointerSize;
 

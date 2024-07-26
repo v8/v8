@@ -64,10 +64,8 @@ extern class SharedFunctionInfo extends HeapObject {
   // merged into a single field (when all possible data objects are moved into
   // trusted space), or if we can turn this into a trusted code and an
   // untrusted data field.
-  @if(V8_ENABLE_SANDBOX)
-      @customWeakMarking trusted_function_data: IndirectPointer;
-  @ifnot(V8_ENABLE_SANDBOX)
-      @customWeakMarking trusted_function_data: Object;
+  @customWeakMarking
+  trusted_function_data: TrustedPointer<ExposedTrustedObject>;
   // TODO(chromium:1490564): if we cannot merge this field with the
   // trusted_function_data in the future (see TODO above), then maybe consider
   // renaming this field as untrusted_function_data may be a bit awkward.

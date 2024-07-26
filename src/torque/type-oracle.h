@@ -206,8 +206,8 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CPPHEAPPTR_TYPE_STRING);
   }
 
-  static const Type* GetIndirectPointerType() {
-    return Get().GetBuiltinType(INDIRECTPTR_TYPE_STRING);
+  static const Type* GetTrustedPointerType() {
+    return Get().GetBuiltinType(TRUSTEDPTR_TYPE_STRING);
   }
 
   static const Type* GetProtectedPointerType() {

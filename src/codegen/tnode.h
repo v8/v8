@@ -143,6 +143,12 @@ using TaggedT = Int32T;
 using TaggedT = IntPtrT;
 #endif
 
+#ifdef V8_ENABLE_SANDBOX
+using TrustedPointerT = IndirectPointerHandleT;
+#else
+using TrustedPointerT = TaggedT;
+#endif
+
 // Result of a comparison operation.
 struct BoolT : Word32T {
   static constexpr MachineType kMachineType = MachineType::Int32();

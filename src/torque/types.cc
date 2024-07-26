@@ -340,7 +340,7 @@ std::string UnionType::GetConstexprGeneratedTypeName() const {
   std::set<std::string> names;
   for (const Type* t : types_) {
     InsertConstexprGeneratedTypeName(names, t);
-  };
+  }
   std::stringstream result;
   result << "Union<";
   bool first = true;
@@ -1244,8 +1244,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::ExternalPointerSize();
   } else if (this == TypeOracle::GetCppHeapPointerType()) {
     alignment = TargetArchitecture::CppHeapPointerSize();
-  } else if (this == TypeOracle::GetIndirectPointerType()) {
-    alignment = TargetArchitecture::IndirectPointerSize();
+  } else if (this == TypeOracle::GetTrustedPointerType()) {
+    alignment = TargetArchitecture::TrustedPointerSize();
   } else if (this == TypeOracle::GetProtectedPointerType()) {
     alignment = TargetArchitecture::ProtectedPointerSize();
   } else if (this == TypeOracle::GetVoidType()) {
@@ -1321,9 +1321,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetCppHeapPointerType())) {
     size = TargetArchitecture::CppHeapPointerSize();
     size_string = "kCppHeapPointerSlotSize";
-  } else if (type->IsSubtypeOf(TypeOracle::GetIndirectPointerType())) {
-    size = TargetArchitecture::IndirectPointerSize();
-    size_string = "kIndirectPointerSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetTrustedPointerType())) {
+    size = TargetArchitecture::TrustedPointerSize();
+    size_string = "kTrustedPointerSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) {
     size = TargetArchitecture::ProtectedPointerSize();
     size_string = "kTaggedSize";
