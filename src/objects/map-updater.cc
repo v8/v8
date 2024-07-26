@@ -406,21 +406,19 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
 
   // Replay the transitions as they were before the integrity level transition.
-  Tagged<Map> replay = root_map->TryReplayPropertyTransitions(
+  Tagged<Map> result = root_map->TryReplayPropertyTransitions(
       isolate, info.integrity_level_source_map, cmode);
-  if (replay.is_null()) return {};
+  if (result.is_null()) return {};
 
-  std::optional<Tagged<Map>> result = replay;
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
     result = TransitionsAccessor(isolate, *result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
+  if (result.is_null()) return {};
 
-  if (result) {
-    DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
-    DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
-  }
+  DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+  DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
   return result;
 }
 
