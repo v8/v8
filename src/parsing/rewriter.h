@@ -5,12 +5,12 @@
 #ifndef V8_PARSING_REWRITER_H_
 #define V8_PARSING_REWRITER_H_
 
+#include <optional>
+
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/zone/zone-type-traits.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class AstValueFactory;
 class Isolate;
@@ -35,12 +35,10 @@ class Rewriter {
   // rewrite the body but then use the ".result" VariableProxy to resolve
   // the async promise that is the result of running a REPL script.
   // Returns base::nullopt in case something went wrong.
-  static base::Optional<VariableProxy*> RewriteBody(
+  static std::optional<VariableProxy*> RewriteBody(
       ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body);
 };
 
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_PARSING_REWRITER_H_

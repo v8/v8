@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_INL_H_
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
+#include <optional>
+
 #include "src/base/bounds.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/objects/instance-type-checker.h"
@@ -14,8 +16,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace InstanceTypeChecker {
 
@@ -39,20 +40,20 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 // Instance types which are associated with one unique map.
 
 template <class type>
-V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
+V8_INLINE constexpr std::optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
   return {};
 }
 
 #define INSTANCE_TYPE_MAP(V, rootIndexName, rootAccessorName, class_name) \
   template <>                                                             \
-  V8_INLINE constexpr base::Optional<RootIndex>                           \
+  V8_INLINE constexpr std::optional<RootIndex>                            \
   UniqueMapOfInstanceTypeCheck<InstanceTypeTraits::class_name>() {        \
     return {RootIndex::k##rootIndexName};                                 \
   }
 UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(INSTANCE_TYPE_MAP, _)
 #undef INSTANCE_TYPE_MAP
 
-V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
+V8_INLINE constexpr std::optional<RootIndex> UniqueMapOfInstanceType(
     InstanceType type) {
 #define INSTANCE_TYPE_CHECK(it, forinstancetype)              \
   if (type == forinstancetype) {                              \
@@ -144,7 +145,7 @@ static constexpr int kOneByteStringMapBit =
 static constexpr int kTwoByteStringMapBit =
     StaticReadOnlyRoot::kSeqTwoByteStringMap & kStringMapEncodingMask;
 
-inline constexpr base::Optional<TaggedAddressRange>
+inline constexpr std::optional<TaggedAddressRange>
 UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   // Doesn't use range based for loop due to LLVM <11 bug re. constexpr
   // functions.
@@ -169,8 +170,8 @@ constexpr TaggedAddressRange kUniqueMapRangeOfInstanceTypeRange =
     *UniqueMapRangeOfInstanceTypeRange(first, last):
     NULL_ADDRESS_RANGE;
 
-inline constexpr base::Optional<TaggedAddressRange>
-UniqueMapRangeOfInstanceType(InstanceType type) {
+inline constexpr std::optional<TaggedAddressRange> UniqueMapRangeOfInstanceType(
+    InstanceType type) {
   return UniqueMapRangeOfInstanceTypeRange(type, type);
 }
 
@@ -527,8 +528,7 @@ V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

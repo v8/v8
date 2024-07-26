@@ -4,13 +4,14 @@
 
 #include "src/objects/transitions.h"
 
+#include <optional>
+
 #include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 Tagged<Map> TransitionsAccessor::GetSimpleTransition(Isolate* isolate,
@@ -454,7 +455,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
 }
 
 // static
-base::Optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
+std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
     Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> cache = GetPrototypeTransitions(isolate, map);
@@ -875,5 +876,4 @@ std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {
   return os;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

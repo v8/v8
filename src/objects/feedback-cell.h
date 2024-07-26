@@ -5,13 +5,14 @@
 #ifndef V8_OBJECTS_FEEDBACK_CELL_H_
 #define V8_OBJECTS_FEEDBACK_CELL_H_
 
+#include <optional>
+
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Undefined;
 
@@ -46,7 +47,7 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
 
   inline void clear_padding();
   inline void reset_feedback_vector(
-      base::Optional<
+      std::optional<
           std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                              Tagged<HeapObject> target)>>
           gc_notify_updated_slot = base::nullopt);
@@ -61,8 +62,7 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   TQ_OBJECT_CONSTRUCTORS(FeedbackCell)
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

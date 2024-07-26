@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 #define V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 
+#include <optional>
+
 #include "src/objects/compilation-cache-table.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
@@ -15,8 +17,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 CompilationCacheTable::CompilationCacheTable(Address ptr)
     : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
@@ -77,7 +78,7 @@ class ScriptCacheKey : public HashTableKey {
   Handle<Object> AsHandle(Isolate* isolate,
                           DirectHandle<SharedFunctionInfo> shared);
 
-  static base::Optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
+  static std::optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;
     DCHECK(IsWeakFixedArray(obj));
     Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(obj);
@@ -178,8 +179,7 @@ InfoCellPair::InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
       shared_(shared),
       feedback_cell_(feedback_cell) {}
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

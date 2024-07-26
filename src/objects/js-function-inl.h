@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_INL_H_
 #define V8_OBJECTS_JS_FUNCTION_INL_H_
 
+#include <optional>
+
 #include "src/objects/js-function.h"
 
 // Include other inline headers *after* including js-function.h, such that e.g.
@@ -22,8 +24,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/js-function-tq-inl.inc"
 
@@ -288,8 +289,8 @@ bool JSFunction::NeedsResetDueToFlushedBaselineCode(IsolateForSandbox isolate) {
 
 void JSFunction::ResetIfCodeFlushed(
     IsolateForSandbox isolate,
-    base::Optional<std::function<void(
-        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
+    std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                                     Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
   const bool kBytecodeCanFlush =
       v8_flags.flush_bytecode || v8_flags.stress_snapshot;
@@ -314,8 +315,7 @@ void JSFunction::ResetIfCodeFlushed(
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

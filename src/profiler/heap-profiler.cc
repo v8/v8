@@ -5,10 +5,10 @@
 #include "src/profiler/heap-profiler.h"
 
 #include <fstream>
+#include <optional>
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
-#include "src/base/optional.h"
 #include "src/debug/debug.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
@@ -18,8 +18,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
@@ -98,7 +97,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   // The garbage collection and the filling of references in GenerateSnapshot
   // should scan the same part of the stack.
   heap()->stack().SetMarkerIfNeededAndCallback([this, &options, &result]() {
-    base::Optional<CppClassNamesAsHeapObjectNameScope> use_cpp_class_name;
+    std::optional<CppClassNamesAsHeapObjectNameScope> use_cpp_class_name;
     if (result->expose_internals() && heap()->cpp_heap()) {
       use_cpp_class_name.emplace(heap()->cpp_heap());
     }
@@ -346,5 +345,4 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
   });
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

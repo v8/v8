@@ -4,37 +4,33 @@
 
 #include "src/objects/js-temporal-objects.h"
 
+#include <optional>
 #include <set>
 
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/intl-objects.h"
-#include "src/objects/js-date-time-format.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-temporal-objects-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/managed-inl.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
+
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "src/objects/js-date-time-format.h"
+#include "src/objects/managed-inl.h"
 #include "unicode/calendar.h"
 #include "unicode/unistr.h"
 #endif  // V8_INTL_SUPPORT
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 
@@ -2970,7 +2966,7 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     Handle<String> name = Cast<String>(parse_result.name);
     // b. If ParseText(StringToCodePoints(name, TimeZoneNumericUTCOffset)) is
     // a List of errors, then
-    base::Optional<ParsedISO8601Result> parsed_offset =
+    std::optional<ParsedISO8601Result> parsed_offset =
         TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, name);
     if (!parsed_offset.has_value()) {
       // i. If ! IsValidTimeZoneName(name) is false, throw a RangeError
@@ -3364,7 +3360,7 @@ Maybe<DateTimeRecordWithCalendar> ParseISODateTime(Isolate* isolate,
 
   // a. If parseResult is not a Parse Node, set parseResult to
   // ParseText(StringToCodePoints(isoString), goal).
-  base::Optional<ParsedISO8601Result> parsed;
+  std::optional<ParsedISO8601Result> parsed;
   if ((parsed =
            TemporalParser::ParseTemporalDateTimeString(isolate, iso_string))
           .has_value() ||
@@ -3549,7 +3545,7 @@ Maybe<TimeRecordWithCalendar> ParseTemporalTimeString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -3586,7 +3582,7 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
 
   // 1. If ParseText(StringToCodePoints(isoString), TemporalInstantString) is a
   // List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalInstantString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3630,7 +3626,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalRelativeToString(
 
   // 1. If ParseText(StringToCodePoints(isoString), TemporalDateTimeString) is a
   // List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -3692,7 +3688,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalZonedDateTimeString(
   TEMPORAL_ENTER_FUNC();
   // 1. If ParseText(StringToCodePoints(isoString), TemporalZonedDateTimeString)
   // is a List of errors, throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalZonedDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3746,7 +3742,7 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   // DurationWholeMinutes, DurationMinutesFraction, DurationWholeSeconds, and
   // DurationSecondsFraction Parse Node enclosed by duration, or an empty
   // sequence of code points if not present.
-  base::Optional<ParsedISO8601Duration> parsed =
+  std::optional<ParsedISO8601Duration> parsed =
       TemporalParser::ParseTemporalDurationString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -3875,7 +3871,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(
 
   // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString),
   // TimeZoneIdentifier).
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneIdentifier(isolate, time_zone_string);
   // 2. If parseResult is a Parse Node, then
   if (parsed.has_value()) {
@@ -3912,7 +3908,7 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // 1. Assert: Type(offsetString) is String.
   // 2. If offsetString does not satisfy the syntax of a
   // TimeZoneNumericUTCOffset (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
   if (!parsed.has_value()) {
     /* a. Throw a RangeError exception. */
@@ -3966,7 +3962,7 @@ bool IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
                                            Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
   return parsed.has_value();
 }
@@ -3997,7 +3993,7 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
     isolate->clear_exception();
     // a. Set parseResult to ParseText(StringToCodePoints(isoString),
     // CalendarName).
-    base::Optional<ParsedISO8601Result> parsed =
+    std::optional<ParsedISO8601Result> parsed =
         TemporalParser::ParseCalendarName(isolate, iso_string);
     // b. If parseResult is a List of errors, throw a RangeError exception.
     if (!parsed.has_value()) {
@@ -8202,7 +8198,7 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
       // TimeZoneNumericUTCOffset) is a List of errors, then
       DCHECK(IsString(*time_zone_name_obj));
       Handle<String> time_zone_name = Cast<String>(time_zone_name_obj);
-      base::Optional<ParsedISO8601Result> parsed =
+      std::optional<ParsedISO8601Result> parsed =
           TemporalParser::ParseTimeZoneNumericUTCOffset(isolate,
                                                         time_zone_name);
       if (!parsed.has_value()) {
@@ -12138,7 +12134,7 @@ Maybe<DateTimeRecordWithCalendar> ParseTemporalDateTimeString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalDateTimeString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -13321,7 +13317,7 @@ Maybe<DateRecordWithCalendar> ParseTemporalMonthDayString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalMonthDayString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalMonthDayString(isolate, iso_string);
   if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
@@ -13795,7 +13791,7 @@ Maybe<DateRecordWithCalendar> ParseTemporalYearMonthString(
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalYearMonthString
   // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
+  std::optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalYearMonthString(isolate, iso_string);
   if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
@@ -15840,7 +15836,7 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
 
     // f. If ParseText(StringToCodePoints(timeZoneName),
     // TimeZoneNumericUTCOffset) is a List of errors, then
-    base::Optional<ParsedISO8601Result> parsed =
+    std::optional<ParsedISO8601Result> parsed =
         TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, time_zone_name);
     if (!parsed.has_value()) {
       // i. If ! IsValidTimeZoneName(timeZoneName) is false, throw a RangeError
@@ -18455,5 +18451,4 @@ MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
 }
 
 }  // namespace temporal
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

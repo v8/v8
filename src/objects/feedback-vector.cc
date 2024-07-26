@@ -5,8 +5,8 @@
 #include "src/objects/feedback-vector.h"
 
 #include <bit>
+#include <optional>
 
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/code-tracer.h"
@@ -20,8 +20,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/objects.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
   int slot = slot_count();
@@ -213,7 +212,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     cells.push_back(isolate->factory()->NewNoClosuresCell());
   }
 
-  base::Optional<DisallowGarbageCollection> no_gc;
+  std::optional<DisallowGarbageCollection> no_gc;
   auto result = Allocate(isolate, length, &no_gc, allocation);
   for (int i = 0; i < length; i++) {
     result->set(i, *cells[i]);
@@ -1470,5 +1469,4 @@ void FeedbackIterator::AdvancePolymorphic() {
   CHECK_EQ(index_, length);
   done_ = true;
 }
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

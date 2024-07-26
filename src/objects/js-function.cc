@@ -4,7 +4,8 @@
 
 #include "src/objects/js-function.h"
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
@@ -21,8 +22,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 CodeKinds JSFunction::GetAttachedCodeKinds(IsolateForSandbox isolate) const {
   const CodeKind kind = code(isolate)->kind();
@@ -123,7 +123,7 @@ V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
 
 }  // namespace
 
-base::Optional<CodeKind> JSFunction::GetActiveTier(
+std::optional<CodeKind> JSFunction::GetActiveTier(
     IsolateForSandbox isolate) const {
 #if V8_ENABLE_WEBASSEMBLY
   // Asm/Wasm functions are currently not supported. For simplicity, this
@@ -238,7 +238,7 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
 }
 
 void JSFunction::SetInterruptBudget(
-    Isolate* isolate, base::Optional<CodeKind> override_active_tier) {
+    Isolate* isolate, std::optional<CodeKind> override_active_tier) {
   raw_feedback_cell()->set_interrupt_budget(
       TieringManager::InterruptBudgetFor(isolate, *this, override_active_tier));
 }
@@ -1450,7 +1450,6 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting() {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

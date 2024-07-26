@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
@@ -33,8 +35,7 @@
 #include "src/wasm/interpreter/wasm-interpreter.h"
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_DRUMBRAKE
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // TODO(13036): See if we can find a way to have the stack walker visit
 // tagged values being passed from Wasm to runtime functions. In the meantime,
@@ -995,7 +996,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   DCHECK(!isolate->context().is_null());
 
   // TODO(14616): Pass the correct instance data.
-  base::Optional<MessageTemplate> opt_error =
+  std::optional<MessageTemplate> opt_error =
       WasmTrustedInstanceData::InitTableEntries(
           isolate, trusted_instance_data, trusted_instance_data, table_index,
           elem_segment_index, dst, src, count);
@@ -1361,7 +1362,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     // TODO(14616): Fix the instance data.
-    base::Optional<MessageTemplate> opt_error =
+    std::optional<MessageTemplate> opt_error =
         wasm::InitializeElementSegment(&zone, isolate, trusted_instance_data,
                                        trusted_instance_data, segment_index);
     if (opt_error.has_value()) {
@@ -2074,5 +2075,4 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

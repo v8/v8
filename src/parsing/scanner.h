@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -22,8 +23,7 @@
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class AstRawString;
 class AstValueFactory;
@@ -416,7 +416,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
   // Scans the input as regular expression flags. Returns the flags on success.
-  base::Optional<RegExpFlags> ScanRegExpFlags();
+  std::optional<RegExpFlags> ScanRegExpFlags();
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {
@@ -773,7 +773,6 @@ class V8_EXPORT_PRIVATE Scanner {
   Location scanner_error_location_;
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_PARSING_SCANNER_H_

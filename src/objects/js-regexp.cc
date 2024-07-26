@@ -4,6 +4,8 @@
 
 #include "src/objects/js-regexp.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
@@ -11,8 +13,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
@@ -119,8 +120,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 }
 
 // static
-base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
-    Isolate* isolate, Handle<String> flags) {
+std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(Isolate* isolate,
+                                                         Handle<String> flags) {
   const int length = flags->length();
 
   // A longer flags string cannot be valid.
@@ -130,7 +131,7 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
   FlatStringReader reader(isolate, String::Flatten(isolate, flags));
 
   for (int i = 0; i < length; i++) {
-    base::Optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    std::optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
     if (!flag.has_value()) return {};
     if (value & flag.value()) return {};  // Duplicate.
     value |= flag.value();
@@ -166,8 +167,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> source,
                                            Handle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
-  base::Optional<Flags> flags =
-      JSRegExp::FlagsFromString(isolate, flags_string);
+  std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
@@ -430,5 +430,4 @@ void IrRegExpData::SetBytecodeForExperimental(
   set_uc16_code(trampoline);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

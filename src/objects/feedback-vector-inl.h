@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 #define V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
@@ -20,8 +22,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
 
@@ -221,7 +222,7 @@ void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
   set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
 }
 
-base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
+std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {
   Tagged<MaybeObject> maybe_code = Get(isolate, slot);
   if (maybe_code.IsCleared()) return {};
@@ -514,8 +515,7 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                             mode_extra);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

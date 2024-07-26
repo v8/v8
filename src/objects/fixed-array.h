@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_H_
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
@@ -20,8 +22,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
@@ -159,7 +160,7 @@ class TaggedArrayBase : public Super {
   template <class IsolateT>
   static Handle<Derived> Allocate(
       IsolateT* isolate, int capacity,
-      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
@@ -448,7 +449,7 @@ class PrimitiveArrayBase : public Super {
   template <class IsolateT>
   static Handle<Derived> Allocate(
       IsolateT* isolate, int length,
-      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
   inline bool IsInBounds(int index) const;
@@ -1023,8 +1024,7 @@ class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
   OBJECT_CONSTRUCTORS(TrustedPodArray, PodArrayBase<T, TrustedByteArray>);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

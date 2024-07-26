@@ -4,6 +4,8 @@
 
 #include "src/regexp/experimental/experimental.h"
 
+#include <optional>
+
 #include "src/common/assert-scope.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/experimental/experimental-compiler.h"
@@ -11,8 +13,7 @@
 #include "src/regexp/regexp-parser.h"
 #include "src/utils/ostreams.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, Handle<String> pattern,
                                       RegExpFlags flags, int capture_count) {
@@ -73,7 +74,7 @@ struct CompilationResult {
 };
 
 // Compiles source pattern, but doesn't change the regexp object.
-base::Optional<CompilationResult> CompileImpl(
+std::optional<CompilationResult> CompileImpl(
     Isolate* isolate, DirectHandle<IrRegExpData> re_data) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
@@ -120,7 +121,7 @@ bool ExperimentalRegExp::Compile(Isolate* isolate,
     StdoutStream{} << "Compiling experimental regexp " << *source << std::endl;
   }
 
-  base::Optional<CompilationResult> compilation_result =
+  std::optional<CompilationResult> compilation_result =
       CompileImpl(isolate, re_data);
   if (!compilation_result.has_value()) {
     DCHECK(isolate->has_exception());
@@ -284,7 +285,7 @@ int32_t ExperimentalRegExp::OneshotExecRaw(
                    << regexp_data->source() << std::endl;
   }
 
-  base::Optional<CompilationResult> compilation_result =
+  std::optional<CompilationResult> compilation_result =
       CompileImpl(isolate, regexp_data);
   if (!compilation_result.has_value()) return RegExp::kInternalRegExpException;
 
@@ -342,5 +343,4 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
   UNREACHABLE();
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

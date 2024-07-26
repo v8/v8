@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -30,8 +31,7 @@
 #include "src/regexp/regexp.h"
 #include "src/zone/zone-chunk-list.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class PreParserIdentifier;
 
@@ -1984,7 +1984,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
 
   const AstRawString* pattern = GetNextSymbolForRegExpLiteral();
-  base::Optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  std::optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
   const AstRawString* flags_as_ast_raw_string = GetNextSymbolForRegExpLiteral();
   if (!flags.has_value() || !ValidateRegExpFlags(flags.value())) {
     Next();
@@ -6946,7 +6946,6 @@ void ParserBase<Impl>::CheckClassFieldName(IdentifierT name, bool is_static) {
 
 #undef RETURN_IF_PARSE_ERROR
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_PARSING_PARSER_BASE_H_

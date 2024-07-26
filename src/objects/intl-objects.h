@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTL_SUPPORT
-#error Internationalization is expected to be enabled.
-#endif  // V8_INTL_SUPPORT
-
 #ifndef V8_OBJECTS_INTL_OBJECTS_H_
 #define V8_OBJECTS_INTL_OBJECTS_H_
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -20,6 +17,10 @@
 #include "src/objects/objects.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
+
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
 
 #define V8_MINIMUM_ICU_VERSION 73
 
@@ -41,8 +42,7 @@ class LocalizedNumberFormatter;
 }  //  namespace number
 }  // namespace U_ICU_NAMESPACE
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #define ICU_EXTERNAL_POINTER_TAG_LIST(V)                              \
   V(icu::UnicodeString, kIcuUnicodeStringTag)                         \
@@ -145,7 +145,7 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
       Isolate* isolate, Handle<String> s);
 
-  V8_WARN_UNUSED_RESULT static base::Optional<int> StringLocaleCompare(
+  V8_WARN_UNUSED_RESULT static std::optional<int> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
       Handle<Object> locales, Handle<Object> options, const char* method_name);
 
@@ -459,7 +459,6 @@ class Intl {
       Isolate* isolate, Handle<Object> options, const char* service);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_INTL_OBJECTS_H_

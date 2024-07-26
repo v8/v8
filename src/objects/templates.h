@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include <optional>
 #include <string_view>
 
 #include "include/v8-exception.h"
@@ -217,7 +218,7 @@ class FunctionTemplateInfo
   bool HasInstanceType();
 
   // Helper function for cached accessors.
-  static base::Optional<Tagged<Name>> TryGetCachedPropertyName(
+  static std::optional<Tagged<Name>> TryGetCachedPropertyName(
       Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;

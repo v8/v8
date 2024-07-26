@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-compiler.h"
 
+#include <optional>
+
 #include "src/base/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
@@ -18,8 +20,7 @@
 #include "unicode/utypes.h"
 #endif  // V8_INTL_SUPPORT
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 
@@ -1372,7 +1373,7 @@ bool RegExpNode::KeepRecursing(RegExpCompiler* compiler) {
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                               BoyerMooreLookahead* bm, bool not_at_start) {
-  base::Optional<RegExpFlags> old_flags;
+  std::optional<RegExpFlags> old_flags;
   if (action_type_ == MODIFY_FLAGS) {
     // It is not guaranteed that we hit the resetting modify flags node, due to
     // recursion budget limitation for filling in BMInfo. Therefore we reset the
@@ -3986,5 +3987,4 @@ void RegExpCompiler::ToNodeCheckForStackOverflow() {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

@@ -4,10 +4,10 @@
 
 #include "src/profiler/heap-snapshot-generator.h"
 
+#include <optional>
 #include <utility>
 
 #include "src/api/api-inl.h"
-#include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
@@ -49,8 +49,7 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 class HeapEntryVerifier {
@@ -2614,7 +2613,7 @@ void V8HeapExplorer::SetWeakReference(
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
                                       Tagged<Object> child_obj,
-                                      base::Optional<int> field_offset) {
+                                      std::optional<int> field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -2741,7 +2740,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
 }
 
 void V8HeapExplorer::TagObject(Tagged<Object> obj, const char* tag,
-                               base::Optional<HeapEntry::Type> type,
+                               std::optional<HeapEntry::Type> type,
                                bool overwrite_existing_name) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
@@ -3712,5 +3711,4 @@ void HeapSnapshotJSONSerializer::SerializeLocations() {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

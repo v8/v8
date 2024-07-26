@@ -4,6 +4,8 @@
 
 #include "src/objects/keys.h"
 
+#include <optional>
+
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api.h"
 #include "src/common/assert-scope.h"
@@ -25,8 +27,7 @@
 #include "src/utils/identity-map.h"
 #include "src/zone/zone-hashmap.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #define RETURN_NOTHING_IF_NOT_SUCCESSFUL(call) \
   do {                                         \
@@ -791,7 +792,7 @@ Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
 namespace {
 
 template <bool skip_symbols>
-base::Optional<int> CollectOwnPropertyNamesInternal(
+std::optional<int> CollectOwnPropertyNamesInternal(
     DirectHandle<JSObject> object, KeyAccumulator* keys,
     DirectHandle<DescriptorArray> descs, int start_index, int limit) {
   AllowGarbageCollection allow_gc;
@@ -823,7 +824,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
       continue;
     } else {
       if (keys->AddKey(key, DO_NOT_CONVERT) != ExceptionStatus::kSuccess) {
-        return base::Optional<int>();
+        return std::optional<int>();
       }
     }
   }
@@ -1052,7 +1053,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       DirectHandle<DescriptorArray> descs(
           object->map()->instance_descriptors(isolate_), isolate_);
       // First collect the strings,
-      base::Optional<int> first_symbol =
+      std::optional<int> first_symbol =
           CollectOwnPropertyNamesInternal<true>(object, this, descs, 0, limit);
       // then the symbols.
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(first_symbol);
@@ -1393,5 +1394,4 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
 
 #undef RETURN_NOTHING_IF_NOT_SUCCESSFUL
 #undef RETURN_FAILURE_IF_NOT_SUCCESSFUL
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

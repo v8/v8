@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <cmath>
+#include <optional>
 
 #include "src/ast/ast-value-factory.h"
 #include "src/base/strings.h"
@@ -19,8 +20,7 @@
 #include "src/parsing/scanner-inl.h"
 #include "src/zone/zone.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Scanner::ErrorState {
  public:
@@ -1030,13 +1030,13 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-base::Optional<RegExpFlags> Scanner::ScanRegExpFlags() {
+std::optional<RegExpFlags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::kRegExpLiteral, next().token);
 
   RegExpFlags flags;
   next().literal_chars.Start();
   while (IsIdentifierPart(c0_)) {
-    base::Optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    std::optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
     if (!maybe_flag.has_value()) return {};
     RegExpFlag flag = maybe_flag.value();
     if (flags & flag) return {};
@@ -1121,5 +1121,4 @@ void Scanner::SeekNext(size_t position) {
   DCHECK_EQ(next().location.beg_pos, static_cast<int>(position));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

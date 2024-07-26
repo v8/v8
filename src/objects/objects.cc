@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -23,6 +24,7 @@
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/date/date.h"
@@ -69,51 +71,28 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-disposable-stack-inl.h"
-#include "src/objects/keys.h"
-#include "src/objects/lookup-inl.h"
-#include "src/objects/map-updater.h"
-#include "src/objects/objects-body-descriptors-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/promise.h"
-#include "src/objects/property-details.h"
-#include "src/roots/roots.h"
-#include "src/snapshot/deserializer.h"
-#include "src/utils/identity-map.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-break-iterator.h"
-#include "src/objects/js-collator.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-date-time-format.h"
-#endif  // V8_INTL_SUPPORT
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-list-format.h"
-#include "src/objects/js-locale.h"
-#include "src/objects/js-number-format.h"
-#include "src/objects/js-plural-rules.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-relative-time-format.h"
-#include "src/objects/js-segment-iterator.h"
-#include "src/objects/js-segmenter.h"
-#include "src/objects/js-segments.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/codegen/source-position-table.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/keys.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/map.h"
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/promise.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/string-comparator.h"
@@ -123,12 +102,15 @@
 #include "src/objects/transitions-inl.h"
 #include "src/parsing/preparse-data.h"
 #include "src/regexp/regexp.h"
+#include "src/roots/roots.h"
+#include "src/snapshot/deserializer.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/hex-format.h"
+#include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/sha-256.h"
 #include "src/utils/utils-inl.h"
@@ -138,8 +120,21 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator.h"
+#include "src/objects/js-collator.h"
+#include "src/objects/js-date-time-format.h"
+#include "src/objects/js-list-format.h"
+#include "src/objects/js-locale.h"
+#include "src/objects/js-number-format.h"
+#include "src/objects/js-plural-rules.h"
+#include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segment-iterator.h"
+#include "src/objects/js-segmenter.h"
+#include "src/objects/js-segments.h"
+#endif  // V8_INTL_SUPPORT
+
+namespace v8::internal {
 
 ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
   if (should_throw.IsJust()) return should_throw.FromJust();
@@ -5407,7 +5402,7 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(
   }
 }
 
-base::Optional<Tagged<PropertyCell>>
+std::optional<Tagged<PropertyCell>>
 GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
     Isolate* isolate, DirectHandle<Name> name, RelaxedLoadTag tag) {
   // This reimplements HashTable::FindEntry for use in a concurrent setting.
@@ -6655,5 +6650,4 @@ EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 #undef EXTERN_DEFINE_DICTIONARY
 #undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FEEDBACK_VECTOR_H_
 #define V8_OBJECTS_FEEDBACK_VECTOR_H_
 
+#include <optional>
 #include <vector>
 
 #include "src/base/bit-field.h"
@@ -22,8 +23,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class IsCompiledScope;
 class FeedbackVectorSpec;
@@ -297,8 +297,8 @@ class FeedbackVector
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
-  inline base::Optional<Tagged<Code>> GetOptimizedOsrCode(Isolate* isolate,
-                                                          FeedbackSlot slot);
+  inline std::optional<Tagged<Code>> GetOptimizedOsrCode(Isolate* isolate,
+                                                         FeedbackSlot slot);
   void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                            Tagged<Code> code);
 
@@ -951,7 +951,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackSlotKind kind_;
   // When using the background-thread configuration, a cache is used to
   // guarantee a consistent view of the feedback to FeedbackNexus methods.
-  mutable base::Optional<std::pair<MaybeObjectHandle, MaybeObjectHandle>>
+  mutable std::optional<std::pair<MaybeObjectHandle, MaybeObjectHandle>>
       feedback_cache_;
   NexusConfig config_;
   Isolate* isolate_;
@@ -999,8 +999,7 @@ inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 inline CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
 inline ForInHint ForInHintFromFeedback(ForInFeedback type_feedback);
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

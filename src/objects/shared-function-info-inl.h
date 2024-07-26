@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
+#include <optional>
+
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
@@ -24,16 +26,15 @@
 #include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/shared-function-info-tq-inl.inc"
 
@@ -720,7 +721,7 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
   DCHECK(HasBytecodeArray());
 
   Isolate* main_isolate = isolate->GetMainThreadIsolateUnsafe();
-  base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(main_isolate);
+  std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(main_isolate);
   if (debug_info.has_value() &&
       debug_info.value()->HasInstrumentedBytecodeArray()) {
     return debug_info.value()->OriginalBytecodeArray(main_isolate);
@@ -1134,8 +1135,7 @@ OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWrapper, TrustedObject)
 ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,
           kSharedInfoOffset)
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -5,15 +5,15 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_H_
 #define V8_OBJECTS_JS_FUNCTION_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class AbstractCode;
 class ClosureFeedbackCellArray;
@@ -172,7 +172,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   bool HasAttachedCodeKind(IsolateForSandbox isolate, CodeKind kind) const;
   bool HasAvailableCodeKind(IsolateForSandbox isolate, CodeKind kind) const;
 
-  base::Optional<CodeKind> GetActiveTier(IsolateForSandbox isolate) const;
+  std::optional<CodeKind> GetActiveTier(IsolateForSandbox isolate) const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition(IsolateForSandbox isolate) const;
   bool ActiveTierIsBaseline(IsolateForSandbox isolate) const;
   bool ActiveTierIsMaglev(IsolateForSandbox isolate) const;
@@ -202,7 +202,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
   void SetInterruptBudget(Isolate* isolate,
-                          base::Optional<CodeKind> override_active_tier = {});
+                          std::optional<CodeKind> override_active_tier = {});
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
@@ -261,7 +261,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline bool NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate);
   inline void ResetIfCodeFlushed(
       IsolateForSandbox isolate,
-      base::Optional<
+      std::optional<
           std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                              Tagged<HeapObject> target)>>
           gc_notify_updated_slot = base::nullopt);
@@ -397,8 +397,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   TQ_OBJECT_CONSTRUCTORS(JSFunction)
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

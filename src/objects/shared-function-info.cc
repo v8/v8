@@ -4,6 +4,8 @@
 
 #include "src/objects/shared-function-info.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
@@ -17,8 +19,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 V8_EXPORT_PRIVATE constexpr Tagged<Smi>
     SharedFunctionInfo::kNoSharedNameSentinel;
@@ -281,7 +282,7 @@ Tagged<DebugInfo> SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this).value();
 }
 
-base::Optional<Tagged<DebugInfo>> SharedFunctionInfo::TryGetDebugInfo(
+std::optional<Tagged<DebugInfo>> SharedFunctionInfo::TryGetDebugInfo(
     Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this);
 }
@@ -809,7 +810,7 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
 void SharedFunctionInfo::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
   if (shared_info->CanCollectSourcePosition(isolate)) {
-    base::Optional<Isolate::ExceptionScope> exception_scope;
+    std::optional<Isolate::ExceptionScope> exception_scope;
     if (isolate->has_exception()) {
       exception_scope.emplace(isolate);
     }
@@ -878,5 +879,4 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
 }
 #endif  // DEBUG
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

@@ -4,6 +4,8 @@
 
 #include "src/parsing/rewriter.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -18,8 +20,7 @@
   Visit(param);                                   \
   if (CheckStackOverflow()) return;
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
@@ -395,7 +396,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   return RewriteBody(info, scope, body).has_value();
 }
 
-base::Optional<VariableProxy*> Rewriter::RewriteBody(
+std::optional<VariableProxy*> Rewriter::RewriteBody(
     ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body) {
   DisallowGarbageCollection no_gc;
   DisallowHandleAllocation no_handles;
@@ -432,5 +433,4 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
 
 #undef VISIT_AND_RETURN_IF_STACK_OVERFLOW
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

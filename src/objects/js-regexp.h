@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_JS_REGEXP_H_
 #define V8_OBJECTS_JS_REGEXP_H_
 
+#include <optional>
+
 #include "include/v8-regexp.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
@@ -14,8 +16,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class RegExpData;
 
@@ -57,8 +58,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return RegExpFlags{static_cast<int>(f)};
   }
 
-  static base::Optional<RegExpFlag> FlagFromChar(char c) {
-    base::Optional<RegExpFlag> f = TryRegExpFlagFromChar(c);
+  static std::optional<RegExpFlag> FlagFromChar(char c) {
+    std::optional<RegExpFlag> f = TryRegExpFlagFromChar(c);
     if (!f.has_value()) return f;
     if (f.value() == RegExpFlag::kLinear &&
         !v8_flags.enable_experimental_regexp_engine) {
@@ -77,8 +78,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static_assert(kFlagCount == v8::RegExp::kFlagCount);
   static_assert(kFlagCount == kRegExpFlagCount);
 
-  static base::Optional<Flags> FlagsFromString(Isolate* isolate,
-                                               Handle<String> flags);
+  static std::optional<Flags> FlagsFromString(Isolate* isolate,
+                                              Handle<String> flags);
 
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
@@ -363,8 +364,7 @@ class JSRegExpResultIndices
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResultIndices)
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

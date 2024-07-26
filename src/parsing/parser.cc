@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
@@ -33,8 +34,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super, int pos) {
@@ -877,7 +877,7 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
 
   if (has_error()) return;
 
-  base::Optional<VariableProxy*> maybe_result =
+  std::optional<VariableProxy*> maybe_result =
       Rewriter::RewriteBody(info, scope, block->statements());
   Expression* result_value =
       (maybe_result && *maybe_result)
@@ -3568,7 +3568,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
       DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
       result = DoParseProgram(/* isolate = */ nullptr, info);
     } else {
-      base::Optional<ClassScope::HeritageParsingScope> heritage;
+      std::optional<ClassScope::HeritageParsingScope> heritage;
       if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&
                       original_scope_->is_class_scope())) {
         // If the function skips the outer class and the outer scope is a class,
@@ -3778,5 +3778,4 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name,
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

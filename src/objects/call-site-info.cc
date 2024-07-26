@@ -4,6 +4,8 @@
 
 #include "src/objects/call-site-info.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -13,8 +15,7 @@
 #include "src/debug/debug-wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
@@ -632,7 +633,7 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
   return Cast<AbstractCode>(code)->SourcePosition(isolate, offset);
 }
 
-base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
+std::optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance()
@@ -889,5 +890,4 @@ MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
   return indirect_handle(builder.Finish(), isolate);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

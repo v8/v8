@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/base/bit-field.h"
 #include "src/builtins/builtins.h"
@@ -27,9 +28,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-
-namespace internal {
+namespace v8::internal {
 
 class AsmWasmData;
 class BytecodeArray;
@@ -469,7 +468,7 @@ class SharedFunctionInfo
   // objects in a sidetable.
   bool HasDebugInfo(Isolate* isolate) const;
   V8_EXPORT_PRIVATE Tagged<DebugInfo> GetDebugInfo(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE base::Optional<Tagged<DebugInfo>> TryGetDebugInfo(
+  V8_EXPORT_PRIVATE std::optional<Tagged<DebugInfo>> TryGetDebugInfo(
       Isolate* isolate) const;
   V8_EXPORT_PRIVATE bool HasBreakInfo(Isolate* isolate) const;
   bool BreakAtEntry(Isolate* isolate) const;
@@ -885,8 +884,7 @@ class V8_NODISCARD IsCompiledScope {
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

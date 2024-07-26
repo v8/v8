@@ -2,21 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTL_SUPPORT
-#error Internationalization is expected to be enabled.
-#endif  // V8_INTL_SUPPORT
-
 #include "src/objects/js-date-time-format.h"
 
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "src/base/bit-field.h"
-#include "src/base/optional.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -33,8 +29,11 @@
 #include "unicode/smpdtfmt.h"
 #include "unicode/unistr.h"
 
-namespace v8 {
-namespace internal {
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
+
+namespace v8::internal {
 
 namespace {
 
@@ -1643,8 +1642,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
 // Convert the input in the form of
 // [+-\u2212]hh:?mm  to the ID acceptable for SimpleTimeZone
 // GMT[+-]hh or GMT[+-]hh:mm or empty
-base::Optional<std::string> GetOffsetTimeZone(Isolate* isolate,
-                                              Handle<String> time_zone) {
+std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
+                                             Handle<String> time_zone) {
   time_zone = String::Flatten(isolate, time_zone);
   DisallowGarbageCollection no_gc;
   const String::FlatContent& flat = time_zone->GetFlatContent(no_gc);
@@ -1705,7 +1704,7 @@ std::unique_ptr<icu::TimeZone> JSDateTimeFormat::CreateTimeZone(
     Isolate* isolate, Handle<String> time_zone_string) {
   // Create time zone as specified by the user. We have to re-create time zone
   // since calendar takes ownership.
-  base::Optional<std::string> offsetTimeZone =
+  std::optional<std::string> offsetTimeZone =
       GetOffsetTimeZone(isolate, time_zone_string);
   if (offsetTimeZone.has_value()) {
     std::unique_ptr<icu::TimeZone> tz(
@@ -2913,7 +2912,7 @@ Maybe<bool> AddPartForFormatRange(
 // If this function return a value, it could be a throw of TypeError, or normal
 // formatted string. If it return a nullopt the caller should call the fallback
 // function.
-base::Optional<MaybeHandle<String>> FormattedToString(
+std::optional<MaybeHandle<String>> FormattedToString(
     Isolate* isolate, const icu::FormattedValue& formatted) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
@@ -2934,7 +2933,7 @@ base::Optional<MaybeHandle<String>> FormattedToString(
 // If this function return a value, it could be a throw of TypeError, or normal
 // formatted parts in JSArray. If it return a nullopt the caller should call
 // the fallback function.
-base::Optional<MaybeHandle<JSArray>> FormattedDateIntervalToJSArray(
+std::optional<MaybeHandle<JSArray>> FormattedDateIntervalToJSArray(
     Isolate* isolate, const icu::FormattedValue& formatted) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
@@ -2993,15 +2992,15 @@ base::Optional<MaybeHandle<JSArray>> FormattedDateIntervalToJSArray(
 }
 
 // The shared code between formatRange and formatRangeToParts
-template <typename T, base::Optional<MaybeHandle<T>> (*Format)(
+template <typename T, std::optional<MaybeHandle<T>> (*Format)(
                           Isolate*, const icu::FormattedValue&)>
-base::Optional<MaybeHandle<T>> CallICUFormatRange(
+std::optional<MaybeHandle<T>> CallICUFormatRange(
     Isolate* isolate, const icu::DateIntervalFormat* format,
     const icu::Calendar* calendar, double x, double y);
 // #sec-partitiondatetimerangepattern
-template <typename T, base::Optional<MaybeHandle<T>> (*Format)(
+template <typename T, std::optional<MaybeHandle<T>> (*Format)(
                           Isolate*, const icu::FormattedValue&)>
-base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
+std::optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format, double x,
     double y, const char* method_name) {
   // 1. Let x be TimeClip(x).
@@ -3028,9 +3027,9 @@ base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
   return CallICUFormatRange<T, Format>(isolate, format.get(), calendar, x, y);
 }
 
-template <typename T, base::Optional<MaybeHandle<T>> (*Format)(
+template <typename T, std::optional<MaybeHandle<T>> (*Format)(
                           Isolate*, const icu::FormattedValue&)>
-base::Optional<MaybeHandle<T>> CallICUFormatRange(
+std::optional<MaybeHandle<T>> CallICUFormatRange(
     Isolate* isolate, const icu::DateIntervalFormat* format,
     const icu::Calendar* calendar, double x, double y) {
   UErrorCode status = U_ZERO_ERROR;
@@ -3051,8 +3050,8 @@ base::Optional<MaybeHandle<T>> CallICUFormatRange(
 }
 
 template <typename T,
-          base::Optional<MaybeHandle<T>> (*Format)(Isolate*,
-                                                   const icu::FormattedValue&),
+          std::optional<MaybeHandle<T>> (*Format)(Isolate*,
+                                                  const icu::FormattedValue&),
           MaybeHandle<T> (*Fallback)(Isolate*, const icu::SimpleDateFormat&,
                                      PatternKind, double)>
 MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
@@ -3097,7 +3096,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   const icu::Calendar* calendar =
       date_time_format->icu_simple_date_format()->raw()->getCalendar();
 
-  base::Optional<MaybeHandle<T>> result = CallICUFormatRange<T, Format>(
+  std::optional<MaybeHandle<T>> result = CallICUFormatRange<T, Format>(
       isolate, format.get(), calendar, x_record.epoch_milliseconds,
       y_record.epoch_milliseconds);
   if (result.has_value()) return *result;
@@ -3106,8 +3105,8 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
 }
 
 template <typename T,
-          base::Optional<MaybeHandle<T>> (*Format)(Isolate*,
-                                                   const icu::FormattedValue&),
+          std::optional<MaybeHandle<T>> (*Format)(Isolate*,
+                                                  const icu::FormattedValue&),
           MaybeHandle<T> (*Fallback)(Isolate*, const icu::SimpleDateFormat&,
                                      double)>
 MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
@@ -3121,7 +3120,7 @@ MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj, Object::ToNumber(isolate, y_obj));
   double y = Object::NumberValue(*y_obj);
 
-  base::Optional<MaybeHandle<T>> result =
+  std::optional<MaybeHandle<T>> result =
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,
                                                method_name);
   if (result.has_value()) return *result;
@@ -3165,5 +3164,4 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
       isolate, date_time_format, x, y, method_name);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

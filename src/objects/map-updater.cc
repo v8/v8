@@ -4,6 +4,7 @@
 
 #include "src/objects/map-updater.h"
 
+#include <optional>
 #include <queue>
 
 #include "src/base/platform/mutex.h"
@@ -18,8 +19,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/transitions.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 
@@ -348,9 +348,9 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
 }  // namespace
 
 // static
-base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
-                                                        Tagged<Map> old_map,
-                                                        ConcurrencyMode cmode) {
+std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
+                                                       Tagged<Map> old_map,
+                                                       ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
 
   // Check the state of the root map.
@@ -1371,5 +1371,4 @@ void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

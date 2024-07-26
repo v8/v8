@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
@@ -22,8 +23,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 bool FunctionTemplateInfo::HasInstanceType() {
   return instance_type() != kNoJSApiObjectType;
@@ -142,7 +142,7 @@ FunctionTemplateInfo::AllocateFunctionTemplateRareData(
   return *rare_data;
 }
 
-base::Optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
+std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
     Isolate* isolate, Tagged<Object> getter) {
   DisallowGarbageCollection no_gc;
   if (!IsFunctionTemplateInfo(getter)) {
@@ -340,5 +340,4 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
   return object;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

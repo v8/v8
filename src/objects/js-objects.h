@@ -5,7 +5,8 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_H_
 #define V8_OBJECTS_JS_OBJECTS_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
@@ -17,8 +18,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // Enum for functions that offer a second mode that does not cause allocations.
 // Used in conjunction with LookupIterator and unboxed double fields.
@@ -261,7 +261,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE inline base::Optional<Tagged<NativeContext>>
+  V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
   GetCreationContext();
   V8_EXPORT_PRIVATE inline MaybeHandle<NativeContext> GetCreationContext(
       Isolate* isolate);
@@ -715,7 +715,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Same as above, but it will return {} if we would be reading out of the
   // bounds of the object or if the dictionary is pending allocation. Use this
   // version for concurrent access.
-  static base::Optional<Tagged<Object>> DictionaryPropertyAt(
+  static std::optional<Tagged<Object>> DictionaryPropertyAt(
       DirectHandle<JSObject> object, InternalIndex dict_index, Heap* heap);
 
   // Access fast-case object properties at index.
@@ -740,7 +740,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // in which this method is meant to be used, and what guarantees it
   // provides against invalid reads from another thread during object
   // mutation.
-  inline base::Optional<Tagged<Object>> RawInobjectPropertyAt(
+  inline std::optional<Tagged<Object>> RawInobjectPropertyAt(
       PtrComprCageBase cage_base, Tagged<Map> original_map,
       FieldIndex index) const;
 
@@ -1415,8 +1415,7 @@ class JSPromiseWithResolversResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

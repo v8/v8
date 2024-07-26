@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTL_SUPPORT
-#error Internationalization is expected to be enabled.
-#endif  // V8_INTL_SUPPORT
-
 #include "src/objects/intl-objects.h"
 
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,6 +52,10 @@
 #include "unicode/ustring.h"
 #include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
 
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
+
 #define XSTR(s) STR(s)
 #define STR(s) #s
 static_assert(
@@ -63,8 +64,7 @@ static_assert(
 #undef STR
 #undef XSTR
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 
@@ -984,7 +984,7 @@ template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
 template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
     LocalIsolate*, DirectHandle<Object>, DirectHandle<Object>);
 
-base::Optional<int> Intl::StringLocaleCompare(
+std::optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
     Handle<Object> locales, Handle<Object> options, const char* method_name) {
   // We only cache the instance when locales is a string/undefined and
@@ -1111,7 +1111,7 @@ struct FastCompareStringsData {
   int first_diff_at = 0;  // The first relevant diff (L1 if exists, else L3).
   bool has_diff = false;
 
-  base::Optional<UCollationResult> FastCompareFailed(
+  std::optional<UCollationResult> FastCompareFailed(
       int* processed_until_out) const {
     if (has_diff) {
       // Found some difference, continue there to ensure the generic algorithm
@@ -1353,7 +1353,7 @@ bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
 //
 //   return UCOL_EQUAL;
 // }
-base::Optional<UCollationResult> TryFastCompareStrings(
+std::optional<UCollationResult> TryFastCompareStrings(
     Isolate* isolate, const icu::Collator& icu_collator,
     DirectHandle<String> string1, DirectHandle<String> string2,
     int* processed_until_out) {
@@ -1448,7 +1448,7 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
 
   int processed_until = 0;
   if (compare_strings_options == CompareStringsOptions::kTryFastPath) {
-    base::Optional<int> maybe_result = TryFastCompareStrings(
+    std::optional<int> maybe_result = TryFastCompareStrings(
         isolate, icu_collator, string1, string2, &processed_until);
     if (maybe_result.has_value()) return maybe_result.value();
   }
@@ -3224,5 +3224,4 @@ int64_t Intl::GetTimeZoneOffsetNanoseconds(Isolate* isolate,
   return static_cast<int64_t>(raw_offset + dst_offset) * 1000000;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

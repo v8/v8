@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_TRANSITIONS_H_
 #define V8_OBJECTS_TRANSITIONS_H_
 
+#include <optional>
+
 #include "src/common/checks.h"
 #include "src/execution/isolate.h"
 #include "src/objects/descriptor-array.h"
@@ -17,12 +19,11 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace third_party_heap {
 class Impl;
-}
+}  // namespace third_party_heap
 
 // Find all transitions with given name and calls the callback.
 using ForEachTransitionCallback = std::function<void(Tagged<Map>)>;
@@ -186,7 +187,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   static bool PutPrototypeTransition(Isolate* isolate, Handle<Map>,
                                      DirectHandle<Object> prototype,
                                      DirectHandle<Map> target_map);
-  static base::Optional<Tagged<Map>> GetPrototypeTransition(
+  static std::optional<Tagged<Map>> GetPrototypeTransition(
       Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype);
   bool HasPrototypeTransitions();
 
@@ -470,8 +471,7 @@ class TransitionArray : public WeakFixedArray {
   OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -4,6 +4,8 @@
 
 #include "src/objects/map.h"
 
+#include <optional>
+
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -29,8 +31,7 @@
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   DisallowGarbageCollection no_alloc;
@@ -48,7 +49,7 @@ Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 // static
-base::Optional<Tagged<JSFunction>> Map::GetConstructorFunction(
+std::optional<Tagged<JSFunction>> Map::GetConstructorFunction(
     Tagged<Map> map, Tagged<Context> native_context) {
   DisallowGarbageCollection no_gc;
   if (IsPrimitiveMap(map)) {
@@ -725,7 +726,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
     }
   }
 
-  base::Optional<Tagged<Map>> new_map = MapUpdater::TryUpdateNoLock(
+  std::optional<Tagged<Map>> new_map = MapUpdater::TryUpdateNoLock(
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (v8_flags.fast_map_update) {
@@ -1113,10 +1114,10 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 }
 
 // static
-base::Optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
-                                                   DirectHandle<Map> map,
-                                                   ElementsKind kind,
-                                                   ConcurrencyMode cmode) {
+std::optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
+                                                  DirectHandle<Map> map,
+                                                  ElementsKind kind,
+                                                  ConcurrencyMode cmode) {
   Tagged<Map> closest_map =
       FindClosestElementsTransition(isolate, *map, kind, cmode);
   if (closest_map->elements_kind() != kind) return {};
@@ -2512,5 +2513,4 @@ void NormalizedMapCache::Set(DirectHandle<Map> fast_map,
                       MakeWeak(*normalized_map));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
