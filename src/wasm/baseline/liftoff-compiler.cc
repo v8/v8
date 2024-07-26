@@ -3619,7 +3619,8 @@ class LiftoffCompiler {
                Value* result) {
     DCHECK_EQ(type.value_type().kind(), result->type.kind());
     bool needs_f16_to_f32_conv = false;
-    if (type.value() == LoadType::kF32LoadF16) {
+    if (type.value() == LoadType::kF32LoadF16 &&
+        !asm_.supports_f16_mem_access()) {
       needs_f16_to_f32_conv = true;
       type = LoadType::kI32Load16U;
     }
@@ -3794,7 +3795,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
 
-    if (type.value() == StoreType::kF32StoreF16) {
+    if (type.value() == StoreType::kF32StoreF16 &&
+        !asm_.supports_f16_mem_access()) {
       type = StoreType::kI32Store16;
       // {value} is always a float, so can't alias with {i16}.
       DCHECK_EQ(kF32, kind);

@@ -1559,6 +1559,8 @@ class LiftoffAssembler : public MacroAssembler {
                                    Register tmp_gp, LiftoffRegister tmp_s128,
                                    ValueKind lane_kind);
 
+  inline bool supports_f16_mem_access();
+
   ////////////////////////////////////
   // End of platform-specific part. //
   ////////////////////////////////////
