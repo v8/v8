@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// For wasm::FunctionSig.
+#include "src/wasm/value-type.h"
+
 @useParentTypeChecker
 type PodArrayOfWasmValueType extends ByteArray
     constexpr 'PodArray<wasm::ValueType>';
 @useParentTypeChecker
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
+
+type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::FunctionSig*';
 
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
@@ -116,7 +121,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   packed_args_size: Smi;
   c_wrapper_code: TrustedPointer<Code>;
 
-  sig: RawPtr;  // wasm::FunctionSig*
+  sig: RawFunctionSigPtr;
 }
 
 extern operator '.instance_data' macro

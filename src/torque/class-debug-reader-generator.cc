@@ -532,7 +532,12 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     IncludeGuardScope include_guard(h_contents, file_name + ".h");
 
     h_contents << "#include <cstdint>\n";
-    h_contents << "#include <vector>\n";
+    h_contents << "#include <vector>\n\n";
+
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      h_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
+
     h_contents
         << "\n#include \"tools/debug_helper/debug-helper-internal.h\"\n\n";
 

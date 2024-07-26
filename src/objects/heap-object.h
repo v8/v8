@@ -241,14 +241,16 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
 
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
+                                                 std::is_enum<T>::value ||
+                                                 std::is_pointer<T>::value,
                                              int>::type = 0>
   inline T ReadField(size_t offset) const {
     return ReadMaybeUnalignedValue<T>(field_address(offset));
   }
 
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
+                                                 std::is_enum<T>::value ||
+                                                 std::is_pointer<T>::value,
                                              int>::type = 0>
   inline void WriteField(size_t offset, T value) const {
     return WriteMaybeUnalignedValue<T>(field_address(offset), value);
