@@ -3731,20 +3731,41 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcvt(dst.fp().H(), src.fp().S());
+  Dup(dst.fp().V8H(), dst.fp().H(), 0);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Mov(dst.fp().H(), lhs.fp().V8H(), imm_lane_idx);
+  Fcvt(dst.fp().S(), dst.fp().H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  if (dst != src1) {
+    Mov(dst.fp().V8H(), src1.fp().V8H());
+  }
+  UseScratchRegisterScope temps(this);
+
+  VRegister tmp = temps.AcquireV(kFormat8H);
+  Fcvt(tmp.H(), src2.fp().S());
+  Mov(dst.fp().V8H(), imm_lane_idx, tmp.V8H(), 0);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_abs(LiftoffRegister dst,
