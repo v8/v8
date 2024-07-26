@@ -2133,9 +2133,13 @@ RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {
   return ReadOnlyRoots(isolate).true_value();
 }
 
-RUNTIME_FUNCTION(Runtime_IsolateCountForTesting) {
+// Returns true if the tiering state (liftoff, turbofan) of wasm functions can
+// be asserted in a predictable way.
+RUNTIME_FUNCTION(Runtime_IsWasmTieringPredictable) {
   DCHECK_EQ(args.length(), 0);
-  return Smi::FromInt(g_num_isolates_for_testing);
+  const bool single_isolate = g_num_isolates_for_testing == 1;
+  const bool stress_deopt = v8_flags.deopt_every_n_times > 0;
+  return ReadOnlyRoots(isolate).boolean_value(single_isolate && !stress_deopt);
 }
 
 }  // namespace internal

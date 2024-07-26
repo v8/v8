@@ -91,18 +91,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(expectedOne, wasm.passThroughExport(wasm.one));
   %WasmTierUpFunction(wasm.passThrough);
   assertEquals(expectedTwo, wasm.passThroughExport(wasm.two));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.passThrough));
   }
   %WasmTierUpFunction(wasm.passThrough);
   assertEquals(expectedThree, wasm.passThroughExport(wasm.threeGC));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.passThrough));
   }
   // This time tier up the outer function.
   %WasmTierUpFunction(wasm.passThroughExport);
   assertEquals(expectedFour, wasm.passThroughExport(wasm.four));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(wasm.passThrough));
   }
 

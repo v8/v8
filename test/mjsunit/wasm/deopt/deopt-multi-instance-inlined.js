@@ -38,16 +38,16 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(84, instance.exports.main(instance.exports.callee_0));
   %WasmTierUpFunction(instance.exports.main);
   assertEquals(84, instance.exports.main(instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance.exports.main));
   }
 
   const instance2 = builder.instantiate({});
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
   assertEquals(84, instance2.exports.main(instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(instance2.exports.main));
   }
   // Run it one more time, so that the call count to inlinee is > 0 for
@@ -55,7 +55,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(84, instance2.exports.main(instance.exports.callee_0));
   %WasmTierUpFunction(instance2.exports.main);
   assertEquals(84, instance2.exports.main(instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
 })();
@@ -94,21 +94,21 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(42, instance.exports.main(7, instance.exports.callee_0));
   %WasmTierUpFunction(instance.exports.main);
   assertEquals(42, instance.exports.main(7, instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance.exports.main));
   }
 
   const instance2 = builder.instantiate({});
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
   assertEquals(42, instance2.exports.main(7, instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertFalse(%IsTurboFanFunction(instance2.exports.main));
   }
   %WasmTierUpFunction(instance2.exports.main);
   assertEquals(42, instance2.exports.main(7, instance.exports.callee_0));
-  if (%IsolateCountForTesting() == 1) {
+  if (%IsWasmTieringPredictable()) {
     assertTrue(%IsTurboFanFunction(instance2.exports.main));
   }
 })();
