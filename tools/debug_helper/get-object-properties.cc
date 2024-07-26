@@ -19,9 +19,7 @@
 
 namespace i = v8::internal;
 
-namespace v8 {
-namespace internal {
-namespace debug_helper_internal {
+namespace v8::internal::debug_helper_internal {
 
 constexpr char kTaggedValue[] = "v8::internal::TaggedValue";
 constexpr char kSmi[] = "v8::internal::Smi";
@@ -814,9 +812,7 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
   return std::make_unique<StackFrameResult>(std::move(props));
 }
 
-}  // namespace debug_helper_internal
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::debug_helper_internal
 
 namespace di = v8::internal::debug_helper_internal;
 

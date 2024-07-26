@@ -53,7 +53,6 @@
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/base/bounds.h"
-#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"

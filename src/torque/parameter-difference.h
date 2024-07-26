@@ -5,13 +5,12 @@
 #ifndef V8_TORQUE_PARAMETER_DIFFERENCE_H_
 #define V8_TORQUE_PARAMETER_DIFFERENCE_H_
 
+#include <optional>
 #include <vector>
 
 #include "src/torque/types.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 class ParameterDifference {
  public:
@@ -37,8 +36,8 @@ class ParameterDifference {
     DCHECK_EQ(difference_.size(), other.difference_.size());
     bool better_parameter_found = false;
     for (size_t i = 0; i < difference_.size(); ++i) {
-      base::Optional<const Type*> a = difference_[i];
-      base::Optional<const Type*> b = other.difference_[i];
+      std::optional<const Type*> a = difference_[i];
+      std::optional<const Type*> b = other.difference_[i];
       if (a == b) {
         continue;
       } else if (a && b && a != b && (*a)->IsSubtypeOf(*b)) {
@@ -57,7 +56,7 @@ class ParameterDifference {
   // Pointwise difference between call arguments and a signature.
   // {base::nullopt} means that an implicit conversion was necessary,
   // otherwise we store the supertype found in the signature.
-  std::vector<base::Optional<const Type*>> difference_;
+  std::vector<std::optional<const Type*>> difference_;
 
   void AddParameter(const Type* to, const Type* from) {
     if (from->IsSubtypeOf(to)) {
@@ -70,8 +69,6 @@ class ParameterDifference {
   }
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_PARAMETER_DIFFERENCE_H_

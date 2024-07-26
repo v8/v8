@@ -39,7 +39,6 @@
 #include "src/api/api-inl.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"

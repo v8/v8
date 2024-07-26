@@ -12,8 +12,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 namespace {
 
@@ -186,5 +185,4 @@ TEST(HeapGrowingTest, IncrementalGCFinalized) {
   FakeAllocate(&stats_collector, StatsCollector::kAllocationThresholdBytes);
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal

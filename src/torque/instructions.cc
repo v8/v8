@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/torque/instructions.h"
+
+#include <optional>
+
 #include "src/torque/cfg.h"
 #include "src/torque/type-oracle.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 #define TORQUE_INSTRUCTION_BOILERPLATE_DEFINITIONS(Name)        \
   const InstructionKind Name::kKind = InstructionKind::k##Name; \
@@ -248,7 +249,7 @@ void CallCsaMacroInstruction::RecomputeDefinitionLocations(
   }
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallCsaMacroInstruction::GetExceptionObjectDefinition() const {
   if (!catch_block) return base::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
@@ -390,7 +391,7 @@ DefinitionLocation CallCsaMacroAndBranchInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallCsaMacroAndBranchInstruction::GetExceptionObjectDefinition() const {
   if (!catch_block) return base::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
@@ -461,7 +462,7 @@ DefinitionLocation CallBuiltinInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallBuiltinInstruction::GetExceptionObjectDefinition() const {
   if (!catch_block) return base::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
@@ -567,7 +568,7 @@ DefinitionLocation CallRuntimeInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallRuntimeInstruction::GetExceptionObjectDefinition() const {
   if (!catch_block) return base::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
@@ -804,6 +805,4 @@ bool CallRuntimeInstruction::IsBlockTerminator() const {
                             TypeOracle::GetNeverType();
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

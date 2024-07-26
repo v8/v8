@@ -35,8 +35,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 constexpr char kUnavailableString[] = "unavailable";
@@ -3972,8 +3971,7 @@ void JSObject::PrintTransitions(std::ostream& os) {
 }
 
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 namespace {
 

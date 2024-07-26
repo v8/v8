@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <string>
 
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/torque/cc-generator.h"
@@ -27,9 +27,7 @@
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 uint64_t next_unique_binding_index = 0;
 
@@ -283,7 +281,7 @@ class ImplementationVisitor::MacroInliningScope {
 };
 
 VisitResult ImplementationVisitor::InlineMacro(
-    Macro* macro, base::Optional<LocationReference> this_reference,
+    Macro* macro, std::optional<LocationReference> this_reference,
     const std::vector<VisitResult>& arguments,
     const std::vector<Block*> label_blocks) {
   MacroInliningScope macro_inlining_scope(this, macro);
@@ -342,7 +340,7 @@ VisitResult ImplementationVisitor::InlineMacro(
   }
 
   Block* macro_end;
-  base::Optional<Binding<LocalLabel>> macro_end_binding;
+  std::optional<Binding<LocalLabel>> macro_end_binding;
   if (can_return) {
     Stack<const Type*> stack = assembler().CurrentStack();
     std::vector<const Type*> lowered_return_types = LowerType(return_type);
@@ -419,7 +417,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   // Avoid multiple-definition errors since it is possible for multiple
   // generated -inl.inc files to all contain function definitions for the same
   // Torque macro.
-  base::Optional<cpp::IncludeGuardScope> include_guard;
+  std::optional<cpp::IncludeGuardScope> include_guard;
   if (output_type_ == OutputType::kCC) {
     include_guard.emplace(&csa_cc, "V8_INTERNAL_DEFINED_"s + macro->CCName());
   } else if (output_type_ == OutputType::kCCDebug) {
@@ -444,7 +442,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
 
   std::vector<VisitResult> arguments;
 
-  base::Optional<LocationReference> this_reference;
+  std::optional<LocationReference> this_reference;
   if (Method* method = Method::DynamicCast(macro)) {
     const Type* this_type = method->aggregate_type();
     LowerParameter(this_type, ExternalParameterName(kThisParameterName),
@@ -519,7 +517,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     assembler().Bind(end);
   }
 
-  base::Optional<Stack<std::string>> values;
+  std::optional<Stack<std::string>> values;
   if (output_type_ == OutputType::kCC) {
     CCGenerator cc_generator{assembler().Result(), csa_ccfile()};
     values = cc_generator.EmitGraph(lowered_parameters);
@@ -748,11 +746,11 @@ const Type* ImplementationVisitor::Visit(
     ReportError("local constant \"", stmt->name, "\" is not initialized.");
   }
 
-  base::Optional<const Type*> type;
+  std::optional<const Type*> type;
   if (stmt->type) {
     type = TypeVisitor::ComputeType(*stmt->type);
   }
-  base::Optional<VisitResult> init_result;
+  std::optional<VisitResult> init_result;
   if (stmt->initializer) {
     StackScope scope(this);
     init_result = Visit(*stmt->initializer);
@@ -1722,7 +1720,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
 }
 
 const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {
-  base::Optional<Binding<LocalLabel>*> break_label =
+  std::optional<Binding<LocalLabel>*> break_label =
       TryLookupLabel(kBreakLabelName);
   if (!break_label) {
     ReportError("break used outside of loop");
@@ -1732,7 +1730,7 @@ const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {
 }
 
 const Type* ImplementationVisitor::Visit(ContinueStatement* stmt) {
-  base::Optional<Binding<LocalLabel>*> continue_label =
+  std::optional<Binding<LocalLabel>*> continue_label =
       TryLookupLabel(kContinueLabelName);
   if (!continue_label) {
     ReportError("continue used outside of loop");
@@ -1977,7 +1975,7 @@ void FailCallableLookup(
 
 Callable* GetOrCreateSpecialization(
     const SpecializationKey<GenericCallable>& key) {
-  if (base::Optional<Callable*> specialization =
+  if (std::optional<Callable*> specialization =
           key.generic->GetSpecialization(key.specialized_types)) {
     return *specialization;
   }
@@ -1986,19 +1984,19 @@ Callable* GetOrCreateSpecialization(
 
 }  // namespace
 
-base::Optional<Binding<LocalValue>*> ImplementationVisitor::TryLookupLocalValue(
+std::optional<Binding<LocalValue>*> ImplementationVisitor::TryLookupLocalValue(
     const std::string& name) {
   return ValueBindingsManager::Get().TryLookup(name);
 }
 
-base::Optional<Binding<LocalLabel>*> ImplementationVisitor::TryLookupLabel(
+std::optional<Binding<LocalLabel>*> ImplementationVisitor::TryLookupLabel(
     const std::string& name) {
   return LabelBindingsManager::Get().TryLookup(name);
 }
 
 Binding<LocalLabel>* ImplementationVisitor::LookupLabel(
     const std::string& name) {
-  base::Optional<Binding<LocalLabel>*> label = TryLookupLabel(name);
+  std::optional<Binding<LocalLabel>*> label = TryLookupLabel(name);
   if (!label) ReportError("cannot find label ", name);
   return *label;
 }
@@ -2025,10 +2023,10 @@ bool ImplementationVisitor::TestLookupCallable(
 TypeArgumentInference ImplementationVisitor::InferSpecializationTypes(
     GenericCallable* generic, const TypeVector& explicit_specialization_types,
     const TypeVector& explicit_arguments) {
-  std::vector<base::Optional<const Type*>> all_arguments;
+  std::vector<std::optional<const Type*>> all_arguments;
   const ParameterList& parameters = generic->declaration()->parameters;
   for (size_t i = 0; i < parameters.implicit_count; ++i) {
-    base::Optional<Binding<LocalValue>*> val =
+    std::optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(parameters.names[i]->value);
     all_arguments.push_back(
         val ? (*val)->GetLocationReference(*val).ReferencedType()
@@ -2278,7 +2276,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
 
 LocationReference ImplementationVisitor::GenerateFieldAccess(
     LocationReference reference, const std::string& fieldname,
-    bool ignore_stuct_field_constness, base::Optional<SourcePosition> pos) {
+    bool ignore_stuct_field_constness, std::optional<SourcePosition> pos) {
   if (reference.IsVariableAccess() &&
       reference.variable().type()->StructSupertype()) {
     const StructType* type = *reference.variable().type()->StructSupertype();
@@ -2309,8 +2307,7 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
-  if (base::Optional<const Type*> referenced_type =
-          reference.ReferencedType()) {
+  if (std::optional<const Type*> referenced_type = reference.ReferencedType()) {
     if ((*referenced_type)->IsBitFieldStructType()) {
       const BitFieldStructType* bitfield_struct =
           BitFieldStructType::cast(*referenced_type);
@@ -2374,7 +2371,7 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
     }
   }
   VisitResult object_result = GenerateFetchFromLocation(reference);
-  if (base::Optional<const ClassType*> class_type =
+  if (std::optional<const ClassType*> class_type =
           object_result.type()->ClassSupertype()) {
     // This is a hack to distinguish the situation where we want to use
     // overloaded field accessors from when we want to create a reference.
@@ -2423,7 +2420,7 @@ LocationReference ImplementationVisitor::GenerateReferenceToItemInHeapSlice(
 LocationReference ImplementationVisitor::GetLocationReference(
     IdentifierExpression* expr) {
   if (expr->namespace_qualification.empty()) {
-    if (base::Optional<Binding<LocalValue>*> value =
+    if (std::optional<Binding<LocalValue>*> value =
             TryLookupLocalValue(expr->name->value)) {
       if (GlobalContext::collect_language_server_data()) {
         LanguageServerData::AddDefinition(expr->name->pos,
@@ -2449,7 +2446,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
   }
   QualifiedName name =
       QualifiedName(expr->namespace_qualification, expr->name->value);
-  if (base::Optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
+  if (std::optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
     if (GlobalContext::collect_language_server_data()) {
       LanguageServerData::AddDefinition(expr->name->pos,
                                         (*builtin)->Position());
@@ -2735,7 +2732,7 @@ std::pair<std::string, std::string> GetClassInstanceTypeRange(
 }  // namespace
 
 VisitResult ImplementationVisitor::GenerateCall(
-    Callable* callable, base::Optional<LocationReference> this_reference,
+    Callable* callable, std::optional<LocationReference> this_reference,
     Arguments arguments, const TypeVector& specialization_types,
     bool is_tailcall) {
   CHECK(callable->Position().source.IsValid());
@@ -2761,7 +2758,7 @@ VisitResult ImplementationVisitor::GenerateCall(
   std::vector<VisitResult> implicit_arguments;
   for (size_t i = 0; i < callable->signature().implicit_count; ++i) {
     std::string implicit_name = callable->signature().parameter_names[i]->value;
-    base::Optional<Binding<LocalValue>*> val =
+    std::optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
     if (val) {
       implicit_arguments.push_back(
@@ -2847,7 +2844,7 @@ VisitResult ImplementationVisitor::GenerateCall(
   }
 
   if (auto* builtin = Builtin::DynamicCast(callable)) {
-    base::Optional<Block*> catch_block = GetCatchBlock();
+    std::optional<Block*> catch_block = GetCatchBlock();
     assembler().Emit(CallBuiltinInstruction{
         is_tailcall, builtin, argument_range.Size(), catch_block});
     GenerateCatchBlock(catch_block);
@@ -2946,14 +2943,14 @@ VisitResult ImplementationVisitor::GenerateCall(
                          label_blocks);
     } else if (arguments.labels.empty() &&
                return_type != TypeOracle::GetNeverType()) {
-      base::Optional<Block*> catch_block = GetCatchBlock();
+      std::optional<Block*> catch_block = GetCatchBlock();
       assembler().Emit(
           CallCsaMacroInstruction{macro, constexpr_arguments, catch_block});
       GenerateCatchBlock(catch_block);
       size_t return_slot_count = LoweredSlotCount(return_type);
       return VisitResult(return_type, assembler().TopRange(return_slot_count));
     } else {
-      base::Optional<Block*> return_continuation;
+      std::optional<Block*> return_continuation;
       if (return_type != TypeOracle::GetNeverType()) {
         return_continuation = assembler().NewBlock();
       }
@@ -2963,7 +2960,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       for (size_t i = 0; i < label_count; ++i) {
         label_blocks.push_back(assembler().NewBlock());
       }
-      base::Optional<Block*> catch_block = GetCatchBlock();
+      std::optional<Block*> catch_block = GetCatchBlock();
       assembler().Emit(CallCsaMacroAndBranchInstruction{
           macro, constexpr_arguments, return_continuation, label_blocks,
           catch_block});
@@ -3008,7 +3005,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
     }
   } else if (auto* runtime_function = RuntimeFunction::DynamicCast(callable)) {
-    base::Optional<Block*> catch_block = GetCatchBlock();
+    std::optional<Block*> catch_block = GetCatchBlock();
     assembler().Emit(CallRuntimeInstruction{
         is_tailcall, runtime_function, argument_range.Size(), catch_block});
     GenerateCatchBlock(catch_block);
@@ -3028,7 +3025,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
       const Type* type = specialization_types[0];
       std::string size_string;
-      if (base::Optional<std::tuple<size_t, std::string>> size = SizeOf(type)) {
+      if (std::optional<std::tuple<size_t, std::string>> size = SizeOf(type)) {
         size_string = std::get<1>(*size);
       } else {
         Error("size of ", *type, " is not known.");
@@ -3369,7 +3366,7 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
 }
 
 StackRange ImplementationVisitor::GenerateLabelGoto(
-    LocalLabel* label, base::Optional<StackRange> arguments) {
+    LocalLabel* label, std::optional<StackRange> arguments) {
   return assembler().Goto(label->block, arguments ? arguments->Size() : 0);
 }
 
@@ -3396,7 +3393,7 @@ std::vector<Binding<LocalLabel>*> ImplementationVisitor::LabelsFromIdentifiers(
 StackRange ImplementationVisitor::LowerParameter(
     const Type* type, const std::string& parameter_name,
     Stack<std::string>* lowered_parameters) {
-  if (base::Optional<const StructType*> struct_type = type->StructSupertype()) {
+  if (std::optional<const StructType*> struct_type = type->StructSupertype()) {
     StackRange range = lowered_parameters->TopRange(0);
     for (auto& field : (*struct_type)->fields()) {
       StackRange parameter_range = LowerParameter(
@@ -3414,7 +3411,7 @@ StackRange ImplementationVisitor::LowerParameter(
 void ImplementationVisitor::LowerLabelParameter(
     const Type* type, const std::string& parameter_name,
     std::vector<std::string>* lowered_parameters) {
-  if (base::Optional<const StructType*> struct_type = type->StructSupertype()) {
+  if (std::optional<const StructType*> struct_type = type->StructSupertype()) {
     for (auto& field : (*struct_type)->fields()) {
       LowerLabelParameter(
           field.name_and_type.type,
@@ -3458,8 +3455,8 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
   return true;
 }
 
-base::Optional<Block*> ImplementationVisitor::GetCatchBlock() {
-  base::Optional<Block*> catch_block;
+std::optional<Block*> ImplementationVisitor::GetCatchBlock() {
+  std::optional<Block*> catch_block;
   if (TryLookupLabel(kCatchLabelName)) {
     catch_block = assembler().NewBlock(base::nullopt, true);
   }
@@ -3467,9 +3464,9 @@ base::Optional<Block*> ImplementationVisitor::GetCatchBlock() {
 }
 
 void ImplementationVisitor::GenerateCatchBlock(
-    base::Optional<Block*> catch_block) {
+    std::optional<Block*> catch_block) {
   if (catch_block) {
-    base::Optional<Binding<LocalLabel>*> catch_handler =
+    std::optional<Binding<LocalLabel>*> catch_handler =
         TryLookupLabel(kCatchLabelName);
     // Reset the local scopes to prevent the macro calls below from using the
     // current catch handler.
@@ -3534,7 +3531,7 @@ void ImplementationVisitor::VisitAllDeclarables() {
 }
 
 void ImplementationVisitor::Visit(Declarable* declarable,
-                                  base::Optional<SourceId> file) {
+                                  std::optional<SourceId> file) {
   CurrentScope::Scope current_scope(declarable->ParentScope());
   CurrentSourcePosition::Scope current_source_position(declarable->Position());
   CurrentFileStreams::Scope current_file_streams(
@@ -4102,7 +4099,7 @@ class CppClassGenerator {
   std::ostream& impl_;
 };
 
-base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
+std::optional<std::vector<Field>> GetOrderedUniqueIndexFields(
     const ClassType& type) {
   std::vector<Field> result;
   std::set<std::string> index_names;
@@ -4291,7 +4288,7 @@ void CppClassGenerator::GenerateClass() {
     // requirements: the generated file must go before the hand-written
     // definition of the base class, but it must also go after that same
     // hand-written definition.
-    base::Optional<const ClassType*> parent = type_->parent()->ClassSupertype();
+    std::optional<const ClassType*> parent = type_->parent()->ClassSupertype();
     while (parent) {
       if ((*parent)->ShouldGenerateCppClassDefinitions() &&
           !(*parent)->ShouldGenerateFullClassDefinition() &&
@@ -4438,7 +4435,7 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
                           const ClassType* type, const Field& f) {
   os << "  DCHECK_GE(" << index << ", 0);\n";
   std::string length_expression;
-  if (base::Optional<NameAndType> array_length =
+  if (std::optional<NameAndType> array_length =
           ExtractSimpleFieldArraySize(*type, f.index->expr)) {
     length_expression = "this ->" + array_length->name + "()";
   } else {
@@ -5024,7 +5021,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
   WriteFile(output_directory + "/" + file_name, new_contents);
 }
 
-base::Optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
+std::optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
   std::vector<ObjectSlotKind> slots = type->ComputeHeaderSlotKinds();
   if (!type->HasStaticSize()) {
     slots.push_back(*type->ComputeArraySlotKind());
@@ -5078,7 +5075,7 @@ void ImplementationVisitor::GenerateBodyDescriptors(
       bool has_array_fields = !type->HasStaticSize();
       std::vector<ObjectSlotKind> header_slot_kinds =
           type->ComputeHeaderSlotKinds();
-      base::Optional<ObjectSlotKind> array_slot_kind =
+      std::optional<ObjectSlotKind> array_slot_kind =
           type->ComputeArraySlotKind();
       DCHECK_EQ(has_array_fields, array_slot_kind.has_value());
 
@@ -5105,7 +5102,7 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         size_t end_offset = start_offset;
         ObjectSlotKind section_kind;
         for (size_t i = 0; i <= slots.size(); ++i) {
-          base::Optional<ObjectSlotKind> next_section_kind;
+          std::optional<ObjectSlotKind> next_section_kind;
           bool finished_section = false;
           if (i == 0) {
             next_section_kind = slots[i];
@@ -5124,7 +5121,7 @@ void ImplementationVisitor::GenerateBodyDescriptors(
             bool multiple_slots =
                 is_array_slot ||
                 (end_offset - start_offset > TargetArchitecture::TaggedSize());
-            base::Optional<std::string> iterate_command;
+            std::optional<std::string> iterate_command;
             switch (section_kind) {
               case ObjectSlotKind::kStrongPointer:
                 iterate_command = "IteratePointer";
@@ -5572,6 +5569,4 @@ void ReportAllUnusedMacros() {
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
