@@ -47,21 +47,29 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
-static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                    Register sfi_data,
-                                                    Register scratch1,
-                                                    Label* is_baseline) {
+static void GetSharedFunctionInfoBytecodeOrBaseline(
+    MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
+    Label* is_baseline, Label* is_unavailable) {
   USE(GetSharedFunctionInfoBytecodeOrBaseline);
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ LoadMap(scratch1, sfi_data);
+
+  Register data = bytecode;
+  __ LoadTaggedField(
+      data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+
+  // If the trusted data field is empty, it will contain Smi::zero.
+  __ JumpIfSmi(data, is_unavailable);
+
+  __ LoadMap(scratch1, data);
 
 #ifndef V8_JITLESS
   __ CompareInstanceType(scratch1, scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeIsBaseline(masm, data, scratch1);
     __ beq(is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -74,8 +82,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 
   __ bne(&done);
   __ LoadTaggedField(
-      sfi_data,
-      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+      data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
 }
@@ -144,8 +151,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   __ LoadTaggedField(
-      code_obj,
-      FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+      code_obj, FieldMemOperand(
+                    code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
@@ -703,15 +710,21 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label is_baseline;
+    Label is_baseline, is_unavailable, ok;
     __ LoadTaggedField(
         r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadTaggedField(
-        r5, FieldMemOperand(r5, SharedFunctionInfo::kFunctionDataOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, r5, ip, &is_baseline);
-    __ CompareObjectType(r5, r5, r5, BYTECODE_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kMissingBytecodeArray);
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, r5, r5, ip, &is_baseline,
+                                            &is_unavailable);
+    __ jmp(&ok);
+
+    __ bind(&is_unavailable);
+    __ Abort(AbortReason::kMissingBytecodeArray);
+
     __ bind(&is_baseline);
+    __ CompareObjectType(r5, r5, r5, CODE_TYPE);
+    __ Assert(eq, AbortReason::kMissingBytecodeArray);
+
+    __ bind(&ok);
   }
 
   // Resume (Ignition/TurboFan) generator object.
@@ -1443,21 +1456,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadTaggedField(
       r6, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, r6, ip);
-  // Load original bytecode array or the debug copy.
-  __ LoadTaggedField(
-      kInterpreterBytecodeArrayRegister,
-      FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
-
-  Label is_baseline;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, kInterpreterBytecodeArrayRegister, ip, &is_baseline);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
-  Label compile_lazy;
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r6, no_reg,
-                       BYTECODE_ARRAY_TYPE);
-  __ bne(&compile_lazy);
+  Label is_baseline, compile_lazy;
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, r6,
+                                          kInterpreterBytecodeArrayRegister, ip,
+                                          &is_baseline, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = r4;
@@ -2043,7 +2048,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadTaggedField(
       r4, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedField(
-      r4, FieldMemOperand(r4, SharedFunctionInfo::kFunctionDataOffset));
+      r4, FieldMemOperand(r4, SharedFunctionInfo::kTrustedFunctionDataOffset));
   __ CompareObjectType(r4, kInterpreterDispatchTableRegister,
                        kInterpreterDispatchTableRegister,
                        INTERPRETER_DATA_TYPE);

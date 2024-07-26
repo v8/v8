@@ -46,41 +46,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
-// Equivalent of SharedFunctionInfo::GetData
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  Register scratch2 = r0;
-
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  DCHECK(!AreAliased(scratch2, scratch));
-
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ LoadU32(
-      scratch,
-      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      scratch2);
-
-  __ cmpwi(scratch, Operand::Zero());
-  __ beq(&use_tagged_field);
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag,
-                                  scratch2);
-  __ b(&done);
-
-  __ bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-
-  __ bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset),
-      scratch);
-#endif  // V8_ENABLE_SANDBOX
-}
-
 static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                       Register data,
                                                       Register scratch,
@@ -122,23 +87,14 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   ASM_CODE_COMMENT(masm);
   Label done;
   Register data = bytecode;
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  Register scratch2 = r0;
-  DCHECK(!AreAliased(scratch2, scratch1));
-  __ LoadU32(
-      scratch1,
-      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset), r0);
+  __ LoadTrustedPointerField(
+      data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, r0);
 
-  __ CmpS32(scratch1, Operand(0), r0);
-  __ beq(is_unavailable);
-  __ ResolveIndirectPointerHandle(data, scratch1, kUnknownIndirectPointerTag,
-                                  scratch2);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset), r0);
-#endif  // V8_ENABLE_SANDBOX
+  // If the trusted data field is empty, it will contain Smi::zero (or the
+  // kNullIndirectPointerHandle, which will resolve to Smi::zero).
+  __ JumpIfSmi(data, is_unavailable);
 
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
@@ -223,7 +179,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, code_obj, r6);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, code_obj, r6);
+  __ LoadTrustedPointerField(
+      code_obj,
+      FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, r0);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
@@ -2065,7 +2024,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadU64(r5, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset), r0);
-  GetSharedFunctionInfoData(masm, r5, r5, r6);
+  __ LoadTrustedPointerField(
+      r5, FieldMemOperand(r5, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, r0);
   __ IsObjectType(r5, kInterpreterDispatchTableRegister,
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
