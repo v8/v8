@@ -418,6 +418,78 @@ bool S390OpcodeOnlySupport12BitDisp(InstructionCode op) {
   (S390OpcodeOnlySupport12BitDisp(op) ? OperandMode::kUint12Imm \
                                       : OperandMode::kInt20Imm)
 
+ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
+                            turboshaft::RegisterRepresentation result_rep) {
+  // NOTE: The meaning of `loaded_rep` = `MemoryRepresentation::AnyTagged()` is
+  // we are loading a compressed tagged field, while `result_rep` =
+  // `RegisterRepresentation::Tagged()` refers to an uncompressed tagged value.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (loaded_rep) {
+    case MemoryRepresentation::Int8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kS390_LoadWordS8;
+    case MemoryRepresentation::Uint8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kS390_LoadWordU8;
+    case MemoryRepresentation::Int16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kS390_LoadWordS16;
+    case MemoryRepresentation::Uint16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kS390_LoadWordU16;
+    case MemoryRepresentation::Int32():
+    case MemoryRepresentation::Uint32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kS390_LoadWordU32;
+    case MemoryRepresentation::Int64():
+    case MemoryRepresentation::Uint64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
+      return kS390_LoadWord64;
+    case MemoryRepresentation::Float16():
+      UNIMPLEMENTED();
+    case MemoryRepresentation::Float32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
+      return kS390_LoadFloat32;
+    case MemoryRepresentation::Float64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float64());
+      return kS390_LoadDouble;
+#ifdef V8_COMPRESS_POINTERS
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kS390_LoadWordS32;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kS390_LoadDecompressTagged;
+    case MemoryRepresentation::TaggedSigned():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kS390_LoadWordS32;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kS390_LoadDecompressTaggedSigned;
+#else
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kS390_LoadWord64;
+#endif
+    case MemoryRepresentation::AnyUncompressedTagged():
+    case MemoryRepresentation::UncompressedTaggedPointer():
+    case MemoryRepresentation::UncompressedTaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kS390_LoadWord64;
+    case MemoryRepresentation::Simd128():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
+      return kS390_LoadSimd128;
+    case MemoryRepresentation::ProtectedPointer():
+    case MemoryRepresentation::IndirectPointer():
+    case MemoryRepresentation::SandboxedPointer():
+    case MemoryRepresentation::Simd256():
+      UNREACHABLE();
+  }
+}
+
 ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode;
   switch (load_rep.representation()) {
@@ -1044,12 +1116,19 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
     Emit(opcode, 1, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  typename Adapter::LoadView load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoad(node_t node) {
+  LoadRepresentation load_rep = this->load_view(node).loaded_rep();
   InstructionCode opcode = SelectLoadOpcode(load_rep);
   VisitLoad(node, node, opcode);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoad(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  TurboshaftAdapter::LoadView view = this->load_view(node);
+  VisitLoad(node, node,
+            SelectLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
 
 template <typename Adapter>
@@ -1058,14 +1137,14 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
 static void VisitGeneralStore(
-    InstructionSelectorT<Adapter>* selector, typename Adapter::node_t node,
-    MachineRepresentation rep,
+    InstructionSelectorT<TurboshaftAdapter>* selector,
+    typename TurboshaftAdapter::node_t node, MachineRepresentation rep,
     WriteBarrierKind write_barrier_kind = kNoWriteBarrier) {
-  using node_t = typename Adapter::node_t;
-  using optional_node_t = typename Adapter::optional_node_t;
-  S390OperandGeneratorT<Adapter> g(selector);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  using node_t = TurboshaftAdapter::node_t;
+  using optional_node_t = TurboshaftAdapter::optional_node_t;
+  S390OperandGeneratorT<TurboshaftAdapter> g(selector);
 
   auto store_view = selector->store_view(node);
   DCHECK_EQ(store_view.element_size_log2(), 0);
@@ -1084,7 +1163,126 @@ static void VisitGeneralStore(
     addressing_mode = g.GenerateMemoryOperandInputs(
         index, base, displacement, DisplacementMode::kPositiveDisplacement,
         inputs, &input_count,
-        S390OperandGeneratorT<Adapter>::RegisterUseKind::kUseUniqueRegister);
+        S390OperandGeneratorT<
+            TurboshaftAdapter>::RegisterUseKind::kUseUniqueRegister);
+    DCHECK_LT(input_count, 4);
+    inputs[input_count++] = g.UseUniqueRegister(value);
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= AddressingModeField::encode(addressing_mode);
+    code |= RecordWriteModeField::encode(record_write_mode);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+  } else {
+    ArchOpcode opcode;
+
+    switch (store_view.ts_stored_rep()) {
+      case MemoryRepresentation::Int8():
+      case MemoryRepresentation::Uint8():
+        opcode = kS390_StoreWord8;
+        break;
+      case MemoryRepresentation::Int16():
+      case MemoryRepresentation::Uint16():
+        opcode = kS390_StoreWord16;
+        break;
+      case MemoryRepresentation::Int32():
+      case MemoryRepresentation::Uint32(): {
+        opcode = kS390_StoreWord32;
+        const Operation& reverse_op = selector->Get(value);
+        if (reverse_op.Is<Opmask::kWord32ReverseBytes>()) {
+          opcode = kS390_StoreReverse32;
+          value = selector->input_at(value, 0);
+        }
+        break;
+      }
+      case MemoryRepresentation::Int64():
+      case MemoryRepresentation::Uint64(): {
+        opcode = kS390_StoreWord64;
+        const Operation& reverse_op = selector->Get(value);
+        if (reverse_op.Is<Opmask::kWord64ReverseBytes>()) {
+          opcode = kS390_StoreReverse64;
+          value = selector->input_at(value, 0);
+        }
+        break;
+      }
+      case MemoryRepresentation::Float16():
+        UNIMPLEMENTED();
+      case MemoryRepresentation::Float32():
+        opcode = kS390_StoreFloat32;
+        break;
+      case MemoryRepresentation::Float64():
+        opcode = kS390_StoreDouble;
+        break;
+      case MemoryRepresentation::AnyTagged():
+      case MemoryRepresentation::TaggedPointer():
+      case MemoryRepresentation::TaggedSigned():
+        opcode = kS390_StoreCompressTagged;
+        break;
+      case MemoryRepresentation::AnyUncompressedTagged():
+      case MemoryRepresentation::UncompressedTaggedPointer():
+      case MemoryRepresentation::UncompressedTaggedSigned():
+        opcode = kS390_StoreWord64;
+        break;
+      case MemoryRepresentation::Simd128(): {
+        opcode = kS390_StoreSimd128;
+        const Operation& reverse_op = selector->Get(value);
+        if (reverse_op.Is<Opmask::kSimd128ReverseBytes>()) {
+          opcode = kS390_StoreReverseSimd128;
+          value = selector->input_at(value, 0);
+        }
+        break;
+      }
+      case MemoryRepresentation::ProtectedPointer():
+        // We never store directly to protected pointers from generated code.
+        UNREACHABLE();
+      case MemoryRepresentation::IndirectPointer():
+      case MemoryRepresentation::SandboxedPointer():
+      case MemoryRepresentation::Simd256():
+        UNREACHABLE();
+    }
+
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+    InstructionCode code =
+        opcode | AddressingModeField::encode(addressing_mode);
+    InstructionOperand value_operand = g.UseRegister(value);
+    inputs[input_count++] = value_operand;
+    selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
+                   input_count, inputs);
+  }
+}
+
+static void VisitGeneralStore(
+    InstructionSelectorT<TurbofanAdapter>* selector,
+    typename TurbofanAdapter::node_t node, MachineRepresentation rep,
+    WriteBarrierKind write_barrier_kind = kNoWriteBarrier) {
+  using node_t = TurbofanAdapter::node_t;
+  using optional_node_t = TurbofanAdapter::optional_node_t;
+  S390OperandGeneratorT<TurbofanAdapter> g(selector);
+
+  auto store_view = selector->store_view(node);
+  DCHECK_EQ(store_view.element_size_log2(), 0);
+
+  node_t base = store_view.base();
+  optional_node_t index = store_view.index();
+  node_t value = store_view.value();
+  int32_t displacement = store_view.displacement();
+
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    addressing_mode = g.GenerateMemoryOperandInputs(
+        index, base, displacement, DisplacementMode::kPositiveDisplacement,
+        inputs, &input_count,
+        S390OperandGeneratorT<
+            TurbofanAdapter>::RegisterUseKind::kUseUniqueRegister);
     DCHECK_LT(input_count, 4);
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
@@ -1113,19 +1311,11 @@ static void VisitGeneralStore(
         break;
       case MachineRepresentation::kWord32: {
         opcode = kS390_StoreWord32;
-        bool is_w32_reverse_bytes = false;
-        if constexpr (Adapter::IsTurboshaft) {
-          using namespace turboshaft;  // NOLINT(build/namespaces)
-          const Operation& reverse_op = selector->Get(value);
-          is_w32_reverse_bytes = reverse_op.Is<Opmask::kWord32ReverseBytes>();
-        } else {
           NodeMatcher m(value);
-          is_w32_reverse_bytes = m.IsWord32ReverseBytes();
-        }
-        if (is_w32_reverse_bytes) {
-          opcode = kS390_StoreReverse32;
-          value = selector->input_at(value, 0);
-        }
+          if (m.IsWord32ReverseBytes()) {
+            opcode = kS390_StoreReverse32;
+            value = selector->input_at(value, 0);
+          }
         break;
       }
       case MachineRepresentation::kCompressedPointer:  // Fall through.
@@ -1145,37 +1335,20 @@ static void VisitGeneralStore(
         break;
       case MachineRepresentation::kWord64: {
         opcode = kS390_StoreWord64;
-        bool is_w64_reverse_bytes = false;
-        if constexpr (Adapter::IsTurboshaft) {
-          using namespace turboshaft;  // NOLINT(build/namespaces)
-          const Operation& reverse_op = selector->Get(value);
-          is_w64_reverse_bytes = reverse_op.Is<Opmask::kWord64ReverseBytes>();
-        } else {
           NodeMatcher m(value);
-          is_w64_reverse_bytes = m.IsWord64ReverseBytes();
-        }
-        if (is_w64_reverse_bytes) {
-          opcode = kS390_StoreReverse64;
-          value = selector->input_at(value, 0);
-        }
+          if (m.IsWord64ReverseBytes()) {
+            opcode = kS390_StoreReverse64;
+            value = selector->input_at(value, 0);
+          }
         break;
       }
       case MachineRepresentation::kSimd128: {
         opcode = kS390_StoreSimd128;
-        bool is_simd128_reverse_bytes = false;
-        if constexpr (Adapter::IsTurboshaft) {
-          using namespace turboshaft;  // NOLINT(build/namespaces)
-          const Operation& reverse_op = selector->Get(value);
-          is_simd128_reverse_bytes =
-              reverse_op.Is<Opmask::kSimd128ReverseBytes>();
-        } else {
           NodeMatcher m(value);
-          is_simd128_reverse_bytes = m.IsSimd128ReverseBytes();
-        }
-        if (is_simd128_reverse_bytes) {
-          opcode = kS390_StoreReverseSimd128;
-          value = selector->input_at(value, 0);
-        }
+          if (m.IsSimd128ReverseBytes()) {
+            opcode = kS390_StoreReverseSimd128;
+            value = selector->input_at(value, 0);
+          }
         break;
       }
       case MachineRepresentation::kFloat16:
