@@ -619,35 +619,56 @@ RUNTIME_FUNCTION(Runtime_WasmNull) {
   return ReadOnlyRoots(isolate).wasm_null();
 }
 
-static Handle<Object> CreateWasmObject(
+static Tagged<Object> CreateWasmObject(
     Isolate* isolate, base::Vector<const uint8_t> module_bytes) {
-  wasm::ErrorThrower thrower(isolate, "Runtime_WasmStruct");
+  // Create and compile the wasm module.
+  wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
   wasm::ModuleWireBytes bytes(base::VectorOf(module_bytes));
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
-  Handle<WasmModuleObject> module_object =
-      engine
-          ->SyncCompile(isolate, wasm::WasmEnabledFeatures(),
-                        wasm::CompileTimeImports(), &thrower, bytes)
-          .ToHandleChecked();
-  Handle<WasmInstanceObject> instance =
-      engine
-          ->SyncInstantiate(isolate, &thrower, module_object,
-                            Handle<JSReceiver>::null(),
-                            MaybeHandle<JSArrayBuffer>())
-          .ToHandleChecked();
+  MaybeHandle<WasmModuleObject> maybe_module_object =
+      engine->SyncCompile(isolate, wasm::WasmEnabledFeatures(),
+                          wasm::CompileTimeImports(), &thrower, bytes);
+  CHECK(!thrower.error());
+  Handle<WasmModuleObject> module_object;
+  if (!maybe_module_object.ToHandle(&module_object)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Instantiate the module.
+  MaybeHandle<WasmInstanceObject> maybe_instance = engine->SyncInstantiate(
+      isolate, &thrower, module_object, Handle<JSReceiver>::null(),
+      MaybeHandle<JSArrayBuffer>());
+  CHECK(!thrower.error());
+  Handle<WasmInstanceObject> instance;
+  if (!maybe_instance.ToHandle(&instance)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Get the exports.
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  Handle<JSObject> exports_object = Cast<JSObject>(
-      JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
-
+  MaybeHandle<Object> maybe_exports =
+      JSObject::GetProperty(isolate, instance, exports);
+  Handle<Object> exports_object;
+  if (!maybe_exports.ToHandle(&exports_object)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Get function and call it.
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked("f");
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
-      isolate, exports_object, main_name, &desc);
+      isolate, Cast<JSObject>(exports_object), main_name, &desc);
   CHECK(property_found.FromMaybe(false));
+  CHECK(IsJSFunction(*desc.value()));
   Handle<JSFunction> function = Cast<JSFunction>(desc.value());
-  return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr)
-      .ToHandleChecked();
+  MaybeHandle<Object> maybe_result = Execution::Call(
+      isolate, function, isolate->factory()->undefined_value(), 0, nullptr);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return *result;
 }
 
 // Creates a new wasm struct with one i64 (value 0x7AADF00DBAADF00D).
@@ -696,7 +717,7 @@ RUNTIME_FUNCTION(Runtime_WasmStruct) {
       0xfb, 0x00, 0x00,  // struct.new $type0
       0x0b,              // end
   };
-  return *CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
+  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
 }
 
 // Creates a new wasm array of type i32 with two elements (2x 0xBAADF00D).
@@ -744,7 +765,7 @@ RUNTIME_FUNCTION(Runtime_WasmArray) {
       0xfb, 0x06, 0x00,                    // array.new $type0
       0x0b,                                // end
   };
-  return *CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
+  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {

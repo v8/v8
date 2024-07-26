@@ -241,6 +241,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kCompileBaseline:
 #if V8_ENABLE_WEBASSEMBLY && !OFFICIAL_BUILD
       case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY && !OFFICIAL_BUILD
+#if V8_ENABLE_WEBASSEMBLY
       case Runtime::kWasmStruct:
       case Runtime::kWasmArray:
 #endif  // V8_ENABLE_WEBASSEMBLY
