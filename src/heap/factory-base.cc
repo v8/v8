@@ -610,11 +610,11 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
     DCHECK(!IsCode(*function_data));
-    SharedFunctionInfo::DataType type =
-        IsExposedTrustedObject(*function_data)
-            ? SharedFunctionInfo::DataType::kTrusted
-            : SharedFunctionInfo::DataType::kRegular;
-    raw->SetData(*function_data, kReleaseStore, type);
+    if (IsExposedTrustedObject(*function_data)) {
+      raw->SetTrustedData(Cast<ExposedTrustedObject>(*function_data));
+    } else {
+      raw->SetUntrustedData(*function_data);
+    }
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {

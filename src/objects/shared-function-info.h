@@ -361,50 +361,36 @@ class SharedFunctionInfo
   // what they are interested in. It would also mean that for code flushing,
   // we'd then only have to load the code field, but then had to check if we're
   // bytecode, baseline code, or builtin code (which is never flushed).
+  // TODO(saelo): remove this API. All callers should use one of the two below.
   inline Tagged<Object> GetData(IsolateForSandbox isolate) const;
 
+  inline Tagged<Object> GetTrustedData(IsolateForSandbox isolate) const;
+  inline Tagged<Object> GetUntrustedData() const;
+
  private:
-  // When the sandbox is enabled, the function's data is split across two
-  // fields, with the "trusted" part containing a trusted pointer and the
-  // regular/untrusted part containing a tagged pointer. In that case, code
-  // accessing the data field will first load the trusted data field. If that
-  // is empty (i.e. kNullIndirectPointerHandle), it will then load the regular
-  // field. With that, the only racy transition would be a tagged -> trusted
-  // transition (one thread may first read the empty trusted pointer, then
-  // another thread transitions to the trusted field, clearing the tagged
-  // field, and then the first thread continues to load the tagged field). As
-  // such, this transition is only allowed on the main thread. From a GC
-  // perspective, both fields always contain a valid value and so can be
-  // processed unconditionally.
+  // For the sandbox, the function's data is split across two fields, with the
+  // "trusted" part containing a trusted pointer and the regular/untrusted part
+  // containing a tagged pointer. In that case, code accessing the data field
+  // will first load the trusted data field. If that is empty (i.e.
+  // kNullIndirectPointerHandle), it will then load the regular field. With
+  // that, the only racy transition would be a tagged -> trusted transition
+  // (one thread may first read the empty trusted pointer, then another thread
+  // transitions to the trusted field, clearing the tagged field, and then the
+  // first thread continues to load the tagged field). As such, this transition
+  // is only allowed on the main thread. From a GC perspective, both fields
+  // always contain a valid value and so can be processed unconditionally.
   // Only one of these two fields should be in use at any time and the other
-  // field should be cleared. As such, when setting these fields prefer to use
-  // SetData() which automatically clears the inactive field.
-  // TODO(chromium:1490564): if we decide to do the refactoring described
-  // above, the trusted part would become the code field.
-#ifdef V8_ENABLE_SANDBOX
-  inline Tagged<ExposedTrustedObject> trusted_function_data(
-      IsolateForSandbox isolate, AcquireLoadTag) const;
-  inline void set_trusted_function_data(
-      Tagged<ExposedTrustedObject> value, ReleaseStoreTag,
-      WriteBarrierMode = UPDATE_WRITE_BARRIER);
+  // field should be cleared. As such, when setting these fields use
+  // SetTrustedData() and SetUntrustedData() which automatically clear the
+  // inactive field.
+  // TODO(chromium:1490564): try to merge these two fields back together, for
+  // example by moving all data objects into trusted space.
+  inline void SetTrustedData(Tagged<ExposedTrustedObject> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetUntrustedData(Tagged<Object> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Direct access to the indirect pointer handle referencing the trusted
-  // object.
-  inline IndirectPointerHandle trusted_function_data_handle(
-      AcquireLoadTag) const;
-#endif
-  DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Tagged<Object>)
-
-  enum class DataType { kRegular, kTrusted };
-  inline void SetData(Tagged<Object> value, ReleaseStoreTag,
-                      DataType type = DataType::kRegular,
-                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-#ifdef V8_ENABLE_SANDBOX
-  inline void clear_function_data(ReleaseStoreTag);
-  inline void clear_trusted_function_data(ReleaseStoreTag);
-  inline bool has_trusted_function_data() const;
-#endif
+  inline bool HasTrustedData() const;
 
  public:
   inline bool IsApiFunction() const;
@@ -866,13 +852,7 @@ class SharedFunctionInfoWrapper : public TrustedObject {
   OBJECT_CONSTRUCTORS(SharedFunctionInfoWrapper, TrustedObject);
 };
 
-#ifdef V8_ENABLE_SANDBOX
-// When the sandbox is enabled, the data field is split into a trusted pointer
-// part and a tagged part.
 static constexpr int kStaticRootsSFISize = 48;
-#else
-static constexpr int kStaticRootsSFISize = 44;
-#endif
 #ifdef V8_STATIC_ROOTS
 static_assert(SharedFunctionInfo::kSize == kStaticRootsSFISize);
 #endif  // V8_STATIC_ROOTS

@@ -1730,6 +1730,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the "code" property of a JSFunction.
   TNode<Code> LoadJSFunctionCode(TNode<JSFunction> function);
 
+  TNode<Object> LoadSharedFunctionInfoTrustedData(
+      TNode<SharedFunctionInfo> sfi);
+  TNode<Object> LoadSharedFunctionInfoUntrustedData(
+      TNode<SharedFunctionInfo> sfi);
+
   // Load the data object associated with a SFI.
   // If the (expected) data type is known, prefer to use one of the specialized
   // accessors (e.g. LoadSharedFunctionInfoBuiltinId). Otherwise, the returned
