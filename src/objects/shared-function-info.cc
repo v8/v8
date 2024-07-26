@@ -217,17 +217,13 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                                   IsolateForSandbox isolate) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-#ifdef V8_ENABLE_SANDBOX
-  if (other->has_trusted_function_data()) {
-    set_trusted_function_data(
-        other->trusted_function_data(isolate, kAcquireLoad), kReleaseStore);
+  if (other->HasTrustedData()) {
+    SetTrustedData(Cast<ExposedTrustedObject>(other->GetTrustedData(isolate)));
   } else {
-    clear_trusted_function_data(kReleaseStore);
+    SetUntrustedData(other->GetUntrustedData());
   }
-#endif
-  set_function_data(other->function_data(cage_base, kAcquireLoad),
-                    kReleaseStore);
+
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
                          kReleaseStore);
   set_outer_scope_info_or_feedback_metadata(
@@ -422,7 +418,7 @@ void SharedFunctionInfo::DiscardCompiled(
     // Update the function data to point to the UncompiledData without preparse
     // data created above. Use the raw function data setter to avoid validity
     // checks, since we're performing the unusual task of decompiling.
-    shared_info->SetData(*data.ToHandleChecked(), kReleaseStore);
+    shared_info->SetUntrustedData(*data.ToHandleChecked());
   }
 }
 

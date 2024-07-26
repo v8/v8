@@ -3249,12 +3249,25 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 
     if (!is_bytecode_live) number_of_flushed_sfis++;
 
-    // Now record the slot, which has either been updated to an uncompiled data,
-    // Baseline code or BytecodeArray which is still alive. If the sandbox is
-    // enabled, the slot may be empty though as BytecodeArrays are referenced
-    // through an indirect pointer. In that case, no action is necessary here.
-    ObjectSlot slot =
-        flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
+    // Now record the data slots, which have been updated to an uncompiled
+    // data, Baseline code or BytecodeArray which is still alive.
+    ObjectSlot slot;
+#ifndef V8_ENABLE_SANDBOX
+    // If the sandbox is enabled, the slot contains an indirect pointer which
+    // does not need to be updated during mark-compact (because the pointer in
+    // the pointer table will be updated), so no action is needed here.
+    slot = flushing_candidate->RawField(
+        SharedFunctionInfo::kTrustedFunctionDataOffset);
+    if (IsHeapObject(*slot)) {
+      RecordSlot(flushing_candidate, slot, Cast<HeapObject>(*slot));
+    }
+#endif
+    // We also need to record the untrusted data slot here as it may have been
+    // empty before but now contains an uncompiled data object.
+    // TODO(saelo): we should be able to drop this logic if uncompiled data
+    // moves into trusted space.
+    slot = flushing_candidate->RawField(
+        SharedFunctionInfo::kUntrustedFunctionDataOffset);
     if (IsHeapObject(*slot)) {
       RecordSlot(flushing_candidate, slot, Cast<HeapObject>(*slot));
     }

@@ -433,18 +433,16 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 JSFunction::kSharedFunctionInfoOffset);
-#if V8_ENABLE_SANDBOX
-    static constexpr int kOffset =
-        SharedFunctionInfo::kTrustedFunctionDataOffset;
+#ifdef V8_ENABLE_SANDBOX
     uint64_t signature_hash = SignatureHasher::Hash(sig_);
 #else
-    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
     uint64_t signature_hash = 0;
 #endif
     V<WasmFunctionData> function_data =
         V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
             shared, LoadOp::Kind::TaggedBase(),
-            kWasmFunctionDataIndirectPointerTag, kOffset));
+            kWasmFunctionDataIndirectPointerTag,
+            SharedFunctionInfo::kTrustedFunctionDataOffset));
 
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
@@ -718,16 +716,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Object> function_node =
         __ LoadTaggedField(incoming_params[0], WasmImportData::kCallableOffset);
     V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
-#if V8_ENABLE_SANDBOX
-    static constexpr int kOffset =
-        SharedFunctionInfo::kTrustedFunctionDataOffset;
-#else
-    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
-#endif
     V<WasmFunctionData> function_data =
         V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
             shared, LoadOp::Kind::TaggedBase(),
-            kWasmFunctionDataIndirectPointerTag, kOffset));
+            kWasmFunctionDataIndirectPointerTag,
+            SharedFunctionInfo::kTrustedFunctionDataOffset));
     V<Object> host_data_foreign = __ LoadTaggedField(
         function_data, WasmCapiFunctionData::kEmbedderDataOffset);
 
