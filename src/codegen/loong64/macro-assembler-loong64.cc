@@ -1106,29 +1106,13 @@ void MacroAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
 // ------------Pseudo-instructions-------------
 
 // Change endianness
-void MacroAssembler::ByteSwapSigned(Register dest, Register src,
-                                    int operand_size) {
-  DCHECK(operand_size == 2 || operand_size == 4 || operand_size == 8);
-  if (operand_size == 2) {
-    revb_2h(dest, src);
-    ext_w_h(dest, dest);
-  } else if (operand_size == 4) {
+void MacroAssembler::ByteSwap(Register dest, Register src, int operand_size) {
+  DCHECK(operand_size == 4 || operand_size == 8);
+  if (operand_size == 4) {
     revb_2w(dest, src);
     slli_w(dest, dest, 0);
   } else {
-    revb_d(dest, dest);
-  }
-}
-
-void MacroAssembler::ByteSwapUnsigned(Register dest, Register src,
-                                      int operand_size) {
-  DCHECK(operand_size == 2 || operand_size == 4);
-  if (operand_size == 2) {
-    revb_2h(dest, src);
-    bstrins_d(dest, zero_reg, 63, 16);
-  } else {
-    revb_2w(dest, src);
-    bstrins_d(dest, zero_reg, 63, 32);
+    revb_d(dest, src);
   }
 }
 

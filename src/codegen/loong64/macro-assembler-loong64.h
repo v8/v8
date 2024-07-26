@@ -581,8 +581,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Trunc_uw_s(Register rd, FPURegister fj, FPURegister scratch);
 
   // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+  void ByteSwap(Register dest, Register src, int operand_size);
 
   void Ld_b(Register rd, const MemOperand& rj);
   void Ld_bu(Register rd, const MemOperand& rj);
