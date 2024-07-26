@@ -2296,6 +2296,8 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
   return false;
 }
 
+bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   F64x2Splat(dst.fp().toSimd(), src.fp(), r0);

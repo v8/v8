@@ -2739,6 +2739,8 @@ F16_BINOP_LIST(VISIT_F16_BINOP)
 #undef VISIT_F16_BINOP
 #undef F16_BINOP_LIST
 
+bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
 bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
