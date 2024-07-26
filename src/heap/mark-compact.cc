@@ -3693,7 +3693,7 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
     // as MaybeObjectSlot.
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
-      DCHECK(!IsCell(value));
+      DCHECK(!IsWeakCell(value));
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
       if (InReadOnlySpace(value) ||
@@ -3720,7 +3720,7 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
     // as MaybeObjectSlot.
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
-      DCHECK(!IsCell(value));
+      DCHECK(!IsWeakCell(value));
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
       if (InReadOnlySpace(value) ||
@@ -3750,7 +3750,7 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
     // The slot may not have been overwritten since it was filtered, so we can
     // directly read its value.
     Tagged<HeapObject> value = (*slot.slot).GetHeapObjectAssumeWeak();
-    DCHECK(!IsCell(value));
+    DCHECK(!IsWeakCell(value));
     DCHECK(!InReadOnlySpace(value));
     DCHECK(!non_atomic_marking_state_->IsMarked(value));
     DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
