@@ -100,6 +100,11 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                            DisallowGarbageCollection* no_gc);
 
   template <typename Char>
+  inline bool IsExpectedTransition(Tagged<Name> transition_name,
+                                   Tagged<Map> transition_target,
+                                   base::Vector<const Char> key_chars);
+
+  template <typename Char>
   inline std::pair<Handle<String>, Handle<Map>> ExpectedTransition(
       base::Vector<const Char> key_chars);
 
