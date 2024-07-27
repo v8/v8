@@ -816,10 +816,6 @@ class Heap final {
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-
-  ExternalBufferTable::Space* external_buffer_space() {
-    return &external_buffer_space_;
-  }
 #endif  // V8_ENABLE_SANDBOX
 
   // ===========================================================================
@@ -2191,10 +2187,6 @@ class Heap final {
 
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-
-  // The space in the ExternalBufferTable containing entries owned by objects
-  // in this heap.
-  ExternalBufferTable::Space external_buffer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   LocalHeap* main_thread_local_heap_ = nullptr;

@@ -4127,10 +4127,6 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.trusted_pointer_table_)),
            Internals::kIsolateTrustedPointerTableOffset);
-
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.external_buffer_table_)),
-           Internals::kIsolateExternalBufferTableOffset);
 #endif
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
@@ -4431,18 +4427,6 @@ void Isolate::Deinit() {
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
   GetProcessWideJSDispatchTable()->TearDownSpace(
       heap()->js_dispatch_table_space());
-
-  external_buffer_table().TearDownSpace(heap()->external_buffer_space());
-  external_buffer_table().TearDown();
-  if (owns_shareable_data()) {
-    shared_external_buffer_table().TearDownSpace(
-        shared_external_buffer_space());
-    shared_external_buffer_table().TearDown();
-    delete isolate_data_.shared_external_buffer_table_;
-    isolate_data_.shared_external_buffer_table_ = nullptr;
-    delete shared_external_buffer_space_;
-    shared_external_buffer_space_ = nullptr;
-  }
 #endif
 
   {
@@ -5411,8 +5395,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #ifdef V8_ENABLE_SANDBOX
     trusted_pointer_table().Initialize();
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
-    external_buffer_table().Initialize();
-    external_buffer_table().InitializeSpace(heap()->external_buffer_space());
 #endif  // V8_ENABLE_SANDBOX
   }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
@@ -5490,19 +5472,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       heap()->code_pointer_space());
   GetProcessWideJSDispatchTable()->InitializeSpace(
       heap()->js_dispatch_table_space());
-  if (owns_shareable_data()) {
-    isolate_data_.shared_external_buffer_table_ = new ExternalBufferTable();
-    shared_external_buffer_space_ = new ExternalBufferTable::Space();
-    shared_external_buffer_table().Initialize();
-    shared_external_buffer_table().InitializeSpace(
-        shared_external_buffer_space());
-  } else {
-    DCHECK(has_shared_space());
-    isolate_data_.shared_external_buffer_table_ =
-        shared_space_isolate()->isolate_data_.shared_external_buffer_table_;
-    shared_external_buffer_space_ =
-        shared_space_isolate()->shared_external_buffer_space_;
-  }
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY

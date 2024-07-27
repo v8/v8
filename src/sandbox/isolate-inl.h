@@ -36,22 +36,12 @@ ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
 
 ExternalBufferTable& IsolateForSandbox::GetExternalBufferTableFor(
     ExternalBufferTag tag) {
-  DCHECK_NE(tag, kExternalBufferNullTag);
-  return IsSharedExternalBufferType(tag)
-             ? isolate_->shared_external_buffer_table()
-             : isolate_->external_buffer_table();
+  UNIMPLEMENTED();
 }
 
 ExternalBufferTable::Space* IsolateForSandbox::GetExternalBufferTableSpaceFor(
     ExternalBufferTag tag, Address host) {
-  DCHECK_NE(tag, kExternalBufferNullTag);
-
-  if (V8_UNLIKELY(IsSharedExternalBufferType(tag))) {
-    DCHECK(!ReadOnlyHeap::Contains(host));
-    return isolate_->shared_external_buffer_space();
-  }
-
-  return isolate_->heap()->external_buffer_space();
+  UNIMPLEMENTED();
 }
 
 CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(

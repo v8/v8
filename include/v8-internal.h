@@ -946,12 +946,8 @@ class Internals {
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
   static const int kIsolateTrustedPointerTableOffset =
       kIsolateTrustedCageBaseOffset + kApiSystemPointerSize;
-  static const int kIsolateExternalBufferTableOffset =
-      kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
-  static const int kIsolateSharedExternalBufferTableAddressOffset =
-      kIsolateExternalBufferTableOffset + kExternalBufferTableSize;
   static const int kIsolateApiCallbackThunkArgumentOffset =
-      kIsolateSharedExternalBufferTableAddressOffset + kApiSystemPointerSize;
+      kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
 #else
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
