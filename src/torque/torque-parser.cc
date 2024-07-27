@@ -306,7 +306,7 @@ std::optional<ParseResult> AddGlobalDeclarations(
   for (Declaration* declaration : declarations) {
     CurrentAst::Get().declarations().push_back(declaration);
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 void NamingConventionError(const std::string& type, const std::string& name,
@@ -412,7 +412,7 @@ Expression* MakeCall(Identifier* callee,
                      const std::vector<Expression*>& arguments,
                      const std::vector<Statement*>& otherwise) {
   return MakeCall(MakeNode<IdentifierExpression>(callee, generic_arguments),
-                  base::nullopt, arguments, otherwise);
+                  std::nullopt, arguments, otherwise);
 }
 
 std::optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
@@ -420,7 +420,7 @@ std::optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
-  return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
+  return ParseResult{MakeCall(target, std::nullopt, args, otherwise)};
 }
 
 std::optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
@@ -1170,7 +1170,7 @@ std::optional<ParseResult> MakeClassDeclaration(
     Expression* argument = MakeNode<IdentifierExpression>(
         std::vector<std::string>{}, MakeNode<Identifier>("obj"));
 
-    auto value = MakeCall(internal_downcast_target, base::nullopt,
+    auto value = MakeCall(internal_downcast_target, std::nullopt,
                           std::vector<Expression*>{argument},
                           std::vector<Statement*>{MakeNode<ExpressionStatement>(
                               internal_downcast_otherwise)});
@@ -1280,7 +1280,7 @@ std::optional<ParseResult> ProcessTorqueImportDeclaration(
 
   CurrentAst::Get().DeclareImportForCurrentFile(import_id);
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::optional<ParseResult> MakeExternalBuiltin(
@@ -1447,7 +1447,7 @@ std::optional<ParseResult> MakeEnumDeclaration(
       //   }
       auto type_decl = MakeNode<AbstractTypeDeclaration>(
           name_identifier, AbstractTypeFlag::kNone, base_type_expression,
-          base::nullopt);
+          std::nullopt);
 
       TypeExpression* name_type_expression =
           MakeNode<BasicTypeExpression>(name_identifier);
@@ -1458,7 +1458,7 @@ std::optional<ParseResult> MakeEnumDeclaration(
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
             entry.name, AbstractTypeFlag::kNone,
-            entry.type.value_or(name_type_expression), base::nullopt));
+            entry.type.value_or(name_type_expression), std::nullopt));
       }
 
       result.push_back(type_decl);
@@ -1478,7 +1478,7 @@ std::optional<ParseResult> MakeEnumDeclaration(
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
             entry.name, AbstractTypeFlag::kNone,
-            entry.type.value_or(*base_type_expression), base::nullopt));
+            entry.type.value_or(*base_type_expression), std::nullopt));
 
         auto entry_type = MakeNode<BasicTypeExpression>(
             std::vector<std::string>{name}, entry.name,
@@ -1511,7 +1511,7 @@ std::optional<ParseResult> MakeEnumDeclaration(
     TypeExpression* constexpr_type_expression = MakeNode<BasicTypeExpression>(
         MakeNode<Identifier>(std::string(CONSTEXPR_TYPE_PREFIX) + name));
     std::optional<TypeExpression*> base_constexpr_type_expression =
-        base::nullopt;
+        std::nullopt;
     if (base_type_expression) {
       base_constexpr_type_expression = AddConstexpr(*base_type_expression);
     }
@@ -1675,7 +1675,7 @@ std::optional<ParseResult> MakeTypeswitchStatement(
   {
     CurrentSourcePosition::Scope current_source_position(expression->pos);
     current_block->statements.push_back(MakeNode<VarDeclarationStatement>(
-        true, MakeNode<Identifier>("__value"), base::nullopt, expression));
+        true, MakeNode<Identifier>("__value"), std::nullopt, expression));
   }
 
   TypeExpression* accumulated_types;

@@ -143,7 +143,7 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
 void DeclarationVisitor::Visit(ExternalBuiltinDeclaration* decl) {
   Builtin* builtin =
       CreateBuiltin(decl, decl->name->value, decl->name->value,
-                    TypeVisitor::MakeSignature(decl), base::nullopt);
+                    TypeVisitor::MakeSignature(decl), std::nullopt);
   builtin->SetIdentifierPosition(decl->name->pos);
   Declarations::Declare(decl->name->value, builtin);
 }
@@ -191,7 +191,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl) {
   Macro* macro = Declarations::DeclareMacro(
       decl->name->value, true, decl->external_assembler_name,
-      TypeVisitor::MakeSignature(decl), base::nullopt, decl->op);
+      TypeVisitor::MakeSignature(decl), std::nullopt, decl->op);
   macro->SetIdentifierPosition(decl->name->pos);
   macro->SetPosition(decl->pos);
   if (GlobalContext::collect_kythe_data()) {
@@ -209,7 +209,7 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl) {
 
 void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl) {
   Macro* macro = Declarations::DeclareMacro(
-      decl->name->value, decl->export_to_csa, base::nullopt,
+      decl->name->value, decl->export_to_csa, std::nullopt,
       TypeVisitor::MakeSignature(decl), decl->body, decl->op);
   macro->SetIdentifierPosition(decl->name->pos);
   macro->SetPosition(decl->pos);
@@ -358,7 +358,7 @@ Callable* DeclarationVisitor::SpecializeImplicit(
   SpecializationRequester requester{CurrentSourcePosition::Get(),
                                     CurrentScope::Get(), ""};
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
-  Callable* result = Specialize(key, key.generic->declaration(), base::nullopt,
+  Callable* result = Specialize(key, key.generic->declaration(), std::nullopt,
                                 body, CurrentSourcePosition::Get());
   result->SetIsUserDefined(false);
   requester.name = result->ReadableName();

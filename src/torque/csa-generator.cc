@@ -63,7 +63,7 @@ std::optional<Stack<std::string>> CSAGenerator::EmitGraph(
     out() << "\n";
     return EmitBlock(*cfg_.end());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {

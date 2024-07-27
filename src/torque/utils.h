@@ -439,7 +439,7 @@ class ResidueClass {
   // value.
   std::optional<size_t> SingleValue() const {
     if (modulus_log_2_ == kMaxModulusLog2) return value_;
-    return base::nullopt;
+    return std::nullopt;
   }
 
   friend ResidueClass operator+(const ResidueClass& a, const ResidueClass& b) {

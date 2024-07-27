@@ -537,7 +537,7 @@ struct AssignmentExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssignmentExpression)
   AssignmentExpression(SourcePosition pos, Expression* location,
                        Expression* value)
-      : AssignmentExpression(pos, location, base::nullopt, value) {}
+      : AssignmentExpression(pos, location, std::nullopt, value) {}
   AssignmentExpression(SourcePosition pos, Expression* location,
                        std::optional<std::string> op, Expression* value)
       : Expression(kKind, pos),
@@ -760,10 +760,9 @@ struct TailCallStatement : Statement {
 
 struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
-  VarDeclarationStatement(
-      SourcePosition pos, bool const_qualified, Identifier* name,
-      std::optional<TypeExpression*> type,
-      std::optional<Expression*> initializer = base::nullopt)
+  VarDeclarationStatement(SourcePosition pos, bool const_qualified,
+                          Identifier* name, std::optional<TypeExpression*> type,
+                          std::optional<Expression*> initializer = std::nullopt)
       : Statement(kKind, pos),
         const_qualified(const_qualified),
         name(name),

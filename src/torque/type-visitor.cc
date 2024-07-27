@@ -206,7 +206,7 @@ const StructType* TypeVisitor::ComputeType(
     }
     Field f{field.name_and_type.name->pos,
             struct_type,
-            base::nullopt,
+            std::nullopt,
             {field.name_and_type.name->value, field_type},
             offset.SingleValue(),
             false,

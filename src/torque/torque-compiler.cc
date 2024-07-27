@@ -20,7 +20,7 @@ namespace {
 
 std::optional<std::string> ReadFile(const std::string& path) {
   std::ifstream file_stream(path);
-  if (!file_stream.good()) return base::nullopt;
+  if (!file_stream.good()) return std::nullopt;
 
   return std::string{std::istreambuf_iterator<char>(file_stream),
                      std::istreambuf_iterator<char>()};

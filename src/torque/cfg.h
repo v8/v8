@@ -34,7 +34,7 @@ class Block {
     instructions_.push_back(std::move(instruction));
   }
 
-  bool HasInputTypes() const { return input_types_ != base::nullopt; }
+  bool HasInputTypes() const { return input_types_ != std::nullopt; }
   const Stack<const Type*>& InputTypes() const { return *input_types_; }
   void SetInputTypes(const Stack<const Type*>& input_types);
   void Retype() {
@@ -74,7 +74,7 @@ class Block {
     if (changed && worklist) worklist->Enqueue(this);
   }
   bool HasInputDefinitions() const {
-    return input_definitions_ != base::nullopt;
+    return input_definitions_ != std::nullopt;
   }
   const Stack<DefinitionLocation>& InputDefinitions() const {
     DCHECK(HasInputDefinitions());
@@ -159,7 +159,7 @@ class CfgAssembler {
     return cfg_;
   }
 
-  Block* NewBlock(std::optional<Stack<const Type*>> input_types = base::nullopt,
+  Block* NewBlock(std::optional<Stack<const Type*>> input_types = std::nullopt,
                   bool is_deferred = false) {
     return cfg_.NewBlock(std::move(input_types), is_deferred);
   }

@@ -251,7 +251,7 @@ void CallCsaMacroInstruction::RecomputeDefinitionLocations(
 
 std::optional<DefinitionLocation>
 CallCsaMacroInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
@@ -314,12 +314,12 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
   if (macro->signature().return_type != TypeOracle::GetNeverType()) {
     Stack<const Type*> return_stack = *stack;
     return_stack.PushMany(LowerType(macro->signature().return_type));
-    if (return_continuation == base::nullopt) {
+    if (return_continuation == std::nullopt) {
       ReportError("missing return continuation.");
     }
     (*return_continuation)->SetInputTypes(return_stack);
   } else {
-    if (return_continuation != base::nullopt) {
+    if (return_continuation != std::nullopt) {
       ReportError("unreachable return continuation.");
     }
   }
@@ -393,7 +393,7 @@ DefinitionLocation CallCsaMacroAndBranchInstruction::GetValueDefinition(
 
 std::optional<DefinitionLocation>
 CallCsaMacroAndBranchInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
@@ -464,7 +464,7 @@ DefinitionLocation CallBuiltinInstruction::GetValueDefinition(
 
 std::optional<DefinitionLocation>
 CallBuiltinInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
@@ -570,7 +570,7 @@ DefinitionLocation CallRuntimeInstruction::GetValueDefinition(
 
 std::optional<DefinitionLocation>
 CallRuntimeInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 

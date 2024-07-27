@@ -112,7 +112,7 @@ std::optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
           ToString("expected ", *type, " to be a subtype of ", **upper_bound)};
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::optional<std::string> FindConstraintViolation(
@@ -124,7 +124,7 @@ std::optional<std::string> FindConstraintViolation(
       return {"Could not instantiate generic, " + *violation + "."};
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::vector<TypeConstraint> ComputeConstraints(
@@ -167,7 +167,7 @@ std::optional<Statement*> GenericCallable::CallableBody() {
                  TorqueBuiltinDeclaration::DynamicCast(declaration())) {
     return builtin_decl->body;
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 }
 

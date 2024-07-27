@@ -80,7 +80,7 @@ const Type* Declarations::LookupType(const Identifier* name) {
 std::optional<const Type*> Declarations::TryLookupType(
     const QualifiedName& name) {
   auto decls = FilterDeclarables<TypeAlias>(TryLookup(name));
-  if (decls.empty()) return base::nullopt;
+  if (decls.empty()) return std::nullopt;
   return EnsureUnique(std::move(decls), name, "type")->type();
 }
 
@@ -124,7 +124,7 @@ Macro* Declarations::TryLookupMacro(const std::string& name,
 std::optional<Builtin*> Declarations::TryLookupBuiltin(
     const QualifiedName& name) {
   std::vector<Builtin*> builtins = TryLookup<Builtin>(name);
-  if (builtins.empty()) return base::nullopt;
+  if (builtins.empty()) return std::nullopt;
   return EnsureUnique(builtins, name.name, "builtin");
 }
 
@@ -155,7 +155,7 @@ GenericType* Declarations::LookupGlobalUniqueGenericType(
 std::optional<GenericType*> Declarations::TryLookupGenericType(
     const QualifiedName& name) {
   std::vector<GenericType*> results = TryLookup<GenericType>(name);
-  if (results.empty()) return base::nullopt;
+  if (results.empty()) return std::nullopt;
   return EnsureUnique(results, name.name, "generic type");
 }
 

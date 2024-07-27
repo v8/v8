@@ -21,17 +21,17 @@ void LanguageServerData::AddDefinition(SourcePosition token,
 
 std::optional<SourcePosition> LanguageServerData::FindDefinition(
     SourceId source, LineAndColumn pos) {
-  if (!source.IsValid()) return base::nullopt;
+  if (!source.IsValid()) return std::nullopt;
 
   auto iter = Get().definitions_map_.find(source);
-  if (iter == Get().definitions_map_.end()) return base::nullopt;
+  if (iter == Get().definitions_map_.end()) return std::nullopt;
 
   for (const DefinitionMapping& mapping : iter->second) {
     SourcePosition current = mapping.first;
     if (current.Contains(pos)) return mapping.second;
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 void LanguageServerData::PrepareAllDeclarableSymbols() {

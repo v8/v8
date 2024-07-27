@@ -93,7 +93,7 @@ static int HexCharToInt(unsigned char c) {
 
 std::optional<std::string> FileUriDecode(const std::string& uri) {
   // Abort decoding of URIs that don't start with "file://".
-  if (uri.rfind(kFileUriPrefix) != 0) return base::nullopt;
+  if (uri.rfind(kFileUriPrefix) != 0) return std::nullopt;
 
   const std::string path = uri.substr(kFileUriPrefixLength);
   std::ostringstream decoded;
@@ -108,11 +108,11 @@ std::optional<std::string> FileUriDecode(const std::string& uri) {
     }
 
     // If '%' is not followed by at least two hex digits, we abort.
-    if (std::distance(iter, end) <= 2) return base::nullopt;
+    if (std::distance(iter, end) <= 2) return std::nullopt;
 
     unsigned char first = (*++iter);
     unsigned char second = (*++iter);
-    if (!isxdigit(first) || !isxdigit(second)) return base::nullopt;
+    if (!isxdigit(first) || !isxdigit(second)) return std::nullopt;
 
     // An escaped hex value needs converting.
     unsigned char value = HexCharToInt(first) * 16 + HexCharToInt(second);

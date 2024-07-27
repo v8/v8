@@ -382,7 +382,7 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
       }
       from = from->parent();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();

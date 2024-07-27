@@ -14,7 +14,7 @@ namespace v8::internal::torque {
 class CSAGenerator : public TorqueCodeGenerator {
  public:
   CSAGenerator(const ControlFlowGraph& cfg, std::ostream& out,
-               std::optional<Builtin::Kind> linkage = base::nullopt)
+               std::optional<Builtin::Kind> linkage = std::nullopt)
       : TorqueCodeGenerator(cfg, out), linkage_(linkage) {}
   std::optional<Stack<std::string>> EmitGraph(Stack<std::string> parameters);
 

@@ -220,8 +220,8 @@ void ImplementationVisitor::EndDebugMacrosFile() {
 }
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
-  Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(),
-                      {}, false};
+  Signature signature{{},           std::nullopt, {{}, false}, 0,
+                      decl->type(), {},           false};
 
   BindingsManagersScope bindings_managers_scope;
 
@@ -244,7 +244,7 @@ void ImplementationVisitor::Visit(NamespaceConstant* decl) {
     CSAGenerator csa_generator{assembler().Result(), stream};
     Stack<std::string> values = *csa_generator.EmitGraph(Stack<std::string>{});
 
-    assembler_ = base::nullopt;
+    assembler_ = std::nullopt;
 
     stream << "  return ";
     CSAGenerator::EmitCSAValue(return_result, values, stream);
@@ -529,7 +529,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     values = csa_generator.EmitGraph(lowered_parameters);
   }
 
-  assembler_ = base::nullopt;
+  assembler_ = std::nullopt;
 
   if (has_return_value) {
     csa_ccfile() << "  return ";
@@ -730,7 +730,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   CSAGenerator csa_generator{assembler().Result(), csa_ccfile(),
                              builtin->kind()};
   csa_generator.EmitGraph(parameters);
-  assembler_ = base::nullopt;
+  assembler_ = std::nullopt;
   csa_ccfile() << "}\n\n";
 }
 
@@ -2030,7 +2030,7 @@ TypeArgumentInference ImplementationVisitor::InferSpecializationTypes(
         TryLookupLocalValue(parameters.names[i]->value);
     all_arguments.push_back(
         val ? (*val)->GetLocationReference(*val).ReferencedType()
-            : base::nullopt);
+            : std::nullopt);
   }
   for (const Type* explicit_argument : explicit_arguments) {
     all_arguments.push_back(explicit_argument);
@@ -3205,7 +3205,7 @@ VisitResult ImplementationVisitor::GenerateCall(
   Callable* callable =
       LookupCallable(callable_name, Declarations::Lookup(callable_name),
                      arguments, specialization_types);
-  return GenerateCall(callable, base::nullopt, arguments, specialization_types,
+  return GenerateCall(callable, std::nullopt, arguments, specialization_types,
                       is_tailcall);
 }
 
@@ -3458,7 +3458,7 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
 std::optional<Block*> ImplementationVisitor::GetCatchBlock() {
   std::optional<Block*> catch_block;
   if (TryLookupLabel(kCatchLabelName)) {
-    catch_block = assembler().NewBlock(base::nullopt, true);
+    catch_block = assembler().NewBlock(std::nullopt, true);
   }
   return catch_block;
 }
@@ -4107,7 +4107,7 @@ std::optional<std::vector<Field>> GetOrderedUniqueIndexFields(
     if (field.index) {
       auto name_and_type = ExtractSimpleFieldArraySize(type, field.index->expr);
       if (!name_and_type) {
-        return base::nullopt;
+        return std::nullopt;
       }
       index_names.insert(name_and_type->name);
     }
@@ -5041,12 +5041,12 @@ std::optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
     } else if (slots[i] == ObjectSlotKind::kNoPointer) {
       break;
     } else {
-      return base::nullopt;
+      return std::nullopt;
     }
   }
   size_t end_index = i;
   for (; i < slots.size(); ++i) {
-    if (slots[i] != ObjectSlotKind::kNoPointer) return base::nullopt;
+    if (slots[i] != ObjectSlotKind::kNoPointer) return std::nullopt;
   }
   size_t start_offset = start_index * TargetArchitecture::TaggedSize();
   size_t end_offset = end_index * TargetArchitecture::TaggedSize();
@@ -5060,7 +5060,7 @@ std::optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
     return ToString("FixedRangeBodyDescriptor<", start_offset, ", ", end_offset,
                     ">");
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 void ImplementationVisitor::GenerateBodyDescriptors(

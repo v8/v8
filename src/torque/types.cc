@@ -127,7 +127,7 @@ std::optional<const ClassType*> Type::ClassSupertype() const {
       return class_type;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::optional<const StructType*> Type::StructSupertype() const {
@@ -136,7 +136,7 @@ std::optional<const StructType*> Type::StructSupertype() const {
       return struct_type;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::optional<const AggregateType*> Type::AggregateSupertype() const {
@@ -145,7 +145,7 @@ std::optional<const AggregateType*> Type::AggregateSupertype() const {
       return aggregate_type;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // static
@@ -545,11 +545,11 @@ std::optional<const Type*> Type::MatchUnaryGeneric(const Type* type,
                                                    GenericType* generic) {
   DCHECK_EQ(generic->generic_parameters().size(), 1);
   if (!type->GetSpecializedFrom()) {
-    return base::nullopt;
+    return std::nullopt;
   }
   auto& key = type->GetSpecializedFrom().value();
   if (key.generic != generic || key.specialized_types.size() != 1) {
-    return base::nullopt;
+    return std::nullopt;
   }
   return {key.specialized_types[0]};
 }
@@ -728,7 +728,7 @@ std::vector<ObjectSlotKind> ClassType::ComputeHeaderSlotKinds() const {
 std::optional<ObjectSlotKind> ClassType::ComputeArraySlotKind() const {
   std::vector<ObjectSlotKind> kinds;
   ComputeSlotKindsHelper(&kinds, 0, ComputeArrayFields());
-  if (kinds.empty()) return base::nullopt;
+  if (kinds.empty()) return std::nullopt;
   std::sort(kinds.begin(), kinds.end());
   if (kinds.front() == kinds.back()) return {kinds.front()};
   if (kinds.front() == ObjectSlotKind::kStrongPointer &&
@@ -848,8 +848,8 @@ void ClassType::GenerateAccessors() {
           MakeNode<ElementAccessExpression>(load_expression, index);
     }
     Statement* load_body = MakeNode<ReturnStatement>(load_expression);
-    Declarations::DeclareMacro(load_macro_name, true, base::nullopt,
-                               load_signature, load_body, base::nullopt);
+    Declarations::DeclareMacro(load_macro_name, true, std::nullopt,
+                               load_signature, load_body, std::nullopt);
 
     // Store accessor
     if (!field.const_qualified) {
@@ -876,8 +876,8 @@ void ClassType::GenerateAccessors() {
       }
       Statement* store_body = MakeNode<ExpressionStatement>(
           MakeNode<AssignmentExpression>(store_expression, value));
-      Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
-                                 store_signature, store_body, base::nullopt,
+      Declarations::DeclareMacro(store_macro_name, true, std::nullopt,
+                                 store_signature, store_body, std::nullopt,
                                  false);
     }
   }
@@ -1004,8 +1004,8 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   Statement* block =
       MakeNode<BlockStatement>(/*deferred=*/false, std::move(statements));
 
-  Macro* macro = Declarations::DeclareMacro(macro_name, true, base::nullopt,
-                                            signature, block, base::nullopt);
+  Macro* macro = Declarations::DeclareMacro(macro_name, true, std::nullopt,
+                                            signature, block, std::nullopt);
   if (this->ShouldGenerateCppObjectLayoutDefinitionAsserts()) {
     GlobalContext::EnsureInCCDebugOutputList(TorqueMacro::cast(macro),
                                              macro->Position().source);

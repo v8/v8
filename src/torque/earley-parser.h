@@ -195,7 +195,7 @@ using Action =
 
 inline std::optional<ParseResult> DefaultAction(
     ParseResultIterator* child_results) {
-  if (!child_results->HasNext()) return base::nullopt;
+  if (!child_results->HasNext()) return std::nullopt;
   return child_results->Next();
 }
 

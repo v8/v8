@@ -36,7 +36,7 @@ class LocationReference {
   // An assignable stack range.
   static LocationReference VariableAccess(
       VisitResult variable,
-      std::optional<Binding<LocalValue>*> binding = base::nullopt) {
+      std::optional<Binding<LocalValue>*> binding = std::nullopt) {
     DCHECK(variable.IsOnStack());
     LocationReference result;
     result.variable_ = std::move(variable);
@@ -157,7 +157,7 @@ class LocationReference {
     if (IsVariableAccess() || IsHeapSlice() || IsTemporary()) {
       return GetVisitResult().type();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   const VisitResult& GetVisitResult() const {
@@ -827,7 +827,7 @@ class ImplementationVisitor {
 
   VisitResult GetAndClearReturnValue() {
     VisitResult return_value = *CurrentReturnValue::Get();
-    CurrentReturnValue::Get() = base::nullopt;
+    CurrentReturnValue::Get() = std::nullopt;
     return return_value;
   }
 

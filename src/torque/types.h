@@ -173,7 +173,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
 
  protected:
   Type(TypeBase::Kind kind, const Type* parent,
-       MaybeSpecializationKey specialized_from = base::nullopt);
+       MaybeSpecializationKey specialized_from = std::nullopt);
   Type(const Type& other) V8_NOEXCEPT;
   void set_parent(const Type* t) { parent_ = t; }
   int Depth() const;
@@ -414,7 +414,7 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
       DCHECK_EQ(*types_.begin(), parent());
       return *types_.begin();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   bool IsSubtypeOf(const Type* other) const override {
@@ -591,7 +591,7 @@ class AggregateType : public Type {
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
                 const std::string& name,
-                MaybeSpecializationKey specialized_from = base::nullopt)
+                MaybeSpecializationKey specialized_from = std::nullopt)
       : Type(kind, parent, specialized_from),
         is_finalized_(false),
         namespace_(nspace),
@@ -639,7 +639,7 @@ class StructType final : public AggregateType {
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const StructDeclaration* decl,
-             MaybeSpecializationKey specialized_from = base::nullopt);
+             MaybeSpecializationKey specialized_from = std::nullopt);
 
   void Finalize() const override;
   std::string ToExplicitString() const override;
@@ -665,7 +665,7 @@ inline std::optional<ObjectSlotKind> Combine(ObjectSlotKind a,
       std::max(a, b) == ObjectSlotKind::kMaybeObjectPointer) {
     return {ObjectSlotKind::kMaybeObjectPointer};
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 class ClassType final : public AggregateType {
@@ -846,7 +846,7 @@ class VisitResult {
   const std::string& constexpr_value() const { return *constexpr_value_; }
   const StackRange& stack_range() const { return *stack_range_; }
   void SetType(const Type* new_type) { type_ = new_type; }
-  bool IsOnStack() const { return stack_range_ != base::nullopt; }
+  bool IsOnStack() const { return stack_range_ != std::nullopt; }
   bool operator==(const VisitResult& other) const {
     return type_ == other.type_ && constexpr_value_ == other.constexpr_value_ &&
            stack_range_ == other.stack_range_;

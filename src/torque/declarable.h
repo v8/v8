@@ -427,7 +427,7 @@ class ExternMacro : public Macro {
   ExternMacro(const std::string& name, std::string external_assembler_name,
               Signature signature)
       : Macro(Declarable::kExternMacro, name, name, std::move(signature),
-              base::nullopt),
+              std::nullopt),
         external_assembler_name_(std::move(external_assembler_name)) {}
 
   std::string external_assembler_name_;
@@ -531,7 +531,7 @@ class RuntimeFunction : public Callable {
   friend class Declarations;
   RuntimeFunction(const std::string& name, const Signature& signature)
       : Callable(Declarable::kRuntimeFunction, name, name, signature,
-                 base::nullopt) {}
+                 std::nullopt) {}
 };
 
 class Intrinsic : public Callable {
@@ -541,7 +541,7 @@ class Intrinsic : public Callable {
  private:
   friend class Declarations;
   Intrinsic(std::string name, const Signature& signature)
-      : Callable(Declarable::kIntrinsic, name, name, signature, base::nullopt) {
+      : Callable(Declarable::kIntrinsic, name, name, signature, std::nullopt) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for intrinsics.");
     }
@@ -590,7 +590,7 @@ class GenericDeclarable : public Declarable {
       const TypeVector& type_arguments) const {
     auto it = specializations_.find(type_arguments);
     if (it != specializations_.end()) return it->second;
-    return base::nullopt;
+    return std::nullopt;
   }
 
   using iterator = typename Map::const_iterator;

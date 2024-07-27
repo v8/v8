@@ -54,7 +54,7 @@ class ParameterDifference {
 
  private:
   // Pointwise difference between call arguments and a signature.
-  // {base::nullopt} means that an implicit conversion was necessary,
+  // {std::nullopt} means that an implicit conversion was necessary,
   // otherwise we store the supertype found in the signature.
   std::vector<std::optional<const Type*>> difference_;
 
@@ -62,7 +62,7 @@ class ParameterDifference {
     if (from->IsSubtypeOf(to)) {
       difference_.push_back(to);
     } else if (IsAssignableFrom(to, from)) {
-      difference_.push_back(base::nullopt);
+      difference_.push_back(std::nullopt);
     } else {
       UNREACHABLE();
     }

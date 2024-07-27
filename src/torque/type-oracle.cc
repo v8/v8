@@ -91,7 +91,7 @@ std::optional<const Type*> TypeOracle::MatchReferenceGeneric(
     if (is_const) *is_const = true;
     return type;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace v8::internal::torque
