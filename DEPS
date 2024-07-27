@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '84dd25ef29b0350d49c7df67f2f6753c7e69ab1f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'de070568170defcf5a62e402439de17458f242cb',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '077b3a8e247470936c6300b031d7c87c6063e2e6',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '62fc714680a98a7fd57e5ec74958f14e3e69535a',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2f1b13ed91d144c0283ed8576ceec44e2cdbb486',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '484e908fab0b04fc7f3b97d99415efe8e1b782d8',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8dde9800ee2b8326ab11a87abd67d3bd9f8c8773',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '03434d28f434c813ee84debb9cb3c3d905105218',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -300,7 +300,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e33039b578b85ad31fc57ca9cea6a272c2cfb804',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e85ad22483a2cdbf619031c4f431d7bd029365e0',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
