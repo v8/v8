@@ -908,10 +908,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Transfer owned code from {new_owned_code_} to {owned_code_}.
   void TransferNewOwnedCodeLocked() const;
 
-  // Add code to the code cache, if it meets criteria for being cached and we do
-  // not have code in the cache yet.
-  void InsertToCodeCache(WasmCode* code);
-
   bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code) const;
 
   // -- Fields of {NativeModule} start here.
@@ -1007,12 +1003,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<NamesProvider> names_provider_;
 
   DebugState debug_state_ = kNotDebugging;
-
-  // Cache both baseline and top-tier code if we are debugging, to speed up
-  // repeated enabling/disabling of the debugger or profiler.
-  // Maps <tier, function_index> to WasmCode.
-  std::unique_ptr<std::map<std::pair<ExecutionTier, int>, WasmCode*>>
-      cached_code_;
 
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////

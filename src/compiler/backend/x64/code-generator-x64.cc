@@ -7006,8 +7006,6 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     __ j(FlagsConditionToCondition(branch->condition), tlabel);
   }
 
-  // TODO(42204618): Support this test mode in wasm in an isolate-independent
-  // way.
   if (v8_flags.deopt_every_n_times > 0) {
     if (isolate() != nullptr) {
       ExternalReference counter =
