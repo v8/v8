@@ -343,10 +343,10 @@ int TypeCanonicalizer::FindCanonicalGroup(const CanonicalSingletonGroup& group,
 
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 312);
-  size_t result = ContentSize(canonical_supertypes_);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
   base::MutexGuard mutex_guard(&mutex_);
+  size_t result = ContentSize(canonical_supertypes_);
   result += ContentSize(canonical_groups_);
   result += ContentSize(canonical_singleton_groups_);
   result += ContentSize(canonical_sigs_);
