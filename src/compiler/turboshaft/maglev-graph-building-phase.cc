@@ -1564,6 +1564,21 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::GetTemplateObject* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        __ HeapConstant(node->shared_function_info().object()),
+        Map(node->description()),
+        __ TaggedIndexConstant(node->feedback().index()),
+        __ HeapConstant(node->feedback().vector), native_context()};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kGetTemplateObject,
+                                     frame_state, base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CreateObjectLiteral* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
