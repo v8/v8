@@ -3552,6 +3552,19 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::GeneratorStore* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): implement.
+    *bailout_ = BailoutReason::kGraphBuildingFailed;
+    return maglev::ProcessResult::kAbort;
+  }
+  maglev::ProcessResult Process(maglev::GeneratorRestoreRegister* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): implement.
+    *bailout_ = BailoutReason::kGraphBuildingFailed;
+    return maglev::ProcessResult::kAbort;
+  }
+
   maglev::ProcessResult Process(maglev::Abort* node,
                                 const maglev::ProcessingState&) {
     __ RuntimeAbort(node->reason());
@@ -3562,9 +3575,40 @@ class GraphBuilder {
   }
 
   maglev::ProcessResult Process(maglev::Identity* node,
-                                const maglev::ProcessingState& state) {
+                                const maglev::ProcessingState&) {
     SetMap(node, Map(node->input(0)));
     return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Dead*, const maglev::ProcessingState&) {
+    // Nothing to do; `Dead` is in Maglev to kill a node when removing it
+    // directly from the graph is not possible.
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::DebugBreak*,
+                                const maglev::ProcessingState&) {
+    __ DebugBreak();
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::GapMove*,
+                                const maglev::ProcessingState&) {
+    // GapMove nodes are created by Maglev's register allocator, which
+    // doesn't run when using Maglev as a frontend for Turboshaft.
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::ConstantGapMove*,
+                                const maglev::ProcessingState&) {
+    // ConstantGapMove nodes are created by Maglev's register allocator, which
+    // doesn't run when using Maglev as a frontend for Turboshaft.
+    UNREACHABLE();
+  }
+
+  maglev::ProcessResult Process(maglev::VirtualObject*,
+                                const maglev::ProcessingState&) {
+    // VirtualObjects should never be part of the Maglev graph.
+    UNREACHABLE();
   }
 
   maglev::ProcessResult Process(maglev::GetSecondReturnedValue* node,
@@ -3620,15 +3664,60 @@ class GraphBuilder {
   }
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-  template <typename NodeT>
-  maglev::ProcessResult Process(NodeT* node,
-                                const maglev::ProcessingState& state) {
-    // TODO(dmercadier): remove this bailout. It's currently useful so that we
-    // can run any program without crashing, and it allows to differential-fuzz
-    // more easily. Long-term, we never want to bailout during graph building
-    // (at least, not because some translation is unimplemented).
-    *bailout_ = BailoutReason::kGraphBuildingFailed;
-    return maglev::ProcessResult::kAbort;
+  maglev::ProcessResult Process(maglev::AssertInt32* node,
+                                const maglev::ProcessingState&) {
+    bool negate_result = false;
+    V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
+                                        node->condition(), &negate_result);
+    Label<> abort(this);
+    Label<> end(this);
+    if (negate_result) {
+      GOTO_IF(cmp, abort);
+    } else {
+      GOTO_IF_NOT(cmp, abort);
+    }
+    GOTO(end);
+
+    BIND(abort);
+    __ RuntimeAbort(node->reason());
+    __ Unreachable();
+
+    BIND(end);
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CallSelf*,
+                                const maglev::ProcessingState&) {
+    // CallSelf nodes are only created when Maglev is the top-tier compiler
+    // (which can't be the case here, since we're currently compiling for
+    // Turboshaft).
+    UNREACHABLE();
+  }
+
+  // Nodes unused by maglev but still existing.
+  maglev::ProcessResult Process(maglev::ExternalConstant*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::CheckUint32IsSmi*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::CallCPPBuiltin*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::UnsafeTruncateUint32ToInt32*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::UnsafeTruncateFloat64ToInt32*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::BranchIfTypeOf*,
+                                const maglev::ProcessingState&) {
+    UNREACHABLE();
   }
 
   AssemblerT& Asm() { return assembler_; }

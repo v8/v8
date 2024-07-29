@@ -5667,6 +5667,9 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
 
   auto options() const { return std::tuple{condition_, reason_}; }
 
+  AssertCondition condition() const { return condition_; }
+  AbortReason reason() const { return reason_; }
+
  private:
   AssertCondition condition_;
   AbortReason reason_;
