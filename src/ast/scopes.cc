@@ -1525,26 +1525,22 @@ DeclarationScope* Scope::GetConstructorScope() {
 }
 
 Scope* Scope::GetHomeObjectScope() {
-  Scope* scope = this;
-  while (scope != nullptr && !scope->is_home_object_scope()) {
-    if (scope->is_function_scope()) {
-      FunctionKind function_kind = scope->AsDeclarationScope()->function_kind();
-      // "super" in arrow functions binds outside the arrow function. But if we
-      // find a function which doesn't bind "super" (is not a method etc.) and
-      // not an arrow function, we know "super" here doesn't bind anywhere and
-      // we can return nullptr.
-      if (!IsArrowFunction(function_kind) && !BindsSuper(function_kind)) {
-        return nullptr;
-      }
-    }
-    if (scope->private_name_lookup_skips_outer_class()) {
-      DCHECK(scope->outer_scope()->is_class_scope());
-      scope = scope->outer_scope()->outer_scope();
-    } else {
-      scope = scope->outer_scope();
-    }
-  }
-  return scope;
+  Scope* scope = GetReceiverScope();
+  DCHECK(scope->is_function_scope());
+  FunctionKind kind = scope->AsDeclarationScope()->function_kind();
+  // "super" in arrow functions binds outside the arrow function. Arrow
+  // functions are also never receiver scopes since they close over the
+  // receiver.
+  DCHECK(!IsArrowFunction(kind));
+  // If we find a function which doesn't bind "super" (is not a method etc.), we
+  // know "super" here doesn't bind anywhere and we can return nullptr.
+  if (!BindsSuper(kind)) return nullptr;
+  // Functions that bind "super" can only syntactically occur nested inside home
+  // object scopes (i.e. class scopes and object literal scopes), so directly
+  // return the outer scope.
+  Scope* outer_scope = scope->outer_scope();
+  CHECK(outer_scope->is_home_object_scope());
+  return outer_scope;
 }
 
 DeclarationScope* Scope::GetScriptScope() {
@@ -2299,7 +2295,7 @@ void Scope::ResolveVariable(VariableProxy* proxy) {
     //
     // Because of the above, start resolving home objects directly at the home
     // object scope instead of the current scope.
-    Scope* scope = GetDeclarationScope()->GetHomeObjectScope();
+    Scope* scope = GetHomeObjectScope();
     DCHECK_NOT_NULL(scope);
     if (scope->scope_info_.is_null()) {
       var = Lookup<kParsedScope>(proxy, scope, nullptr);
