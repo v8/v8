@@ -569,7 +569,7 @@ DEFINE_BOOL(maglev_loop_peeling, true,
 DEFINE_BOOL(maglev_optimistic_peeled_loops, false,
             "enable speculation on loop state using peeling as fallback in the "
             "maglev optimizing compiler")
-DEFINE_INT(maglev_loop_peeling_max_size, 150,
+DEFINE_INT(maglev_loop_peeling_max_size, 200,
            "max loop size for loop peeling in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_deopt_data_on_background, true,
             "Generate deopt data on background thread")
