@@ -106,8 +106,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 
 void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
                                    DirectHandle<JSMessageObject> message) {
-  v8::Local<v8::Message> api_message_obj =
-      v8::Utils::MessageToLocal(message, isolate);
+  v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
   if (api_message_obj->ErrorLevel() != v8::Isolate::kMessageError) {
     ReportMessageNoExceptions(isolate, loc, message, v8::Local<v8::Value>());
@@ -159,8 +158,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
 void MessageHandler::ReportMessageNoExceptions(
     Isolate* isolate, const MessageLocation* loc, DirectHandle<Object> message,
     v8::Local<v8::Value> api_exception_obj) {
-  v8::Local<v8::Message> api_message_obj =
-      v8::Utils::MessageToLocal(message, isolate);
+  v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
   int error_level = api_message_obj->ErrorLevel();
 
   DirectHandle<ArrayList> global_listeners =
@@ -186,10 +184,9 @@ void MessageHandler::ReportMessageNoExceptions(
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-        callback(api_message_obj,
-                 IsUndefined(*callback_data, isolate)
-                     ? api_exception_obj
-                     : v8::Utils::ToLocal(callback_data, isolate));
+        callback(api_message_obj, IsUndefined(*callback_data, isolate)
+                                      ? api_exception_obj
+                                      : v8::Utils::ToLocal(callback_data));
       }
     }
   }

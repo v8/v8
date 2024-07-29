@@ -1666,7 +1666,7 @@ void CreateExternalResources(Isolate* i_isolate,
   resources.reserve(strings->length());
   for (int i = 0; i < strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(strings->get(i)), i_isolate);
-    CHECK(Utils::ToLocal(input_string, i_isolate)
+    CHECK(Utils::ToLocal(input_string)
               ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
     const int length = input_string->length();
     char* buffer = new char[length + 1];

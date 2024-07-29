@@ -349,7 +349,7 @@ void MemoryMeasurement::ReportResults() {
         continue;
       }
       Local<v8::Context> context = Utils::Convert<HeapObject, v8::Context>(
-          direct_handle(raw_context, isolate_), isolate_);
+          direct_handle(raw_context, isolate_));
       contexts.push_back(context);
       size_in_bytes.push_back(request.sizes[i]);
     }
