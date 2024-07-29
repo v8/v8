@@ -312,29 +312,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
             Operand(static_cast<int64_t>(CodeKind::BASELINE)));
 }
 
-// Equivalent of SharedFunctionInfo::GetData
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-  ASM_CODE_COMMENT(masm);
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ Lwu(scratch,
-         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-  __ Branch(&use_tagged_field, eq, scratch, Operand(zero_reg));
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
-  __ Branch(&done);
-  __ bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-  __ bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-}
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
 static void GetSharedFunctionInfoBytecodeOrBaseline(
@@ -345,18 +322,13 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   Label done;
 
   Register data = bytecode;
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  __ Lwu(scratch1,
-         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-  __ Branch(is_unavailable, eq, scratch1, Operand(zero_reg));
-  __ ResolveIndirectPointerHandle(data, scratch1, kUnknownIndirectPointerTag);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-  __ GetObjectType(data, scratch1, scratch1);
+  __ LoadTrustedPointerField(
+      data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
+  // If the trusted data field is empty, it will contain Smi::zero (or the
+  // kNullIndirectPointerHandle, which will resolve to Smi::zero).
+  __ JumpIfSmi(data, is_unavailable);
 
 #ifndef V8_JITLESS
   if (v8_flags.debug_code) {
@@ -1749,7 +1721,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadWord(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  GetSharedFunctionInfoData(masm, t0, t0, t1);
+  __ LoadTrustedPointerField(
+      t0, FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
   __ GetObjectType(t0, kInterpreterDispatchTableRegister,
                    kInterpreterDispatchTableRegister);
   __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
@@ -3691,16 +3665,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ Ret();
 }
 
-#ifdef V8_ENABLE_WEBASSEMBLY
-// Equivalent of SharedFunctionInfo::wasm_resume_data()
-static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
-                                                Register resume_data,
-                                                Register sfi) {
-  __ LoadTaggedField(
-      resume_data,
-      FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 // Resume the suspender stored in the closure. We generate two variants of this
@@ -3738,7 +3702,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // RecordWriteField calls later.
   Register suspender = WriteBarrierDescriptor::ObjectRegister();
   Register resume_data = temps.Acquire();
-  GetSharedFunctionInfoWasmResumeData(masm, resume_data, sfi);
+  __ LoadTaggedField(
+      resume_data,
+      FieldMemOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
   __ LoadTaggedField(
@@ -4810,7 +4776,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, code_obj);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, code_obj, t2);
+  __ LoadTrustedPointerField(
+      code_obj,
+      FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
