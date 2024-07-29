@@ -540,9 +540,13 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF32Load:
       Movss(dst.fp(), src_op);
       break;
-    case LoadType::kF32LoadF16:
-      UNIMPLEMENTED();
+    case LoadType::kF32LoadF16: {
+      CpuFeatureScope f16c_scope(this, F16C);
+      CpuFeatureScope avx2_scope(this, AVX2);
+      vpbroadcastw(dst.fp(), src_op);
+      vcvtph2ps(dst.fp(), dst.fp());
       break;
+    }
     case LoadType::kF64Load:
       Movsd(dst.fp(), src_op);
       break;
@@ -579,9 +583,12 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kF32Store:
       Movss(dst_op, src.fp());
       break;
-    case StoreType::kF32StoreF16:
-      UNIMPLEMENTED();
+    case StoreType::kF32StoreF16: {
+      CpuFeatureScope fscope(this, F16C);
+      vcvtps2ph(kScratchDoubleReg, src.fp(), 0);
+      Pextrw(dst_op, kScratchDoubleReg, static_cast<uint8_t>(0));
       break;
+    }
     case StoreType::kF64Store:
       Movsd(dst_op, src.fp());
       break;
@@ -4406,7 +4413,9 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
   return false;
 }
 
-bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+bool LiftoffAssembler::supports_f16_mem_access() {
+  return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX2);
+}
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
