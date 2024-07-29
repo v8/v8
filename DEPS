@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'de070568170defcf5a62e402439de17458f242cb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4278624ffc17f0263546fa2f2e17ee00c36ed64d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c92671fe07c44a62f3d422668b118f0de69e331c',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '03434d28f434c813ee84debb9cb3c3d905105218',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fca881606e01a68206fb273553f18f918b5c3f71',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -478,7 +478,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'af69d904a55de49f3b3925070508f8af769018d3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '6a035f479dbc76412c48d5c253f543614aba871a',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
