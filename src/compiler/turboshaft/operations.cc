@@ -974,7 +974,7 @@ void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
       os << "unsigned mod, ";
       break;
   }
-  os << rep;
+  os << rep << ", " << mode;
   os << ']';
 }
 

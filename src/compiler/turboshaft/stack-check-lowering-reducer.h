@@ -27,7 +27,16 @@ class StackCheckLoweringReducer : public Next {
                                JSStackCheckOp::Kind kind) {
     switch (kind) {
       case JSStackCheckOp::Kind::kFunctionEntry: {
-        IF_NOT (LIKELY(CheckStackLimit(StackCheckKind::kJSFunctionEntry))) {
+        // Loads of the stack limit should not be load-eliminated as it can be
+        // modified by another thread.
+        V<WordPtr> limit =
+            __ Load(__ ExternalConstant(
+                        ExternalReference::address_of_jslimit(isolate())),
+                    LoadOp::Kind::RawAligned().NotLoadEliminable(),
+                    MemoryRepresentation::UintPtr());
+
+        IF_NOT (LIKELY(__ StackPointerGreaterThan(
+                    limit, StackCheckKind::kJSFunctionEntry))) {
           __ CallRuntime_StackGuardWithGap(isolate(), frame_state, context,
                                            __ StackCheckOffset());
         }
@@ -57,7 +66,14 @@ class StackCheckLoweringReducer : public Next {
     if (kind == WasmStackCheckOp::Kind::kFunctionEntry && __ IsLeafFunction()) {
       return V<None>::Invalid();
     }
-    IF_NOT (LIKELY(CheckStackLimit(StackCheckKind::kWasm))) {
+
+    // Loads of the stack limit should not be load-eliminated as it can be
+    // modified by another thread.
+    V<WordPtr> limit = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
+        MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
+
+    IF_NOT (LIKELY(__ StackPointerGreaterThan(limit, StackCheckKind::kWasm))) {
       // TODO(14108): Cache descriptor.
       V<WordPtr> builtin =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
@@ -83,15 +99,6 @@ class StackCheckLoweringReducer : public Next {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
-  V<Word32> CheckStackLimit(compiler::StackCheckKind kind) {
-    // Loads of the stack limit should not be load-eliminated as it can be
-    // modified by another thread.
-    V<WordPtr> limit = __ Load(
-        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-        MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
-    return __ StackPointerGreaterThan(limit, kind);
-  }
-
   Isolate* isolate() {
     if (!isolate_) isolate_ = __ data() -> isolate();
     return isolate_;
