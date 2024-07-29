@@ -6910,6 +6910,8 @@ class ExtendPropertiesBackingStore
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  int old_length() const { return old_length_; }
+
  private:
   const int old_length_;
 };

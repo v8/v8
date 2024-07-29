@@ -322,6 +322,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   static FieldAccess ForFeedbackVectorSlot(int index);
 
+  // Provides access to PropertyArray slots.
+  static FieldAccess ForPropertyArraySlot(int index);
+
   // Provides access to ScopeInfo flags.
   static FieldAccess ForScopeInfoFlags();
 

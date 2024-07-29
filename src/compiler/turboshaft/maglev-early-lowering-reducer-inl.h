@@ -374,6 +374,72 @@ class MaglevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  V<PropertyArray> ExtendPropertiesBackingStore(
+      V<PropertyArray> old_property_array, V<JSObject> object, int old_length,
+      V<FrameState> frame_state, const FeedbackSource& feedback) {
+    // Allocate new PropertyArray.
+    int new_length = old_length + JSObject::kFieldsAdded;
+    Uninitialized<PropertyArray> new_property_array =
+        __ template Allocate<PropertyArray>(
+            __ IntPtrConstant(PropertyArray::SizeFor(new_length)),
+            AllocationType::kYoung);
+    __ InitializeField(new_property_array, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->property_array_map()));
+
+    // Copy existing properties over.
+    for (int i = 0; i < old_length; i++) {
+      V<Object> old_value = __ template LoadField<Object>(
+          old_property_array, AccessBuilder::ForPropertyArraySlot(i));
+      __ InitializeField(new_property_array,
+                         AccessBuilder::ForPropertyArraySlot(i), old_value);
+    }
+
+    // Initialize new properties to undefined.
+    V<Undefined> undefined = __ HeapConstant(factory_->undefined_value());
+    for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
+      __ InitializeField(new_property_array,
+                         AccessBuilder::ForPropertyArraySlot(old_length + i),
+                         undefined);
+    }
+
+    // Read the hash.
+    ScopedVar<Word32> hash(this);
+    if (old_length == 0) {
+      // The object might still have a hash, stored in properties_or_hash. If
+      // properties_or_hash is a SMI, then it's the hash. It can also be an
+      // empty PropertyArray.
+      V<Object> hash_obj = __ template LoadField<Object>(
+          object, AccessBuilder::ForJSObjectPropertiesOrHash());
+      IF (__ IsSmi(hash_obj)) {
+        hash = __ Word32ShiftLeft(__ UntagSmi(V<Smi>::Cast(hash_obj)),
+                                  PropertyArray::HashField::kShift);
+      } ELSE {
+        hash = __ Word32Constant(PropertyArray::kNoHashSentinel);
+      }
+    } else {
+      V<Smi> hash_smi = __ template LoadField<Smi>(
+          old_property_array, AccessBuilder::ForPropertyArrayLengthAndHash());
+      hash = __ Word32BitwiseAnd(__ UntagSmi(hash_smi),
+                                 PropertyArray::HashField::kMask);
+    }
+
+    // Add the new length and write the length-and-hash field.
+    static_assert(PropertyArray::LengthField::kShift == 0);
+    V<Word32> length_and_hash = __ Word32BitwiseOr(hash, new_length);
+    __ InitializeField(new_property_array,
+                       AccessBuilder::ForPropertyArrayLengthAndHash(),
+                       __ TagSmi(length_and_hash));
+
+    V<PropertyArray> initialized_new_property_array =
+        __ FinishInitialization(std::move(new_property_array));
+
+    // Replace the old property array in {object}.
+    __ StoreField(object, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                  initialized_new_property_array);
+
+    return initialized_new_property_array;
+  }
+
  private:
   V<Word32> CheckInstanceTypeIsInRange(V<Map> map,
                                        InstanceType first_instance_type,
