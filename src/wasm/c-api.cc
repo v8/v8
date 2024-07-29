@@ -1741,7 +1741,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   i::Tagged<i::Object> raw_function_data =
-      func->v8_object()->shared()->GetData(isolate);
+      func->v8_object()->shared()->GetTrustedData(isolate);
 
   // WasmCapiFunctions can be called directly.
   if (IsWasmCapiFunctionData(raw_function_data)) {
@@ -1749,7 +1749,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
         i::Cast<i::WasmCapiFunctionData>(raw_function_data), args, results);
   }
 
-  DCHECK(IsWasmExportedFunctionData(raw_function_data));
+  SBXCHECK(IsWasmExportedFunctionData(raw_function_data));
   i::DirectHandle<i::WasmExportedFunctionData> function_data{
       i::Cast<i::WasmExportedFunctionData>(raw_function_data), isolate};
   i::DirectHandle<i::WasmTrustedInstanceData> instance_data{
@@ -1775,7 +1775,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
     if (IsWasmImportData(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
           i::Cast<i::WasmImportData>(*object_ref)->callable());
-      i::Tagged<i::Object> data = jsfunc->shared()->GetData(isolate);
+      i::Tagged<i::Object> data = jsfunc->shared()->GetTrustedData(isolate);
       if (IsWasmCapiFunctionData(data)) {
         return CallWasmCapiFunction(i::Cast<i::WasmCapiFunctionData>(data),
                                     args, results);

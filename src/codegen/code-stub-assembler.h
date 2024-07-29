@@ -1736,12 +1736,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
 
-  // Load the data object associated with a SFI.
-  // If the (expected) data type is known, prefer to use one of the specialized
-  // accessors (e.g. LoadSharedFunctionInfoBuiltinId). Otherwise, the returned
-  // object can generally not be trusted to be of the expected type.
-  TNode<Object> LoadSharedFunctionInfoData(TNode<SharedFunctionInfo> sfi);
-
   TNode<BoolT> SharedFunctionInfoHasBaselineCode(TNode<SharedFunctionInfo> sfi);
 
   TNode<Smi> LoadSharedFunctionInfoBuiltinId(TNode<SharedFunctionInfo> sfi);

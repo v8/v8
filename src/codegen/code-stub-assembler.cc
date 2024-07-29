@@ -3483,18 +3483,9 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
       sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset);
 }
 
-TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
-    TNode<SharedFunctionInfo> sfi) {
-  TNode<Object> trusted_data = LoadSharedFunctionInfoTrustedData(sfi);
-  return Select<Object>(
-      TaggedEqual(trusted_data, SmiConstant(0)),
-      [=] { return LoadSharedFunctionInfoUntrustedData(sfi); },
-      [=] { return trusted_data; });
-}
-
 TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
     TNode<SharedFunctionInfo> sfi) {
-  TNode<Object> data = LoadSharedFunctionInfoData(sfi);
+  TNode<Object> data = LoadSharedFunctionInfoTrustedData(sfi);
   return TaggedIsCode(data);
 }
 
@@ -16940,7 +16931,11 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
-  TNode<Object> sfi_data = LoadSharedFunctionInfoData(shared_info);
+  TNode<Object> sfi_data = LoadSharedFunctionInfoTrustedData(shared_info);
+  sfi_data = Select<Object>(
+      TaggedEqual(sfi_data, SmiConstant(0)),
+      [=] { return LoadSharedFunctionInfoUntrustedData(shared_info); },
+      [=] { return sfi_data; });
 
   TVARIABLE(Code, sfi_code);
 
@@ -16967,47 +16962,44 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   }
 
   int32_t case_values[] = {
-    BYTECODE_ARRAY_TYPE,
-    CODE_TYPE,
-    UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-    UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-    UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
-    UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
-    FUNCTION_TEMPLATE_INFO_TYPE,
+      BYTECODE_ARRAY_TYPE,
+      CODE_TYPE,
+      INTERPRETER_DATA_TYPE,
+      UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+      UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
+      UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
+      UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
+      FUNCTION_TEMPLATE_INFO_TYPE,
 #if V8_ENABLE_WEBASSEMBLY
-    WASM_CAPI_FUNCTION_DATA_TYPE,
-    WASM_EXPORTED_FUNCTION_DATA_TYPE,
-    WASM_JS_FUNCTION_DATA_TYPE,
-    ASM_WASM_DATA_TYPE,
-    WASM_RESUME_DATA_TYPE,
+      WASM_CAPI_FUNCTION_DATA_TYPE,
+      WASM_EXPORTED_FUNCTION_DATA_TYPE,
+      WASM_JS_FUNCTION_DATA_TYPE,
+      ASM_WASM_DATA_TYPE,
+      WASM_RESUME_DATA_TYPE,
 #endif  // V8_ENABLE_WEBASSEMBLY
   };
   Label check_is_bytecode_array(this);
   Label check_is_baseline_data(this);
+  Label check_is_interpreter_data(this);
   Label check_is_asm_wasm_data(this);
   Label check_is_uncompiled_data(this);
   Label check_is_function_template_info(this);
-  Label check_is_interpreter_data(this);
   Label check_is_wasm_function_data(this);
   Label check_is_wasm_resume(this);
+  Label unknown_data(this);
   Label* case_labels[] = {
-    &check_is_bytecode_array,
-    &check_is_baseline_data,
-    &check_is_uncompiled_data,
-    &check_is_uncompiled_data,
-    &check_is_uncompiled_data,
-    &check_is_uncompiled_data,
-    &check_is_function_template_info,
+      &check_is_bytecode_array,     &check_is_baseline_data,
+      &check_is_interpreter_data,   &check_is_uncompiled_data,
+      &check_is_uncompiled_data,    &check_is_uncompiled_data,
+      &check_is_uncompiled_data,    &check_is_function_template_info,
 #if V8_ENABLE_WEBASSEMBLY
-    &check_is_wasm_function_data,
-    &check_is_wasm_function_data,
-    &check_is_wasm_function_data,
-    &check_is_asm_wasm_data,
-    &check_is_wasm_resume,
+      &check_is_wasm_function_data, &check_is_wasm_function_data,
+      &check_is_wasm_function_data, &check_is_asm_wasm_data,
+      &check_is_wasm_resume,
 #endif  // V8_ENABLE_WEBASSEMBLY
   };
   static_assert(arraysize(case_values) == arraysize(case_labels));
-  Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
+  Switch(data_type, &unknown_data, case_values, case_labels,
          arraysize(case_labels));
 
   // IsBytecodeArray: Interpret bytecode
@@ -17024,6 +17016,15 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     Goto(&done);
   }
 
+  // IsInterpreterData: Interpret bytecode
+  BIND(&check_is_interpreter_data);
+  {
+    TNode<Code> trampoline = CAST(LoadProtectedPointerField(
+        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+    sfi_code = trampoline;
+  }
+  Goto(&done);
+
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
   BIND(&check_is_uncompiled_data);
@@ -17034,18 +17035,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_function_template_info);
   sfi_code =
       HeapConstantNoHole(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
-  Goto(&done);
-
-  // IsInterpreterData: Interpret bytecode
-  BIND(&check_is_interpreter_data);
-  // This is the default branch, so assert that we have the expected data type.
-  CSA_DCHECK(this,
-             Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
-  {
-    TNode<Code> trampoline = CAST(LoadProtectedPointerField(
-        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
-    sfi_code = trampoline;
-  }
   Goto(&done);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -17065,6 +17054,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), WasmResume));
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  BIND(&unknown_data);
+  Unreachable();
 
   BIND(&done);
   return sfi_code.value();

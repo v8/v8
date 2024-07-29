@@ -994,15 +994,10 @@ void HeapObject::WriteIndirectPointerField(size_t offset,
 template <IndirectPointerTag tag>
 Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
     size_t offset, IsolateForSandbox isolate) const {
-#ifdef V8_ENABLE_SANDBOX
-  Tagged<Object> object = ReadIndirectPointerField<tag>(offset, isolate);
+  Tagged<Object> object =
+      ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
   DCHECK(IsExposedTrustedObject(object));
   return Cast<ExposedTrustedObject>(object);
-#else
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return TaggedField<ExposedTrustedObject>::Acquire_Load(
-      cage_base, *this, static_cast<int>(offset));
-#endif
 }
 
 template <IndirectPointerTag tag>
@@ -1016,7 +1011,7 @@ void HeapObject::WriteTrustedPointerField(size_t offset,
 #endif
 }
 
-bool HeapObject::IsTrustedPointerFieldCleared(size_t offset) const {
+bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = ACQUIRE_READ_UINT32_FIELD(*this, offset);
   return handle == kNullIndirectPointerHandle;
@@ -1039,6 +1034,16 @@ void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
   return ClearTrustedPointerField(offset);
 }
 
+template <IndirectPointerTag tag>
+Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
+    size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const {
+#ifdef V8_ENABLE_SANDBOX
+  return ReadIndirectPointerField<tag>(offset, isolate);
+#else
+  return TaggedField<Object>::Acquire_Load(*this, static_cast<int>(offset));
+#endif
+}
+
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
   return Cast<Code>(
@@ -1049,8 +1054,8 @@ void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
   WriteTrustedPointerField<kCodeIndirectPointerTag>(offset, value);
 }
 
-bool HeapObject::IsCodePointerFieldCleared(size_t offset) const {
-  return IsTrustedPointerFieldCleared(offset);
+bool HeapObject::IsCodePointerFieldEmpty(size_t offset) const {
+  return IsTrustedPointerFieldEmpty(offset);
 }
 
 void HeapObject::ClearCodePointerField(size_t offset) {

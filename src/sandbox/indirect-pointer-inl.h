@@ -70,7 +70,6 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
   // Load the indirect pointer handle from the object.
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   IndirectPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
 
   // Resolve the handle. The tag implies the pointer table to use.
   // Here we generally assume that the load from the table cannot be reordered
