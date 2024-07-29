@@ -3770,37 +3770,65 @@ bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fabs(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fneg(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fsqrt(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Frintp(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Frintm(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Frintz(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Frintn(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
