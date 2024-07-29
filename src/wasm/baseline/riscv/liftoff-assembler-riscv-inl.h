@@ -2492,6 +2492,20 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
   return false;
 }
 
+bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  return false;
+}
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
