@@ -26,6 +26,7 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 constexpr base::uc32 kMaxCodePoint = 0x10ffff;
 constexpr int kMaxUtf16CodeUnit = 0xffff;
 constexpr uint32_t kMaxUtf16CodeUnitU = 0xffff;
+constexpr int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
 
 // -------------------------------------------------------------------
 // Tree to graph conversion
@@ -423,7 +424,6 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
 }  // namespace
 
 // static
-// Only for /ui and /vi, not for /i regexps.
 void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                                Zone* zone) {
 #ifdef V8_INTL_SUPPORT
@@ -1450,7 +1450,6 @@ void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
 }
 
 // static
-// Only for /i, not for /ui or /vi.
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
@@ -1466,8 +1465,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     // Nothing to be done for surrogates.
     if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (from > String::kMaxOneByteCharCode) continue;
-      if (to > String::kMaxOneByteCharCode) to = String::kMaxOneByteCharCode;
+      if (from > kMaxOneByteCharCode) continue;
+      if (to > kMaxOneByteCharCode) to = kMaxOneByteCharCode;
     }
     others.add(from, to);
   }
@@ -1509,8 +1508,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > String::kMaxOneByteCharCode) continue;
-      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
+      if (bottom > kMaxOneByteCharCode) continue;
+      if (top > kMaxOneByteCharCode) top = kMaxOneByteCharCode;
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     if (top == bottom) {
