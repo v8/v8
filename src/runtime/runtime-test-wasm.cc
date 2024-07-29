@@ -194,10 +194,9 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   }
   Tagged<JSFunction> function = Cast<JSFunction>(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  Tagged<Object> func_data = sfi->GetData(isolate);
-  if (!IsWasmFunctionData(func_data)) return isolate->heap()->ToBoolean(false);
-  Address call_target =
-      Cast<WasmFunctionData>(func_data)->internal()->call_target();
+  if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
+  Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
+  Address call_target = func_data->internal()->call_target();
 
   Address wrapper = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   return isolate->heap()->ToBoolean(call_target == wrapper);

@@ -334,17 +334,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // Indirect pointers.
   //
-  // These are only available when the sandbox is enabled.
+  // These are only available when the sandbox is enabled, in which case they
+  // are the under-the-hood implementation of trusted pointers.
   inline void InitSelfIndirectPointerField(size_t offset,
                                            IsolateForSandbox isolate);
-
-  template <IndirectPointerTag tag>
-  inline Tagged<Object> ReadIndirectPointerField(
-      size_t offset, IsolateForSandbox isolate) const;
-
-  template <IndirectPointerTag tag>
-  inline void WriteIndirectPointerField(size_t offset,
-                                        Tagged<ExposedTrustedObject> value);
 
   // Trusted pointers.
   //
@@ -357,15 +350,24 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
       size_t offset, IsolateForSandbox isolate) const;
   template <IndirectPointerTag tag>
+  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
+      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+  // Like ReadTrustedPointerField, but if the field is cleared, this will
+  // return Smi::zero().
+  template <IndirectPointerTag tag>
+  inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
+      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+
+  template <IndirectPointerTag tag>
   inline void WriteTrustedPointerField(size_t offset,
                                        Tagged<ExposedTrustedObject> value);
 
-  // Trusted pointer fields can be cleared, in which case they no longer point
-  // to any object. When the sandbox is enabled, this will set the fields
-  // indirect pointer handle to the null handle (referencing the zeroth entry in
-  // the TrustedPointerTable which just contains nullptr). When the sandbox is
-  // disabled, this will set the field to Smi::zero().
-  inline bool IsTrustedPointerFieldCleared(size_t offset) const;
+  // Trusted pointer fields can be cleared/empty, in which case they no longer
+  // point to any object. When the sandbox is enabled, this will set the fields
+  // indirect pointer handle to the null handle (referencing the zeroth entry
+  // in the TrustedPointerTable which just contains nullptr). When the sandbox
+  // is disabled, this will set the field to Smi::zero().
+  inline bool IsTrustedPointerFieldEmpty(size_t offset) const;
   inline void ClearTrustedPointerField(size_t offest);
   inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
 
@@ -379,7 +381,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                            IsolateForSandbox isolate) const;
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
-  inline bool IsCodePointerFieldCleared(size_t offset) const;
+  inline bool IsCodePointerFieldEmpty(size_t offset) const;
   inline void ClearCodePointerField(size_t offest);
 
   inline Address ReadCodeEntrypointViaCodePointerField(

@@ -37,7 +37,7 @@ BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
 
 Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
-  DCHECK(!IsTrustedPointerFieldCleared(kCodeObjectOffset));
+  DCHECK(!IsTrustedPointerFieldEmpty(kCodeObjectOffset));
   // The field can contain either a Code or a BytecodeArray, so we need to use
   // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
   // type-checking mechanism of trusted pointers we need to perform manual type
