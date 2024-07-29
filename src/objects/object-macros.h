@@ -578,7 +578,7 @@
                                               mode);                           \
   }                                                                            \
   bool holder::has_##name() const {                                            \
-    return !IsTrustedPointerFieldEmpty(offset);                                \
+    return !IsTrustedPointerFieldCleared(offset);                              \
   }                                                                            \
   void holder::clear_##name() { ClearTrustedPointerField(offset); }
 
@@ -608,7 +608,7 @@
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
   }                                                                          \
   bool holder::has_##name() const {                                          \
-    return !IsProtectedPointerFieldEmpty(offset);                            \
+    return !IsProtectedPointerFieldCleared(offset);                          \
   }                                                                          \
   void holder::clear_##name() { return ClearProtectedPointerField(offset); }
 
@@ -632,7 +632,7 @@
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
   }                                                                          \
   bool holder::has_##name(AcquireLoadTag tag) const {                        \
-    return !IsProtectedPointerFieldEmpty(offset, tag);                       \
+    return !IsProtectedPointerFieldCleared(offset, tag);                     \
   }                                                                          \
   void holder::clear_##name(ReleaseStoreTag tag) {                           \
     return ClearProtectedPointerField(offset, tag);                          \

@@ -153,29 +153,17 @@ bool SharedFunctionInfo::HasTrustedData() const {
          Smi::zero();
 }
 
+Tagged<Object> SharedFunctionInfo::GetData(IsolateForSandbox isolate) const {
+  Tagged<Object> trusted_data = GetTrustedData(isolate);
+  return trusted_data == Smi::zero() ? GetUntrustedData() : trusted_data;
+}
+
 Tagged<Object> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {
-  return ReadMaybeEmptyTrustedPointerField<kUnknownIndirectPointerTag>(
-      kTrustedFunctionDataOffset, isolate, kAcquireLoad);
-}
-
-template <typename T, IndirectPointerTag tag>
-Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
-  static_assert(tag != kUnknownIndirectPointerTag);
-  return Cast<T>(ReadMaybeEmptyTrustedPointerField<tag>(
-      kTrustedFunctionDataOffset, isolate, kAcquireLoad));
-}
-
-Tagged<Object> SharedFunctionInfo::GetTrustedData() const {
 #ifdef V8_ENABLE_SANDBOX
   auto trusted_data_slot = RawIndirectPointerField(kTrustedFunctionDataOffset,
                                                    kUnknownIndirectPointerTag);
-  // This routine is sometimes used for SFI's in read-only space (which never
-  // have trusted data). In that case, GetIsolateForSandbox cannot be used, so
-  // we need to return early in that case, before trying to obtain an Isolate.
-  IndirectPointerHandle handle = trusted_data_slot.Acquire_LoadHandle();
-  if (handle == kNullIndirectPointerHandle) return Smi::zero();
-  return trusted_data_slot.ResolveHandle(handle, GetIsolateForSandbox(*this));
+  return trusted_data_slot.Acquire_Load(isolate);
 #else
   return TaggedField<Object, kTrustedFunctionDataOffset>::Acquire_Load(*this);
 #endif
@@ -702,8 +690,10 @@ DEF_GETTER(SharedFunctionInfo, api_func_data, Tagged<FunctionTemplateInfo>) {
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
-  Tagged<Object> data = GetTrustedData();
-  // If the SFI has no trusted data, GetTrustedData() will return Smi::zero().
+  // For builtin SFIs in read-only space, we cannot get the isolate.
+  // TODO(saelo): Can we find a way around the HasBuiltinId() check?
+  if (HasBuiltinId()) return false;
+  Tagged<Object> data = GetData(GetIsolateForSandbox(*this));
   if (IsSmi(data)) return false;
   InstanceType instance_type =
       Cast<HeapObject>(data)->map(cage_base)->instance_type();
@@ -780,7 +770,7 @@ Tagged<Code> SharedFunctionInfo::InterpreterTrampoline(
 }
 
 bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {
-  Tagged<Object> data = GetTrustedData(isolate);
+  Tagged<Object> data = GetData(isolate);
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Cast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
@@ -798,7 +788,6 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     data = baseline_code->bytecode_or_interpreter_data();
   }
-  SBXCHECK(IsInterpreterData(data));
   return Cast<InterpreterData>(data);
 }
 
@@ -810,18 +799,33 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
-  Tagged<Object> data = GetTrustedData();
+#ifdef V8_ENABLE_SANDBOX
+  // Micro-optimization: we just need to look at the indirect pointer handle
+  // stored in the trusted_function_data field and check if that is a code
+  // pointer handle.
+  IndirectPointerHandle handle =
+      RawIndirectPointerField(kTrustedFunctionDataOffset,
+                              kUnknownIndirectPointerTag)
+          .Acquire_LoadHandle();
+  if (handle & kCodePointerHandleMarker) {
+    DCHECK_EQ(Cast<Code>(GetData(GetIsolateForSandbox(*this)))->kind(),
+              CodeKind::BASELINE);
+    return true;
+  }
+  return false;
+#else
+  Tagged<Object> data = GetTrustedData(GetIsolateForSandbox(*this));
   if (IsCode(data, cage_base)) {
     DCHECK_EQ(Cast<Code>(data)->kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
+#endif
 }
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
   DCHECK(HasBaselineCode(cage_base));
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
-  return GetTrustedData<Code, kCodeIndirectPointerTag>(isolate);
+  return Cast<Code>(GetTrustedData(GetIsolateForSandbox(*this)));
 }
 
 void SharedFunctionInfo::set_baseline_code(Tagged<Code> baseline_code,
@@ -845,19 +849,27 @@ bool SharedFunctionInfo::HasAsmWasmData() const {
 }
 
 bool SharedFunctionInfo::HasWasmFunctionData() const {
-  return IsWasmFunctionData(GetTrustedData());
+  // For builtin SFIs in read-only space, we cannot get the isolate.
+  if (HasBuiltinId()) return false;
+  return IsWasmFunctionData(GetData(GetIsolateForSandbox(*this)));
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
-  return IsWasmExportedFunctionData(GetTrustedData());
+  // For builtin SFIs in read-only space, we cannot get the isolate.
+  if (HasBuiltinId()) return false;
+  return IsWasmExportedFunctionData(GetData(GetIsolateForSandbox(*this)));
 }
 
 bool SharedFunctionInfo::HasWasmJSFunctionData() const {
-  return IsWasmJSFunctionData(GetTrustedData());
+  // For builtin SFIs in read-only space, we cannot get the isolate.
+  if (HasBuiltinId()) return false;
+  return IsWasmJSFunctionData(GetData(GetIsolateForSandbox(*this)));
 }
 
 bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
-  return IsWasmCapiFunctionData(GetTrustedData());
+  // For builtin SFIs in read-only space, we cannot get the isolate.
+  if (HasBuiltinId()) return false;
+  return IsWasmCapiFunctionData(GetData(GetIsolateForSandbox(*this)));
 }
 
 bool SharedFunctionInfo::HasWasmResumeData() const {
@@ -904,34 +916,27 @@ int SharedFunctionInfo::wasm_function_index() const {
 DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
   DCHECK(HasWasmFunctionData());
   // TODO(saelo): It would be nicer if the caller provided an IsolateForSandbox.
-  return GetTrustedData<WasmFunctionData, kWasmFunctionDataIndirectPointerTag>(
-      GetIsolateForSandbox(*this));
+  return Cast<WasmFunctionData>(GetTrustedData(GetIsolateForSandbox(*this)));
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
            Tagged<WasmExportedFunctionData>) {
   DCHECK(HasWasmExportedFunctionData());
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  // TODO(saelo): the SBXCHECKs here and below are only needed because our type
-  // tags don't currently support type hierarchies.
-  SBXCHECK(IsWasmExportedFunctionData(data));
-  return Cast<WasmExportedFunctionData>(data);
+  return Cast<WasmExportedFunctionData>(
+      GetTrustedData(GetIsolateForSandbox(*this)));
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
            Tagged<WasmJSFunctionData>) {
   DCHECK(HasWasmJSFunctionData());
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  SBXCHECK(IsWasmJSFunctionData(data));
-  return Cast<WasmJSFunctionData>(data);
+  return Cast<WasmJSFunctionData>(GetTrustedData(GetIsolateForSandbox(*this)));
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
            Tagged<WasmCapiFunctionData>) {
   DCHECK(HasWasmCapiFunctionData());
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  SBXCHECK(IsWasmCapiFunctionData(data));
-  return Cast<WasmCapiFunctionData>(data);
+  return Cast<WasmCapiFunctionData>(
+      GetTrustedData(GetIsolateForSandbox(*this)));
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {

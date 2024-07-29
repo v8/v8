@@ -360,24 +360,14 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteTrustedPointerField(size_t offset,
                                        Tagged<ExposedTrustedObject> value);
 
-  // Trusted pointer fields can be cleared/empty, in which case they no longer
-  // point to any object. When the sandbox is enabled, this will set the fields
-  // indirect pointer handle to the null handle (referencing the zeroth entry
-  // in the TrustedPointerTable which just contains nullptr). When the sandbox
-  // is disabled, this will set the field to Smi::zero().
-  inline bool IsTrustedPointerFieldEmpty(size_t offset) const;
+  // Trusted pointer fields can be cleared, in which case they no longer point
+  // to any object. When the sandbox is enabled, this will set the fields
+  // indirect pointer handle to the null handle (referencing the zeroth entry in
+  // the TrustedPointerTable which just contains nullptr). When the sandbox is
+  // disabled, this will set the field to Smi::zero().
+  inline bool IsTrustedPointerFieldCleared(size_t offset) const;
   inline void ClearTrustedPointerField(size_t offest);
   inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
-
-  // Like ReadTrustedPointerField, but if the field is cleared, this will
-  // return Smi::zero().
-  // This function has an AcquireLoadTag only because all its users need
-  // acquire-release semantics but none of ReadTrustedPointerField' users do.
-  // When/if this changes, we should just introduce variants with and without a
-  // AcquireLoadTag parameter for both functions.
-  template <IndirectPointerTag tag>
-  inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
 
   // Code pointers.
   //
@@ -389,7 +379,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                            IsolateForSandbox isolate) const;
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
-  inline bool IsCodePointerFieldEmpty(size_t offset) const;
+  inline bool IsCodePointerFieldCleared(size_t offset) const;
   inline void ClearCodePointerField(size_t offest);
 
   inline Address ReadCodeEntrypointViaCodePointerField(

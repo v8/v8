@@ -327,7 +327,7 @@ class SharedFunctionInfo
   inline void DontAdaptArguments();
   inline bool IsDontAdaptArguments() const;
 
-  // Accessors for the data associated with this SFI.
+  // Returns the data associated with this SFI.
   //
   // Currently it can be one of:
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
@@ -347,16 +347,25 @@ class SharedFunctionInfo
   //
   // If the (expected) type of data is known, prefer to use the specialized
   // accessors (e.g. bytecode_array(), uncompiled_data(), etc.).
+  //
+  // TODO(chromium:1490564): it might be nice if we could split this into a
+  // "code" and a "data" field. The code field is a trusted pointer to
+  // executable code (bytecode or machine code) to run when invoking the
+  // function. The "data" field on the other hand should only contain metadata
+  // about the function and might be empty. GetCode() would then always return
+  // the Code object based on the code field (and possibly lazily compute that
+  // based on the data field, e.g. the builtin id), and GetData() would always
+  // return the additional data, but never any code. This requires going
+  // through the callers of this method to see if they want the code or the
+  // data of the SFI (or both) and making them call GetCode() instead if that's
+  // what they are interested in. It would also mean that for code flushing,
+  // we'd then only have to load the code field, but then had to check if we're
+  // bytecode, baseline code, or builtin code (which is never flushed).
+  // TODO(saelo): remove this API. All callers should use one of the two below.
+  inline Tagged<Object> GetData(IsolateForSandbox isolate) const;
+
   inline Tagged<Object> GetTrustedData(IsolateForSandbox isolate) const;
   inline Tagged<Object> GetUntrustedData() const;
-
-  // Helper function for use when a specific data type is expected.
-  template <typename T, IndirectPointerTag tag>
-  inline Tagged<T> GetTrustedData(IsolateForSandbox isolate) const;
-
-  // Helper function when no Isolate is available. Prefer to use the variant
-  // with an isolate parameter if possible.
-  inline Tagged<Object> GetTrustedData() const;
 
  private:
   // For the sandbox, the function's data is split across two fields, with the
@@ -422,8 +431,8 @@ class SharedFunctionInfo
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
-  DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
   DECL_GETTER(wasm_exported_function_data, Tagged<WasmExportedFunctionData>)
+  DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
   DECL_GETTER(wasm_js_function_data, Tagged<WasmJSFunctionData>)
   DECL_GETTER(wasm_capi_function_data, Tagged<WasmCapiFunctionData>)
   DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)

@@ -676,7 +676,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     LogEventListener::CodeTag log_tag) {
   DCHECK(v8_flags.interpreted_frames_native_stack);
-  if (!IsBytecodeArray(shared_info->GetTrustedData(isolate))) {
+  if (!IsBytecodeArray(shared_info->GetData(isolate))) {
     DCHECK(!shared_info->HasInterpreterData(isolate));
     return;
   }

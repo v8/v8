@@ -77,11 +77,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
   // ======
 
-  Tagged<Object> data = GetTrustedData(isolate);
-  if (IsSmi(data)) {
-    data = GetUntrustedData();
-  }
-
+  Tagged<Object> data = GetData(isolate);
   if (IsSmi(data)) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
