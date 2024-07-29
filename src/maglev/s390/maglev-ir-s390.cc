@@ -102,7 +102,7 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register result_string = ToRegister(result());
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
@@ -228,7 +228,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
 
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register temp = temps.Acquire();
   __ Or(temp, left, right);
   __ MulS32(out, left, right);
@@ -386,7 +386,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       done, lhs, rhs, out, this);
 
   Label rhs_not_power_of_2;
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register mask = temps.Acquire();
   __ AddS32(mask, rhs, Operand(-1));
   __ And(r0, mask, rhs);
@@ -448,7 +448,7 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
       __ opcode(out, left, Operand(shift));                      \
       __ LoadS32(out, out);                                      \
     } else {                                                     \
-      MaglevAssembler::ScratchRegisterScope temps(masm);         \
+      MaglevAssembler::TemporaryRegisterScope temps(masm);       \
       Register scratch = temps.Acquire();                        \
       Register right = ToRegister(right_input());                \
       __ And(scratch, right, Operand(31));                       \
@@ -565,7 +565,7 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   DoubleRegister in = ToDoubleRegister(input());
   DoubleRegister out = ToDoubleRegister(result());
   if (kind_ == Kind::kNearest) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
     DoubleRegister temp = temps.AcquireDouble();
     DoubleRegister temp2 = temps.AcquireDouble();
     __ Move(temp, in);
@@ -644,7 +644,7 @@ void CheckJSDataViewBounds::SetValueLocationConstraints() {
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   USE(element_type_);
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
@@ -739,7 +739,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register feedback_cell = scratch;
   Register budget = temps.Acquire();

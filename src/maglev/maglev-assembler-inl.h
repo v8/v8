@@ -162,22 +162,20 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
       typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped;
 
   template <typename... InArgs>
-  explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
-                                RegList general_temporaries,
-                                DoubleRegList double_temporaries,
-                                FunctionPointer function, InArgs&&... args)
+  explicit DeferredCodeInfoImpl(
+      MaglevCompilationInfo* compilation_info,
+      MaglevAssembler::TemporaryRegisterScope::SavedData deferred_scratch,
+      FunctionPointer function, InArgs&&... args)
       : function(function),
         args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...),
-        general_temporaries_(general_temporaries),
-        double_temporaries_(double_temporaries) {}
+        deferred_scratch_(deferred_scratch) {}
 
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
   DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
 
   void Generate(MaglevAssembler* masm) override {
-    MaglevAssembler::ScratchRegisterScope scratch_scope(masm);
-    scratch_scope.SetAvailable(general_temporaries_);
-    scratch_scope.SetAvailableDouble(double_temporaries_);
+    MaglevAssembler::TemporaryRegisterScope scratch_scope(masm,
+                                                          deferred_scratch_);
 #ifdef DEBUG
     masm->set_allow_call(allow_call_);
     masm->set_allow_deferred_call(allow_call_);
@@ -200,8 +198,7 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
  private:
   FunctionPointer function;
   Tuple args;
-  RegList general_temporaries_;
-  DoubleRegList double_temporaries_;
+  MaglevAssembler::TemporaryRegisterScope::SavedData deferred_scratch_;
 
 #ifdef DEBUG
   bool allow_call_ = false;
@@ -224,12 +221,11 @@ inline Label* MaglevAssembler::MakeDeferredCode(Function&& deferred_code_gen,
       "Parameters of deferred_code_gen function should match arguments into "
       "MakeDeferredCode");
 
-  ScratchRegisterScope scratch_scope(this);
+  TemporaryRegisterScope scratch_scope(this);
   using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
       compilation_info()->zone()->New<DeferredCodeInfoT>(
-          compilation_info(), scratch_scope.Available(),
-          scratch_scope.AvailableDouble(), deferred_code_gen,
+          compilation_info(), scratch_scope.CopyForDefer(), deferred_code_gen,
           std::forward<Args>(args)...);
 
 #ifdef DEBUG
@@ -665,7 +661,7 @@ inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
 
   // Temporaries have to be reset before calling CallBuiltin, in case it uses
   // temporaries that alias register parameters.
-  ScratchRegisterScope reset_temps(this);
+  TemporaryRegisterScope reset_temps(this);
   reset_temps.ResetToDefault();
 
   // Make sure that none of the register parameters alias the default
@@ -692,7 +688,7 @@ inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid) {
   DCHECK(allow_call());
   // Temporaries have to be reset before calling CallRuntime, in case it uses
   // temporaries that alias register parameters.
-  ScratchRegisterScope reset_temps(this);
+  TemporaryRegisterScope reset_temps(this);
   reset_temps.ResetToDefault();
   MacroAssembler::CallRuntime(fid);
 }
@@ -702,14 +698,14 @@ inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid,
   DCHECK(allow_call());
   // Temporaries have to be reset before calling CallRuntime, in case it uses
   // temporaries that alias register parameters.
-  ScratchRegisterScope reset_temps(this);
+  TemporaryRegisterScope reset_temps(this);
   reset_temps.ResetToDefault();
   MacroAssembler::CallRuntime(fid, num_args);
 }
 
 inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.GetDefaultScratchRegister();
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   LoadTaggedRoot(scratch, map);
   StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, scratch);
 }
@@ -827,8 +823,8 @@ inline void MaglevAssembler::JumpIfStringMap(Register map, Label* target,
 
 inline void MaglevAssembler::JumpIfString(Register heap_object, Label* target,
                                           Label::Distance distance) {
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.GetDefaultScratchRegister();
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
 #ifdef V8_COMPRESS_POINTERS
   LoadCompressedMap(scratch, heap_object);
 #else
@@ -840,8 +836,8 @@ inline void MaglevAssembler::JumpIfString(Register heap_object, Label* target,
 inline void MaglevAssembler::JumpIfNotString(Register heap_object,
                                              Label* target,
                                              Label::Distance distance) {
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.GetDefaultScratchRegister();
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
 #ifdef V8_COMPRESS_POINTERS
   LoadCompressedMap(scratch, heap_object);
 #else
@@ -855,8 +851,8 @@ inline void MaglevAssembler::CheckJSAnyIsStringAndBranch(
     bool fallthrough_when_true, Label* if_false, Label::Distance false_distance,
     bool fallthrough_when_false) {
 #if V8_STATIC_ROOTS_BOOL
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.GetDefaultScratchRegister();
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   // All string maps are allocated at the start of the read only heap. Thus,
   // non-strings must have maps with larger (compressed) addresses.
 #ifdef V8_COMPRESS_POINTERS
@@ -880,8 +876,8 @@ inline void MaglevAssembler::CheckJSAnyIsStringAndBranch(
 inline void MaglevAssembler::StringLength(Register result, Register string) {
   if (v8_flags.debug_code) {
     // Check if {string} is a string.
-    ScratchRegisterScope temps(this);
-    Register scratch = temps.GetDefaultScratchRegister();
+    TemporaryRegisterScope temps(this);
+    Register scratch = temps.AcquireScratch();
     AssertNotSmi(string);
     LoadMap(scratch, string);
     CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,

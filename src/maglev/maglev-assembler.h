@@ -95,7 +95,7 @@ class MapCompare {
 
 class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
  public:
-  class ScratchRegisterScope;
+  class TemporaryRegisterScope;
 
   explicit MaglevAssembler(Isolate* isolate, MaglevCodeGenState* code_gen_state)
       : MacroAssembler(isolate, CodeObjectRequired::kNo),
@@ -684,7 +684,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
     return code_gen_state()->compilation_info();
   }
 
-  ScratchRegisterScope* scratch_register_scope() const {
+  TemporaryRegisterScope* scratch_register_scope() const {
     return scratch_register_scope_;
   }
 
@@ -700,6 +700,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 #endif  // DEBUG
 
  private:
+  template <typename Derived>
+  class TemporaryRegisterScopeBase;
+
   inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
     return StandardFrameConstants::kExpressionsOffset -
            index * kSystemPointerSize;
@@ -708,12 +711,89 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void SmiTagInt32AndSetFlags(Register dst, Register src);
 
   MaglevCodeGenState* const code_gen_state_;
-  ScratchRegisterScope* scratch_register_scope_ = nullptr;
+  TemporaryRegisterScope* scratch_register_scope_ = nullptr;
 #ifdef DEBUG
   bool allow_allocate_ = false;
   bool allow_call_ = false;
   bool allow_deferred_call_ = false;
 #endif  // DEBUG
+};
+
+// Shared logic for per-architecture TemporaryRegisterScope.
+template <typename Derived>
+class MaglevAssembler::TemporaryRegisterScopeBase {
+ public:
+  struct SavedData {
+    RegList available_;
+    DoubleRegList available_double_;
+  };
+
+  explicit TemporaryRegisterScopeBase(MaglevAssembler* masm)
+      : masm_(masm),
+        prev_scope_(masm->scratch_register_scope_),
+        available_(masm->scratch_register_scope_
+                       ? static_cast<TemporaryRegisterScopeBase*>(prev_scope_)
+                             ->available_
+                       : RegList()),
+        available_double_(
+            masm->scratch_register_scope_
+                ? static_cast<TemporaryRegisterScopeBase*>(prev_scope_)
+                      ->available_double_
+                : DoubleRegList()) {
+    masm_->scratch_register_scope_ = static_cast<Derived*>(this);
+  }
+  explicit TemporaryRegisterScopeBase(MaglevAssembler* masm,
+                                      const SavedData& saved_data)
+      : masm_(masm),
+        prev_scope_(masm->scratch_register_scope_),
+        available_(saved_data.available_),
+        available_double_(saved_data.available_double_) {
+    masm_->scratch_register_scope_ = static_cast<Derived*>(this);
+  }
+  ~TemporaryRegisterScopeBase() {
+    masm_->scratch_register_scope_ = prev_scope_;
+    // TODO(leszeks): Clear used registers.
+  }
+
+  void ResetToDefault() {
+    available_ = {};
+    available_double_ = {};
+    static_cast<Derived*>(this)->ResetToDefaultImpl();
+  }
+
+  Register Acquire() {
+    CHECK(!available_.is_empty());
+    return available_.PopFirst();
+  }
+  void Include(const RegList list) {
+    DCHECK((list - kAllocatableGeneralRegisters).is_empty());
+    available_ = available_ | list;
+  }
+
+  DoubleRegister AcquireDouble() {
+    CHECK(!available_double_.is_empty());
+    return available_double_.PopFirst();
+  }
+  void IncludeDouble(const DoubleRegList list) {
+    DCHECK((list - kAllocatableDoubleRegisters).is_empty());
+    available_double_ = available_double_ | list;
+  }
+
+  RegList Available() { return available_; }
+  void SetAvailable(RegList list) { available_ = list; }
+
+  DoubleRegList AvailableDouble() { return available_double_; }
+  void SetAvailableDouble(DoubleRegList list) { available_double_ = list; }
+
+ protected:
+  SavedData CopyForDeferBase() {
+    return SavedData{available_, available_double_};
+  }
+
+  MaglevAssembler* masm_;
+  Derived* prev_scope_;
+  RegList available_;
+  DoubleRegList available_double_;
 };
 
 class SaveRegisterStateForCall {

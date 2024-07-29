@@ -41,7 +41,7 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
   ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
   ZoneLabelRef done(masm);
-  MaglevAssembler::ScratchRegisterScope temps(masm);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   // We are a bit short on registers, so we use the same register for {object}
   // and {new_top}. Once we have defined {new_top}, we don't use {object} until
@@ -82,7 +82,7 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
 }
 
 void MaglevAssembler::OSRPrologue(Graph* graph) {
-  ScratchRegisterScope temps(this);
+  TemporaryRegisterScope temps(this);
   Register scratch = temps.Acquire();
 
   DCHECK(graph->is_osr());
@@ -126,7 +126,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {
-  ScratchRegisterScope temps(this);
+  TemporaryRegisterScope temps(this);
   temps.Include({r6, r8});
   Register scratch = temps.Acquire();
   DCHECK(!graph->is_osr());
@@ -331,7 +331,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   LoadInstanceType(instance_type, string);
 
   {
-    ScratchRegisterScope temps(this);
+    TemporaryRegisterScope temps(this);
     Register representation = temps.Acquire();
 
     // TODO(victorgomes): Add fast path for external strings.
@@ -356,7 +356,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   bind(&sliced_string);
   {
-    ScratchRegisterScope temps(this);
+    TemporaryRegisterScope temps(this);
     Register offset = temps.Acquire();
 
     LoadAndUntagTaggedSignedField(offset, string,

@@ -57,50 +57,59 @@ inline ScaleFactor ScaleFactorFromInt(int n) {
   }
 }
 
-class MaglevAssembler::ScratchRegisterScope {
+class MaglevAssembler::TemporaryRegisterScope
+    : public TemporaryRegisterScopeBase<TemporaryRegisterScope> {
+  using Base = TemporaryRegisterScopeBase<TemporaryRegisterScope>;
+
  public:
-  explicit ScratchRegisterScope(MaglevAssembler* masm)
-      : masm_(masm),
-        prev_scope_(masm->scratch_register_scope_),
-        available_(masm->scratch_register_scope_
-                       ? masm_->scratch_register_scope_->available_
-                       : RegList()),
-        available_double_(
-            masm->scratch_register_scope_
-                ? masm_->scratch_register_scope_->available_double_
-                : DoubleRegList()) {
-    masm_->scratch_register_scope_ = this;
+  struct SavedData : public Base::SavedData {
+    bool has_scratch_register_;
+    bool has_double_scratch_register_;
+  };
+
+  explicit TemporaryRegisterScope(MaglevAssembler* masm)
+      : Base(masm),
+        has_scratch_register_(prev_scope_ ? prev_scope_->has_scratch_register_
+                                          : true),
+        has_double_scratch_register_(
+            prev_scope_ ? prev_scope_->has_double_scratch_register_ : true) {}
+  explicit TemporaryRegisterScope(MaglevAssembler* masm,
+                                  const SavedData& saved_data)
+      : Base(masm, saved_data),
+        has_scratch_register_(saved_data.has_scratch_register_),
+        has_double_scratch_register_(saved_data.has_double_scratch_register_) {}
+
+  Register AcquireScratch() {
+    CHECK(has_scratch_register_);
+    has_scratch_register_ = false;
+    return kScratchRegister;
   }
-  ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
-
-  void ResetToDefault() {
-    available_ = {};
-    available_double_ = {};
+  DoubleRegister AcquireScratchDouble() {
+    CHECK(has_double_scratch_register_);
+    has_double_scratch_register_ = false;
+    return kScratchDoubleReg;
+  }
+  void IncludeScratch(Register reg) {
+    DCHECK_EQ(reg, kScratchRegister);
+    has_scratch_register_ = true;
   }
 
-  Register GetDefaultScratchRegister() { return kScratchRegister; }
-  DoubleRegister GetDefaultScratchDoubleRegister() { return kScratchDoubleReg; }
-
-  Register Acquire() { return available_.PopFirst(); }
-  void Include(Register reg) { available_.set(reg); }
-  void Include(const RegList list) { available_ = available_ | list; }
-
-  DoubleRegister AcquireDouble() { return available_double_.PopFirst(); }
-  void IncludeDouble(const DoubleRegList list) {
-    available_double_ = available_double_ | list;
+  SavedData CopyForDefer() {
+    return SavedData{
+        CopyForDeferBase(),
+        has_scratch_register_,
+        has_double_scratch_register_,
+    };
   }
 
-  RegList Available() { return available_; }
-  void SetAvailable(RegList list) { available_ = list; }
-
-  DoubleRegList AvailableDouble() { return available_double_; }
-  void SetAvailableDouble(DoubleRegList list) { available_double_ = list; }
+  void ResetToDefaultImpl() {
+    has_scratch_register_ = true;
+    has_double_scratch_register_ = true;
+  }
 
  private:
-  MaglevAssembler* masm_;
-  ScratchRegisterScope* prev_scope_;
-  RegList available_;
-  DoubleRegList available_double_;
+  bool has_scratch_register_;
+  bool has_double_scratch_register_;
 };
 
 inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
