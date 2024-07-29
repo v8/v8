@@ -668,11 +668,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
-  // Returns true if we have a binary expression between two numeric
-  // literals. In that case, *x will be changed to an expression which is the
-  // computed value.
-  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
-                                              Token::Value op, int pos);
+  // Returns true if we have a binary expression between two literals. In that
+  // case, *x will be changed to an expression which is the computed value.
+  bool ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
+                                       Token::Value op, int pos);
 
   bool CollapseConditionalChain(Expression** x, Expression* cond,
                                 Expression* then_expression,

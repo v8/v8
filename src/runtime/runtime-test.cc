@@ -146,12 +146,10 @@ RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   DirectHandle<String> left = args.at<String>(0);
   DirectHandle<String> right = args.at<String>(1);
 
-  CHECK(left->IsOneByteRepresentation());
-  CHECK(right->IsOneByteRepresentation());
-
-  const bool kIsOneByte = true;
+  const bool is_one_byte =
+      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
   const int length = left->length() + right->length();
-  return *isolate->factory()->NewConsString(left, right, length, kIsOneByte);
+  return *isolate->factory()->NewConsString(left, right, length, is_one_byte);
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {

@@ -1278,9 +1278,9 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       const PreParserExpression& left, const PreParserExpression& right) {}
 
-  V8_INLINE bool ShortcutNumericLiteralBinaryExpression(
-      PreParserExpression* x, const PreParserExpression& y, Token::Value op,
-      int pos) {
+  V8_INLINE bool ShortcutLiteralBinaryExpression(PreParserExpression* x,
+                                                 const PreParserExpression& y,
+                                                 Token::Value op, int pos) {
     return false;
   }
 
