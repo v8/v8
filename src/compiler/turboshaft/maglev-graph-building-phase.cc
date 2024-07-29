@@ -1644,6 +1644,19 @@ class GraphBuilder {
                          node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckHoleyFloat64IsSmi* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Word32> w32 = __ ChangeFloat64ToInt32OrDeopt(
+        Map(node->input()), frame_state,
+        CheckForMinusZeroMode::kCheckForMinusZero,
+        node->eager_deopt_info()->feedback_to_update());
+    if (!SmiValuesAre32Bits()) {
+      DeoptIfInt32IsNotSmi(w32, frame_state,
+                           node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckNumber* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4251,8 +4264,12 @@ class GraphBuilder {
   void DeoptIfInt32IsNotSmi(maglev::Input maglev_input,
                             V<FrameState> frame_state,
                             const compiler::FeedbackSource& feedback) {
+    return DeoptIfInt32IsNotSmi(Map<Word32>(maglev_input), frame_state,
+                                feedback);
+  }
+  void DeoptIfInt32IsNotSmi(V<Word32> input, V<FrameState> frame_state,
+                            const compiler::FeedbackSource& feedback) {
     // TODO(dmercadier): is there no higher level way of doing this?
-    V<Word32> input = Map<Word32>(maglev_input);
     V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(input, input);
     V<Word32> check = __ template Projection<1>(add);
     __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi, feedback);
