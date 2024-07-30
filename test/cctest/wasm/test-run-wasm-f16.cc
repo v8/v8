@@ -166,10 +166,10 @@ UN_OP_LIST(TEST_UN_OP)
   int16_t WasmName(uint16_t a, uint16_t b) {                                   \
     return fp16_ieee_to_fp32_value(a) COp fp16_ieee_to_fp32_value(b) ? -1 : 0; \
   }                                                                            \
-  TEST(F16x8##WasmName) {                                                      \
+  WASM_EXEC_TEST(F16x8##WasmName) {                                            \
     i::v8_flags.experimental_wasm_fp16 = true;                                 \
-    RunF16x8CompareOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName,   \
-                          WasmName);                                           \
+    i::v8_flags.turboshaft_wasm = true;                                        \
+    RunF16x8CompareOpTest(execution_tier, kExprF16x8##WasmName, WasmName);     \
   }
 
 CMP_OP_LIST(TEST_CMP_OP)
@@ -191,15 +191,15 @@ float Mul(float a, float b) { return a * b; }
   V(Pmin, Minimum)     \
   V(Pmax, Maximum)
 
-#define TEST_BIN_OP(WasmName, COp)                                       \
-  uint16_t WasmName##F16(uint16_t a, uint16_t b) {                       \
-    return fp16_ieee_from_fp32_value(                                    \
-        COp(fp16_ieee_to_fp32_value(a), fp16_ieee_to_fp32_value(b)));    \
-  }                                                                      \
-  TEST(F16x8##WasmName) {                                                \
-    i::v8_flags.experimental_wasm_fp16 = true;                           \
-    RunF16x8BinOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName, \
-                      WasmName##F16);                                    \
+#define TEST_BIN_OP(WasmName, COp)                                          \
+  uint16_t WasmName##F16(uint16_t a, uint16_t b) {                          \
+    return fp16_ieee_from_fp32_value(                                       \
+        COp(fp16_ieee_to_fp32_value(a), fp16_ieee_to_fp32_value(b)));       \
+  }                                                                         \
+  WASM_EXEC_TEST(F16x8##WasmName) {                                         \
+    i::v8_flags.experimental_wasm_fp16 = true;                              \
+    i::v8_flags.turboshaft_wasm = true;                                     \
+    RunF16x8BinOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
 BIN_OP_LIST(TEST_BIN_OP)

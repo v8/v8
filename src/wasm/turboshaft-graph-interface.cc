@@ -3369,7 +3369,35 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     break;
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
 #undef HANDLE_TERNARY_OTHER_OPCODE
-
+#define HANDLE_F16X8_BIN_OPCODE(kind, extern_ref)                            \
+  case kExprF16x8##kind:                                                     \
+    result->op = CallCStackSlotToStackSlot(args[0].op, args[1].op,           \
+                                           ExternalReference::extern_ref(),  \
+                                           MemoryRepresentation::Simd128()); \
+    break;
+      HANDLE_F16X8_BIN_OPCODE(Add, wasm_f16x8_add)
+      HANDLE_F16X8_BIN_OPCODE(Sub, wasm_f16x8_sub)
+      HANDLE_F16X8_BIN_OPCODE(Mul, wasm_f16x8_mul)
+      HANDLE_F16X8_BIN_OPCODE(Div, wasm_f16x8_div)
+      HANDLE_F16X8_BIN_OPCODE(Min, wasm_f16x8_min)
+      HANDLE_F16X8_BIN_OPCODE(Max, wasm_f16x8_max)
+      HANDLE_F16X8_BIN_OPCODE(Pmin, wasm_f16x8_pmin)
+      HANDLE_F16X8_BIN_OPCODE(Pmax, wasm_f16x8_pmax)
+      HANDLE_F16X8_BIN_OPCODE(Eq, wasm_f16x8_eq)
+      HANDLE_F16X8_BIN_OPCODE(Ne, wasm_f16x8_ne)
+      HANDLE_F16X8_BIN_OPCODE(Lt, wasm_f16x8_lt)
+      HANDLE_F16X8_BIN_OPCODE(Le, wasm_f16x8_le)
+#undef HANDLE_F16X8_BIN_OPCODE
+      case kExprF16x8Gt:
+        result->op = CallCStackSlotToStackSlot(
+            args[1].op, args[0].op, ExternalReference::wasm_f16x8_lt(),
+            MemoryRepresentation::Simd128());
+        break;
+      case kExprF16x8Ge:
+        result->op = CallCStackSlotToStackSlot(
+            args[1].op, args[0].op, ExternalReference::wasm_f16x8_le(),
+            MemoryRepresentation::Simd128());
+        break;
       default:
         UNREACHABLE();
     }
