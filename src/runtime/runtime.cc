@@ -287,6 +287,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kCompleteInobjectSlackTracking:
     // TODO(354005312): investigate whether this should be exposed to fuzzers.
     case Runtime::kShareObject:
+    // TODO(354310130): investigate whether this should be exposed to fuzzers.
+    case Runtime::kForceFlush:
       return false;
 
     case Runtime::kLeakHole:
