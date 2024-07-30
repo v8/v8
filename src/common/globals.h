@@ -140,7 +140,7 @@ namespace internal {
 #define V8_ENABLE_SANDBOX_BOOL false
 #endif
 
-#ifdef V8_ENABLE_SANDBOX
+#if defined(V8_ENABLE_SANDBOX) && !defined(V8_DISABLE_LEAPTIERING)
 // Initially, Leaptiering is only available on sandbox-enabled builds, and so
 // V8_ENABLE_SANDBOX and V8_ENABLE_LEAPTIERING are effectively equivalent. Once
 // completed there, it will be ported to non-sandbox builds, at which point the
