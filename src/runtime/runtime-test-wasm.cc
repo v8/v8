@@ -614,6 +614,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmNull) {
+  // This isn't exposed to fuzzers. (Wasm nulls may not appear in JS.)
   HandleScope scope(isolate);
   return ReadOnlyRoots(isolate).wasm_null();
 }
@@ -851,9 +852,9 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
 }
 
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
-  if (args.length() != 1 || !IsWasmInstanceObject(args[0])) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
+  DCHECK(IsWasmInstanceObject(args[0]));
   DisallowGarbageCollection no_gc;
   auto instance_object = Cast<WasmInstanceObject>(args[0]);
 

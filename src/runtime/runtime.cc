@@ -274,6 +274,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kWasmTraceExit:
     case Runtime::kCheckIsOnCentralStack:
     case Runtime::kSetWasmInstantiateControls:
+    case Runtime::kWasmNull:
+    case Runtime::kFreezeWasmLazyCompilation:
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
