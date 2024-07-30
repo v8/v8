@@ -685,6 +685,34 @@ TEST(RISCV0) {
   }
 }
 
+TEST(RISCVZicond) {
+  CcTest::InitializeVM();
+
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      auto fn = [i, j](MacroAssembler& assm) {
+        __ li(a1, i);
+        __ li(a2, j);
+        __ czero_eqz(a0, a1, a2);
+      };
+      auto res = GenAndRunTest(fn);
+      CHECK_EQ(j == 0 ? 0 : i, res);
+    }
+  }
+
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      auto fn = [i, j](MacroAssembler& assm) {
+        __ li(a1, i);
+        __ li(a2, j);
+        __ czero_nez(a0, a1, a2);
+      };
+      auto res = GenAndRunTest(fn);
+      CHECK_EQ(j != 0 ? 0 : i, res);
+    }
+  }
+}
+
 TEST(RISCVLi) {
   CcTest::InitializeVM();
 

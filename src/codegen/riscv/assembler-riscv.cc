@@ -70,6 +70,10 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_zbs)
   answer |= 1u << ZBS;
 #endif  // def __riscv_zbs
+
+#if (defined _riscv_zicond)
+  answer |= 1u << ZICOND;
+#endif  // def _riscv_zicond
   return answer;
 }
 
@@ -79,6 +83,7 @@ static unsigned SimulatorFeatures() {
   answer |= 1u << ZBA;
   answer |= 1u << ZBB;
   answer |= 1u << ZBS;
+  answer |= 1u << ZICOND;
   answer |= 1u << FPU;
   return answer;
 }

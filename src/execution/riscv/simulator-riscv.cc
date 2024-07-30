@@ -3899,7 +3899,16 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() | (1 << index));
       break;
     }
-      // TODO(riscv): End Add RISCV M extension macro
+    case RO_CZERO_EQZ: {
+      sreg_t condition = rs2();
+      set_rd(condition == 0 ? 0 : rs1());
+      break;
+    }
+    case RO_CZERO_NEZ: {
+      sreg_t condition = rs2();
+      set_rd(condition != 0 ? 0 : rs1());
+      break;
+    }
     default: {
       switch (instr_.BaseOpcode()) {
         case AMO:
