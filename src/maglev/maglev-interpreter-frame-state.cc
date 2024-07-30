@@ -731,6 +731,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "Merging failed, peeling loop instead... " << std::endl;
     }
+    ClearLoopInfo();
     return false;
   }
 
@@ -757,6 +758,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     }
   });
   if (!phis_can_merge) {
+    ClearLoopInfo();
     return false;
   }
 
@@ -779,6 +781,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  ClearLoopInfo();
   return true;
 }
 
