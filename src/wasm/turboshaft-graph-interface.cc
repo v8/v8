@@ -3340,7 +3340,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case kExprF16x8Splat: {
         auto f16 = CallCStackSlotToStackSlot(
             args[0].op, ExternalReference::wasm_float32_to_float16(),
-            MemoryRepresentation::Float32(), MemoryRepresentation::Int32());
+            MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
         result->op =
             __ Simd128Splat(V<Any>::Cast(f16),
                             compiler::turboshaft::Simd128SplatOp::Kind::kI16x8);
@@ -3446,7 +3446,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case kExprF16x8ReplaceLane: {
         auto f16 = CallCStackSlotToStackSlot(
             inputs[1].op, ExternalReference::wasm_float32_to_float16(),
-            MemoryRepresentation::Float32(), MemoryRepresentation::Int32());
+            MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
         result->op =
             __ Simd128ReplaceLane(input_val, V<Any>::Cast(f16),
                                   Simd128ReplaceLaneOp::Kind::kI16x8, imm.lane);
