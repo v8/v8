@@ -291,19 +291,25 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
-static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                    Register sfi_data,
-                                                    Register scratch1,
-                                                    Label* is_baseline) {
+static void GetSharedFunctionInfoBytecodeOrBaseline(
+    MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
+    Label* is_baseline, Label* is_unavailable) {
   Label done;
 
-  __ GetObjectType(sfi_data, scratch1, scratch1);
+  Register data = bytecode;
+  __ Ld(data,
+        FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+
+  // If the trusted data field is empty, it will contain Smi::zero.
+  __ JumpIfSmi(data, is_unavailable);
+
+  __ GetObjectType(data, scratch1, scratch1);
 
 #ifndef V8_JITLESS
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeIsBaseline(masm, data, scratch1);
     __ Branch(is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -312,8 +318,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 #endif  // !V8_JITLESS
 
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  __ Ld(sfi_data,
-        FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ Ld(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
   __ bind(&done);
 }
 
@@ -393,14 +398,20 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label is_baseline;
+    Label is_baseline, is_unavailable, ok;
     __ Ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
-    __ Ld(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, a3, a0, &is_baseline);
-    __ GetObjectType(a3, a3, a3);
-    __ Assert(eq, AbortReason::kMissingBytecodeArray, a3,
-              Operand(BYTECODE_ARRAY_TYPE));
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, a3, a3, a0, &is_baseline,
+                                            &is_unavailable);
+    __ jmp(&ok);
+
+    __ bind(&is_unavailable);
+    __ Abort(AbortReason::kMissingBytecodeArray);
+
     __ bind(&is_baseline);
+    __ GetObjectType(a3, a3, a3);
+    __ Assert(eq, AbortReason::kMissingBytecodeArray, a3, Operand(CODE_TYPE));
+
+    __ bind(&ok);
   }
 
   // Resume (Ignition/TurboFan) generator object.
@@ -1079,17 +1090,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Ld(kScratchReg,
         FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, kScratchReg);
-  __ Ld(kInterpreterBytecodeArrayRegister,
-        FieldMemOperand(kScratchReg, SharedFunctionInfo::kFunctionDataOffset));
-  Label is_baseline;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, kInterpreterBytecodeArrayRegister, kScratchReg, &is_baseline);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
-  Label compile_lazy;
-  __ GetObjectType(kInterpreterBytecodeArrayRegister, kScratchReg, kScratchReg);
-  __ Branch(&compile_lazy, ne, kScratchReg, Operand(BYTECODE_ARRAY_TYPE));
+  Label is_baseline, compile_lazy;
+  GetSharedFunctionInfoBytecodeOrBaseline(
+      masm, kScratchReg, kInterpreterBytecodeArrayRegister, kScratchReg2,
+      &is_baseline, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = a2;
@@ -1656,7 +1663,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // trampoline.
   __ Ld(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ Ld(t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ Ld(t0, FieldMemOperand(t0, SharedFunctionInfo::kFunctionDataOffset));
+  __ Ld(t0,
+        FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset));
   __ GetObjectType(t0, kInterpreterDispatchTableRegister,
                    kInterpreterDispatchTableRegister);
   __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
@@ -3861,7 +3869,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   __ Ld(code_obj,
-        FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+        FieldMemOperand(code_obj,
+                        SharedFunctionInfo::kTrustedFunctionDataOffset));
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
