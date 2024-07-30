@@ -1557,11 +1557,6 @@ class MaglevGraphBuilder {
         iterator_.GetRegisterOperand(operand_index), hint);
   }
 
-  ValueNode* BuildLoadFixedArrayElement(ValueNode* node, int index) {
-    return AddNewNode<LoadTaggedField>({node},
-                                       FixedArray::OffsetOfElementAt(index));
-  }
-
   template <typename NodeT>
   void SetAccumulator(NodeT* node) {
     // Accumulator stores are equivalent to stores to the virtual accumulator
@@ -2131,6 +2126,11 @@ class MaglevGraphBuilder {
   void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
                                      int offset, IndirectPointerTag tag,
                                      StoreTaggedMode store_mode);
+
+  void TryBuildStoreFixedArrayElementToAllocation(ValueNode* object,
+                                                  ValueNode* value, int index);
+  ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
+  ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
   void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
                                    ValueNode* value);
 
