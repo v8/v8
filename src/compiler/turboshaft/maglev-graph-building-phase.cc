@@ -4702,8 +4702,16 @@ class GraphBuilder {
                              const maglev::VirtualObject::List& virtual_objects,
                              const maglev::VirtualObject* vobj) {
     if (vobj->type() == maglev::VirtualObject::kHeapNumber) {
+      // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
+      // simply NumberConstant), because they could be mutable HeapNumber
+      // fields, in which case we don't want GVN to merge them.
+      constexpr int kNumberOfField = 2;  // map + value
+      builder.AddDematerializedObject(deduplicator_.CreateFreshId().id,
+                                      kNumberOfField);
       builder.AddInput(MachineType::AnyTagged(),
-                       __ NumberConstant(vobj->number().get_scalar()));
+                       __ HeapConstant(local_factory_->heap_number_map()));
+      builder.AddInput(MachineType::Float64(),
+                       __ Float64Constant(vobj->number()));
       return;
     }
 
@@ -4843,15 +4851,21 @@ class GraphBuilder {
         }
       }
       object_ids_.push_back(object);
-      return {static_cast<uint32_t>(object_ids_.size() - 1), false};
+      return {next_id_++, false};
     }
 
-    void Reset() { object_ids_.clear(); }
+    DuplicatedId CreateFreshId() { return {next_id_++, false}; }
+
+    void Reset() {
+      object_ids_.clear();
+      next_id_ = 0;
+    }
 
     static const uint32_t kNotDuplicated = -1;
 
    private:
     std::vector<const maglev::VirtualObject*> object_ids_{10};
+    uint32_t next_id_ = 0;
   };
 
   OutputFrameStateCombine ComputeCombine(maglev::InterpretedDeoptFrame& frame,
