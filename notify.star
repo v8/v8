@@ -125,6 +125,15 @@ luci.tree_closer(
     tree_status_host = "v8-status.appspot.com",
 )
 
+# Blink tree closer ignoring unreliable wpt steps.
+luci.tree_closer(
+    name = "blink tree closer",
+    tree_status_host = "v8-status.appspot.com",
+    failed_step_regexp_exclude = [
+        ".*blink_wpt_tests.*",
+    ],
+)
+
 v8_notifier(
     name = "api stability notifier",
     on_new_status = ["FAILURE"],
