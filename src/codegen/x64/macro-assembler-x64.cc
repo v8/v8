@@ -1897,6 +1897,53 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The minps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform minps in both orders, merge the results, and adjust.
+  vminps(dst, scratch, scratch2);
+  vminps(scratch, scratch2, scratch);
+  // Propagate -0's and NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Canonicalize NaNs by quieting and clearing the payload.
+  vcmpunordps(dst, dst, scratch);
+  vorps(scratch, scratch, dst);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
+void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              YMMRegister scratch, YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  vcvtph2ps(scratch, lhs);
+  vcvtph2ps(scratch2, rhs);
+  // The maxps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform maxps in both orders, merge the results, and adjust.
+  vmaxps(dst, scratch, scratch2);
+  vmaxps(scratch, scratch2, scratch);
+  // Find discrepancies.
+  vxorps(dst, dst, scratch);
+  // Propagate NaNs, which may be non-canonical.
+  vorps(scratch, scratch, dst);
+  // Propagate sign discrepancy and (subtle) quiet NaNs.
+  vsubps(scratch, scratch, dst);
+  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+  vcmpunordps(dst, dst, scratch);
+  vpsrld(dst, dst, uint8_t{10});
+  vandnps(dst, dst, scratch);
+  vcvtps2ph(dst, dst, 0);
+}
+
 // 1. Zero extend 4 packed 32-bit integers in src1 to 4 packed 64-bit integers
 // in scratch
 // 2. Zero extend 4 packed 32-bit integers in src2 to 4 packed 64-bit integers

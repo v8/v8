@@ -4379,44 +4379,80 @@ bool LiftoffAssembler::emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
   return false;
 }
 
+template <void (Assembler::*avx_op)(YMMRegister, YMMRegister, YMMRegister)>
+bool F16x8BinOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
+                      LiftoffRegister lhs, LiftoffRegister rhs) {
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
+    return false;
+  }
+  CpuFeatureScope f16c_scope(assm, F16C);
+  CpuFeatureScope avx_scope(assm, AVX);
+  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
+  assm->vcvtph2ps(ydst, lhs.fp());
+  assm->vcvtph2ps(kScratchSimd256Reg, rhs.fp());
+  (assm->*avx_op)(ydst, ydst, kScratchSimd256Reg);
+  assm->vcvtps2ph(dst.fp(), ydst, 0);
+  return true;
+}
+
 bool LiftoffAssembler::emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  return F16x8BinOpViaF32<&Assembler::vaddps>(this, dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  return F16x8BinOpViaF32<&Assembler::vsubps>(this, dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  return F16x8BinOpViaF32<&Assembler::vmulps>(this, dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  return F16x8BinOpViaF32<&Assembler::vdivps>(this, dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
+    return false;
+  }
+  static constexpr RegClass res_rc = reg_class_for(kS128);
+  LiftoffRegister tmp =
+      GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
+  YMMRegister ytmp = YMMRegister::from_code(tmp.fp().code());
+  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
+  F16x8Min(ydst, lhs.fp(), rhs.fp(), kScratchSimd256Reg, ytmp);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX2)) {
+    return false;
+  }
+  static constexpr RegClass res_rc = reg_class_for(kS128);
+  LiftoffRegister tmp =
+      GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
+  YMMRegister ytmp = YMMRegister::from_code(tmp.fp().code());
+  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
+  F16x8Max(ydst, lhs.fp(), rhs.fp(), kScratchSimd256Reg, ytmp);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  return false;
+  // Due to the way minps works, pmin(a, b) = minps(b, a).
+  return F16x8BinOpViaF32<&Assembler::vminps>(this, dst, rhs, lhs);
 }
 
 bool LiftoffAssembler::emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  return false;
+  // Due to the way maxps works, pmax(a, b) = maxps(b, a).
+  return F16x8BinOpViaF32<&Assembler::vmaxps>(this, dst, rhs, lhs);
 }
 
 bool LiftoffAssembler::emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
