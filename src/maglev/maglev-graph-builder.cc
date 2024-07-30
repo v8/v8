@@ -362,6 +362,15 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
     builder_->current_deopt_scope_ = this;
     builder_->AddDeoptUse(
         data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
+    if (parameters.size() > 0) {
+      if (InlinedAllocation* receiver =
+              parameters[0]->TryCast<InlinedAllocation>()) {
+        // We escape the first argument, since the builtin continuation call can
+        // trigger a stack iteration, which expects the receiver to be a
+        // meterialized object.
+        receiver->ForceEscaping();
+      }
+    }
     for (ValueNode* node :
          data_.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
       builder_->AddDeoptUse(node);
