@@ -3337,6 +3337,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     break;
       FOREACH_SIMD_128_SPLAT_OPCODE(HANDLE_SPLAT_OPCODE)
 #undef HANDLE_SPLAT_OPCODE
+      case kExprF16x8Splat: {
+        auto f16 = CallCStackSlotToStackSlot(
+            args[0].op, ExternalReference::wasm_float32_to_float16(),
+            MemoryRepresentation::Float32(), MemoryRepresentation::Int32());
+        result->op =
+            __ Simd128Splat(V<Any>::Cast(f16),
+                            compiler::turboshaft::Simd128SplatOp::Kind::kI16x8);
+        break;
+      }
 
 // Ternary mask operators put the mask as first input.
 #define HANDLE_TERNARY_MASK_OPCODE(kind)                        \
@@ -3398,6 +3407,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         result->op = __ Simd128ExtractLane(
             input_val, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
         break;
+      case kExprF16x8ExtractLane: {
+        auto f16 = __ Simd128ExtractLane(
+            input_val, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
+        result->op = CallCStackSlotToStackSlot(
+            f16, ExternalReference::wasm_float16_to_float32(),
+            MemoryRepresentation::Int16(), MemoryRepresentation::Float32());
+        break;
+      }
       case kExprF32x4ExtractLane:
         result->op = __ Simd128ExtractLane(
             input_val, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
@@ -3426,6 +3443,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI64x2, imm.lane);
         break;
+      case kExprF16x8ReplaceLane: {
+        auto f16 = CallCStackSlotToStackSlot(
+            inputs[1].op, ExternalReference::wasm_float32_to_float16(),
+            MemoryRepresentation::Float32(), MemoryRepresentation::Int32());
+        result->op =
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(f16),
+                                  Simd128ReplaceLaneOp::Kind::kI16x8, imm.lane);
+        break;
+      }
       case kExprF32x4ReplaceLane:
         result->op =
             __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
@@ -7560,14 +7586,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
                                     MemoryRepresentation arg_type) {
-    V<WordPtr> stack_slot =
-        __ StackSlot(arg_type.SizeInBytes(), arg_type.SizeInBytes());
+    return CallCStackSlotToStackSlot(arg, ref, arg_type, arg_type);
+  }
+
+  OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
+                                    MemoryRepresentation arg_type,
+                                    MemoryRepresentation res_type) {
+    int size = std::max(arg_type.SizeInBytes(), res_type.SizeInBytes());
+    V<WordPtr> stack_slot = __ StackSlot(size, size);
     __ Store(stack_slot, arg, StoreOp::Kind::RawAligned(), arg_type,
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
     CallC(&sig, ref, stack_slot);
-    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), res_type);
   }
 
   OpIndex CallCStackSlotToStackSlot(OpIndex arg0, OpIndex arg1,

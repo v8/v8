@@ -36,9 +36,10 @@ TEST(F16Store) {
   CHECK_EQ(r.builder().ReadMemory(&memory[2]), fp16_ieee_from_fp32_value(2.75));
 }
 
-TEST(F16x8Splat) {
+WASM_EXEC_TEST(F16x8Splat) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t, float> r(execution_tier);
   // Set up a global to hold output vector.
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   uint8_t param1 = 0;
@@ -59,9 +60,10 @@ TEST(F16x8Splat) {
   }
 }
 
-TEST(F16x8ReplaceLane) {
+WASM_EXEC_TEST(F16x8ReplaceLane) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t> r(execution_tier);
   // Set up a global to hold output vector.
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
@@ -100,9 +102,10 @@ TEST(F16x8ReplaceLane) {
   }
 }
 
-TEST(F16x8ExtractLane) {
+WASM_EXEC_TEST(F16x8ExtractLane) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t> r(execution_tier);
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   float* globals[8];
   for (int i = 0; i < 8; i++) {
