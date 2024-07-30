@@ -16931,129 +16931,154 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
-  TNode<Object> sfi_data = LoadSharedFunctionInfoTrustedData(shared_info);
-  sfi_data = Select<Object>(
-      TaggedEqual(sfi_data, SmiConstant(0)),
-      [=] { return LoadSharedFunctionInfoUntrustedData(shared_info); },
-      [=] { return sfi_data; });
-
-  TVARIABLE(Code, sfi_code);
 
   Label done(this);
-  Label check_instance_type(this);
-
-  // IsSmi: Is builtin
-  GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
-  if (data_type_out) {
-    *data_type_out = Uint16Constant(0);
-  }
-  if (if_compile_lazy) {
-    GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtin::kCompileLazy)),
-           if_compile_lazy);
-  }
-  sfi_code = LoadBuiltin(CAST(sfi_data));
-  Goto(&done);
-
-  // Switch on data's instance type.
-  BIND(&check_instance_type);
-  TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
-  if (data_type_out) {
-    *data_type_out = data_type;
-  }
-
-  int32_t case_values[] = {
-      BYTECODE_ARRAY_TYPE,
-      CODE_TYPE,
-      INTERPRETER_DATA_TYPE,
-      UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-      UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-      UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
-      UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
-      FUNCTION_TEMPLATE_INFO_TYPE,
-#if V8_ENABLE_WEBASSEMBLY
-      WASM_CAPI_FUNCTION_DATA_TYPE,
-      WASM_EXPORTED_FUNCTION_DATA_TYPE,
-      WASM_JS_FUNCTION_DATA_TYPE,
-      ASM_WASM_DATA_TYPE,
-      WASM_RESUME_DATA_TYPE,
-#endif  // V8_ENABLE_WEBASSEMBLY
-  };
-  Label check_is_bytecode_array(this);
-  Label check_is_baseline_data(this);
-  Label check_is_interpreter_data(this);
-  Label check_is_asm_wasm_data(this);
-  Label check_is_uncompiled_data(this);
-  Label check_is_function_template_info(this);
-  Label check_is_wasm_function_data(this);
-  Label check_is_wasm_resume(this);
+  Label use_untrusted_data(this);
   Label unknown_data(this);
-  Label* case_labels[] = {
-      &check_is_bytecode_array,     &check_is_baseline_data,
-      &check_is_interpreter_data,   &check_is_uncompiled_data,
-      &check_is_uncompiled_data,    &check_is_uncompiled_data,
-      &check_is_uncompiled_data,    &check_is_function_template_info,
-#if V8_ENABLE_WEBASSEMBLY
-      &check_is_wasm_function_data, &check_is_wasm_function_data,
-      &check_is_wasm_function_data, &check_is_asm_wasm_data,
-      &check_is_wasm_resume,
-#endif  // V8_ENABLE_WEBASSEMBLY
-  };
-  static_assert(arraysize(case_values) == arraysize(case_labels));
-  Switch(data_type, &unknown_data, case_values, case_labels,
-         arraysize(case_labels));
+  TVARIABLE(Code, sfi_code);
 
-  // IsBytecodeArray: Interpret bytecode
-  BIND(&check_is_bytecode_array);
-  sfi_code =
-      HeapConstantNoHole(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
-  Goto(&done);
-
-  // IsBaselineData: Execute baseline code
-  BIND(&check_is_baseline_data);
+  TNode<Object> sfi_data = LoadSharedFunctionInfoTrustedData(shared_info);
+  GotoIf(TaggedEqual(sfi_data, SmiConstant(0)), &use_untrusted_data);
   {
-    TNode<Code> baseline_code = CAST(sfi_data);
-    sfi_code = baseline_code;
+    TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+    if (data_type_out) {
+      *data_type_out = data_type;
+    }
+
+    int32_t case_values[] = {
+        BYTECODE_ARRAY_TYPE,
+        CODE_TYPE,
+        INTERPRETER_DATA_TYPE,
+        UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+        UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
+        UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
+        UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
+#if V8_ENABLE_WEBASSEMBLY
+        WASM_CAPI_FUNCTION_DATA_TYPE,
+        WASM_EXPORTED_FUNCTION_DATA_TYPE,
+        WASM_JS_FUNCTION_DATA_TYPE,
+#endif  // V8_ENABLE_WEBASSEMBLY
+    };
+    Label check_is_bytecode_array(this);
+    Label check_is_baseline_data(this);
+    Label check_is_interpreter_data(this);
+    Label check_is_uncompiled_data(this);
+    Label check_is_wasm_function_data(this);
+    Label* case_labels[] = {
+        &check_is_bytecode_array,     &check_is_baseline_data,
+        &check_is_interpreter_data,   &check_is_uncompiled_data,
+        &check_is_uncompiled_data,    &check_is_uncompiled_data,
+        &check_is_uncompiled_data,
+#if V8_ENABLE_WEBASSEMBLY
+        &check_is_wasm_function_data, &check_is_wasm_function_data,
+        &check_is_wasm_function_data,
+#endif  // V8_ENABLE_WEBASSEMBLY
+    };
+    static_assert(arraysize(case_values) == arraysize(case_labels));
+    Switch(data_type, &unknown_data, case_values, case_labels,
+           arraysize(case_labels));
+
+    // IsBytecodeArray: Interpret bytecode
+    BIND(&check_is_bytecode_array);
+    sfi_code =
+        HeapConstantNoHole(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
     Goto(&done);
-  }
 
-  // IsInterpreterData: Interpret bytecode
-  BIND(&check_is_interpreter_data);
-  {
-    TNode<Code> trampoline = CAST(LoadProtectedPointerField(
-        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
-    sfi_code = trampoline;
-  }
-  Goto(&done);
+    // IsBaselineData: Execute baseline code
+    BIND(&check_is_baseline_data);
+    {
+      TNode<Code> baseline_code = CAST(sfi_data);
+      sfi_code = baseline_code;
+      Goto(&done);
+    }
 
-  // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
-  // Compile lazy
-  BIND(&check_is_uncompiled_data);
-  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
-  Goto(if_compile_lazy ? if_compile_lazy : &done);
+    // IsInterpreterData: Interpret bytecode
+    BIND(&check_is_interpreter_data);
+    {
+      TNode<Code> trampoline = CAST(LoadProtectedPointerField(
+          CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+      sfi_code = trampoline;
+    }
+    Goto(&done);
 
-  // IsFunctionTemplateInfo: API call
-  BIND(&check_is_function_template_info);
-  sfi_code =
-      HeapConstantNoHole(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
-  Goto(&done);
+    // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
+    // Compile lazy
+    BIND(&check_is_uncompiled_data);
+    sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
+    Goto(if_compile_lazy ? if_compile_lazy : &done);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // IsWasmFunctionData: Use the wrapper code
-  BIND(&check_is_wasm_function_data);
-  sfi_code = CAST(LoadObjectField(
-      CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
-  Goto(&done);
-
-  // IsAsmWasmData: Instantiate using AsmWasmData
-  BIND(&check_is_asm_wasm_data);
-  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), InstantiateAsmJs));
-  Goto(&done);
-
-  // IsWasmResumeData: Resume the suspended wasm continuation.
-  BIND(&check_is_wasm_resume);
-  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), WasmResume));
-  Goto(&done);
+    // IsWasmFunctionData: Use the wrapper code
+    BIND(&check_is_wasm_function_data);
+    sfi_code = CAST(LoadObjectField(
+        CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
+    Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
+  }
+
+  BIND(&use_untrusted_data);
+  {
+    sfi_data = LoadSharedFunctionInfoUntrustedData(shared_info);
+    Label check_instance_type(this);
+
+    // IsSmi: Is builtin
+    GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+    if (data_type_out) {
+      *data_type_out = Uint16Constant(0);
+    }
+    if (if_compile_lazy) {
+      GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtin::kCompileLazy)),
+             if_compile_lazy);
+    }
+    sfi_code = LoadBuiltin(CAST(sfi_data));
+    Goto(&done);
+
+    // Switch on data's instance type.
+    BIND(&check_instance_type);
+    TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+    if (data_type_out) {
+      *data_type_out = data_type;
+    }
+
+    int32_t case_values[] = {
+        FUNCTION_TEMPLATE_INFO_TYPE,
+#if V8_ENABLE_WEBASSEMBLY
+        ASM_WASM_DATA_TYPE,
+        WASM_RESUME_DATA_TYPE,
+#endif  // V8_ENABLE_WEBASSEMBLY
+    };
+    Label check_is_function_template_info(this);
+    Label check_is_asm_wasm_data(this);
+    Label check_is_wasm_resume(this);
+    Label* case_labels[] = {
+        &check_is_function_template_info,
+#if V8_ENABLE_WEBASSEMBLY
+        &check_is_asm_wasm_data,
+        &check_is_wasm_resume,
+#endif  // V8_ENABLE_WEBASSEMBLY
+    };
+    static_assert(arraysize(case_values) == arraysize(case_labels));
+    Switch(data_type, &unknown_data, case_values, case_labels,
+           arraysize(case_labels));
+
+    // IsFunctionTemplateInfo: API call
+    BIND(&check_is_function_template_info);
+    sfi_code =
+        HeapConstantNoHole(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
+    Goto(&done);
+
+#if V8_ENABLE_WEBASSEMBLY
+    // IsAsmWasmData: Instantiate using AsmWasmData
+    BIND(&check_is_asm_wasm_data);
+    sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), InstantiateAsmJs));
+    Goto(&done);
+
+    // IsWasmResumeData: Resume the suspended wasm continuation.
+    BIND(&check_is_wasm_resume);
+    sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), WasmResume));
+    Goto(&done);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
 
   BIND(&unknown_data);
   Unreachable();

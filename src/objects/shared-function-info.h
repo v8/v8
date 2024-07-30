@@ -384,6 +384,7 @@ class SharedFunctionInfo
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool HasTrustedData() const;
+  inline bool HasUntrustedData() const;
 
  public:
   inline bool IsApiFunction() const;

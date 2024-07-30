@@ -150,9 +150,10 @@ void SharedFunctionInfo::SetUntrustedData(Tagged<Object> value,
 }
 
 bool SharedFunctionInfo::HasTrustedData() const {
-  return TaggedField<Object, kTrustedFunctionDataOffset>::Relaxed_Load(*this) !=
-         Smi::zero();
+  return !IsTrustedPointerFieldEmpty(kTrustedFunctionDataOffset);
 }
+
+bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 
 Tagged<Object> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {

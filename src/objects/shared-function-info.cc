@@ -79,67 +79,75 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   // ======
 
   Tagged<Object> data = GetTrustedData(isolate);
-  if (data == Smi::zero()) {
+  if (data != Smi::zero()) {
+    DCHECK(HasTrustedData());
+
+    if (IsBytecodeArray(data)) {
+      // Having a bytecode array means we are a compiled, interpreted function.
+      DCHECK(HasBytecodeArray());
+      return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
+    }
+    if (IsCode(data)) {
+      // Having baseline Code means we are a compiled, baseline function.
+      DCHECK(HasBaselineCode());
+      return Cast<Code>(data);
+    }
+    if (IsInterpreterData(data)) {
+      Tagged<Code> code = InterpreterTrampoline(isolate);
+      DCHECK(IsCode(code));
+      DCHECK(code->is_interpreter_trampoline_builtin());
+      return code;
+    }
+    if (IsUncompiledData(data)) {
+      // Having uncompiled data (with or without scope) means we need to
+      // compile.
+      DCHECK(HasUncompiledData());
+      return isolate->builtins()->code(Builtin::kCompileLazy);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmExportedFunctionData(data)) {
+      // Having a WasmExportedFunctionData means the code is in there.
+      DCHECK(HasWasmExportedFunctionData());
+      return wasm_exported_function_data()->wrapper_code(isolate);
+    }
+    if (IsWasmJSFunctionData(data)) {
+      return wasm_js_function_data()->wrapper_code(isolate);
+    }
+    if (IsWasmCapiFunctionData(data)) {
+      return wasm_capi_function_data()->wrapper_code(isolate);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else {
+    DCHECK(HasUntrustedData());
     data = GetUntrustedData();
+
+    if (IsSmi(data)) {
+      // Holding a Smi means we are a builtin.
+      DCHECK(HasBuiltinId());
+      return isolate->builtins()->code(builtin_id());
+    }
+    if (IsFunctionTemplateInfo(data)) {
+      // Having a function template info means we are an API function.
+      DCHECK(IsApiFunction());
+      return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsAsmWasmData(data)) {
+      // Having AsmWasmData means we are an asm.js/wasm function.
+      DCHECK(HasAsmWasmData());
+      return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
+    }
+    if (IsWasmResumeData(data)) {
+      if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
+          wasm::OnResume::kContinue) {
+        return isolate->builtins()->code(Builtin::kWasmResume);
+      } else {
+        return isolate->builtins()->code(Builtin::kWasmReject);
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
-  if (IsSmi(data)) {
-    // Holding a Smi means we are a builtin.
-    DCHECK(HasBuiltinId());
-    return isolate->builtins()->code(builtin_id());
-  }
-  if (IsBytecodeArray(data)) {
-    // Having a bytecode array means we are a compiled, interpreted function.
-    DCHECK(HasBytecodeArray());
-    return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
-  }
-  if (IsCode(data)) {
-    // Having baseline Code means we are a compiled, baseline function.
-    DCHECK(HasBaselineCode());
-    return Cast<Code>(data);
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  if (IsAsmWasmData(data)) {
-    // Having AsmWasmData means we are an asm.js/wasm function.
-    DCHECK(HasAsmWasmData());
-    return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
-  }
-  if (IsWasmExportedFunctionData(data)) {
-    // Having a WasmExportedFunctionData means the code is in there.
-    DCHECK(HasWasmExportedFunctionData());
-    return wasm_exported_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmJSFunctionData(data)) {
-    return wasm_js_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmCapiFunctionData(data)) {
-    return wasm_capi_function_data()->wrapper_code(isolate);
-  }
-  if (IsWasmResumeData(data)) {
-    if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
-        wasm::OnResume::kContinue) {
-      return isolate->builtins()->code(Builtin::kWasmResume);
-    } else {
-      return isolate->builtins()->code(Builtin::kWasmReject);
-    }
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  if (IsUncompiledData(data)) {
-    // Having uncompiled data (with or without scope) means we need to compile.
-    DCHECK(HasUncompiledData());
-    return isolate->builtins()->code(Builtin::kCompileLazy);
-  }
-  if (IsFunctionTemplateInfo(data)) {
-    // Having a function template info means we are an API function.
-    DCHECK(IsApiFunction());
-    return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
-  }
-  if (IsInterpreterData(data)) {
-    Tagged<Code> code = InterpreterTrampoline(isolate);
-    DCHECK(IsCode(code));
-    DCHECK(code->is_interpreter_trampoline_builtin());
-    return code;
-  }
   UNREACHABLE();
 }
 
