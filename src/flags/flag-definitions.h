@@ -589,10 +589,6 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    maglev_extend_properties_backing_store,
-    "Generate code for extending properties backing store when needed")
-
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
     "max number of threads that concurrent Maglev can use (0 for unbounded)")

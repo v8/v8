@@ -4514,9 +4514,6 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
 
     if (original_map->UnusedPropertyFields() == 0) {
       DCHECK(!field_index.is_inobject());
-      if (!v8_flags.maglev_extend_properties_backing_store) {
-        return ReduceResult::Fail();
-      }
     }
     if (!field_index.is_inobject()) {
       // If slack tracking ends after this compilation started but before it's
