@@ -43,9 +43,7 @@ class FakeGarbageCollector : public GarbageCollector {
   void set_override_stack_state(EmbedderStackState state) override {}
   void clear_overridden_stack_state() override {}
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  std::optional<int> UpdateAllocationTimeout() override {
-    return v8::base::nullopt;
-  }
+  std::optional<int> UpdateAllocationTimeout() override { return std::nullopt; }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
