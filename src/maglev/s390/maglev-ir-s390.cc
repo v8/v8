@@ -103,7 +103,7 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
+  Register scratch = temps.AcquireScratch();
   Register result_string = ToRegister(result());
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
     int32_t char_code = constant->value() & 0xFFFF;
@@ -114,7 +114,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       // store will fail.
       bool reallocate_result = (scratch == result_string);
       if (reallocate_result) {
-        result_string = temps.Acquire();
+        result_string = temps.AcquireScratch();
       }
       DCHECK(scratch != result_string);
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
@@ -229,7 +229,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise multiplication by a constant.
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register temp = temps.Acquire();
+  Register temp = temps.AcquireScratch();
   __ Or(temp, left, right);
   __ MulS32(out, left, right);
   __ LoadS32(out, out);
@@ -387,7 +387,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   Label rhs_not_power_of_2;
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register mask = temps.Acquire();
+  Register mask = temps.AcquireScratch();
   __ AddS32(mask, rhs, Operand(-1));
   __ And(r0, mask, rhs);
   __ JumpIf(ne, &rhs_not_power_of_2);
@@ -396,7 +396,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ And(out, mask, lhs);
   __ Jump(*done);
   // {mask} can be reused from now on.
-  temps.Include(mask);
+  temps.IncludeScratch(mask);
 
   __ bind(&rhs_not_power_of_2);
   __ ModU32(out, lhs, rhs);
@@ -449,7 +449,7 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
       __ LoadS32(out, out);                                      \
     } else {                                                     \
       MaglevAssembler::TemporaryRegisterScope temps(masm);       \
-      Register scratch = temps.Acquire();                        \
+      Register scratch = temps.AcquireScratch();                 \
       Register right = ToRegister(right_input());                \
       __ And(scratch, right, Operand(31));                       \
       __ opcode(out, left, scratch);                             \
@@ -566,8 +566,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   DoubleRegister out = ToDoubleRegister(result());
   if (kind_ == Kind::kNearest) {
     MaglevAssembler::TemporaryRegisterScope temps(masm);
-    DoubleRegister temp = temps.AcquireDouble();
-    DoubleRegister temp2 = temps.AcquireDouble();
+    DoubleRegister temp = temps.AcquireScratchDouble();
+    DoubleRegister temp2 = temps.AcquireScratchDouble();
     __ Move(temp, in);
     __ NearestIntF64(out, in);
     __ SubF64(temp, temp, out);
@@ -653,7 +653,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   }
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
-  Register byte_length = temps.Acquire();
+  Register byte_length = temps.AcquireScratch();
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
 
@@ -740,9 +740,9 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
+  Register scratch = temps.AcquireScratch();
   Register feedback_cell = scratch;
-  Register budget = temps.Acquire();
+  Register budget = temps.AcquireScratch();
   __ LoadU64(feedback_cell,
              MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
