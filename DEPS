@@ -73,7 +73,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b2afae122eeb6ce09c52d63f67dc53fc517dbdc8',
+  'gn_version': 'git_revision:1b41f0502f87b2056cee5cc9b48f9242693d497b',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/build_support/ninja-1_11_1/
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f8bbe6bf485e70d70aa1031bc689e337d91b7ba3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '33d13d217f1f791f8fe9d53e1cf63289bf8b2900',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c92671fe07c44a62f3d422668b118f0de69e331c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '77e7e1bd89f2bbc20d9a31a6f677e4d64223082b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -300,11 +300,11 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'd93c143a4913411abe4a627a977f6325f730dd84',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '17ee1e13e592dcb87925ae7dfc0c9e7c921e9c3e',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd09db732ff68f40fd3581306c650b17ea1955b4e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd96f9effac2adf28f6d1e59f4a05f1346335ece9',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -458,7 +458,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2469fdd73f192383d2d94288da0ff5b9a3869f5',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '71660e196bcfc74b2c657a46b512037cb49079a2',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7a4c4fcc6f37f1ebd646c26b8bb5e8b400395d03',
   'tools/luci-go': {
