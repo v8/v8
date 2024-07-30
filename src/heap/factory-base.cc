@@ -375,7 +375,6 @@ Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
   // verifier might see the wrapper before the field can be set, we need to
   // clear the field here.
   wrapper->clear_bytecode();
-  wrapper->clear_padding();
   return wrapper;
 }
 
@@ -493,8 +492,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
-  shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
-                    false);
+  shared->SetScript(isolate(), read_only_roots(), *script,
+                    literal->function_literal_id(), false);
   return shared;
 }
 
@@ -547,7 +546,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
-      inferred_name, start_position, end_position, AllocationType::kOld);
+      inferred_name, start_position, end_position, AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -557,7 +556,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
       inferred_name, start_position, end_position, preparse_data,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -565,12 +564,10 @@ Handle<UncompiledDataWithoutPreparseDataWithJob>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  return TorqueGeneratedFactory<
-      Impl>::NewUncompiledDataWithoutPreparseDataWithJob(inferred_name,
-                                                         start_position,
-                                                         end_position,
-                                                         kNullAddress,
-                                                         AllocationType::kOld);
+  return TorqueGeneratedFactory<Impl>::
+      NewUncompiledDataWithoutPreparseDataWithJob(inferred_name, start_position,
+                                                  end_position, kNullAddress,
+                                                  AllocationType::kTrusted);
 }
 
 template <typename Impl>
@@ -580,7 +577,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       inferred_name, start_position, end_position, preparse_data, kNullAddress,
-      AllocationType::kOld);
+      AllocationType::kTrusted);
 }
 
 template <typename Impl>

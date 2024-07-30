@@ -6511,6 +6511,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||
+           page->owner_identity() == TRUSTED_SPACE ||
            page->owner_identity() == SHARED_SPACE);
 
     if (!page->SweepingDone()) {

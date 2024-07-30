@@ -3189,19 +3189,26 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       [](Tagged<HeapObject> object, ObjectSlot slot,
          Tagged<HeapObject> target) { RecordSlot(object, slot, target); });
 
-  // Replace the bytecode with an uncompiled data object.
-  // As the bytecode arrays itself is located in trusted space, we cannot
-  // convert that object, but instead need to convert another object living
-  // inside the main pointer compression cage. The wrapper object is suitable
-  // for that purpose. The size of the bytecode wrapper must therefore match
-  // that of an UncompiledData object (it could also be larger, but it's most
-  // efficient if the sizes match because then we can avoid creating a filler
-  // object for the leftover space in the wrapper object).
-  static_assert(BytecodeWrapper::kSize ==
+  // The size of the bytecode array should always be larger than an
+  // UncompiledData object.
+  static_assert(BytecodeArray::SizeFor(0) >=
                 UncompiledDataWithoutPreparseData::kSize);
+
+  // Replace the bytecode with an uncompiled data object.
   Tagged<BytecodeArray> bytecode_array =
       shared_info->GetBytecodeArray(heap_->isolate());
-  Tagged<HeapObject> compiled_data = bytecode_array->wrapper();
+
+#ifdef V8_ENABLE_SANDBOX
+  // Zap the old entry in the trusted pointer table.
+  TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
+  IndirectPointerSlot self_indirect_pointer_slot =
+      bytecode_array->RawIndirectPointerField(
+          BytecodeArray::kSelfIndirectPointerOffset,
+          kBytecodeArrayIndirectPointerTag);
+  table.Zap(self_indirect_pointer_slot.Relaxed_LoadHandle());
+#endif
+
+  Tagged<HeapObject> compiled_data = bytecode_array;
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data->Size());
   MutablePageMetadata* chunk =
@@ -3220,6 +3227,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   RememberedSet<OLD_TO_OLD>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<TRUSTED_TO_TRUSTED>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
@@ -3227,10 +3237,19 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       ReadOnlyRoots(heap_).uncompiled_data_without_preparse_data_map(),
       SKIP_WRITE_BARRIER);
 
+  // Create a filler object for any left over space in the bytecode array.
+  if (!heap_->IsLargeObject(compiled_data)) {
+    const int aligned_filler_offset =
+        ALIGN_TO_ALLOCATION_ALIGNMENT(UncompiledDataWithoutPreparseData::kSize);
+    heap_->CreateFillerObjectAt(compiled_data.address() + aligned_filler_offset,
+                                compiled_data_size - aligned_filler_offset);
+  }
+
   // Initialize the uncompiled data.
   Tagged<UncompiledData> uncompiled_data = Cast<UncompiledData>(compiled_data);
+
   uncompiled_data->InitAfterBytecodeFlush(
-      inferred_name, start_position, end_position,
+      heap_->isolate(), inferred_name, start_position, end_position,
       [](Tagged<HeapObject> object, ObjectSlot slot,
          Tagged<HeapObject> target) { RecordSlot(object, slot, target); });
 
@@ -3240,6 +3259,12 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
              MarkingHelper::LivenessMode::kAlwaysLive ||
          marking_state_->IsMarked(inferred_name));
   marking_state_->TryMarkAndAccountLiveBytes(uncompiled_data);
+
+#ifdef V8_ENABLE_SANDBOX
+  // Mark the new entry in the trusted pointer table as alive.
+  TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
+  table.Mark(space, self_indirect_pointer_slot.Relaxed_LoadHandle());
+#endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
   DCHECK(!shared_info->is_compiled());
@@ -3263,26 +3288,16 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 
     // Now record the data slots, which have been updated to an uncompiled
     // data, Baseline code or BytecodeArray which is still alive.
-    ObjectSlot slot;
 #ifndef V8_ENABLE_SANDBOX
     // If the sandbox is enabled, the slot contains an indirect pointer which
     // does not need to be updated during mark-compact (because the pointer in
     // the pointer table will be updated), so no action is needed here.
-    slot = flushing_candidate->RawField(
+    ObjectSlot slot = flushing_candidate->RawField(
         SharedFunctionInfo::kTrustedFunctionDataOffset);
     if (IsHeapObject(*slot)) {
       RecordSlot(flushing_candidate, slot, Cast<HeapObject>(*slot));
     }
 #endif
-    // We also need to record the untrusted data slot here as it may have been
-    // empty before but now contains an uncompiled data object.
-    // TODO(saelo): we should be able to drop this logic if uncompiled data
-    // moves into trusted space.
-    slot = flushing_candidate->RawField(
-        SharedFunctionInfo::kUntrustedFunctionDataOffset);
-    if (IsHeapObject(*slot)) {
-      RecordSlot(flushing_candidate, slot, Cast<HeapObject>(*slot));
-    }
   }
 
   if (v8_flags.trace_flush_code) {

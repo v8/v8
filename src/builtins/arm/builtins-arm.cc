@@ -314,13 +314,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ ldr(data,
          FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-  // If the trusted data field is empty, it will contain Smi::zero.
-  __ JumpIfSmi(data, is_unavailable);
-
   __ LoadMap(scratch1, data);
+  __ ldrh(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
 
 #ifndef V8_JITLESS
-  __ CompareInstanceType(scratch1, scratch1, CODE_TYPE);
+  __ cmp(scratch1, Operand(CODE_TYPE));
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
@@ -330,12 +328,13 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   } else {
     __ b(eq, is_baseline);
   }
-  __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
-#else
-  __ CompareInstanceType(scratch1, scratch1, INTERPRETER_DATA_TYPE);
 #endif  // !V8_JITLESS
 
-  __ b(ne, &done);
+  __ cmp(scratch1, Operand(BYTECODE_ARRAY_TYPE));
+  __ b(eq, &done);
+
+  __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
+  __ b(ne, is_unavailable);
   __ ldr(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);

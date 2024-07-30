@@ -145,8 +145,6 @@ namespace internal {
   V(Symbol)                                               \
   V(ThinString)                                           \
   V(TransitionArray)                                      \
-  V(UncompiledDataWithoutPreparseData)                    \
-  V(UncompiledDataWithPreparseData)                       \
   V(WeakArrayList)                                        \
   V(WeakFixedArray)
 

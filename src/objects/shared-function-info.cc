@@ -168,7 +168,8 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
   index_ = 0;
 }
 
-void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
+void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
+                                   ReadOnlyRoots roots,
                                    Tagged<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
@@ -177,7 +178,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   if (script() == script_object) return;
 
   if (reset_preparsed_scope_data && HasUncompiledDataWithPreparseData()) {
-    ClearPreparseData();
+    ClearPreparseData(isolate);
   }
 
   // Add shared function info to new script's list. If a collection occurs,
@@ -416,13 +417,13 @@ void SharedFunctionInfo::DiscardCompiled(
   if (shared_info->HasUncompiledDataWithPreparseData()) {
     // If this is uncompiled data with a pre-parsed scope data, we can just
     // clear out the scope data and keep the uncompiled data.
-    shared_info->ClearPreparseData();
+    shared_info->ClearPreparseData(isolate);
     DCHECK(data.is_null());
   } else {
     // Update the function data to point to the UncompiledData without preparse
     // data created above. Use the raw function data setter to avoid validity
     // checks, since we're performing the unusual task of decompiling.
-    shared_info->SetUntrustedData(*data.ToHandleChecked());
+    shared_info->SetTrustedData(*data.ToHandleChecked());
   }
 }
 
@@ -703,7 +704,7 @@ int SharedFunctionInfo::StartPosition() const {
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data()->start_position();
+    return uncompiled_data(GetIsolateForSandbox(*this))->start_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -731,7 +732,7 @@ int SharedFunctionInfo::EndPosition() const {
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data()->end_position();
+    return uncompiled_data(GetIsolateForSandbox(*this))->end_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -750,7 +751,7 @@ int SharedFunctionInfo::EndPosition() const {
 }
 
 void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
-    FunctionLiteral* lit) {
+    IsolateForSandbox isolate, FunctionLiteral* lit) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
     // Updating the ScopeInfo is safe since they are identical modulo
@@ -761,10 +762,10 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());
     if (HasUncompiledDataWithPreparseData()) {
-      ClearPreparseData();
+      ClearPreparseData(isolate);
     }
-    uncompiled_data()->set_start_position(lit->start_position());
-    uncompiled_data()->set_end_position(lit->end_position());
+    uncompiled_data(isolate)->set_start_position(lit->start_position());
+    uncompiled_data(isolate)->set_end_position(lit->end_position());
 
     if (!is_toplevel()) {
       Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();

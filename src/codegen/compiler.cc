@@ -1933,9 +1933,10 @@ void BackgroundCompileTask::Run(
     // Get preparsed scope data from the function literal.
     if (shared_info->HasUncompiledDataWithPreparseData()) {
       info.set_consumed_preparse_data(ConsumedPreparseData::For(
-          isolate, handle(shared_info->uncompiled_data_with_preparse_data()
-                              ->preparse_data(isolate),
-                          isolate)));
+          isolate,
+          handle(shared_info->uncompiled_data_with_preparse_data(isolate)
+                     ->preparse_data(isolate),
+                 isolate)));
     }
   }
 
@@ -2567,7 +2568,7 @@ bool BackgroundCompileTask::FinalizeFunction(
   // the LazyCompileDispatcher Job that launched this task, which will now be
   // considered complete, so clear that regardless of whether the finalize
   // succeeds or not.
-  input_shared_info->ClearUncompiledDataJobPointer();
+  input_shared_info->ClearUncompiledDataJobPointer(isolate);
 
   // We might not have been able to finalize all jobs on the background
   // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
@@ -2601,7 +2602,8 @@ void BackgroundCompileTask::AbortFunction() {
   // the LazyCompileDispatcher Job that launched this task, which is about to be
   // deleted, so clear that to avoid the SharedFunctionInfo from pointing to
   // deallocated memory.
-  input_shared_info_.ToHandleChecked()->ClearUncompiledDataJobPointer();
+  input_shared_info_.ToHandleChecked()->ClearUncompiledDataJobPointer(
+      isolate_for_local_isolate_);
 }
 
 void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
@@ -2832,10 +2834,9 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 
   if (shared_info->HasUncompiledDataWithPreparseData()) {
     parse_info.set_consumed_preparse_data(ConsumedPreparseData::For(
-        isolate,
-        handle(
-            shared_info->uncompiled_data_with_preparse_data()->preparse_data(),
-            isolate)));
+        isolate, handle(shared_info->uncompiled_data_with_preparse_data(isolate)
+                            ->preparse_data(),
+                        isolate)));
   }
 
   // Parse and update ParseInfo with the results.
@@ -4197,7 +4198,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     if (literal->produced_preparse_data() != nullptr &&
         existing->HasUncompiledDataWithoutPreparseData()) {
       DirectHandle<UncompiledData> existing_uncompiled_data(
-          existing->uncompiled_data(), isolate);
+          existing->uncompiled_data(isolate), isolate);
       DCHECK_EQ(literal->start_position(),
                 existing_uncompiled_data->start_position());
       DCHECK_EQ(literal->end_position(),

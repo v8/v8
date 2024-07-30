@@ -643,9 +643,8 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(SharedFunctionInfo, feedback_metadata,
                                        IsFeedbackMetadata(value))
 
 bool SharedFunctionInfo::is_compiled() const {
-  Tagged<Object> data = GetUntrustedData();
-  return data != Smi::FromEnum(Builtin::kCompileLazy) &&
-         !IsUncompiledData(data);
+  return GetUntrustedData() != Smi::FromEnum(Builtin::kCompileLazy) &&
+         !HasUncompiledData();
 }
 
 template <typename IsolateT>
@@ -962,46 +961,52 @@ void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
 }
 
 bool SharedFunctionInfo::HasUncompiledData() const {
-  return IsUncompiledData(GetUntrustedData());
+  return IsUncompiledData(GetTrustedData());
 }
 
-DEF_GETTER(SharedFunctionInfo, uncompiled_data, Tagged<UncompiledData>) {
+Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(
+    IsolateForSandbox isolate) const {
   DCHECK(HasUncompiledData());
-  return Cast<UncompiledData>(GetUntrustedData());
+  return GetTrustedData<UncompiledData, kUncompiledDataIndirectPointerTag>(
+      isolate);
 }
 
 void SharedFunctionInfo::set_uncompiled_data(
     Tagged<UncompiledData> uncompiled_data, WriteBarrierMode mode) {
-  DCHECK(GetUntrustedData() == Smi::FromEnum(Builtin::kCompileLazy) ||
-         HasUncompiledData() || HasBytecodeArray() || HasBaselineCode());
   DCHECK(IsUncompiledData(uncompiled_data));
-  SetUntrustedData(uncompiled_data);
+  SetTrustedData(uncompiled_data, mode);
 }
 
 bool SharedFunctionInfo::HasUncompiledDataWithPreparseData() const {
-  return IsUncompiledDataWithPreparseData(GetUntrustedData());
+  return IsUncompiledDataWithPreparseData(GetTrustedData());
 }
 
 Tagged<UncompiledDataWithPreparseData>
-SharedFunctionInfo::uncompiled_data_with_preparse_data() const {
+SharedFunctionInfo::uncompiled_data_with_preparse_data(
+    IsolateForSandbox isolate) const {
   DCHECK(HasUncompiledDataWithPreparseData());
-  return Cast<UncompiledDataWithPreparseData>(GetUntrustedData());
+  Tagged<UncompiledData> data = uncompiled_data(isolate);
+  // TODO(saelo): this SBXCHECK is needed because our type tags don't currently
+  // support type hierarchies.
+  SBXCHECK(IsUncompiledDataWithPreparseData(data));
+  return Cast<UncompiledDataWithPreparseData>(data);
 }
 
 void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
     Tagged<UncompiledDataWithPreparseData> uncompiled_data_with_preparse_data,
     WriteBarrierMode mode) {
-  DCHECK(GetUntrustedData() == Smi::FromEnum(Builtin::kCompileLazy));
+  DCHECK_EQ(GetUntrustedData(), Smi::FromEnum(Builtin::kCompileLazy));
   DCHECK(IsUncompiledDataWithPreparseData(uncompiled_data_with_preparse_data));
-  SetUntrustedData(uncompiled_data_with_preparse_data);
+  SetTrustedData(uncompiled_data_with_preparse_data, mode);
 }
 
 bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
-  return IsUncompiledDataWithoutPreparseData(GetUntrustedData());
+  return IsUncompiledDataWithoutPreparseData(GetTrustedData());
 }
 
-void SharedFunctionInfo::ClearUncompiledDataJobPointer() {
-  Tagged<UncompiledData> uncompiled_data = this->uncompiled_data();
+void SharedFunctionInfo::ClearUncompiledDataJobPointer(
+    IsolateForSandbox isolate) {
+  Tagged<UncompiledData> uncompiled_data = this->uncompiled_data(isolate);
   if (IsUncompiledDataWithPreparseDataAndJob(uncompiled_data)) {
     Cast<UncompiledDataWithPreparseDataAndJob>(uncompiled_data)
         ->set_job(kNullAddress);
@@ -1011,10 +1016,10 @@ void SharedFunctionInfo::ClearUncompiledDataJobPointer() {
   }
 }
 
-void SharedFunctionInfo::ClearPreparseData() {
+void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
   DCHECK(HasUncompiledDataWithPreparseData());
   Tagged<UncompiledDataWithPreparseData> data =
-      uncompiled_data_with_preparse_data();
+      uncompiled_data_with_preparse_data(isolate);
 
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
@@ -1044,10 +1049,14 @@ void SharedFunctionInfo::ClearPreparseData() {
 }
 
 void UncompiledData::InitAfterBytecodeFlush(
-    Tagged<String> inferred_name, int start_position, int end_position,
+    IsolateForSandbox isolate, Tagged<String> inferred_name, int start_position,
+    int end_position,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<HeapObject> target)>
         gc_notify_updated_slot) {
+#ifdef V8_ENABLE_SANDBOX
+  init_self_indirect_pointer(isolate);
+#endif
   set_inferred_name(inferred_name);
   gc_notify_updated_slot(*this, RawField(UncompiledData::kInferredNameOffset),
                          inferred_name);
@@ -1076,7 +1085,8 @@ DEF_GETTER(SharedFunctionInfo, inferred_name, Tagged<String>) {
       if (IsString(name)) return Cast<String>(name);
     }
   } else if (HasUncompiledData()) {
-    return uncompiled_data(cage_base)->inferred_name(cage_base);
+    return uncompiled_data(GetIsolateForSandbox(*this))
+        ->inferred_name(cage_base);
   }
   return GetReadOnlyRoots().empty_string();
 }

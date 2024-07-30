@@ -566,9 +566,6 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ mov(data,
          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-  // If the trusted data field is empty, it will contain Smi::zero.
-  __ JumpIfSmi(data, is_unavailable);
-
   __ LoadMap(scratch1, data);
 
 #ifndef V8_JITLESS
@@ -584,9 +581,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   }
 #endif  // !V8_JITLESS
 
-  __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
-  __ j(not_equal, &done, Label::kNear);
+  __ CmpInstanceType(scratch1, BYTECODE_ARRAY_TYPE);
+  __ j(equal, &done, Label::kNear);
 
+  __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
+  __ j(not_equal, is_unavailable);
   __ mov(data, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);

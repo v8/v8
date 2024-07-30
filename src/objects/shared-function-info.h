@@ -117,10 +117,12 @@ class PreparseData
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
 class UncompiledData
-    : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
+    : public TorqueGeneratedUncompiledData<UncompiledData,
+                                           ExposedTrustedObject> {
  public:
   inline void InitAfterBytecodeFlush(
-      Tagged<String> inferred_name, int start_position, int end_position,
+      IsolateForSandbox isolate, Tagged<String> inferred_name,
+      int start_position, int end_position,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                          Tagged<HeapObject> target)>
           gc_notify_updated_slot);
@@ -222,7 +224,8 @@ class SharedFunctionInfo
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
-  V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,
+  V8_EXPORT_PRIVATE void SetScript(IsolateForSandbox isolate,
+                                   ReadOnlyRoots roots,
                                    Tagged<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data = true);
@@ -267,7 +270,7 @@ class SharedFunctionInfo
   V8_EXPORT_PRIVATE int StartPosition() const;
 
   V8_EXPORT_PRIVATE void UpdateFromFunctionLiteralForLiveEdit(
-      FunctionLiteral* lit);
+      IsolateForSandbox isolate, FunctionLiteral* lit);
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
@@ -438,16 +441,22 @@ class SharedFunctionInfo
   DECL_PRIMITIVE_ACCESSORS(builtin_id, Builtin)
 
   inline bool HasUncompiledData() const;
-  DECL_ACCESSORS(uncompiled_data, Tagged<UncompiledData>)
+  inline Tagged<UncompiledData> uncompiled_data(
+      IsolateForSandbox isolate) const;
+  inline void set_uncompiled_data(Tagged<UncompiledData> data,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool HasUncompiledDataWithPreparseData() const;
-  DECL_ACCESSORS(uncompiled_data_with_preparse_data,
-                 Tagged<UncompiledDataWithPreparseData>)
+  inline Tagged<UncompiledDataWithPreparseData>
+  uncompiled_data_with_preparse_data(IsolateForSandbox isolate) const;
+  inline void set_uncompiled_data_with_preparse_data(
+      Tagged<UncompiledDataWithPreparseData> data,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool HasUncompiledDataWithoutPreparseData() const;
-  inline void ClearUncompiledDataJobPointer();
+  inline void ClearUncompiledDataJobPointer(IsolateForSandbox isolate);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.
-  inline void ClearPreparseData();
+  inline void ClearPreparseData(IsolateForSandbox isolate);
 
   // The inferred_name is inferred from variable or property assignment of this
   // function. It is used to facilitate debugging and profiling of JavaScript

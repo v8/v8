@@ -754,7 +754,7 @@ void TranslateSourcePositionTable(Isolate* isolate,
 void UpdatePositions(Isolate* isolate, DirectHandle<SharedFunctionInfo> sfi,
                      FunctionLiteral* new_function,
                      const std::vector<SourceChangeRange>& diffs) {
-  sfi->UpdateFromFunctionLiteralForLiveEdit(new_function);
+  sfi->UpdateFromFunctionLiteralForLiveEdit(isolate, new_function);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
         isolate, direct_handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
@@ -935,7 +935,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         mapping.second->function_literal_id();
 
     if (sfi->HasUncompiledDataWithPreparseData()) {
-      sfi->ClearPreparseData();
+      sfi->ClearPreparseData(isolate);
     }
 
     for (auto& js_function : data->js_functions) {

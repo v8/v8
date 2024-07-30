@@ -719,10 +719,6 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       data, FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
       kUnknownIndirectPointerTag, scratch1);
 
-  // If the trusted data field is empty, it will contain Smi::zero (or the
-  // kNullIndirectPointerHandle, which will resolve to Smi::zero).
-  __ JumpIfSmi(data, is_unavailable);
-
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, INTERPRETER_DATA_TYPE, scratch1);
     __ j(not_equal, &done, Label::kNear);

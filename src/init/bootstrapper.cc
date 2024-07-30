@@ -776,7 +776,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   Tagged<SharedFunctionInfo> sfi = empty_function->shared();
   sfi->set_raw_scope_info(roots.empty_function_scope_info());
   sfi->DontAdaptArguments();
-  sfi->SetScript(roots, *script, 1);
+  sfi->SetScript(isolate(), roots, *script, 1);
   sfi->UpdateFunctionMapIndex();
 
   return empty_function;
