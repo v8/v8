@@ -108,11 +108,9 @@ class BlockOriginTrackingReducer : public Next {
   void SetMaglevInputBlock(const maglev::BasicBlock* block) {
     maglev_input_block_ = block;
   }
-#ifdef DEBUG
   const maglev::BasicBlock* maglev_input_block() const {
     return maglev_input_block_;
   }
-#endif
   void Bind(Block* block) {
     Next::Bind(block);
     // The 1st block we bind doesn't exist in Maglev and is meant to hold
@@ -133,6 +131,369 @@ class BlockOriginTrackingReducer : public Next {
   const maglev::BasicBlock* maglev_input_block_ = nullptr;
   GrowingBlockSidetable<const maglev::BasicBlock*> turboshaft_block_origins_{
       __ phase_zone()};
+};
+
+class GeneratorAnalyzer {
+  // A document explaning how generators are handled by the translation can be
+  // found here:
+  //
+  //     https://docs.google.com/document/d/1-iFoVuvpIEjA9dtSsOjmKL5vAzzvf0cKI6f4zaObiV8/edit?usp=sharing
+  //
+  //
+  // Because of generator resumes, Maglev graphs can have edges that bypass loop
+  // headers. This actually happens everytime a loop contains a `yield`.
+  // In Turboshaft, however, the loop header must always dominate every block in
+  // the loop, and thus does not allow such edges that bypass the loop header.
+  // For instance,
+  //
+  //     function* foo() {
+  //       for (let i = 0; i < 10; i++) {
+  //         if (i % 2 == 0) {
+  //           yield i;
+  //         }
+  //       }
+  //     }
+  //
+  // The corresponding Maglev graph will look something like (this is a little
+  // bit simplified since details don't matter much for this high level
+  // explanation; the drawing in FindLoopHeaderBypasses below gives a more
+  // precise view of what the Maglev graph looks like):
+  //
+  //                       + 1 ------+
+  //                       | Switch  |
+  //                       +---------+
+  //                        /      \
+  //                      /          \      |----------------------|
+  //                    /              \    |                      |
+  //                  /                 v   v                      |
+  //                /              + 2 --------+                   |
+  //              /                | Loop      |                   |
+  //             |                 +-----------+                   |
+  //             |                      |                          |
+  //             |                      |                          |
+  //             v                      v                          |
+  //        + 4 ------+             + 3 --------------+            |
+  //        | Resume  |             | Branch(i%2==0)  |            |
+  //        +---------+             +-----------------+            |
+  //            |                     /        \                   |
+  //            |                    /          \                  |
+  //            |                   /            \                 |
+  //            |             + 5 -------+        |                |
+  //            |             | yield i  |        |                |
+  //            |             +----------+        |                |
+  //            |                                 |                |
+  //            |----------------------------|    |                |
+  //                                         |    |                |
+  //                                         v    v                |
+  //                                    + 6 ----------+            |
+  //                                    | i++         |            |
+  //                                    | backedge    |            |
+  //                                    +-------------+            |
+  //                                           |                   |
+  //                                           |-------------------|
+  //
+  // In this graph, the edge from block 4 to block 6 bypasses the loop header.
+  //
+  //
+  // Note that it's even possible that the graph contains no forward path from
+  // the loop header to the backedge. This happens for instance when the loop
+  // body always unconditionally yields. In such cases, the backedge is always
+  // reached through the main resume switch. For instance:
+  //
+  //     function* foo() {
+  //       for (let i = 0; i < 10; i++) {
+  //         yield i;
+  //       }
+  //     }
+  //
+  // Will produce the following graph:
+  //
+  //                       + 1 ------+
+  //                       | Switch  |
+  //                       +---------+
+  //                        /      \
+  //                      /          \      |-------------|
+  //                    /              \    |             |
+  //                  /                 v   v             |
+  //                /              + 2 --------+          |
+  //              /                | Loop      |          |
+  //             |                 +-----------+          |
+  //             |                      |                 |
+  //             |                      |                 |
+  //             v                      v                 |
+  //        + 4 ------+             + 3 -------+          |
+  //        | Resume  |             | yield i  |          |
+  //        +---------+             +----------+          |
+  //             |                                        |
+  //             |                                        |
+  //             |----------------------------------------|
+  //
+  //
+  // GeneratorAnalyzer finds the loop in the Maglev graph, and finds the
+  // generator resume edges that bypass loops headers. The GraphBuilder then
+  // uses this information to re-route such edges to loop headers and insert
+  // secondary switches. For instance, the graph right above will be transformed
+  // to something like this:
+  //
+  //                       + 1 ------+
+  //                       | Switch  |
+  //                       +---------+
+  //                          |  |
+  //                          |  |
+  //                          v  v
+  //                     + 2 --------+
+  //                     | p1 = phi  |
+  //                     +-----------+
+  //                          |
+  //                          |    |-----------------------|
+  //                          |    |                       |
+  //                          v    v                       |
+  //                     + 3 -----------------+            |
+  //                     | Loop               |            |
+  //                     | p2 = phi(p1,...)   |            |
+  //                     +--------------------+            |
+  //                           |                           |
+  //                           |                           |
+  //                           v                           |
+  //                     + 4 -----------+                  |
+  //                     | Switch(p2)   |                  |
+  //                     +--------------+                  |
+  //                       /       \                       |
+  //                     /           \                     |
+  //                   /               \                   |
+  //                 v                   v                 |
+  //           + 5 --------+        + 6 --------+          |
+  //           | Resume    |        | yield i   |          |
+  //           +-----------+        +-----------+          |
+  //                 |                                     |
+  //                 |                                     |
+  //                 |-------------------------------------|
+
+ public:
+  explicit GeneratorAnalyzer(Zone* phase_zone,
+                             maglev::MaglevGraphLabeller* labeller)
+      : labeller_(labeller),
+        block_to_header_(phase_zone),
+        visit_queue_(phase_zone) {}
+
+  void Analyze(maglev::Graph* graph) {
+    for (const maglev::BasicBlock* block : base::Reversed(graph->blocks())) {
+      if (block->is_loop()) {
+        FindLoopBody(block);
+      }
+    }
+
+    FindLoopHeaderBypasses(graph);
+  }
+
+  bool JumpBypassesHeader(const maglev::BasicBlock* target) {
+    return block_to_innermost_bypassed_header_.contains(target);
+  }
+
+  const maglev::BasicBlock* GetInnermostBypassedHeader(
+      const maglev::BasicBlock* target) {
+    DCHECK(JumpBypassesHeader(target));
+    return block_to_innermost_bypassed_header_[target];
+  }
+
+  bool HeaderIsBypassed(const maglev::BasicBlock* header) {
+    DCHECK(header->is_loop());
+    return bypassed_headers_.contains(header);
+  }
+
+  const maglev::BasicBlock* GetLoopHeader(const maglev::BasicBlock* node) {
+    if (block_to_header_.contains(node)) {
+      return block_to_header_[node];
+    }
+    return nullptr;
+  }
+
+  bool has_header_bypasses() const { return !bypassed_headers_.empty(); }
+
+ private:
+  // FindLoopBody iterates {header}'s loop backwards from its backedge, marking
+  // all reachable blocks as belonging for the loop.
+  void FindLoopBody(const maglev::BasicBlock* header) {
+    visit_queue_.clear();
+    int header_id = labeller_->BlockId(header);
+
+    const maglev::BasicBlock* backedge_block = header->backedge_predecessor();
+    visit_queue_.push_back(backedge_block);
+
+    while (!visit_queue_.empty()) {
+      const maglev::BasicBlock* curr = visit_queue_.back();
+      visit_queue_.pop_back();
+      if (curr == header) continue;
+      if (labeller_->BlockId(curr) < header_id) continue;
+
+      if (block_to_header_.contains(curr)) {
+        const maglev::BasicBlock* curr_parent = block_to_header_[curr];
+        if (curr_parent == header) {
+          // If {curr}'s parent is already marked as being {header}, then we've
+          // already visited {curr}.
+          continue;
+        } else {
+          // If {curr}'s parent is not {header}, then {curr} is part of an inner
+          // loop. We should continue the search on the loop header: the
+          // predecessors of {curr} will all be in this inner loop.
+          visit_queue_.push_back(curr_parent);
+          continue;
+        }
+      }
+
+      block_to_header_[curr] = header;
+
+      if (curr->is_loop()) {
+        // Skipping the backedge of inner loops since we don't want to visit
+        // inner loops now (they should already have been visited).
+        constexpr int kSkipBackedge = 1;
+        for (int i = 0; i < curr->predecessor_count() - kSkipBackedge; i++) {
+          visit_queue_.push_back(curr->predecessor_at(i));
+        }
+      } else if (curr->is_merge_block()) {
+        for (int i = 0; i < curr->predecessor_count(); i++) {
+          visit_queue_.push_back(curr->predecessor_at(i));
+        }
+      } else {
+        const maglev::BasicBlock* pred = curr->predecessor();
+        if (pred != nullptr) {
+          visit_queue_.push_back(pred);
+        }
+      }
+    }
+  }
+
+  void FindLoopHeaderBypasses(maglev::Graph* graph) {
+    // Maglev graphs for resumable generator functions always start as follows:
+    //
+    //
+    //                       + 1 -----------------+
+    //                       | InitialValues...   |
+    //                       | Jump               |
+    //                       +--------------------+
+    //                                  |
+    //                                  |
+    //                                  v
+    //                       + 2 --------------------+
+    //                       | BranchIfRootConstant  |
+    //                       +-----------------------+
+    //                          /                  \
+    //                         /                     \
+    //                        /                        \
+    //                       /                           \
+    //                      v                              v
+    //              + 3 ----------+                  + 4 --------------+
+    //              | Load state  |                  | Initial setup   |
+    //              | Switch      |                  | return          |
+    //              +-------------+                  +-----------------+
+    //                  /      \
+    //                 /        \----------\
+    //                v                     v
+    //          + 4 ---------+               more idential cases
+    //          | Load stuff |
+    //          | Switch     |
+    //          +------------+
+    //           /    \      \
+    //         /        \     \--------\
+    //       v            v             v
+    //   +--------+    +-------+     + 5 -----+
+    //   | Return |    | Throw |     | Goto   |
+    //   +--------+    +-------+     +--------+
+    //                                   |
+    //                                   |
+    //                                   v
+    //                          Somewhere in the graph,
+    //                          resuming normal execution
+    //
+    //
+    //
+    // In order to find loop header bypasses, we are looking for cases where
+    // block 5 (bottom right) in this example is inside a loop.
+    //
+    // There is an exception: yield* doesn't have a secondary switch but instead
+    // directly jumps "to the right place".
+
+    maglev::BasicBlock* generator_switch_block = graph->blocks()[2];
+    DCHECK(generator_switch_block->control_node()->Is<maglev::Switch>());
+
+    for (maglev::BasicBlock* target : generator_switch_block->successors()) {
+      const maglev::BasicBlock* innermost_header = GetLoopHeader(target);
+      // Depending on the order of the yields, {target} could already be inside
+      // a loop.
+
+      if (!innermost_header) {
+        maglev::ControlNode* target_control = target->control_node();
+        if (!target_control->Is<maglev::Switch>()) {
+          // This is a yield*, so it doesn't have secondary switch. If {target}
+          // is not already in the loop (which it isn't, because
+          // {innermost_header} is null), then it doesn't bypass a header.
+          continue;
+        }
+        // {secondary_switch} is the Switch at the end of block 4 in the diagram
+        // above.
+        maglev::Switch* secondary_switch =
+            target_control->Cast<maglev::Switch>();
+        // {secondary_switch} always has 3 successors (2 regular cases + a
+        // default case). Only the 1st one really resumes the execution after
+        // the last yield (in {real_target}, which corresponds to block 5 in the
+        // diagram above). We thus now check whether it is in a loop.
+        DCHECK_EQ(2, secondary_switch->size());
+        maglev::BasicBlock* real_target =
+            secondary_switch->targets()[0].block_ptr();
+
+        innermost_header = GetLoopHeader(real_target);
+        if (!innermost_header) {
+          // If {real_target} is not in a loop, it's still possible for its
+          // direct successors to be inside loops, in which case there is still
+          // a loop header bypass.
+          for (maglev::BasicBlock* succ : real_target->successors()) {
+            if (const maglev::BasicBlock* this_innermost_header =
+                    GetLoopHeader(succ)) {
+              // {real_target} shouldn't have successors in different loops. We
+              // still CHECK that it doesn't happen, just to be safe.
+              CHECK_IMPLIES(innermost_header != nullptr,
+                            innermost_header == this_innermost_header);
+              innermost_header = this_innermost_header;
+            }
+          }
+        }
+      }
+
+      if (!innermost_header) continue;
+
+      // This case bypasses a loop header.
+      RecordHeadersForBypass(target, innermost_header);
+    }
+  }
+
+  void RecordHeadersForBypass(maglev::BasicBlock* initial_target,
+                              const maglev::BasicBlock* innermost_header) {
+    block_to_innermost_bypassed_header_[initial_target] = innermost_header;
+    bypassed_headers_.insert(innermost_header);
+
+    for (const maglev::BasicBlock* outer_header =
+             GetLoopHeader(innermost_header);
+         outer_header; outer_header = GetLoopHeader(outer_header)) {
+      bypassed_headers_.insert(outer_header);
+    }
+  }
+
+  maglev::MaglevGraphLabeller* labeller_;
+
+  // Map from blocks inside loops to the header of said loops.
+  ZoneAbslFlatHashMap<const maglev::BasicBlock*, const maglev::BasicBlock*>
+      block_to_header_;
+
+  // Map from jump target to the innermost header they bypass.
+  std::unordered_map<const maglev::BasicBlock*, const maglev::BasicBlock*>
+      block_to_innermost_bypassed_header_;
+  // Set of headers that are bypassed because of generator resumes.
+  std::unordered_set<const maglev::BasicBlock*> bypassed_headers_;
+
+  // {visit_queue_} is used in FindLoopBody to store nodes that still need to be
+  // visited. It is a instance variable in order to reuse its memory more
+  // efficiently.
+  ZoneVector<const maglev::BasicBlock*> visit_queue_;
 };
 
 #define GET_FRAME_STATE_MAYBE_ABORT(name, deopt_info)                       \
@@ -201,6 +562,8 @@ class GraphBuilder {
         regs_to_vars_(temp_zone),
         loop_single_edge_predecessors_(temp_zone),
         maglev_representations_(temp_zone),
+        generator_analyzer_(temp_zone,
+                            maglev_compilation_unit_->graph_labeller()),
         bailout_(bailout) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
@@ -224,6 +587,17 @@ class GraphBuilder {
           maglev_compilation_unit_->parameter_count());
       new_target_param_ = __ Parameter(
           new_target_index, RegisterRepresentation::Tagged(), "%new.target");
+    }
+
+    if (graph->has_resumable_generator()) {
+      generator_analyzer_.Analyze(graph);
+
+      dummy_object_input_ = __ SmiConstant(0);
+      dummy_word32_input_ = __ Word32Constant(0);
+      dummy_float64_input_ = __ Float64Constant(0);
+
+      header_switch_input_ = __ NewVariable(RegisterRepresentation::Word32());
+      loop_default_generator_value_ = __ Word32Constant(kDefaultSwitchVarValue);
     }
 
     // Maglev nodes often don't have the NativeContext as input, but instead
@@ -250,11 +624,28 @@ class GraphBuilder {
     }
   }
 
+  // The Maglev graph for resumable generator functions always has the main
+  // dispatch Switch in its 3rd block.
+  bool IsMaglevMainGeneratorSwitchBlock(
+      const maglev::BasicBlock* maglev_block) {
+    if (!generator_analyzer_.has_header_bypasses()) return false;
+    constexpr int kMainSwitchBlockId = 3;
+    bool is_main_switch_block =
+        maglev_compilation_unit_->graph_labeller()->BlockId(maglev_block) ==
+        kMainSwitchBlockId;
+    DCHECK_IMPLIES(is_main_switch_block,
+                   maglev_block->control_node()->Is<maglev::Switch>());
+    return is_main_switch_block;
+  }
+
   void PreProcessBasicBlock(maglev::BasicBlock* maglev_block) {
     // Note that it's important to call SetMaglevInputBlock before calling Bind,
     // so that BlockOriginTrackingReducer::Bind records the correct predecessor
     // for the current block.
     __ SetMaglevInputBlock(maglev_block);
+
+    is_visiting_generator_main_switch_ =
+        IsMaglevMainGeneratorSwitchBlock(maglev_block);
 
     Block* turboshaft_block = Map(maglev_block);
 
@@ -271,7 +662,8 @@ class GraphBuilder {
 #endif
 
     if (maglev_block->is_loop() &&
-        MapContains(loop_single_edge_predecessors_, maglev_block)) {
+        (loop_single_edge_predecessors_.contains(maglev_block) ||
+         pre_loop_generator_blocks_.contains(maglev_block))) {
       EmitLoopSinglePredecessorBlock(maglev_block);
     }
 
@@ -325,13 +717,15 @@ class GraphBuilder {
         // their inputs (and also, Maglev exception blocks have no
         // predecessors).
         !maglev_block->is_exception_handler_block()) {
-      ComputePredecessorPermutations(maglev_block, turboshaft_block, false);
+      ComputePredecessorPermutations(maglev_block, turboshaft_block, false,
+                                     false);
     }
   }
 
   void ComputePredecessorPermutations(maglev::BasicBlock* maglev_block,
                                       Block* turboshaft_block,
-                                      bool skip_backedge) {
+                                      bool skip_backedge,
+                                      bool ignore_last_predecessor) {
     // This function is only called for loops that need a "single block
     // predecessor" (from EmitLoopSinglePredecessorBlock). The backedge should
     // always be skipped in thus cases. Additionally, this means that when
@@ -358,6 +752,17 @@ class GraphBuilder {
     // Iterating predecessors from the end (because it's simpler and more
     // efficient in Turboshaft).
     for (const Block* pred : turboshaft_block->PredecessorsIterable()) {
+      if (ignore_last_predecessor &&
+          index == turboshaft_block->PredecessorCount() - 1) {
+        // When generator resumes bypass loop headers, we add an additional
+        // predecessor to the header's predecessor (called {pred_for_generator}
+        // in EmitLoopSinglePredecessorBlock). This block doesn't have Maglev
+        // origin, we thus have to skip it here. To compensate,
+        // MakePhiMaybePermuteInputs will take an additional input for these
+        // cases.
+        index--;
+        continue;
+      }
       // Finding out to which Maglev predecessor {pred} corresponds.
       const maglev::BasicBlock* orig = __ GetMaglevOrigin(pred);
       auto orig_index = *base::index_of(maglev_predecessors, orig);
@@ -510,12 +915,44 @@ class GraphBuilder {
 
   void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* maglev_loop_header) {
     DCHECK(maglev_loop_header->is_loop());
-    DCHECK(MapContains(loop_single_edge_predecessors_, maglev_loop_header));
+
+    bool has_special_generator_handling = false;
+    V<Word32> switch_var_first_input;
+    if (pre_loop_generator_blocks_.contains(maglev_loop_header)) {
+      // This loop header used to be bypassed by generator resume edges. It will
+      // now act as a secondary switch for the generator resumes.
+      std::vector<GeneratorSplitEdge>& generator_preds =
+          pre_loop_generator_blocks_[maglev_loop_header];
+      // {generator_preds} contains all of the edges that were bypassing this
+      // loop header. Rather than adding that many predecessors to the loop
+      // header, will create a single predecessor, {pred_for_generator}, to
+      // which all of the edges of {generator_preds} will go.
+      Block* pred_for_generator = __ NewBlock();
+
+      for (GeneratorSplitEdge pred : generator_preds) {
+        __ Bind(pred.pre_loop_dst);
+        __ SetVariable(header_switch_input_,
+                       __ Word32Constant(pred.switch_value));
+        __ Goto(pred_for_generator);
+      }
+
+      __ Bind(pred_for_generator);
+      switch_var_first_input = __ GetVariable(header_switch_input_);
+      DCHECK(switch_var_first_input.valid());
+
+      BuildJump(maglev_loop_header);
+
+      has_special_generator_handling = true;
+      on_generator_switch_loop_ = true;
+    }
+
+    DCHECK(loop_single_edge_predecessors_.contains(maglev_loop_header));
     Block* loop_pred = loop_single_edge_predecessors_[maglev_loop_header];
     __ Bind(loop_pred);
 
     if (maglev_loop_header->has_phi()) {
-      ComputePredecessorPermutations(maglev_loop_header, loop_pred, true);
+      ComputePredecessorPermutations(maglev_loop_header, loop_pred, true,
+                                     has_special_generator_handling);
 
       // Now we need to emit Phis (one per loop phi in {block}, which should
       // contain the same input except for the backedge).
@@ -524,13 +961,147 @@ class GraphBuilder {
       for (maglev::Phi* phi : *maglev_loop_header->phis()) {
         constexpr int kSkipBackedge = 1;
         int input_count = phi->input_count() - kSkipBackedge;
-        loop_phis_first_input_.push_back(
-            MakePhiMaybePermuteInputs(phi, input_count));
+
+        if (has_special_generator_handling) {
+          // Adding an input to the Phis to account for the additional
+          // generator-related predecessor.
+          V<Any> additional_input;
+          switch (phi->value_representation()) {
+            case maglev::ValueRepresentation::kTagged:
+              additional_input = dummy_object_input_;
+              break;
+            case maglev::ValueRepresentation::kInt32:
+            case maglev::ValueRepresentation::kUint32:
+              additional_input = dummy_word32_input_;
+              break;
+            case maglev::ValueRepresentation::kFloat64:
+            case maglev::ValueRepresentation::kHoleyFloat64:
+              additional_input = dummy_float64_input_;
+              break;
+            case maglev::ValueRepresentation::kIntPtr:
+              // Maglev doesn't have IntPtr Phis.
+              UNREACHABLE();
+          }
+          loop_phis_first_input_.push_back(
+              MakePhiMaybePermuteInputs(phi, input_count, additional_input));
+        } else {
+          loop_phis_first_input_.push_back(
+              MakePhiMaybePermuteInputs(phi, input_count));
+        }
       }
+    }
+
+    if (has_special_generator_handling) {
+      // We now emit the Phi that will be used in the loop's main switch.
+      base::SmallVector<OpIndex, 16> inputs;
+      constexpr int kSkipGeneratorPredecessor = 1;
+
+      // We insert a default input for all of the non-generator predecessor.
+      int input_count_without_generator =
+          loop_pred->PredecessorCount() - kSkipGeneratorPredecessor;
+      DCHECK(loop_default_generator_value_.valid());
+      inputs.insert(inputs.begin(), input_count_without_generator,
+                    loop_default_generator_value_);
+
+      // And we insert the "true" input for the generator predecessor (which is
+      // {pred_for_generator} above).
+      DCHECK(switch_var_first_input.valid());
+      inputs.push_back(switch_var_first_input);
+
+      __ SetVariable(
+          header_switch_input_,
+          __ Phi(base::VectorOf(inputs), RegisterRepresentation::Word32()));
     }
 
     // Actually jumping to the loop.
     __ Goto(Map(maglev_loop_header));
+  }
+
+  void NotifyPhiProcessed() {
+    // Loop headers that are bypassed because of generators need to be turned
+    // into secondary generator switches (so as to not be bypassed anymore).
+    // Concretely, we split the loop headers in half by inserting a Switch right
+    // after the loop phis have been emitted. Here is a visual representation of
+    // what's happening:
+    //
+    // Before:
+    //
+    //              |         ----------------------------
+    //              |         |                          |
+    //              |         |                          |
+    //              v         v                          |
+    //      +------------------------+                   |
+    //      | phi_1(...)             |                   |
+    //      | ...                    |                   |
+    //      | phi_k(...)             |                   |
+    //      | <some op 1>            |                   |
+    //      | ...                    |                   |
+    //      | <some op n>            |                   |
+    //      | Branch                 |                   |
+    //      +------------------------+                   |
+    //                 |                                 |
+    //                 |                                 |
+    //                 v                                 |
+    //
+    //
+    // After:
+    //
+    //
+    //              |         -----------------------------------
+    //              |         |                                 |
+    //              |         |                                 |
+    //              v         v                                 |
+    //      +------------------------+                          |
+    //      | phi_1(...)             |                          |
+    //      | ...                    |                          |
+    //      | phi_k(...)             |                          |
+    //      | Switch                 |                          |
+    //      +------------------------+                          |
+    //        /   |     |      \                                |
+    //       /    |     |       \                               |
+    //      /     |     |        \                              |
+    //     v      v     v         v                             |
+    //                        +------------------+              |
+    //                        | <some op 1>      |              |
+    //                        | ...              |              |
+    //                        | <some op n>      |              |
+    //                        | Branch           |              |
+    //                        +------------------+              |
+    //                                 |                        |
+    //                                 |                        |
+    //                                 v                        |
+    //
+    //
+    // Since `NotifyPhiProcessed` is called right after all phis have been
+    // emitted, now is thus the time to split the loop header.
+
+    if (on_generator_switch_loop_) {
+      const maglev::BasicBlock* maglev_loop_header = __ maglev_input_block();
+      DCHECK(maglev_loop_header->is_loop());
+      std::vector<GeneratorSplitEdge>& generator_preds =
+          pre_loop_generator_blocks_[maglev_loop_header];
+
+      compiler::turboshaft::SwitchOp::Case* cases =
+          __ output_graph().graph_zone()
+              -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                               generator_preds.size());
+
+      for (int i = 0; static_cast<unsigned int>(i) < generator_preds.size();
+           i++) {
+        GeneratorSplitEdge pred = generator_preds[i];
+        cases[i] = {pred.switch_value, pred.inside_loop_target,
+                    BranchHint::kNone};
+      }
+      Block* default_block = __ NewBlock();
+      __ Switch(__ GetVariable(header_switch_input_),
+                base::VectorOf(cases, generator_preds.size()), default_block);
+
+      // We now bind {default_block}. It will contain the rest of the loop
+      // header. The MaglevGraphProcessor will continue to visit the header's
+      // body as if nothing happened.
+      __ Bind(default_block);
+    }
+    on_generator_switch_loop_ = false;
   }
 
   maglev::ProcessResult Process(maglev::Constant* node,
@@ -671,7 +1242,8 @@ class GraphBuilder {
     if (__ current_block()->IsLoop()) {
       DCHECK(state.block()->is_loop());
       OpIndex first_phi_input;
-      if (state.block()->predecessor_count() > 2) {
+      if (state.block()->predecessor_count() > 2 ||
+          generator_analyzer_.HeaderIsBypassed(state.block())) {
         // This loop has multiple forward edge in Maglev, so we should have
         // created an intermediate block in Turboshaft, which will be the only
         // predecessor of the Turboshaft loop, and from which we'll find the
@@ -680,7 +1252,7 @@ class GraphBuilder {
                   static_cast<size_t>(state.block()->phis()->LengthForTest()));
         DCHECK_GE(loop_phis_first_input_index_, 0);
         DCHECK_LT(loop_phis_first_input_index_, loop_phis_first_input_.size());
-        DCHECK(MapContains(loop_single_edge_predecessors_, state.block()));
+        DCHECK(loop_single_edge_predecessors_.contains(state.block()));
         DCHECK_EQ(loop_single_edge_predecessors_[state.block()],
                   __ current_block()->LastPredecessor());
         first_phi_input = loop_phis_first_input_[loop_phis_first_input_index_];
@@ -698,8 +1270,9 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  V<Any> MakePhiMaybePermuteInputs(maglev::ValueNode* maglev_node,
-                                   int maglev_input_count) {
+  V<Any> MakePhiMaybePermuteInputs(
+      maglev::ValueNode* maglev_node, int maglev_input_count,
+      OptionalV<Any> additional_input = OptionalV<Any>::Nullopt()) {
     DCHECK(!predecessor_permutation_.empty());
 
     base::SmallVector<OpIndex, 16> inputs;
@@ -712,6 +1285,13 @@ class GraphBuilder {
       if (predecessor_permutation_[i] != Block::kInvalidPredecessorIndex) {
         inputs[predecessor_permutation_[i]] = Map(maglev_node->input(i));
       }
+    }
+
+    if (additional_input.has_value()) {
+      // When a loop header was bypassed by a generator resume, we insert an
+      // additional predecessor to the loop, and thus need an additional input
+      // for the Phis.
+      inputs[inputs.size() - 1] = additional_input.value();
     }
 
     return __ Phi(
@@ -2521,7 +3101,8 @@ class GraphBuilder {
 
   void BuildJump(maglev::BasicBlock* target) {
     Block* destination = Map(target);
-    if (target->is_loop() && target->predecessor_count() > 2) {
+    if (target->is_loop() && (target->predecessor_count() > 2 ||
+                              generator_analyzer_.HeaderIsBypassed(target))) {
       // This loop has multiple forward edge in Maglev, so we'll create an extra
       // block in Turboshaft that will be the only predecessor.
       auto it = loop_single_edge_predecessors_.find(target);
@@ -2535,6 +3116,7 @@ class GraphBuilder {
     }
     __ Goto(destination);
   }
+
   maglev::ProcessResult Process(maglev::Jump* node,
                                 const maglev::ProcessingState& state) {
     BuildJump(node->target());
@@ -2548,6 +3130,9 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::JumpLoop* node,
                                 const maglev::ProcessingState& state) {
+    if (header_switch_input_.valid()) {
+      __ SetVariable(header_switch_input_, loop_default_generator_value_);
+    }
     __ Goto(Map(node->target()));
     FixLoopPhis(node->target());
     return maglev::ProcessResult::kContinue;
@@ -2791,6 +3376,61 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::Switch* node,
                                 const maglev::ProcessingState& state) {
+    if (is_visiting_generator_main_switch_) {
+      // This is the main resume-switch for a generator, and some of its target
+      // bypass loop headers. We need to re-route the destinations to the
+      // bypassed loop headers, where secondary switches will be inserted.
+
+      compiler::turboshaft::SwitchOp::Case* cases =
+          __ output_graph().graph_zone()
+              -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                               node->size());
+
+      DCHECK_EQ(0, node->value_base());
+
+      for (int i = 0; i < node->size(); i++) {
+        maglev::BasicBlock* target = node->targets()[i].block_ptr();
+        if (generator_analyzer_.JumpBypassesHeader(target)) {
+          Block* new_dst = __ NewBlock();
+
+          const maglev::BasicBlock* innermost_bypassed_header =
+              generator_analyzer_.GetInnermostBypassedHeader(target);
+
+          pre_loop_generator_blocks_[innermost_bypassed_header].push_back(
+              {new_dst, Map(target), i});
+
+          // {innermost_bypassed_header} is only the innermost bypassed header.
+          // We also need to record bypasses of outer headers. In the end, we
+          // want this main Switch to go to before the outermost header, which
+          // will dispatch to the next inner loop, and so on until the innermost
+          // loop header and then to the initial destination.
+          for (const maglev::BasicBlock* bypassed_header =
+                   generator_analyzer_.GetLoopHeader(innermost_bypassed_header);
+               bypassed_header != nullptr;
+               bypassed_header =
+                   generator_analyzer_.GetLoopHeader(bypassed_header)) {
+            Block* prev_loop_dst = __ NewBlock();
+            pre_loop_generator_blocks_[bypassed_header].push_back(
+                {prev_loop_dst, new_dst, i});
+            new_dst = prev_loop_dst;
+          }
+
+          cases[i] = {i, new_dst, BranchHint::kNone};
+
+        } else {
+          cases[i] = {i, Map(target), BranchHint::kNone};
+        }
+      }
+
+      Block* default_block = __ NewBlock();
+      __ Switch(Map(node->value()), base::VectorOf(cases, node->size()),
+                default_block);
+      __ Bind(default_block);
+      __ Unreachable();
+
+      return maglev::ProcessResult::kContinue;
+    }
+
     compiler::turboshaft::SwitchOp::Case* cases =
         __ output_graph().graph_zone()
             -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
@@ -3554,19 +4194,34 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::GeneratorStore* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): implement.
-    *bailout_ = BailoutReason::kGraphBuildingFailed;
-    return maglev::ProcessResult::kAbort;
+    base::SmallVector<OpIndex, 32> parameters_and_registers;
+    int num_parameters_and_registers = node->num_parameters_and_registers();
+    for (int i = 0; i < num_parameters_and_registers; i++) {
+      parameters_and_registers.push_back(
+          Map(node->parameters_and_registers(i)));
+    }
+    __ GeneratorStore(Map(node->context_input()), Map(node->generator_input()),
+                      parameters_and_registers, node->suspend_id(),
+                      node->bytecode_offset());
+    return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::GeneratorRestoreRegister* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): implement.
-    *bailout_ = BailoutReason::kGraphBuildingFailed;
-    return maglev::ProcessResult::kAbort;
+    V<FixedArray> array = Map(node->array_input());
+    V<Object> result =
+        __ LoadTaggedField(array, FixedArray::OffsetOfElementAt(node->index()));
+    __ Store(array, Map(node->stale_input()), StoreOp::Kind::TaggedBase(),
+             MemoryRepresentation::TaggedSigned(),
+             WriteBarrierKind::kNoWriteBarrier,
+             FixedArray::OffsetOfElementAt(node->index()));
+
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::Abort* node,
-                                const maglev::ProcessingState&) {
+                                const maglev::ProcessingState& state) {
     __ RuntimeAbort(node->reason());
     // TODO(dmercadier): remove this `Unreachable` once RuntimeAbort is marked
     // as a block terminator.
@@ -4781,7 +5436,8 @@ class GraphBuilder {
   // {loop_single_edge_predecessors_}), and jumps to the loop will instead go to
   // this additional block, which will become the only forward predecessor of
   // the loop.
-  ZoneUnorderedMap<maglev::BasicBlock*, Block*> loop_single_edge_predecessors_;
+  ZoneUnorderedMap<const maglev::BasicBlock*, Block*>
+      loop_single_edge_predecessors_;
   // When we create an additional loop predecessor for loops that have multiple
   // forward predecessors, we store the newly created phis in
   // {loop_phis_first_input_}, so that we can then use them as the first input
@@ -4808,6 +5464,40 @@ class GraphBuilder {
   // Turboshaft, but they need to be tagged differently).
   ZoneAbslFlatHashMap<OpIndex, maglev::ValueRepresentation>
       maglev_representations_;
+
+  GeneratorAnalyzer generator_analyzer_;
+  static constexpr int kDefaultSwitchVarValue = -1;
+  // {is_visiting_generator_main_switch_} is true if the function is a resumable
+  // generator, and the current input block is the main dispatch switch for
+  // resuming the generator.
+  bool is_visiting_generator_main_switch_ = false;
+  // {on_generator_switch_loop_} is true if the current input block is a loop
+  // that used to be bypassed by generator resumes, and thus that needs a
+  // secondary generator dispatch switch.
+  bool on_generator_switch_loop_ = false;
+  // {header_switch_input_} is the value on which secondary generator switches
+  // should switch.
+  Variable header_switch_input_;
+  // When secondary dispatch switches for generators are created,
+  // {loop_default_generator_value_} is used as the default inputs for
+  // {header_switch_input_} for edges that weren't manually inserted in the
+  // translation for generators.
+  V<Word32> loop_default_generator_value_ = V<Word32>::Invalid();
+  // If the main generator switch bypasses some loop headers, we'll need to
+  // add an additional predecessor to these loop headers to get rid of the
+  // bypass. If we do so, we'll need a dummy input for the loop Phis, which
+  // we create here.
+  V<Object> dummy_object_input_ = V<Object>::Invalid();
+  V<Word32> dummy_word32_input_ = V<Word32>::Invalid();
+  V<Float64> dummy_float64_input_ = V<Float64>::Invalid();
+
+  struct GeneratorSplitEdge {
+    Block* pre_loop_dst;
+    Block* inside_loop_target;
+    int switch_value;
+  };
+  std::unordered_map<const maglev::BasicBlock*, std::vector<GeneratorSplitEdge>>
+      pre_loop_generator_blocks_;
 
   V<NativeContext> native_context_ = V<NativeContext>::Invalid();
   V<Object> new_target_param_ = V<Object>::Invalid();

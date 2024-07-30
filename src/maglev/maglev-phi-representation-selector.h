@@ -43,6 +43,7 @@ class MaglevPhiRepresentationSelector {
       StdoutStream{} << "\n";
     }
   }
+  void NotifyPhiProcessed() {}
   void PreProcessBasicBlock(BasicBlock* block);
 
   enum ProcessPhiResult { kNone, kRetryOnChange, kChanged };

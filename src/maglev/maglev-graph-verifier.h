@@ -28,6 +28,7 @@ class MaglevGraphVerifier {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void NotifyPhiProcessed() {}
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   template <typename NodeT>
