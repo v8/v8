@@ -3306,6 +3306,8 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
   return false;
 }
 
+bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
                                              uint64_t oob_index) {
   UNREACHABLE();
