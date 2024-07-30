@@ -4972,9 +4972,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
         },
         emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); });
   } else {
-    AddNewNode<CheckInt32Condition>({index, length},
-                                    AssertCondition::kUnsignedLessThan,
-                                    DeoptimizeReason::kOutOfBounds);
+    RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+        index, length, AssertCondition::kUnsignedLessThan,
+        DeoptimizeReason::kOutOfBounds));
     return emit_load();
   }
 }
@@ -4993,7 +4993,47 @@ ReduceResult TryFindLoadedProperty(
   return it->second;
 }
 
+bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
+  switch (condition) {
+    case AssertCondition::kEqual:
+      return lhs == rhs;
+    case AssertCondition::kNotEqual:
+      return lhs != rhs;
+    case AssertCondition::kLessThan:
+      return lhs < rhs;
+    case AssertCondition::kLessThanEqual:
+      return lhs <= rhs;
+    case AssertCondition::kGreaterThan:
+      return lhs > rhs;
+    case AssertCondition::kGreaterThanEqual:
+      return lhs >= rhs;
+    case AssertCondition::kUnsignedLessThan:
+      return static_cast<uint32_t>(lhs) < static_cast<uint32_t>(rhs);
+    case AssertCondition::kUnsignedLessThanEqual:
+      return static_cast<uint32_t>(lhs) <= static_cast<uint32_t>(rhs);
+    case AssertCondition::kUnsignedGreaterThan:
+      return static_cast<uint32_t>(lhs) > static_cast<uint32_t>(rhs);
+    case AssertCondition::kUnsignedGreaterThanEqual:
+      return static_cast<uint32_t>(lhs) >= static_cast<uint32_t>(rhs);
+  }
+}
+
 }  // namespace
+
+ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
+    ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
+    DeoptimizeReason reason) {
+  if (Int32Constant* lhs_const = lhs->TryCast<Int32Constant>()) {
+    if (Int32Constant* rhs_const = rhs->TryCast<Int32Constant>()) {
+      return CheckConditionIn32(lhs_const->value(), rhs_const->value(),
+                                condition)
+                 ? ReduceResult::Done()
+                 : ReduceResult::DoneWithAbort();
+    }
+  }
+  AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
+  return ReduceResult::Done();
+}
 
 ValueNode* MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
   ReduceResult known_elements =
@@ -5211,9 +5251,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
         },
         emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); });
   } else {
-    AddNewNode<CheckInt32Condition>({index, length},
-                                    AssertCondition::kUnsignedLessThan,
-                                    DeoptimizeReason::kOutOfBounds);
+    RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+        index, length, AssertCondition::kUnsignedLessThan,
+        DeoptimizeReason::kOutOfBounds));
     return emit_load();
   }
 }
@@ -5289,9 +5329,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
           : is_jsarray
               ? AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)})
               : elements_array_length;
-      AddNewNode<CheckInt32Condition>({index, limit},
-                                      AssertCondition::kUnsignedLessThan,
-                                      DeoptimizeReason::kOutOfBounds);
+      RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+          index, limit, AssertCondition::kUnsignedLessThan,
+          DeoptimizeReason::kOutOfBounds));
 
       // Grow backing store if necessary and handle COW.
       elements_array = AddNewNode<MaybeGrowFastElements>(
@@ -5315,9 +5355,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
                             false, compiler::AccessMode::kStore);
       }
     } else {
-      AddNewNode<CheckInt32Condition>({index, length},
-                                      AssertCondition::kUnsignedLessThan,
-                                      DeoptimizeReason::kOutOfBounds);
+      RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+          index, length, AssertCondition::kUnsignedLessThan,
+          DeoptimizeReason::kOutOfBounds));
 
       // Handle COW if needed.
       if (IsSmiOrObjectElementsKind(elements_kind)) {
@@ -7225,9 +7265,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // is the same value node, then we didn't have any side effects and didn't
     // clear the cached length.
     if (current_length != original_length) {
-      AddNewNode<CheckInt32Condition>({original_length_int32, current_length},
+      RETURN_IF_ABORT(
+          TryBuildCheckInt32Condition(original_length_int32, current_length,
                                       AssertCondition::kUnsignedLessThanEqual,
-                                      DeoptimizeReason::kArrayLengthChanged);
+                                      DeoptimizeReason::kArrayLengthChanged));
     }
   }
 
@@ -7476,9 +7517,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   BuildCheckString(receiver);
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
-  AddNewNode<CheckInt32Condition>({index, length},
-                                  AssertCondition::kUnsignedLessThan,
-                                  DeoptimizeReason::kOutOfBounds);
+  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+      index, length, AssertCondition::kUnsignedLessThan,
+      DeoptimizeReason::kOutOfBounds));
   return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
       {receiver, index},
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
@@ -7502,9 +7543,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   BuildCheckString(receiver);
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
-  AddNewNode<CheckInt32Condition>({index, length},
-                                  AssertCondition::kUnsignedLessThan,
-                                  DeoptimizeReason::kOutOfBounds);
+  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
+      index, length, AssertCondition::kUnsignedLessThan,
+      DeoptimizeReason::kOutOfBounds));
   return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
       {receiver, index},
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
