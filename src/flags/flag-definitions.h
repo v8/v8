@@ -1434,8 +1434,8 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future,
 DEFINE_IMPLICATION(experimental_wasm_shared, turboshaft_wasm)
 DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
 
-// FP16 is implemented on liftoff only for now.
-DEFINE_IMPLICATION(experimental_wasm_fp16, liftoff_only)
+// FP16 is implemented on liftoff and turboshaft only for now.
+DEFINE_IMPLICATION(experimental_wasm_fp16, turboshaft_wasm)
 #endif
 
 #ifdef DEBUG

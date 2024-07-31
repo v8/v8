@@ -1404,6 +1404,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
+    bool needs_f16_to_f32_conv = false;
+    if (type.value() == LoadType::kF32LoadF16) {
+      needs_f16_to_f32_conv = true;
+      type = LoadType::kI32Load16U;
+    }
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineType(type.mem_type());
 
@@ -1427,11 +1432,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     load = BuildChangeEndiannessLoad(load, type.mem_type(), type.value_type());
 #endif
 
-    OpIndex extended_load =
-        (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8)
-            ? (repr.IsSigned() ? __ ChangeInt32ToInt64(load)
-                               : __ ChangeUint32ToUint64(load))
-            : load;
+    if (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8) {
+      load = repr.IsSigned() ? __ ChangeInt32ToInt64(load)
+                             : __ ChangeUint32ToUint64(load);
+    }
+
+    if (needs_f16_to_f32_conv) {
+      load = CallCStackSlotToStackSlot(
+          load, ExternalReference::wasm_float16_to_float32(),
+          MemoryRepresentation::Uint16(), MemoryRepresentation::Float32());
+    }
 
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
@@ -1439,7 +1449,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
-    result->op = extended_load;
+    result->op = load;
   }
 
   void LoadTransform(FullDecoder* decoder, LoadType type,
@@ -1563,6 +1573,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
+    bool needs_f32_to_f16_conv = false;
+    if (type.value() == StoreType::kF32StoreF16) {
+      needs_f32_to_f16_conv = true;
+      type = StoreType::kI32Store16;
+    }
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
@@ -1580,6 +1595,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     OpIndex store_value = value.op;
     if (value.type == kWasmI64 && repr.SizeInBytes() <= 4) {
       store_value = __ TruncateWord64ToWord32(store_value);
+    }
+    if (needs_f32_to_f16_conv) {
+      store_value = CallCStackSlotToStackSlot(
+          store_value, ExternalReference::wasm_float32_to_float16(),
+          MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
     }
 
 #if defined(V8_TARGET_BIG_ENDIAN)

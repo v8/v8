@@ -18,18 +18,20 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_f16 {
 
-TEST(F16Load) {
+WASM_EXEC_TEST(F16Load) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<float> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<float> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_LOAD_MEM(WASM_I32V_1(4))});
   r.builder().WriteMemory(&memory[2], fp16_ieee_from_fp32_value(2.75));
   CHECK_EQ(2.75f, r.Call());
 }
 
-TEST(F16Store) {
+WASM_EXEC_TEST(F16Store) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_STORE_MEM(WASM_I32V_1(4), WASM_F32(2.75)), WASM_ZERO});
   r.Call();
