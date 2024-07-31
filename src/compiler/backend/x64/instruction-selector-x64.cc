@@ -104,6 +104,69 @@ bool LhsIsNotOnlyConstant(turboshaft::Graph* graph,
 
 }  // namespace
 
+bool ValueFitsIntoImmediate(int64_t value) {
+  // int32_t min will overflow if displacement mode is kNegativeDisplacement.
+  constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
+  constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
+  static_assert(kImmediateMin ==
+                turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
+  static_assert(kImmediateMax ==
+                turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
+  return kImmediateMin <= value && value <= kImmediateMax;
+}
+
+template <typename Adapter>
+bool CanBeImmediate(InstructionSelectorT<Adapter>* selector,
+                    typename Adapter::node_t node) {
+  // TODO(dmercadier): this is not in sync with GetImmediateIntegerValue, which
+  // is surprising because we often use the pattern
+  // `if (CanBeImmediate()) { GetImmediateIntegerValue }`. We should make sure
+  // that both functions are in sync.
+  if (!selector->is_constant(node)) return false;
+  auto constant = selector->constant_view(node);
+  if (constant.is_compressed_heap_object()) {
+    if (!COMPRESS_POINTERS_BOOL) return false;
+    // For builtin code we need static roots
+    if (selector->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+      return false;
+    }
+    const RootsTable& roots_table = selector->isolate()->roots_table();
+    RootIndex root_index;
+    Handle<HeapObject> value = constant.heap_object_value();
+    if (roots_table.IsRootHandle(value, &root_index)) {
+      return RootsTable::IsReadOnly(root_index);
+    }
+    return false;
+  }
+  if (constant.is_int32() || constant.is_relocatable_int32()) {
+    const int32_t value = constant.int32_value();
+    // int32_t min will overflow if displacement mode is
+    // kNegativeDisplacement.
+    return value != std::numeric_limits<int32_t>::min();
+  }
+  if (constant.is_int64()) {
+    const int64_t value = constant.int64_value();
+    return ValueFitsIntoImmediate(value);
+  }
+  if (constant.is_number_zero()) {
+    return true;
+  }
+  return false;
+}
+
+template <typename Adapter>
+int32_t GetImmediateIntegerValue(InstructionSelectorT<Adapter>* selector,
+                                 typename Adapter::node_t node) {
+  DCHECK(CanBeImmediate(selector, node));
+  auto constant = selector->constant_view(node);
+  if (constant.is_int32()) return constant.int32_value();
+  if (constant.is_int64()) {
+    return static_cast<int32_t>(constant.int64_value());
+  }
+  DCHECK(constant.is_number_zero());
+  return 0;
+}
+
 template <typename Adapter>
 struct ScaledIndexMatch {
   using node_t = typename Adapter::node_t;
@@ -333,10 +396,18 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
   } else if (const Simd128LoadTransformOp* load_transform =
                  op.TryCast<Simd128LoadTransformOp>()) {
     result.base = load_transform->base();
-    result.index = load_transform->index();
     DCHECK_EQ(load_transform->offset, 0);
+
+    if (CanBeImmediate(selector, load_transform->index())) {
+      result.index = {};
+      result.displacement =
+          GetImmediateIntegerValue(selector, load_transform->index());
+    } else {
+      result.index = load_transform->index();
+      result.displacement = 0;
+    }
+
     result.scale = 0;
-    result.displacement = 0;
     DCHECK(!load_transform->load_kind.tagged_base);
     return result;
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -564,48 +635,11 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeImmediate(node_t node) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_compressed_heap_object()) {
-      if (!COMPRESS_POINTERS_BOOL) return false;
-      // For builtin code we need static roots
-      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
-        return false;
-      }
-      const RootsTable& roots_table = selector()->isolate()->roots_table();
-      RootIndex root_index;
-      Handle<HeapObject> value = constant.heap_object_value();
-      if (roots_table.IsRootHandle(value, &root_index)) {
-        return RootsTable::IsReadOnly(root_index);
-      }
-      return false;
-    }
-    if (constant.is_int32() || constant.is_relocatable_int32()) {
-      const int32_t value = constant.int32_value();
-      // int32_t min will overflow if displacement mode is
-      // kNegativeDisplacement.
-      return value != std::numeric_limits<int32_t>::min();
-    }
-    if (constant.is_int64()) {
-      const int64_t value = constant.int64_value();
-      return std::numeric_limits<int32_t>::min() < value &&
-             value <= std::numeric_limits<int32_t>::max();
-    }
-    if (constant.is_number_zero()) {
-      return true;
-    }
-    return false;
+    return compiler::CanBeImmediate(this->selector(), node);
   }
 
   int32_t GetImmediateIntegerValue(node_t node) {
-    DCHECK(CanBeImmediate(node));
-    auto constant = this->constant_view(node);
-    if (constant.is_int32()) return constant.int32_value();
-    if (constant.is_int64()) {
-      return static_cast<int32_t>(constant.int64_value());
-    }
-    DCHECK(constant.is_number_zero());
-    return 0;
+    return compiler::GetImmediateIntegerValue(this->selector(), node);
   }
 
   bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,
@@ -662,17 +696,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         break;
     }
     return false;
-  }
-
-  bool ValueFitsIntoImmediate(int64_t value) const {
-    // int32_t min will overflow if displacement mode is kNegativeDisplacement.
-    constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
-    constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
-    static_assert(kImmediateMin ==
-                  turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
-    static_assert(kImmediateMax ==
-                  turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
-    return kImmediateMin <= value && value <= kImmediateMax;
   }
 
   bool IsZeroIntConstant(node_t node) const {
@@ -1957,7 +1980,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
         inputs[input_count++] = g.GetEffectiveIndexOperand(
             selector->value(index), &addressing_mode);
       } else if (displacement != 0) {
-        DCHECK(g.ValueFitsIntoImmediate(displacement));
+        DCHECK(ValueFitsIntoImmediate(displacement));
         inputs[input_count++] = g.UseImmediate(displacement);
         addressing_mode = kMode_MRI;
       } else {
@@ -2654,7 +2677,7 @@ bool TryEmitLoadForLoadWord64AndShiftRight(
     auto m =
         TryMatchBaseWithScaledIndexAndDisplacement64(selector, shift.left());
     if (m.has_value() &&
-        (m->displacement == 0 || g.ValueFitsIntoImmediate(m->displacement))) {
+        (m->displacement == 0 || ValueFitsIntoImmediate(m->displacement))) {
 #ifdef V8_IS_TSAN
       // On TSAN builds we require one scratch register. Because of this we also
       // have to modify the inputs to take into account possible aliasing and
@@ -2881,7 +2904,7 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   }
 
   if (m.has_value()) {
-    if (g.ValueFitsIntoImmediate(m->displacement)) {
+    if (ValueFitsIntoImmediate(m->displacement)) {
       EmitLea(this, kX64Lea32, node, m->index, m->scale, m->base,
               m->displacement, m->displacement_mode);
       return;
@@ -2897,7 +2920,7 @@ void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   // Try to match the Add to a leaq pattern
   if (auto match = TryMatchBaseWithScaledIndexAndDisplacement64(this, node)) {
-    if (g.ValueFitsIntoImmediate(match->displacement)) {
+    if (ValueFitsIntoImmediate(match->displacement)) {
       EmitLea(this, kX64Lea, node, match->index, match->scale, match->base,
               match->displacement, match->displacement_mode);
       return;
@@ -3011,7 +3034,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Sub(node_t node) {
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
     int64_t immediate_value = -*constant;
-    if (g.ValueFitsIntoImmediate(immediate_value)) {
+    if (ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
       Emit(kX64Lea | AddressingModeField::encode(kMode_MRI),
@@ -7363,15 +7386,36 @@ void InstructionSelectorT<Adapter>::VisitI64x2Abs(node_t node) {
   }
 }
 
+template <>
+bool InstructionSelectorT<TurboshaftAdapter>::CanOptimizeF64x2PromoteLowF32x4(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(this->Get(node).Is<Opmask::kSimd128F64x2PromoteLowF32x4>());
+  V<Simd128> input = this->input_at(node, 0);
+  return this->Get(input).template Is<Opmask::kSimd128LoadTransform64Zero>() &&
+         CanCover(node, input);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   InstructionCode code = kX64F64x2PromoteLowF32x4;
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this special case for turboshaft. Note
-    // that this special case may require adaptions in instruction-selector.cc
-    // in `FinishEmittedInstructions`, similar to what exists for TurboFan.
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    if (CanOptimizeF64x2PromoteLowF32x4(node)) {
+      V<Simd128> input = this->input_at(node, 0);
+      const Simd128LoadTransformOp& load_transform =
+          this->Get(input).template Cast<Simd128LoadTransformOp>();
+      if (load_transform.load_kind.with_trap_handler) {
+        code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      }
+      // LoadTransforms cannot be eliminated, so they are visited even if
+      // unused. Mark it as defined so that we don't visit it.
+      MarkAsDefined(input);
+      VisitLoad(node, input, code);
+      return;
+    }
   } else {
     node_t input = this->input_at(node, 0);
     LoadTransformMatcher m(input);

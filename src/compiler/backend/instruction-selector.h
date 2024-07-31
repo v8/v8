@@ -1124,6 +1124,10 @@ class InstructionSelectorT final : public Adapter {
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+#ifdef V8_TARGET_ARCH_X64
+  bool CanOptimizeF64x2PromoteLowF32x4(node_t node);
+#endif
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================

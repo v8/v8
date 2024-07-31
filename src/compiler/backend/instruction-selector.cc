@@ -1787,9 +1787,25 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
 
     SourcePosition source_position;
     if constexpr (Adapter::IsTurboshaft) {
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
+      if (V8_UNLIKELY(
+              this->Get(node)
+                  .template Is<
+                      turboshaft::Opmask::kSimd128F64x2PromoteLowF32x4>())) {
+        // On x64 there exists an optimization that folds
+        // `kF64x2PromoteLowF32x4` and `kS128Load64Zero` together into a single
+        // instruction. If the instruction causes an out-of-bounds memory
+        // access exception, then the stack trace has to show the source
+        // position of the `kS128Load64Zero` and not of the
+        // `kF64x2PromoteLowF32x4`.
+        if (this->CanOptimizeF64x2PromoteLowF32x4(node)) {
+          node = this->input_at(node, 0);
+        }
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
       source_position = (*source_positions_)[node];
     } else {
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
       if (V8_UNLIKELY(node->opcode() == IrOpcode::kF64x2PromoteLowF32x4)) {
         // On x64 there exists an optimization that folds
         // `kF64x2PromoteLowF32x4` and `kS128Load64Zero` together into a single
@@ -1805,7 +1821,7 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
           node = input;
         }
       }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
       source_position = source_positions_->GetSourcePosition(node);
     }
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
