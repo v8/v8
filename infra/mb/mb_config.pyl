@@ -70,6 +70,7 @@
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - official - builder': 'official_x64_on_release_branch',
       'V8 Linux64 - debug builder': 'debug_x64',
+      'V8 Linux64 - no leaptiering - debug builder': 'debug_x64_no_leaptiering',
       'V8 Linux64 - no shared cage - debug builder': 'debug_x64_no_shared_cage',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
@@ -273,6 +274,7 @@
       'v8_linux64_asan_centipede_compile_rel': 'release_x64_asan_centipede',
       'v8_linux64_cppgc_non_default_compile_dbg': 'debug_x64_non_default_cppgc',
       'v8_linux64_compile_dbg': 'debug_x64_trybot',
+      'v8_linux64_no_leaptiering_compile_dbg': 'debug_x64_no_leaptiering',
       'v8_linux64_no_shared_cage_compile_dbg': 'debug_x64_no_shared_cage',
       'v8_linux64_coverage_dbg': 'debug_x64_coverage',
       'v8_linux64_coverage_rel': 'release_x64_coverage',
@@ -701,6 +703,8 @@
       'debug_bot_no_reclient', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
+    'debug_x64_no_leaptiering': [
+      'debug_bot', 'x64', 'v8_disable_leaptiering'],
     'debug_x64_no_shared_cage': [
       'debug_bot', 'x64', 'v8_disable_pointer_compression_shared_cage'],
     'debug_x64_minimal_symbols': [
@@ -1066,6 +1070,10 @@
 
     'v8_control_flow_integrity' : {
       'gn_args': 'v8_control_flow_integrity=true',
+    },
+
+    'v8_disable_leaptiering': {
+      'gn_args': 'v8_disable_leaptiering=true',
     },
 
     'v8_disable_runtime_call_stats': {
