@@ -134,11 +134,6 @@ class BasicBlock {
     return state_->predecessor_at(i);
   }
 
-  BasicBlock* backedge_predecessor() const {
-    DCHECK(is_loop());
-    return predecessor_at(predecessor_count() - 1);
-  }
-
   int predecessor_id() const {
     return control_node()->Cast<UnconditionalControlNode>()->predecessor_id();
   }

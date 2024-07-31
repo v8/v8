@@ -141,9 +141,6 @@ class Graph final : public ZoneObject {
 
   uint32_t NewObjectId() { return object_ids_++; }
 
-  void set_has_resumable_generator() { has_resumable_generator_ = true; }
-  bool has_resumable_generator() const { return has_resumable_generator_; }
-
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
   compiler::OptionalScopeInfoRef TryGetScopeInfo(
@@ -227,7 +224,6 @@ class Graph final : public ZoneObject {
   int total_inlined_bytecode_size_ = 0;
   bool is_osr_ = false;
   uint32_t object_ids_ = 0;
-  bool has_resumable_generator_ = false;
   ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
 };
 

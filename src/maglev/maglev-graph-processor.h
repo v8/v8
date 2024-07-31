@@ -132,8 +132,6 @@ class GraphProcessor {
         }
       }
 
-      node_processor_.NotifyPhiProcessed();
-
       for (node_it_ = block->nodes().begin();
            node_it_ != block->nodes().end();) {
         Node* node = *node_it_;
@@ -206,7 +204,6 @@ class NodeMultiProcessor<> {
                                   const ProcessingState& state) {
     return ProcessResult::kContinue;
   }
-  void NotifyPhiProcessed() {}
 };
 
 template <typename Processor, typename... Processors>
@@ -243,10 +240,6 @@ class NodeMultiProcessor<Processor, Processors...>
   void PreProcessBasicBlock(BasicBlock* block) {
     processor_.PreProcessBasicBlock(block);
     Base::PreProcessBasicBlock(block);
-  }
-  void NotifyPhiProcessed() {
-    processor_.NotifyPhiProcessed();
-    Base::NotifyPhiProcessed();
   }
 
  private:

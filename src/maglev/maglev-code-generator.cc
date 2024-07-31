@@ -776,7 +776,6 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {}
-  void NotifyPhiProcessed() {}
 
   void PreProcessBasicBlock(BasicBlock* block) {
     if (block->is_loop()) {
@@ -1107,7 +1106,6 @@ class SafepointingNodeProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void NotifyPhiProcessed() {}
   void PreProcessBasicBlock(BasicBlock* block) {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     local_isolate_->heap()->Safepoint();
