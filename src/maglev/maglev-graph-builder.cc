@@ -4265,7 +4265,12 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       compiler::OptionalObjectRef maybe_value =
           fixed_array_ref.TryGet(broker(), index);
       if (maybe_value) return GetConstant(*maybe_value);
+    } else {
+      return GetRootConstant(RootIndex::kTheHoleValue);
     }
+  }
+  if (index < 0 || index >= FixedArray::kMaxLength) {
+    return GetRootConstant(RootIndex::kTheHoleValue);
   }
   return AddNewNode<LoadTaggedField>({elements},
                                      FixedArray::OffsetOfElementAt(index));
