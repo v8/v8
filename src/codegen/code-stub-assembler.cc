@@ -1903,6 +1903,24 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
   }
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+TNode<Code> CodeStubAssembler::ResolveJSDispatchHandle(
+    TNode<JSDispatchHandleT> handle) {
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::js_dispatch_table_address());
+  TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
+  offset = UintPtrAdd(offset,
+                      UintPtrConstant(JSDispatchTable::kEntryCodeObjectOffset));
+  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+  // The LSB is used as marking bit by the js dispatch table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  value = UncheckedCast<UintPtrT>(WordOr(
+      WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+      UintPtrConstant(kHeapObjectTag)));
+  return CAST(BitcastWordToTagged(value));
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
     TNode<IndirectPointerHandleT> handle) {
   TNode<RawPtrT> table =
@@ -1915,7 +1933,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
   // to set it using a bitwise OR as it may or may not be set.
   value =
       UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return UncheckedCast<Code>(BitcastWordToTagged(value));
+  return CAST(BitcastWordToTagged(value));
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
@@ -1923,28 +1941,40 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
   TNode<Uint32T> index =
-      Word32Shr(handle, UniqueUint32Constant(kTrustedPointerHandleShift));
+      Word32Shr(handle, Uint32Constant(kTrustedPointerHandleShift));
   // We're using a 32-bit shift here to reduce code size, but for that we need
   // to be sure that the offset will always fit into a 32-bit integer.
   static_assert(kTrustedPointerTableReservationSize <= 4ULL * GB);
-  TNode<UintPtrT> offset = ChangeUint32ToWord(Word32Shl(
-      index, UniqueUint32Constant(kTrustedPointerTableEntrySizeLog2)));
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, Uint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
   // Untag the pointer and remove the marking bit in one operation.
   value = UncheckedCast<UintPtrT>(
       WordAnd(value, UintPtrConstant(~(tag | kTrustedPointerTableMarkBit))));
-  return UncheckedCast<TrustedObject>(BitcastWordToTagged(value));
+  return CAST(BitcastWordToTagged(value));
+}
+
+TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
+    TNode<JSDispatchHandleT> handle) {
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kJSDispatchHandleShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kJSDispatchTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, Uint32Constant(kJSDispatchTableEntrySizeLog2)));
+  return offset;
 }
 
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
     TNode<IndirectPointerHandleT> handle) {
   TNode<Uint32T> index =
-      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
+      Word32Shr(handle, Uint32Constant(kCodePointerHandleShift));
   // We're using a 32-bit shift here to reduce code size, but for that we need
   // to be sure that the offset will always fit into a 32-bit integer.
   static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
   TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
+      Word32Shl(index, Uint32Constant(kCodePointerTableEntrySizeLog2)));
   return offset;
 }
 
@@ -16930,6 +16960,27 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
+    Builtin builtin) {
+  return LoadBuiltinDispatchHandle(
+      SmiConstant(JSBuiltinDispatchHandleRoot::to_idx(builtin)));
+}
+
+TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
+    TNode<Smi> builtin_id) {
+  CSA_DCHECK(this, SmiBelow(builtin_id, SmiConstant(Builtins::kBuiltinCount)));
+
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(SmiToBInt(builtin_id), PACKED_SMI_ELEMENTS);
+
+  TNode<ExternalReference> table =
+      IsolateField(IsolateFieldId::kBuiltinDispatchTable);
+
+  return Load<JSDispatchHandleT>(table, offset);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
@@ -17132,9 +17183,41 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
 #ifdef V8_ENABLE_LEAPTIERING
-  // TODO(saelo): obtain an appropriate dispatch handle here
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
                                  Int32Constant(kNullJSDispatchHandle));
+#endif  // V8_ENABLE_LEAPTIERING
+
+  return CAST(fun);
+}
+
+TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithContext(
+    TNode<SharedFunctionInfo> shared_info,
+#ifdef V8_ENABLE_LEAPTIERING
+    TNode<JSDispatchHandleT> dispatch_handle,
+#endif
+    TNode<Context> context) {
+  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
+  const TNode<Map> map = CAST(
+      LoadContextElement(LoadNativeContext(context),
+                         Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+  const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
+  static_assert(JSFunction::kSizeWithoutPrototype ==
+                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
+  StoreMapNoWriteBarrier(fun, map);
+  StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(fun, JSFunction::kFeedbackCellOffset,
+                       RootIndex::kManyClosuresCell);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
+                                 shared_info);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
+  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
+#ifdef V8_ENABLE_LEAPTIERING
+  CSA_DCHECK(this, TaggedEqual(code, ResolveJSDispatchHandle(dispatch_handle)));
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
+                                 dispatch_handle);
 #endif  // V8_ENABLE_LEAPTIERING
 
   return CAST(fun);
