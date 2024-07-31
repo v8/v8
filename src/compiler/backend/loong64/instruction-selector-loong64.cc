@@ -725,69 +725,227 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   EmitLoad(this, node, opcode);
 }
 
+namespace {
+
+ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
+                         turboshaft::RegisterRepresentation result_rep) {
+  // NOTE: The meaning of `loaded_rep` = `MemoryRepresentation::AnyTagged()` is
+  // we are loading a compressed tagged field, while `result_rep` =
+  // `RegisterRepresentation::Tagged()` refers to an uncompressed tagged value.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (loaded_rep) {
+    case MemoryRepresentation::Int8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kLoong64Ld_b;
+    case MemoryRepresentation::Uint8():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kLoong64Ld_bu;
+    case MemoryRepresentation::Int16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kLoong64Ld_h;
+    case MemoryRepresentation::Uint16():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kLoong64Ld_hu;
+    case MemoryRepresentation::Int32():
+    case MemoryRepresentation::Uint32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
+      return kLoong64Ld_w;
+    case MemoryRepresentation::Int64():
+    case MemoryRepresentation::Uint64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
+      return kLoong64Ld_d;
+    case MemoryRepresentation::Float16():
+      UNIMPLEMENTED();
+    case MemoryRepresentation::Float32():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
+      return kLoong64Fld_s;
+    case MemoryRepresentation::Float64():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float64());
+      return kLoong64Fld_d;
+#ifdef V8_COMPRESS_POINTERS
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kLoong64Ld_wu;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kLoong64LoadDecompressTagged;
+    case MemoryRepresentation::TaggedSigned():
+      if (result_rep == RegisterRepresentation::Compressed()) {
+        return kLoong64Ld_wu;
+      }
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kLoong64LoadDecompressTaggedSigned;
+#else
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kLoong64Ld_d;
+#endif
+    case MemoryRepresentation::AnyUncompressedTagged():
+    case MemoryRepresentation::UncompressedTaggedPointer():
+    case MemoryRepresentation::UncompressedTaggedSigned():
+      DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
+      return kLoong64Ld_d;
+    case MemoryRepresentation::ProtectedPointer():
+      CHECK(V8_ENABLE_SANDBOX_BOOL);
+      return kLoong64LoadDecompressProtected;
+    case MemoryRepresentation::IndirectPointer():
+      UNREACHABLE();
+    case MemoryRepresentation::SandboxedPointer():
+      return kLoong64LoadDecodeSandboxedPointer;
+    case MemoryRepresentation::Simd128():  // Fall through.
+    case MemoryRepresentation::Simd256():
+      UNREACHABLE();
+  }
+}
+
+ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      return kLoong64Fld_s;
+    case MachineRepresentation::kFloat64:
+      return kLoong64Fld_d;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      return load_rep.IsUnsigned() ? kLoong64Ld_bu : kLoong64Ld_b;
+    case MachineRepresentation::kWord16:
+      return load_rep.IsUnsigned() ? kLoong64Ld_hu : kLoong64Ld_h;
+    case MachineRepresentation::kWord32:
+      return kLoong64Ld_w;
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      return kLoong64LoadDecompressTaggedSigned;
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTagged:
+      return kLoong64LoadDecompressTagged;
+#else
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+#endif
+    case MachineRepresentation::kWord64:
+      return kLoong64Ld_d;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      return kLoong64Ld_wu;
+#else
+      UNREACHABLE();
+#endif
+    case MachineRepresentation::kProtectedPointer:
+      CHECK(V8_ENABLE_SANDBOX_BOOL);
+      return kLoong64LoadDecompressProtected;
+    case MachineRepresentation::kSandboxedPointer:
+      return kLoong64LoadDecodeSandboxedPointer;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
+    case MachineRepresentation::kMapWord:          // Fall through.
+    case MachineRepresentation::kIndirectPointer:  // Fall through.
+    case MachineRepresentation::kNone:             // Fall through.
+    case MachineRepresentation::kSimd128:          // Fall through.
+    case MachineRepresentation::kSimd256:
+      UNREACHABLE();
+  }
+}
+
+ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (stored_rep) {
+    case MemoryRepresentation::Int8():
+    case MemoryRepresentation::Uint8():
+      return kLoong64St_b;
+    case MemoryRepresentation::Int16():
+    case MemoryRepresentation::Uint16():
+      return kLoong64St_h;
+    case MemoryRepresentation::Int32():
+    case MemoryRepresentation::Uint32():
+      return kLoong64St_w;
+    case MemoryRepresentation::Int64():
+    case MemoryRepresentation::Uint64():
+      return kLoong64St_d;
+    case MemoryRepresentation::Float16():
+      UNIMPLEMENTED();
+    case MemoryRepresentation::Float32():
+      return kLoong64Fst_s;
+    case MemoryRepresentation::Float64():
+      return kLoong64Fst_d;
+    case MemoryRepresentation::AnyTagged():
+    case MemoryRepresentation::TaggedPointer():
+    case MemoryRepresentation::TaggedSigned():
+      return kLoong64StoreCompressTagged;
+    case MemoryRepresentation::AnyUncompressedTagged():
+    case MemoryRepresentation::UncompressedTaggedPointer():
+    case MemoryRepresentation::UncompressedTaggedSigned():
+      return kLoong64St_d;
+    case MemoryRepresentation::ProtectedPointer():
+      // We never store directly to protected pointers from generated code.
+      UNREACHABLE();
+    case MemoryRepresentation::IndirectPointer():
+      return kLoong64StoreIndirectPointer;
+    case MemoryRepresentation::SandboxedPointer():
+      return kLoong64StoreEncodeSandboxedPointer;
+    case MemoryRepresentation::Simd128():
+    case MemoryRepresentation::Simd256():
+      UNREACHABLE();
+  }
+}
+
+ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      return kLoong64Fst_s;
+    case MachineRepresentation::kFloat64:
+      return kLoong64Fst_d;
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+      return kLoong64St_b;
+    case MachineRepresentation::kWord16:
+      return kLoong64St_h;
+    case MachineRepresentation::kWord32:
+      return kLoong64St_w;
+    case MachineRepresentation::kWord64:
+      return kLoong64St_d;
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTagged:
+      return kLoong64StoreCompressTagged;
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      return kLoong64StoreCompressTagged;
+#else
+      UNREACHABLE();
+#endif
+    case MachineRepresentation::kSandboxedPointer:
+      return kLoong64StoreEncodeSandboxedPointer;
+    case MachineRepresentation::kIndirectPointer:
+      return kLoong64StoreIndirectPointer;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
+    case MachineRepresentation::kMapWord:
+    case MachineRepresentation::kNone:
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
+    case MachineRepresentation::kProtectedPointer:
+      // We never store directly to protected pointers from generated code.
+      UNREACHABLE();
+  }
+}
+}  // namespace
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
   {
     auto load = this->load_view(node);
     LoadRepresentation load_rep = load.loaded_rep();
-
     InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kFloat32:
-        opcode = kLoong64Fld_s;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kLoong64Fld_d;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kLoong64Ld_bu : kLoong64Ld_b;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kLoong64Ld_hu : kLoong64Ld_h;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = kLoong64Ld_w;
-        break;
-#ifdef V8_COMPRESS_POINTERS
-      case MachineRepresentation::kTaggedSigned:
-        opcode = kLoong64LoadDecompressTaggedSigned;
-        break;
-      case MachineRepresentation::kTaggedPointer:
-      case MachineRepresentation::kTagged:
-        opcode = kLoong64LoadDecompressTagged;
-        break;
-#else
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
-#endif
-      case MachineRepresentation::kWord64:
-        opcode = kLoong64Ld_d;
-        break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:
-#ifdef V8_COMPRESS_POINTERS
-        opcode = kLoong64Ld_wu;
-        break;
-#else
-        UNREACHABLE();
-#endif
-      case MachineRepresentation::kProtectedPointer:
-        CHECK(V8_ENABLE_SANDBOX_BOOL);
-        opcode = kLoong64LoadDecompressProtected;
-        break;
-      case MachineRepresentation::kSandboxedPointer:
-        opcode = kLoong64LoadDecodeSandboxedPointer;
-        break;
-      case MachineRepresentation::kFloat16:
-        UNIMPLEMENTED();
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kIndirectPointer:  // Fall through.
-      case MachineRepresentation::kNone:     // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
-      case MachineRepresentation::kSimd256:
-        UNREACHABLE();
+
+    if constexpr (Adapter::IsTurboshaft) {
+      opcode = GetLoadOpcode(load.ts_loaded_rep(), load.ts_result_rep());
+    } else {
+      opcode = GetLoadOpcode(load_rep);
     }
 
     bool traps_on_null;
@@ -825,7 +983,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
 
   WriteBarrierKind write_barrier_kind =
       store_view.stored_rep().write_barrier_kind();
-  MachineRepresentation rep = store_view.stored_rep().representation();
+  const MachineRepresentation rep = store_view.stored_rep().representation();
 
   if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
@@ -868,112 +1026,72 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
     Emit(code, 0, nullptr, input_count, inputs);
+    return;
+  }
+
+  MachineRepresentation approx_rep = rep;
+  InstructionCode code;
+  if constexpr (Adapter::IsTurboshaft) {
+    code = GetStoreOpcode(store_view.ts_stored_rep());
   } else {
-    InstructionCode code;
-    switch (rep) {
-      case MachineRepresentation::kFloat32:
-        code = kLoong64Fst_s;
-        break;
-      case MachineRepresentation::kFloat64:
-        code = kLoong64Fst_d;
-        break;
-      case MachineRepresentation::kBit:
-      case MachineRepresentation::kWord8:
-        code = kLoong64St_b;
-        break;
-      case MachineRepresentation::kWord16:
-        code = kLoong64St_h;
-        break;
-      case MachineRepresentation::kWord32:
-        code = kLoong64St_w;
-        break;
-      case MachineRepresentation::kWord64:
-        code = kLoong64St_d;
-        break;
-      case MachineRepresentation::kTaggedSigned:
-      case MachineRepresentation::kTaggedPointer:
-      case MachineRepresentation::kTagged:
-        code = kLoong64StoreCompressTagged;
-        break;
-      case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressed:
-#ifdef V8_COMPRESS_POINTERS
-        code = kLoong64StoreCompressTagged;
-        break;
-#endif
-      case MachineRepresentation::kSandboxedPointer:
-        code = kLoong64StoreEncodeSandboxedPointer;
-        break;
-      case MachineRepresentation::kIndirectPointer:
-        code = kLoong64StoreIndirectPointer;
-        break;
-      case MachineRepresentation::kFloat16:
-        UNIMPLEMENTED();
-      case MachineRepresentation::kMapWord:
-      case MachineRepresentation::kNone:
-      case MachineRepresentation::kSimd128:
-      case MachineRepresentation::kSimd256:
-      // We never store directly to protected pointers from generated code.
-      case MachineRepresentation::kProtectedPointer:
-        UNREACHABLE();
-    }
+    code = GetStoreOpcode(approx_rep);
+  }
 
-    base::Optional<ExternalReference> external_base;
-    if constexpr (Adapter::IsTurboshaft) {
-      ExternalReference value;
-      if (this->MatchExternalConstant(base, &value)) {
-        external_base = value;
-      }
-    } else {
-      ExternalReferenceMatcher m(base);
-      if (m.HasResolvedValue()) {
-        external_base = m.ResolvedValue();
-      }
+  base::Optional<ExternalReference> external_base;
+  if constexpr (Adapter::IsTurboshaft) {
+    ExternalReference value;
+    if (this->MatchExternalConstant(base, &value)) {
+      external_base = value;
     }
+  } else {
+    ExternalReferenceMatcher m(base);
+    if (m.HasResolvedValue()) {
+      external_base = m.ResolvedValue();
+    }
+  }
 
-    base::Optional<int64_t> constant_index;
-    if (this->valid(store_view.index())) {
-      node_t index = this->value(store_view.index());
-      constant_index = g.GetOptionalIntegerConstant(index);
-    }
-    if (external_base.has_value() && constant_index.has_value() &&
-        CanAddressRelativeToRootsRegister(*external_base)) {
-      ptrdiff_t const delta =
-          *constant_index +
-          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-              isolate(), *external_base);
-      // Check that the delta is a 32-bit integer due to the limitations of
-      // immediate operands.
-      if (is_int32(delta)) {
-        Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
-             g.UseImmediate(static_cast<int32_t>(delta)),
-             g.UseRegisterOrImmediateZero(value));
-        return;
-      }
-    }
-
-    if (this->is_load_root_register(base)) {
-      // This will only work if {index} is a constant.
+  base::Optional<int64_t> constant_index;
+  if (this->valid(store_view.index())) {
+    node_t index = this->value(store_view.index());
+    constant_index = g.GetOptionalIntegerConstant(index);
+  }
+  if (external_base.has_value() && constant_index.has_value() &&
+      CanAddressRelativeToRootsRegister(*external_base)) {
+    ptrdiff_t const delta =
+        *constant_index +
+        MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+            isolate(), *external_base);
+    // Check that the delta is a 32-bit integer due to the limitations of
+    // immediate operands.
+    if (is_int32(delta)) {
       Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
-           g.UseImmediate(index), g.UseRegisterOrImmediateZero(value));
+           g.UseImmediate(static_cast<int32_t>(delta)),
+           g.UseRegisterOrImmediateZero(value));
       return;
     }
+  }
 
-    if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    } else if (store_view.access_kind() == MemoryAccessKind::kProtected) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    }
+  if (this->is_load_root_register(base)) {
+    // This will only work if {index} is a constant.
+    Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
+         g.UseImmediate(index), g.UseRegisterOrImmediateZero(value));
+    return;
+  }
 
-    if (g.CanBeImmediate(index, code)) {
-      Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-           g.UseRegister(base), g.UseImmediate(index),
-           g.UseRegisterOrImmediateZero(value));
-    } else {
-      Emit(code | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
-           g.UseRegister(base), g.UseRegister(index),
-           g.UseRegisterOrImmediateZero(value));
-    }
+  if (store_view.is_store_trap_on_null()) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+  } else if (store_view.access_kind() == MemoryAccessKind::kProtected) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+
+  if (g.CanBeImmediate(index, code)) {
+    Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index),
+         g.UseRegisterOrImmediateZero(value));
+  } else {
+    Emit(code | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
+         g.UseRegister(base), g.UseRegister(index),
+         g.UseRegisterOrImmediateZero(value));
   }
 }
 
