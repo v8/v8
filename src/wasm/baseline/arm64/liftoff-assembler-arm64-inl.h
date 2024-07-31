@@ -3833,22 +3833,39 @@ bool LiftoffAssembler::emit_f16x8_nearest_int(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcmeq(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcmeq(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
+  Mvn(dst.fp().V8H(), dst.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_lt(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcmgt(dst.fp().V8H(), rhs.fp().V8H(), lhs.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_le(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcmge(dst.fp().V8H(), rhs.fp().V8H(), lhs.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3949,37 +3966,73 @@ bool LiftoffAssembler::emit_f16x8_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 bool LiftoffAssembler::emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcvtzs(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_i16x8_uconvert_f16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcvtzu(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Scvtf(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Ucvtf(dst.fp().V8H(), src.fp().V8H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_demote_f32x4_zero(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcvtn(dst.fp().V4H(), src.fp().V4S());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_demote_f64x2_zero(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  // There is no vector f64 -> f16 conversion instruction,
+  // so convert them by component using scalar version.
+  // Convert high double to a temp reg first, because dst and src
+  // can overlap.
+  Mov(fp_scratch.D(), src.fp().V2D(), 1);
+  Fcvt(fp_scratch.H(), fp_scratch.D());
+
+  Fcvt(dst.fp().H(), src.fp().D());
+  Mov(dst.fp().V8H(), 1, fp_scratch.V8H(), 0);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  Fcvtl(dst.fp().V4S(), src.fp().V4H());
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
