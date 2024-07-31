@@ -1612,10 +1612,12 @@
 
 ##############################################################################
 ['pointer_compression and not pointer_compression_shared_cage', {
-
-  # The test requires shared heap but it is not shared in the multi cage mode.
-  'turboshaft/maglev-frontend/*': [SKIP],
-
+  # These tests require shared heap between all isolates
+  # but in the multi cage mode heap is shared only inside one cage
+  # (isolate group) while tests create one cage per isolate.
+  'shared-memory/*': [SKIP],
+  'regress/regress-v8-13181': [SKIP],
+  'regress/regress-v8-14662': [SKIP],
 }],  # pointer_compression and not pointer_compression_shared_cage'
 
 ##############################################################################
