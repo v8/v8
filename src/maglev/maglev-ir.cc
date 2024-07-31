@@ -3353,13 +3353,10 @@ void CheckDetectableCallable::GenerateCode(MaglevAssembler* masm,
 
 void CheckNotHole::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineSameAsFirst(this);
 }
 void CheckNotHole::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  DCHECK_EQ(ToRegister(object_input()), ToRegister(result()));
-  Register reg = ToRegister(object_input());
-  __ CompareRoot(reg, RootIndex::kTheHoleValue);
+  __ CompareRoot(ToRegister(object_input()), RootIndex::kTheHoleValue);
   __ EmitEagerDeoptIf(kEqual, DeoptimizeReason::kHole, this);
 }
 

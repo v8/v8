@@ -2103,6 +2103,9 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
   ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
 
+  ValueNode* BuildConvertHoleToUndefined(ValueNode* node);
+  ReduceResult BuildCheckNotHole(ValueNode* node);
+
   // Checks whether we're invalidating the constness of a const tracking let
   // variable, and if yes, deopts.
   void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,

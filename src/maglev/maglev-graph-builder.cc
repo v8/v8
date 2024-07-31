@@ -5223,7 +5223,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   ValueNode* length = is_jsarray ? GetInt32(BuildLoadJSArrayLength(object))
                                  : BuildLoadFixedArrayLength(elements_array);
 
-  auto emit_load = [&] {
+  auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
       if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode)) {
@@ -5240,9 +5240,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
       result = BuildLoadFixedArrayElement(elements_array, index);
       if (IsHoleyElementsKind(elements_kind)) {
         if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode)) {
-          result = AddNewNode<ConvertHoleToUndefined>({result});
+          result = BuildConvertHoleToUndefined(result);
         } else {
-          result = AddNewNode<CheckNotHole>({result});
+          RETURN_IF_ABORT(BuildCheckNotHole(result));
           if (IsSmiElementsKind(elements_kind)) {
             EnsureType(result, NodeType::kSmi);
           }
@@ -5258,7 +5258,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     ValueNode* positive_index;
     GET_VALUE_OR_ABORT(positive_index, GetUint32ElementIndex(index));
     ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>({length});
-    return Select(
+    return SelectReduction(
         [&](auto& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
@@ -8972,6 +8972,28 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     }
   }
   SetKnownValue(node, ref, NodeType::kNumber);
+  return ReduceResult::Done();
+}
+
+ValueNode* MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
+  if (!node->is_tagged()) return node;
+  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  if (maybe_constant) {
+    return maybe_constant.value().IsTheHole()
+               ? GetRootConstant(RootIndex::kUndefinedValue)
+               : node;
+  }
+  return AddNewNode<ConvertHoleToUndefined>({node});
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckNotHole(ValueNode* node) {
+  if (!node->is_tagged()) return ReduceResult::Done();
+  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  if (maybe_constant) {
+    return maybe_constant.value().IsTheHole() ? ReduceResult::Done()
+                                              : ReduceResult::DoneWithAbort();
+  }
+  AddNewNode<CheckNotHole>({node});
   return ReduceResult::Done();
 }
 

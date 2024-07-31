@@ -166,7 +166,6 @@ class ExceptionHandlerInfo;
   V(Construct)                                      \
   V(CheckConstructResult)                           \
   V(CheckDerivedConstructResult)                    \
-  V(CheckNotHole)                                   \
   V(ConstructWithSpread)                            \
   V(ConvertReceiver)                                \
   V(ConvertHoleToUndefined)                         \
@@ -306,6 +305,7 @@ class ExceptionHandlerInfo;
   V(CheckMaps)                                \
   V(CheckMapsWithMigration)                   \
   V(CheckDetectableCallable)                  \
+  V(CheckNotHole)                             \
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
@@ -9124,8 +9124,8 @@ class CheckDerivedConstructResult
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class CheckNotHole : public FixedInputValueNodeT<1, CheckNotHole> {
-  using Base = FixedInputValueNodeT<1, CheckNotHole>;
+class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
+  using Base = FixedInputNodeT<1, CheckNotHole>;
 
  public:
   explicit CheckNotHole(uint64_t bitfield) : Base(bitfield) {}
