@@ -3874,10 +3874,8 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
 
   if (MaybeCanCloneObjectForObjectAssign(source, source_map, target, isolate)) {
     CHECK(target->map()->OnlyHasSimpleProperties());
-
     Maybe<bool> res = JSReceiver::SetOrCopyDataProperties(
         isolate, target, source, PropertiesEnumerationMode::kEnumerationOrder);
-    CHECK(target->map()->OnlyHasSimpleProperties());
     DCHECK(res.FromJust());
     USE(res);
     Handle<Map> clone_target_map = handle(target->map(), isolate);
@@ -3886,6 +3884,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
     }
     if (CanFastCloneObjectToObjectLiteral(source_map, clone_target_map,
                                           target_map, false, isolate)) {
+      CHECK(target->map()->OnlyHasSimpleProperties());
       UpdateCache(clone_target_map);
     } else {
       UpdateCacheNotClonable();
