@@ -7088,15 +7088,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64) {
-        if (static_cast<bool>(alignment_check) && align_mask != 0 &&
-            ((offset & align_mask) != 0)) {
-          // The index will be set to max_memory_size, and it is certainly
-          // aligned; if offset is unaligned we need to directly trap because we
-          // might cause a spurious unaligned access and a DCHECK failure if we
-          // are running in the simulator.
-          __ TrapIf(__ Word32Constant(1), TrapId::kTrapMemOutOfBounds);
-        }
-
         V<Word32> cond = __ __ Uint64LessThan(
             V<Word64>::Cast(converted_index),
             __ Word64Constant(memory->GetMemory64GuardsSize()));

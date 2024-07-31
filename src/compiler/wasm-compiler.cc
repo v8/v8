@@ -3662,15 +3662,6 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   if (bounds_checks == wasm::kTrapHandler &&
       enforce_check == EnforceBoundsCheck::kCanOmitBoundsCheck) {
     if (memory->is_memory64) {
-      if (static_cast<bool>(alignment_check) && align_mask != 0 &&
-          ((offset & align_mask) != 0)) {
-        // The index will be set to max_memory_size, and it is certainly
-        // aligned; if offset is unaligned we need to directly trap because we
-        // might cause a spurious unaligned access and a DCHECK failure if we
-        // are running in the simulator.
-        TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
-      }
-
       Node* cond = gasm_->Uint64LessThan(
           converted_index, Int64Constant(memory->GetMemory64GuardsSize()));
       TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
