@@ -1228,7 +1228,9 @@ static void VisitGeneralStore(
       case MemoryRepresentation::Simd128(): {
         opcode = kS390_StoreSimd128;
         const Operation& reverse_op = selector->Get(value);
-        if (reverse_op.Is<Opmask::kSimd128ReverseBytes>()) {
+        // TODO(miladfarca): Rename this to `Opmask::kSimd128ReverseBytes` once
+        // Turboshaft naming is decoupled from Turbofan naming.
+        if (reverse_op.Is<Opmask::kSimd128Simd128ReverseBytes>()) {
           opcode = kS390_StoreReverseSimd128;
           value = selector->input_at(value, 0);
         }
