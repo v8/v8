@@ -3772,9 +3772,9 @@ namespace {
 
 class KnownMapsMerger {
  public:
-  explicit KnownMapsMerger(compiler::JSHeapBroker* broker,
+  explicit KnownMapsMerger(compiler::JSHeapBroker* broker, Zone* zone,
                            base::Vector<const compiler::MapRef> requested_maps)
-      : broker_(broker), requested_maps_(requested_maps) {}
+      : broker_(broker), zone_(zone), requested_maps_(requested_maps) {}
 
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
@@ -3866,6 +3866,7 @@ class KnownMapsMerger {
 
  private:
   compiler::JSHeapBroker* broker_;
+  Zone* zone_;
   base::Vector<const compiler::MapRef> requested_maps_;
   compiler::ZoneRefSet<Map> intersect_set_;
   bool known_maps_are_subset_of_requested_maps_ = true;
@@ -3874,7 +3875,7 @@ class KnownMapsMerger {
   bool any_map_is_unstable_ = false;
   NodeType node_type_ = static_cast<NodeType>(-1);
 
-  Zone* zone() const { return broker_->zone(); }
+  Zone* zone() const { return zone_; }
 
   void InsertMap(compiler::MapRef map) {
     if (map.is_migration_target()) {
@@ -3920,7 +3921,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
 
   // Calculates if known maps are a subset of maps, their map intersection and
   // whether we should emit check with migration.
-  KnownMapsMerger merger(broker(), maps);
+  KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
 
   // If the known maps are the subset of the maps to check, we are done.
@@ -4000,7 +4001,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   GetOrCreateInfoFor(heap_object);
-  KnownMapsMerger merger(broker(), maps);
+  KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
 
   if (merger.intersect_set().is_empty()) {
@@ -4817,7 +4818,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   } else {
     // TODO(leszeks): This is doing duplicate work with BuildCheckMaps,
     // consider passing the merger into there.
-    KnownMapsMerger merger(broker(), base::VectorOf(feedback.maps()));
+    KnownMapsMerger merger(broker(), zone(), base::VectorOf(feedback.maps()));
     merger.IntersectWithKnownNodeAspects(lookup_start_object,
                                          known_node_aspects());
     inferred_maps = merger.intersect_set();
@@ -5694,7 +5695,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
       if (map.IsHeapNumberMap()) {
         GetOrCreateInfoFor(lookup_start_object);
         base::SmallVector<compiler::MapRef, 1> known_maps = {map};
-        KnownMapsMerger merger(broker(), base::VectorOf(known_maps));
+        KnownMapsMerger merger(broker(), zone(), base::VectorOf(known_maps));
         merger.IntersectWithKnownNodeAspects(lookup_start_object,
                                              known_node_aspects());
         if (!merger.intersect_set().is_empty()) {

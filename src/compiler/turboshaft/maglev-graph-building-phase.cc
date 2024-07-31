@@ -1742,7 +1742,8 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     CheckMaps(Map(node->receiver_input()), frame_state,
-              node->eager_deopt_info()->feedback_to_update(), node->maps(),
+              node->eager_deopt_info()->feedback_to_update(),
+              node->maps().Clone(graph_zone()),
               node->check_type() == maglev::CheckType::kCheckHeapObject,
               /* try_migrate */ false);
     return maglev::ProcessResult::kContinue;
@@ -1751,7 +1752,8 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     CheckMaps(Map(node->receiver_input()), frame_state,
-              node->eager_deopt_info()->feedback_to_update(), node->maps(),
+              node->eager_deopt_info()->feedback_to_update(),
+              node->maps().Clone(graph_zone()),
               node->check_type() == maglev::CheckType::kCheckHeapObject,
               /* try_migrate */ true);
     return maglev::ProcessResult::kContinue;
