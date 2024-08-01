@@ -1655,6 +1655,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
                             "enable deopts in optimized wasm functions")
+// Deopt only works in combination with feedback.
+DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 // Deopt support for wasm is not implemented for Turbofan.
 DEFINE_IMPLICATION(wasm_deopt, turboshaft_wasm)
 

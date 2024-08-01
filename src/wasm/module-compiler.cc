@@ -4192,9 +4192,13 @@ void CompilationStateImpl::OnFinishedUnits(
       // NativeModule::allocation_mutex_ first and then
       // CompilationStateImpl::callbacks_mutex_!
       const bool is_liftoff = code->tier() == ExecutionTier::kLiftoff;
+      auto published_code_is_liftoff = [this](int index) {
+        WasmCode* code = native_module_->GetCode(index);
+        if (code == nullptr) return false;
+        return code->is_liftoff();
+      };
       if (v8_flags.wasm_deopt &&
-          (is_liftoff ||
-           native_module_->GetCode(code->index())->is_liftoff())) {
+          (is_liftoff || published_code_is_liftoff(code->index()))) {
         compilation_progress_[slot_index] = ReachedTierField::update(
             compilation_progress_[slot_index], ExecutionTier::kLiftoff);
         compilation_unit_queues_.AllowAnotherTopTierJob(code->index());

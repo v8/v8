@@ -538,7 +538,8 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
-    DCHECK(info()->has_bytecode_array());
+    DCHECK(info()->has_bytecode_array() ||
+           info()->code_kind() == CodeKind::WASM_FUNCTION);
   }
 
   MaybeHandle<Code> maybe_code = builder.TryBuild();

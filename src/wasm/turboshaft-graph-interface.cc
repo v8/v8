@@ -8229,6 +8229,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     inlinee_decoder.interface().set_inlining_id(
         static_cast<uint8_t>(inlining_positions_->size() - 1));
     inlinee_decoder.interface().set_parent_position(call_position);
+    // Explicitly disable deopts if it has already been disabled for this
+    // function.
+    if (!deopts_enabled_) {
+      inlinee_decoder.interface().disable_deopts();
+    }
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
         inlinee_decoder.interface().set_inlining_decisions(
@@ -8414,6 +8419,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void set_no_liftoff_inlining_budget(int no_liftoff_inlining_budget) {
     no_liftoff_inlining_budget_ = no_liftoff_inlining_budget;
   }
+
+  void disable_deopts() { deopts_enabled_ = false; }
 
   V<WasmTrustedInstanceData> trusted_instance_data(bool element_is_shared) {
     DCHECK_IMPLIES(shared_, element_is_shared);
