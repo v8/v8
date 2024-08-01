@@ -1162,6 +1162,7 @@ class MaglevGraphBuilder {
                                 ValueNode* value);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
+  void EscapeContext();
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
   void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,

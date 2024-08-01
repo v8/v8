@@ -153,6 +153,13 @@ void MaglevGraphBuilder::MinimizeContextChainDepth(ValueNode** context,
   }
 }
 
+void MaglevGraphBuilder::EscapeContext() {
+  ValueNode* context = GetContext();
+  if (InlinedAllocation* alloc = context->TryCast<InlinedAllocation>()) {
+    alloc->ForceEscaping();
+  }
+}
+
 class CallArguments {
  public:
   enum Mode {
@@ -3477,8 +3484,7 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   ValueNode* value = GetAccumulator();
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
   uint32_t flags = GetFlag8Operand(1);
-  // TODO(victorgomes): StaLookupSlotFunction will escape the current GetContext
-  // if contexts VOs are allowed to be modified.
+  EscapeContext();
   SetAccumulator(
       BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}).value());
 }
@@ -4121,9 +4127,14 @@ void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
   DCHECK_IMPLIES(value_is_trusted,
                  value->value_representation() == ValueRepresentation::kIntPtr);
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
-    auto deps = graph()->allocations().find(object);
-    CHECK(deps != graph()->allocations().end());
-    deps->second.push_back(inlined_value);
+    // Add to the escape set.
+    auto escape_deps = graph()->allocations_escape_map().find(object);
+    CHECK(escape_deps != graph()->allocations_escape_map().end());
+    escape_deps->second.push_back(inlined_value);
+    // Add to the elided set.
+    auto& elided_map = graph()->allocations_elide_map();
+    auto elided_deps = elided_map.try_emplace(inlined_value, zone()).first;
+    elided_deps->second.push_back(object);
     inlined_value->AddNonEscapingUses();
   }
   if (value_is_trusted) {
@@ -4136,24 +4147,54 @@ void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
   }
 }
 
+namespace {
+bool IsEscaping(Graph* graph, InlinedAllocation* alloc) {
+  if (alloc->IsEscaping()) return true;
+  auto it = graph->allocations_elide_map().find(alloc);
+  if (it == graph->allocations_elide_map().end()) return false;
+  for (InlinedAllocation* inner_alloc : it->second) {
+    if (IsEscaping(graph, inner_alloc)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool VerifyIsNotEscaping(VirtualObject::List vos, InlinedAllocation* alloc) {
+  for (VirtualObject* vo : vos) {
+    if (vo->type() != VirtualObject::kDefault) continue;
+    if (vo->allocation() == alloc) continue;
+    for (uint32_t i = 0; i < vo->slot_count(); i++) {
+      ValueNode* nested_value = vo->get_by_index(i);
+      if (!nested_value->Is<InlinedAllocation>()) continue;
+      ValueNode* nested_alloc = nested_value->Cast<InlinedAllocation>();
+      if (nested_alloc == alloc) {
+        if (vo->allocation()->IsEscaping()) return false;
+        if (!VerifyIsNotEscaping(vos, vo->allocation())) return false;
+      }
+    }
+  }
+  return true;
+}
+}  // namespace
+
 bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
                                                int offset) {
   DCHECK(!receiver->Is<VirtualObject>());
   if (!v8_flags.maglev_object_tracking) return false;
   if (offset == HeapObject::kMapOffset) return false;
+  if (!receiver->Is<InlinedAllocation>()) return false;
+  InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
+  // TODO(victorgomes): Support double fixed array.
+  if (alloc->object()->type() != VirtualObject::kDefault) return false;
+  if (IsEscaping(graph_, alloc)) return false;
   // We don't support loop phis inside VirtualObjects, so any access inside a
   // loop should escape the object.
   if (IsInsideLoop()) return false;
-  if (InlinedAllocation* alloc = receiver->TryCast<InlinedAllocation>()) {
-    if (alloc->IsEscaping()) return false;
-    // TODO(victorgomes): Support modifying contexts. Currently
-    // StaLookupSlotFunction can implicitly modify the active context.
-    if (alloc->object()->map().IsContextMap()) return false;
-    // TODO(victorgomes): Support double fixed array.
-    if (alloc->object()->type() != VirtualObject::kDefault) return false;
-    return true;
-  }
-  return false;
+  // Iterate all live objects to be sure that the allocation is not escaping.
+  SLOW_DCHECK(
+      VerifyIsNotEscaping(current_interpreter_frame_.virtual_objects(), alloc));
+  return true;
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
@@ -11250,7 +11291,7 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   DCHECK_GE(current_size, 0);
   InlinedAllocation* allocation =
       AddNewNode<InlinedAllocation>({current_allocation_block_}, vobject);
-  graph()->allocations().emplace(allocation, zone());
+  graph()->allocations_escape_map().emplace(allocation, zone());
   current_allocation_block_->Add(allocation);
   vobject->set_allocation(allocation);
   return allocation;

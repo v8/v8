@@ -39,7 +39,8 @@ class Graph final : public ZoneObject {
         float_(zone),
         external_references_(zone),
         parameters_(zone),
-        allocations_(zone),
+        allocations_escape_map_(zone),
+        allocations_elide_map_(zone),
         register_inputs_(),
         constants_(zone),
         trusted_constants_(zone),
@@ -107,10 +108,19 @@ class Graph final : public ZoneObject {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
-  using AllocationDependencies = SmallZoneVector<InlinedAllocation*, 2>;
-  ZoneMap<InlinedAllocation*, AllocationDependencies>& allocations() {
-    return allocations_;
+  using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
+
+  // If the key K of the map escape, all the set allocations_escape_map[K] must
+  // also escape.
+  ZoneMap<InlinedAllocation*, SmallAllocationVector>& allocations_escape_map() {
+    return allocations_escape_map_;
+  }
+  // The K of the map can be elided if it hasn't escaped and all the set
+  // allocations_elide_map[K] can also be elided.
+  ZoneMap<InlinedAllocation*, SmallAllocationVector>& allocations_elide_map() {
+    return allocations_elide_map_;
   }
 
   RegList& register_inputs() { return register_inputs_; }
@@ -216,7 +226,8 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
-  ZoneMap<InlinedAllocation*, AllocationDependencies> allocations_;
+  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
+  ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>
